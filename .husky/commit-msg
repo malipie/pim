@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# PIM commit-msg gate — enforces Conventional Commits per CLAUDE.md.
+# Format: <type>(<scope>): <subject>
+# Types: feat, fix, chore, docs, refactor, test, ci, build, perf, style
+
+pnpm exec commitlint --edit "$1"

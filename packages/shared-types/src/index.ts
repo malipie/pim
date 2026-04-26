@@ -1,9 +1,10 @@
-// Re-export auto-generated OpenAPI types once `pnpm --filter @pim/shared-types generate` is run.
-// File `api.d.ts` is produced from http://pim.localhost/api/docs.json by openapi-typescript.
-// Until first generation, this re-export will fail to typecheck — that is intended; types come
-// online once the API is up. CI generates types as part of the build pipeline.
+// Re-exports populated after `pnpm --filter @pim/shared-types generate`
+// (uses openapi-typescript on http://pim.localhost/api/docs.jsonld).
+//
+// Until the first generation this file is intentionally empty so that
+// `tsc --noEmit` passes in CI without a generated artifact in the repo.
+//
+// After generation, replace with:
+//   export type * from './api';
 
-// eslint-disable-next-line @typescript-eslint/triple-slash-reference
-/// <reference path="./api.d.ts" />
-
-export type * from './api'
+export {};

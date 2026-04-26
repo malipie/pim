@@ -37,6 +37,7 @@
     "config": {
         "allow-plugins": {
             "php-http/discovery": true,
+            "phpstan/extension-installer": true,
             "symfony/flex": true,
             "symfony/runtime": true
         },
@@ -73,7 +74,14 @@
         ],
         "post-update-cmd": [
             "@auto-scripts"
-        ]
+        ],
+        "lint": [
+            "@phpstan",
+            "@cs-check"
+        ],
+        "phpstan": "phpstan analyse --memory-limit=512M --no-progress",
+        "cs-check": "php-cs-fixer fix --dry-run --diff --using-cache=no",
+        "cs-fix": "php-cs-fixer fix --using-cache=no"
     },
     "conflict": {
         "symfony/symfony": "*"
@@ -83,5 +91,13 @@
             "allow-contrib": false,
             "require": "7.4.*"
         }
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.65",
+        "phpstan/extension-installer": "^1",
+        "phpstan/phpstan": "^2",
+        "phpstan/phpstan-doctrine": "^2",
+        "phpstan/phpstan-strict-rules": "^2",
+        "phpstan/phpstan-symfony": "^2"
     }
 }

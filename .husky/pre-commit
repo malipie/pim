@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# PIM pre-commit gate — runs lint-staged on staged files.
+# See package.json `lint-staged` for per-extension rules.
+
+pnpm exec lint-staged
