@@ -1,0 +1,3 @@
+# FrankenPHP worker mode hint file (referenced by FRANKENPHP_CONFIG).
+# Worker is configured in the main Caddyfile via the global `frankenphp { worker ... }` block.
+# This file is reserved for future per-worker tuning (num workers, restart_after, watch).

@@ -1,0 +1,212 @@
+# PIM stack — single-origin via the `caddy` edge service. See docker/caddy/Caddyfile.
+#
+# `pnpm dev` (root package.json) starts the frontend through Turborepo; this stack
+# brings up everything PHP / data / search / mail / auto-cert via `pnpm stack:up`.
+#
+# Architectural decisions:
+# - FrankenPHP worker mode (Sprint 0 ticket 0.0.13 benchmark validates EntityManager::clear pattern).
+# - No CORS bundle. Single-origin enforced at edge (lessons.md "Sieć / dev environment").
+# - All long-lived data lives in named volumes. .docker/data/ bind mounts are kept out
+#   of the synced Synology folder by the .gitignore rule.
+
+name: pim
+
+x-default-restart: &default_restart
+  restart: unless-stopped
+
+services:
+  # ─── Edge: terminates TLS + routes single-origin traffic ──────────────────
+  caddy:
+    image: caddy:2-alpine
+    <<: *default_restart
+    depends_on:
+      api:
+        condition: service_healthy
+      admin:
+        condition: service_started
+      mercure:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/api"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  # ─── Symfony / API Platform / FrankenPHP worker mode ──────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    <<: *default_restart
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      APP_SECRET: ${APP_SECRET:-ChangeMeBeforeDeploy}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      MESSENGER_TRANSPORT_DSN: redis://redis:6379/messages
+      MERCURE_URL: http://mercure/.well-known/mercure
+      MERCURE_PUBLIC_URL: https://pim.localhost/.well-known/mercure
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeMercureKey!}
+      MEILI_URL: http://meilisearch:7700
+      MEILI_KEY: ${MEILI_MASTER_KEY:-masterKeyPleaseChangeMe}
+      TRUSTED_PROXIES: 127.0.0.1,REMOTE_ADDR
+      TRUSTED_HOSTS: '^pim\.localhost$$|^localhost$$|^api$$'
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/api"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 60s
+
+  # ─── Frontend admin (Vite dev server) ─────────────────────────────────────
+  admin:
+    image: node:22-alpine
+    <<: *default_restart
+    working_dir: /workspace/apps/admin
+    command: sh -c "corepack enable && corepack prepare pnpm@10.33.2 --activate && pnpm install --frozen-lockfile=false && pnpm dev"
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./:/workspace
+      - admin_node_modules:/workspace/node_modules
+      - admin_app_node_modules:/workspace/apps/admin/node_modules
+    expose:
+      - "5173"
+
+  # ─── PostgreSQL 16 ────────────────────────────────────────────────────────
+  database:
+    image: postgres:16-alpine
+    <<: *default_restart
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  # ─── Redis 7 (Symfony Messenger transport + cache) ────────────────────────
+  redis:
+    image: redis:7-alpine
+    <<: *default_restart
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ─── Meilisearch (search) ─────────────────────────────────────────────────
+  meilisearch:
+    image: getmeili/meilisearch:v1.13
+    <<: *default_restart
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-masterKeyPleaseChangeMe}
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_ENV: development
+    volumes:
+      - meilisearch_data:/meili_data
+    expose:
+      - "7700"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ─── MinIO (S3-compatible object storage for assets, backups) ─────────────
+  minio:
+    image: minio/minio:latest
+    <<: *default_restart
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    expose:
+      - "9000"
+      - "9001"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Initialise required buckets the first time the stack comes up.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
+      mc mb -p local/pim-assets || true;
+      mc mb -p local/pim-backups || true;
+      mc anonymous set download local/pim-assets || true;
+      "
+    restart: "no"
+
+  # ─── Mercure (SSE hub) ────────────────────────────────────────────────────
+  mercure:
+    image: dunglas/mercure:latest
+    <<: *default_restart
+    environment:
+      SERVER_NAME: ":80"
+      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeMercureKey!}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeMercureKey!}
+      MERCURE_EXTRA_DIRECTIVES: |
+        cors_origins https://pim.localhost https://localhost
+        anonymous
+    expose:
+      - "80"
+    volumes:
+      - mercure_data:/data
+      - mercure_config:/config
+
+  # ─── Mailpit (dev mail catcher) ───────────────────────────────────────────
+  mailpit:
+    image: axllent/mailpit:latest
+    <<: *default_restart
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    expose:
+      - "1025"
+      - "8025"
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  redis_data:
+  meilisearch_data:
+  minio_data:
+  mercure_data:
+  mercure_config:
+  admin_node_modules:
+  admin_app_node_modules:
