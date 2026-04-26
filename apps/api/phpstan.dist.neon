@@ -1,0 +1,48 @@
+# PIM API — PHPStan configuration.
+#
+# Level: max (= 10) per CLAUDE.md "Definicja Done" — automation-first quality gate.
+# Extensions auto-loaded via phpstan/extension-installer:
+#   - phpstan-symfony  (container, console, validators)
+#   - phpstan-doctrine (entity manager, query builder typing)
+#   - phpstan-strict-rules (boolean coercion, defensive comparisons)
+#
+# Custom rules (custom PHPStan rule blokująca flush() w pętli bez clear()) dochodzą
+# w momencie pierwszego batch handler'a — sekcja 3.10 architektury, Sprint 0 ticket 0.0.13.
+
+parameters:
+    level: max
+
+    paths:
+        - bin
+        - public
+        - src
+        - tests
+
+    excludePaths:
+        - var/*
+        - vendor/*
+
+    # Symfony container introspection — needs the dev cache built before PHPStan runs.
+    symfony:
+        containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
+        consoleApplicationLoader: tests/console-application.php
+
+    # Doctrine integration — ObjectManager loader for query builder return types.
+    doctrine:
+        objectManagerLoader: tests/object-manager.php
+
+    # Modern strict-typed codebase — every function and method should declare types.
+    checkMissingCallableSignature: true
+    checkUninitializedProperties: true
+    treatPhpDocTypesAsCertain: true
+
+    # Allow ignored-error patterns to be unmatched as the codebase grows from skeleton.
+    reportUnmatchedIgnoredErrors: false
+
+    # Skip noisy errors that are not actionable in early-stage skeleton.
+    ignoreErrors:
+        # API Platform 4 attributes use generic `array` typing extensively.
+        - identifier: missingType.iterableValue
+          paths:
+              - src/ApiResource/*
+              - src/Entity/*

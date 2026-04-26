@@ -1,0 +1,95 @@
+name: Quality (PHP)
+
+# Runs on every PR + push to main. Branch protection on main requires this to pass.
+# See ticket #11 (0.0.11) for the full quality gates rationale.
+
+on:
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/quality-php.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/quality-php.yml"
+
+concurrency:
+  group: quality-php-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apps/api
+
+jobs:
+  phpstan:
+    name: PHPStan max
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: ctype, iconv, intl, opcache, pcntl, pdo_pgsql, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/api/vendor
+            ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Warm up cache (PHPStan needs the dev container.xml)
+        run: php bin/console cache:clear --env=dev
+        env:
+          APP_ENV: dev
+          APP_DEBUG: "1"
+          DATABASE_URL: postgresql://app:app@localhost:5432/app?serverVersion=16
+          MESSENGER_TRANSPORT_DSN: in-memory://
+          MERCURE_URL: http://localhost/.well-known/mercure
+          MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
+          MERCURE_JWT_SECRET: ci
+
+      - name: PHPStan
+        run: composer phpstan
+        env:
+          APP_ENV: dev
+
+  php-cs-fixer:
+    name: PHP-CS-Fixer (dry-run)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: ctype, iconv, intl
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/api/vendor
+            ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: PHP-CS-Fixer
+        run: composer cs-check
