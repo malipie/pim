@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Plan projektu
+    url: https://github.com/malipie/PIM/blob/main/Project%20Plan/02-plan-projektu-pim.md
+    about: Backlog MVP, epiki 0.1-0.11, milestones
+  - name: Architektura
+    url: https://github.com/malipie/PIM/blob/main/Project%20Plan/01-architektura-pim.md
+    about: ADR-y, decyzje techniczne, sekcje referencyjne
