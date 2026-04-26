@@ -109,7 +109,16 @@
 - **Mercure hub i MinIO server na AGPL v3** → osobne demony, nie linkowane do kodu app → bezpieczne dla white-label. Nie używaj jako library.
 - **Doctrine 3.x + Symfony 7.4** — drobne breaking changes względem 2.x w lifecycle events. Sprawdź `EventSubscriberInterface` patterns przy każdej migracji listener'a.
 - **`scheb/2fa-bundle`** — wymaga wpięcia w security firewall **przed** głównym authenticator'em, kolejność w `security.yaml` ma znaczenie.
-- **Meilisearch** — facetable attributes muszą być zadeklarowane explicitly w settings indeksu, inaczej facets zwracają empty bez błędu (cicha pułapka).
+- **Meilisearch** — facetable attributes muszą być zadeklarowane explicitly w settings indeksu, inaczej facets zwracają empty bez błędu (cicha pułapka). Healthcheck w docker-compose: użyj `curl http://localhost:7700/health`, nie `wget` (image v1.13 ma wgeta ale nie łączy się przez `localhost`, prawdopodobnie IPv6 dual-stack mismatch).
+- **`api-platform/api-platform` na Packagist to archiwalny skeleton z 2018** (Symfony 3.4, Behat, nelmio/cors-bundle). Dla nowych projektów użyj `composer create-project symfony/skeleton apps/api 7.4.*` + `composer require api-platform/symfony:^4 api-platform/doctrine-orm:^4`. (Odkryte w 0.0.1.)
+- **API Platform 4 nie obsługuje formatu `json` na `/api/docs`** — dostępne są `.jsonld` (Hydra), `.html` (Swagger UI). Dla healthchecków używaj `/api` (entrypoint, zawsze 200 z JSON-LD). (Odkryte w 0.0.1.)
+- **Symfony Flex `composer require` z mieszanymi constraintami `^7.4` + recipes** — czasem wpisuje `^8.0` w composer.json gdy najnowszy stable tag to 8.x, ale lock fixuje 7.4.x → conflict przy następnym `composer remove`. Bezpieczniejszy bootstrap: ręcznie spisany `composer.json` z `7.4.*` na wszystkich `symfony/*`, potem `composer install`. (Odkryte w 0.0.1.)
+
+## Toolchain quirks (host-side)
+
+- **pnpm via `npm install -g pnpm@latest`**, nie corepack — Homebrew-installed Node 25 nie ma corepack jako shim. Corepack jest w `node_modules/.bin/corepack` ale nie w PATH globally bez `corepack enable`. Najprostsze: `npm install -g pnpm@latest`.
+- **`pim.localhost` rozwiązuje się natywnie na macOS** (RFC 6761 + mDNSResponder dla `*.localhost`) — `/etc/hosts` jest niepotrzebny. Inne systemy mogą wymagać manualnego wpisu `127.0.0.1 pim.localhost`. (Odkryte w 0.0.1.)
+- **Docker Desktop / OrbStack daemon musi być uruchomiony przed bootstrap'em** — `composer create-project` przez Docker, `docker compose build`, `docker compose up` wszystkie wymagają running daemon. Operator pamięta o uruchomieniu Docker'a przed sesją.
 
 ## Decyzje świadome (do nieprzepisywania bez przyczyny)
 
