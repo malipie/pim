@@ -20,37 +20,58 @@ Icon?
 # Pre-Sprint-0 referencje (puste, niepotrzebne w repo)
 agent_sample/
 
-# Symfony / PHP (do dodania pełniej w Sprint 0 ticket 0.0.1)
-/vendor/
-/var/cache/*
-/var/log/*
-/var/sessions/*
-!.env
-.env.local
-.env.*.local
-.phpunit.cache/
-.phpunit.result.cache
+# Symfony / PHP
+/apps/api/vendor/
+/apps/api/var/cache/*
+/apps/api/var/log/*
+/apps/api/var/sessions/*
+/apps/api/public/bundles/
+/apps/api/public/build/
+/apps/api/.phpunit.cache/
+/apps/api/.phpunit.result.cache
+/apps/api/.php-cs-fixer.cache
+/apps/api/phpstan.cache
+/apps/api/psalm.cache
+/apps/api/config/jwt/*.pem
 
-# Node / Frontend (do dodania pełniej w Sprint 0)
+# Symfony / Node envs (root + per-app) — only .env.example is committed
+.env
+.env.local
+.env.local.php
+.env.*.local
+!.env.example
+!apps/api/.env
+!apps/api/.env.test
+
+# Node / Frontend / Turborepo
 node_modules/
+.pnpm-store/
 dist/
+build/
 .turbo/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-.next/
+.vite/
 
-# Coverage / build artifacts
+# Coverage / test artifacts
 coverage/
 .nyc_output/
+playwright-report/
+test-results/
+playwright/.cache/
 
 # Docker
 docker-compose.override.yml
 .docker/data/
 
+# Caddy local data (auto-cert)
+.caddy/
+
 # Local secrets / API keys
 *.local
 secrets/
 .anthropic_api_key
+.shopify_token

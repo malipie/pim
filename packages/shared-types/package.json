@@ -1,0 +1,20 @@
+{
+  "name": "@pim/shared-types",
+  "version": "0.0.1",
+  "private": true,
+  "description": "TypeScript types generated from API Platform OpenAPI spec — single source of truth for backend↔frontend contract.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "openapi-typescript http://pim.localhost/api/docs.json -o src/api.d.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.6.0",
+    "typescript": "~6.0.2"
+  }
+}

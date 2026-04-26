@@ -1,0 +1,36 @@
+# Internal Caddyfile for the FrankenPHP container.
+# This server is reached only by the edge Caddy (root docker-compose service `caddy`)
+# which terminates TLS and enforces the single-origin contract. Therefore this
+# server listens on plain HTTP inside the Docker network.
+#
+# It serves only the Symfony API (PHP via FrankenPHP worker) — no static frontend,
+# no CORS configuration. Single-origin is enforced by the edge Caddy.
+
+{
+    {$CADDY_GLOBAL_OPTIONS}
+
+    frankenphp {
+        worker "/app/public/index.php"
+    }
+}
+
+:80 {
+    log
+
+    root * /app/public
+
+    encode zstd br gzip
+
+    @phpFiles {
+        path *.php *.php/*
+    }
+    rewrite @phpFiles {http.request.orig_uri.path}
+
+    # FrankenPHP worker mode — every request reuses the long-lived PHP process.
+    # Doctrine identity map MUST be cleared between handler invocations
+    # (AbstractBatchHandler pattern). See agent/lessons.md "Memory management".
+    php_server {
+        try_files {path} index.php
+        resolve_root_symlink
+    }
+}

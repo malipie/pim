@@ -1,0 +1,50 @@
+# syntax=docker/dockerfile:1.7
+
+ARG PHP_VERSION=8.4
+ARG FRANKENPHP_VERSION=1
+ARG COMPOSER_VERSION=2
+
+FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php${PHP_VERSION}-alpine AS base
+
+ENV APP_ENV=dev \
+    SERVER_NAME=":80" \
+    FRANKENPHP_CONFIG="worker /app/public/index.php"
+
+WORKDIR /app
+
+# System packages required by Symfony + Doctrine + Postgres + tooling
+RUN apk add --no-cache \
+        bash \
+        curl \
+        git \
+        icu-data-full \
+        icu-libs \
+        oniguruma \
+        unzip \
+    && install-php-extensions \
+        @composer-${COMPOSER_VERSION} \
+        intl \
+        opcache \
+        pcntl \
+        pdo_pgsql \
+        zip
+
+COPY frankenphp/Caddyfile /etc/frankenphp/Caddyfile
+COPY frankenphp/php.ini /usr/local/etc/php/conf.d/app.ini
+COPY frankenphp/worker.Caddyfile /etc/frankenphp/worker.Caddyfile
+
+# Composer optimisations: cache layer for vendor before copying source
+COPY composer.json composer.lock ./
+RUN --mount=type=cache,target=/root/.composer/cache \
+    composer install --no-interaction --no-scripts --no-progress --prefer-dist
+
+COPY . .
+RUN composer dump-autoload --classmap-authoritative \
+    && composer run-script post-install-cmd --no-interaction || true
+
+EXPOSE 80
+EXPOSE 443
+EXPOSE 443/udp
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=5 \
+    CMD curl -fsS http://127.0.0.1/api -o /dev/null || exit 1

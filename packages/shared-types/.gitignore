@@ -1,0 +1,2 @@
+# Generated from OpenAPI — produced by `pnpm --filter @pim/shared-types generate`.
+src/api.d.ts
