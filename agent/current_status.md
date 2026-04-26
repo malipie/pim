@@ -11,6 +11,7 @@
 Repozytorium gotowe do startu Sprintu 0:
 - 112 issues w GitHubie z pełnymi opisami, labelami, milestone, assignee, linkami `Blocked by` w kolejności topologicznej
 - 5 milestones: Sprint 0 (#1, gate decision), MVP-Alpha (#2), MVP-Beta-Min (#3), MVP-Final (#4), MVP-Beta-Full (#5, opcjonalnie)
+- GitHub Project (v2) `PIM MVP` (https://github.com/users/malipie/projects/1) — wszystkie 112 issues podpięte, default Status field z opcjami Todo / In Progress / Done
 - Issue templates w `.github/ISSUE_TEMPLATE/`
 - 29 labels (epiki, typy pracy, priorytet, status)
 - CLAUDE.md + agent/lessons.md jako konstytucja
@@ -30,7 +31,6 @@ Repozytorium gotowe do startu Sprintu 0:
 | **Razem** | **112** | |
 
 ## Aktywne blokery
-- **GitHub Project (v2) board nie utworzony** — token `gh` nie ma scope `project,read:project`. Wymagane: `gh auth refresh -s project,read:project`. Po refreshu utworzymy `PIM MVP` board z kolumnami Backlog / Ready / In progress / Review / Done i podepniemy wszystkie 112 issues.
 - **Decyzja operacyjna:** wybór trybu wykonania Sprintu 0 — rekomendowane 1-2 tygodnie urlopu/skupienia (sekcja 7 planu, mitigacja R-26 stack drift). Bez tego ryzyko że stack złoży się w pamięci agenta i operatora w niespójną całość.
 - **Setup konta Shopify Partners** — potrzebny development store free na ticket 0.0.8 (#8) i pełen Epic 0.9.
 - **Anthropic API key** — potrzebny dla agent layer (ticket 0.0.6, #6), z org-level cap $1000/mies. ustawionym w Anthropic Console przed pierwszym call (defence in depth, R-27).
