@@ -1,0 +1,120 @@
+# Lessons Learned
+
+> Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
+
+## Patterns to Follow
+
+### Memory management (FrankenPHP worker mode)
+
+- **`AbstractBatchHandler` jako baza dla każdego Symfony Messenger handlera batch.** Po `flush()` w pętli — `$entityManager->clear()`. Bez tego worker w worker-mode w 50k SKU import zje cały RAM i zabije proces na OOM (ryzyko R-25, "Krytyczny" wpływ).
+  - Why: Doctrine Identity Map akumuluje obiekty między requestami. `clear()` to single-line różnica między działającym sync 50k SKU a OOM.
+  - How to apply: każdy nowy Messenger handler → albo dziedziczy z `AbstractBatchHandler`, albo PR review pyta "gdzie clear()".
+
+- **Bulk import/export używa Doctrine `iterate()`** zamiast `findAll()`. `clear()` co N=200 rekordów. Plus `doctrine.dbal.logging: false` w prod — logger akumuluje query history w pamięci workera.
+
+- **PHPStan custom rule blokuje `flush()` w pętli bez `clear()`.** CI gate, nie ludzkie review. Jeśli rule false-positive'uje — popraw rule, nie obejdź.
+
+- **Prometheus alert `frankenphp_worker_memory_bytes > 256MB`** — wykrywa wycieki w runtime, nie czeka na OOM.
+
+### Sieć / dev environment
+
+- **Single-origin przez Caddy w FrankenPHP — TYLKO TAK.** `pim.localhost/api/*` → Symfony, `/.well-known/mercure` → Mercure, `/*` → `vite:5173`. Nigdy `localhost:5173` + `localhost:8000` osobno.
+  - Why: dwa origins → CORS → Claude Code spędza godziny na konfigurowaniu `nelmio_cors`, naprawianiu Vite origin, znowu fail. Sekcja 3.10a architektury — świadomy wybór dla pętli pracy non-coder + LLM.
+  - How to apply: jeśli widzisz error CORS — sprawdź Caddyfile, dodaj `handle_path /api/*` lub `reverse_proxy vite:5173`. Nie dodawaj `nelmio_cors`. Nie zmieniaj `--origin` w Vite.
+
+- **HMR Vite działa przez WebSocket upgrade w Caddy.** Jedna linia w Caddyfile — Vite musi startować z `--host 0.0.0.0`.
+
+- **Topologia dev = topologia prod.** Caddy ma tylko inną domenę (`pim.example.com` vs `pim.localhost`). Brak dryfu konfiguracji.
+
+### Throttling integracji zewnętrznych
+
+- **Shopify: TYLKO Exponential Backoff w MVP, nie Leaky Bucket.** Wyślij request → na 429/`THROTTLED` czytaj `Retry-After` (fallback `2^retry_count`s, max 60s) → `sleep` → retry. Max 5 prób → DLQ.
+  - Why: Leaky Bucket z `extensions.cost.throttleStatus.currentlyAvailable` × shared state w Redis to klasa problemów na której LLM się zacina (race conditions, off-by-one). Backoff jest 5-liniowy, deterministyczny, samoreparujący się. Sekcja 7.3 architektury — świadoma redukcja złożoności, koszt sub-optymalności rate limitu = ~15-30 min więcej w nightly sync.
+  - How to apply: `Integration\Shopify\GraphQLClient` ma metodę `sendWithBackoff()`. Wszystko z Shopify przez nią. `currentlyAvailable` zapisujemy do `sync_job_logs` **pasywnie**, nie sterujemy.
+
+- **Punkt powrotu do Leaky Bucket (faza 1):** gdy `currentlyAvailable < 100` w >20% requestów (mierzone z sync_job_logs), albo full sync 50k SKU > 60 min, albo klient enterprise żąda <30 min full sync. Dopiero wtedy migracja na Bulk Operations API + Leaky Bucket.
+
+### Multi-tenancy
+
+- **`tenant_id UUID NOT NULL` w każdej tabeli domenowej od dnia 1.** Listener `TenantAssignmentListener` ustawia automatycznie na save. Filter `TenantFilter` dokleja `WHERE tenant_id = :current_tenant` do każdego query.
+  - Why: koszt overheadu w MVP <1% perf, koszt dodania post-factum 40-60h + migracje danych. Asymetria zysków uzasadnia (ADR-003).
+  - How to apply: każda nowa migracja dodająca tabelę domenową → `tenant_id UUID NOT NULL REFERENCES tenants(id)` + index na `(tenant_id, ...)`. Bez wyjątków.
+
+- **RLS aktywujemy DOPIERO przed multi-tenant w fazie 2** (sekcja 11.1a, plan 16-24h). W MVP single-tenant deployment to pierwsza linia obrony, RLS to defence in depth — niepotrzebna gdy 1 tenant.
+
+- **W Sprincie 0 obowiązkowy smoke-test izolacji** (ticket 0.0.12): 2 tenanty, próba cross-read = 0 wyników. To walidacja Doctrine filter, nie RLS.
+
+- **`COPY` (bulk insert/export) ignoruje RLS.** Gdy włączymy RLS w fazie 1 — wyłączać przed `COPY` (jako superuser), włączać po. Albo używać `INSERT ... SELECT`.
+
+### Definicja "Done" — automation-first
+
+- **Bez Playwright E2E test ticket NIE jest done.** Każda widoczna user-facing zmiana dostaje E2E test razem z kodem. Operator (non-coder) nie udaje code review LLM-kodu — automatyzacja jest jedyną realną warstwą walidacji.
+  - Why: Gemini point z review — review LLM-generated kodu przez non-codera to fikcja, która uśpi czujność. Jedyne co działa: PHPStan max + ApiTestCase + Playwright + manual smoke 5 min.
+  - How to apply: nowy ticket → najpierw szkic Playwright test scenariusza → potem implementacja → potem reszta gate'ów.
+
+- **Stack testowy = TYLKO 2 narzędzia: PHPUnit + Playwright.** Nie używaj Pest (drugi runner = niepotrzebny config), nie używaj Behat (`ApiTestCase` z API Platform pokrywa 100% przypadków integracyjnych z lepszym lock-inem do framework'u). Sekcja 2.2 planu — świadomy minimalizm.
+
+### Bezpieczeństwo agenta
+
+- **Twarde limity z sekcji 8.5 architektury są nienegocjowalne.** 50 tool calls/h/user, 10/agent_run, 100k tokens/run, 500k/dzień/user, $20/dzień/tenant, $300/mies./tenant. Po 100% — agent wyłączony do północy UTC.
+
+- **Org-level monthly cap w Anthropic Console = $1000 dla MVP-prod** — niezależny od logiki aplikacyjnej hardstop. Klucze osobne per environment (dev/staging/prod), rotacja co 90 dni.
+
+- **BYOK dla enterprise** (ticket 0.11.12). Klient enterprise podaje własny Anthropic key, szyfrowany AES-256-GCM. Mitiguje R-27 (kompromitacja klucza platformy → faktura $1000-10000).
+
+- **Anomaly detection:** wzrost tool calls/h o >5× względem 7-dniowej średniej → flag dla security review. Sygnał wycieku klucza lub abuse.
+
+### Domain modeling
+
+- **Hybrid model atrybutów: `attributes` + `product_values (value JSONB)` + denormalizowany `products.attributes_indexed JSONB` z GIN.** Dla single-edit synchroniczny listener, dla bulk path async worker `attributes-indexed-rebuild` z `EntityManager::clear()` co 1000.
+  - Why: czysty EAV jest okropny dla performance cross-attribute queries. Czysty JSONB traci scope/locale info. Hybrid daje czytelność + perf (ADR-006).
+  - How to apply: bulk handler **wyłącza** synchroniczny listener przez `BulkContext::isBulk()` — synchroniczny listener × 50k SKU = killer. Po batchu publikujemy `ProductValuesChanged(productIds: [...])` na kolejkę.
+
+- **`provenance` pole w `product_values` obowiązkowe:** `manual | import | agent | integration` + meta JSONB. UI pokazuje provenance badges. Bez tego nie wiemy kto/co zmieniło wartość.
+
+- **Generowane kolumny dla najczęściej używanych atrybutów** (Postgres `GENERATED ALWAYS AS` z JSONB) — np. `name_pl`, `sku`. Pozwalają na BTree index, szybsze niż GIN dla equality queries.
+
+### Strings i konfiguracja
+
+- **Wszystkie user-facing stringi w admin przez `t()` (react-i18next).** Żadnych literałów polskich/angielskich w komponentach React. Wszystkie label/help atrybutów jako JSONB `{"pl": ..., "en": ...}` w bazie.
+
+- **URL-e zewnętrznych API w `AppConstants` / `services.yaml`.** Żadnych literałów `https://api.shopify.com/...` w handlerach. Klucze API z env vars / Vault, nigdy w kodzie.
+
+- **OpenAPI generuje TS types przez build step** (`openapi-typescript` z `/api/docs.json` → `packages/shared-types/`). Frontend nie pisze ręcznie typów request/response — eliminuje dryf backend↔frontend.
+
+## Patterns to Avoid
+
+- **`flush()` w pętli bez `clear()`** w worker-mode → OOM gwarantowany.
+- **`Color(0xFF...)` / hardkodowany hex w komponentach React** → utrudnia theming i dark mode (jeśli dodamy w fazie 3). Wszystko przez Tailwind tokens / shadcn variants.
+- **`Navigator.push` / własne routery z państwem nawigacji** → łamią deep linking i refresh. React Router 7 wszędzie.
+- **`localhost:5173` osobno + `api.localhost:8000`** → CORS hell. Single-origin przez Caddy.
+- **Leaky Bucket dla Shopify w MVP** → zacinanie LLM. Backoff wystarczy.
+- **Mock w testach integracji uderzających w bazę** → testy mijają, prod-migracja faila. Real Postgres przez testcontainers / docker-compose test.
+- **`Bulk Operations API` Shopify w MVP** → +6-8h implementacji + 3-4× trudniejszy debug. Faza 1 jak benchmarks pokażą.
+- **Pest / Behat** → drugie narzędzie testowe = niepotrzebny config, kontekst, CI step. PHPUnit + Playwright wystarczy.
+- **`Material UI` zamiast shadcn** → custom UX patterny dla agenta walczą z framework'iem. shadcn = lokalny ownership komponentów.
+- **Custom REST kontrolery** dla rzeczy, które API Platform potrafi → 5-10× więcej kodu i utrzymania niż dodanie `#[ApiResource]`.
+- **`StateNotifier` / `StateProvider`** (przykład z innego projektu) → tu nieaplikowalne, używamy React `useState` + Refine hooks + Zustand jeśli potrzeba global state.
+- **Hive / inne lokalne persystencje na frontend** → admin jest online-only, nie potrzebujemy offline cache w MVP.
+- **Foldery zaczynające się od kropki** (`.agent/`, `.cache/`) w katalogach synchronizowanych przez Synology Drive / iCloud → mogą być cicho filtrowane przez sync provider. Używaj nazw bez kropki (`agent/`).
+
+## Package Quirks
+
+- **FrankenPHP 2.x worker API ≠ 1.x** — od dnia 1 piszemy zgodnie z 2.x, test w Sprint 0 (sekcja 3.10 architektury).
+- **API Platform 4** — konwencje filtrów, paginacji, serializacji przez grupy trzeba znać. Trochę "magic" — debug wymaga znajomości framework'u (ADR-008).
+- **Refine 5+ z React 19** — sprawdź release notes przy major bump (build_runner-equivalent dla TS to nie ma, ale OpenAPI types regeneracja).
+- **Shopify Metafields** — limit 200/produkt, 10MB/value, namespace+key max 64 znaki. Adapter waliduje przed wysłaniem (ticket 0.9.3).
+- **Shopify variant cap 100/produkt.** Dla SKU z >100 wariantami split na osobne produkty z wskazaniem na siebie.
+- **Mercure hub i MinIO server na AGPL v3** → osobne demony, nie linkowane do kodu app → bezpieczne dla white-label. Nie używaj jako library.
+- **Doctrine 3.x + Symfony 7.4** — drobne breaking changes względem 2.x w lifecycle events. Sprawdź `EventSubscriberInterface` patterns przy każdej migracji listener'a.
+- **`scheb/2fa-bundle`** — wymaga wpięcia w security firewall **przed** głównym authenticator'em, kolejność w `security.yaml` ma znaczenie.
+- **Meilisearch** — facetable attributes muszą być zadeklarowane explicitly w settings indeksu, inaczej facets zwracają empty bez błędu (cicha pułapka).
+
+## Decyzje świadome (do nieprzepisywania bez przyczyny)
+
+- **PHP/Symfony zamiast Node/TS-fullstack** → branżowa zgodność PIM (Akeneo, PIMcore, Ergonode), Doctrine = najmocniejszy ORM dla DDD (ADR-001).
+- **Refine + shadcn + osobny frontend zamiast EasyAdmin/Twig** → agentic-first UX (Cmd+K, streaming, schema diff) niemożliwy w server-rendered (ADR-005). Akceptujemy 2 języki + 2 apps = monorepo Turborepo, OpenAPI-generated TS types.
+- **Meilisearch zamiast Elasticsearch** → 10× prostszy operacyjnie, MIT, wystarczy do 200k SKU. ES dochodzi w fazie 2 jeśli analytics tego wymagają (ADR-004).
+- **PostgreSQL JSONB+ltree zamiast czystego EAV lub czystego JSONB** → hybrid, czytelność + perf z denormalizacją (ADR-006).
+- **Multi-tenant ready, single-tenant deployed** → koszt 2-3h vs 40-60h post-factum (ADR-003).
+- **Agent wbudowany w MVP, mikroserwis w fazie 2** → priorytet prostoty deploymentu (ADR-007).
