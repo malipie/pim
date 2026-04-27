@@ -20,6 +20,9 @@ Icon?
 # Pre-Sprint-0 referencje (puste, niepotrzebne w repo)
 agent_sample/
 
+# Lokalne źródła referencyjne (Akeneo, Pimcore extracts) — nie wysyłamy na repo
+Zrodla/
+
 # Symfony / PHP
 /apps/api/vendor/
 /apps/api/var/cache/*
