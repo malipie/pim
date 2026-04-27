@@ -132,29 +132,58 @@ jobs:
           openssl genpkey -algorithm RSA -out apps/api/config/jwt/private.pem -aes256 -pass pass:${{ steps.jwt.outputs.passphrase }} -pkeyopt rsa_keygen_bits:4096
           openssl pkey -in apps/api/config/jwt/private.pem -passin pass:${{ steps.jwt.outputs.passphrase }} -pubout -out apps/api/config/jwt/public.pem
 
-      - name: Start docker-compose stack
+      - name: Start database + redis (healthcheck deps for api)
+        run: docker compose up -d --wait database redis
+        env:
+          POSTGRES_USER: pim
+          POSTGRES_PASSWORD: ChangeMeInDev
+          POSTGRES_DB: pim
+
+      - name: Start api container (will be unhealthy until migrations)
+        run: docker compose up -d api
+        env:
+          POSTGRES_USER: pim
+          POSTGRES_PASSWORD: ChangeMeInDev
+          POSTGRES_DB: pim
+
+      - name: Wait for FrankenPHP worker to accept exec commands
+        run: |
+          for i in {1..30}; do
+            if docker compose exec -T api php -v >/dev/null 2>&1; then
+              echo "api container ready for exec"
+              break
+            fi
+            echo "Waiting for api to accept exec... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run migrations + load fixtures
+        # The api healthcheck hits /api which triggers RequestTenantSubscriber and
+        # queries the `tenants` table — so migrations have to run before the rest
+        # of the stack waits for api healthy. Fixtures stay coupled to migrations
+        # because the admin user the E2E suite logs in as is seeded here.
+        run: |
+          docker compose exec -T api php bin/console doctrine:migrations:migrate --no-interaction --env=dev
+          docker compose exec -T api php bin/console doctrine:fixtures:load --no-interaction --env=dev
+
+      - name: Start the rest of the stack and wait for healthy
         run: docker compose up -d --wait
         env:
           POSTGRES_USER: pim
           POSTGRES_PASSWORD: ChangeMeInDev
           POSTGRES_DB: pim
 
-      - name: Wait for Caddy + Vite to be reachable
+      - name: Wait for Caddy edge to serve /api
         run: |
           for i in {1..30}; do
             if curl -ksSf -o /dev/null https://pim.localhost/api; then
-              echo "API reachable"
+              echo "Caddy edge serving /api"
               break
             fi
-            echo "Waiting for stack... ($i/30)"
+            echo "Waiting for Caddy... ($i/30)"
             sleep 2
           done
           curl -ksSf https://pim.localhost/api > /dev/null
-
-      - name: Run migrations + load fixtures
-        run: |
-          docker compose exec -T api php bin/console doctrine:migrations:migrate --no-interaction --env=dev
-          docker compose exec -T api php bin/console doctrine:fixtures:load --no-interaction --env=dev
 
       - name: Install Playwright Chromium
         run: pnpm --filter @pim/admin exec playwright install --with-deps chromium
