@@ -93,3 +93,58 @@ jobs:
 
       - name: PHP-CS-Fixer
         run: composer cs-check
+
+  phpunit:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pim
+          POSTGRES_PASSWORD: ChangeMeInDev
+          POSTGRES_DB: pim
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pim"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: ctype, iconv, intl, opcache, pcntl, pdo_pgsql, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/api/vendor
+            ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run PHPUnit
+        run: php bin/phpunit
+        env:
+          APP_ENV: test
+          APP_DEBUG: "0"
+          # Foundry's ResetDatabase rebuilds the schema from entity metadata into the
+          # dbname_suffix-derived "pim_test" database — Postgres service is enough,
+          # no migrations step required for the Sprint-0 entity surface.
+          DATABASE_URL: postgresql://pim:ChangeMeInDev@127.0.0.1:5432/pim?serverVersion=16&charset=utf8
+          MESSENGER_TRANSPORT_DSN: in-memory://
+          MERCURE_URL: http://localhost/.well-known/mercure
+          MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
+          MERCURE_JWT_SECRET: ci
+          APP_DEFAULT_TENANT_CODE: demo
