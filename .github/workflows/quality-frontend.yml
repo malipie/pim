@@ -167,7 +167,11 @@ jobs:
           docker compose exec -T api php bin/console doctrine:fixtures:load --no-interaction --env=dev
 
       - name: Start the rest of the stack and wait for healthy
-        run: docker compose up -d --wait
+        # Explicit service list excludes minio-init (a one-shot `restart: no`
+        # init container) and unused-for-E2E services (minio, meilisearch,
+        # mailpit). `--wait` would otherwise treat the init container's
+        # clean exit as a failure of the wait condition.
+        run: docker compose up -d --wait database redis api admin caddy mercure
         env:
           POSTGRES_USER: pim
           POSTGRES_PASSWORD: ChangeMeInDev
