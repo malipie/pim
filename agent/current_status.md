@@ -1,33 +1,42 @@
 # Current Status
 
-## Sub-faza: SPRINT-0 — 2/16 ticketów done, oczekiwanie na wybór następnego ticketu
+## Sub-faza: SPRINT-0 — 3/16 ticketów done, oczekiwanie na wybór następnego ticketu
 
 ## Ostatnie 3 akcje
-1. **Ticket #11 (0.0.11) zamknięty** (PR #114 zmergowany do main 2026-04-27). Quality gates automation-first wpięte: PHPStan max (level 10) + extensions (Symfony, Doctrine, strict-rules) + PHP-CS-Fixer Symfony+PHP84Migration; Biome strict zastąpił ESLint w apps/admin (single tool: lint+format z `noNonNullAssertion`, `noExplicitAny`, a11y); husky pre-commit (lint-staged: Biome + PHP-CS-Fixer w container) + commit-msg (commitlint enforced Conventional Commits); GitHub Actions: `quality-php.yml`, `quality-frontend.yml`, `audit.yml` (composer + pnpm audit nightly + PR). **Świadome odejście:** Psalm pominięty (vimeo/psalm:dev-master ma circular conflict z psalm-plugin-api) — PHPStan max + strict-rules daje równoważne pokrycie. **Świadome odejście:** `git config core.fileMode = false` (Synology Drive zmienia permissions między sync) — hooki + skrypty mają +x zarejestrowane przez `git update-index --chmod=+x`.
-2. **Ticket #1 (0.0.1) zamknięty** (PR #113 zmergowany 2026-04-26). Postawione: Turborepo monorepo, Symfony 7.4 LTS + API Platform 4.3 + FrankenPHP 2.x worker mode (bez nelmio/cors), Vite + React 19 + TS, docker-compose z 9 services (Caddy edge + api + admin + Postgres 16 + Redis 7 + Meilisearch v1.13 + MinIO + minio-init + Mercure + Mailpit), `docker/caddy/Caddyfile` single-origin (`/api*` → FrankenPHP, `/.well-known/mercure*` → hub, `/*` → Vite z HMR przez WebSocket upgrade). Smoke green: 4 endpointy 200, wszystkie services healthy. Świadome odejścia: api-platform/api-platform z Packagist to archiwalny 2018, pivot do symfony/skeleton 7.4 + composer require api-platform/symfony:^4.3; healthchecki na `/api` (`.json` nie odpowiada w API Platform 4).
-3. **Backlog rozpisany na GitHub Issues** (2026-04-26) — 112 ticketów (Sprint 0 + epiki 0.1–0.11) w 5 milestones, 29 labels. GitHub Project (v2) `PIM MVP` z 112 items podpiętych. Issue templates + lessons.md z decyzją pomijania estymat godzinowych w issues.
+1. **Ticket #2 (0.0.2) zamknięty** (PR #115 squash-merged do main 2026-04-27). Encje `Tenant` (Identity) + `Product` (Catalog) z UUID v7 + Doctrine 3 attributes; pełne plumbing multi-tenancy: `TenantContext` (mutable holder), `TenantAware` interface, `CurrentTenantProvider` (security → env fallback), `TenantAssignmentListener` (PrePersist), `TenantFilter` (Doctrine SQLFilter), `TenantFilterConfigurator`, `RequestTenantSubscriber` (REQUEST/TERMINATE). Migracja `Version20260427070435` reversible. AppFixtures z 2 tenantami × 3 produkty. PHPUnit 12 + 4 test cases na listenerze (stamps/throws/idempotent/ignores). **QoL fix:** docker-compose.yml z bind mount `apps/api` + named volumes na `var/` i `vendor/` — iterowanie nad PHP nie wymaga już rebuild image. **Świadome odejścia:** PHPUnit 11→12 (sebastian/diff conflict), `Product::$tenant` nullable w PHP/NOT NULL w schemacie (scoped PHPStan ignore), bind mount apps/api jako QoL (lekkie scope creep ale eliminuje blocker).
+2. **Ticket #11 (0.0.11) zamknięty** (PR #114 zmergowany 2026-04-27). Quality gates automation-first: PHPStan max (level 10) + extensions (Symfony, Doctrine, strict-rules) + PHP-CS-Fixer (Symfony+PHP84Migration); Biome strict zastąpił ESLint w apps/admin; husky pre-commit (lint-staged: Biome + PHP-CS-Fixer w container) + commit-msg (commitlint Conventional Commits); GitHub Actions: `quality-php.yml`, `quality-frontend.yml`, `audit.yml` (composer + pnpm audit nightly + PR). **Świadome odejście:** Psalm pominięty (dev-master ma circular conflict). **Świadome odejście:** `git config core.fileMode = false` (Synology Drive bity 644→755).
+3. **Ticket #1 (0.0.1) zamknięty** (PR #113 zmergowany 2026-04-26). Turborepo monorepo, Symfony 7.4 LTS + API Platform 4.3 + FrankenPHP 2.x worker mode (bez nelmio/cors), Vite + React 19 + TS, docker-compose z 9 services + Caddy single-origin, smoke green. **Świadome odejścia:** api-platform/api-platform z Packagist to archiwalny 2018 (pivot do symfony/skeleton 7.4 + manual API Platform 4), `/api/docs.json` nie istnieje w AP4 (healthchecki na `/api`).
 
 ## Bieżący stan
-Sprint 0 = 2/16 ticketów done (#1 setup monorepo, #11 quality gates).
+Sprint 0 = 3/16 ticketów done (#1 setup, #11 quality gates, #2 multi-tenancy + Product/Tenant).
 
-Stack postawiony, zatrzymany (po sesji 2026-04-27). Aby uruchomić: `pnpm stack:up` (lub `pnpm dev` w foreground).
+Stack zatrzymany po sesji. Aby uruchomić: `pnpm stack:up` (lub `pnpm dev` w foreground).
+
+Domain model:
+- 2 entities (`Tenant`, `Product`) w bounded contexts `Identity` i `Catalog`
+- Migracja zaaplikowana, schema z FK `products_tenant_fk` + unique `(tenant_id, sku)`
+- Fixtures: 2 tenanty × 3 produkty (`pim:fixtures:load` lub `bin/console doctrine:fixtures:load`)
+- Multi-tenancy plumbing: TenantContext + listener + SQL filter + RequestTenantSubscriber
+- Test coverage: TenantAssignmentListenerTest (4 cases)
 
 Quality gates aktywne:
-- **Lokalnie**: pre-commit hook + commit-msg hook (husky) — sprawdza Biome + PHP-CS-Fixer + Conventional Commits przed commit.
-- **CI**: GitHub Actions na PR + push do main: quality-php (PHPStan + PHP-CS-Fixer), quality-frontend (Biome + tsc + Vite build), audit (composer + pnpm, nightly).
+- **Lokalnie**: pre-commit hook + commit-msg hook (husky) — Biome + PHP-CS-Fixer + Conventional Commits
+- **CI**: GitHub Actions na PR + push do main — PHPStan + PHP-CS-Fixer + PHPUnit; Biome + tsc + Vite build; composer + pnpm audit (nightly)
 
 **Akcje po stronie operatora (do zrobienia w wolnej chwili, nie blocker):**
 - Branch protection na `main` (Settings → Branches → Add rule):
   - Require status checks: `phpstan`, `php-cs-fixer`, `biome`, `typecheck`, `build`, `composer-audit`, `pnpm-audit`
   - Require branch up to date before merge
-  - (Opcjonalnie) Require 1 approval (pominąć przy single-developer)
-- Po pull: `pnpm install` żeby husky `prepare` script zainstalował hooki na świeżo sklonowanym repo.
+- Po pull: `pnpm install` żeby husky `prepare` zarejestrował hooki na świeżo sklonowanym repo.
 
 Świadome odejścia od planu (do uzupełnienia w `06-sprint-0-findings.md` na koniec Sprintu 0):
 1. `api-platform/api-platform` z Packagist to archiwalny skeleton z 2018 — pivot do `symfony/skeleton 7.4` + `composer require api-platform/symfony:^4.3`. (#1)
 2. `/api/docs.json` nie odpowiada w API Platform 4 (tylko `.jsonld` + `.html`); healthchecki używają `/api`. (#1)
 3. Psalm strict pominięty — `vimeo/psalm:dev-master` ma conflict z `psalm/psalm-plugin-api 0.1.0`. PHPStan max + strict-rules pokrywa zakres. (#11)
 4. `git config core.fileMode = false` ustawione lokalnie (Synology Drive zmienia bits 644→755 między sync). (#11)
+5. PHPUnit 11 → 12 (PHPUnit 11 wymaga `sebastian/diff ^6` ale lock fixował 8.x z phpstan). (#2)
+6. `Product::$tenant` nullable w PHP (krótki window przed PrePersist) ale NOT NULL w schemacie — scoped PHPStan ignore. Listener tests + DB constraint potwierdzają invariant. (#2)
+7. `docker-compose.yml` bind mount `apps/api` + named volumes na `var/` i `vendor/` (lekkie scope creep w #2 ale eliminuje rebuild ~1 min na każdą zmianę PHP). (#2)
 
 ## Aktywne blokery
 - **Setup konta Shopify Partners** — potrzebny development store free na ticket #8 (0.0.8) i pełen Epic 0.9.
@@ -36,17 +45,19 @@ Quality gates aktywne:
 - **Decyzja operacyjna:** wybór trybu wykonania Sprintu 0 — rekomendowane 1-2 tygodnie urlopu/skupienia (sekcja 7 planu).
 
 ## Następny krok
-**Czeka na decyzję operatora który ticket podejmujemy następny.** Topologicznie odblokowane (wszystkie tylko depend on #1):
+**Czeka na decyzję operatora który ticket podejmujemy następny.** Topologicznie odblokowane (po #1, #2, #11):
 
 | # | Ticket | Komentarz |
 |---|---|---|
-| **#2 (0.0.2)** | Encja Product + tenant_id + Doctrine TenantFilter | **Rekomendacja** — fundament domain model, blocker dla #3 (ApiResource), #5 (admin lista), #12 (smoke izolacji multi-tenant), #13 (benchmark memory) |
-| #4 (0.0.4) | Auth minimalny (statyczny user + JWT LexikJWT) | Niezależny od #2; potrzebny przed #5 (admin login) i #6 (agent endpoint) |
-| #15 (0.0.15) | pgBackRest + WAL stub w docker-compose + restore test | Niezależny |
-| #8 (0.0.8) | Klient Shopify GraphQL + Backoff stub | **Blocker:** wymaga konta Shopify Partners dev store |
+| **#3 (0.0.3)** | ApiResource Product → /api/products (CRUD + OpenAPI auto-gen) | **Rekomendacja** — bezpośredni follow-up #2, wystawia Product przez API Platform. Blocker dla #5 (admin lista) i #14 (profilowanie load test). |
+| #12 (0.0.12) | Smoke test izolacji multi-tenant (Doctrine filter) | Niezależny po #2. Walidacja TenantFilter w boju (2 tenanty, próba cross-read = 0 wyników). |
+| #13 (0.0.13) | Benchmark FrankenPHP worker memory (5000 produktów import) | Wymaga AbstractBatchHandler stub + bulk import command — średni nakład. |
+| #4 (0.0.4) | Auth minimalny (statyczny user + JWT LexikJWT) | Niezależny od #2; potrzebny przed #5 i #6. |
+| #15 (0.0.15) | pgBackRest + WAL stub w docker-compose + restore test | Niezależny. |
+| #8 (0.0.8) | Klient Shopify GraphQL + Backoff stub | **Blocker:** wymaga konta Shopify Partners dev store. |
 
 ## Postęp po sub-fazach (cumulative h, MVP Core)
-- [ ] Sprint 0 (gate decision) — **2/16 ticketów done** — issues #1-#16
+- [ ] Sprint 0 (gate decision) — **3/16 ticketów done** — issues #1-#16
 - [ ] MVP-Alpha (epiki 0.1–0.6) — 0/46 — issues #17-#62
 - [ ] MVP-Beta-Min (część 0.7) — 0/9 — issues #63-#71
 - [ ] MVP-Final (epiki 0.8–0.11) — 0/36 — issues #72-#107
@@ -54,7 +65,7 @@ Quality gates aktywne:
 
 ## Postęp Sprint 0 ticketów
 - [x] **#1 / 0.0.1** — Setup monorepo Turborepo + docker-compose + Caddy single-origin (PR #113 merged 2026-04-26)
-- [ ] #2 / 0.0.2 — Encja Product + tenant_id + Doctrine TenantFilter
+- [x] **#2 / 0.0.2** — Encja Product + tenant_id + Doctrine TenantFilter (PR #115 merged 2026-04-27)
 - [ ] #3 / 0.0.3 — ApiResource Product → /api/products
 - [ ] #4 / 0.0.4 — Authentication minimalny + JWT
 - [ ] #5 / 0.0.5 — Admin Refine + shadcn lista produktów
@@ -91,5 +102,7 @@ Po starcie sesji:
 4. Lista pozostałych issues Sprint 0: `gh issue list --milestone "Sprint 0 — Vertical Slice" --state open`
 5. Stack: **`pnpm stack:up`** (lub `pnpm dev` foreground), `https://pim.localhost` po akceptacji Caddy local CA.
 6. Przed commit: hooki husky odpalą się automatycznie. Jeśli hook zfailuje przy pierwszym commit po pull, odpal `pnpm install` żeby `prepare` script zarejestrował hooki.
-7. Quality gates są aktywne — każdy commit i PR przechodzi przez PHPStan max, PHP-CS-Fixer, Biome strict, tsc, composer/pnpm audit. Nie pomijaj `--no-verify`.
-8. Jeśli operator nie powiedział inaczej — rekomendacja na następny ticket: **#2 (0.0.2 Product entity + tenant_id + TenantFilter)**.
+7. Quality gates są aktywne — każdy commit i PR przechodzi przez PHPStan max, PHP-CS-Fixer, PHPUnit, Biome strict, tsc, composer/pnpm audit. Nie pomijaj `--no-verify`.
+8. **Iterowanie nad PHP nie wymaga `docker compose build api`** — apps/api jest bind-mounted. Po zmianie kodu wystarczy `docker compose restart api` (worker re-load) jeśli zmiana dotyczy services config; dla zwykłych zmian PHP po prostu hit refresh.
+9. **Funkcjonalności MVP — `Project Plan/03-funkcjonalnosci-mvp.md`** (700 linii, dodane 2026-04-27 przez operatora). Zawiera archetyp pierwszego pilota (B2B technical, 50 MLN GMV/rok, 10-15k SKU, multimarka + własna marka), 5 person (Owner/Tomasz, Catalog Manager/Kasia jako #1, Marketing/Magda, IT-Integration/Piotr jako #1.5, Sales out-of-PIM), 10 user stories z kryteriami akceptacji + mapowaniem na epiki techniczne, success criteria pierwszego pilota. **Czytaj OBOWIĄZKOWO przed pracą nad ticketami:** 0.6 (Admin UI #54-#62), 0.7 (Agent UX #63-#71 + #108-#112), 0.8 (BaseLinker #72-#78), 0.9 (Shopify #79-#89), 0.10 (API Configurator #90-#95), 0.11 dashboard/a11y (#96-#107). Tickety czysto techniczne (Sprint 0, epiki 0.1-0.5) **nie wymagają** tego dokumentu — można pracować bez kontekstu funkcjonalnego.
+10. Jeśli operator nie powiedział inaczej — rekomendacja na następny ticket: **#3 (0.0.3 ApiResource Product → /api/products)**.

@@ -135,3 +135,16 @@
 - **PostgreSQL JSONB+ltree zamiast czystego EAV lub czystego JSONB** → hybrid, czytelność + perf z denormalizacją (ADR-006).
 - **Multi-tenant ready, single-tenant deployed** → koszt 2-3h vs 40-60h post-factum (ADR-003).
 - **Agent wbudowany w MVP, mikroserwis w fazie 2** → priorytet prostoty deploymentu (ADR-007).
+
+## Lessons z 0.0.2 (multi-tenancy + dev workflow)
+
+- **PHPUnit 11 vs `sebastian/diff` 8** — PHPUnit 11.x wymaga `sebastian/diff ^6` ale phpstan ekosystem fixuje 8.x w lock'u. Dla nowych projektów używaj **PHPUnit 12** od razu. (#2)
+- **Doctrine ORM 3 + property nullability vs schema NOT NULL** — gdy property assignuje listener (PrePersist), PHP-side property musi być nullable (`?Type`) ale kolumna może być NOT NULL. PHPStan-doctrine wykrywa jako `doctrine.associationType` mismatch — dodaj scoped `ignoreErrors`. Listener tests + DB constraint zapewniają faktyczny invariant. (#2)
+- **`#[AsAlias]` na konkretnej klasie bez interfejsu** — Symfony 7.x kontener wymaga że `#[AsAlias]` jest na klasie z interface. Dla services tylko concrete (np. `TenantFilterConfigurator`) pomijaj attribute — autowire/autoconfigure działa przez `App\: '../src/'` resource match. (#2)
+- **Doctrine SQL filtry inicjalizują się leniwie** — Nie próbuj wczytywać security context w `SQLFilter::addFilterConstraint()`. W tym momencie firewall może jeszcze nie działać (CLI, fixtures, early boot). Wzór: mutable `TenantContext` service + osobna konfiguracja parametrów filtra przez `EntityManager::getFilters()->enable()->setParameter()`. (#2)
+- **Mutable `TenantContext` service zamiast direct security access** — Doctrine filtry, fixtures, testy, CLI commands wszystkie potrzebują tenanta ale nie wszystkie mają security token. Context jest pchany do filtra i listener'a explicit, nie pulled z security przy SQL-build time. (#2)
+- **`TenantAssignmentListener` rzuca LogicException przy braku contextu** zamiast pozwolić DB odrzucić INSERT z NOT NULL constraint violation. Czytelny komunikat dla operatora zamiast cryptic Postgres error. (#2)
+- **Fixtures multi-tenant pattern** — pierwsza pętla persistuje wszystkie tenanty (jednym `flush()`), potem druga pętla per tenant: `tenantContext->set($tenant)` + persist produktów + `flush()`. Bez tego pattern'u listener stempluje wszystkie produkty do pierwszego tenanta. (#2)
+- **Bind mount apps/api do container'a + named volumes na `var/` i `vendor/`** — bez tego każda zmiana PHP wymaga `docker compose build api` (~1 min). Z bind mount worker FrankenPHP automatycznie reloaduje. Vendor pozostaje w named volume żeby `composer require` na host nie kolidował z container'em. (#2)
+- **Reset bazy danych** wymaga zatrzymania `api` container'a — FrankenPHP worker keeps connection open, blokuje `DROP DATABASE`. Sequence: `docker compose stop api && psql DROP/CREATE && docker compose start api && migrate`. (#2)
+- **Postgres user/database name** — czytaj z `.env` (POSTGRES_USER, POSTGRES_DB), nie hardkoduj `app`. Symfony skeleton domyślnie używa `app/app/!ChangeMe!`, my mamy `pim/pim/ChangeMeInDev`. (#2)
