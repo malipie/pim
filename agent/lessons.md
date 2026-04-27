@@ -174,3 +174,20 @@
 - **Mutable kontekst (`TenantContext`) musi być explicite ustawiony dla bezpiecznego seed'u w testach** — w `setUp` po `setKernelClass`/`getContainer` wywołać `tenantContext->set($tenant)` przed `$em->persist($product)`. Listener pulluje z mutable holder, nie z security tokenu. Test wymaga seedowania bez auth, więc env-fallback nie wystarczy (subscriber tylko na HTTP request). (#3)
 
 - **API Platform 4 OpenAPI request body example** — `new Post(openapi: new \ApiPlatform\OpenApi\Model\Operation(requestBody: new \ApiPlatform\OpenApi\Model\RequestBody(content: new ArrayObject([...]))))` — dosyć wielo-warstwowo, ale działa. Dla MVP wystarczy 1-2 example'y na resource. Dokumentacja AP4 jest minimalna w tym obszarze; wzór sourceujemy z `vendor/api-platform/openapi/Model/RequestBody.php`. (#3)
+
+## Lessons z 0.0.12 (multi-tenant isolation smoke test)
+
+- **Cross-tenant access zwraca 404, NIGDY 403.** `TenantFilter` ukrywa istnienie rekordu w innym tenancie; 403 byłoby side-channel leak'iem ("widzę że istnieje, ale nie wolno mi"). Idiom egzekwowany w testach (`fetchingTenantBProductAsTenantAReturns404`, `patchingTenantBProductAsTenantAReturns404`). (#12)
+  - Why: każde 403 dla cross-tenant = oracle który leak'uje SKU/ID z innego tenanta. Standard branżowy (Shopify, Stripe).
+  - How to apply: `Patch`/`Put`/`Delete` operacje też muszą zwracać 404 (nie 403/422) gdy filter nie znajduje rekordu. To naturalne behavior `ReadProvider` w AP4 — nie trzeba custom code'u, ale weryfikuj w każdym nowym ApiTestCase.
+
+- **Native SQL bypassa Doctrine `TenantFilter` z designu** — `TenantFilter` to application-layer boundary, NIE security boundary. Bulk operations (raw INSERT/SELECT przez DBAL `Connection`, COPY) widzą wszystkie tenanty. RLS w fazie 1 (sekcja 11.1a architektury) zamknie. Bulk paths trzymają tenant scope w kodzie do tego czasu. (#12)
+  - How to apply: każdy nowy serwis który używa `Connection->executeQuery()` zamiast EM/QueryBuilder MUSI explicite dodać `WHERE tenant_id = :tenant`. Custom PHPStan rule kandydat na fazę 1.
+
+- **`Product::assignTenant()` BEZPOŚREDNIO w setUp testowym to OK pattern dla seedowania bez `TenantContext`.** Listener `TenantAssignmentListener` no-opuje gdy entity ma już tenant przypisany (`null !== $entity->getTenant()`). Daje czyste seed'owanie wielo-tenantowych fixtures bez dance'u przez kontekst. (#12)
+  - Why: TenantContext + listener jest dobry dla request-time persist'ów (auth-driven), ale dla seed'u wielu tenantów po kolei jest niewygodny. Direct `assignTenant()` jest jawny i nie zależy od container state.
+  - How to apply: zarezerwowane do `@internal` use case'ów — w produkcyjnym kodzie zawsze przez listener. W testach setup-only.
+
+- **Pre-auth tenant flip w testach: `$_ENV` + `$_SERVER` + `putenv` + `static::ensureKernelShutdown()`** — wszystkie trzy mechanizmy ustawiają env, bo Symfony `EnvVarProcessor` może odczytać przez którykolwiek (`$_SERVER` ma priorytet ale `getenv()` jest fallbackiem dla niektórych ścieżek). `ensureKernelShutdown()` po seedzie kasuje cache w booted kernelu — następny `createClient()` build'uje świeży kontener z nową wartością parametru `app.default_tenant_code`. (#12)
+  - Why: `%env(...)%` placeholders są resolvowane przy każdym booting'u kontenera, ale single kernel instance cache'uje wartość. Bez shutdown'u test #2 widziałby wartość z test #1.
+  - How to apply: tymczasowy hack do #4 (auth+JWT). Po LexikJWT real auth przez `actingAs($user)` znika potrzeba env-flip.
