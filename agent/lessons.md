@@ -70,13 +70,25 @@
 
 ### Domain modeling
 
-- **Hybrid model atrybutów: `attributes` + `product_values (value JSONB)` + denormalizowany `products.attributes_indexed JSONB` z GIN.** Dla single-edit synchroniczny listener, dla bulk path async worker `attributes-indexed-rebuild` z `EntityManager::clear()` co 1000.
-  - Why: czysty EAV jest okropny dla performance cross-attribute queries. Czysty JSONB traci scope/locale info. Hybrid daje czytelność + perf (ADR-006).
-  - How to apply: bulk handler **wyłącza** synchroniczny listener przez `BulkContext::isBulk()` — synchroniczny listener × 50k SKU = killer. Po batchu publikujemy `ProductValuesChanged(productIds: [...])` na kolejkę.
+- **Hybrid model atrybutów (po ADR-009 parametryzowany per `ObjectType`): `attributes` + junction `object_type_attributes` + `object_values (value JSONB)` + denormalizowany `objects.attributes_indexed JSONB` z GIN.** Dla single-edit synchroniczny listener, dla bulk path async worker `attributes-indexed-rebuild` z `EntityManager::clear()` co 1000.
+  - Why: czysty EAV jest okropny dla performance cross-attribute queries. Czysty JSONB traci scope/locale info. Hybrid daje czytelność + perf (ADR-006). Generalizacja per `ObjectType` (ADR-009) parametryzuje pattern bez zmiany rdzenia.
+  - How to apply: bulk handler **wyłącza** synchroniczny listener przez `BulkContext::isBulk()` — synchroniczny listener × 50k SKU = killer. Po batchu publikujemy `ObjectValuesChanged(objectIds: [...], kind: '...')` na kolejkę. Tabele `product_values` / `products` z poprzedniej iteracji są deprecated — `objects` / `object_values` przejmują.
 
-- **`provenance` pole w `product_values` obowiązkowe:** `manual | import | agent | integration` + meta JSONB. UI pokazuje provenance badges. Bez tego nie wiemy kto/co zmieniło wartość.
+- **Każda nowa encja domenowa to instancja `ObjectType`, nie nowa tabela.** (po ADR-009)
+  - Why: PIMCore osiąga elastyczność przez 4 niezależne mechanizmy (Classification Store + Bricks + Field Collections + Localized Fields). My konsolidujemy do jednego — `ObjectType` + atrybuty + `object_values`. Każdy nowy byt domenowy (`Customer`, `Supplier`, `PriceList`) dochodzi jako kolejna instancja `ObjectType` (`kind='custom'`), bez migracji DDL.
+  - How to apply: jeśli planujesz nową encję domenową — sprawdź czy może być `ObjectType` z `kind='custom'`. Jeśli tak — w MVP feature flag `enable_custom_object_types` blokuje. W Fazie 2/3 odblokowane. Wyjątek: byty infrastrukturalne (`Tenant`, `User`, `Role`, `AgentRun`) — nie są przedmiotem PIM-u, zostają jako dedykowane encje.
 
-- **Generowane kolumny dla najczęściej używanych atrybutów** (Postgres `GENERATED ALWAYS AS` z JSONB) — np. `name_pl`, `sku`. Pozwalają na BTree index, szybsze niż GIN dla equality queries.
+- **Predefiniowane `object_types` (`product`, `category`, `asset`) seedowane z `is_built_in=true`** — ich deletion blokowana na poziomie service'u (`ObjectTypeService::delete()` rzuca `BuiltInObjectTypeException`) i w Fazie 1+ przez RLS policy. Custom kindy w MVP wyłączone feature flagiem (mitigacja R-29).
+  - Why: predefiniowane fixtures są fundamentem UX — bez nich admin nie wie jak utworzyć produkt. Deletion = corruption. Built-in flag jest enforcement'em na 2 poziomach (service + RLS) bo na 1 poziomie LLM wcześniej czy później obejdzie.
+  - How to apply: każdy nowy fixture pierwszej klasy (np. w Fazie 2 `kind='customer'` jako standardowy template) idzie z `is_built_in=true`. Operacje destrukcyjne na built-in typach są tylko przez DB superuser w wyjątkowych sytuacjach (data migration runbook).
+
+- **Custom logika per kind w listenerach parametryzowanych przez `kind`** — ltree dla `category`, storage_path validation dla `asset`, future variants dla `product`.
+  - Why: wspólna tabela `objects` z jedną logiką = łatwy mental model, ale każdy `kind` ma swoje invarianty. Listener `CategoryPathValidator` aktywuje się tylko dla `kind='category'` (CHECK constraint na `path` plus partial GIST index). To oddziela logikę bez tworzenia osobnych tabel.
+  - How to apply: nowy `kind` z własnymi invariantami → nowy listener z guard'em `if ($object->getKind() !== 'X') return;`. Partial indexes Postgres pozwalają trzymać indeks tylko dla relevantnego kindu.
+
+- **`provenance` pole w `object_values` obowiązkowe:** `manual | import | agent | integration` + meta JSONB. UI pokazuje provenance badges. Bez tego nie wiemy kto/co zmieniło wartość. (W MVP `agent` zarezerwowany — agent przychodzi w Fazie 2.)
+
+- **Generowane kolumny dla najczęściej używanych atrybutów** (Postgres `GENERATED ALWAYS AS` z JSONB) — np. `name_pl`, `sku_for_product`. Pozwalają na BTree index, szybsze niż GIN dla equality queries. Po ADR-009 mogą być parametryzowane per `kind` przez `CASE WHEN kind='product' THEN ... END`.
 
 ### Strings i konfiguracja
 
@@ -102,6 +114,7 @@
 - **Hive / inne lokalne persystencje na frontend** → admin jest online-only, nie potrzebujemy offline cache w MVP.
 - **Foldery zaczynające się od kropki** (`.agent/`, `.cache/`) w katalogach synchronizowanych przez Synology Drive / iCloud → mogą być cicho filtrowane przez sync provider. Używaj nazw bez kropki (`agent/`).
 - **Estymaty godzinowe w GitHub Issues / labelach / treści ticketów** → nie mają sensu w pracy operator + LLM. Pomijaj `est: S/M/L/XL`, pomijaj liczby godzin w body issue. Plan i architektura zachowują estymaty jako orientacja kosztu fazy, ale na poziomie pojedynczego ticketu są szumem. (Decyzja operatora 2026-04-26 przy rozpisywaniu MVP backloga.)
+- **Hard-coded encja per byt domenowy** (np. `class Customer extends BaseEntity`, `class Supplier extends BaseEntity` w nowym kodzie) → po ADR-009 zamiast tego nowy `ObjectType` z `kind='custom'` + atrybuty przez schemat. Wyjątek: byty z bardzo specyficzną logiką operacyjną poza domeną PIM (np. `Tenant`, `User`, `Role`, `AgentRun`) — nie są przedmiotem PIM-u, są infrastrukturą. Słownik domeny: „ObjectType" wszędzie, „Family" deprecated.
 
 ## Package Quirks
 
@@ -139,6 +152,7 @@
 - **PostgreSQL JSONB+ltree zamiast czystego EAV lub czystego JSONB** → hybrid, czytelność + perf z denormalizacją (ADR-006).
 - **Multi-tenant ready, single-tenant deployed** → koszt 2-3h vs 40-60h post-factum (ADR-003).
 - **Agent wbudowany w MVP, mikroserwis w fazie 2** → priorytet prostoty deploymentu (ADR-007).
+- **Generic `ObjectType` z predefiniowanymi Product/Category/Asset jako `is_built_in=true`** → konsolidacja 4 mechanizmów PIMCore (Classification Store / Bricks / Field Collections / Localized Fields) do jednego silnika atrybutów. Custom kindy (`Customer`, `Supplier`, `PriceList`) supported od dnia 1 ale wyłączone feature flagiem do Fazy 2/3 (mitigacja over-engineering). Pojęcie „Family" deprecated (ADR-009, 2026-04-27).
 
 ## Lessons z 0.0.2 (multi-tenancy + dev workflow)
 
@@ -337,3 +351,92 @@
 
 - **Trzy fixy w CI debugowaniu = three commits, nie squash do jednego.** Pierwotna implementacja PR #122 → CI fail → fix migracji → CI fail → fix --wait list → CI fail → fix Caddy HTTPS healthcheck → CI green. Każdy commit ma czytelny `fix(ci)/fix(infra)` message + link `Refs #10`. Po squash-merge git history ma jeden czysty commit, ale podczas debug'u widać kolejność rozumowania. (#10)
   - How to apply: debugger CI commits to NORMA, nie smell. Po-mortem w `chore(agent)` na main agreguje wnioski.
+
+## Lessons z ADR-009 (Generalizacja ObjectType — 2026-04-27)
+
+> Praca planowo-dokumentacyjna na poziomie modelu domenowego. Bez zmiany kodu (epik 0.3 nie był jeszcze rozpoczęty — ADR-009 zmienia plan przed pierwszą migracją Catalog). PR #1 (`docs/adr-009-objecttype`) wprowadza ADR + audit planu; PR #2 (`chore/adr-009-issue-reshape`) reshape'uje 30+ otwartych GitHub Issues i ten log.
+
+### Decyzja
+**Generic `ObjectType` z predefiniowanymi Product/Category/Asset siedzącymi jako built-in instancje (`is_built_in=true`) + custom kindy (`Customer`, `Supplier`, `PriceList`) odblokowane w Fazie 2/3.** Pełen ADR w `Project Plan/01-architektura-pim.md` §13.
+
+### Alternatywy odrzucone
+- **(a) Hard-coded `Product` + `Category` z asymetrycznym modelem (status quo).** Asymetria blokuje import z PIMCore (eksport `Zrodla/PIMCore/masowy_eksport_konfiguracji.json` pokazuje klasę `Kategoria` z user-defined SEO + image — nie ma na to miejsca w obecnym `Category` z 3 polami). Blokuje przyszłe `Customer`/`Supplier` bez 8-12h migracji DDL per byt.
+- **(b) Pełna generalizacja jak PIMCore Class Definition** (admin/agent definiuje wszystkie typy w runtime, brak twardych encji). UX dla MVP się rozjeżdża — admin musi sam zdefiniować „produkt" przed pierwszym użyciem. Blokuje optymalizację per kind (ltree dla category, storage dla asset).
+- **(c) Generic `ObjectType` z predefined fixed UX** — wybrana opcja. Kompromis: rdzeń elastyczny (atrybuty + EAV-z-JSONB parametryzowane o `object_type_id`), UX zoptymalizowany pod 3 predefined kindy w admin UI, sugar paths w API.
+
+### Co się sprawdziło w retrospekcji
+- **Rdzeń ADR-006 (hybrid attribute model) jest wystarczająco elastyczny** — generalizacja parametryzuje go o `object_type_id` zamiast wymyślać 4 mechanizmy jak PIMCore. To dowód że decyzja architektoniczna 2-letniego horyzontu (ADR-006) potrafi pociągnąć rozszerzenie zakresu (ADR-009) bez przepisywania.
+- **Asymetria „multi-tenant ready, single-tenant deployed" (ADR-003) reaplikuje się do ObjectType** — tak samo „custom kindy ready, predefined deployed" — sprawdzony pattern.
+- **Saldo budżetu MVP** wychodzi na zero netto (-13-15h) dzięki rewizji 2026-04-27 (epik 0.7 do Fazy 2 zwalnia 25-35h, ADR-009 dodaje 16-25h w epiku 0.3). Top-line MVP-Alpha się trzyma.
+
+### Co pozostaje do walidacji w MVP-Alpha
+- **Benchmark `attributes_indexed`** — query po atrybut-value na 10k obiektach × 200 atrybutów × 3 kindach < 50ms. Proof że generic model nie zwalnia query path (R-29 mitigation). Jeśli benchmark fail — wracamy do partial indexes per kind.
+- **Playwright E2E „edycja kategorii z atrybutami niestandardowymi (SEO, image)"** — proof że predefined UX dla 3 kindów daje pełnoprawne user-defined atrybuty per kind.
+- **Dyscyplina `kind='custom'` wyłączony** — feature flag `enable_custom_object_types` egzekwowany w `ObjectTypeService::create()` i tool `create_object_type` agenta. PHPUnit testy + Playwright testy enforce'ują.
+- **Audit log per kind** — DoctrineAuditBundle musi pokrywać wszystkie kindy, nie tylko hard-coded `Product`. Test w 0.11.4 + 0.11.5 (#99 + #100).
+
+### Audit GitHub Issues — log per ticket (2026-04-27)
+
+**Epik 0.3 — major rebody:**
+- **#31 [0.3.1] Attribute + AttributeGroup + AttributeOption** — light append: atrybuty wiązane z `ObjectType` przez junction `object_type_attributes`; jeden atrybut może być reused przez wiele typów. Sama encja Attribute pozostaje generic, scope ticketu bez zmian.
+- **#32 [0.3.2] Family + FamilyAttribute** → **rewrite na ObjectType + ObjectTypeAttribute**. Rename w title, body przepisany od zera. Service blokuje deletion `is_built_in=true`, feature flag `enable_custom_object_types` na `ObjectTypeService::create()`.
+- **#33 [0.3.3] Category z ltree** → **rewrite na Predefined ObjectType `category` + ltree validator dla kind='category'**. Listener `CategoryPathValidator` parametryzowany przez `kind`. Sugar API `/api/categories`.
+- **#34 [0.3.4] Product (rozszerzona) + ProductValue + attributes_indexed** → **rewrite na Object (poly per kind) + ObjectValue + attributes_indexed**. Dodatkowo migracja danych ze Sprintu 0 (`products` → `objects` z `kind='product'`). Generated columns parametryzowane per kind.
+- **#35 [0.3.5] Association** — light append: działa generycznie na `Object` (`object_associations` zastępuje `product_associations`).
+- **#36 [0.3.6] Channel + Locale + Currency + ChannelAttributeMapping** — light append: rename `ChannelAttributeMapping` → `ChannelObjectTypeMapping` (poly per kind).
+- **#37 [0.3.7] Asset + AssetVariant** — light append: Asset jako predefined `ObjectType kind='asset'` + dedykowana tabela `assets` z FK `object_id` na powiązany Object (storage details w assets, user-defined metadata w object_values).
+- **#38 [0.3.8] Doctrine listenery** — light append: `AttributesIndexedSyncListener` parametryzowany per `object_type_id`, `CompletenessRecalculator` czyta reguły z `ObjectType.completeness_rules`.
+- **#39 [0.3.9] Symfony Validator constraints** — light append: parametryzacja per ObjectType w `AttributeValidationCompiler`.
+- **#40 [0.3.10] Migracje + seeders** — light append: rozszerzenie data testowych (5 kategorii z user-defined atrybutami SEO/image, 10 assetów w 1 tenancie).
+- **#128 [0.3.12] Hooks pod kind='custom' na poziomie ApiResource** — **NEW** ticket dodany. Factory `ObjectTypeAwareApiResource`, serializer context per kind, Voter `CustomObjectTypeVoter` enforce'ujący feature flag.
+
+**Epik 0.4 — light update wszystkich (#41-#48):**
+- #41 (ApiResource) — sugar paths `/products`, `/categories`, `/assets` przez extraProperties; jeden controller pod spodem.
+- #45 (data transformers) — rename ProductDenormalizer → ObjectDenormalizer, parametryzowany per `object_type_id`.
+- #42, #43, #44, #46, #47, #48 — jednolinijkowy „post ADR-009: respect `object_type_id` in filters/serializers/data transformers/Mercure events".
+
+**Epik 0.5 — light update wszystkich (#49-#53):**
+- Indexer Meilisearch parametryzuje się o `object_type_id`, jeden indeks per kind (`products`, `categories`).
+- Reindex CLI: `pim:search:reindex --kind=product|category|all`.
+
+**Epik 0.6 — UPDATE:**
+- #54 (Layout) — Cmd+K placeholder usunięty (rewizja 2026-04-27); sidebar pokazuje fixed sekcje pierwszej klasy.
+- #55 (Resource Products) — bez zmiany scope (form parametryzowany o `object_type_id` już planowany).
+- #56 (Resource Attributes) — dochodzi filtr `applies_to_object_type`.
+- **#57 (Resource Families) → rename na Resource ObjectTypes** + UI predefined locked + sekcja Custom disabled „Faza 2".
+- #58 (Categories tree) — dochodzi dynamic attribute editor for `kind='category'` (proof of ADR-009).
+- #59 (Channels) — `ChannelObjectTypeMapping` (poly per kind).
+- #60 (Assets) — UI obsługuje storage details + user-defined attributes razem.
+- #61 (Provenance) — działa na `object_values` zamiast `product_values`; wariant `agent` zarezerwowany Faza 2.
+- #62 (i18n) — bez zmiany scope.
+
+**Epik 0.10 — light update wszystkich (#90-#95):**
+- #90 (ApiProfile + ApiKey) — pole `object_types` JSONB w ApiProfile.
+- #91-#95 — UI multiselect ObjectType, filter response per `object_type_id`, OpenAPI export sugar paths.
+
+**Epik 0.11 — light update kluczowych:**
+- #99 (Audit log) — DoctrineAuditBundle obejmuje wszystkie obiekty `Object` + dedykowany audit dla `ObjectType` i `Attribute`.
+- #100 (Playwright E2E) — dochodzi scenariusz „edycja kategorii z atrybutami niestandardowymi" + „próba `kind='custom'` blocked feature flagiem". Sync to BaseLinker/Shopify w Fazie 1, agent w Fazie 2.
+
+**Faza 1 — Integracje (light):**
+- #74 (BaseLinker adapter) — pobiera dane z `Object kind='product'`; mapping per `ObjectType`.
+- #81 (Shopify adapter) — pobiera dane z `Object kind='product'`; Collections z `Object kind='category'`; metafields per ObjectType.
+
+**Faza 2 — Agent (light):**
+- #6 (Sprint-0 agent endpoint) — `assign_attribute_to_object_type` zastępuje `assign_attribute_to_family`; `create_object_type` reserved Faza 2.
+- #63 (Bundle Agent) — AgentRun loguje tool calls per `kind` w `tool_calls` JSONB.
+- **#65 (Tool definitions) — KEY UPDATE:** lista toolów po ADR-009. `search_object_types` (nowy), `assign_attribute_to_object_type` (rename), `create_object_type` (nowy, reserved feature flagiem), `create_category` (sugar tool).
+- #66 (Tool execution) — Voter `CustomObjectTypeVoter` enforce'uje feature flag.
+- #67 (Pending changes) — `target_kind` w rekord.
+- #71 (Audit logging) — `target_kind` indeksowane.
+
+**Follow-up:**
+- **#123 (Custom PHPStan rule blocking flush in loop without clear)** — milestone przypisany do **MVP-Final** (był NONE). Po ADR-009 rule operuje na `object_values` flush patterns, nie tylko `product_values`.
+
+**Sprint-0 leftovers (#9, #15) i Epiki 0.1 (#17-#23) / 0.2 (#24-#30)** — bez zmian (czysta infra/auth/demo, neutralne wobec ADR-009).
+
+### Statystyka audytu
+- 30 ticketów edytowanych (epik 0.3: 10 + nowy 0.3.12; epik 0.4: 8 light; epik 0.5: 5 light; epik 0.6: 9 update + 1 rename; epik 0.10: 6 light; epik 0.11: 2 light; Faza 1: 2 light; Faza 2: 7 light).
+- 1 nowy ticket utworzony (#128 — 0.3.12).
+- 1 ticket dostał milestone (#123 → MVP-Final).
+- 0 ticketów zamkniętych jako duplikaty/obsolete.
