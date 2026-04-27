@@ -25,7 +25,7 @@ Pierwotny scope Sprint-0 (16 ticketów #1-#16) został zrewidowany po PR #119 (#
 | ~~#7~~ | ~~Cmd+K placeholder~~ | → Faza 2 | — |
 | ~~#8~~ | ~~Shopify GraphQL stub~~ | → Faza 1 | — |
 | #9 | 0.0.9 Manualny E2E + screencast (gate decision) | 🟡 pending | — |
-| #10 | 0.0.10 Playwright E2E | 🟡 pending | — |
+| #10 | 0.0.10 Playwright E2E | ✅ done | PR #122 |
 | #11 | 0.0.11 PHPStan max + PHP-CS-Fixer + Biome + husky + CI | ✅ done | PR #114 |
 | #12 | 0.0.12 Smoke izolacji multi-tenant | ✅ done | PR #117 |
 | #13 | 0.0.13 Benchmark FrankenPHP worker memory | 🟡 pending | — |
@@ -33,7 +33,7 @@ Pierwotny scope Sprint-0 (16 ticketów #1-#16) został zrewidowany po PR #119 (#
 | #15 | 0.0.15 pgBackRest + WAL stub | 🟡 pending | — |
 | #16 | 0.0.16 Audit + findings | ✅ done (ten dokument) | PR #121 |
 
-**Done: 8 / 13. Pending: 5** (#9, #10, #13, #14, #15). Gate decision (zielony/czerwony) = po zamknięciu wszystkich pozostałych.
+**Done: 9 / 13. Pending: 4** (#9, #13, #14, #15). Gate decision (zielony/czerwony) = po zamknięciu wszystkich pozostałych.
 
 ## 2. REWIZJA ZAKRESU MVP (decyzja operatora 2026-04-27)
 
@@ -191,7 +191,7 @@ W tym PR aktualizuję CLAUDE.md o punkty 4.2 (drobne korekty workflow + prioryte
 - 🟡 Memory benchmark FrankenPHP worker (#13) — pending
 - 🟡 Performance profile (#14) — pending
 - 🟡 Backup + restore test (#15) — pending
-- 🟡 Playwright E2E happy path (#10) — pending
+- ✅ Playwright E2E happy path (#10) — 9/9 lokalnie + CI
 - 🟡 Manual demo + screencast (#9) — pending
 
 **Przewidywany verdict:** **GREEN** (na podstawie 7/13 zielonych ticketów + brak blockerów w pozostałych 6).

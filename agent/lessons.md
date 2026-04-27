@@ -256,3 +256,30 @@
 - **Reorganizacja milestone'ów na GitHub'ie via `gh api` + bash loop.** Tworzenie milestone'a: `gh api repos/owner/repo/milestones -f title=...`. Przeniesienie issue: `gh issue edit N --milestone "..."`. Zamykanie milestone'u: `gh api -X PATCH repos/owner/repo/milestones/N -f state=closed`. Pętla bash z grep-em po numerach ticketów = ~2 min na 30 ticketów. Skrypt nie idzie do repo (one-shot), idzie do lessons jako wzór. (#16)
 
 - **Komentarz na przeniesionym issue tłumaczy "dlaczego" — nie tylko "gdzie".** Każdy z 3 przeniesionych Sprint-0 ticketów (#6, #7, #8) i 35 ticketów epików dostał komentarz z linkiem do `Project Plan/02-plan-projektu-pim.md` i wyjaśnieniem decyzji. Future-self wracający do issue widzi context, nie tylko "moved to milestone X". (#16)
+
+## Lessons z 0.0.10 (Playwright E2E + docker-compose CI)
+
+- **`docker compose up --wait` + healthcheck queryjący domain DB = chicken-and-egg.** Healthcheck api hituje `/api`, który przez `RequestTenantSubscriber` queryje tabelę `tenants`. Bez migracji → 500 → unhealthy → `--wait` timeout. Migracje wymagają activnego api containera. **Wzór:** dwustopniowy startup: `up -d --wait db redis` → `up -d api` (no wait) → poll `php -v` aż exec działa → `migrate + fixtures` → `up -d --wait reszta`. (#10)
+  - Why: pełen stack zależy od schemy DB; healthcheck domyślnie chce być deterministycznym sygnałem "container ready" — z DB-driven endpointem trzeba wstrzyknąć migracje pomiędzy.
+  - How to apply: każdy nowy container/healthcheck który dotyka domain DB musi być w "phase 2" startup pipeline'u. Init-only containery (np. minio-init) idą OBOK głównego waita.
+
+- **`docker compose --wait` traktuje `restart: no` one-shot exit (kod 0) jako wait failure.** `minio-init` robi `mc mb pim-assets` i wychodzi cleanly. `--wait` widzi non-running container → exit 1. **Fix:** explicit service list `up -d --wait db redis api admin caddy mercure` zamiast wszystko. (#10)
+  - Why: `docker compose --wait` waits for services to be running OR healthy — exited (success or fail) nie jest stanem "running".
+  - How to apply: alternatywa to `service_completed_successfully` w depends_on, ale list-explicit jest prościej i jaśniej w CI.
+
+- **Caddy single-origin healthcheck MUSI używać HTTPS — Caddy listening only na :443.** Docker-compose Caddy healthcheck pierwotnie miał `wget http://localhost/api`. Caddy z auto-HTTPS i auto-redirect=disabled nie listening na :80 — wget connection refused. Lokalnie `compose ps` pokazywał `(unhealthy)` ale nikt nie zauważył bez `--wait`. **Fix:** `wget --no-check-certificate https://localhost/api`. (#10)
+  - Why: single-origin Caddyfile binds tylko HTTPS w naszej topologii. HTTP→HTTPS redirect wyłączony.
+  - How to apply: każdy container behind Caddy musi healthcheck'ować HTTPS endpoint, nie HTTP. Custom CA cert akceptowany przez `--no-check-certificate` w wget / `-k` w curl.
+
+- **Playwright w Alpine container = no go.** `node:22-alpine` (admin) nie ma `apt-get`, Playwright nie zainstaluje deps Chromium. **Strategia:** dev = host-side install (`pnpm playwright install`), CI = official `mcr.microsoft.com/playwright` LUB `ubuntu-latest` + `playwright install --with-deps`. (#10)
+  - Why: Playwright bundle Chromium z linux deps jako Debian/Ubuntu packages.
+  - How to apply: jeśli dev container kiedyś migruje na Debian, można nano przenieść Playwright do container. Do tego czasu: instrukcja w README + `pnpm --filter @pim/admin e2e` z hosta.
+
+- **Random timestamp+random SKU dla testów na non-reset DB.** Sprint 0 nie ma DB reset między test runami (dev DB), więc testy mutacyjne (POST products) muszą używać unikalnych SKU per run. `${prefix}-${Date.now().toString(36)}-${random3digit}`. CI ma fresh DB więc kolizja niemożliwa, ale test musi działać też lokalnie. (#10)
+
+- **Playwright `getByRole('cell', { name: ... })` strict mode** — gdy substring matchuje wiele cells, fail z "strict mode violation". Użyj `exact: true` lub bardziej specyficznego selektora. Najczęstszy case: cell SKU + cell name zawierający SKU jako substring. (#10)
+
+- **CI buduje produkcyjny bundle — nie testuje dev experience.** Wzór z #5 (ESM `__dirname`) potwierdzony znowu: `vite build` przeszedł, `vite dev` fail'ował. E2E job z `pnpm dev` przez Caddy = pierwszy CI step który faktycznie testuje dev stack. **Akcja:** każdy frontend ticket który dotyka Vite config / dev server MUSI być testowany przez pełen E2E w CI, nie tylko build. (#10)
+
+- **Trzy fixy w CI debugowaniu = three commits, nie squash do jednego.** Pierwotna implementacja PR #122 → CI fail → fix migracji → CI fail → fix --wait list → CI fail → fix Caddy HTTPS healthcheck → CI green. Każdy commit ma czytelny `fix(ci)/fix(infra)` message + link `Refs #10`. Po squash-merge git history ma jeden czysty commit, ale podczas debug'u widać kolejność rozumowania. (#10)
+  - How to apply: debugger CI commits to NORMA, nie smell. Po-mortem w `chore(agent)` na main agreguje wnioski.

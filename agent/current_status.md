@@ -1,11 +1,11 @@
 # Current Status
 
-## Sub-faza: SPRINT-0 — 8/13 ticketów done (po rewizji zakresu), 5 do gate decision
+## Sub-faza: SPRINT-0 — 9/13 ticketów done (po rewizji zakresu), 4 do gate decision
 
 ## Ostatnie 3 akcje
-1. **Ticket #16 (0.0.16) zamknięty** (PR #121 squash-merged do main 2026-04-27 jako `19f1740`). `Project Plan/06-sprint-0-findings.md` (8 sekcji, 25 świadomych odejść z #1-#5 + hotfix #120, formalizacja rewizji zakresu MVP, audit `CLAUDE.md` + `agent/lessons.md`, gate-decision criteria z przewidywaniem GREEN). `CLAUDE.md` — 4 drobne korekty: nowa kolejność sub-faz (bez Beta-Min/Beta-Full intermediate, agent → Faza 2, integracje → Faza 1), workflow point 3 (lessons pattern), atomic files (06-sprint-0-findings dodane + `/api/docs.jsonopenapi`), Psalm flag. **Reorganizacja backloga w commit `bedf1ae`:** milestone'y "Faza 1 — Integracje (BaseLinker + Shopify)" + "Faza 2 — Agent layer + dodatkowe konektory" utworzone, 35 ticketów przeniesionych (epiki 0.7/0.8/0.9 + Sprint 0 #6/#7/#8), Beta-Min/Beta-Full milestone'y zamknięte, scope #54 + #61 zrewidowany.
-2. **Ticket #5 (0.0.5) zamknięty** (PR #119 jako `04bc2ad` + hotfix PR #120 jako `79a26c3`). Pierwszy frontend slice: Refine v5 + custom Hydra DataProvider + JWT auth + Tailwind v4 + shadcn + react-i18next. Pages: login, products list, products create, products edit. Layout sidebar+topbar. **Hotfix #120:** ESM `__dirname` → `fileURLToPath(import.meta.url)` + manual `useNavigate` w `useLogin`/`useLogout` `onSuccess` (Refine v5 bez routerProvider'a nie redirectuje).
-3. **Ticket #4 (0.0.4) zamknięty** (PR #118 jako `48aad2a`). Encja `User` (Identity, TenantAware) + LexikJWT v3.2.0 + 3 firewalls (login/api/main) + `users` table + admin fixtures + AuthApiTest 5 case'ów. ProductApiTest + TenantIsolationTest zaktualizowane do JWT mintingu. CI generuje RSA keypair per-run.
+1. **Ticket #10 (0.0.10) zamknięty** (PR #122 squash-merged do main 2026-04-27 jako `c3f6f26`). Pierwszy Playwright E2E od dnia 1: 9 testów (5 auth: login OK, wrong-password 401, unauthenticated bounce, logout, fixture credentials sanity check; 4 CRUD: list, create, PATCH z SKU lock, validation error) targetujących `https://pim.localhost` przez full Caddy + FrankenPHP + Postgres + Vite stack. `playwright.config.ts` z `ignoreHTTPSErrors`, `trace`/`screenshot`/`video` retain-on-failure, `workers: 1`. Helpers: `loginAsAdmin()`, `uniqueSku()` dla non-reset DB. CI job `e2e` w `quality-frontend.yml`: kolejność `database+redis --wait` → `api` (no wait) → `migrate + fixtures` → `--wait reszta` → `curl https://pim.localhost/api` poll → `playwright install` → `pnpm e2e`. Failure uploads HTML report + test-results + docker-compose logs. **3 fixy w trakcie CI debugowania:** (a) chicken-egg api healthcheck (queryje `tenants` table → migracje musi przed --wait), (b) `docker compose up --wait` traktuje `minio-init` (`restart: no` one-shot exit 0) jako wait failure → explicit service list, (c) Caddy healthcheck używał HTTP na :80 ale Caddy listening tylko na :443 → switch na HTTPS z `--no-check-certificate` (lokalnie też było unhealthy ale nikt nie zauważył bez `--wait`). Lokalnie 9/9 w 44s, CI 9/9. **Świadome odejścia:** Playwright host-side w dev (Alpine admin container nie wspiera Playwright deps); workers=1 + fullyParallel=false dla MVP; brak Cmd+K/Shopify w scope (rewizja #16); brak tsconfig.e2e.json (Playwright kompiluje TS na lotu); randomized timestamped SKU zamiast DB reset.
+2. **Ticket #16 (0.0.16) zamknięty** (PR #121 jako `19f1740`). `Project Plan/06-sprint-0-findings.md` (8 sekcji, 25 świadomych odejść). `CLAUDE.md` — 4 drobne korekty. Reorganizacja backloga (`bedf1ae`): 35 ticketów przeniesionych do Faza 1/2, milestone'y Beta-Min/Beta-Full zamknięte.
+3. **Ticket #5 (0.0.5) zamknięty** (PR #119 jako `04bc2ad` + hotfix PR #120 jako `79a26c3`). Pierwszy frontend slice: Refine v5 + Hydra DataProvider + JWT auth + Tailwind v4 + shadcn + react-i18next. Hotfix: ESM `__dirname` + manual `useNavigate` w mutacjach.
 
 ## Bieżący stan
 Sprint 0 = 7/16 ticketów done (#1 setup, #11 quality gates, #2 multi-tenancy + Product/Tenant, #3 ApiResource Product, #12 multi-tenant isolation smoke, #4 LexikJWT auth, #5 admin Refine + shadcn).
@@ -20,11 +20,11 @@ Domain model:
 - Auth: LexikJWT v3.2.0, `POST /api/auth/login` zwraca JWT, wszystkie inne `/api/*` wymagają `Authorization: Bearer ...`
 - API: `Product` jako `#[ApiResource]` na `/api/products` (CRUD + cursor pagination + Swagger UI na `/api/docs`)
 - Admin frontend: Refine v5 + shadcn na `https://pim.localhost` — login + lista + create/edit produktów; sidebar nav + i18n (pl/en)
-- Test coverage: TenantAssignmentListenerTest (4 cases) + ProductApiTest (6 cases) + TenantIsolationTest (4 cases) + AuthApiTest (5 cases)
+- Test coverage: TenantAssignmentListenerTest (4 cases) + ProductApiTest (6 cases) + TenantIsolationTest (4 cases) + AuthApiTest (5 cases) + Playwright E2E (9 cases — auth + products CRUD)
 
 Quality gates aktywne:
-- **Lokalnie**: pre-commit hook + commit-msg hook (husky) — Biome + PHP-CS-Fixer + Conventional Commits
-- **CI**: GitHub Actions na PR + push do main — PHPStan + PHP-CS-Fixer + PHPUnit; Biome + tsc + Vite build; composer + pnpm audit (nightly)
+- **Lokalnie**: pre-commit hook + commit-msg hook (husky) — Biome + PHP-CS-Fixer + Conventional Commits; `pnpm --filter @pim/admin e2e` host-side
+- **CI**: GitHub Actions na PR + push do main — PHPStan + PHP-CS-Fixer + PHPUnit; Biome + tsc + Vite build; **Playwright E2E (full Caddy + FrankenPHP + Postgres + admin stack)**; composer + pnpm audit (nightly)
 
 **Akcje po stronie operatora (do zrobienia w wolnej chwili, nie blocker):**
 - Branch protection na `main` (Settings → Branches → Add rule):
@@ -89,14 +89,13 @@ Quality gates aktywne:
 ## Następny krok
 | # | Ticket | Komentarz |
 |---|---|---|
-| **#10 (0.0.10)** | Playwright E2E od dnia 1 | **Rekomendacja** — domyka DoD Sprint 0 dla #5 + wszystkich UI ticketów MVP-Alpha. Z `/login` + `/products` CRUD gotowymi to naturalny next step. Setup playwright + happy path test (login → list → create → edit → logout). |
-| #13 (0.0.13) | Benchmark FrankenPHP worker memory | Niezależny. AbstractBatchHandler stub + 5000 produktów import + Prometheus memory delta. |
+| **#13 (0.0.13)** | Benchmark FrankenPHP worker memory | **Rekomendacja** — niezależny. AbstractBatchHandler stub + 5000 produktów import + monitoring memory delta. Waliduje hipotezę z #2 że memory leak istnieje + pattern `EntityManager::clear()` skuteczny. |
 | #14 (0.0.14) | Profilowanie Blackfire/Tideways | Niezależny. p95 < 200 ms na 1000 produktach. |
 | #15 (0.0.15) | pgBackRest + WAL stub | Niezależny. Backup co 1h + restore test przed końcem Sprintu. |
 | #9 (0.0.9) | Manualny E2E + screencast (gate decision) | Po wszystkich pozostałych Sprint 0 ticketach. Verdict GREEN/RED. |
 
 ## Postęp po fazach (po rewizji zakresu)
-- [ ] Sprint 0 (gate decision) — **8/13 ticketów done** — issues #1-#5, #9-#16 (#6, #7, #8 przeniesione do Faza 1/2)
+- [ ] Sprint 0 (gate decision) — **9/13 ticketów done** — issues #1-#5, #9-#16 (#6, #7, #8 przeniesione do Faza 1/2)
 - [ ] MVP-Alpha (epiki 0.1–0.6, fundament + admin UI) — 0/46 — issues #17-#62
 - [ ] MVP-Final (epiki 0.10–0.11, API Configurator + hardening) — 0/18 — issues #90-#107
 - [ ] **Faza 1** — Integracje BaseLinker + Shopify + hardening track B — 19 issues (epiki 0.8 + 0.9 + Sprint 0 #8)
@@ -112,7 +111,7 @@ Quality gates aktywne:
 - [→] ~~#7 / 0.0.7~~ — Cmd+K placeholder → **przeniesione do Faza 2** (rewizja 2026-04-27)
 - [→] ~~#8 / 0.0.8~~ — Shopify GraphQL stub → **przeniesione do Faza 1** (rewizja 2026-04-27)
 - [ ] #9 / 0.0.9 — Manualny E2E Sprintu 0 + screencast
-- [ ] #10 / 0.0.10 — Playwright E2E od dnia 1
+- [x] **#10 / 0.0.10** — Playwright E2E od dnia 1 (PR #122 merged 2026-04-27)
 - [x] **#11 / 0.0.11** — PHPStan max + PHP-CS-Fixer + Biome + husky + CI (PR #114 merged 2026-04-27)
 - [x] **#12 / 0.0.12** — Smoke izolacji multi-tenant (PR #117 merged 2026-04-27)
 - [ ] #13 / 0.0.13 — Benchmark FrankenPHP worker memory
