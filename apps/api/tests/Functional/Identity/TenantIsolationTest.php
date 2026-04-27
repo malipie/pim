@@ -7,8 +7,11 @@ namespace App\Tests\Functional\Identity;
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Catalog\Domain\Entity\Product;
 use App\Identity\Domain\Entity\Tenant;
+use App\Identity\Domain\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
@@ -20,11 +23,10 @@ use const JSON_THROW_ON_ERROR;
  * actually scopes reads to the current tenant and that the Postgres unique
  * index does not accidentally leak the existence of cross-tenant rows.
  *
- * The "current tenant" in Sprint-0 (pre-auth) is resolved by
- * CurrentTenantProvider from APP_DEFAULT_TENANT_CODE; we flip that env var
- * between requests, shutting the kernel between flips so the freshly booted
- * container resolves the new value. Once #4 (0.0.4) lands the kernel reboots
- * become unnecessary — the test can authenticate as either tenant's user.
+ * Each tenant has its own admin user; tests authenticate as that admin via
+ * a JWT minted by JWTTokenManager and CurrentTenantProvider resolves the
+ * tenant from the authenticated principal (TenantAware). No env-var dance
+ * needed once auth is wired (#4).
  *
  * Native-SQL bypass test is intentional: it documents that this filter is the
  * application-layer boundary only. Postgres RLS in phase 1 (sekcja 11.1a
@@ -40,6 +42,9 @@ final class TenantIsolationTest extends ApiTestCase
 
     private const string TENANT_A_CODE = 'tenant-alpha';
     private const string TENANT_B_CODE = 'tenant-bravo';
+    private const string TENANT_A_EMAIL = 'admin@alpha.test';
+    private const string TENANT_B_EMAIL = 'admin@bravo.test';
+    private const string ADMIN_PASSWORD = 'changeme';
     private const int PRODUCTS_PER_TENANT = 5;
 
     private Uuid $tenantBProductId;
@@ -56,6 +61,10 @@ final class TenantIsolationTest extends ApiTestCase
         $em->persist($tenantB);
         $em->flush();
 
+        $this->seedAdmin($tenantA, self::TENANT_A_EMAIL);
+        $this->seedAdmin($tenantB, self::TENANT_B_EMAIL);
+        $em->flush();
+
         for ($i = 1; $i <= self::PRODUCTS_PER_TENANT; ++$i) {
             $alphaProduct = new Product(\sprintf('ALPHA-%03d', $i), \sprintf('Alpha #%d', $i));
             $alphaProduct->assignTenant($tenantA);
@@ -70,19 +79,12 @@ final class TenantIsolationTest extends ApiTestCase
             }
         }
         $em->flush();
-
-        // The test below boots a fresh kernel through createClient(); shutting
-        // down here means the next boot picks up our APP_DEFAULT_TENANT_CODE
-        // override instead of a cached value from the seed-phase boot.
-        static::ensureKernelShutdown();
     }
 
     #[Test]
     public function listingProductsAsTenantAReturnsOnlyTenantARecords(): void
     {
-        $this->withTenant(self::TENANT_A_CODE);
-
-        $response = static::createClient()->request('GET', '/api/products');
+        $response = $this->clientForUser(self::TENANT_A_EMAIL)->request('GET', '/api/products');
 
         self::assertResponseIsSuccessful();
         $body = $response->toArray();
@@ -105,9 +107,7 @@ final class TenantIsolationTest extends ApiTestCase
     #[Test]
     public function fetchingTenantBProductAsTenantAReturns404(): void
     {
-        $this->withTenant(self::TENANT_A_CODE);
-
-        static::createClient()->request(
+        $this->clientForUser(self::TENANT_A_EMAIL)->request(
             'GET',
             '/api/products/'.$this->tenantBProductId->toRfc4122(),
         );
@@ -121,9 +121,7 @@ final class TenantIsolationTest extends ApiTestCase
     #[Test]
     public function patchingTenantBProductAsTenantAReturns404(): void
     {
-        $this->withTenant(self::TENANT_A_CODE);
-
-        static::createClient()->request(
+        $this->clientForUser(self::TENANT_A_EMAIL)->request(
             'PATCH',
             '/api/products/'.$this->tenantBProductId->toRfc4122(),
             [
@@ -155,11 +153,39 @@ final class TenantIsolationTest extends ApiTestCase
         );
     }
 
-    private function withTenant(string $code): void
+    private function seedAdmin(Tenant $tenant, string $email): void
     {
-        $_ENV['APP_DEFAULT_TENANT_CODE'] = $code;
-        $_SERVER['APP_DEFAULT_TENANT_CODE'] = $code;
-        putenv('APP_DEFAULT_TENANT_CODE='.$code);
+        $hasher = $this->passwordHasher();
+        $stub = new User($tenant, $email, '', ['ROLE_ADMIN']);
+        $admin = new User(
+            $tenant,
+            $email,
+            $hasher->hashPassword($stub, self::ADMIN_PASSWORD),
+            ['ROLE_ADMIN'],
+        );
+
+        $this->em()->persist($admin);
+    }
+
+    private function clientForUser(string $email): \ApiPlatform\Symfony\Bundle\Test\Client
+    {
+        $container = self::getContainer();
+        $userRepository = $container->get('doctrine')->getRepository(User::class);
+        $user = $userRepository->findOneBy(['email' => $email]);
+        \assert($user instanceof User);
+
+        $jwtManager = $container->get(JWTTokenManagerInterface::class);
+        $token = $jwtManager->create($user);
+
+        $client = static::createClient();
+        $client->setDefaultOptions(['headers' => ['authorization' => 'Bearer '.$token]]);
+
+        return $client;
+    }
+
+    private function passwordHasher(): UserPasswordHasherInterface
+    {
+        return self::getContainer()->get(UserPasswordHasherInterface::class);
     }
 
     private function em(): EntityManagerInterface

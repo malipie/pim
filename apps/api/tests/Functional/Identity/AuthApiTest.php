@@ -1,0 +1,149 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Functional\Identity;
+
+use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
+use App\Identity\Domain\Entity\Tenant;
+use App\Identity\Domain\Entity\User;
+use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Zenstruck\Foundry\Test\Factories;
+use Zenstruck\Foundry\Test\ResetDatabase;
+
+use const JSON_THROW_ON_ERROR;
+
+/**
+ * Functional contract for the Sprint-0 auth slice (#4 / 0.0.4):
+ *  - POST /api/auth/login with valid credentials returns a JWT
+ *  - Wrong credentials return 401 (no token leak)
+ *  - Protected endpoints require a Bearer JWT
+ *  - A valid JWT lets the request through
+ */
+final class AuthApiTest extends ApiTestCase
+{
+    use Factories;
+    use ResetDatabase;
+
+    protected static ?bool $alwaysBootKernel = true;
+
+    private const string TENANT_CODE = 'demo';
+    private const string ADMIN_EMAIL = 'admin@pim.localhost';
+    private const string ADMIN_PASSWORD = 'changeme';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $em = $this->em();
+
+        $tenant = new Tenant(self::TENANT_CODE, 'Demo Tenant');
+        $em->persist($tenant);
+
+        $hasher = $this->passwordHasher();
+        $stub = new User($tenant, self::ADMIN_EMAIL, '', ['ROLE_ADMIN']);
+        $admin = new User(
+            $tenant,
+            self::ADMIN_EMAIL,
+            $hasher->hashPassword($stub, self::ADMIN_PASSWORD),
+            ['ROLE_ADMIN'],
+        );
+        $em->persist($admin);
+        $em->flush();
+    }
+
+    #[Test]
+    public function loginWithValidCredentialsReturnsJwt(): void
+    {
+        $response = static::createClient()->request('POST', '/api/auth/login', [
+            'headers' => ['content-type' => 'application/json'],
+            'body' => json_encode(
+                ['email' => self::ADMIN_EMAIL, 'password' => self::ADMIN_PASSWORD],
+                JSON_THROW_ON_ERROR,
+            ),
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $body = $response->toArray();
+        self::assertArrayHasKey('token', $body);
+        $token = $body['token'];
+        self::assertIsString($token);
+        // Three base64url segments separated by dots is the JWS compact serialisation.
+        self::assertMatchesRegularExpression('#^[\w-]+\.[\w-]+\.[\w-]+$#', $token);
+    }
+
+    #[Test]
+    public function loginWithWrongPasswordReturns401(): void
+    {
+        static::createClient()->request('POST', '/api/auth/login', [
+            'headers' => ['content-type' => 'application/json'],
+            'body' => json_encode(
+                ['email' => self::ADMIN_EMAIL, 'password' => 'wrong'],
+                JSON_THROW_ON_ERROR,
+            ),
+        ]);
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    #[Test]
+    public function protectedEndpointWithoutTokenReturns401(): void
+    {
+        static::createClient()->request('GET', '/api/products');
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    #[Test]
+    public function protectedEndpointWithValidTokenReturns200(): void
+    {
+        $token = $this->loginAndExtractToken();
+
+        $client = static::createClient();
+        $client->setDefaultOptions(['headers' => ['authorization' => 'Bearer '.$token]]);
+        $client->request('GET', '/api/products');
+
+        self::assertResponseIsSuccessful();
+    }
+
+    #[Test]
+    public function protectedEndpointWithMalformedTokenReturns401(): void
+    {
+        $client = static::createClient();
+        $client->setDefaultOptions(['headers' => ['authorization' => 'Bearer not.a.real.jwt']]);
+        $client->request('GET', '/api/products');
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    private function loginAndExtractToken(): string
+    {
+        $response = static::createClient()->request('POST', '/api/auth/login', [
+            'headers' => ['content-type' => 'application/json'],
+            'body' => json_encode(
+                ['email' => self::ADMIN_EMAIL, 'password' => self::ADMIN_PASSWORD],
+                JSON_THROW_ON_ERROR,
+            ),
+        ]);
+
+        $token = $response->toArray()['token'] ?? null;
+        \assert(\is_string($token));
+
+        return $token;
+    }
+
+    private function passwordHasher(): UserPasswordHasherInterface
+    {
+        return self::getContainer()->get(UserPasswordHasherInterface::class);
+    }
+
+    private function em(): EntityManagerInterface
+    {
+        $em = self::getContainer()->get('doctrine')->getManager();
+        \assert($em instanceof EntityManagerInterface);
+
+        return $em;
+    }
+}

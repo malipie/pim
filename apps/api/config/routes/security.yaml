@@ -1,3 +1,10 @@
 _security_logout:
     resource: security.route_loader.logout
     type: service
+
+# Lexik JSON login is wired to the json_login authenticator on the `login`
+# firewall (security.yaml). The route exists only to give it a real URL the
+# router can match — the controller is the firewall itself, no body needed.
+api_auth_login:
+    path: /api/auth/login
+    methods: [POST]

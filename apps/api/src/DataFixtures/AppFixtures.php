@@ -7,15 +7,19 @@ namespace App\DataFixtures;
 use App\Catalog\Domain\Entity\Product;
 use App\Identity\Application\TenantContext;
 use App\Identity\Domain\Entity\Tenant;
+use App\Identity\Domain\Entity\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 /**
  * Sprint 0 demo dataset.
  *
- * Two tenants ("demo" and "acme") each with three products. The pair lets the
- * smoke test for tenant isolation (#12 / 0.0.12) flip APP_DEFAULT_TENANT_CODE
- * between them and assert that the TenantFilter actually scopes queries.
+ * Two tenants ("demo" and "acme") each with one admin user and three products.
+ * The pair lets the smoke test for tenant isolation (#12 / 0.0.12) flip
+ * APP_DEFAULT_TENANT_CODE between them and assert that the TenantFilter
+ * actually scopes queries; once auth lands (#4 / 0.0.4) callers obtain a JWT
+ * for the desired tenant's admin instead of relying on the env fallback.
  *
  * Bootstrap order matters: tenants are persisted first (without flushing the
  * unit of work), then for each tenant we set TenantContext and persist its
@@ -24,8 +28,11 @@ use Doctrine\Persistence\ObjectManager;
  */
 class AppFixtures extends Fixture
 {
+    private const string DEFAULT_ADMIN_PASSWORD = 'changeme';
+
     public function __construct(
         private readonly TenantContext $tenantContext,
+        private readonly UserPasswordHasherInterface $passwordHasher,
     ) {
     }
 
@@ -40,6 +47,23 @@ class AppFixtures extends Fixture
             $manager->persist($tenant);
         }
 
+        $manager->flush();
+
+        $admins = [
+            'demo' => 'admin@pim.localhost',
+            'acme' => 'admin@acme.localhost',
+        ];
+        foreach ($tenants as $tenant) {
+            $email = $admins[$tenant->getCode()];
+            $stub = new User($tenant, $email, '', ['ROLE_ADMIN']);
+            $admin = new User(
+                $tenant,
+                $email,
+                $this->passwordHasher->hashPassword($stub, self::DEFAULT_ADMIN_PASSWORD),
+                ['ROLE_ADMIN'],
+            );
+            $manager->persist($admin);
+        }
         $manager->flush();
 
         $catalog = [
