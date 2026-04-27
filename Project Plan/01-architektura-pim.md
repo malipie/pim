@@ -260,26 +260,27 @@ Wszystkie komponenty wybrane do stacku mają licencje przyjazne komercjalizacji,
 
 System dzieli się na cztery główne konteksty domenowe (Bounded Contexts wg DDD):
 
-**Catalog Context** — produkty, rodziny, atrybuty, atrybut groups, kategorie, asocjacje (cross-sell, up-sell, related). Rdzeń PIM. Encje: Product, ProductValue, Family, FamilyVariant, Attribute, AttributeGroup, AttributeOption, Category, Association.
+**Catalog Context** — typy obiektów domenowych (`ObjectType`), atrybuty, grupy atrybutów, instancje obiektów (produkty, kategorie, asocjacje), warianty. Rdzeń PIM po ADR-009. Encje: `ObjectType`, `ObjectTypeAttribute`, `Attribute`, `AttributeGroup`, `AttributeOption`, `Object` (poly: kind=`product`/`category`/`asset`/`custom`), `ObjectValue`, `ObjectVariant`, `Association`. Sub-context **Predefined Types** enkapsuluje predefiniowane fixture'y `Product`/`Category`/`Asset` (`is_built_in=true`) z dedykowanymi UX flow w admin UI i sugar paths w API. Pojęcie „Family" z poprzedniej iteracji jest deprecated — `ObjectType` przejmuje jego rolę i rozszerza ją na wszystkie byty domenowe.
 
-**Channel Context** — kanały sprzedaży, lokale, mappingi atrybutów per-kanał, completeness rules, publikacje. Encje: Channel, Locale, Currency, ChannelAttributeMapping, CompletenessRule.
+**Channel Context** — kanały sprzedaży, lokale, mappingi atrybutów per-kanał i per-`ObjectType`, completeness rules, publikacje. Encje: Channel, Locale, Currency, `ChannelObjectTypeMapping` (poly per `kind`), CompletenessRule.
 
-**Asset Context** — zarządzanie mediami (DAM), wersjonowanie, transformacje, metadane. Encje: Asset, AssetVariant, AssetMetadata, AssetAttribute.
+**Asset Context** — zarządzanie mediami (DAM), wersjonowanie, transformacje, metadane. Encje: Asset (predefined `ObjectType kind='asset'` + odrębna tabela storage), AssetVariant, AssetMetadata. User-defined metadata Asseta idzie przez `ObjectValue` (jednolity model atrybutów), storage szczegóły zostają w dedykowanych kolumnach `assets`.
 
-**Integration Context** — konfiguracja integracji, mapowania, historia synchronizacji, rejestr błędów. Encje: IntegrationProfile, AttributeMapping, SyncJob, SyncJobLog.
+**Integration Context** — konfiguracja integracji, mapowania (per `ObjectType`), historia synchronizacji, rejestr błędów. Encje: IntegrationProfile, AttributeMapping, SyncJob, SyncJobLog.
 
-Pomocnicze konteksty: Identity (użytkownicy, role, permissions, audit), Agent (sesje agenta, tool calls, pending approvals), API Configurator (konfiguracja endpointów publikujących, kluczy, webhooków).
+Pomocnicze konteksty: Identity (użytkownicy, role, permissions, audit), Agent (sesje agenta, tool calls, pending approvals — z toolem `create_object_type` zarezerwowanym pod Fazę 2), API Configurator (konfiguracja endpointów publikujących, kluczy, webhooków, profile filtrowane per `object_type_id`).
 
 ## 5. Model danych — kluczowe encje
 
 ### 5.1 Filozofia modelowania
 
-Model danych łączy dwa podejścia, zaczerpnięte odpowiednio od Akeneo (struktura atrybutów) i PIMcore (elastyczność JSONB):
+Model danych łączy dwa podejścia, zaczerpnięte odpowiednio od Akeneo (struktura atrybutów) i PIMcore (elastyczność JSONB), z generalizacją typu obiektu po ADR-009:
 
-- **Atrybut jako encja pierwszej klasy.** Każdy atrybut ma typ, opcje, zasięg (`scopable` per-channel, `localizable` per-locale), reguły walidacji, metadane UI.
-- **Wartości atrybutów w osobnej tabeli** (`product_values`) z polem `value JSONB`, indeksowanym GIN-em. To pozwala na dowolny typ wartości (string, number, date, array, relation, asset reference) bez migracji DDL przy dodawaniu nowych atrybutów.
-- **Generowane kolumny** dla najczęściej używanych atrybutów (np. `name`, `sku`, `gtin`) — Postgres `GENERATED ALWAYS AS` z JSONB, dla wydajnych zapytań i indeksów BTree.
-- **Hierarchia kategorii w `ltree`** — typ Postgres dla efektywnych zapytań "wszystkie produkty w kategorii X i jej podkategoriach".
+- **`ObjectType` jako encja pierwszej klasy** (po ADR-009). Każdy byt domenowy (`Product`, `Category`, `Asset`, w Fazie 2/3 — `Customer`, `Supplier`, `PriceList`) jest instancją jednego mechanizmu. Predefiniowane typy (`product`, `category`, `asset`) seedowane z `is_built_in=true` i blokowane przed deletion. Custom kindy odblokowane w Fazie 2/3.
+- **Atrybut jako encja pierwszej klasy.** Każdy atrybut ma typ, opcje, zasięg (`scopable` per-channel, `localizable` per-locale), reguły walidacji, metadane UI. Atrybuty wiążą się z `ObjectType` przez junction `object_type_attributes` (jeden atrybut może być przypisany do wielu typów — np. `name` dla każdego kindu, `seo_title` dla `product` i `category`).
+- **Wartości atrybutów w osobnej tabeli** (`object_values`, było `product_values` przed ADR-009) z polem `value JSONB`, indeksowanym GIN-em. To pozwala na dowolny typ wartości (string, number, date, array, relation, asset reference) bez migracji DDL przy dodawaniu nowych atrybutów ani nowych typów obiektów.
+- **Generowane kolumny** dla najczęściej używanych atrybutów (np. `name`, `sku`, `gtin`) — Postgres `GENERATED ALWAYS AS` z JSONB, dla wydajnych zapytań i indeksów BTree. Kolumny parametryzowane per `kind` przez `CASE WHEN kind='...' THEN ... END` lub partial functional indexes (np. `path` ltree tylko dla `kind='category'`).
+- **Hierarchia kategorii w `ltree`** — typ Postgres dla efektywnych zapytań "wszystkie produkty w kategorii X i jej podkategoriach". Aktywna tylko dla obiektów `kind='category'`, walidowana przez listener.
 - **Multi-tenancy przez `tenant_id`** w każdej tabeli domenowej + Postgres Row-Level Security jako drugi pas bezpieczeństwa.
 
 ### 5.2 Główne tabele (uproszczone)
@@ -294,7 +295,7 @@ CREATE TABLE tenants (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Atrybuty
+-- Atrybuty (po ADR-009: nadal pierwsza klasa, niezależne od ObjectType — wiązane przez junction)
 CREATE TABLE attributes (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL REFERENCES tenants(id),
@@ -312,62 +313,67 @@ CREATE TABLE attributes (
     UNIQUE (tenant_id, code)
 );
 
--- Rodziny produktów
-CREATE TABLE families (
+-- Typy obiektów domenowych (po ADR-009: zastępują families, generic dla każdego bytu)
+CREATE TABLE object_types (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL REFERENCES tenants(id),
-    code VARCHAR(128) NOT NULL,
-    name JSONB NOT NULL,  -- {"en": "Shoes", "pl": "Buty"}
-    label_attribute_id UUID REFERENCES attributes(id),  -- które pole jest "name"
-    image_attribute_id UUID REFERENCES attributes(id),
+    code VARCHAR(128) NOT NULL,                    -- 'product', 'category', 'asset', 'electronics', 'shoes', 'customer' (Faza 2)
+    kind VARCHAR(32) NOT NULL,                     -- 'product' | 'category' | 'asset' | 'custom'
+    is_built_in BOOLEAN NOT NULL DEFAULT false,    -- TRUE = predefined seed, deletion blocked at service + RLS layer
+    label JSONB NOT NULL,                          -- {"en": "Product", "pl": "Produkt"}
+    label_attribute_id UUID REFERENCES attributes(id),  -- które pole jest "display name" (np. "name")
+    image_attribute_id UUID REFERENCES attributes(id),  -- które pole jest "main image"
+    completeness_rules JSONB NOT NULL DEFAULT '{}',     -- reguły completeness per ObjectType
+    schema_version INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (tenant_id, code)
 );
+CREATE INDEX idx_object_types_kind ON object_types(tenant_id, kind);
 
-CREATE TABLE family_attributes (
-    family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+-- Junction: przypisanie atrybutów do typu obiektu (zastępuje family_attributes)
+CREATE TABLE object_type_attributes (
+    object_type_id UUID NOT NULL REFERENCES object_types(id) ON DELETE CASCADE,
     attribute_id UUID NOT NULL REFERENCES attributes(id),
     required_for_completeness BOOLEAN NOT NULL DEFAULT false,
-    PRIMARY KEY (family_id, attribute_id)
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (object_type_id, attribute_id)
 );
 
--- Kategorie z ltree
-CREATE TABLE categories (
+-- Obiekty domenowe (po ADR-009: jedna tabela dla product/category/custom, polimorfizm przez kind)
+-- Predefiniowane object_types mają dedykowane sugar paths /api/products, /api/categories,
+-- pod spodem wszystkie operacje na tej tabeli.
+CREATE TABLE objects (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL REFERENCES tenants(id),
-    code VARCHAR(128) NOT NULL,
-    path LTREE NOT NULL,  -- 'root.electronics.phones'
-    name JSONB NOT NULL,
-    parent_id UUID REFERENCES categories(id),
-    UNIQUE (tenant_id, code)
-);
-CREATE INDEX idx_categories_path_gist ON categories USING GIST (path);
-CREATE INDEX idx_categories_path_btree ON categories USING BTREE (path);
-
--- Produkty
-CREATE TABLE products (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NOT NULL REFERENCES tenants(id),
-    sku VARCHAR(128) NOT NULL,
-    family_id UUID NOT NULL REFERENCES families(id),
-    parent_id UUID REFERENCES products(id),  -- variants
+    object_type_id UUID NOT NULL REFERENCES object_types(id),
+    kind VARCHAR(32) NOT NULL,                     -- denormalizowany z object_types.kind do filterów/query
+    code VARCHAR(128) NOT NULL,                    -- sku dla product, category code dla category, asset code dla asset
+    parent_id UUID REFERENCES objects(id),         -- variants (dla product), drzewo kategorii (dla category)
     enabled BOOLEAN NOT NULL DEFAULT true,
-    -- Generated columns z attributes_jsonb (przykład)
+    -- Generated columns parametryzowane per kind:
     name_pl TEXT GENERATED ALWAYS AS (attributes_indexed->'name'->>'pl') STORED,
+    -- ltree path tylko dla kind='category' (NULL dla pozostałych) — walidowane przez Doctrine listener:
+    path LTREE,
     completeness_pct INTEGER NOT NULL DEFAULT 0,
     attributes_indexed JSONB NOT NULL DEFAULT '{}',  -- denormalizowany cache do search
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (tenant_id, sku)
+    UNIQUE (tenant_id, kind, code),                  -- np. dwa product+sku=ABC w różnych tenantach OK; dwa kind=product+code=ABC w jednym tenancie nie
+    CHECK (kind IN ('product', 'category', 'asset', 'custom'))
 );
-CREATE INDEX idx_products_family ON products(tenant_id, family_id);
-CREATE INDEX idx_products_attributes_gin ON products USING GIN (attributes_indexed);
+CREATE INDEX idx_objects_type ON objects(tenant_id, object_type_id);
+CREATE INDEX idx_objects_kind ON objects(tenant_id, kind);
+CREATE INDEX idx_objects_attributes_gin ON objects USING GIN (attributes_indexed);
+-- Partial indexes dla ltree (tylko categories):
+CREATE INDEX idx_objects_path_gist ON objects USING GIST (path) WHERE kind = 'category';
+CREATE INDEX idx_objects_path_btree ON objects USING BTREE (path) WHERE kind = 'category';
 
--- Wartości atrybutów (tabela faktów)
-CREATE TABLE product_values (
+-- Wartości atrybutów (po ADR-009: object_values zamiast product_values, wszystkie kindy używają tej samej tabeli)
+CREATE TABLE object_values (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL REFERENCES tenants(id),
-    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    object_id UUID NOT NULL REFERENCES objects(id) ON DELETE CASCADE,
     attribute_id UUID NOT NULL REFERENCES attributes(id),
     locale VARCHAR(8),  -- NULL jeśli atrybut nielocalizable
     channel VARCHAR(64),  -- NULL jeśli atrybut nieskopable
@@ -375,23 +381,24 @@ CREATE TABLE product_values (
     provenance VARCHAR(32) NOT NULL DEFAULT 'manual',  -- manual, import, agent, integration
     provenance_meta JSONB,  -- np. agent run id, integration source
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (tenant_id, product_id, attribute_id, locale, channel)
+    UNIQUE (tenant_id, object_id, attribute_id, locale, channel)
 );
-CREATE INDEX idx_product_values_lookup ON product_values(product_id, attribute_id);
+CREATE INDEX idx_object_values_lookup ON object_values(object_id, attribute_id);
 
--- Kategoryzacja
-CREATE TABLE product_categories (
-    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-    PRIMARY KEY (product_id, category_id)
+-- Kategoryzacja (object → object, gdzie target ma kind='category')
+-- Po ADR-009: była product_categories; teraz generic (Customer może być w drzewie kategorii klientów w Fazie 2).
+CREATE TABLE object_categories (
+    object_id UUID NOT NULL REFERENCES objects(id) ON DELETE CASCADE,
+    category_id UUID NOT NULL REFERENCES objects(id) ON DELETE CASCADE,
+    PRIMARY KEY (object_id, category_id)
 );
 
--- Asocjacje produkt-produkt
-CREATE TABLE product_associations (
-    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-    associated_product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-    type VARCHAR(32) NOT NULL,  -- cross_sell, up_sell, related, alternative
-    PRIMARY KEY (product_id, associated_product_id, type)
+-- Asocjacje object-object (po ADR-009: generic, nie tylko product-product)
+CREATE TABLE object_associations (
+    object_id UUID NOT NULL REFERENCES objects(id) ON DELETE CASCADE,
+    associated_object_id UUID NOT NULL REFERENCES objects(id) ON DELETE CASCADE,
+    type VARCHAR(32) NOT NULL,  -- cross_sell, up_sell, related, alternative, accessory
+    PRIMARY KEY (object_id, associated_object_id, type)
 );
 
 -- Kanały i lokale
@@ -406,19 +413,24 @@ CREATE TABLE channels (
     UNIQUE (tenant_id, code)
 );
 
--- Aktywa (DAM)
+-- Aktywa (DAM) — po ADR-009: dedykowana tabela dla storage szczegółów,
+-- ale Asset jest też reprezentowany jako Object kind='asset' dla user-defined metadata przez object_values.
+-- object_id wskazuje na powiązany Object kind='asset' (1:1) — schema atrybutów w object_type_attributes,
+-- storage details (path, mime, size) zostają tutaj (DAM ma własny lifecycle, transformacje, variants).
 CREATE TABLE assets (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL REFERENCES tenants(id),
+    object_id UUID UNIQUE REFERENCES objects(id) ON DELETE CASCADE,  -- NULL podczas migracji starych danych; NOT NULL po MVP-Alpha
     code VARCHAR(128) NOT NULL,
     type VARCHAR(32) NOT NULL,  -- image, video, document, 3d_model
     storage_path TEXT NOT NULL,
     mime_type VARCHAR(128) NOT NULL,
     size_bytes BIGINT NOT NULL,
-    metadata JSONB NOT NULL DEFAULT '{}',
+    metadata JSONB NOT NULL DEFAULT '{}',  -- techniczne (EXIF, dimensions); user-defined idzie do object_values
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (tenant_id, code)
 );
+CREATE INDEX idx_assets_object ON assets(object_id);
 
 -- Integracje
 CREATE TABLE integration_profiles (
@@ -460,20 +472,27 @@ CREATE TABLE agent_runs (
 
 ### 5.3 Strategia indeksowania
 
-- BTree indexy na klucze obce, kolumny generowane, najczęstsze filtry (tenant_id, family_id, sku, enabled).
-- GIN indexy na JSONB (attributes_indexed, value w product_values, config) dla zapytań typu "produkty z atrybutem `marka` = `Nike`".
-- GIST indexy na ltree (kategorie hierarchiczne).
-- Funkcjonalne indexy na kolumnach generowanych (np. `LOWER(sku)` dla case-insensitive lookup).
-- Partycjonowanie tabeli `product_values` po `tenant_id` (hash partitioning) gdy wejdziemy w multi-tenant.
+- BTree indexy na klucze obce, kolumny generowane, najczęstsze filtry (tenant_id, object_type_id, kind, code, enabled).
+- GIN indexy na JSONB (attributes_indexed, value w object_values, config) dla zapytań typu "produkty z atrybutem `marka` = `Nike`".
+- GIST indexy na ltree (kategorie hierarchiczne) — partial: `WHERE kind = 'category'`.
+- Funkcjonalne indexy na kolumnach generowanych (np. `LOWER(code)` dla case-insensitive lookup).
+- Partycjonowanie tabeli `object_values` po `tenant_id` (hash partitioning) gdy wejdziemy w multi-tenant.
 
 ### 5.4 Strategia indeksowania w Meilisearch
 
-Indeks `products` w Meilisearch zawiera:
+Po ADR-009 — **jeden indeks per `kind`**, indexer parametryzuje się o `object_type_id`. W MVP: `products`, `categories`. Asset DAM dochodzi w Fazie 1+.
+
+Indeks `products` (objects.kind='product'):
 - searchable attributes: `name`, `description`, `sku`, `brand`, `category_names`
-- filterable attributes: `family_code`, `enabled`, `category_ids`, `attributes.brand`, `attributes.color`, `price.amount`, `completeness_pct`
+- filterable attributes: `object_type_code`, `enabled`, `category_ids`, `attributes.brand`, `attributes.color`, `price.amount`, `completeness_pct`
 - sortable attributes: `created_at`, `updated_at`, `price.amount`, `name`
 
-Synchronizacja: Doctrine event listener (postPersist, postUpdate, postRemove) → Symfony Messenger message → worker pisze do Meilisearch.
+Indeks `categories` (objects.kind='category'):
+- searchable attributes: `name`, `path` (jako string), `seo_title`, `seo_description`
+- filterable attributes: `object_type_code`, `enabled`, `parent_id`, `attributes.is_visible`
+- sortable attributes: `created_at`, `updated_at`, `name`, `path`
+
+Synchronizacja: Doctrine event listener (postPersist, postUpdate, postRemove) parametryzowany o `kind` → Symfony Messenger message (`ObjectIndexed(objectId, kind)`) → worker pisze do odpowiedniego indeksu Meilisearch. Custom kindy w Fazie 2/3 dostają własne indeksy automatycznie (settings template per `ObjectType`).
 
 ## 6. API — kontrakty zewnętrzne
 
@@ -652,17 +671,20 @@ W fazie 2 dochodzą **data-ops capabilities**:
 
 ### 8.3 Tool-use pattern
 
-Agent używa Anthropic Tool Use. Lista narzędzi w MVP (każde jest typowane JSON Schemą):
+Agent używa Anthropic Tool Use. Lista narzędzi w Fazie 2 (po ADR-009; każde jest typowane JSON Schemą):
 
 ```
 - search_attributes(query: string) → list of attributes
+- search_object_types(query: string) → list of object types          (post ADR-009)
 - create_attribute(code, type, label_translations, scopable, localizable, required) → AttributePending
 - create_attribute_group(code, label_translations) → AttributeGroupPending
-- assign_attribute_to_family(family_code, attribute_code, required_for_completeness) → FamilyAssignmentPending
-- create_family(code, label_translations, label_attribute_code) → FamilyPending
-- create_category(parent_path, code, label_translations) → CategoryPending
+- assign_attribute_to_object_type(object_type_code, attribute_code, required_for_completeness) → AssignmentPending  (post ADR-009; było: assign_attribute_to_family)
+- create_object_type(kind, code, label_translations, schema_strict) → ObjectTypePending  (post ADR-009; reserved — pełna obsługa custom kindów dochodzi w Fazie 2/3)
+- create_category(parent_path, code, label_translations) → ObjectPending  (sugar — wewnętrznie tworzy Object kind='category')
 - preview_changes() → DiffSummary
 ```
+
+Po ADR-009 słownik narzędzi mówi językiem `ObjectType`, nie `Family`. `create_family` z poprzedniej iteracji jest deprecated. `create_category` zostaje jako sugar tool (lepszy DX dla agenta + spójne z UX admina), wewnętrznie tworzy `Object kind='category'` z appropriate `object_type_id`. `create_object_type` jest zarejestrowany w SDK od dnia uruchomienia agenta (Faza 2), ale wyłączony przez feature flag dopóki realny pilot nie zażąda custom kindów (mitigacja R-29 — sekcja 2.8 planu).
 
 Każde narzędzie tworzy wpis w `agent_runs.tool_calls` i — w przypadku operacji pisanych — wpis w `pending_changes` (tabela approval queue).
 
@@ -848,6 +870,8 @@ RLS w Postgres to potężne narzędzie, ale ma subtelne pułapki, które trzeba 
 2. Comprehensive test suite — testy izolacji w CI, dwa tenanty, 100% pokrycie tabel domenowych (~6-8h).
 3. Pen-test izolacji — niezależny audytor zewnętrzny próbuje cross-tenant access (~4-8h+ zewnętrznie).
 4. Migracja: w jednym oknie maintenance aktywujemy `ENABLE ROW LEVEL SECURITY` na wszystkich tabelach, potem włączamy multi-tenant flag.
+
+**Po ADR-009 — uwaga o granularności per `kind`:** RLS w MVP/Faza 1 operuje wyłącznie na `tenant_id`. Jeśli klient enterprise w Fazie 2/3 zażąda izolacji per typ obiektu (np. „dział marketingu widzi tylko `kind='asset'`, dział katalogu tylko `kind='product'`"), polityka RLS może zostać rozszerzona o predykat `object_type_id IN (SELECT object_type_id FROM tenant_user_object_type_grants WHERE user_id = current_setting('pim.current_user_id'))`. Rzadkie wymaganie, ale wspierane przez generalizację — w MVP nie implementujemy.
 
 **W Sprint 0** zawieramy tylko prosty smoke-test izolacji (tworzymy 2 tenanty, sprawdzamy że Doctrine filter działa) — pełen RLS pen-test odkładamy do fazy 2.
 
@@ -1058,14 +1082,14 @@ Rdzeń elastyczności już istnieje w ADR-006 (`attributes` + EAV `*_values JSON
 
 Roadmap fazowa, wysokopoziomowa. Szczegółowy backlog i estymacje w dokumencie `02-plan-projektu-pim.md`.
 
-**Faza 0 — MVP (~201-274h, w tym Sprint 0 40-55h + MVP Core 161-219h)**
-Sprint 0 vertical slice + domain model PIM, admin Refine z core CRUD, agent layer schema-add (MVP-Beta-Min minimum, MVP-Beta-Full opcjonalnie), **BaseLinker + Shopify** (Magento przesunięte do fazy 1 — sekcja 7.3), API publiczne z konfiguratorem, hardening + WCAG AA + analytics dashboard + pgBackRest production + BYOK. Cel: pierwszy klient pilotażowy. Szczegóły, sub-fazy i milestones: `02-plan-projektu-pim.md`.
+**Faza 0 — MVP (~217-299h po rewizji 2026-04-27 i ADR-009; Sprint 0 40-55h + MVP Core okrojone 188-260h)**
+Sprint 0 vertical slice + domain model PIM **z generic `ObjectType`** (predefined Product/Category/Asset, custom kindy dla Fazy 2/3 — ADR-009), admin Refine z core CRUD, **BaseLinker + Shopify przeniesione do Fazy 1**, **agent layer przeniesiony do Fazy 2** (rewizja 2026-04-27, `06-sprint-0-findings.md` §2). API publiczne z konfiguratorem, hardening + WCAG AA + analytics dashboard + pgBackRest production + BYOK. Cel: pierwszy klient pilotażowy z działającym katalogiem (produkty + kategorie z user-defined atrybutami) i niezawodnym importem/eksportem. Szczegóły, sub-fazy i milestones: `02-plan-projektu-pim.md`.
 
-**Faza 1 — Production-ready (+100-140h)**
-**Magento + IdoSell** integracje, hardening security, testy obciążeniowe, monitoring full stack, dokumentacja API publiczna, **PHPUnit + ApiTestCase + Playwright** coverage, **Postgres RLS aktywacja** (sekcja 11.1a, ~16-24h przed multi-tenantem), pierwsze 2-3 wdrożenia produkcyjne. Opcjonalnie: migracja Shopify na Bulk Operations (sekcja 7.3) jeśli benchmarks tego wymagają.
+**Faza 1 — Production-ready integracje (+100-140h)**
+**BaseLinker + Shopify** integracje (epiki 0.8 + 0.9 — przeniesione z MVP-Final w rewizji 2026-04-27), hardening security, testy obciążeniowe, monitoring full stack, dokumentacja API publiczna, **PHPUnit + ApiTestCase + Playwright** coverage, **Postgres RLS aktywacja** (sekcja 11.1a, ~16-24h przed multi-tenantem), pierwsze 2-3 wdrożenia produkcyjne. Opcjonalnie: migracja Shopify na Bulk Operations (sekcja 7.3) jeśli benchmarks tego wymagają.
 
-**Faza 2 — Agentic Pro (+150-200h)**
-Agent data-ops (bulk operations, generowanie opisów, mapowania importów), workflow engine, DAM advanced (transformacje, AI metadata extraction), **multi-tenant SaaS aktywacja** (z RLS już aktywnym z fazy 1), dashboard analytics zaawansowane, marketplace integracji v1 (Allegro, WooCommerce).
+**Faza 2 — Agent layer + Agentic Pro + dodatkowe konektory (+150-250h)**
+**Agent layer (epik 0.7 Beta-Min + Beta-Full, przeniesione z MVP w rewizji 2026-04-27)**, agent data-ops (bulk operations, generowanie opisów, mapowania importów), **odblokowanie custom `ObjectType` przez agenta** (tool `create_object_type` aktywny z feature flag, ADR-009), workflow engine, DAM advanced (transformacje, AI metadata extraction), **multi-tenant SaaS aktywacja** (z RLS już aktywnym z Fazy 1), dashboard analytics zaawansowane, marketplace integracji v1 (Magento, IdoSell, Allegro, WooCommerce).
 
 **Faza 3 — Enterprise (+300h+)**
 SSO/SAML, white-label, compliance gotowość (ISO 27001 / SOC 2), customer portal, advanced syndication (printable catalogs, PDF datasheets), **Symfony LTS upgrade** (R-28, ~40-60h gdy zbliża się EOL Symfony 7.4), partner program. ERP enterprise integracje na zamówienie (SAP, Dynamics, Netsuite, Comarch — każda 40-80h).
