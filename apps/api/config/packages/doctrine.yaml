@@ -9,8 +9,11 @@ doctrine:
         profiling_collect_backtrace: '%kernel.debug%'
         use_savepoints: true
 
-        # Disable query logging in long-running workers — agent/lessons.md
-        # "Memory management" calls this out as a leak source under FrankenPHP.
+        # Disable query logging globally — sekcja 3.10 architektury and ticket
+        # 0.0.13 call this out as a memory-leak source under FrankenPHP worker
+        # mode: the logger keeps every executed query in memory for the lifetime
+        # of the worker. Symfony's debug profiler still captures queries through
+        # a separate collector, so dev/test debugging is unaffected.
         logging: false
 
     orm:

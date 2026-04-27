@@ -28,12 +28,12 @@ Pierwotny scope Sprint-0 (16 ticketów #1-#16) został zrewidowany po PR #119 (#
 | #10 | 0.0.10 Playwright E2E | ✅ done | PR #122 |
 | #11 | 0.0.11 PHPStan max + PHP-CS-Fixer + Biome + husky + CI | ✅ done | PR #114 |
 | #12 | 0.0.12 Smoke izolacji multi-tenant | ✅ done | PR #117 |
-| #13 | 0.0.13 Benchmark FrankenPHP worker memory | 🟡 pending | — |
+| #13 | 0.0.13 Benchmark FrankenPHP worker memory | ✅ done | (ten PR) |
 | #14 | 0.0.14 Profilowanie Blackfire/Tideways | 🟡 pending | — |
 | #15 | 0.0.15 pgBackRest + WAL stub | 🟡 pending | — |
 | #16 | 0.0.16 Audit + findings | ✅ done (ten dokument) | PR #121 |
 
-**Done: 9 / 13. Pending: 4** (#9, #13, #14, #15). Gate decision (zielony/czerwony) = po zamknięciu wszystkich pozostałych.
+**Done: 10 / 13. Pending: 3** (#9, #14, #15). Gate decision (zielony/czerwony) = po zamknięciu wszystkich pozostałych.
 
 ## 2. REWIZJA ZAKRESU MVP (decyzja operatora 2026-04-27)
 
@@ -118,6 +118,13 @@ Rewizja:
 24. **`__dirname` undefined w ESM (`"type": "module"`)** — vite.config.ts z `path.resolve(__dirname, './src')` przeszedł `pnpm build` (esbuild compile ma fallback do project root) ale fail'ował w dev server. **Fix:** `fileURLToPath(import.meta.url)`. (#5 hotfix #120)
 25. **CI nie testuje "vite dev startup"** — buduje produkcyjny bundle, nie testuje dev experience. PR #119 przeszedł 5 checks ale dev fail'ował. **Mitigacja w fazie 1:** smoke step "vite dev + curl /login" w CI jeśli takie regresje będą się powtarzać. (#5 hotfix #120)
 
+### 3.7 Memory benchmark (#13)
+26. **Custom PHPStan rule blokująca `flush()` bez `clear()` przeniesiona do follow-up'u (#123).** DoD ticketu #13 explicite dopuszcza ("lub TODO ticket follow-up jeśli za duży scope"). Bazowa ochrona pattern'u w MVP-Alpha: `AbstractBatchHandler` + benchmark + system prompt CLAUDE.md. AST-bazowana rule z whitelistą subklas → kandydat do epiku 0.11 (hardening). (#13)
+27. **Symfony Profiler middleware (`BacktraceDebugDataHolder`) jest osobnym źródłem leaku — `doctrine.dbal.logging: false` go nie wyłącza.** W env=dev/test profiling middleware przechwytuje każdy SQL query z backtrace'ami i akumuluje w pamięci (50 000 INSERT-ów = OOM przy 512 MiB cap). Zachowanie poprawne dla profilera (toolbox debug), ale **benchmarki memory MUSZĄ uruchamiać się w `APP_ENV=prod APP_DEBUG=0`** żeby reprodukować realny worker. Dodane do `lessons.md` Toolchain quirks. (#13)
+28. **Benchmark CLI ≠ pełna symulacja FrankenPHP worker mode.** `pim:benchmark:bulk-import` żyje jeden raz w PHP CLI process; worker mode trzymałby UnitOfWork między requestami. CLI walida algorytm (clear-after-flush działa, throughput +6×) i bound memory w pojedynczym procesie. Pełen worker-mode test (Messenger consumer + 5000 messages) dochodzi z pierwszym async transportem w epiku 0.1 (#17+). (#13)
+29. **`/api/metrics` endpoint upubliczniony bez auth w MVP** — Prometheus scrape pattern: dev convenience > security w Sprincie 0. Production (epik 0.11 #103-#105) dostanie token + binding na private network. (#13)
+30. **`EntityManager::clear()` detachuje też `Tenant`** — następny batch wymaga re-fetch'a po ID. Bez tego `TenantAssignmentListener` przekazuje detached entity → flush() pada na "A new entity was found through relationship". Wzór re-fetch'a w `BulkImportBenchmarkCommand` jest kanoniczny dla każdego przyszłego batch handler'a. (#13)
+
 ## 4. Audit `CLAUDE.md`
 
 ### 4.1 Sekcje wciąż aktualne (po Sprincie 0)
@@ -188,13 +195,31 @@ W tym PR aktualizuję CLAUDE.md o punkty 4.2 (drobne korekty workflow + prioryte
 - ✅ Architektura zwalidowana end-to-end (PHP+Symfony+AP4+FrankenPHP+JWT+Refine+Tailwind+Postgres+Caddy)
 - ✅ Multi-tenancy działa (smoke test + ApiTestCase + real-auth path)
 - ✅ Quality gates (PHPStan max + Biome strict + PHPUnit + audits) zielony na każdym PR
-- 🟡 Memory benchmark FrankenPHP worker (#13) — pending
+- ✅ Memory benchmark FrankenPHP worker (#13) — **5 000 produktów: 14 MiB peak (próg 256 MiB), 50 000: 14 MiB peak FLAT z clear**, throughput 9 034 prod/s w prod env
 - 🟡 Performance profile (#14) — pending
 - 🟡 Backup + restore test (#15) — pending
 - ✅ Playwright E2E happy path (#10) — 9/9 lokalnie + CI
 - 🟡 Manual demo + screencast (#9) — pending
 
-**Przewidywany verdict:** **GREEN** (na podstawie 7/13 zielonych ticketów + brak blockerów w pozostałych 6).
+**Przewidywany verdict:** **GREEN** (na podstawie 10/13 zielonych ticketów + brak blockerów w pozostałych 3).
+
+### 7.1 Wyniki benchmarku #13 (snapshot 2026-04-27)
+
+`pim:benchmark:bulk-import` walida pattern z sekcji 3.10 architektury (R-25, "Krytyczny"). Próg: <256 MiB peak na 5 000 INSERT.
+
+| count | env | clear | peak MiB | end MiB | duration | throughput | werdykt |
+|---|---|---|---|---|---|---|---|
+| 5 000 | dev | ON | 68 | 68 | 0.63 s | 7 969/s | ✅ pass |
+| 5 000 | dev | OFF | 78 | 78 | 1.55 s | 3 228/s | ⚠️ pass (rozbieżność rośnie) |
+| 20 000 | dev | ON | 200 | 200 | 2.50 s | 7 985/s | ✅ pass |
+| 20 000 | dev | OFF | 240 | 240 | 6.65 s | 3 008/s | ⚠️ near-cap |
+| **5 000** | **prod** | **ON** | **14** | **14** | **0.57 s** | **8 755/s** | **✅ pass (target)** |
+| 50 000 | prod | ON | **14 (flat!)** | 14 | 5.53 s | 9 034/s | ✅ headroom 18× |
+| 50 000 | prod | OFF | 150 | 150 | 32.57 s | 1 535/s | ⚠️ ekstrapoluje na ~85 k = OOM 256 MiB |
+
+**Najmocniejsza walidacja:** prod env, 50 000 rows z clear → memory FLAT na 14 MiB regardless of count. Pattern działa. Ekstrapolując bez clear: ~3 KiB / row → 100 000 rows ≈ 300 MiB → R-25 reproducible.
+
+**Dev vs prod:** dev env hostuje Symfony Profiler middleware (BacktraceDebugDataHolder) który akumuluje query backtraces między batchami niezależnie od `doctrine.dbal.logging`. To **nie** memory leak Doctrine'a, tylko intencjonalna akumulacja debug telemetry. Production env bez tego middleware jest dramatycznie lżejszy. Wniosek do lessons: benchmark = `APP_ENV=prod APP_DEBUG=0`.
 
 ## 8. Powiązania
 
