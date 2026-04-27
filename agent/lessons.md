@@ -242,3 +242,17 @@
 - **Manual smoke przed merge nie zastępuje "uruchom dev server na clean stash" po merge.** PR #119 przeszedł 5 CI checks (Biome, TS noEmit, Vite build, audit) — ale dev server (Vite serve) z czystego stanu fail'ował na ESM `__dirname`. CI buduje produkcyjny bundle, nie testuje dev experience. Add'uj smoke step "vite dev startup" do CI w fazie 1 jeśli takie regresje będą się zdarzać. (#5)
   - Why: build vs dev mają różne code paths w Vite/esbuild — build optymalizuje, dev parsuje na żywo.
   - How to apply: po każdym merge do main odpal lokalnie `pnpm dev` z czystego cache (`docker compose restart admin`) i sprawdź `https://pim.localhost`. Albo dodaj to do `Definition of Done` ticketów frontendowych.
+
+## Lessons z 0.0.16 (audit + scope revision)
+
+- **Rewizja zakresu MVP w trakcie Sprintu 0 jest NORMALNĄ częścią procesu, nie awarią.** Plan zakładał agentic-first deployment; po pierwszym frontend slice (#5) operator zobaczył że pilot ocenia "działający katalog" wyżej niż "rozmawiaj z systemem". Cofnięcie agenta + integracji do Faz 1/2 to **5 minut decyzji + 30 minut reorganizacji ticketów** (35 issues, 2 nowe milestone'y). (#16)
+  - Why: oryginalny plan był aspiracyjny; pierwszy ticket frontendowy sprowadza wymagania na ziemię.
+  - How to apply: po każdym milestone (np. zakończenie sub-fazy) zapytaj operatora "czy plan zakresu wciąż pasuje?" przed wejściem w następną. Lepsze 30 min reorganizacji teraz niż 30h przepisywania w Fazie 1.
+
+- **Living document vs frozen-in-time** — `06-sprint-0-findings.md` jest "living" (sekcje 1.2 i 7 update'owane przy każdym kolejnym Sprint-0 closure), `01-architektura-pim.md` jest frozen-in-time (ADR'y się tylko dorabiają). Każdy doc w `Project Plan/` deklaruje swój tryb na początku — dev session widzi czy szuka aktualnego stanu czy historycznego. (#16)
+
+- **Gate decision = predykcja po 7-8/13 ticketach, finalna po 13/13.** Sprint 0 verdict GREEN można przewidzieć z dużą pewnością gdy 60%+ ticketów zielone i pozostałe nie mają blockerów. **Predykcja w `findings` doc daje operatorowi czas na rozważenie czy gate-decision ma sens** zanim CI/E2E ciągi rozstrzygną. (#16)
+
+- **Reorganizacja milestone'ów na GitHub'ie via `gh api` + bash loop.** Tworzenie milestone'a: `gh api repos/owner/repo/milestones -f title=...`. Przeniesienie issue: `gh issue edit N --milestone "..."`. Zamykanie milestone'u: `gh api -X PATCH repos/owner/repo/milestones/N -f state=closed`. Pętla bash z grep-em po numerach ticketów = ~2 min na 30 ticketów. Skrypt nie idzie do repo (one-shot), idzie do lessons jako wzór. (#16)
+
+- **Komentarz na przeniesionym issue tłumaczy "dlaczego" — nie tylko "gdzie".** Każdy z 3 przeniesionych Sprint-0 ticketów (#6, #7, #8) i 35 ticketów epików dostał komentarz z linkiem do `Project Plan/02-plan-projektu-pim.md` i wyjaśnieniem decyzji. Future-self wracający do issue widzi context, nie tylko "moved to milestone X". (#16)

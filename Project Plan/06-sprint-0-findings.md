@@ -31,9 +31,9 @@ Pierwotny scope Sprint-0 (16 ticketów #1-#16) został zrewidowany po PR #119 (#
 | #13 | 0.0.13 Benchmark FrankenPHP worker memory | 🟡 pending | — |
 | #14 | 0.0.14 Profilowanie Blackfire/Tideways | 🟡 pending | — |
 | #15 | 0.0.15 pgBackRest + WAL stub | 🟡 pending | — |
-| #16 | 0.0.16 Audit + findings | 🟡 in progress (ten dokument) | — |
+| #16 | 0.0.16 Audit + findings | ✅ done (ten dokument) | PR #121 |
 
-**Done: 7 / 13. Pending: 6.** Gate decision (zielony/czerwony) = po zamknięciu wszystkich pozostałych.
+**Done: 8 / 13. Pending: 5** (#9, #10, #13, #14, #15). Gate decision (zielony/czerwony) = po zamknięciu wszystkich pozostałych.
 
 ## 2. REWIZJA ZAKRESU MVP (decyzja operatora 2026-04-27)
 

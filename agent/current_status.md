@@ -1,11 +1,11 @@
 # Current Status
 
-## Sub-faza: SPRINT-0 — 7/16 ticketów done, oczekiwanie na wybór następnego ticketu
+## Sub-faza: SPRINT-0 — 8/13 ticketów done (po rewizji zakresu), 5 do gate decision
 
 ## Ostatnie 3 akcje
-1. **Ticket #5 (0.0.5) zamknięty** (PR #119 jako `04bc2ad` + hotfix PR #120 jako `79a26c3`, oba squash-merged do main 2026-04-27). Pierwszy frontend slice: Refine v5 (headless) + custom Hydra-aware DataProvider na `/api/*` + AuthProvider z JWT w localStorage + React Router 7 + Tailwind v4 + shadcn primitives (Button/Input/Label/Card/Table/Textarea, manual install) + react-i18next (pl + en). Pages: `/login` (form z react-hook-form + zod), `/products` (lista z shadcn Table + create CTA), `/products/new`, `/products/:id/edit` (shared `ProductForm` z mode prop, SKU disabled w edit). Layout sidebar+topbar gated przez `AuthedRoute` na `useIsAuthenticated`. 401 handling przez `authProvider.onError`. Path alias `@/*` → `src/*`. **Hotfix #120:** (a) `vite.config.ts` używa `fileURLToPath(import.meta.url)` zamiast `__dirname` (undefined w ESM `"type": "module"` — Vite build przeszedł CI bo esbuild config compile ma fallback do project root, ale dev server fail'uje na resolve `@/locales/en.json`); (b) login/logout używają ręcznego `useNavigate` w `onSuccess` mutacji bo Refine v5 honoruje `redirectTo` z authProvider tylko z zarejestrowanym `routerProvider`'em — bez niego token się zapisuje ale ekran nie redirectuje (silent button "nic nie robi"). **Świadome odejścia:** JWT w localStorage (httpOnly cookie odłożone do 0.2.6); plain react-router-7 zamiast `@refinedev/react-router-v6`; custom DataProvider zamiast `@refinedev/simple-rest`; shadcn copy-paste zamiast CLI; tsconfig paths bez deprecated `baseUrl`; jeden `ProductForm` dla create/edit; brak Cmd+K (#7), brak Playwright E2E (#10); bundle warning >500 kB (code-split per route w fazie 1).
-2. **Ticket #4 (0.0.4) zamknięty** (PR #118 squash-merged do main 2026-04-27 jako `48aad2a`). Encja `User` (Identity context) z email + password hash + JSON roles + tenant FK + UUID v7 + `TenantAware` — `CurrentTenantProvider` resolvuje tenanta z auth principal'a, env-fallback już tylko dla CLI/fixtures. LexikJWT v3.2.0 z 3 firewalls: `login` (`^/api/auth/login$` stateless json_login), `api` (`^/api` stateless jwt + entity provider), `main` (lazy fallback). `access_control`: `/api/auth/login`, `/api/docs`, `/api/contexts`, `/api` (entrypoint) → PUBLIC; reszta `^/api` → ROLE_USER. Migracja `Version20260427095515` z `users` table. Fixtures: `admin@pim.localhost`/`admin@acme.localhost` z hasłem `changeme` (hashed) i ROLE_ADMIN. **AuthApiTest** (5 case'ów: login OK, wrong-password 401, no-token 401, valid-token 200, malformed-token 401). **ProductApiTest** + **TenantIsolationTest** zaktualizowane do auth via `JWTTokenManagerInterface->create()` — env-flip dance w izolacji ZNIKNĄŁ. CI generuje 4096-bit RSA keypair przed phpstan/phpunit, `JWT_PASSPHRASE: ci`. **Świadome odejścia:** oba klucze RSA gitignored; fixture admin password = `changeme` (dev-only); brak refresh tokens / blacklist (epik 0.2).
-3. **Ticket #12 (0.0.12) zamknięty** (PR #117 squash-merged do main 2026-04-27 jako `f705e1d`). `TenantIsolationTest` (4 case'y) waliduje izolację na application-layer: tenant A widzi tylko swoje 5 produktów (zero leak'ów BRAVO-), GET na IRI tenanta B → 404, PATCH na IRI tenanta B → 404, raw DBAL `SELECT COUNT(*)` widzi wszystkie 10 (świadomy boundary, RLS w fazie 1). Pierwotnie env-flip dance — w PR #118 zastąpione real-auth.
+1. **Ticket #16 (0.0.16) zamknięty** (PR #121 squash-merged do main 2026-04-27 jako `19f1740`). `Project Plan/06-sprint-0-findings.md` (8 sekcji, 25 świadomych odejść z #1-#5 + hotfix #120, formalizacja rewizji zakresu MVP, audit `CLAUDE.md` + `agent/lessons.md`, gate-decision criteria z przewidywaniem GREEN). `CLAUDE.md` — 4 drobne korekty: nowa kolejność sub-faz (bez Beta-Min/Beta-Full intermediate, agent → Faza 2, integracje → Faza 1), workflow point 3 (lessons pattern), atomic files (06-sprint-0-findings dodane + `/api/docs.jsonopenapi`), Psalm flag. **Reorganizacja backloga w commit `bedf1ae`:** milestone'y "Faza 1 — Integracje (BaseLinker + Shopify)" + "Faza 2 — Agent layer + dodatkowe konektory" utworzone, 35 ticketów przeniesionych (epiki 0.7/0.8/0.9 + Sprint 0 #6/#7/#8), Beta-Min/Beta-Full milestone'y zamknięte, scope #54 + #61 zrewidowany.
+2. **Ticket #5 (0.0.5) zamknięty** (PR #119 jako `04bc2ad` + hotfix PR #120 jako `79a26c3`). Pierwszy frontend slice: Refine v5 + custom Hydra DataProvider + JWT auth + Tailwind v4 + shadcn + react-i18next. Pages: login, products list, products create, products edit. Layout sidebar+topbar. **Hotfix #120:** ESM `__dirname` → `fileURLToPath(import.meta.url)` + manual `useNavigate` w `useLogin`/`useLogout` `onSuccess` (Refine v5 bez routerProvider'a nie redirectuje).
+3. **Ticket #4 (0.0.4) zamknięty** (PR #118 jako `48aad2a`). Encja `User` (Identity, TenantAware) + LexikJWT v3.2.0 + 3 firewalls (login/api/main) + `users` table + admin fixtures + AuthApiTest 5 case'ów. ProductApiTest + TenantIsolationTest zaktualizowane do JWT mintingu. CI generuje RSA keypair per-run.
 
 ## Bieżący stan
 Sprint 0 = 7/16 ticketów done (#1 setup, #11 quality gates, #2 multi-tenancy + Product/Tenant, #3 ApiResource Product, #12 multi-tenant isolation smoke, #4 LexikJWT auth, #5 admin Refine + shadcn).
@@ -89,15 +89,14 @@ Quality gates aktywne:
 ## Następny krok
 | # | Ticket | Komentarz |
 |---|---|---|
-| **#16 (0.0.16)** | Audit CLAUDE.md + utworzenie `06-sprint-0-findings.md` | **W trakcie** — agreguje 23 świadome odejścia + dokumentuje rewizję zakresu MVP. |
-| #10 (0.0.10) | Playwright E2E od dnia 1 | Domyka DoD Sprint 0 dla #5 + wszystkich UI ticketów MVP-Alpha. |
-| #13 (0.0.13) | Benchmark FrankenPHP worker memory | Niezależny. |
-| #14 (0.0.14) | Profilowanie Blackfire/Tideways | Niezależny. |
-| #15 (0.0.15) | pgBackRest + WAL stub | Niezależny. |
-| #9 (0.0.9) | Manualny E2E + screencast (gate decision) | Po wszystkich pozostałych Sprint 0 ticketach. |
+| **#10 (0.0.10)** | Playwright E2E od dnia 1 | **Rekomendacja** — domyka DoD Sprint 0 dla #5 + wszystkich UI ticketów MVP-Alpha. Z `/login` + `/products` CRUD gotowymi to naturalny next step. Setup playwright + happy path test (login → list → create → edit → logout). |
+| #13 (0.0.13) | Benchmark FrankenPHP worker memory | Niezależny. AbstractBatchHandler stub + 5000 produktów import + Prometheus memory delta. |
+| #14 (0.0.14) | Profilowanie Blackfire/Tideways | Niezależny. p95 < 200 ms na 1000 produktach. |
+| #15 (0.0.15) | pgBackRest + WAL stub | Niezależny. Backup co 1h + restore test przed końcem Sprintu. |
+| #9 (0.0.9) | Manualny E2E + screencast (gate decision) | Po wszystkich pozostałych Sprint 0 ticketach. Verdict GREEN/RED. |
 
 ## Postęp po fazach (po rewizji zakresu)
-- [ ] Sprint 0 (gate decision) — **7/13 ticketów done** — issues #1-#5, #9-#16 (#6, #7, #8 przeniesione do Faza 1/2)
+- [ ] Sprint 0 (gate decision) — **8/13 ticketów done** — issues #1-#5, #9-#16 (#6, #7, #8 przeniesione do Faza 1/2)
 - [ ] MVP-Alpha (epiki 0.1–0.6, fundament + admin UI) — 0/46 — issues #17-#62
 - [ ] MVP-Final (epiki 0.10–0.11, API Configurator + hardening) — 0/18 — issues #90-#107
 - [ ] **Faza 1** — Integracje BaseLinker + Shopify + hardening track B — 19 issues (epiki 0.8 + 0.9 + Sprint 0 #8)
@@ -119,7 +118,7 @@ Quality gates aktywne:
 - [ ] #13 / 0.0.13 — Benchmark FrankenPHP worker memory
 - [ ] #14 / 0.0.14 — Profilowanie Blackfire/Tideways
 - [ ] #15 / 0.0.15 — pgBackRest + WAL stub
-- [ ] #16 / 0.0.16 — Audit CLAUDE.md + 06-sprint-0-findings.md
+- [x] **#16 / 0.0.16** — Audit CLAUDE.md + 06-sprint-0-findings.md (PR #121 merged 2026-04-27)
 
 ## Postęp epików (poza Sprintem 0 — zerowy)
 **MVP (po rewizji zakresu):**
