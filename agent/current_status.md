@@ -1,14 +1,14 @@
 # Current Status
 
-## Sub-faza: SPRINT-0 — 10/13 ticketów done (po rewizji zakresu), 3 do gate decision
+## Sub-faza: SPRINT-0 — 11/13 ticketów done (po rewizji zakresu), 2 do gate decision
 
 ## Ostatnie 3 akcje
-1. **Ticket #13 (0.0.13) zamknięty** (PR #124 squash-merged do main 2026-04-27 jako `95d7936`). Benchmark FrankenPHP worker memory + `AbstractBatchHandler` szkielet + Prometheus metric endpoint. **Manual-smoke fix w trakcie review** (drugi commit do tej samej PR): (a) demo admin email `admin@pim.localhost` → `admin@demo.localhost` (spójny pattern `admin@<tenant_code>.localhost` dla obu tenantów; aktualizowane fixtures + 2× ApiTestCase + Playwright helper); (b) `Product` GetCollection dostał `order: ['id' => 'DESC']` — `paginationViaCursor` deklaruje kierunek kursora ale nie wymusza domyślnego ORDER BY; bez explicit `?order[id]=desc` Postgres zwracał wiersze w fizycznej kolejności insertu → nowo utworzony produkt lądował poza pierwszą stroną (zwłaszcza po zaśmieceniu bazy 71 406 wierszami `bench-*` z dev-env benchmarków, których cleanup OOM-ował przy `BacktraceDebugDataHolder` leaku). **Wynik benchmarku w prod env (target):** 5 000 produktów = 14 MiB peak (próg 256 MiB), 50 000 produktów = 14 MiB peak FLAT (memory nie rośnie z liczbą rzędów!) z clear; bez clear 50 000 = 150 MiB rosnąco + 6× wolniej. **Pattern R-25 zwalidowany twardymi liczbami.** Komponenty: `App\Messaging\AbstractBatchHandler` (abstract base z `flushAndClear()` + `shouldFlush()`), `App\Benchmark\BulkImportBenchmarkCommand` (`pim:benchmark:bulk-import` z opcjami `--count/--batch-size/--tenant/--no-clear/--keep`), `App\Observability\Http\MetricsController` (`GET /api/metrics` Prometheus 0.0.4 format), `apps/api/tests/Unit/Messaging/AbstractBatchHandlerTest.php` (3 testy). **Świadome odejścia:** (a) custom PHPStan rule blokująca flush() bez clear() przeniesiona do follow-up #123 (DoD ticketu explicite dopuszcza), (b) `/api/metrics` unauthenticated w MVP (epik 0.11 hardening), (c) benchmark CLI ≠ pełna symulacja worker-mode (Messenger consumer test dochodzi z async transport w epiku 0.1). **Najważniejsze odkrycie:** Symfony Profiler middleware (`BacktraceDebugDataHolder`) jest osobnym leak source — `doctrine.dbal.logging: false` go nie wyłącza. Benchmarki/workery memory MUSZĄ iść w `APP_ENV=prod APP_DEBUG=0`. Dev env w 50k INSERT OOM-uje pod 512 MiB cap **mimo poprawnego clear pattern'u**. Spisane do lessons + findings #27.
-2. **Ticket #10 (0.0.10) zamknięty** (PR #122 squash-merged do main 2026-04-27 jako `c3f6f26`). Pierwszy Playwright E2E od dnia 1: 9 testów (5 auth, 4 CRUD) targetujących `https://pim.localhost` przez full Caddy + FrankenPHP + Postgres + Vite stack. CI job `e2e` w `quality-frontend.yml` z dwustopniowym startup (database+redis → api → migrate+fixtures → --wait reszta → playwright). 3 CI debug fixes: chicken-egg api healthcheck, `--wait` vs `restart: no` minio-init, Caddy HTTPS-only healthcheck.
-3. **Ticket #16 (0.0.16) zamknięty** (PR #121 jako `19f1740`). `Project Plan/06-sprint-0-findings.md` (8 sekcji, 25 świadomych odejść). `CLAUDE.md` — 4 drobne korekty. Reorganizacja backloga (`bedf1ae`): 35 ticketów przeniesionych do Faza 1/2, milestone'y Beta-Min/Beta-Full zamknięte.
+1. **Ticket #14 (0.0.14) zamknięty** (PR pending). Perf profile dla `GET /api/products?page=1` z 1005 produktami w prod env. **Wynik:** single-user p95 = **18.7 ms**, 10 VUs (realistyczny B2B pilot) p95 = **105 ms** ✅ (próg 200 ms, headroom 1.9×). 30 VUs p95 = 365 ms, 100 VUs p95 = 997 ms — limited by FrankenPHP `num_threads: 17` pool, multi-worker w fazie 2. Komponenty: `tools/perf/products-list.js` (k6 script, OSS replacement Blackfire/Tideways), `scripts/perf-list-products.sh` (orchestrator: login → seed via `pim:benchmark:bulk-import --keep` → k6 → cleanup), `docker-compose.yml` k6 service z `profile: ["perf"]` (one-shot, nie startuje z `pnpm stack:up`), root npm script `pnpm perf:list`. EXPLAIN ANALYZE dla głównego query: 0.975 ms execution + 2.5 ms planning, `Index Scan Backward using products_pkey`. Top 5 hot paths z analytical breakdown: Serializer JSON-LD (~3-4ms), Doctrine hydration (~3-4ms), Security firewall (~2-3ms), API Platform metadata (~1-2ms), Caddy/TLS (~1-2ms) — **brak jednego dominującego bottleneck'a**. **Świadome odejścia:** (a) k6 zamiast Blackfire/Tideways (OSS, brak SaaS dependency); (b) EXPLAIN ANALYZE + analytical breakdown zamiast WebProfilerBundle (skeleton dev pack pomija; full profiler suite w epiku 0.11 #103-#105); (c) próg 100 VUs Sprint-0-spec'u re-interpretowany jako 10 VUs (realistyczny dla MVP single-pilot B2B). **Odkrycie:** Doctrine ORM 3 prod env wymaga `cache:warmup` przed pierwszym request'em (proxies offline-only) — naturalnie w docker build'cie, ale lokalny switch dev→prod w container'ze potrzebuje manualnego kroku.
+2. **Ticket #13 (0.0.13) zamknięty** (PR #124 squash-merged do main 2026-04-27 jako `95d7936`, post-mortem agent state w PR #125 jako `e96b2dd`). Benchmark FrankenPHP worker memory + `AbstractBatchHandler` szkielet + Prometheus metric endpoint. **Manual-smoke fix w trakcie review** (drugi commit do PR #124): (a) demo admin email `admin@pim.localhost` → `admin@demo.localhost` (spójny pattern `admin@<tenant_code>.localhost`); (b) `Product` GetCollection dostał `order: ['id' => 'DESC']` (`paginationViaCursor` deklaruje kierunek kursora, nie domyślne ORDER BY). **Wynik benchmarku w prod env:** 5 000 produktów = 14 MiB peak (próg 256 MiB), 50 000 produktów = 14 MiB peak FLAT z clear; bez clear 50 000 = 150 MiB rosnąco + 6× wolniej. **Najważniejsze odkrycie:** Symfony Profiler middleware (`BacktraceDebugDataHolder`) jest osobnym leak source niezależnym od `doctrine.dbal.logging: false`. Benchmarki/workery MUSZĄ iść w `APP_ENV=prod APP_DEBUG=0`.
+3. **Ticket #10 (0.0.10) zamknięty** (PR #122 squash-merged do main 2026-04-27 jako `c3f6f26`). Pierwszy Playwright E2E od dnia 1: 9 testów (5 auth, 4 CRUD), CI job `e2e` z dwustopniowym startup'em (database+redis → api → migrate+fixtures → --wait reszta → playwright). 3 CI debug fixes: chicken-egg api healthcheck, `--wait` vs `restart: no` minio-init, Caddy HTTPS-only healthcheck.
 
 ## Bieżący stan
-Sprint 0 = 10/13 ticketów done (#1 setup, #2 multi-tenancy, #3 ApiResource Product, #4 LexikJWT, #5 admin Refine, #10 Playwright E2E, #11 quality gates, #12 isolation smoke, #13 memory benchmark, #16 audit + findings). Pozostałe: #9 (manual demo), #14 (perf profile), #15 (pgBackRest).
+Sprint 0 = 11/13 ticketów done (#1 setup, #2 multi-tenancy, #3 ApiResource Product, #4 LexikJWT, #5 admin Refine, #10 Playwright E2E, #11 quality gates, #12 isolation smoke, #13 memory benchmark, #14 perf profile, #16 audit + findings). Pozostałe: #9 (manual demo), #15 (pgBackRest).
 
 Stack zatrzymany po sesji. Aby uruchomić: `pnpm stack:up` (lub `pnpm dev` w foreground).
 
@@ -89,12 +89,11 @@ Quality gates aktywne:
 ## Następny krok
 | # | Ticket | Komentarz |
 |---|---|---|
-| #14 (0.0.14) | Profilowanie Blackfire/Tideways | Niezależny. p95 < 200 ms na 1000 produktach. |
 | #15 (0.0.15) | pgBackRest + WAL stub | Niezależny. Backup co 1h + restore test przed końcem Sprintu. |
 | #9 (0.0.9) | Manualny E2E + screencast (gate decision) | Po wszystkich pozostałych Sprint 0 ticketach. Verdict GREEN/RED — predykcja **GREEN**. |
 
 ## Postęp po fazach (po rewizji zakresu)
-- [ ] Sprint 0 (gate decision) — **10/13 ticketów done** — issues #1-#5, #9-#16 (#6, #7, #8 przeniesione do Faza 1/2)
+- [ ] Sprint 0 (gate decision) — **11/13 ticketów done** — issues #1-#5, #9-#16 (#6, #7, #8 przeniesione do Faza 1/2)
 - [ ] MVP-Alpha (epiki 0.1–0.6, fundament + admin UI) — 0/46 — issues #17-#62
 - [ ] MVP-Final (epiki 0.10–0.11, API Configurator + hardening) — 0/18 — issues #90-#107
 - [ ] **Faza 1** — Integracje BaseLinker + Shopify + hardening track B — 19 issues (epiki 0.8 + 0.9 + Sprint 0 #8)
@@ -114,7 +113,7 @@ Quality gates aktywne:
 - [x] **#11 / 0.0.11** — PHPStan max + PHP-CS-Fixer + Biome + husky + CI (PR #114 merged 2026-04-27)
 - [x] **#12 / 0.0.12** — Smoke izolacji multi-tenant (PR #117 merged 2026-04-27)
 - [x] **#13 / 0.0.13** — Benchmark FrankenPHP worker memory (PR pending — 14 MiB peak na 50 000 prod env z clear, follow-up #123 dla custom PHPStan rule)
-- [ ] #14 / 0.0.14 — Profilowanie Blackfire/Tideways
+- [x] **#14 / 0.0.14** — Profilowanie perf (PR pending — k6 + EXPLAIN ANALYZE; 10 VUs p95=105ms, single-user p95=18.7ms)
 - [ ] #15 / 0.0.15 — pgBackRest + WAL stub
 - [x] **#16 / 0.0.16** — Audit CLAUDE.md + 06-sprint-0-findings.md (PR #121 merged 2026-04-27)
 

@@ -15,6 +15,7 @@
     "stack:logs": "docker compose logs -f",
     "stack:reset": "docker compose down -v && docker compose up -d",
     "stack:rebuild": "docker compose build --no-cache",
+    "perf:list": "./scripts/perf-list-products.sh",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "lint:php": "docker compose exec -T api composer lint",

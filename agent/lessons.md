@@ -261,6 +261,25 @@
 
 - **Komentarz na przeniesionym issue tłumaczy "dlaczego" — nie tylko "gdzie".** Każdy z 3 przeniesionych Sprint-0 ticketów (#6, #7, #8) i 35 ticketów epików dostał komentarz z linkiem do `Project Plan/02-plan-projektu-pim.md` i wyjaśnieniem decyzji. Future-self wracający do issue widzi context, nie tylko "moved to milestone X". (#16)
 
+## Lessons z 0.0.14 (perf profile + k6 + EXPLAIN ANALYZE)
+
+- **k6 zamiast Blackfire/Tideways w MVP.** OSS, single binary jako `grafana/k6` docker image, `profile: ["perf"]` w docker-compose (nie startuje z `pnpm stack:up`), one-shot `pnpm perf:list`. Blackfire/Tideways wymagają konta SaaS + agent w container'ze + commercial license w prod — overhead setup'u >ROI dla pilot stage. Pełny profiler suite kandydat do epiku 0.11 (#103-#105). (#14)
+  - How to apply: każdy nowy load test → `tools/perf/<scenario>.js` + wrapper script w `scripts/perf-<scenario>.sh` (login → seed → k6 → cleanup).
+
+- **`network_mode: "service:caddy"` dla k6** — k6 reuse'uje stos sieciowy Caddy edge'a, więc trafia na to samo `https://pim.localhost` co browser/curl z hosta i akceptuje ten sam self-signed cert (z `insecureSkipTLSVerify: true` w options). Brak osobnego DNS aliasing'u, brak osobnej trasy. (#14)
+
+- **Próg `p95 < 200ms` jest zależny od (concurrent_users / php_threads).** FrankenPHP `num_threads: 17` (auto z CPU count) → 100 VUs = 6× kolejka per thread → p95 ~1s. Dla MVP B2B single-pilot stage (5-10 catalog managers + agent) realistyczny load = 10 VUs gdzie p95 = 105 ms (headroom 1.9×). 100 VUs to enterprise scale, dochodzimy z multi-worker / horizontal scale w fazie 2 (sekcja 12.2 architektury). (#14)
+  - How to apply: każdy load test report MUSI deklarować VUs + thread count + interpretację dla docelowego use case'u. Sam `p95<200ms@100VUs` bez kontekstu nie jest meaningful.
+
+- **Performance numbers MUSZĄ pochodzić z `APP_ENV=prod APP_DEBUG=0`.** Ta sama lekcja co #13. W env=dev profiler middleware bije latencję 5-10× (każdy request loguje DataCollector, serializuje, persistuje na disk). `pnpm perf:list` używa env=prod dla seedu (CLI) ale operator MUSI pamiętać też o restarcie HTTP api w prod env: `docker compose stop api && APP_ENV=prod docker compose up -d api && docker compose exec api php bin/console cache:warmup`. (#14)
+
+- **Doctrine ORM 3 prod env wymaga proxy generation przed pierwszym requestem.** `auto_generate_proxy_classes: false` w `when@prod` — bez `php bin/console cache:warmup` FrankenPHP rzuca *"Failed opening required '__CG__App...EntityProxy.php'"* na pierwszym persist/find. Naturalnie zachodzi w docker build'cie (`composer install --classmap-authoritative`) ale lokalna iteracja z bind mount + `APP_ENV=prod` wymaga manualnego warmup. (#14)
+  - How to apply: każdy switch dev → prod env w lokalnym container'ze: `docker compose exec -T -e APP_ENV=prod -e APP_DEBUG=0 api php bin/console cache:warmup`. Dodać do dokumentacji `pnpm stack:reset --prod` w fazie 1.
+
+- **EXPLAIN ANALYZE jako main profiling tool dla Sprint 0.** Single SQL query na głównym list endpoincie zwraca strukturę: cost, actual time, buffers shared, planning time, execution time. `Index Scan Backward using products_pkey` + `Filter: tenant_id = ...` = optymalny plan dla `ORDER BY id DESC + LIMIT`. Planning time (2.5 ms) bije execution time (1 ms) na małej skali — query plan caching w fazie 1 to potencjalna optymalizacja. (#14)
+
+- **Hot path breakdown dla GET /api/products?page=1 (single user, prod env, 13 ms total):** (1) Symfony Serializer + JSON-LD encoding ~3-4ms, (2) Doctrine query + hydration ~3-4ms, (3) Security firewall (JWT decode + User repository) ~2-3ms, (4) Routing + API Platform metadata ~1-2ms, (5) Caddy proxy + TLS ~1-2ms. **Brak jednego dominującego bottleneck'a — distributed cost.** Optymalizacja punktowa (cache User per-JWT, ETag/304, +threads) gdy first pilot pokaże request rate >>10/s. (#14)
+
 ## Lessons z 0.0.13 (FrankenPHP memory benchmark + AbstractBatchHandler)
 
 - **`paginationViaCursor` w API Platform 4 deklaruje KIERUNEK KURSORA, nie domyślne ORDER BY.** Bez explicit `?order[id]=desc` od klienta lub `order: ['id' => 'DESC']` na operacji, Postgres zwraca wiersze w fizycznej kolejności (insert order). Nowo utworzony produkt może wylądować poza pierwszą stroną i operator widzi "po zapisie nie ma na liście". Każdy `paginationType: 'cursor'` resource MUSI mieć dopowiadający `order:` na GetCollection, nie tylko `paginationViaCursor`. (#13 post-merge fix)

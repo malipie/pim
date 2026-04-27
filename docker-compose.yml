@@ -201,6 +201,21 @@ services:
       - mercure_data:/data
       - mercure_config:/config
 
+  # ─── k6 (HTTP load tester) — perf profile only ────────────────────────────
+  # Activated explicitly with `--profile perf` and never starts as part of
+  # `pnpm stack:up`. The wrapper at scripts/perf-list-products.sh orchestrates
+  # the login + seed + k6 + cleanup flow used by ticket 0.0.14 (load test
+  # /api/products?page=1, p95 < 200 ms target). network_mode: service:caddy
+  # gives k6 the same DNS view as the edge so https://pim.localhost works
+  # against the same self-signed cert the rest of the stack uses.
+  k6:
+    image: grafana/k6:latest
+    profiles: ["perf"]
+    network_mode: "service:caddy"
+    volumes:
+      - ./tools/perf:/scripts:ro
+    entrypoint: ["k6"]
+
   # ─── Mailpit (dev mail catcher) ───────────────────────────────────────────
   mailpit:
     image: axllent/mailpit:latest
