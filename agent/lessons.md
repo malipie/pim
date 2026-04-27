@@ -188,6 +188,27 @@
   - Why: TenantContext + listener jest dobry dla request-time persist'ów (auth-driven), ale dla seed'u wielu tenantów po kolei jest niewygodny. Direct `assignTenant()` jest jawny i nie zależy od container state.
   - How to apply: zarezerwowane do `@internal` use case'ów — w produkcyjnym kodzie zawsze przez listener. W testach setup-only.
 
-- **Pre-auth tenant flip w testach: `$_ENV` + `$_SERVER` + `putenv` + `static::ensureKernelShutdown()`** — wszystkie trzy mechanizmy ustawiają env, bo Symfony `EnvVarProcessor` może odczytać przez którykolwiek (`$_SERVER` ma priorytet ale `getenv()` jest fallbackiem dla niektórych ścieżek). `ensureKernelShutdown()` po seedzie kasuje cache w booted kernelu — następny `createClient()` build'uje świeży kontener z nową wartością parametru `app.default_tenant_code`. (#12)
+- **Pre-auth tenant flip w testach: `$_ENV` + `$_SERVER` + `putenv` + `static::ensureKernelShutdown()`** — wszystkie trzy mechanizmy ustawiają env, bo Symfony `EnvVarProcessor` może odczytać przez którykolwiek (`$_SERVER` ma priorytet ale `getenv()` jest fallbackiem dla niektórych ścieżek). `ensureKernelShutdown()` po seedzie kasuje cache w booted kernelu — następny `createClient()` build'uje świeży kontener z nową wartością parametru `app.default_tenant_code`. (#12 — **zastąpione w #4 przez JWT-mintowanie per user**)
   - Why: `%env(...)%` placeholders są resolvowane przy każdym booting'u kontenera, ale single kernel instance cache'uje wartość. Bez shutdown'u test #2 widziałby wartość z test #1.
-  - How to apply: tymczasowy hack do #4 (auth+JWT). Po LexikJWT real auth przez `actingAs($user)` znika potrzeba env-flip.
+  - How to apply: po #4 wzorzec to `JWTTokenManagerInterface->create($user)` + `Authorization: Bearer ...` — environment-agnostic, single boot kernela, wielokrotnie szybsze.
+
+## Lessons z 0.0.4 (LexikJWT auth + multi-tenant principal)
+
+- **Mint JWT w teście via `JWTTokenManagerInterface->create($user)` + `Authorization: Bearer ...` zamiast HTTP login flow.** Nie potrzebujesz `/api/auth/login` request'u w każdym ApiTestCase — bezpośrednio z DI containera, single kernel boot, deterministycznie. Login flow i tak weryfikujesz jednym dedykowanym `AuthApiTest`. (#4)
+  - Why: HTTP login dodaje 1 request per test (~50-100ms), a JWT manager jest zwykłym serwisem. ApiTestCase z 6 testami → 600ms oszczędności.
+  - How to apply: każdy nowy ApiTestCase z auth → helper `authenticatedClient()` który mintuje token raz i ustawia default header'y na `Client::setDefaultOptions(['headers' => ['authorization' => 'Bearer '.$token]])`.
+
+- **`User` z `TenantAware` "darmowo" zwalnia `CurrentTenantProvider`'a od env-fallback'u dla autentykowanych requestów.** `CurrentTenantProvider->getCurrent()` ma trójkę: `$user instanceof TenantAware` → user's tenant; else env code; else null. Po wprowadzeniu auth (#4) prawie zawsze trafia w pierwszy branch — env-fallback to teraz tylko CLI commands i fixtures. (#4)
+  - Why: Ten kawałek kodu pisaliśmy w #2 dla "future auth"; w #4 sprawdziło się bez modyfikacji.
+  - How to apply: Każdy nowy "principal" (np. service user dla integracji w epiku 0.8/0.9) musi implementować `TenantAware` żeby filtr działał automatycznie.
+
+- **`#[ORM\Column(type: 'string')]` dla password hash** (bez `length`) — Bcrypt/Argon hash może być 60-100+ znaków zależnie od algorytmu i parametrów; default `varchar(255)` Symfony to bezpieczny zapas. NIE ograniczaj `length: 60` jak w niektórych poradnikach — Argon2id może być >100. (#4)
+
+- **`access_control` rule order MA znaczenie — pierwszy match wins.** `^/api/auth/login` (PUBLIC) PRZED `^/api` (ROLE_USER); `^/api$` z anchor'em `$` żeby entrypoint był public ale `/api/products` nie. Inaczej dostajesz 401 na `/api/auth/login` (firewall pyta o token zanim zauthenticate). (#4)
+  - How to apply: zawsze testuj 401 na public route i 401 na protected route bez tokena — daje natychmiastowy feedback czy access_control jest dobrze ustawiony.
+
+- **Lexik `json_login` + `username_path: email`** — domyślnie Symfony oczekuje `username` w body, ale UX'owo używamy `email`. `username_path` przekierowuje. Nie zapomnij — bez tego frontend wysyłający `{"email": ...}` dostaje 401 bez sensownego błędu. (#4)
+
+- **CI musi generować JWT keys przed cache:clear i przed phpunit.** Lexik bundle przy boot'cie sprawdza obecność plików `JWT_SECRET_KEY` i `JWT_PUBLIC_KEY` (lazy: tylko przy pierwszym `create()`/`parse()` call). Cache compiler nie odpala lazy services, więc cache:clear technically would pass — ale phpstan-symfony wciąga container i może dotknąć services. Bezpieczniej generować zawsze. Wzór: `openssl genpkey -algorithm RSA -out config/jwt/private.pem -aes256 -pass pass:ci -pkeyopt rsa_keygen_bits:4096` + `openssl pkey ... -pubout`. (#4)
+
+- **Klucze RSA: oba gitignored, devs/CI/prod różne źródła.** Lexik recipe domyślnie gitignoruje `config/jwt/*.pem`. Production: vault-mounted. CI: per-run generation. Devs: local generation z własnym passphrase. To industry-standard dla MVP-stage; commit'owanie pubkey'a (jak prosił ticket) miałoby sens tylko gdy chcesz że CI może verify'ować tokeny wygenerowane lokalnie — niepotrzebne w obecnym setup'ie. (#4)
