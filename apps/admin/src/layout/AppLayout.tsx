@@ -1,7 +1,7 @@
 import { useGetIdentity, useLogout } from '@refinedev/core';
 import { Boxes, LogOut, Package } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { NavLink, Outlet } from 'react-router';
+import { NavLink, Outlet, useNavigate } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -12,8 +12,18 @@ interface Identity {
 
 export function AppLayout() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { mutate: logout, isPending: loggingOut } = useLogout();
   const { data: identity } = useGetIdentity<Identity>();
+
+  const handleLogout = () => {
+    logout(undefined, {
+      // Plain react-router-7 here — Refine's routerProvider would handle the
+      // redirect for us; we navigate manually so logout actually leaves the
+      // protected layout.
+      onSuccess: () => navigate('/login', { replace: true }),
+    });
+  };
 
   return (
     <div className="flex min-h-screen bg-muted/30">
@@ -46,7 +56,7 @@ export function AppLayout() {
             {identity?.name ? (
               <span className="text-sm text-muted-foreground">{identity.name}</span>
             ) : null}
-            <Button variant="ghost" size="sm" onClick={() => logout()} disabled={loggingOut}>
+            <Button variant="ghost" size="sm" onClick={handleLogout} disabled={loggingOut}>
               <LogOut className="size-4" />
               {t('app.logout')}
             </Button>
