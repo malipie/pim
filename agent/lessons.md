@@ -263,6 +263,16 @@
 
 ## Lessons z 0.0.13 (FrankenPHP memory benchmark + AbstractBatchHandler)
 
+- **`paginationViaCursor` w API Platform 4 deklaruje KIERUNEK KURSORA, nie domyślne ORDER BY.** Bez explicit `?order[id]=desc` od klienta lub `order: ['id' => 'DESC']` na operacji, Postgres zwraca wiersze w fizycznej kolejności (insert order). Nowo utworzony produkt może wylądować poza pierwszą stroną i operator widzi "po zapisie nie ma na liście". Każdy `paginationType: 'cursor'` resource MUSI mieć dopowiadający `order:` na GetCollection, nie tylko `paginationViaCursor`. (#13 post-merge fix)
+  - Why: `paginationViaCursor` instruuje API Platform jak budować linki next/prev (jaki filter range applikować na cursor query param), ale ORDER BY musi przyjść z innej deklaracji. Łatwo przeoczyć — wygląda jak duplikacja konfiguracji.
+  - How to apply: `new GetCollection(paginationType: 'cursor', paginationViaCursor: [['field' => 'id', 'direction' => 'DESC']], order: ['id' => 'DESC'], ...)`. Field i direction muszą być spójne między oboma.
+
+- **Fixtures admin email pattern: `admin@<tenant_code>.localhost` dla wszystkich tenantów.** Pierwotnie demo miało `admin@pim.localhost` (legacy z czasu gdy był tylko jeden tenant), acme `admin@acme.localhost`. Operator naturalnie próbuje `admin@demo.localhost` dla demo i nie da się zalogować — silent UX regression. Pattern `admin@<code>.localhost` jest jedyny spójny. (#13 post-merge fix)
+
+- **Cleanup po crashu benchmarku jest manualny — `--keep` ON-by-default po OOM.** Gdy benchmark padnie na OOM (n.p. dev-env profiler middleware leak), skrypt nie dochodzi do `DELETE FROM products WHERE sku LIKE 'bench-%'`. Zostawia śmieci. **Zawsze sprawdzaj `SELECT COUNT(*) FROM products` po failed benchmark run i wyczyść ręcznie.** Fix: nie uruchamiaj benchmarków w `APP_ENV=dev` (R-25-debug leak) + `psql -c "DELETE ..."` po nieudanych runach. (#13 post-merge fix)
+
+
+
 - **Pattern `EntityManager::clear()` po `flush()` w pętli daje memory FLAT regardless of row count w prod env.** Benchmark `pim:benchmark:bulk-import` w `APP_ENV=prod APP_DEBUG=0`: 5 000 → 14 MiB peak, 50 000 → 14 MiB peak (identyczne!). Bez clear: 50 000 → 150 MiB i CPU 6× wolniej. **Pattern jest egzekwowalny:** R-25 ("Krytyczny" wpływ) zwalidowany. (#13)
   - Why: Doctrine UnitOfWork akumuluje IdentityMap między flush'ami; clear() detachuje wszystko, kolejny batch zaczyna od pustego heap'u. CPU savings (6×) wynikają z tego że flush() iteruje cały UnitOfWork — bez clear() rośnie liniowo z każdym batchem.
   - How to apply: każdy nowy bulk path (Messenger handler, CLI command, sync worker) MUSI iść przez `App\Messaging\AbstractBatchHandler::flushAndClear()` lub kanoniczny inline pattern (`flush()` → `clear()` → re-fetch tenant). Custom PHPStan rule (#123) dodajemy w fazie 1.
