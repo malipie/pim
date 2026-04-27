@@ -212,3 +212,33 @@
 - **CI musi generować JWT keys przed cache:clear i przed phpunit.** Lexik bundle przy boot'cie sprawdza obecność plików `JWT_SECRET_KEY` i `JWT_PUBLIC_KEY` (lazy: tylko przy pierwszym `create()`/`parse()` call). Cache compiler nie odpala lazy services, więc cache:clear technically would pass — ale phpstan-symfony wciąga container i może dotknąć services. Bezpieczniej generować zawsze. Wzór: `openssl genpkey -algorithm RSA -out config/jwt/private.pem -aes256 -pass pass:ci -pkeyopt rsa_keygen_bits:4096` + `openssl pkey ... -pubout`. (#4)
 
 - **Klucze RSA: oba gitignored, devs/CI/prod różne źródła.** Lexik recipe domyślnie gitignoruje `config/jwt/*.pem`. Production: vault-mounted. CI: per-run generation. Devs: local generation z własnym passphrase. To industry-standard dla MVP-stage; commit'owanie pubkey'a (jak prosił ticket) miałoby sens tylko gdy chcesz że CI może verify'ować tokeny wygenerowane lokalnie — niepotrzebne w obecnym setup'ie. (#4)
+
+## Lessons z 0.0.5 (admin Refine v5 + shadcn + ESM gotchas)
+
+- **`__dirname` jest undefined w ESM (`"type": "module"`).** `vite.config.ts` z `path.resolve(__dirname, './src')` przejdzie `pnpm build` (esbuild compile ma fallback do project root) ale fail'uje w dev server — `Failed to resolve import "@/..."`. **Fix:** `import { fileURLToPath } from 'node:url'` + `path.dirname(fileURLToPath(import.meta.url))`. To kanoniczny ESM pattern. (#5)
+  - Why: bundler (Vite build) i dev server (Vite serve) używają różnych pathów do resolve aliasu — build przeżywa, dev nie.
+  - How to apply: każdy ESM config (vite, vitest, tsup, rollup) z resolve aliases używa `import.meta.url` jako bazy.
+
+- **Refine v5 + plain react-router (bez `@refinedev/react-router-v6` adaptera) wymaga ręcznego `useNavigate` w `onSuccess`/`onError` mutacji.** `authProvider.login()` zwraca `{ success: true, redirectTo: '/products' }`, ale Refine v5 honoruje `redirectTo` **tylko gdy zarejestrowany jest `routerProvider`**. Bez niego mutacja sukcesu fire-uje, token się zapisuje, ale ekran zostaje na `/login`. User widzi "silent button" — nic się nie dzieje. (#5)
+  - Why: Refine headless decoupling oznacza że router integration jest opt-in. Tradeoff: less coupling, więcej manual wiring per use case.
+  - How to apply: każdy `useLogin`/`useLogout`/`useRegister` w stack'u z plain react-router → `mutate(values, { onSuccess: () => navigate(target) })`. Można też dodać `@refinedev/react-router` (v2 dla RR7) jeśli mutacji jest wiele.
+
+- **Refine v5 hooki return shape różni się między query a mutation.** `useList`/`useOne` → `{ query, result }` (query to QueryObserver, result to flat data). `useCreate`/`useUpdate` → `{ mutation, mutate, mutateAsync }` (mutation to MutationObserver z `isPending`). **ALE** `useLogin`/`useLogout`/`useGetIdentity`/`useIsAuthenticated` → bezpośrednio `UseMutationResult` / `UseQueryResult` (TanStack native, bez wrapping'u). Sprawdzaj typy przed pierwszym użyciem nowego hooka. (#5)
+  - How to apply: dla data hooks `const { result, query } = useList(...)`; dla mutation hooks `const { mutate, mutation } = useCreate(...)` i `mutation.isPending`; dla auth hooks `const { mutate, isPending } = useLogin()` (TanStack native).
+
+- **TanStack Query v5 zmienił `isLoading` na `isPending` dla mutacji.** Mutation lifecycle: `idle | pending | success | error`. Property `isPending` zastąpiło `isLoading`. Queries dalej mają `isLoading`. (#5)
+
+- **TS 6.0 deprecated `baseUrl` w tsconfig.** Path mapping (`paths`) działa bez `baseUrl` — wystarczy klucz w `paths` z relatywną ścieżką (`"@/*": ["./src/*"]`). Bez `baseUrl` nie ma deprecated warning'u. Vite resolve działa niezależnie przez vite.config.ts alias. (#5)
+
+- **Pagination param w Refine v5 to `currentPage`, nie `current`.** Migracja z v3/v4 → v5 zmienia nazwy. DataProvider implementacja czyta `pagination?.currentPage`. (#5)
+
+- **`erasableSyntaxOnly: true` w tsconfig blokuje constructor property promotion.** `constructor(public readonly status: number)` daje `TS1294: This syntax is not allowed`. Musisz przepisać na: declare property + assign w body. To preferencja Vite/TS team — zachęca do "type-only" syntax który łatwiej erase'uje. (#5)
+
+- **shadcn primitives copy-paste zamiast CLI dla container-based dev.** CLI `@shadcn/cli` wymaga interaktywnego promptu — nieprzyjemne w `docker compose exec`. Manual install z [ui.shadcn.com](https://ui.shadcn.com) (Button, Input, Label, Card, Table, Textarea — 6 plików ~200 linii each) zajmuje 5 min i daje pełną kontrolę. Tailwind v4 theme tokens (oklch + dark variant) idą w `index.css`. (#5)
+
+- **JWT decoding po stronie frontendu dla `getIdentity` jest OK dla MVP.** Lexik token zawiera `username` i `roles` w payload — `atob(token.split('.')[1])` plus parse. Nie weryfikujemy podpisu po stronie frontu (klient nigdy nie powinien temu ufać), ale dla wyświetlenia "Hello, admin@..." to wystarczy. Refine `getIdentity` mockuje to bez round-tripu do API. (#5)
+  - How to apply: prawdziwa walidacja zachodzi i tak na backendzie przy każdym request'cie. Frontend dostaje informacje "do wyświetlenia" za darmo.
+
+- **Manual smoke przed merge nie zastępuje "uruchom dev server na clean stash" po merge.** PR #119 przeszedł 5 CI checks (Biome, TS noEmit, Vite build, audit) — ale dev server (Vite serve) z czystego stanu fail'ował na ESM `__dirname`. CI buduje produkcyjny bundle, nie testuje dev experience. Add'uj smoke step "vite dev startup" do CI w fazie 1 jeśli takie regresje będą się zdarzać. (#5)
+  - Why: build vs dev mają różne code paths w Vite/esbuild — build optymalizuje, dev parsuje na żywo.
+  - How to apply: po każdym merge do main odpal lokalnie `pnpm dev` z czystego cache (`docker compose restart admin`) i sprawdź `https://pim.localhost`. Albo dodaj to do `Definition of Done` ticketów frontendowych.
