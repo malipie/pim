@@ -8,6 +8,11 @@ doctrine:
 
         profiling_collect_backtrace: '%kernel.debug%'
         use_savepoints: true
+
+        # Disable query logging in long-running workers — agent/lessons.md
+        # "Memory management" calls this out as a leak source under FrankenPHP.
+        logging: false
+
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true
@@ -16,22 +21,43 @@ doctrine:
         naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
         identity_generation_preferences:
             Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
-        auto_mapping: true
+        # Each bounded context maps explicitly. auto_mapping would scan
+        # the default src/Entity (Symfony skeleton placeholder) and clash
+        # with the bundle-style structure under src/{Context}/Domain/Entity.
+        auto_mapping: false
         mappings:
-            App:
+            Catalog:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Entity'
-                prefix: 'App\Entity'
-                alias: App
+                dir: '%kernel.project_dir%/src/Catalog/Domain/Entity'
+                prefix: 'App\Catalog\Domain\Entity'
+                alias: Catalog
+            Identity:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Identity/Domain/Entity'
+                prefix: 'App\Identity\Domain\Entity'
+                alias: Identity
         controller_resolver:
             auto_mapping: false
+
+        # Registered (declared) but disabled by default. Each request enables
+        # it via TenantFilterConfigurator once the active tenant is known.
+        # Native SQL bypasses this filter — RLS in phase 1 closes the gap.
+        filters:
+            tenant:
+                class: App\Identity\Infrastructure\Doctrine\Filter\TenantFilter
+                enabled: false
 
 when@test:
     doctrine:
         dbal:
             # "TEST_TOKEN" is typically set by ParaTest
             dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+
+        # Enable query logging in tests — visibility into the SQL the filter
+        # produces is worth the small allocation overhead.
+        # Re-enable per-test if needed.
 
 when@prod:
     doctrine:

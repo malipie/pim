@@ -23,8 +23,11 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,json,jsonc}": [
-      "pnpm exec biome check"
+    "{apps/admin,packages,scripts,.husky,.github}/**/*.{ts,tsx,js,jsx,json,jsonc}": [
+      "pnpm exec biome check --no-errors-on-unmatched"
+    ],
+    "/*.{json,jsonc,js,cjs,mjs}": [
+      "pnpm exec biome check --no-errors-on-unmatched"
     ],
     "apps/api/**/*.php": [
       "./scripts/lint-staged-php.sh"

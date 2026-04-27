@@ -1,23 +1,21 @@
 # yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
 
-# This file is the entry point to configure your own services.
-# Files in the packages/ subdirectory configure your dependencies.
-# See also https://symfony.com/doc/current/service_container/import.html
-
-# Put parameters here that don't need to change on each machine where the app is deployed
-# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    # Sprint 0 fallback: until full auth lands in #4 / #24, the listener resolves
+    # the active tenant by code from this env var. Smoke test #12 (0.0.12) flips
+    # the env between two seeded tenants to verify isolation. Production sets it
+    # only for the BYOK admin / migration commands; everything else relies on the
+    # authenticated user (TenantAware).
+    app.default_tenant_code: '%env(default::APP_DEFAULT_TENANT_CODE)%'
 
 services:
-    # default configuration for services in *this* file
     _defaults:
-        autowire: true      # Automatically injects dependencies in your services.
-        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        autowire: true
+        autoconfigure: true
 
-    # makes classes in src/ available to be used as services
-    # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+    App\Identity\Application\CurrentTenantProvider:
+        arguments:
+            $defaultTenantCode: '%app.default_tenant_code%'
