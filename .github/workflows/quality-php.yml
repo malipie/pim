@@ -49,6 +49,12 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
+      - name: Generate JWT keypair (lexik bundle requires the files at compile time)
+        run: |
+          mkdir -p config/jwt
+          openssl genpkey -algorithm RSA -out config/jwt/private.pem -aes256 -pass pass:ci -pkeyopt rsa_keygen_bits:4096
+          openssl pkey -in config/jwt/private.pem -passin pass:ci -pubout -out config/jwt/public.pem
+
       - name: Warm up cache (PHPStan needs the dev container.xml)
         run: php bin/console cache:clear --env=dev
         env:
@@ -59,11 +65,13 @@ jobs:
           MERCURE_URL: http://localhost/.well-known/mercure
           MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
           MERCURE_JWT_SECRET: ci
+          JWT_PASSPHRASE: ci
 
       - name: PHPStan
         run: composer phpstan
         env:
           APP_ENV: dev
+          JWT_PASSPHRASE: ci
 
   php-cs-fixer:
     name: PHP-CS-Fixer (dry-run)
@@ -134,6 +142,12 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
+      - name: Generate JWT keypair for tests
+        run: |
+          mkdir -p config/jwt
+          openssl genpkey -algorithm RSA -out config/jwt/private.pem -aes256 -pass pass:ci -pkeyopt rsa_keygen_bits:4096
+          openssl pkey -in config/jwt/private.pem -passin pass:ci -pubout -out config/jwt/public.pem
+
       - name: Run PHPUnit
         run: php bin/phpunit
         env:
@@ -147,4 +161,5 @@ jobs:
           MERCURE_URL: http://localhost/.well-known/mercure
           MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
           MERCURE_JWT_SECRET: ci
+          JWT_PASSPHRASE: ci
           APP_DEFAULT_TENANT_CODE: demo

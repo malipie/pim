@@ -8,9 +8,11 @@ use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Catalog\Domain\Entity\Product;
 use App\Identity\Application\TenantContext;
 use App\Identity\Domain\Entity\Tenant;
-use App\Identity\Infrastructure\Doctrine\Repository\TenantRepository;
+use App\Identity\Domain\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
 
@@ -20,9 +22,10 @@ use const JSON_THROW_ON_ERROR;
  * Functional API contract for /api/products.
  *
  * Each test runs against a fresh schema (Foundry ResetDatabase) and seeds a
- * single "demo" Tenant matching APP_DEFAULT_TENANT_CODE so the request
- * subscriber + Doctrine filter resolve a real tenant. Authentication wiring
- * lands in #4 (0.0.4); for Sprint 0 the env-fallback path is exercised here.
+ * single "demo" Tenant plus an admin user. Requests are authenticated by
+ * minting a JWT for that user via JWTTokenManager so the JWT firewall lets
+ * the request through and CurrentTenantProvider resolves the tenant from
+ * the authenticated principal (TenantAware).
  */
 final class ProductApiTest extends ApiTestCase
 {
@@ -36,13 +39,27 @@ final class ProductApiTest extends ApiTestCase
     protected static ?bool $alwaysBootKernel = true;
 
     private const string TENANT_CODE = 'demo';
+    private const string ADMIN_EMAIL = 'admin@pim.localhost';
+    private const string ADMIN_PASSWORD = 'changeme';
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $em = $this->em();
-        $em->persist(new Tenant(self::TENANT_CODE, 'Demo Tenant'));
+
+        $tenant = new Tenant(self::TENANT_CODE, 'Demo Tenant');
+        $em->persist($tenant);
+
+        $hasher = $this->passwordHasher();
+        $stub = new User($tenant, self::ADMIN_EMAIL, '', ['ROLE_ADMIN']);
+        $admin = new User(
+            $tenant,
+            self::ADMIN_EMAIL,
+            $hasher->hashPassword($stub, self::ADMIN_PASSWORD),
+            ['ROLE_ADMIN'],
+        );
+        $em->persist($admin);
         $em->flush();
     }
 
@@ -52,7 +69,7 @@ final class ProductApiTest extends ApiTestCase
         $this->seedProduct('SKU-LIST-001', 'Listed product');
         $this->seedProduct('SKU-LIST-002', 'Another listed product');
 
-        static::createClient()->request('GET', '/api/products');
+        $this->authenticatedClient()->request('GET', '/api/products');
 
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('content-type', 'application/ld+json; charset=utf-8');
@@ -74,7 +91,7 @@ final class ProductApiTest extends ApiTestCase
             'brand' => 'Acme',
         ];
 
-        $response = static::createClient()->request('POST', '/api/products', [
+        $response = $this->authenticatedClient()->request('POST', '/api/products', [
             'headers' => ['content-type' => 'application/ld+json'],
             'body' => json_encode($payload, JSON_THROW_ON_ERROR),
         ]);
@@ -100,7 +117,7 @@ final class ProductApiTest extends ApiTestCase
     #[Test]
     public function postRejectsBlankSkuAndName(): void
     {
-        static::createClient()->request('POST', '/api/products', [
+        $this->authenticatedClient()->request('POST', '/api/products', [
             'headers' => ['content-type' => 'application/ld+json'],
             'body' => json_encode(['sku' => '', 'name' => ''], JSON_THROW_ON_ERROR),
         ]);
@@ -117,7 +134,7 @@ final class ProductApiTest extends ApiTestCase
     {
         $product = $this->seedProduct('SKU-GET-001', 'Single product');
 
-        static::createClient()->request('GET', '/api/products/'.$product->getId()->toRfc4122());
+        $this->authenticatedClient()->request('GET', '/api/products/'.$product->getId()->toRfc4122());
 
         self::assertResponseIsSuccessful();
         self::assertJsonContains([
@@ -132,7 +149,7 @@ final class ProductApiTest extends ApiTestCase
     {
         $product = $this->seedProduct('SKU-PATCH-001', 'Original name');
 
-        static::createClient()->request('PATCH', '/api/products/'.$product->getId()->toRfc4122(), [
+        $this->authenticatedClient()->request('PATCH', '/api/products/'.$product->getId()->toRfc4122(), [
             'headers' => ['content-type' => 'application/merge-patch+json'],
             'body' => json_encode([
                 'sku' => 'SKU-HIJACKED',
@@ -159,7 +176,10 @@ final class ProductApiTest extends ApiTestCase
         $this->seedProduct('SKU-CURSOR-002', 'B');
         $this->seedProduct('SKU-CURSOR-003', 'C');
 
-        $response = static::createClient()->request('GET', '/api/products?id[lt]=ffffffff-ffff-ffff-ffff-ffffffffffff');
+        $response = $this->authenticatedClient()->request(
+            'GET',
+            '/api/products?id[lt]=ffffffff-ffff-ffff-ffff-ffffffffffff',
+        );
 
         self::assertResponseIsSuccessful();
         $body = $response->toArray();
@@ -174,12 +194,12 @@ final class ProductApiTest extends ApiTestCase
     {
         $container = self::getContainer();
 
-        $tenantRepository = $container->get(TenantRepository::class);
-        $tenant = $tenantRepository->findByCode(self::TENANT_CODE);
-        \assert($tenant instanceof Tenant, 'setUp must seed the demo tenant.');
+        $userRepository = $container->get('doctrine')->getRepository(User::class);
+        $admin = $userRepository->findOneBy(['email' => self::ADMIN_EMAIL]);
+        \assert($admin instanceof User);
 
         $tenantContext = $container->get(TenantContext::class);
-        $tenantContext->set($tenant);
+        $tenantContext->set($admin->getTenant());
 
         $em = $this->em();
         $product = new Product($sku, $name);
@@ -189,6 +209,33 @@ final class ProductApiTest extends ApiTestCase
         $tenantContext->clear();
 
         return $product;
+    }
+
+    private function authenticatedClient(): \ApiPlatform\Symfony\Bundle\Test\Client
+    {
+        $client = static::createClient();
+        $token = $this->jwtForAdmin();
+
+        $client->setDefaultOptions(['headers' => ['authorization' => 'Bearer '.$token]]);
+
+        return $client;
+    }
+
+    private function jwtForAdmin(): string
+    {
+        $container = self::getContainer();
+        $userRepository = $container->get('doctrine')->getRepository(User::class);
+        $admin = $userRepository->findOneBy(['email' => self::ADMIN_EMAIL]);
+        \assert($admin instanceof User);
+
+        $jwtManager = $container->get(JWTTokenManagerInterface::class);
+
+        return $jwtManager->create($admin);
+    }
+
+    private function passwordHasher(): UserPasswordHasherInterface
+    {
+        return self::getContainer()->get(UserPasswordHasherInterface::class);
     }
 
     private function em(): EntityManagerInterface
