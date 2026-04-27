@@ -50,7 +50,7 @@ class AppFixtures extends Fixture
         $manager->flush();
 
         $admins = [
-            'demo' => 'admin@pim.localhost',
+            'demo' => 'admin@demo.localhost',
             'acme' => 'admin@acme.localhost',
         ];
         foreach ($tenants as $tenant) {

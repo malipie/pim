@@ -15,7 +15,7 @@ Stack zatrzymany po sesji. Aby uruchomić: `pnpm stack:up` (lub `pnpm dev` w for
 Domain model:
 - 3 entities (`Tenant`, `Product`, `User`) w bounded contexts `Identity` i `Catalog`
 - Migracje zaaplikowane: `Version20260427070435` (Tenant+Product), `Version20260427095515` (Users)
-- Fixtures: 2 tenanty × 1 admin user × 3 produkty. Admin: `admin@pim.localhost`/`admin@acme.localhost` hasło `changeme`
+- Fixtures: 2 tenanty × 1 admin user × 3 produkty. Admin: `admin@demo.localhost`/`admin@acme.localhost` hasło `changeme`
 - Multi-tenancy plumbing: TenantContext + listener + SQL filter + RequestTenantSubscriber + auth-aware `CurrentTenantProvider`
 - Auth: LexikJWT v3.2.0, `POST /api/auth/login` zwraca JWT, wszystkie inne `/api/*` wymagają `Authorization: Bearer ...`
 - API: `Product` jako `#[ApiResource]` na `/api/products` (CRUD + cursor pagination + Swagger UI na `/api/docs`)
