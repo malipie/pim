@@ -89,6 +89,28 @@ Faza uznawana za zakończoną gdy:
 
 ## 3. Faza 0 — MVP
 
+> ### REWIZJA ZAKRESU MVP (2026-04-27, po zamknięciu #5)
+>
+> **Decyzja operatora:** "agentic management jest całkowicie jako dodatek, musimy zrobić pełną bazę, dobry UX frontu, więc to wypadnie finalnie jeszcze dalej". W praktyce oznacza to:
+>
+> - **Cały epik 0.7 (Agent layer — schema-add, Beta-Min + Beta-Full)** → Faza 2. Hooks runtime (`pending_changes` table, `provenance` enum, lifecycle events) zostają w MVP — sam agent dochodzi po stabilnym pilocie z prawdziwymi user stories.
+> - **Epiki 0.8 (BaseLinker) + 0.9 (Shopify)** → Faza 1. Pierwszy klient produkcyjny dostaje BaseLinker + Shopify razem po stabilizacji katalogu w MVP, nie jako część gate-decision'u.
+> - **Tickety Sprint 0 #6 (Agent endpoint), #7 (Cmd+K placeholder), #8 (Shopify GraphQL stub)** → przeniesione do Fazy 1/2. Sprint 0 zamykamy 6 pozostałymi ticketami: #9 demo, #10 Playwright, #13 benchmark FrankenPHP, #14 profilowanie, #15 pgBackRest, #16 audit + findings.
+> - **Layout admina #54** rewriten — Cmd+K placeholder usunięty z scope, sam shell layoutu (już startowy ze #5) doczołguje się do pełni.
+> - **Provenance badge #61** — wariant `agent` (purple) odłożony do Fazy 2; MVP pokazuje tylko `manual` / `import` / `integration`.
+>
+> **Powód:** pierwszy pilot (B2B technical, 50 MLN GMV/rok per `Project Plan/03-funkcjonalnosci-mvp.md`) ocenia "działający katalog 5k SKU + niezawodny sync" wyżej niż "rozmawiaj z systemem". Materiał na pilot szybciej, ryzyka R-25/R-27/R-28 wychodzą z MVP. Warunek: `provenance` w `product_values` od dnia 1 i `pending_changes` jako pusta tabela w bazie — koszt 4-6h, oszczędza 30-40h migracji w Fazie 2.
+>
+> **Nowa kolejność wykonania po Sprincie 0:**
+> 1. MVP-Alpha epiki 0.1, 0.2, 0.3 (fundament)
+> 2. (decyzja) Epik 0.3a — Categories / taxonomy (kandydat do dodania w MVP)
+> 3. Epik 0.4 + 0.5 (API extensions + Meilisearch)
+> 4. Epik 0.6 (Admin UI core CRUD — atrybuty + dynamiczny formularz produktu)
+> 5. Epik 0.10 + 0.11 (API Configurator + hardening / a11y / analytics / backup / BYOK)
+> 6. Demo pilot → decyzja gate-decision o gotowości
+> 7. **Faza 1**: BaseLinker + Shopify
+> 8. **Faza 2**: Agent layer (epik 0.7) + Magento + IdoSell
+
 ### 3.0 Sprint 0 — Vertical Slice (walidacja architektury, ~40-55h)
 
 Przed wejściem w pełen backlog MVP wykonujemy **wąski plaster pionowy** całej architektury dla jednej encji end-to-end. Cel: zwalidować że stack faktycznie działa razem zanim zainwestujemy ~200h w pełen scope. Sprint 0 to ubezpieczyciel projektu — inspirowane sugestiami z drugiej i trzeciej rundy review.
@@ -104,10 +126,10 @@ Bazowy stack:
 - 0.0.3 ApiResource w API Platform — endpoint `/api/products` działa (list, get, post, patch) z OpenAPI auto-generowanym.
 - 0.0.4 Authentication minimalny (jeden statyczny user + JWT przez LexikJWT).
 - 0.0.5 Admin Refine + shadcn — jeden ekran: lista produktów + create/edit z dynamicznym formularzem.
-- 0.0.6 Agent endpoint `/api/agent/run` — jedno narzędzie `create_attribute` (proof of concept tool-use z Anthropic SDK PHP) + **twarde limity z sekcji 8.5 architektury** (max 10 tool calls per run, hardstop budgetu).
-- 0.0.7 Cmd+K w admin → wpisz prompt → agent proponuje dodanie atrybutu (placeholder UI, nie pełen streaming).
-- 0.0.8 Najprostszy klient Shopify GraphQL Admin API + **Exponential Backoff** stub (na 429 / `THROTTLED` czytamy `Retry-After` lub używamy `extensions.cost.throttleStatus`, śpimy przez wskazany czas, retry — sekcja 7.3 architektury). Utwórz testowy produkt w sklepie testowym Shopify Partners.
-- 0.0.9 Manualny test end-to-end: utwórz produkt w admin → dodaj atrybut przez agenta → wyślij do Shopify.
+- ~~0.0.6 Agent endpoint `/api/agent/run`~~ → **przeniesione do Fazy 2** (rewizja 2026-04-27).
+- ~~0.0.7 Cmd+K w admin~~ → **przeniesione do Fazy 2** (rewizja 2026-04-27).
+- ~~0.0.8 Najprostszy klient Shopify GraphQL Admin API~~ → **przeniesione do Fazy 1** razem z całym epikem 0.9 (rewizja 2026-04-27).
+- 0.0.9 Manualny test end-to-end: utwórz produkt w admin → edytuj → sprawdź izolację multi-tenant. (Bez agenta i Shopify w demo Sprint 0 po rewizji.)
 
 Walidacja jakości i bezpieczeństwa (nowe, kluczowe — bez tego Sprint 0 jest niekompletny):
 - 0.0.10 **Playwright E2E test od dnia 1**: jeden test happy path "user loguje się → tworzy produkt → wysyła do Shopify". Każdy nowy ticket w MVP **musi** dostać E2E test razem z kodem (Gemini point: review przez non-codera = automatyzacja, nie ręczne czytanie).
@@ -375,18 +397,23 @@ Tydzień 13-14: Epik 0.10, 0.11 (API config + hardening)
 
 Założenie: 10h pracy człowieka tygodniowo (część etatu). Przy pełnym etacie (40h/tydzień) → MVP w 4-5 tygodni.
 
-## 4. Faza 1 — Production-ready
+## 4. Faza 1 — Integracje (BaseLinker + Shopify) + production-ready
+
+> **Rewizja 2026-04-27:** w nowej kolejności (post-#5) Faza 1 zaczyna się od **integracji BaseLinker (epik 0.8) i Shopify (epik 0.9)** — przeniesionych z MVP. Pełen hardening / RLS / monitoring zostaje w Fazie 1 jako równoległy track. Magento i IdoSell przesunięte do Fazy 2 razem z agentem.
 
 ### 4.1 Cele
 
-Hardening do poziomu produkcyjnego, dodanie **Magento i IdoSell**, aktywacja Postgres RLS przed multi-tenantem, pierwsze 2-3 wdrożenia u realnych klientów, monitoring full stack, dokumentacja API publiczna.
+Pierwsza integracja produkcyjna: katalog z MVP łączy się z BaseLinker i Shopify. Hardening do poziomu produkcyjnego, aktywacja Postgres RLS przed multi-tenantem, pierwsze 2-3 wdrożenia u realnych klientów, monitoring full stack, dokumentacja API publiczna.
 
-### 4.2 Backlog (high-level, +100-140h)
+### 4.2 Backlog (high-level)
 
-- **Magento 2 integracja (10-14h)** — przeniesione z MVP, REST/GraphQL, attribute set mapping (sekcja 7.4b architektury).
-- IdoSell integration (12-16h).
-- Bidirectional sync z BaseLinker i Shopify/Magento (12-18h).
+**Track A — Integracje (epiki 0.8 + 0.9, ~100-140h, przeniesione z MVP):**
+- **Epik 0.8 BaseLinker (#72-#78)** — bundle, klient HTTP + retry + circuit breaker, adapter PIM→BaseLinker, UI konfiguracji, full-sync CLI + incremental Messenger handler, sync_jobs UI z Mercure live, testy integracyjne na sandbox.
+- **Epik 0.9 Shopify (#79-#89)** — bundle (rozszerzenie #8), klient GraphQL Admin API + OAuth, adapter PIM→Shopify (metafields/variants/collections), multi-store (Markets + Plus), UI konfiguracji, bulk sync 250-element batch z AbstractBatchHandler memory safe, sync_jobs UI z `currentlyAvailable` telemetry, webhooks + HMAC verification, **Exponential Backoff jako jedyny throttling** (sekcja 7.3 architektury), testy integracyjne na Partners dev store, telemetria do decyzji o migracji na Bulk Operations + Leaky Bucket.
+
+**Track B — Hardening + RLS + observability (~80-110h):**
 - **Postgres RLS aktywacja przed multi-tenantem (16-24h, sekcja 11.1a architektury):** generowanie polityk RLS ze schematów Doctrine, app user bez `BYPASSRLS`, COPY guard, dedykowany pen-test izolacji.
+- Bidirectional sync z BaseLinker i Shopify (12-18h).
 - DAM transformacje obrazów (Imagick, presety) i lazy loading w UI (8-12h).
 - Workflow engine (Symfony Workflow z stanami: draft, review, approved, published) (10-14h).
 - Wersjonowanie produktów (history view, restore) (6-10h).
@@ -397,59 +424,70 @@ Hardening do poziomu produkcyjnego, dodanie **Magento i IdoSell**, aktywacja Pos
 - Bezpieczeństwo: penetration test (zewnętrzny, koszt) + remediation (8-12h human time).
 - **PHPUnit + ApiTestCase** full coverage głównych user stories (8-12h).
 - Documentation: customer-facing docs, integrator handbook (6-10h).
-- **Opcjonalnie:** Shopify Bulk Operations migration (jeśli benchmarks z MVP wymagają, 4-8h).
+- **Opcjonalnie:** Shopify Bulk Operations migration (jeśli telemetry z MVP wymagają, 4-8h).
 
 ### 4.3 Milestones fazy 1
 
-- M1.A: IdoSell integracja zakończona, 3 integracje działają stabilnie
+- M1.A: BaseLinker + Shopify w produkcji, sync stabilny dla pierwszego klienta
 - M1.B: Bidirectional sync (przynajmniej dla atrybutów konfigurowanych jako bidirectional)
 - M1.C: Pełen monitoring stack uruchomiony w środowisku staging
 - M1.D: Pierwszy klient produkcyjny żyje w systemie (50k SKU, 5 atrybutów konfiguracji)
 - M1.E: Pen-test pozytywny, raport bez krytycznych ryzyk
 - M1.F: Public API docs portal dostępny, integratorzy mogą pracować bez kontaktu z developerem
+- M1.G: RLS aktywne, audyt izolacji multi-tenant przed wdrożeniami SaaS
 
-## 5. Faza 2 — Agentic Pro
+## 5. Faza 2 — Agent layer + dodatkowe konektory
+
+> **Rewizja 2026-04-27:** Faza 2 obejmuje teraz całość agentic features (epik 0.7 Beta-Min + Beta-Full przeniesione z MVP) plus konektory **Magento + IdoSell** (też przeniesione z Fazy 1). Hooks runtime (`pending_changes` table, `provenance` enum, lifecycle events) są w MVP, więc kod agenta dochodzi bez migracji danych.
 
 ### 5.1 Cele
 
-Dojrzałość agenta — przejście od "asystent ze schematem" do "operator danych". Multi-tenant SaaS jako opcja deploymentowa. Pierwsze 10+ wdrożeń.
+Dojrzałość agenta — od "schema-add" przez "asystent" do "operator danych". Dodatkowe konektory (Magento, IdoSell) dla klientów spoza ekosystemu BaseLinker/Shopify. Multi-tenant SaaS jako opcja deploymentowa. Pierwsze 10+ wdrożeń.
 
-### 5.2 Backlog (+150-200h)
+### 5.2 Backlog (+200-260h)
 
-- Agent data-ops capabilities (40-60h):
-  - Bulk update atrybutów z preview ("dla wszystkich Nike, ustaw kategorię główną")
-  - Generowanie opisów produktów z atrybutów (LLM tekst)
-  - Mapowanie kolumn CSV/Excel przy imporcie
-  - Translation memory (auto-tłumaczenie nazw na locale)
-  - Anomaly detection (atrybut wygląda nietypowo dla rodziny)
-- Workflow engine advanced (16-22h):
-  - Customowe workflow definitions per tenant
-  - Approval chains
-  - SLA tracking
-- DAM advanced (16-24h):
-  - AI metadata extraction (alt text, tags z modelu vision)
-  - Variants generation (thumbnails, formats)
-  - Asset library z folder structure i smart collections
-- Multi-tenant SaaS aktywacja (20-30h):
-  - Signup flow
-  - Tenant subdomeny
-  - Billing integration (Stripe)
-  - Limity per plan
-  - Onboarding wizard
-- Marketplace integracji v1 (20-30h):
-  - Allegro
-  - Shopify
-  - WooCommerce
-- Dashboard analytics (12-16h):
-  - Completeness charts
-  - Sync status overview
-  - Agent usage stats
-  - Top 10 most-edited products
+**Track A — Agent layer baseline (epik 0.7 Beta-Min, ~50-70h, przeniesione z MVP):**
+- **#63 Bundle Agent + AgentSession + AgentRun** — orchestration warstwy z lifecycle (start / step / end / error), cost guards inline.
+- **#64 Anthropic SDK PHP integration** — system prompt, twarde limity 8.5 (50 tool calls/h/user, 100k tokens/run, $20/dzień/tenant), BudgetService z hardstop'em.
+- **#65 Tool definitions** — `create_attribute`, `create_attribute_group`, `create_family`, `create_category`, `preview_changes` (read-only).
+- **#66 Tool execution layer** — walidacja args, Voters per tool, handlers idempotentne, audit events.
+- **#67 Pending changes queue** — endpoints approve/reject + TTL 24h + Mercure live updates.
+- **#68 UI Cmd+K command bar** — pełna integracja w admin layout (rozszerzenie #54).
+- **#69 UI prosty chat panel (Sheet)** — non-streaming, history persistowana.
+- **#70 UI prosty preview-changes modal** — accept all / reject all / per-item.
+- **#71 Audit logging wszystkich akcji agenta** — append-only, retention 1y.
+
+**Track B — Agent layer rich UX (epik 0.7 Beta-Full, ~13-19h, przeniesione z MVP):**
+- **#108 SSE streaming odpowiedzi przez Mercure** (token-by-token).
+- **#109 UI chat panel ze streaming + cancel + reconnect**.
+- **#110 UI bogaty schema diff modal** — before/after / modify / accept selected.
+- **#111 UI agent inbox** — list pending changes + bulk approve + Mercure live.
+- **#112 UI provenance badge `agent`** — purple variant + link do agent run + recent changes filter (rozszerzenie #61).
+
+**Track C — Dodatkowe konektory (~30-50h, przeniesione z Fazy 1):**
+- **Magento 2 integracja (10-14h)** — REST/GraphQL, attribute set mapping (sekcja 7.4b architektury).
+- **IdoSell integration (12-16h)**.
+- Marketplace integracje v1 (20-30h): Allegro, WooCommerce.
+
+**Track D — Agent data-ops (~40-60h):**
+- Bulk update atrybutów z preview ("dla wszystkich Nike, ustaw kategorię główną").
+- Generowanie opisów produktów z atrybutów (LLM tekst).
+- Mapowanie kolumn CSV/Excel przy imporcie.
+- Translation memory (auto-tłumaczenie nazw na locale).
+- Anomaly detection (atrybut wygląda nietypowo dla rodziny).
+
+**Track E — SaaS aktywacja + advanced features (~50-70h):**
+- Workflow engine advanced (16-22h): customowe workflow per tenant, approval chains, SLA tracking.
+- DAM advanced (16-24h): AI metadata extraction (vision), variants generation, asset library z folder structure.
+- Multi-tenant SaaS aktywacja (20-30h): signup flow, tenant subdomeny, billing (Stripe), limity per plan, onboarding wizard.
+- Dashboard analytics (12-16h): completeness charts, sync status overview, agent usage stats, top edited products.
 
 ### 5.3 Milestones fazy 2
 
-- M2.A: Agent data-ops dostępne, prowadzi bulk update z approval
-- M2.B: SaaS signup uruchomiony, pierwszy multi-tenant klient
+- M2.A: Agent baseline (epik 0.7 Beta-Min) działa — schema-add przez chat z approval flow
+- M2.B: Magento + IdoSell w produkcji
+- M2.C: Agent data-ops dostępne, prowadzi bulk update z approval
+- M2.D: SaaS signup uruchomiony, pierwszy multi-tenant klient
 - M2.C: 3 nowe integracje w marketplace
 - M2.D: Analytics dashboard z 5+ wykresami
 

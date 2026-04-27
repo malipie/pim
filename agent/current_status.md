@@ -58,40 +58,60 @@ Quality gates aktywne:
 23. Brak Playwright E2E w #5 — to scope ticketu #10 (0.0.10), explicit setup ticket. Manual smoke pokrywa wszystkie ścieżki. (#5)
 
 ## Aktywne blokery
-- **Setup konta Shopify Partners** — potrzebny development store free na ticket #8 (0.0.8) i pełen Epic 0.9.
-- **Anthropic API key** — potrzebny dla agent layer (ticket #6 / 0.0.6), z org-level cap $1000/mies. ustawionym w Anthropic Console przed pierwszym call.
 - **Wybór hostingu / providera** — decyzja na pierwszy pilot (rekomendowane: OVH, Hetzner, mikr.us). Może być odłożone do MVP-Final.
 - **Decyzja operacyjna:** wybór trybu wykonania Sprintu 0 — rekomendowane 1-2 tygodnie urlopu/skupienia (sekcja 7 planu).
 
-## Następny krok
-**Czeka na decyzję operatora który ticket podejmujemy następny.** Topologicznie odblokowane (po #1, #2, #3, #4, #11, #12):
+> **Blokery historyczne (po rewizji zakresu 2026-04-27 nie blokują MVP):**
+> - ~~Konto Shopify Partners~~ — Shopify całość (epik 0.9 + Sprint 0 #8) przeniesione do **Faza 1**.
+> - ~~Anthropic API key~~ — agent layer (epik 0.7 + Sprint 0 #6/#7) przeniesiony do **Faza 2**.
 
+## REWIZJA ZAKRESU MVP (2026-04-27, post-#5)
+**Decyzja operatora:** "agentic management = dodatek; baza i UX frontu są priorytetem". W praktyce:
+- **Cały epik 0.7** (Agent layer Beta-Min + Beta-Full, #63-#71 + #108-#112) → **Faza 2**.
+- **Epiki 0.8 (BaseLinker, #72-#78) + 0.9 (Shopify, #79-#89)** → **Faza 1** (razem z Magento + IdoSell przesuniętymi z Fazy 1 do Fazy 2).
+- **Sprint 0 #6 (Agent), #7 (Cmd+K), #8 (Shopify stub)** → odpowiednio Faza 2 / Faza 2 / Faza 1.
+- **Layout #54** — Cmd+K placeholder usunięty z scope.
+- **Provenance #61** — wariant `agent` (purple) odłożony do Fazy 2.
+- **Hooks pod Fazę 2 zostają w MVP** (4-6h): `pending_changes` table jako pusta migracja, `provenance` enum z zarezerwowanym `agent`, lifecycle events Doctrine.
+- Szczegóły w `Project Plan/02-plan-projektu-pim.md` sekcja 3 (rewizja na początku) + sekcje 4 i 5.
+
+## Nowa kolejność wykonania (po Sprincie 0)
+1. **Pozostałe Sprint 0:** #16 (audit + findings) → #10 (Playwright E2E) → #13/#14/#15 paralelnie → #9 (demo + gate decision).
+2. **MVP-Alpha epiki 0.1, 0.2, 0.3** — fundament (Infrastructure, Identity, Catalog domain).
+3. **(decyzja) Epik 0.3a — Categories / taxonomy** (kandydat — operator: "jeszcze nie wiem dokładnie jak").
+4. **Epik 0.4 + 0.5** — API extensions + Meilisearch.
+5. **Epik 0.6** — Admin UI core CRUD (atrybuty + dynamiczny formularz produktu).
+6. **Epik 0.10 + 0.11** — API Configurator + hardening.
+7. **Demo pilot → gate decision.**
+8. **Faza 1:** BaseLinker + Shopify (+ RLS, monitoring, hardening track B).
+9. **Faza 2:** Agent layer + Magento + IdoSell + SaaS aktywacja.
+
+## Następny krok
 | # | Ticket | Komentarz |
 |---|---|---|
-| **#5 (0.0.5)** | Admin Refine + shadcn lista produktów | **Rekomendacja** — z `/api/products` + JWT auth gotowymi to pierwszy frontend slice. Odblokowuje wizualną walidację MVP-Alpha (login + lista + edycja). Większy ticket (Refine setup + shadcn + JWT-aware HTTP client). |
-| #6 (0.0.6) | Agent endpoint + tool create_attribute + limity 8.5 | Wymaga `Anthropic API key` (blocker) + auth (gotowy). |
-| #13 (0.0.13) | Benchmark FrankenPHP worker memory (5000 produktów import) | Wymaga AbstractBatchHandler stub + bulk import command. Niezależny od UI. |
-| #15 (0.0.15) | pgBackRest + WAL stub w docker-compose + restore test | Niezależny. |
-| #16 (0.0.16) | Audit CLAUDE.md + utworzenie `06-sprint-0-findings.md` | Lekki, agreguje 17 świadomych odejść. |
-| #10 (0.0.10) | Playwright E2E od dnia 1 | Wymaga UI (#5) — zrobić razem z #5. |
-| #8 (0.0.8) | Klient Shopify GraphQL + Backoff stub | **Blocker:** wymaga konta Shopify Partners dev store. |
+| **#16 (0.0.16)** | Audit CLAUDE.md + utworzenie `06-sprint-0-findings.md` | **W trakcie** — agreguje 23 świadome odejścia + dokumentuje rewizję zakresu MVP. |
+| #10 (0.0.10) | Playwright E2E od dnia 1 | Domyka DoD Sprint 0 dla #5 + wszystkich UI ticketów MVP-Alpha. |
+| #13 (0.0.13) | Benchmark FrankenPHP worker memory | Niezależny. |
+| #14 (0.0.14) | Profilowanie Blackfire/Tideways | Niezależny. |
+| #15 (0.0.15) | pgBackRest + WAL stub | Niezależny. |
+| #9 (0.0.9) | Manualny E2E + screencast (gate decision) | Po wszystkich pozostałych Sprint 0 ticketach. |
 
-## Postęp po sub-fazach (cumulative h, MVP Core)
-- [ ] Sprint 0 (gate decision) — **6/16 ticketów done** — issues #1-#16
-- [ ] MVP-Alpha (epiki 0.1–0.6) — 0/46 — issues #17-#62
-- [ ] MVP-Beta-Min (część 0.7) — 0/9 — issues #63-#71
-- [ ] MVP-Final (epiki 0.8–0.11) — 0/36 — issues #72-#107
-- [ ] MVP-Beta-Full (część 0.7, opcjonalnie) — 0/5 — issues #108-#112
+## Postęp po fazach (po rewizji zakresu)
+- [ ] Sprint 0 (gate decision) — **7/13 ticketów done** — issues #1-#5, #9-#16 (#6, #7, #8 przeniesione do Faza 1/2)
+- [ ] MVP-Alpha (epiki 0.1–0.6, fundament + admin UI) — 0/46 — issues #17-#62
+- [ ] MVP-Final (epiki 0.10–0.11, API Configurator + hardening) — 0/18 — issues #90-#107
+- [ ] **Faza 1** — Integracje BaseLinker + Shopify + hardening track B — 19 issues (epiki 0.8 + 0.9 + Sprint 0 #8)
+- [ ] **Faza 2** — Agent layer + Magento + IdoSell — 16 issues (epiki 0.7 Beta-Min + Beta-Full + Sprint 0 #6/#7)
 
 ## Postęp Sprint 0 ticketów
 - [x] **#1 / 0.0.1** — Setup monorepo Turborepo + docker-compose + Caddy single-origin (PR #113 merged 2026-04-26)
 - [x] **#2 / 0.0.2** — Encja Product + tenant_id + Doctrine TenantFilter (PR #115 merged 2026-04-27)
 - [x] **#3 / 0.0.3** — ApiResource Product → /api/products (PR #116 merged 2026-04-27)
 - [x] **#4 / 0.0.4** — Authentication minimalny + JWT (PR #118 merged 2026-04-27)
-- [ ] #5 / 0.0.5 — Admin Refine + shadcn lista produktów
-- [ ] #6 / 0.0.6 — Agent endpoint + tool create_attribute + limity 8.5
-- [ ] #7 / 0.0.7 — Cmd+K placeholder UI
-- [ ] #8 / 0.0.8 — Klient Shopify GraphQL + Backoff stub
+- [x] **#5 / 0.0.5** — Admin Refine + shadcn (PR #119 + hotfix #120 merged 2026-04-27)
+- [→] ~~#6 / 0.0.6~~ — Agent endpoint → **przeniesione do Faza 2** (rewizja 2026-04-27)
+- [→] ~~#7 / 0.0.7~~ — Cmd+K placeholder → **przeniesione do Faza 2** (rewizja 2026-04-27)
+- [→] ~~#8 / 0.0.8~~ — Shopify GraphQL stub → **przeniesione do Faza 1** (rewizja 2026-04-27)
 - [ ] #9 / 0.0.9 — Manualny E2E Sprintu 0 + screencast
 - [ ] #10 / 0.0.10 — Playwright E2E od dnia 1
 - [x] **#11 / 0.0.11** — PHPStan max + PHP-CS-Fixer + Biome + husky + CI (PR #114 merged 2026-04-27)
@@ -102,17 +122,25 @@ Quality gates aktywne:
 - [ ] #16 / 0.0.16 — Audit CLAUDE.md + 06-sprint-0-findings.md
 
 ## Postęp epików (poza Sprintem 0 — zerowy)
+**MVP (po rewizji zakresu):**
 - [ ] 0.1 Infrastructure i fundamenty — #17-#23
 - [ ] 0.2 Identity & Access — #24-#30
 - [ ] 0.3 Domain model — Catalog — #31-#40
 - [ ] 0.4 API Platform — exposing entities — #41-#48
 - [ ] 0.5 Search — Meilisearch — #49-#53
-- [ ] 0.6 Admin UI — core CRUD — #54-#62
-- [ ] 0.7 Agent layer — schema-add — #63-#71 (Beta-Min) + #108-#112 (Beta-Full)
-- [ ] 0.8 Integracja BaseLinker — #72-#78
-- [ ] 0.9 Integracja Shopify — #79-#89
+- [ ] 0.6 Admin UI — core CRUD — #54-#62 (#54 + #61 zrewidowane)
 - [ ] 0.10 API Configurator — #90-#95
 - [ ] 0.11 Hardening, a11y, analytics, backup, BYOK — #96-#107
+
+**Faza 1 — Integracje (po MVP gate decision):**
+- [ ] 0.8 Integracja BaseLinker — #72-#78 (przeniesione z MVP-Final)
+- [ ] 0.9 Integracja Shopify — #79-#89 (przeniesione z MVP-Final)
+- [ ] +Sprint 0 #8 (Shopify GraphQL stub) — przeniesione
+
+**Faza 2 — Agent layer + dodatkowe konektory:**
+- [ ] 0.7 Agent layer — schema-add — #63-#71 (Beta-Min, przeniesione z MVP) + #108-#112 (Beta-Full, przeniesione z MVP)
+- [ ] +Sprint 0 #6 (Agent endpoint), #7 (Cmd+K) — przeniesione
+- [ ] Magento + IdoSell + Allegro + WooCommerce konektory (przesunięte z Fazy 1)
 
 ## Notatka dla Claude Code (next session boot)
 Po starcie sesji:
