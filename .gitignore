@@ -65,6 +65,9 @@ coverage/
 playwright-report/
 test-results/
 playwright/.cache/
+**/playwright-report/
+**/test-results/
+**/.playwright/
 
 # Docker
 docker-compose.override.yml
