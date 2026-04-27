@@ -1015,6 +1015,45 @@ Pojedyncza edycja produktu z palca → Doctrine event listener po zmianie `produ
 **Uzasadnienie:** API Platform jest najmocniejszą biblioteką API-first w PHP — auto-generuje REST, GraphQL, JSON-LD, Hydra, OpenAPI z encji Doctrine. Oszczędza 40-60h boilerplate. Aktywnie rozwijany, MIT, używany przez setki firm. Custom REST dawałby więcej kontroli ale za cenę 5-10x większej pracy.
 **Konsekwencje:** Konwencje API Platform (filterszczki, paginacja, serializacja przez grupy) trzeba poznać i przestrzegać. Trochę "magic" — debugowanie wymaga znajomości frameworka.
 
+### ADR-009: Generic `ObjectType` z predefiniowanymi typami Product/Category/Asset
+
+**Status:** Zaakceptowany (2026-04-27)
+
+**Kontekst:**
+Pierwotny model PIM-u traktował `Product` i `Category` jako odrębne encje pierwszej klasy z asymetrycznym modelem atrybutów: `Product` ma `Family` + `FamilyAttribute` + `ProductValue` (pełen EAV-z-JSONB), `Category` ma tylko `code` / `path` (ltree) / `name`. Trzy obserwacje wymusiły rewizję:
+
+1. **Klienci pilotażowi (B2B technical, archetyp z `03-funkcjonalnosci-mvp.md`) zarządzają nie tylko produktami.** Kategorie, dostawcy, listy cenowe, oferty mają własne user-defined atrybuty. PIMCore-style elastyczność jest wymogiem rynku, nie nice-to-have.
+2. **Eksport `Zrodla/PIMCore/masowy_eksport_konfiguracji.json`** (faktyczna obecna konfiguracja klienta Ideo) pokazuje klasę `Kategoria` z własnymi polami SEO (`metaTitle` + `metaDesc`) + obrazem (`main image`). W obecnym modelu PIM nie ma na to miejsca — `Category` ma tylko trzy pola twarde.
+3. **PIMCore osiąga elastyczność przez 4 niezależne mechanizmy** (Classification Store + Object Bricks + Field Collections + Localized Fields — `Zrodla/PIMCore/objects-pimcore.md` sekcje 5.1–5.4). Ten rozdrobniony model jest jednym z głównych powodów, dla których PIMCore „wymaga miesięcy konfiguracji". My redukujemy go do **jednego** mechanizmu (`attributes` + `*_values JSONB` + `attributes_indexed`), parametryzowanego o typ obiektu.
+
+**Rozważane opcje:**
+- **(a)** Hard-coded `Product` + `Category` z asymetrycznym modelem (status quo): `Category` nie ma EAV, dodanie SEO do kategorii = migracja DDL.
+- **(b)** Pełna generalizacja każdego bytu domenowego do `ObjectType` (jak PIMCore Class Definition): admin/agent definiuje wszystkie typy w runtime, brak twardych encji. Maksymalna elastyczność, ale UX dla MVP się rozjeżdża (admin musi sam zdefiniować „produkt" przed pierwszym użyciem) i blokuje konkretną optymalizację per kind (ltree dla kategorii, storage_path dla asset).
+- **(c)** Generic `ObjectType` w bazie z **predefiniowanymi `Product`/`Category`/`Asset` siedzącymi jako built-in instancje** (`is_built_in=true`) + UX zoptymalizowany pod te trzy w admin UI + custom kindy (`Customer`, `Supplier`, `PriceList`) odblokowane dla Fazy 2/3.
+
+**Decyzja:** Opcja (c).
+
+**Uzasadnienie:**
+Rdzeń elastyczności już istnieje w ADR-006 (`attributes` + EAV `*_values JSONB` + `attributes_indexed JSONB`). Generalizacja parametryzuje go o `object_type_id` — koszt minimalny na poziomie modelu danych, zysk maksymalny na poziomie zakresu domain modelu. UX dla MVP zostaje predefiniowany („Produkty", „Kategorie", „Zasoby" w głównej nawigacji + dedykowane sugar paths `/api/products`, `/api/categories`, `/api/assets`), ale silnik pod spodem pozwala adminowi/agentowi w Fazie 2/3 zdefiniować własny `Customer`, `Supplier`, `PriceList` bez migracji DDL. Asymetria jakości obu PR-paczek jest taka sama jak ADR-003 (multi-tenant ready, single-tenant deployed) — sprawdzony pattern.
+
+**Konsekwencje:**
+- **Sekcja 5.2 modelu danych:** `families` → `object_types` (+ `kind`, `is_built_in`); `family_attributes` → `object_type_attributes`; `products` + `categories` → wspólna `objects` z `object_type_id` + denormalizowanym `kind` (do filterów/query). `product_values` → `object_values`. `assets` zostaje osobną tabelą (DAM ma własny lifecycle storage/variants), dochodzi opcjonalny `object_type_id` jako FK do reguł schematu — user-defined metadata przez `object_values`.
+- **Predefiniowane `object_types`** (`product`, `category`, `asset`) seedowane jako fixture przy migracji multi-tenant init i **zablokowane przed deletion** (flag `is_built_in=true` egzekwowana w service'ach + RLS gdy aktywne). Klient/agent w Fazie 2/3 dodaje własne kindy (`kind='custom'`).
+- **Generated columns parametryzowane per `kind`:** `path` (ltree) tylko dla `kind='category'` — Doctrine listener walidujący path tylko dla tego kind. Generic kolumny (`name_pl`, `sku` jako `name_pl_for_product`) jako PostgreSQL `GENERATED ALWAYS AS (CASE WHEN kind='product' THEN ... END)` lub partial functional indexes.
+- **API Platform 4:** sugar paths `/api/products`, `/api/categories`, `/api/assets` jako predefiniowane ApiResource per kind (dla DX integratorów + zgodności z mental modelem REST). Pod spodem wspólny `ObjectController` + serializer context per `kind`. Custom kindy w Fazie 2/3 pójdą przez unified `/api/objects?kind=custom_xxx`.
+- **Doctrine listenery** (`attributes_indexed` sync, `completeness_pct` rebuild) parametryzują się o `object_type_id`. Reguły completeness czyta z `ObjectType.completeness_rules`, nie z hard-coded `Family`.
+- **Multi-tenant filter** zostaje + dochodzi opcjonalny `ObjectTypeFilter` na poziomie ApiResource (Symfony Voter + serializer context per `kind`).
+- **Migracja schematu:** w MVP-Alpha nie ma legacy data — predefiniowane `object_types` jako pierwsza migracja. Import z PIMCore (Faza 1+) mapuje klasy PIMCore → custom `ObjectType`.
+- **Koszt:** **+16–25h w MVP-Alpha epik 0.3** (rewrite encji + ObjectType-aware listenery + sugar API paths + szkielet `kind='custom'`). Finansowane ze zwolnionego budżetu epiku 0.7 (przeniesionego do Fazy 2 — rewizja 2026-04-27, `06-sprint-0-findings.md` §2). Top-line MVP-Alpha się trzyma.
+- **Słownik domenowy:** w nowym kodzie używamy „ObjectType" wszędzie — pojęcie „Family" jest deprecated. Old-aware: ApiResource path `/api/products` (nazwa user-facing), code path `App\Catalog\Domain\Entity\Object` (klasa generic).
+
+**Referencje:**
+- `Zrodla/PIMCore/objects-pimcore.md` sekcje 5.1–5.4 (Classification Store / Bricks / Field Collections / Localized Fields) + 9.1–9.3 (mapowanie wzorców PIMCore na nasz model — które adaptujemy, które odrzucamy).
+- `Zrodla/PIMCore/masowy_eksport_konfiguracji.json` — realna konfiguracja klienta Ideo, klasa `Kategoria` z SEO + image jako proof of need.
+- ADR-003 (multi-tenant ready, single-tenant deployed) — analogiczna asymetria gotowość/deployment.
+- ADR-006 (hybrid attribute model — `attributes` + `*_values JSONB` + `attributes_indexed`) — generalizacja respektuje, nie zmienia.
+- `06-sprint-0-findings.md` §2 (rewizja zakresu MVP 2026-04-27) — finansowanie kosztu generalizacji ze zwolnionego budżetu epiku 0.7.
+
 ## 14. Roadmap rozwoju
 
 Roadmap fazowa, wysokopoziomowa. Szczegółowy backlog i estymacje w dokumencie `02-plan-projektu-pim.md`.
