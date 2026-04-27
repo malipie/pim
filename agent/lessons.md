@@ -148,3 +148,29 @@
 - **Bind mount apps/api do container'a + named volumes na `var/` i `vendor/`** — bez tego każda zmiana PHP wymaga `docker compose build api` (~1 min). Z bind mount worker FrankenPHP automatycznie reloaduje. Vendor pozostaje w named volume żeby `composer require` na host nie kolidował z container'em. (#2)
 - **Reset bazy danych** wymaga zatrzymania `api` container'a — FrankenPHP worker keeps connection open, blokuje `DROP DATABASE`. Sequence: `docker compose stop api && psql DROP/CREATE && docker compose start api && migrate`. (#2)
 - **Postgres user/database name** — czytaj z `.env` (POSTGRES_USER, POSTGRES_DB), nie hardkoduj `app`. Symfony skeleton domyślnie używa `app/app/!ChangeMe!`, my mamy `pim/pim/ChangeMeInDev`. (#2)
+
+## Lessons z 0.0.3 (ApiResource Product + ApiTestCase)
+
+- **Per-operation `denormalizationContext` to clean way to make a field immutable po POST.** `Patch` operation z grupą `product:patch` nie zawierającą `sku` powoduje że PATCH z `sku` w body jest cicho zignorowany (no setter, group out of scope). Czystsze niż `setSku()` który by sie wywołał ale rzucił. UI/dokumentacja ma się odbijać tylko od grup. (#3)
+  - Why: PIM convention — SKU to identyfikator businesowy, nie zmienia się po creation. Domain-level invariant kodyfikowany w warstwie API.
+  - How to apply: każde pole które po PATCH ma być immutable (np. `tenant`, `createdAt`, kandydat: `family`) trzymaj poza `*:patch` grupą. Dodatkowy setter NIE-tworzy.
+
+- **Cursor pagination w API Platform 4 wymaga 3 elementów razem:** `paginationType: 'cursor'` w operation + `paginationViaCursor: [['field' => ..., 'direction' => ...]]` + `OrderFilter` + `RangeFilter` na tym samym polu. Bez `RangeFilter` `id[lt]=...` nie działa. Bez `OrderFilter` rekordy nie są stabilnie zwracane. (#3)
+  - Why: docs API Platform mówią o tym tylko mimochodem; bez wszystkich trzech filter dostajesz `Collection` bez `view.next/previous` i klient nie wie jak iterować.
+  - How to apply: każdy resource z `paginationType: 'cursor'` MUSI mieć `#[ApiFilter(OrderFilter::class, properties: ['id' => 'DESC'])]` + `#[ApiFilter(RangeFilter::class, properties: ['id'])]`. Tworzymy custom PHPStan rule w fazie 1 jeśli będzie dryf.
+
+- **API Platform 4 wymaga `application/ld+json` Content-Type domyślnie** — plain `application/json` daje 415 Unsupported Media Type. PATCH wymaga `application/merge-patch+json` (RFC 7396). BrowserKit Client `'json' => $payload` shortcut ustawia `Content-Type: application/json` co fail'uje. W ApiTestCase używaj `'headers' => ['content-type' => 'application/ld+json']` + `'body' => json_encode(...)`. (#3)
+  - Why: AP4 default `formats: ['jsonld' => ['mime_types' => ['application/ld+json']]]`, plain JSON nie jest w `formats`. Można dodać `application/json` do `formats` w `api_platform.yaml` ale to expanduje API surface — decyzja na epik 0.4.
+
+- **Dla testów PostgreSQL z dbname_suffix `_test`, Foundry's `ResetDatabase` rebuilds schema z entity metadata przez `SchemaTool`, NIE przez migrations.** Działa pod warunkiem że entity attrybuty (Doctrine) odpowiadają migracjom 1:1. Jeśli kiedyś migracja będzie zawierała custom DDL (np. Postgres RLS w fazie 1) trzeba switch'ować Foundry config na `ResetDatabaseMode::MIGRATE`. (#3)
+  - Why: `ResetDatabaseMode::SCHEMA` jest 5-10× szybsze niż MIGRATE; dla MVP to default.
+
+- **`failOnDeprecation="true"` + AP 4.1 deprecation `alwaysBootKernel`** — `ApiTestCase` w 4.1 oczekuje że klasa testowa zadeklaruje explicite `protected static ?bool $alwaysBootKernel = true;` (lub false) zanim AP 5.0 zmieni domyślne zachowanie. Bez tej deklaracji każdy test fail'uje z deprecation. Wzór do każdego nowego ApiTestCase. (#3)
+
+- **`docker compose exec -T -e APP_ENV=test api ...`** — runtime override APP_ENV jest potrzebny dla testów PHPUnit w container'ze, bo container ma `APP_ENV=dev` z docker-compose env, a phpunit.dist.xml `<server name="APP_ENV" value="test" force="true">` ustawia tylko `$_SERVER` które Dotenv nadpisuje aktualnym env. (#3)
+
+- **Twig bundle install jest jedynym sposobem żeby Swagger UI renderował się w AP 4.** `enable_swagger_ui` defaultuje na `class_exists(TwigBundle::class)` — bez Twig dostajesz `404 Swagger UI is disabled`. Twig waży ~1 MB; OK trade-off za auto-renderowane docs dev/staging. Dla prod opcjonalnie `enable_swagger_ui: false`. (#3)
+
+- **Mutable kontekst (`TenantContext`) musi być explicite ustawiony dla bezpiecznego seed'u w testach** — w `setUp` po `setKernelClass`/`getContainer` wywołać `tenantContext->set($tenant)` przed `$em->persist($product)`. Listener pulluje z mutable holder, nie z security tokenu. Test wymaga seedowania bez auth, więc env-fallback nie wystarczy (subscriber tylko na HTTP request). (#3)
+
+- **API Platform 4 OpenAPI request body example** — `new Post(openapi: new \ApiPlatform\OpenApi\Model\Operation(requestBody: new \ApiPlatform\OpenApi\Model\RequestBody(content: new ArrayObject([...]))))` — dosyć wielo-warstwowo, ale działa. Dla MVP wystarczy 1-2 example'y na resource. Dokumentacja AP4 jest minimalna w tym obszarze; wzór sourceujemy z `vendor/api-platform/openapi/Model/RequestBody.php`. (#3)

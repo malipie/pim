@@ -1,14 +1,14 @@
 # Current Status
 
-## Sub-faza: SPRINT-0 — 3/16 ticketów done, oczekiwanie na wybór następnego ticketu
+## Sub-faza: SPRINT-0 — 4/16 ticketów done, oczekiwanie na wybór następnego ticketu
 
 ## Ostatnie 3 akcje
-1. **Ticket #2 (0.0.2) zamknięty** (PR #115 squash-merged do main 2026-04-27). Encje `Tenant` (Identity) + `Product` (Catalog) z UUID v7 + Doctrine 3 attributes; pełne plumbing multi-tenancy: `TenantContext` (mutable holder), `TenantAware` interface, `CurrentTenantProvider` (security → env fallback), `TenantAssignmentListener` (PrePersist), `TenantFilter` (Doctrine SQLFilter), `TenantFilterConfigurator`, `RequestTenantSubscriber` (REQUEST/TERMINATE). Migracja `Version20260427070435` reversible. AppFixtures z 2 tenantami × 3 produkty. PHPUnit 12 + 4 test cases na listenerze (stamps/throws/idempotent/ignores). **QoL fix:** docker-compose.yml z bind mount `apps/api` + named volumes na `var/` i `vendor/` — iterowanie nad PHP nie wymaga już rebuild image. **Świadome odejścia:** PHPUnit 11→12 (sebastian/diff conflict), `Product::$tenant` nullable w PHP/NOT NULL w schemacie (scoped PHPStan ignore), bind mount apps/api jako QoL (lekkie scope creep ale eliminuje blocker).
-2. **Ticket #11 (0.0.11) zamknięty** (PR #114 zmergowany 2026-04-27). Quality gates automation-first: PHPStan max (level 10) + extensions (Symfony, Doctrine, strict-rules) + PHP-CS-Fixer (Symfony+PHP84Migration); Biome strict zastąpił ESLint w apps/admin; husky pre-commit (lint-staged: Biome + PHP-CS-Fixer w container) + commit-msg (commitlint Conventional Commits); GitHub Actions: `quality-php.yml`, `quality-frontend.yml`, `audit.yml` (composer + pnpm audit nightly + PR). **Świadome odejście:** Psalm pominięty (dev-master ma circular conflict). **Świadome odejście:** `git config core.fileMode = false` (Synology Drive bity 644→755).
-3. **Ticket #1 (0.0.1) zamknięty** (PR #113 zmergowany 2026-04-26). Turborepo monorepo, Symfony 7.4 LTS + API Platform 4.3 + FrankenPHP 2.x worker mode (bez nelmio/cors), Vite + React 19 + TS, docker-compose z 9 services + Caddy single-origin, smoke green. **Świadome odejścia:** api-platform/api-platform z Packagist to archiwalny 2018 (pivot do symfony/skeleton 7.4 + manual API Platform 4), `/api/docs.json` nie istnieje w AP4 (healthchecki na `/api`).
+1. **Ticket #3 (0.0.3) zamknięty** (PR #116 squash-merged do main 2026-04-27 jako `59a9226`). `Product` wystawiony w API Platform z operacjami `GetCollection`/`Get`/`Post`/`Patch`. Grupy serializacji `product:read` (lista pól z timestampami), `product:write` (tworzenie — z SKU), `product:patch` (update bez SKU — SKU immutable po POST). Walidatory `NotBlank`+`Length` na `sku`/`name`, `Length` na `description`/`brand`. Kursorowa paginacja (`paginationType: 'cursor'` + `OrderFilter`/`RangeFilter` po `id` DESC) — `id[lt]`/`id[gt]` zwracają `view.next`. Custom OpenAPI request body example dla POST. ApiTestCase z 6 case'ami (lista hydra, POST 201, POST 422 walidacja, GET item, PATCH zachowuje SKU, cursor view links) — wszystkie zielone. PHPUnit job dodany do `quality-php.yml` (Postgres 16 service, `dbname_suffix: '_test'` → schema bootstrap przez Foundry SchemaTool). Twig bundle dodany żeby Swagger UI renderował się na `/api/docs`. **Świadome odejście:** unique-SKU validator (`UniqueEntity['tenant', 'sku']`) skipped — wymaga custom validatora bo `tenant` jest stamped w PrePersist po fazie validacji. Postgres unique index nadal egzekwuje invariant na DB-level; pretty validator dochodzi w epiku 0.4 (#41+).
+2. **Ticket #2 (0.0.2) zamknięty** (PR #115 squash-merged do main 2026-04-27). Encje `Tenant` (Identity) + `Product` (Catalog) z UUID v7 + Doctrine 3 attributes; pełne plumbing multi-tenancy: `TenantContext` (mutable holder), `TenantAware` interface, `CurrentTenantProvider` (security → env fallback), `TenantAssignmentListener` (PrePersist), `TenantFilter` (Doctrine SQLFilter), `TenantFilterConfigurator`, `RequestTenantSubscriber` (REQUEST/TERMINATE). Migracja `Version20260427070435` reversible. AppFixtures z 2 tenantami × 3 produkty. PHPUnit 12 + 4 test cases na listenerze (stamps/throws/idempotent/ignores). **QoL fix:** docker-compose.yml z bind mount `apps/api` + named volumes na `var/` i `vendor/` — iterowanie nad PHP nie wymaga już rebuild image. **Świadome odejścia:** PHPUnit 11→12 (sebastian/diff conflict), `Product::$tenant` nullable w PHP/NOT NULL w schemacie (scoped PHPStan ignore), bind mount apps/api jako QoL (lekkie scope creep ale eliminuje blocker).
+3. **Ticket #11 (0.0.11) zamknięty** (PR #114 zmergowany 2026-04-27). Quality gates automation-first: PHPStan max (level 10) + extensions (Symfony, Doctrine, strict-rules) + PHP-CS-Fixer (Symfony+PHP84Migration); Biome strict zastąpił ESLint w apps/admin; husky pre-commit (lint-staged: Biome + PHP-CS-Fixer w container) + commit-msg (commitlint Conventional Commits); GitHub Actions: `quality-php.yml`, `quality-frontend.yml`, `audit.yml` (composer + pnpm audit nightly + PR). **Świadome odejście:** Psalm pominięty (dev-master ma circular conflict). **Świadome odejście:** `git config core.fileMode = false` (Synology Drive bity 644→755).
 
 ## Bieżący stan
-Sprint 0 = 3/16 ticketów done (#1 setup, #11 quality gates, #2 multi-tenancy + Product/Tenant).
+Sprint 0 = 4/16 ticketów done (#1 setup, #11 quality gates, #2 multi-tenancy + Product/Tenant, #3 ApiResource Product).
 
 Stack zatrzymany po sesji. Aby uruchomić: `pnpm stack:up` (lub `pnpm dev` w foreground).
 
@@ -17,7 +17,8 @@ Domain model:
 - Migracja zaaplikowana, schema z FK `products_tenant_fk` + unique `(tenant_id, sku)`
 - Fixtures: 2 tenanty × 3 produkty (`pim:fixtures:load` lub `bin/console doctrine:fixtures:load`)
 - Multi-tenancy plumbing: TenantContext + listener + SQL filter + RequestTenantSubscriber
-- Test coverage: TenantAssignmentListenerTest (4 cases)
+- API: `Product` jako `#[ApiResource]` na `/api/products` (CRUD + cursor pagination + Swagger UI na `/api/docs`)
+- Test coverage: TenantAssignmentListenerTest (4 cases) + ProductApiTest (6 cases)
 
 Quality gates aktywne:
 - **Lokalnie**: pre-commit hook + commit-msg hook (husky) — Biome + PHP-CS-Fixer + Conventional Commits
@@ -37,6 +38,10 @@ Quality gates aktywne:
 5. PHPUnit 11 → 12 (PHPUnit 11 wymaga `sebastian/diff ^6` ale lock fixował 8.x z phpstan). (#2)
 6. `Product::$tenant` nullable w PHP (krótki window przed PrePersist) ale NOT NULL w schemacie — scoped PHPStan ignore. Listener tests + DB constraint potwierdzają invariant. (#2)
 7. `docker-compose.yml` bind mount `apps/api` + named volumes na `var/` i `vendor/` (lekkie scope creep w #2 ale eliminuje rebuild ~1 min na każdą zmianę PHP). (#2)
+8. `Product` `#[ApiResource]` wystawia entity bezpośrednio (bez DTO input/output) — w MVP-Alpha (epik 0.4 #41+) decyzja czy split na osobne DTO. Powód: 50× mniej kodu, AP4 grouping wystarczy. (#3)
+9. `application/json` jako input/output format **nieaktywowany** — tylko `application/ld+json` (POST/GET) + `application/merge-patch+json` (PATCH). Plain JSON dochodzi w epiku 0.4 (#41) razem z decyzją o explicit DTO. (#3)
+10. `UniqueEntity['tenant', 'sku']` validator pominięty — listener stempluje `tenant` w PrePersist po fazie validacji, więc validator widziałby zawsze `tenant=null`. Postgres unique index `products_tenant_sku_uniq` zachowuje invariant on DB level (HTTP 500 zamiast 422). Custom validator z dostępem do `TenantContext` dochodzi w #41+. (#3)
+11. Twig dodany jako runtime dependency tylko po to żeby AP4 włączył Swagger UI (`enable_swagger_ui` defaultuje `class_exists(TwigBundle::class)`). Dla prod docs można lock'ować przez `enable_swagger_ui: false` env-aware. (#3)
 
 ## Aktywne blokery
 - **Setup konta Shopify Partners** — potrzebny development store free na ticket #8 (0.0.8) i pełen Epic 0.9.
@@ -45,19 +50,18 @@ Quality gates aktywne:
 - **Decyzja operacyjna:** wybór trybu wykonania Sprintu 0 — rekomendowane 1-2 tygodnie urlopu/skupienia (sekcja 7 planu).
 
 ## Następny krok
-**Czeka na decyzję operatora który ticket podejmujemy następny.** Topologicznie odblokowane (po #1, #2, #11):
+**Czeka na merge PR #3 i decyzję operatora który ticket podejmujemy następny.** Topologicznie odblokowane (po #1, #2, #11; po merge #3 odblokowuje #5/#14):
 
 | # | Ticket | Komentarz |
 |---|---|---|
-| **#3 (0.0.3)** | ApiResource Product → /api/products (CRUD + OpenAPI auto-gen) | **Rekomendacja** — bezpośredni follow-up #2, wystawia Product przez API Platform. Blocker dla #5 (admin lista) i #14 (profilowanie load test). |
-| #12 (0.0.12) | Smoke test izolacji multi-tenant (Doctrine filter) | Niezależny po #2. Walidacja TenantFilter w boju (2 tenanty, próba cross-read = 0 wyników). |
+| **#12 (0.0.12)** | Smoke test izolacji multi-tenant (Doctrine filter) | **Rekomendacja** — z TenantFilter w boju (#2) + Product API live (#3) walidacja izolacji jest naturalnym follow-up'em. Lekka (½ ApiTestCase + scenariusz cross-tenant 404). |
+| #4 (0.0.4) | Auth minimalny (statyczny user + JWT LexikJWT) | Niezależny od #2/#3; potrzebny przed #5 (admin) i #6 (agent). |
 | #13 (0.0.13) | Benchmark FrankenPHP worker memory (5000 produktów import) | Wymaga AbstractBatchHandler stub + bulk import command — średni nakład. |
-| #4 (0.0.4) | Auth minimalny (statyczny user + JWT LexikJWT) | Niezależny od #2; potrzebny przed #5 i #6. |
 | #15 (0.0.15) | pgBackRest + WAL stub w docker-compose + restore test | Niezależny. |
 | #8 (0.0.8) | Klient Shopify GraphQL + Backoff stub | **Blocker:** wymaga konta Shopify Partners dev store. |
 
 ## Postęp po sub-fazach (cumulative h, MVP Core)
-- [ ] Sprint 0 (gate decision) — **3/16 ticketów done** — issues #1-#16
+- [ ] Sprint 0 (gate decision) — **4/16 ticketów done** — issues #1-#16
 - [ ] MVP-Alpha (epiki 0.1–0.6) — 0/46 — issues #17-#62
 - [ ] MVP-Beta-Min (część 0.7) — 0/9 — issues #63-#71
 - [ ] MVP-Final (epiki 0.8–0.11) — 0/36 — issues #72-#107
@@ -66,7 +70,7 @@ Quality gates aktywne:
 ## Postęp Sprint 0 ticketów
 - [x] **#1 / 0.0.1** — Setup monorepo Turborepo + docker-compose + Caddy single-origin (PR #113 merged 2026-04-26)
 - [x] **#2 / 0.0.2** — Encja Product + tenant_id + Doctrine TenantFilter (PR #115 merged 2026-04-27)
-- [ ] #3 / 0.0.3 — ApiResource Product → /api/products
+- [x] **#3 / 0.0.3** — ApiResource Product → /api/products (PR #116 merged 2026-04-27)
 - [ ] #4 / 0.0.4 — Authentication minimalny + JWT
 - [ ] #5 / 0.0.5 — Admin Refine + shadcn lista produktów
 - [ ] #6 / 0.0.6 — Agent endpoint + tool create_attribute + limity 8.5
