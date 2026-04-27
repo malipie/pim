@@ -262,3 +262,35 @@ Single-request 13.2 ms (avg), prod env, 1005 produktów dla tenant'a demo, 30 zw
 - Konstytucja: `CLAUDE.md` — drobne korekty workflow / priorytety w tym samym PR
 - Lekcje: `agent/lessons.md` — produkcyjny artefakt, bez zmian w tym tickectie
 - Status: `agent/current_status.md` — odzwierciedla rewizję od commit'a `bedf1ae`
+
+## 9. Addendum 2026-04-27 — ADR-009 (Generalizacja ObjectType)
+
+> Addendum dopisane tego samego dnia co rewizja zakresu (§2). Nie blokuje gate decision Sprintu 0 — zmiana dotyczy MVP-Alpha i kolejnych faz.
+
+### 9.1 Decyzja
+Po rewizji §2 (epik 0.7 do Fazy 2, epiki 0.8/0.9 do Fazy 1) operator zlecił drugie spojrzenie na model domenowy: jakie są konsekwencje hard-coded `Product` + `Category` jako odrębnych encji pierwszej klasy z asymetrycznym modelem atrybutów?
+
+**Wynik:** asymetria blokuje (a) import z PIMCore (eksport `Zrodla/PIMCore/masowy_eksport_konfiguracji.json` — klasa `Kategoria` z SEO + image), (b) potrzeby pilota B2B technical (kategorie hierarchiczne z user-defined atrybutami), (c) przyszłe `Customer` / `Supplier` / `PriceList` w Fazie 2/3.
+
+**Odpowiedź:** **ADR-009** — generic `ObjectType` z predefiniowanymi Product/Category/Asset jako built-in instancje (`is_built_in=true`), custom kindy odblokowane w Fazie 2/3. Pełen ADR w `01-architektura-pim.md` §13.
+
+### 9.2 Wpływ na MVP-Alpha
+- **Epik 0.3 reestymowany z 16-20h do 36-50h** (+16-25h). Finansowane ze zwolnionego budżetu epiku 0.7 (przeniesionego do Fazy 2 — §2). Top-line MVP-Alpha się trzyma.
+- Faza 0 total: 201-274h → **188-260h** (saldo netto -13-15h dzięki przeniesieniu 0.7/0.8/0.9 częściowo niwelującemu wzrost 0.3).
+- Pojęcie „Family" deprecated. W nowym kodzie używamy „ObjectType" wszędzie.
+- Predefiniowane fixtures (`product`, `category`, `asset`) seedowane w `tenant.create` flow.
+
+### 9.3 Audit ticketów GitHub (2026-04-27)
+W ramach domknięcia ADR-009 przeszedłem 91 otwartych issues:
+- **Epik 0.3 (#31-#40)** — major rebody: ticket #32 rename na ObjectType, ticket #33 na Predefined category fixture, ticket #34 na Object/ObjectValue, dochodzi nowy ticket 0.3.12 (Hooks pod `kind='custom'`). Re-estimated to 36-50h.
+- **Epiki 0.4 / 0.5 / 0.6 / 0.10 / 0.11** — light rebody (sugar paths, indexer per kind, Resource ObjectTypes zamiast Resource Families, dynamic category attributes, profile filter per object_type_id).
+- **Epiki 0.7 / 0.8 / 0.9** — minimalna generalizacja (Product → Object/ObjectType w body opisu adapterów; tool agenta `create_object_type` reserved Faza 2).
+- **Epiki 0.1 / 0.2 / Sprint-0 leftovers (#9, #15)** — bez zmian (czysta infra/auth/demo).
+- **#123 (follow-up PHPStan rule)** — milestone przypisany do MVP-Final.
+
+Pełen log per-ticket w `agent/lessons.md` sekcja „Lessons z ADR-009".
+
+### 9.4 Co pozostaje do walidacji w MVP-Alpha
+- **Benchmark `attributes_indexed` na 10k obiektów × 200 atrybutów × 3 kindach** — dowód że generic model nie zwalnia query path względem hard-coded (R-29 mitigation).
+- **Playwright E2E scenariusz „edycja kategorii z atrybutami niestandardowymi"** — proof of ADR-009 że predefined UX dla 3 kindów daje pełnoprawne user-defined atrybuty per kind.
+- **Dyscyplina `kind='custom'` wyłączony przez feature flag w MVP** — ślad audytowy w `ObjectTypeService::create()` testach.
