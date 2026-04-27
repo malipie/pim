@@ -1,0 +1,48 @@
+{
+  "app": {
+    "title": "PIM Admin",
+    "logout": "Wyloguj",
+    "loading": "Ładowanie..."
+  },
+  "auth": {
+    "login_title": "Zaloguj się",
+    "login_subtitle": "Zaloguj się do panelu PIM",
+    "email": "E-mail",
+    "password": "Hasło",
+    "submit": "Zaloguj",
+    "submitting": "Logowanie...",
+    "invalid_credentials": "Nieprawidłowy e-mail lub hasło.",
+    "login_failed": "Nie udało się zalogować. Spróbuj ponownie."
+  },
+  "nav": {
+    "products": "Produkty"
+  },
+  "products": {
+    "list_title": "Produkty",
+    "list_subtitle": "Katalog produktów w obrębie aktualnego najemcy.",
+    "create": "Dodaj produkt",
+    "create_title": "Nowy produkt",
+    "edit_title": "Edytuj produkt",
+    "back": "Wróć do listy",
+    "save": "Zapisz",
+    "saving": "Zapisywanie...",
+    "empty": "Brak produktów. Dodaj pierwszy, aby rozpocząć.",
+    "fields": {
+      "sku": "SKU",
+      "name": "Nazwa",
+      "description": "Opis",
+      "brand": "Marka",
+      "created_at": "Utworzono",
+      "actions": "Akcje"
+    },
+    "actions": {
+      "edit": "Edytuj"
+    },
+    "validation": {
+      "sku_required": "SKU jest wymagane.",
+      "sku_max": "SKU może mieć maksymalnie 64 znaki.",
+      "name_required": "Nazwa jest wymagana.",
+      "name_max": "Nazwa może mieć maksymalnie 255 znaków."
+    }
+  }
+}

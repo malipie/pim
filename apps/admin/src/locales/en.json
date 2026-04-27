@@ -1,0 +1,48 @@
+{
+  "app": {
+    "title": "PIM Admin",
+    "logout": "Sign out",
+    "loading": "Loading..."
+  },
+  "auth": {
+    "login_title": "Sign in",
+    "login_subtitle": "Sign in to the PIM admin panel",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in...",
+    "invalid_credentials": "Invalid email or password.",
+    "login_failed": "Sign-in failed. Please try again."
+  },
+  "nav": {
+    "products": "Products"
+  },
+  "products": {
+    "list_title": "Products",
+    "list_subtitle": "Catalogue of products scoped to the current tenant.",
+    "create": "Add product",
+    "create_title": "New product",
+    "edit_title": "Edit product",
+    "back": "Back to list",
+    "save": "Save",
+    "saving": "Saving...",
+    "empty": "No products yet. Create one to get started.",
+    "fields": {
+      "sku": "SKU",
+      "name": "Name",
+      "description": "Description",
+      "brand": "Brand",
+      "created_at": "Created",
+      "actions": "Actions"
+    },
+    "actions": {
+      "edit": "Edit"
+    },
+    "validation": {
+      "sku_required": "SKU is required.",
+      "sku_max": "SKU can be at most 64 characters.",
+      "name_required": "Name is required.",
+      "name_max": "Name can be at most 255 characters."
+    }
+  }
+}
