@@ -3,17 +3,18 @@
 ## Sub-faza: SPRINT-0 — 11/13 ticketów done (po rewizji zakresu), 2 do gate decision
 
 ## Ostatnie 3 akcje
-1. **Ticket #14 (0.0.14) zamknięty** (PR pending). Perf profile dla `GET /api/products?page=1` z 1005 produktami w prod env. **Wynik:** single-user p95 = **18.7 ms**, 10 VUs (realistyczny B2B pilot) p95 = **105 ms** ✅ (próg 200 ms, headroom 1.9×). 30 VUs p95 = 365 ms, 100 VUs p95 = 997 ms — limited by FrankenPHP `num_threads: 17` pool, multi-worker w fazie 2. Komponenty: `tools/perf/products-list.js` (k6 script, OSS replacement Blackfire/Tideways), `scripts/perf-list-products.sh` (orchestrator: login → seed via `pim:benchmark:bulk-import --keep` → k6 → cleanup), `docker-compose.yml` k6 service z `profile: ["perf"]` (one-shot, nie startuje z `pnpm stack:up`), root npm script `pnpm perf:list`. EXPLAIN ANALYZE dla głównego query: 0.975 ms execution + 2.5 ms planning, `Index Scan Backward using products_pkey`. Top 5 hot paths z analytical breakdown: Serializer JSON-LD (~3-4ms), Doctrine hydration (~3-4ms), Security firewall (~2-3ms), API Platform metadata (~1-2ms), Caddy/TLS (~1-2ms) — **brak jednego dominującego bottleneck'a**. **Świadome odejścia:** (a) k6 zamiast Blackfire/Tideways (OSS, brak SaaS dependency); (b) EXPLAIN ANALYZE + analytical breakdown zamiast WebProfilerBundle (skeleton dev pack pomija; full profiler suite w epiku 0.11 #103-#105); (c) próg 100 VUs Sprint-0-spec'u re-interpretowany jako 10 VUs (realistyczny dla MVP single-pilot B2B). **Odkrycie:** Doctrine ORM 3 prod env wymaga `cache:warmup` przed pierwszym request'em (proxies offline-only) — naturalnie w docker build'cie, ale lokalny switch dev→prod w container'ze potrzebuje manualnego kroku.
-2. **Ticket #13 (0.0.13) zamknięty** (PR #124 squash-merged do main 2026-04-27 jako `95d7936`, post-mortem agent state w PR #125 jako `e96b2dd`). Benchmark FrankenPHP worker memory + `AbstractBatchHandler` szkielet + Prometheus metric endpoint. **Manual-smoke fix w trakcie review** (drugi commit do PR #124): (a) demo admin email `admin@pim.localhost` → `admin@demo.localhost` (spójny pattern `admin@<tenant_code>.localhost`); (b) `Product` GetCollection dostał `order: ['id' => 'DESC']` (`paginationViaCursor` deklaruje kierunek kursora, nie domyślne ORDER BY). **Wynik benchmarku w prod env:** 5 000 produktów = 14 MiB peak (próg 256 MiB), 50 000 produktów = 14 MiB peak FLAT z clear; bez clear 50 000 = 150 MiB rosnąco + 6× wolniej. **Najważniejsze odkrycie:** Symfony Profiler middleware (`BacktraceDebugDataHolder`) jest osobnym leak source niezależnym od `doctrine.dbal.logging: false`. Benchmarki/workery MUSZĄ iść w `APP_ENV=prod APP_DEBUG=0`.
-3. **Ticket #10 (0.0.10) zamknięty** (PR #122 squash-merged do main 2026-04-27 jako `c3f6f26`). Pierwszy Playwright E2E od dnia 1: 9 testów (5 auth, 4 CRUD), CI job `e2e` z dwustopniowym startup'em (database+redis → api → migrate+fixtures → --wait reszta → playwright). 3 CI debug fixes: chicken-egg api healthcheck, `--wait` vs `restart: no` minio-init, Caddy HTTPS-only healthcheck.
+1. **ADR-009 (Generic ObjectType) + audit ticketów GitHub** (2026-04-27, PR #1 pending). Pełen ADR-009 w `01-architektura-pim.md` §13 — generic `ObjectType` z predefiniowanymi Product/Category/Asset jako `is_built_in=true` instancje + custom kindy (`Customer`, `Supplier`, `PriceList`) odblokowane w Fazie 2/3. Wpływ: epik 0.3 reestymowany 16-20h → **36-50h** (+16-25h finansowane ze zwolnionego budżetu epiku 0.7 przeniesionego do Fazy 2). Faza 0 total: **188-260h** (saldo netto -13-15h vs poprzedni budżet 201-274h dzięki rewizji 2026-04-27 + ADR-009). Pojęcie „Family" deprecated. Sugar paths `/api/products`, `/api/categories`, `/api/assets` zostają user-facing (lepszy DX integratorów). Audit 91 issues: epik 0.3 major rebody (#31-#40 + nowy 0.3.12), epiki 0.4/0.5/0.6/0.10/0.11 light rebody, agent (Faza 2) + integracje (Faza 1) minimalna generalizacja. Plus nowe ryzyko **R-29: Over-engineering generic ObjectType w MVP** (mitigacja: feature flag, predefined UX, benchmark `attributes_indexed` na 10k×200×3 kindach).
+2. **Ticket #14 (0.0.14) zamknięty** (PR pending). Perf profile dla `GET /api/products?page=1` z 1005 produktami w prod env. **Wynik:** single-user p95 = **18.7 ms**, 10 VUs (realistyczny B2B pilot) p95 = **105 ms** ✅ (próg 200 ms, headroom 1.9×). 30 VUs p95 = 365 ms, 100 VUs p95 = 997 ms — limited by FrankenPHP `num_threads: 17` pool, multi-worker w fazie 2. Komponenty: `tools/perf/products-list.js` (k6 script, OSS replacement Blackfire/Tideways), `scripts/perf-list-products.sh` (orchestrator: login → seed via `pim:benchmark:bulk-import --keep` → k6 → cleanup), `docker-compose.yml` k6 service z `profile: ["perf"]` (one-shot, nie startuje z `pnpm stack:up`), root npm script `pnpm perf:list`. EXPLAIN ANALYZE dla głównego query: 0.975 ms execution + 2.5 ms planning, `Index Scan Backward using products_pkey`. Top 5 hot paths z analytical breakdown: Serializer JSON-LD (~3-4ms), Doctrine hydration (~3-4ms), Security firewall (~2-3ms), API Platform metadata (~1-2ms), Caddy/TLS (~1-2ms) — **brak jednego dominującego bottleneck'a**. **Świadome odejścia:** (a) k6 zamiast Blackfire/Tideways (OSS, brak SaaS dependency); (b) EXPLAIN ANALYZE + analytical breakdown zamiast WebProfilerBundle (skeleton dev pack pomija; full profiler suite w epiku 0.11 #103-#105); (c) próg 100 VUs Sprint-0-spec'u re-interpretowany jako 10 VUs (realistyczny dla MVP single-pilot B2B). **Odkrycie:** Doctrine ORM 3 prod env wymaga `cache:warmup` przed pierwszym request'em (proxies offline-only) — naturalnie w docker build'cie, ale lokalny switch dev→prod w container'ze potrzebuje manualnego kroku.
+3. **Ticket #13 (0.0.13) zamknięty** (PR #124 squash-merged do main 2026-04-27 jako `95d7936`, post-mortem agent state w PR #125 jako `e96b2dd`). Benchmark FrankenPHP worker memory + `AbstractBatchHandler` szkielet + Prometheus metric endpoint. **Manual-smoke fix w trakcie review** (drugi commit do PR #124): (a) demo admin email `admin@pim.localhost` → `admin@demo.localhost` (spójny pattern `admin@<tenant_code>.localhost`); (b) `Product` GetCollection dostał `order: ['id' => 'DESC']` (`paginationViaCursor` deklaruje kierunek kursora, nie domyślne ORDER BY). **Wynik benchmarku w prod env:** 5 000 produktów = 14 MiB peak (próg 256 MiB), 50 000 produktów = 14 MiB peak FLAT z clear; bez clear 50 000 = 150 MiB rosnąco + 6× wolniej. **Najważniejsze odkrycie:** Symfony Profiler middleware (`BacktraceDebugDataHolder`) jest osobnym leak source niezależnym od `doctrine.dbal.logging: false`. Benchmarki/workery MUSZĄ iść w `APP_ENV=prod APP_DEBUG=0`.
 
 ## Bieżący stan
 Sprint 0 = 11/13 ticketów done (#1 setup, #2 multi-tenancy, #3 ApiResource Product, #4 LexikJWT, #5 admin Refine, #10 Playwright E2E, #11 quality gates, #12 isolation smoke, #13 memory benchmark, #14 perf profile, #16 audit + findings). Pozostałe: #9 (manual demo), #15 (pgBackRest).
 
 Stack zatrzymany po sesji. Aby uruchomić: `pnpm stack:up` (lub `pnpm dev` w foreground).
 
-Domain model:
+Domain model (Sprint-0 stan; po MVP-Alpha epik 0.3 model przejdzie na ObjectType — ADR-009):
 - 3 entities (`Tenant`, `Product`, `User`) w bounded contexts `Identity` i `Catalog`
+- **Target shape MVP-Alpha (po ADR-009):** `Tenant`, `User`, `ObjectType` (predefined product/category/asset jako built-in fixtures), `ObjectTypeAttribute`, `Attribute`, `Object` (poly per `kind`), `ObjectValue`, `Channel`, `Asset` (dedykowana tabela storage + Object kind='asset' dla user-defined metadata)
 - Migracje zaaplikowane: `Version20260427070435` (Tenant+Product), `Version20260427095515` (Users)
 - Fixtures: 2 tenanty × 1 admin user × 3 produkty. Admin: `admin@demo.localhost`/`admin@acme.localhost` hasło `changeme`
 - Multi-tenancy plumbing: TenantContext + listener + SQL filter + RequestTenantSubscriber + auth-aware `CurrentTenantProvider`
@@ -75,6 +76,9 @@ Quality gates aktywne:
 - **Hooks pod Fazę 2 zostają w MVP** (4-6h): `pending_changes` table jako pusta migracja, `provenance` enum z zarezerwowanym `agent`, lifecycle events Doctrine.
 - Szczegóły w `Project Plan/02-plan-projektu-pim.md` sekcja 3 (rewizja na początku) + sekcje 4 i 5.
 
+### Generalizacja ObjectType (2026-04-27, ADR-009)
+**Decyzja operatora:** generalizujemy model katalogu — `Product`, `Category`, `Asset` to **instancje generic `ObjectType`** z `is_built_in=true`, nie hard-coded encje. Custom kindy (`Customer`, `Supplier`, `PriceList`) supported od dnia 1 ale wyłączone feature flagiem do Fazy 2/3. Powód: B2B pilot zarządza nie tylko produktami; eksport PIMCore (`Zrodla/PIMCore/masowy_eksport_konfiguracji.json`) pokazuje klasę `Kategoria` z user-defined SEO + image, których obecny model PIM nie obsługuje. **Koszt:** epik 0.3 16-20h → 36-50h (+16-25h, finansowane ze zwolnionego budżetu epiku 0.7). Pełen ADR w `01-architektura-pim.md` §13. Pojęcie „Family" deprecated. Sugar paths `/api/products`, `/api/categories`, `/api/assets` zachowane (DX integratorów). Mitigacja over-engineeringu: ryzyko **R-29** + feature flag + benchmark `attributes_indexed` na 10k×200×3 kindach w MVP-Alpha.
+
 ## Nowa kolejność wykonania (po Sprincie 0)
 1. **Pozostałe Sprint 0:** #16 (audit + findings) → #10 (Playwright E2E) → #13/#14/#15 paralelnie → #9 (demo + gate decision).
 2. **MVP-Alpha epiki 0.1, 0.2, 0.3** — fundament (Infrastructure, Identity, Catalog domain).
@@ -118,14 +122,14 @@ Quality gates aktywne:
 - [x] **#16 / 0.0.16** — Audit CLAUDE.md + 06-sprint-0-findings.md (PR #121 merged 2026-04-27)
 
 ## Postęp epików (poza Sprintem 0 — zerowy)
-**MVP (po rewizji zakresu):**
+**MVP (po rewizji zakresu + ADR-009):**
 - [ ] 0.1 Infrastructure i fundamenty — #17-#23
 - [ ] 0.2 Identity & Access — #24-#30
-- [ ] 0.3 Domain model — Catalog — #31-#40
-- [ ] 0.4 API Platform — exposing entities — #41-#48
-- [ ] 0.5 Search — Meilisearch — #49-#53
-- [ ] 0.6 Admin UI — core CRUD — #54-#62 (#54 + #61 zrewidowane)
-- [ ] 0.10 API Configurator — #90-#95
+- [ ] 0.3 Domain model — Catalog (po ADR-009: 36-50h, +16-25h vs poprzednio) — #31-#40 + nowy 0.3.12 (Hooks pod kind='custom')
+- [ ] 0.4 API Platform — exposing entities (sugar paths /api/products|categories|assets) — #41-#48
+- [ ] 0.5 Search — Meilisearch (per-kind indeksy) — #49-#53
+- [ ] 0.6 Admin UI — core CRUD — #54-#62 (#54 + #61 zrewidowane; **#57 Resource Families → Resource ObjectTypes** po ADR-009)
+- [ ] 0.10 API Configurator (filter per object_type_id) — #90-#95
 - [ ] 0.11 Hardening, a11y, analytics, backup, BYOK — #96-#107
 
 **Faza 1 — Integracje (po MVP gate decision):**
