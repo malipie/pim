@@ -66,6 +66,17 @@ services:
       TRUSTED_HOSTS: '^pim\.localhost$$|^localhost$$|^api$$'
     expose:
       - "80"
+    # Live-mount the source tree so iterating on PHP code does not require a
+    # `docker compose build api` round-trip. var/cache and var/log are kept
+    # inside the image (the bind mount excludes them via the .dockerignore +
+    # Symfony env writing into the project) — anonymous named volumes shadow
+    # the host paths so the worker keeps a working cache. Vendor stays in the
+    # image so package upgrades go through `composer require` followed by a
+    # rebuild rather than mutating the host node-style.
+    volumes:
+      - ./apps/api:/app
+      - api_var:/app/var
+      - api_vendor:/app/vendor
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1/api"]
       interval: 10s
@@ -210,3 +221,5 @@ volumes:
   mercure_config:
   admin_node_modules:
   admin_app_node_modules:
+  api_var:
+  api_vendor:

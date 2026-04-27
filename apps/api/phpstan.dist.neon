@@ -21,6 +21,9 @@ parameters:
     excludePaths:
         - var/*
         - vendor/*
+        # Skeleton bootstrap shipped by symfony/test-pack — touching it forces
+        # us to fight Symfony's own conventions. Re-included once we extend it.
+        - tests/bootstrap.php
 
     # Symfony container introspection — needs the dev cache built before PHPStan runs.
     symfony:
@@ -46,3 +49,25 @@ parameters:
           paths:
               - src/ApiResource/*
               - src/Entity/*
+        # Test setUp() initialises properties that PHPStan cannot follow.
+        - identifier: property.uninitialized
+          paths:
+              - tests/*
+        # PHPUnit's $this->createStub() / $this->createMock() trigger
+        # strict-rules dynamic-static-call warnings; the framework itself
+        # designs them as instance methods on TestCase.
+        - identifier: staticMethod.dynamicCall
+          paths:
+              - tests/*
+        # `assertTrue(true)` is the documented PHPUnit pattern for "no
+        # exception thrown" tests where there is nothing else to assert on.
+        - identifier: staticMethod.alreadyNarrowedType
+          paths:
+              - tests/*
+        # Product::$tenant is nullable in PHP for the brief window between
+        # construction and TenantAssignmentListener::prePersist; the schema
+        # column itself is NOT NULL. The invariant is verified by the listener
+        # tests and at INSERT time by the database.
+        - identifier: doctrine.associationType
+          paths:
+              - src/Catalog/Domain/Entity/Product.php
