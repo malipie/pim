@@ -25,10 +25,10 @@ Jesteś **Senior Staff Backend/Full-Stack Engineer** z mocnym doświadczeniem PH
 
 ## Workflow (obowiązkowy)
 1. **Plan Mode default** — dla każdego ticketu dotykającego >3 plików lub decyzji architektonicznej zacznij od planu. Sprawdź `Project Plan/02-plan-projektu-pim.md` zanim zaczniesz.
-2. **Source of truth — `agent/current_status.md`** — aktualizuj po każdej znaczącej akcji: aktualna sub-faza (Sprint 0 / MVP-Alpha / MVP-Beta-Min / MVP-Final / MVP-Beta-Full / Faza 1+), aktualny epik i ticket, ostatnie 3 akcje, następny krok, aktywne blokery. Jednym spojrzeniem widać gdzie jesteśmy.
-3. **`agent/lessons.md`** — czytaj na początku każdej sesji, aktualizuj po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka).
-4. **Subagent strategy** — dla wyizolowanych zadań (generowanie modeli z OpenAPI, batch widget tree w Refine, seed danych) używaj subagentów żeby kontekst sesji głównej był czysty.
-5. **Definicja "Done" = zielone bramki automatyczne** (sekcja 2.2 planu): PHPStan max + Psalm strict + Biome strict + PHPUnit ≥80% nowej logiki + ApiTestCase dla nowych endpointów + Playwright E2E dla każdej widocznej zmiany + composer/npm audit + manual smoke 5 min. **Bez E2E ticket NIE jest done.** Operator nie udaje code review LLM-kodu.
+2. **Source of truth — `agent/current_status.md`** — aktualizuj po każdej znaczącej akcji: aktualna sub-faza (Sprint 0 / MVP-Alpha / MVP-Final / Faza 1 / Faza 2), aktualny epik i ticket, ostatnie 3 akcje, następny krok, aktywne blokery. Jednym spojrzeniem widać gdzie jesteśmy.
+3. **`agent/lessons.md`** — czytaj na początku każdej sesji, aktualizuj po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka). Pattern w praktyce (zwalidowany w Sprincie 0): tematyczne sekcje na początku ("Patterns to Follow", "Patterns to Avoid", "Package Quirks", "Toolchain quirks", "Decyzje świadome") + sekcja `## Lessons z 0.X.Y (...)` per ticket dorabianego do bottom'u. Najnowsze odkrycia idą per-ticket, recyklowalne wzorce do top'u.
+4. **Subagent strategy** — dla wyizolowanych zadań (generowanie modeli z OpenAPI, batch widget tree w Refine, seed danych) używaj subagentów żeby kontekst sesji głównej był czysty. *(Sprint 0 nie wykorzystał ani razu — pattern wciąż relevantny dla większych ticketów MVP-Alpha.)*
+5. **Definicja "Done" = zielone bramki automatyczne** (sekcja 2.2 planu): PHPStan max + Biome strict + PHPUnit ≥80% nowej logiki + ApiTestCase dla nowych endpointów + Playwright E2E dla każdej widocznej zmiany + composer/npm audit + manual smoke 5 min. **Bez E2E ticket NIE jest done.** Operator nie udaje code review LLM-kodu. *(Psalm strict pominięty — patrz `Project Plan/06-sprint-0-findings.md` punkt 3 + ADR-aktualizacja w lessons.)*
 
 ## Twarde wytyczne architektoniczne (egzekwowane przez CI, nie przez ludzkie review)
 
@@ -83,17 +83,17 @@ Twarde limity, **nienegocjowalne**: 50 tool calls/h/user, 10 tool calls/agent_ru
 - Po każdym major bump pakietu generującego kod (np. API Platform, Doctrine) — pełen `composer dump-autoload` + regeneracja DTO/types + naprawa breaking changes zanim ticket = done.
 - Pin do starszej wersji wymaga komentarza w pliku z konkretnym powodem (breaking incompatibility, missing platform support, unfixed bug + link do issue).
 
-## Priorytety implementacyjne (kolejność sub-faz)
+## Priorytety implementacyjne (kolejność sub-faz, **rewizja 2026-04-27** — patrz `Project Plan/06-sprint-0-findings.md` sekcja 2)
 1. **Sprint 0** (40-55h) — vertical slice, gate decision. Bez Sprintu 0 NIE wchodzimy w MVP Core.
-2. **MVP-Alpha** — backend + API + minimal admin (epiki 0.1–0.6, 80-110h)
-3. **MVP-Beta-Min** — minimum agentic UX (część 0.7, 12-16h)
-4. **MVP-Final** — integracje + API config + hardening + a11y + analytics + pgBackRest + BYOK (0.8–0.11, 70-94h)
-5. **MVP-Beta-Full** — pełen agentic UX (streaming, schema diff modal, inbox, provenance — opcjonalnie, 13-19h)
-6. Faza 1 → Magento, IdoSell, RLS aktywacja, hardening, pierwsze produkcje
-7. Faza 2 → Agent data-ops, multi-tenant SaaS, marketplace integracji
-8. Faza 3 → SSO, white-label, ISO/SOC 2
+2. **MVP-Alpha** — backend + API + admin core CRUD (epiki 0.1–0.6, **bez 0.7 agent**)
+3. **MVP-Final** — API Configurator + hardening + a11y + analytics + pgBackRest + BYOK (epiki 0.10–0.11, **bez 0.8/0.9 integracji**)
+4. **Faza 1** → Integracje **BaseLinker (epik 0.8) + Shopify (epik 0.9)** + RLS aktywacja + monitoring full stack + pierwsze produkcje
+5. **Faza 2** → **Agent layer (epik 0.7 Beta-Min + Beta-Full)** + Magento + IdoSell + multi-tenant SaaS + marketplace integracji
+6. **Faza 3** → SSO, white-label, ISO/SOC 2
 
 Każda sub-faza kończy się **5-min screencast demo** (nawet do siebie).
+
+**Hooks pod Fazę 2 zostają w MVP** (4-6h, kandydat do epiku 0.3 lub 0.11): `pending_changes` table jako pusta migracja, `provenance` enum z zarezerwowanym `agent`, lifecycle event subscriber emitujący `EntityChanged`. Agent w Fazie 2 dochodzi bez migracji danych.
 
 ## Core principles
 - **API-first nigdy się nie kończy** — żaden feature nie jest gotowy, jeśli nie jest dostępny przez API.
@@ -134,8 +134,8 @@ Refs #12
 
 ## Pliki, które utrzymujesz atomowo
 - **`agent/current_status.md`** — aktualna sub-faza, ticket, ostatnie 3 akcje, następny krok, blokery.
-- **`agent/lessons.md`** — Patterns to Follow / Patterns to Avoid / Package Quirks. Sukcesy i porażki.
+- **`agent/lessons.md`** — Patterns to Follow / Patterns to Avoid / Package Quirks / Toolchain quirks / Decyzje świadome + sekcje per-ticket "Lessons z 0.X.Y". Sukcesy i porażki.
 - **`Project Plan/02-plan-projektu-pim.md`** — backlog i estymacje. Aktualizuj checkboxy ticketów w miarę zamykania.
 - **`Project Plan/01-architektura-pim.md`** — przy zmianach wpływających na architekturę dodaj nowy ADR (sekcja 13).
-- **`docs/api-spec/v{version}.json`** — wersjonowany snapshot OpenAPI eksportowany z `/api/docs.json` przy każdym tagu release (CI step, nie ręcznie).
-- **`06-sprint-0-findings.md`** — utworzony po Sprincie 0, zawiera korekty ADR-ów jeśli wystąpiły.
+- **`Project Plan/06-sprint-0-findings.md`** — utworzony w #16, agreguje świadome odejścia + dokumentuje rewizję zakresu MVP. Aktualizuj per Sprint-0 ticket który odsłoni nowe wnioski.
+- **`docs/api-spec/v{version}.json`** — wersjonowany snapshot OpenAPI eksportowany z `/api/docs.jsonopenapi` przy każdym tagu release (CI step, nie ręcznie). *(W AP4 ścieżka to `.jsonopenapi`, nie `.json` — patrz lessons #1.)*
