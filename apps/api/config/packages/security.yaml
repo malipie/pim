@@ -42,10 +42,14 @@ security:
             provider: app_user_provider
 
     access_control:
-        # Public auth + docs. Everything else under /api requires JWT.
+        # Public auth + docs + metrics. Everything else under /api requires JWT.
+        # /api/metrics is the Prometheus scrape endpoint; production should
+        # bind it on a private network or fence it behind a scrape token,
+        # both of which land in epik 0.11 hardening (#103-#105).
         - { path: ^/api/auth/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/docs, roles: PUBLIC_ACCESS }
         - { path: ^/api/contexts, roles: PUBLIC_ACCESS }
+        - { path: ^/api/metrics$, roles: PUBLIC_ACCESS }
         - { path: ^/api$, roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: ROLE_USER }
 

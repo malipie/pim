@@ -37,6 +37,13 @@ use Symfony\Component\Validator\Constraints as Assert;
             ],
             paginationItemsPerPage: 30,
             paginationMaximumItemsPerPage: 100,
+            // Default order — newest first. UUID v7 carries the timestamp in
+            // its leading bytes, so sorting by id DESC is equivalent to
+            // sorting by createdAt DESC and gives the admin list the "your
+            // last create lands at the top" UX the operator expects. Without
+            // this clients that don't pass `order[id]=desc` get an unstable
+            // physical-row order from Postgres.
+            order: ['id' => 'DESC'],
         ),
         new Get(),
         new Post(

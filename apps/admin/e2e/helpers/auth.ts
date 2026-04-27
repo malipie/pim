@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 
-export const ADMIN_EMAIL = 'admin@pim.localhost';
+export const ADMIN_EMAIL = 'admin@demo.localhost';
 export const ADMIN_PASSWORD = 'changeme';
 
 /**

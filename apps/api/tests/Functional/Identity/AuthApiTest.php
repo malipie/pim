@@ -30,7 +30,7 @@ final class AuthApiTest extends ApiTestCase
     protected static ?bool $alwaysBootKernel = true;
 
     private const string TENANT_CODE = 'demo';
-    private const string ADMIN_EMAIL = 'admin@pim.localhost';
+    private const string ADMIN_EMAIL = 'admin@demo.localhost';
     private const string ADMIN_PASSWORD = 'changeme';
 
     protected function setUp(): void

@@ -6,15 +6,19 @@
 
 ### Memory management (FrankenPHP worker mode)
 
-- **`AbstractBatchHandler` jako baza dla każdego Symfony Messenger handlera batch.** Po `flush()` w pętli — `$entityManager->clear()`. Bez tego worker w worker-mode w 50k SKU import zje cały RAM i zabije proces na OOM (ryzyko R-25, "Krytyczny" wpływ).
+- **`AbstractBatchHandler` jako baza dla każdego Symfony Messenger handlera batch.** Po `flush()` w pętli — `$entityManager->clear()`. Bez tego worker w worker-mode w 50k SKU import zje cały RAM i zabije proces na OOM (ryzyko R-25, "Krytyczny" wpływ). **Zwalidowane w #13:** prod env, 50 000 inserts → 14 MiB peak FLAT z clear, 150 MiB rosnąco bez clear. Class: `App\Messaging\AbstractBatchHandler` (`flushAndClear()` + `shouldFlush(int)`).
   - Why: Doctrine Identity Map akumuluje obiekty między requestami. `clear()` to single-line różnica między działającym sync 50k SKU a OOM.
   - How to apply: każdy nowy Messenger handler → albo dziedziczy z `AbstractBatchHandler`, albo PR review pyta "gdzie clear()".
 
-- **Bulk import/export używa Doctrine `iterate()`** zamiast `findAll()`. `clear()` co N=200 rekordów. Plus `doctrine.dbal.logging: false` w prod — logger akumuluje query history w pamięci workera.
+- **Bulk import/export używa Doctrine `Query::toIterable()`** zamiast `findAll()`. `clear()` co N=200 rekordów. Plus `doctrine.dbal.logging: false` w prod — logger akumuluje query history w pamięci workera. (Doctrine ORM 3 zastąpiło stary `iterate()` przez `toIterable()`; API w benchmarku #13 demonstruje wzór.)
 
-- **PHPStan custom rule blokuje `flush()` w pętli bez `clear()`.** CI gate, nie ludzkie review. Jeśli rule false-positive'uje — popraw rule, nie obejdź.
+- **Po `clear()` zawsze re-fetch'uj `Tenant`** — `clear()` detachuje wszystkie entitki i `TenantAssignmentListener` przekazałby detached referencję do nowego `Product` → flush() pada. Pattern: `$tenantId = $tenant->getId();` przed pętlą, `$tenant = $repo->find($tenantId);` + `$tenantContext->set($tenant);` po każdym clear. Zwalidowane w #13.
 
-- **Prometheus alert `frankenphp_worker_memory_bytes > 256MB`** — wykrywa wycieki w runtime, nie czeka na OOM.
+- **Benchmarki memory MUSZĄ działać w `APP_ENV=prod APP_DEBUG=0`.** Dev env hostuje Symfony Profiler middleware (`BacktraceDebugDataHolder`) który akumuluje query backtraces niezależnie od `doctrine.dbal.logging: false` flag. W dev env nawet pattern z clear() OOM-uje na 50 000 INSERT pod 512 MiB cap. Production env bez profilera = 14 MiB peak FLAT. (#13)
+
+- **PHPStan custom rule blokuje `flush()` w pętli bez `clear()`.** CI gate, nie ludzkie review. Jeśli rule false-positive'uje — popraw rule, nie obejdź. **Status MVP:** odłożone do follow-up #123 (kandydat do epiku 0.11). Bazowa ochrona w MVP-Alpha: `AbstractBatchHandler` + benchmark + system prompt CLAUDE.md.
+
+- **Prometheus alert `frankenphp_worker_memory_bytes > 256MB`** — wykrywa wycieki w runtime, nie czeka na OOM. **Endpoint w MVP:** `GET /api/metrics` (text/plain Prometheus 0.0.4) wystawia `frankenphp_worker_memory_bytes`, `frankenphp_worker_peak_memory_bytes`, `frankenphp_worker_pid`. Unauthenticated w MVP (dev convenience); production hardening (token + private network) w epiku 0.11 #103-#105.
 
 ### Sieć / dev environment
 
@@ -256,6 +260,27 @@
 - **Reorganizacja milestone'ów na GitHub'ie via `gh api` + bash loop.** Tworzenie milestone'a: `gh api repos/owner/repo/milestones -f title=...`. Przeniesienie issue: `gh issue edit N --milestone "..."`. Zamykanie milestone'u: `gh api -X PATCH repos/owner/repo/milestones/N -f state=closed`. Pętla bash z grep-em po numerach ticketów = ~2 min na 30 ticketów. Skrypt nie idzie do repo (one-shot), idzie do lessons jako wzór. (#16)
 
 - **Komentarz na przeniesionym issue tłumaczy "dlaczego" — nie tylko "gdzie".** Każdy z 3 przeniesionych Sprint-0 ticketów (#6, #7, #8) i 35 ticketów epików dostał komentarz z linkiem do `Project Plan/02-plan-projektu-pim.md` i wyjaśnieniem decyzji. Future-self wracający do issue widzi context, nie tylko "moved to milestone X". (#16)
+
+## Lessons z 0.0.13 (FrankenPHP memory benchmark + AbstractBatchHandler)
+
+- **Pattern `EntityManager::clear()` po `flush()` w pętli daje memory FLAT regardless of row count w prod env.** Benchmark `pim:benchmark:bulk-import` w `APP_ENV=prod APP_DEBUG=0`: 5 000 → 14 MiB peak, 50 000 → 14 MiB peak (identyczne!). Bez clear: 50 000 → 150 MiB i CPU 6× wolniej. **Pattern jest egzekwowalny:** R-25 ("Krytyczny" wpływ) zwalidowany. (#13)
+  - Why: Doctrine UnitOfWork akumuluje IdentityMap między flush'ami; clear() detachuje wszystko, kolejny batch zaczyna od pustego heap'u. CPU savings (6×) wynikają z tego że flush() iteruje cały UnitOfWork — bez clear() rośnie liniowo z każdym batchem.
+  - How to apply: każdy nowy bulk path (Messenger handler, CLI command, sync worker) MUSI iść przez `App\Messaging\AbstractBatchHandler::flushAndClear()` lub kanoniczny inline pattern (`flush()` → `clear()` → re-fetch tenant). Custom PHPStan rule (#123) dodajemy w fazie 1.
+
+- **Symfony Profiler middleware (`BacktraceDebugDataHolder`) jest osobnym źródłem leaku — `doctrine.dbal.logging: false` go nie wyłącza.** W env=dev/test profiler middleware przechwytuje każdy SQL query z backtrace'em i akumuluje w pamięci (50 000 INSERT-ów = OOM przy 512 MiB cap, **mimo poprawnego clear pattern'u**). Zachowanie poprawne dla profilera, ale benchmarki/workery memory MUSZĄ działać w `APP_ENV=prod APP_DEBUG=0`. (#13)
+  - Why: profiling middleware jest osobną warstwą od `dbal.logging` flagi — kontrolowany przez `kernel.debug` parameter. Symfony Profiler trzyma query timeline w pamięci do końca request'a, ale w worker mode "request" trwa godziny.
+  - How to apply: każdy long-running CLI / Messenger consumer w docker-compose.yml = `APP_ENV=prod` lub `APP_DEBUG=0`. Dev env to debug toolbox, nie production simulation.
+
+- **`EntityManager::clear()` detachuje WSZYSTKIE entitki, włącznie z `Tenant`** — następny batch musi re-fetch'ować tenanta po ID. Bez tego `TenantAssignmentListener` przekazuje detached `Tenant` do nowego `Product` → flush() pada na *"A new entity was found through the relationship..."*. Wzór z `BulkImportBenchmarkCommand` jest kanoniczny. (#13)
+  - Why: Doctrine ORM 3 nie ma `merge()`; jedyna ścieżka odzyskania managed instance to `find()` po ID. TenantContext trzyma referencję do detached Tenant po clear() — listener musi widzieć managed instance.
+  - How to apply: każdy batch handler który czyta tenant z `TenantContext` po `clear()` MUSI: zachować `$tenantId = $tenant->getId();` przed pętlą + `$tenant = $repo->find($tenantId);` + `$tenantContext->set($tenant);` po każdym `clear()`.
+
+- **Benchmark CLI ≠ pełna symulacja FrankenPHP worker mode.** CLI command spawn-uje fresh PHP process (allocator state reset między runami); worker mode trzyma proces między requestami (allocator state persists, leak compounds across messages). CLI walida algorytm (clear-after-flush działa, throughput +6×) i bound memory w jednym procesie. Pełen worker-mode test (Messenger consumer + 5 000 messages) dochodzi z pierwszym async transportem w epiku 0.1 (#17+). (#13)
+  - How to apply: gdy ktoś dodaje `messenger: async` transport (Redis/Doctrine) i pierwszy long-running handler — re-uruchom benchmark w trybie message-consumer (osobne sub-issue do #17+).
+
+- **`/api/metrics` Prometheus endpoint w MVP jest unauthenticated.** Wystawia `frankenphp_worker_memory_bytes` gauge dla worker procesu który obsłużył scrape. Sprint 0 = dev convenience > security. Production hardening (token + private network binding) dochodzi w epiku 0.11 #103-#105. Format: standardowy `text/plain; version=0.0.4`. (#13)
+
+- **`number_format()` na intach + readonly w abstract class + PHPStan max** — `(int) $input->getOption(...)` powoduje `cast.useless` w PHPStan max bo Symfony PHPDoc deklaruje return jako `mixed|null`. Workaround: `/** @var string $x */ $x = $input->getOption(...);` przed użyciem. Druga gotcha: `\assert($x instanceof Foo)` po `Query::toIterable()` w Doctrine 3 z phpstan-doctrine — generic narrows to `iterable<int, Foo>`, więc assert flagged jako `function.alreadyNarrowedType`. Po prostu pomiń assert. (#13)
 
 ## Lessons z 0.0.10 (Playwright E2E + docker-compose CI)
 
