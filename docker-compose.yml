@@ -35,7 +35,10 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/api"]
+      # Caddy listens on :443 only (single-origin HTTPS); the healthcheck has
+      # to negotiate TLS to reach /api. Self-signed cert from the local CA is
+      # accepted with --no-check-certificate.
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "--no-check-certificate", "https://localhost/api"]
       interval: 10s
       timeout: 3s
       retries: 5

@@ -73,16 +73,36 @@ Caddy ma własny lokalny CA — przy pierwszym `pnpm dev` przeglądarka wymaga z
 pnpm typecheck    # tsc --noEmit dla apps/admin + packages/*
 pnpm build        # build production wszystkich workspace'ów
 
-# PHP gates (działają w kontenerze api po wejściu do shell'a)
-docker compose exec api composer test           # PHPUnit (po dodaniu w 0.0.11)
-docker compose exec api vendor/bin/phpstan      # PHPStan (po dodaniu w 0.0.11)
+# PHP gates (w kontenerze api)
+docker compose exec api composer phpstan        # PHPStan max
+docker compose exec api composer cs-check       # PHP-CS-Fixer (dry-run)
+docker compose exec -e APP_ENV=test api php bin/phpunit
 ```
 
-Pełen CI: GitHub Actions, ticket [#21 — 0.1.5](https://github.com/malipie/PIM/issues/21).
+CI: GitHub Actions na PR + push do main — `quality-php.yml`, `quality-frontend.yml` (Biome / typecheck / Vite build / **Playwright E2E**), `audit.yml` (composer + pnpm audit).
+
+## Running E2E tests (Playwright)
+
+E2E używa Chromium przeciwko full stackowi (`https://pim.localhost`). Przed pierwszym uruchomieniem:
+
+```bash
+pnpm stack:up                                       # Caddy + Postgres + API + admin Vite
+docker compose exec api php bin/console doctrine:fixtures:load --no-interaction --env=dev
+pnpm --filter @pim/admin exec playwright install chromium  # raz, host-side (Alpine container nie wspiera Playwright deps)
+```
+
+Następnie:
+
+```bash
+pnpm --filter @pim/admin e2e          # headless, pełna suite
+pnpm --filter @pim/admin e2e:ui       # tryb interaktywny (debug)
+```
+
+Artefakty failure (screenshot / video / trace) lądują w `apps/admin/test-results/`. Reportowy HTML w `apps/admin/playwright-report/`. CI uploads obie ścieżki przez `actions/upload-artifact` przy failure.
 
 ## Następny krok
 
-Sprint 0, ticket [#2 — 0.0.2](https://github.com/malipie/PIM/issues/2): encja `Product` minimalna + `tenant_id` + Doctrine `TenantFilter`.
+Sprint 0 — pozostałe tickety przed gate decision: [#13](https://github.com/malipie/PIM/issues/13), [#14](https://github.com/malipie/PIM/issues/14), [#15](https://github.com/malipie/PIM/issues/15), [#9](https://github.com/malipie/PIM/issues/9). Status: [`agent/current_status.md`](agent/current_status.md).
 
 ## Licencja
 
