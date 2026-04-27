@@ -1,7 +1,13 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+
+// `__dirname` is not defined in ESM (`"type": "module"` in package.json) — derive it
+// from `import.meta.url` so the @/* alias resolves correctly under both Vite dev
+// and Vite build.
+const here = path.dirname(fileURLToPath(import.meta.url));
 
 // HMR through Caddy reverse proxy: WebSocket upgrades on the same single origin (pim.localhost).
 // The Vite dev server listens on 0.0.0.0:5173 inside the container; Caddy forwards / and the
@@ -10,7 +16,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(here, './src'),
     },
   },
   server: {

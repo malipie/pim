@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useLogin } from '@refinedev/core';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
@@ -18,14 +19,38 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const { t } = useTranslation();
-  const { mutate: login, isPending, error } = useLogin<LoginValues>();
+  const navigate = useNavigate();
+  const { mutate: login, isPending } = useLogin<LoginValues>();
   const {
     register,
     handleSubmit,
     formState: { errors },
+    setError,
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
 
-  const apiErrorKey = (error as { message?: string } | null | undefined)?.message ?? null;
+  const submit = handleSubmit((values) => {
+    login(values, {
+      onSuccess: (response) => {
+        // Refine collapses both validation and HTTP failures into a successful
+        // mutation with `success: false`; the routerProvider would normally
+        // honor the redirect — we do it manually since the admin uses plain
+        // react-router-7 instead of @refinedev/react-router.
+        if (response?.success === false) {
+          const message =
+            (response.error as { message?: string } | undefined)?.message ?? 'auth.login_failed';
+          setError('root', { message });
+          return;
+        }
+        const target = response?.redirectTo ?? '/products';
+        navigate(typeof target === 'string' ? target : '/products', { replace: true });
+      },
+      onError: () => {
+        setError('root', { message: 'auth.login_failed' });
+      },
+    });
+  });
+
+  const rootErrorKey = errors.root?.message ?? null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
@@ -35,7 +60,7 @@ export function LoginPage() {
           <CardDescription>{t('auth.login_subtitle')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit((values) => login(values))} className="space-y-4" noValidate>
+          <form onSubmit={submit} className="space-y-4" noValidate>
             <div className="space-y-2">
               <Label htmlFor="email">{t('auth.email')}</Label>
               <Input
@@ -56,9 +81,9 @@ export function LoginPage() {
                 {...register('password')}
               />
             </div>
-            {apiErrorKey ? (
+            {rootErrorKey ? (
               <p className="text-sm text-destructive" role="alert">
-                {t(apiErrorKey)}
+                {t(rootErrorKey)}
               </p>
             ) : null}
             <Button type="submit" className="w-full" disabled={isPending}>
