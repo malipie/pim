@@ -486,3 +486,17 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - GH issue #33: `[0.3.5]` → `[0.3.3]`, body rozszerzone o fixtures dla wszystkich trzech built-in kindów (product/category/asset).
 - GH issue #128: `[0.3.12]` → `[0.3.11]` (zlikwidowana luka po konsolidacji 0.3.3+0.3.5).
 - Reszta GH issues zachowuje swoje numery: #35 [0.3.5], #36 [0.3.6], #37 [0.3.7], #38 [0.3.8], #39 [0.3.9], #40 [0.3.10] — pasują do zaktualizowanej numeracji planu.
+
+## Lessons z 0.2.1 / #24 (RBAC schema baseline)
+
+- **`User.roles JSON` zostaje obok M2M `$assignedRoles`** w #24 — **nie ruszamy `getRoles()` Sprint-0 happy-path'u.** Powód: LexikJWT i Symfony Security czytają array stringów zwrócony przez `getRoles()`. Refactor mergujący JSON + M2M jako `ROLE_<CODE>` ląduje w #25 (wraz z security.yaml pivot na voters) lub #27 (RBAC seeder). Cleanup `roles JSON` całkowicie zniknie z encji w #27 razem z migracją fixture'ów. Why: jedna zmiana per ticket, nie miksować schema z behavior — pozwala każdy ticket zamknąć osobno z DoD.
+
+- **`Role.tenant_id NULLABLE = global`.** Rola z `tenant_id NULL` to globalna built-in rola (super_admin / catalog_manager / integration_manager / viewer w #27). Rola z konkretnym `tenant_id` to custom rola per tenant (Faza 2+). Unique constraint na `(tenant_id, code)` pozwala dwóch tenantom mieć osobne `super_admin` przy custom matrix override. Why: chcemy seedować built-iny raz w bazie (nie per tenant), ale zachować otwartość na custom roles.
+
+- **`Permission` uniqueness na `(resource, action)`, nie na `code`.** `code` jest convenience'em (`product.write`), source-of-truth dla matrix to para (resource, action). Why: zapobiega podwójnemu seedowaniu tego samego permission z różnym opisem. Index na `code` też unique — dla szybkiego lookup'u w voters.
+
+- **Migration round-trip up/down/up jest mandatory** dla każdej nowej migracji. `doctrine:migrations:migrate prev` + `migrate latest` musi przejść bez błędów. Why: migracje generowane przez `doctrine:migrations:diff` często mają nieoptymalny `down()` — manual fix konieczny żeby rollback działał. Wynik #24: 22 SQL queries up + 14 SQL queries down, czysty round-trip.
+
+- **`docker compose up -d` może zostawić niektóre kontenery w stanie `Created`** zamiast `Up` przy starcie zimnego stack'u (zwłaszcza caddy z `depends_on: api: condition: service_healthy`). Lekarstwo: `docker compose ps` przed odpalaniem Playwright; `docker compose start <service>` jeśli któryś jest `Created`. **Symptom Playwright:** wszystkie testy fail'ują z `ERR_CONNECTION_REFUSED at https://pim.localhost`. Why: Caddy timeout'uje na health check'u API w worker-mode, depends_on nie reaguje na późniejszy healthy, kontener zostaje w stanie Created. Diagnostic ticket — kandydat do epik 0.11 (hardening).
+
+- **`Container::get($repositoryClass)` jest poprawnie typowany przez Symfony 7.4** dla service id równemu nazwie klasy — żaden `\assert($x instanceof X)` nie jest potrzebny (PHPStan max wykrywa to jako `instanceof.alwaysTrue` / `function.alreadyNarrowedType`). Pattern stosowany w `RbacSchemaTest::roleRepository()`. Why: typowane DI eliminuje runtime asserty w testach.

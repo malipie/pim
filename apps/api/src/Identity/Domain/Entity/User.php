@@ -7,6 +7,8 @@ namespace App\Identity\Domain\Entity;
 use App\Identity\Application\TenantAware;
 use App\Identity\Infrastructure\Doctrine\Repository\UserRepository;
 use DateTimeImmutable;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -30,6 +32,9 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(name: 'users_tenant_idx', columns: ['tenant_id'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface, TenantAware
 {
+    public const string STATUS_ACTIVE = 'active';
+    public const string STATUS_DISABLED = 'disabled';
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid')]
     private Uuid $id;
@@ -45,10 +50,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TenantA
     private string $password;
 
     /**
+     * Legacy Sprint-0 channel for Symfony Security roles. Survives alongside
+     * the M2M `$assignedRoles` relation until #27 (RBAC seeder) migrates the
+     * fixture admin onto the proper role graph; #25 then merges both sources
+     * inside getRoles() before this column is dropped.
+     *
      * @var list<string>
      */
     #[ORM\Column(type: 'json')]
     private array $roles;
+
+    /**
+     * @var Collection<int, Role>
+     */
+    #[ORM\ManyToMany(targetEntity: Role::class)]
+    #[ORM\JoinTable(name: 'user_roles')]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'role_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    private Collection $assignedRoles;
+
+    #[ORM\Column(type: 'string', length: 16, options: ['default' => self::STATUS_ACTIVE])]
+    private string $status;
+
+    #[ORM\Column(name: 'last_login_at', type: 'datetime_immutable', nullable: true)]
+    private ?DateTimeImmutable $lastLoginAt;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private DateTimeImmutable $createdAt;
@@ -68,6 +93,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TenantA
         $this->email = $email;
         $this->password = $passwordHash;
         $this->roles = $roles;
+        $this->assignedRoles = new ArrayCollection();
+        $this->status = self::STATUS_ACTIVE;
+        $this->lastLoginAt = null;
         $this->createdAt = new DateTimeImmutable();
     }
 
@@ -122,5 +150,55 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TenantA
     public function eraseCredentials(): void
     {
         // No transient sensitive data — password hash stays for re-auth flows.
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function isActive(): bool
+    {
+        return self::STATUS_ACTIVE === $this->status;
+    }
+
+    public function disable(): void
+    {
+        $this->status = self::STATUS_DISABLED;
+    }
+
+    public function enable(): void
+    {
+        $this->status = self::STATUS_ACTIVE;
+    }
+
+    public function getLastLoginAt(): ?DateTimeImmutable
+    {
+        return $this->lastLoginAt;
+    }
+
+    public function recordLogin(?DateTimeImmutable $when = null): void
+    {
+        $this->lastLoginAt = $when ?? new DateTimeImmutable();
+    }
+
+    /**
+     * @return Collection<int, Role>
+     */
+    public function getAssignedRoles(): Collection
+    {
+        return $this->assignedRoles;
+    }
+
+    public function addRole(Role $role): void
+    {
+        if (!$this->assignedRoles->contains($role)) {
+            $this->assignedRoles->add($role);
+        }
+    }
+
+    public function removeRole(Role $role): void
+    {
+        $this->assignedRoles->removeElement($role);
     }
 }
