@@ -14,9 +14,9 @@
 ## Bieżący stan
 Sprint 0 = **13/13 ZAMKNIĘTE** (gate GREEN 2026-04-28). Milestone GH #1 closed.
 
-**MVP-Alpha — epik 0.1 ZAMKNIĘTY 7/7 (2026-04-28).** Wszystkie issues #17-#23 closed. Bounded contexts scaffolded: Catalog (Sprint-0 work), Identity (Sprint-0 work), Channel/Asset/Integration/Agent/ApiConfigurator (epik 0.1 #19 scaffold w `feat/epic-0.1-foundations` PR). Admin sidebar wyszerszony o 5 placeholder resources (Attributes/ObjectTypes/Categories/Assets/Channels) z `<ComingSoon />` linkami do epików 0.3/0.6.
+**MVP-Alpha — epik 0.1 ZAMKNIĘTY 7/7. Epik 0.2 IN PROGRESS — #24 done, czeka na PR + merge.** Następne tickety: #25 (security.yaml + JsonLogin/FormLogin firewall), #26 (Voters — z renamem FamilyVoter→ObjectTypeVoter), #27 (RBAC seeder z 4 rolami + cleanup `User.roles JSON`), #28 (auth endpoints), #29 (Refine authProvider), #30 (tenant_id wszędzie + RLS).
 
-**Następny krok:** epik 0.2 (Identity & Access, #24-#30) — operator decyzja czy zaczynać od #24, czy konsolidacja epik 0.1 podobnie jak 0.1 (recon co już jest, doudate).
+**Następny krok:** PR review #24 → merge → start #25 (Symfony Security z JWT + form login).
 
 Stack on-disk: docker compose ready (`pnpm stack:up`); custom `pim-database:local` image z pgbackrest+dcron + `minio-tls` Caddy sidecar zostają z #15. Backup repo MinIO `pim-backups` z full + incr backup'ami siedzącymi w nim po teście #15 — przy następnej sesji są dostępne lub mogą być wyzerowane przez `pnpm stack:reset` (drop volumes).
 
