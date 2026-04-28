@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Catalog\Infrastructure\Doctrine\Repository\ProductRepository;
+use App\Identity\Application\TenantScoped;
 use App\Identity\Domain\Entity\Tenant;
 use ArrayObject;
 use DateTimeImmutable;
@@ -76,7 +77,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 )]
 #[ApiFilter(OrderFilter::class, properties: ['id' => 'DESC'])]
 #[ApiFilter(RangeFilter::class, properties: ['id'])]
-class Product
+class Product implements TenantScoped
 {
     #[ORM\Id]
     #[ORM\Column(type: 'uuid')]

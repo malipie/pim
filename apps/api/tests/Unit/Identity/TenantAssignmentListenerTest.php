@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Identity;
 
 use App\Catalog\Domain\Entity\Product;
 use App\Identity\Application\TenantContext;
+use App\Identity\Application\TenantScoped;
 use App\Identity\Domain\Entity\Tenant;
 use App\Identity\Infrastructure\Doctrine\EventListener\TenantAssignmentListener;
 use Doctrine\ORM\EntityManagerInterface;
@@ -79,5 +80,34 @@ final class TenantAssignmentListenerTest extends TestCase
 
         // No exception, no side-effect — assertion is the lack of failure.
         self::assertTrue(true);
+    }
+
+    #[Test]
+    public function itStampsAnyTenantScopedEntityNotJustProduct(): void
+    {
+        $tenant = new Tenant('demo', 'Demo Tenant');
+        $this->tenantContext->set($tenant);
+
+        // An anonymous class implementing TenantScoped is enough to prove
+        // generalisation — Sprint-0 hard-coded `instanceof Product`, #30
+        // dispatches by interface, so any future domain entity (Object,
+        // Channel, Asset in epic 0.3) will be picked up the same way.
+        $entity = new class implements TenantScoped {
+            private ?Tenant $tenant = null;
+
+            public function getTenant(): ?Tenant
+            {
+                return $this->tenant;
+            }
+
+            public function assignTenant(Tenant $tenant): void
+            {
+                $this->tenant = $tenant;
+            }
+        };
+
+        $this->listener->prePersist(new PrePersistEventArgs($entity, $this->entityManager));
+
+        self::assertSame($tenant, $entity->getTenant(), 'Listener must dispatch by TenantScoped interface, not FQCN.');
     }
 }
