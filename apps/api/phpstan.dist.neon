@@ -64,10 +64,14 @@ parameters:
         - identifier: staticMethod.alreadyNarrowedType
           paths:
               - tests/*
-        # Product::$tenant is nullable in PHP for the brief window between
-        # construction and TenantAssignmentListener::prePersist; the schema
-        # column itself is NOT NULL. The invariant is verified by the listener
-        # tests and at INSERT time by the database.
+        # Tenant-scoped entities declare `?Tenant` in PHP for the brief
+        # window between `new` and TenantAssignmentListener::prePersist;
+        # the schema column itself is NOT NULL. The invariant is verified
+        # by the listener tests and at INSERT time by the database. New
+        # TenantScoped entities should be added here as they land.
         - identifier: doctrine.associationType
           paths:
               - src/Catalog/Domain/Entity/Product.php
+              - src/Catalog/Domain/Entity/Attribute.php
+              - src/Catalog/Domain/Entity/AttributeGroup.php
+              - src/Catalog/Domain/Entity/AttributeOption.php
