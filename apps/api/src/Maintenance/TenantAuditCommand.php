@@ -67,6 +67,9 @@ final class TenantAuditCommand extends Command
         'user_roles',
         'messenger_messages',
         'doctrine_migration_versions',
+        // ObjectType ↔ Attribute junction (#32). Tenant scope inherited via
+        // the parent ObjectType row; no own tenant_id column.
+        'object_type_attributes',
     ];
 
     /**
