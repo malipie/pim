@@ -1,0 +1,27 @@
+# TLS terminator for the pgBackRest → MinIO link.
+#
+# pgBackRest 2.57 hard-codes HTTPS for S3-compatible repos (no plain-HTTP
+# option). MinIO runs on plain HTTP in dev. This sidecar lets pgBackRest talk
+# HTTPS to a single place (Caddy on :443) and forwards plain HTTP to the real
+# MinIO container. `tls internal` makes Caddy issue a self-signed cert from
+# its built-in CA; pgBackRest skips verification via repo1-s3-verify-tls=n in
+# docker/postgres/pgbackrest.conf.
+
+{
+    auto_https disable_redirects
+    admin off
+    local_certs
+}
+
+minio-tls:443 {
+    tls internal
+    reverse_proxy http://minio:9000 {
+        # AWS SigV4 includes the Host header in the signature. pgBackRest signs
+        # against `minio-tls`; if Caddy rewrites the Host to `minio:9000`
+        # upstream, MinIO computes the HMAC on the wrong value and returns
+        # SignatureDoesNotMatch. Pass the original Host through. MinIO uses
+        # path-style URLs (repo1-s3-uri-style=path) so it doesn't need Host
+        # for bucket dispatch, only for signature verification.
+        header_up Host {host}
+    }
+}

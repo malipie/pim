@@ -276,13 +276,13 @@ Po rewizji §2 (epik 0.7 do Fazy 2, epiki 0.8/0.9 do Fazy 1) operator zlecił dr
 
 ### 9.2 Wpływ na MVP-Alpha
 - **Epik 0.3 reestymowany z 16-20h do 36-50h** (+16-25h). Finansowane ze zwolnionego budżetu epiku 0.7 (przeniesionego do Fazy 2 — §2). Top-line MVP-Alpha się trzyma.
-- Faza 0 total: 201-274h → **188-260h** (saldo netto -13-15h dzięki przeniesieniu 0.7/0.8/0.9 częściowo niwelującemu wzrost 0.3).
+- Faza 0 total: 201-274h → **170-235h pełny / 156-216h okrojony** (saldo netto -31 do -39h: rewizja 2026-04-27 -51 do -69h przez przeniesienie epików 0.7/0.8/0.9, ADR-009 +20-30h w epiku 0.3). Single source of truth: sumy epików §3.3 + milestone tabela §3.4 planu.
 - Pojęcie „Family" deprecated. W nowym kodzie używamy „ObjectType" wszędzie.
 - Predefiniowane fixtures (`product`, `category`, `asset`) seedowane w `tenant.create` flow.
 
 ### 9.3 Audit ticketów GitHub (2026-04-27)
 W ramach domknięcia ADR-009 przeszedłem 91 otwartych issues:
-- **Epik 0.3 (#31-#40)** — major rebody: ticket #32 rename na ObjectType, ticket #33 na Predefined category fixture, ticket #34 na Object/ObjectValue, dochodzi nowy ticket 0.3.12 (Hooks pod `kind='custom'`). Re-estimated to 36-50h.
+- **Epik 0.3 (#31-#40)** — major rebody: ticket #32 rename na ObjectType, ticket #33 na Predefined ObjectType fixtures (wszystkie 3 built-in kindy) + ltree validator dla category, ticket #34 na Object/ObjectValue, dochodzi nowy ticket 0.3.11 (Hooks pod `kind='custom'`, GH #128). Re-estimated to 36-50h.
 - **Epiki 0.4 / 0.5 / 0.6 / 0.10 / 0.11** — light rebody (sugar paths, indexer per kind, Resource ObjectTypes zamiast Resource Families, dynamic category attributes, profile filter per object_type_id).
 - **Epiki 0.7 / 0.8 / 0.9** — minimalna generalizacja (Product → Object/ObjectType w body opisu adapterów; tool agenta `create_object_type` reserved Faza 2).
 - **Epiki 0.1 / 0.2 / Sprint-0 leftovers (#9, #15)** — bez zmian (czysta infra/auth/demo).

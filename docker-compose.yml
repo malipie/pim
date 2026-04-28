@@ -102,14 +102,52 @@ services:
     expose:
       - "5173"
 
-  # ─── PostgreSQL 16 ────────────────────────────────────────────────────────
+  # ─── PostgreSQL 16 + pgBackRest (Sprint 0 stub, ticket #15) ───────────────
+  # Custom image bakes pgbackrest + dcron into postgres:16-alpine so:
+  #   - archive_command pushes WAL straight to MinIO (continuous archiving)
+  #   - the hourly cron entry runs `pgbackrest backup --stanza=pim`
+  #   - the initial stanza-create + full backup run in the background once
+  #     postgres is ready (pim-init-backup.sh, fired from start-pim.sh)
+  # Production schedule (weekly full + daily diff + 5-min WAL + automated weekly
+  # restore test) lands in 0.11.11 — see docs/runbook/restore.md.
   database:
-    image: postgres:16-alpine
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    image: pim-database:local
     <<: *default_restart
+    depends_on:
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      minio-tls:
+        condition: service_started
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
       POSTGRES_USER: ${POSTGRES_USER:-app}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      PGBACKREST_STANZA: pim
+      PGBACKREST_REPO1_S3_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    # archive_mode + archive_command are server-level GUCs that have to be
+    # passed at every postgres start. Putting them on the command line keeps
+    # them visible here instead of hidden inside the data directory's
+    # postgresql.auto.conf. wal_level=replica is the minimum required for
+    # archiving + future replication; max_wal_senders > 0 keeps the door open
+    # for pg_basebackup-style probes from pgBackRest.
+    command:
+      - "postgres"
+      - "-c"
+      - "archive_mode=on"
+      - "-c"
+      - "archive_command=pgbackrest --stanza=pim archive-push %p"
+      - "-c"
+      - "wal_level=replica"
+      - "-c"
+      - "max_wal_senders=3"
+      - "-c"
+      - "archive_timeout=60"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -168,6 +206,24 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+
+  # ─── MinIO TLS terminator (pgBackRest → MinIO) ────────────────────────────
+  # pgBackRest 2.57 hard-codes HTTPS for S3 repos. This Caddy sidecar adds TLS
+  # in front of MinIO so the database container can use a single S3 endpoint
+  # without bringing TLS into the main MinIO config. See docs/runbook/restore.md
+  # and docker/caddy/Caddyfile.minio.
+  minio-tls:
+    image: caddy:2-alpine
+    <<: *default_restart
+    depends_on:
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./docker/caddy/Caddyfile.minio:/etc/caddy/Caddyfile:ro
+      - minio_tls_data:/data
+      - minio_tls_config:/config
+    expose:
+      - "443"
 
   # Initialise required buckets the first time the stack comes up.
   minio-init:
@@ -235,6 +291,8 @@ volumes:
   redis_data:
   meilisearch_data:
   minio_data:
+  minio_tls_data:
+  minio_tls_config:
   mercure_data:
   mercure_config:
   admin_node_modules:

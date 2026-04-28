@@ -118,13 +118,13 @@ Format: `<type>(<scope>): <subject>` — typy: `feat`, `fix`, `chore`, `docs`, `
 
 Przykład poprawnego commit message:
 ```
-feat(catalog): add Product entity with tenant isolation
+feat(catalog): add ObjectType entity with tenant isolation
 
-Initial Product domain entity with tenant_id, family relationship,
-and ProductValue link. Doctrine ORM annotations + API Platform
+Initial ObjectType (kind='product') with tenant_id, ObjectTypeAttribute
+junction, and is_built_in flag. Doctrine ORM annotations + API Platform
 ApiResource declaration. Tenant filter applied via TenantAssignmentListener.
 
-Refs #12
+Refs #32
 ```
 
 ### Polski OK — dokumentacja, issues, komunikacja

@@ -11,7 +11,7 @@
 
 Projekt PIM jest realizowany w czterech fazach. Każda faza ma zdefiniowane cele biznesowe, deliverables, milestones i kryteria zakończenia. Plan zakłada developmen iteracyjny z Claude Code jako głównym narzędziem produkcji kodu, z udziałem nie-eksperta programistycznie jako product ownera, code reviewera i operatora.
 
-**Faza 0 — MVP** to minimalna wersja umożliwiająca pierwsze wdrożenie pilotażowe. **Po rewizji 2026-04-27** (epiki 0.7 Agent → Faza 2; 0.8 BaseLinker + 0.9 Shopify → Faza 1) **i ADR-009** (generic `ObjectType` z predefiniowanymi Product/Category/Asset, +16-25h w epiku 0.3): Faza 0 = Sprint 0 (40-55h) + MVP Core (148-205h) = **188-260 realnych roboczogodzin pracy człowieka** dla pełnej wersji, **174-241h** dla okrojonej (bez analytics dashboard, BYOK, ograniczenie API Configurator do 1 profile). Tabela porównawcza w sekcji 7.
+**Faza 0 — MVP** to minimalna wersja umożliwiająca pierwsze wdrożenie pilotażowe. **Po rewizji 2026-04-27** (epiki 0.7 Agent → Faza 2; 0.8 BaseLinker + 0.9 Shopify → Faza 1) **i ADR-009** (generic `ObjectType` z predefiniowanymi Product/Category/Asset, +16-25h w epiku 0.3): Faza 0 = Sprint 0 (40-55h) + MVP Core (130-180h) = **170-235 realnych roboczogodzin pracy człowieka** dla pełnej wersji, **156-216h** dla okrojonej (bez analytics dashboard, BYOK, ograniczenie API Configurator do 1 profile). Tabela porównawcza w sekcji 7.
 
 **Faza 1 — Production-ready** to hardening, dodanie Magento i IdoSell, pierwsze wdrożenia produkcyjne. Cel: dodatkowe 100-140 godzin.
 
@@ -158,7 +158,7 @@ Walidacja jakości i bezpieczeństwa (nowe, kluczowe — bez tego Sprint 0 jest 
 
 **Co Sprint 0 świadomie NIE obejmuje:**
 
-- Pełen model atrybutów (rodziny, scope, locale, completeness).
+- Pełen model atrybutów (`ObjectType` po ADR-009, scope, locale, completeness).
 - Pełen agentic UX (streaming SSE, schema diff modal, approval inbox, provenance badges).
 - Drugi integrator (BaseLinker odkładamy na Epic 0.8).
 - Pełny multi-tenancy (smoke test izolacji wystarcza, RLS w fazie 2).
@@ -169,11 +169,11 @@ Walidacja jakości i bezpieczeństwa (nowe, kluczowe — bez tego Sprint 0 jest 
 
 ### 3.1 Cele biznesowe
 
-Pierwsza wdrażalna wersja systemu PIM, zdolna do pilota u jednego klienta. System ma poprawnie obsłużyć 50 000 produktów z trzema poziomami atrybutów (rodziny, atrybut groups, atrybuty), syndykować dane do **BaseLinker i Shopify** (Magento przesunięty do fazy 1 — sekcja 4.2), oraz mieć agentic admin pozwalający na rozszerzanie schematu przez chat.
+Pierwsza wdrażalna wersja systemu PIM, zdolna do pilota u jednego klienta. System ma poprawnie obsłużyć 50 000 produktów z trzema poziomami atrybutów (`ObjectType` po ADR-009, attribute groups, atrybuty), syndykować dane do **BaseLinker i Shopify** (Magento przesunięty do fazy 1 — sekcja 4.2), oraz mieć agentic admin pozwalający na rozszerzanie schematu przez chat.
 
 ### 3.2 Out of scope dla MVP
 
-Aby utrzymać Fazę 0 w realnym budżecie (172-274h, sekcja 7), świadomie wykluczamy z MVP:
+Aby utrzymać Fazę 0 w realnym budżecie (156-235h, sekcja 7 — okrojony / pełny), świadomie wykluczamy z MVP:
 
 - IdoSell (przesunięte na fazę 1).
 - Workflow engine (manualne stany, bez state machine).
@@ -201,7 +201,7 @@ Aby utrzymać Fazę 0 w realnym budżecie (172-274h, sekcja 7), świadomie wyklu
 
 - 0.2.1 Encja User, Role, Permission, Tenant.
 - 0.2.2 Symfony Security z JWT (LexikJWT) + form login dla admin UI.
-- 0.2.3 Voters dla głównych zasobów (Product, Attribute, Family, Channel).
+- 0.2.3 Voters dla głównych zasobów (Object, Attribute, ObjectType, Channel) — po ADR-009: Voters operują na generic `Object` z scope per `kind`, nie hard-coded `Product`/`Family`.
 - 0.2.4 RBAC seeder z domyślnymi rolami (super_admin, catalog_manager, integration_manager, viewer).
 - 0.2.5 Endpoint /api/auth/login, /api/auth/refresh, /api/auth/me.
 - 0.2.6 Auth provider w Refine + przechowywanie tokenów (httpOnly cookie).
@@ -211,18 +211,20 @@ Aby utrzymać Fazę 0 w realnym budżecie (172-274h, sekcja 7), świadomie wyklu
 
 > **Rewrite 2026-04-27 (ADR-009):** epik został rozszerzony o generic `ObjectType` + predefiniowane Product/Category/Asset jako built-in instancje. Pojęcie „Family" jest deprecated. Wzrost estymacji **+16-25h** (z 16-20h do 36-50h) finansowany ze zwolnionego budżetu epiku 0.7 (przeniesionego do Fazy 2 — `06-sprint-0-findings.md` §2). Top-line MVP-Alpha się trzyma.
 
-- 0.3.1 Encje Attribute + AttributeGroup + AttributeOption (z enum typów: text, number, select, multiselect, date, boolean, asset, relation, price, metric). Atrybuty wiązane z `ObjectType` przez junction `object_type_attributes` (jeden atrybut może być reused przez wiele typów: `name` dla każdego, `seo_title` dla `product` i `category`).
-- 0.3.2 Encje **`ObjectType` + `ObjectTypeAttribute`** (zastępują `Family` + `FamilyAttribute`): pole `kind` (`product` | `category` | `asset` | `custom`), flag `is_built_in` (TRUE dla predefined seed), `completeness_rules` JSONB, `label_attribute_id` + `image_attribute_id`. Service `ObjectTypeService` blokuje deletion gdy `is_built_in=true`. Slownik domeny: w nowym kodzie używamy „ObjectType" wszędzie — „Family" deprecated.
-- 0.3.3 Predefiniowane `ObjectType` fixtures (`is_built_in=true`): `product` (kind, schema bazowa: `name`, `sku`, `family` [legacy alias na object_type_id docelowy `product`]), `category` (kind, schema bazowa: `code`, `path`, `name`), `asset` (kind, schema bazowa: `code`, `storage_path`, `mime_type`). Fixture odpalany w `tenant.create` flow + w pierwszej migracji multi-tenant init.
-- 0.3.4 Encja **`Object` + `ObjectValue`** (zastępują `Product` + `ProductValue`): jedna tabela `objects` z polimorfizmem przez `kind`, `attributes_indexed JSONB+GIN` parametryzowany per `object_type_id`, `parent_id` self-reference (variants dla `kind='product'`, drzewo dla `kind='category'`). `object_values` tabela faktów (zastępuje `product_values`) z `provenance` + `provenance_meta`.
-- 0.3.5 **Custom logika `kind='category'`**: Doctrine custom type dla ltree, listener `CategoryPathValidator` walidujący `path` tylko dla obiektów z `kind='category'` (NULL wymuszony dla pozostałych przez CHECK constraint). Partial GIN/GIST index `WHERE kind = 'category'`.
-- 0.3.6 Encja Association (cross/up-sell/related/accessory) — działa **generycznie na `Object`**, nie tylko Product. Po ADR-009: `object_associations` tabela (zastępuje `product_associations`).
-- 0.3.7 Encje Channel + Locale + Currency + **`ChannelObjectTypeMapping`** (zastępuje `ChannelAttributeMapping` — mapping atrybutów per `object_type_id`, poly per `kind`). Channel publikuje obiekty wybranych kindów (np. storefront publikuje `product`+`category`, ale nie `asset` bezpośrednio).
-- 0.3.8 Encja Asset + AssetVariant z Flysystem do MinIO. **Po ADR-009:** Asset reprezentowany jako `Object kind='asset'` (dla user-defined metadata przez `object_values`) + dedykowana tabela `assets` (storage_path, mime_type, size_bytes, transformacje, variants). Powiązanie 1:1 przez `assets.object_id`. DAM zachowuje swój lifecycle.
-- 0.3.9 Doctrine event listenery: `AttributesIndexedSyncListener` parametryzowany per `object_type_id` (synchroniczny dla single-edit, async messenger `attributes-indexed-rebuild` dla bulk path), `CompletenessRecalculator` czyta reguły z `ObjectType.completeness_rules`. Listener `BulkContext` aware (sekcja 3.10 architektury).
-- 0.3.10 Symfony Validator constraints per typ atrybutu (10 validators) — bez zmiany scope, tylko parametryzacja per `ObjectType` w `AttributeValidationCompiler`.
-- 0.3.11 Migracje + seeders example data (rozszerzone): **100 produktów z `kind='product'` + 5 kategorii z `kind='category'` (z własnymi atrybutami: `seo_title`, `seo_description`, `main_image`) + 10 assetów** w 1 tenancie. Demo dataset dowodzi że kategorie mają own user-defined fields (proof of ADR-009).
-- 0.3.12 **Hooks pod `kind='custom'` na poziomie ApiResource** (NOWY ticket): factory `ObjectTypeAwareApiResource` + serializer context per `kind`. W MVP wystarczy szkielet — pełna obsługa custom kindów (UI builder, runtime schema editor) dochodzi w Fazie 2/3 razem z odblokowaniem agent toola `create_object_type`. Mitigacja R-29 (over-engineering): w MVP `kind='custom'` jest CHECK-allowed w bazie ale wyłączony przez feature flag w service'ach.
+- 0.3.1 Encje Attribute + AttributeGroup + AttributeOption (z enum typów: text, number, select, multiselect, date, boolean, asset, relation, price, metric). Atrybuty wiązane z `ObjectType` przez junction `object_type_attributes` (jeden atrybut może być reused przez wiele typów: `name` dla każdego, `seo_title` dla `product` i `category`). [GH #31]
+- 0.3.2 Encje **`ObjectType` + `ObjectTypeAttribute`** (zastępują `Family` + `FamilyAttribute`): pole `kind` (`product` | `category` | `asset` | `custom`), flag `is_built_in` (TRUE dla predefined seed), `completeness_rules` JSONB, `label_attribute_id` + `image_attribute_id`. Service `ObjectTypeService` blokuje deletion gdy `is_built_in=true`. Slownik domeny: w nowym kodzie używamy „ObjectType" wszędzie — „Family" deprecated. [GH #32]
+- 0.3.3 **Predefiniowane `ObjectType` fixtures + custom logika `kind='category'`** (po ADR-009 zlepione w jeden ticket — fixtures dla wszystkich 3 kindów + ltree validator dla category razem):
+  - Fixtures `is_built_in=true`: `product` (kind, schema bazowa: `name`, `sku`), `category` (kind, schema bazowa: `code`, `path`, `name` + opcjonalnie user-defined `seo_title`, `seo_description`, `main_image`), `asset` (kind, schema bazowa: `code`, `storage_path`, `mime_type`). Fixture odpalany w `tenant.create` flow + pierwszej migracji multi-tenant init.
+  - Custom logika `kind='category'`: Doctrine custom type `LtreeType`, listener `CategoryPathValidator` walidujący `path` tylko dla obiektów z `kind='category'` (NULL wymuszony dla pozostałych). Partial GIN/GIST index `WHERE kind = 'category'`.
+  - [GH #33]
+- 0.3.4 Encja **`Object` + `ObjectValue`** (zastępują `Product` + `ProductValue`): jedna tabela `objects` z polimorfizmem przez `kind`, `attributes_indexed JSONB+GIN` parametryzowany per `object_type_id`, `parent_id` self-reference (variants dla `kind='product'`, drzewo dla `kind='category'`). `object_values` tabela faktów (zastępuje `product_values`) z `provenance` + `provenance_meta`. [GH #34]
+- 0.3.5 Encja Association (cross/up-sell/related/accessory) — działa **generycznie na `Object`**, nie tylko Product. Po ADR-009: `object_associations` tabela (zastępuje `product_associations`). [GH #35]
+- 0.3.6 Encje Channel + Locale + Currency + **`ChannelObjectTypeMapping`** (zastępuje `ChannelAttributeMapping` — mapping atrybutów per `object_type_id`, poly per `kind`). Channel publikuje obiekty wybranych kindów (np. storefront publikuje `product`+`category`, ale nie `asset` bezpośrednio). [GH #36]
+- 0.3.7 Encja Asset + AssetVariant z Flysystem do MinIO. **Po ADR-009:** Asset reprezentowany jako `Object kind='asset'` (dla user-defined metadata przez `object_values`) + dedykowana tabela `assets` (storage_path, mime_type, size_bytes, transformacje, variants). Powiązanie 1:1 przez `assets.object_id`. DAM zachowuje swój lifecycle. [GH #37]
+- 0.3.8 Doctrine event listenery: `AttributesIndexedSyncListener` parametryzowany per `object_type_id` (synchroniczny dla single-edit, async messenger `attributes-indexed-rebuild` dla bulk path), `CompletenessRecalculator` czyta reguły z `ObjectType.completeness_rules`. Listener `BulkContext` aware (sekcja 3.10 architektury). [GH #38]
+- 0.3.9 Symfony Validator constraints per typ atrybutu (10 validators) — bez zmiany scope, tylko parametryzacja per `ObjectType` w `AttributeValidationCompiler`. [GH #39]
+- 0.3.10 Migracje + seeders example data (rozszerzone): **100 produktów z `kind='product'` + 5 kategorii z `kind='category'` (z własnymi atrybutami: `seo_title`, `seo_description`, `main_image`) + 10 assetów** w 1 tenancie. Demo dataset dowodzi że kategorie mają own user-defined fields (proof of ADR-009). [GH #40]
+- 0.3.11 **Hooks pod `kind='custom'` na poziomie ApiResource** (NOWY ticket po ADR-009): factory `ObjectTypeAwareApiResource` + serializer context per `kind`. W MVP wystarczy szkielet — pełna obsługa custom kindów (UI builder, runtime schema editor) dochodzi w Fazie 2/3 razem z odblokowaniem agent toola `create_object_type`. Mitigacja R-29 (over-engineering): w MVP `kind='custom'` jest CHECK-allowed w bazie ale wyłączony przez feature flag w service'ach. [GH #128]
 
 #### Epik 0.4: API Platform — exposing entities (10-14h)
 
@@ -268,7 +270,7 @@ Aby utrzymać Fazę 0 w realnym budżecie (172-274h, sekcja 7), świadomie wyklu
 **MVP-Beta-Min — minimum agentic UX dla MVP (12-16h):**
 - 0.7.1 Bundle Agent + service AgentSession + AgentRun encja.
 - 0.7.2 Anthropic SDK PHP integration + system prompt dla schema-ops + **twarde limity kosztów (sekcja 8.5 architektury): rate limit, hard cap tool calls, dziennie/miesięcznie budget cap z alertami**.
-- 0.7.3 Tool definitions: create_attribute, create_attribute_group, assign_attribute_to_family, create_family, create_category, preview_changes.
+- 0.7.3 Tool definitions (po ADR-009): `search_attributes`, `search_object_types`, `create_attribute`, `create_attribute_group`, `assign_attribute_to_object_type` (rename z `assign_attribute_to_family`), `create_object_type` (reserved, wyłączony feature flagiem `enable_custom_object_types` — odblokowany w Fazie 2/3), `create_category` (sugar — wewnętrznie tworzy `Object kind='category'`), `preview_changes`. Słownik mówi językiem `ObjectType`, nie `Family`.
 - 0.7.4 Tool execution layer z walidacją argumentów + autoryzacją przez Voters.
 - 0.7.5 Pending changes queue (encja PendingChange) + mechanizm approve/reject.
 - 0.7.7 UI: Cmd+K command bar w admin layout.
@@ -356,16 +358,18 @@ Aby utrzymać Fazę 0 w realnym budżecie (172-274h, sekcja 7), świadomie wyklu
 | M0.K | Hardening + a11y + analytics + backup | E2E green, WCAG AA pass, dashboard działa, pgBackRest restore test pass | 132-180 |
 | M0.L | MVP Done | Wszystkie milestone'y zaliczone, deployment u pilota możliwy | 132-180 |
 
-**Estymacje (po rewizji 2026-04-27 + ADR-009):**
+**Estymacje (po rewizji 2026-04-27 + ADR-009; **single source of truth — sumy epików §3.3 + milestone tabela §3.4**):**
 - **Sprint 0:** 40-55h (rozszerzony o Playwright od dnia 1, RLS smoke, perf profile, monorepo, FrankenPHP 2.x walidacja)
-- **MVP Core (epiki 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.10, 0.11):** **148-205h** (epiki 0.7 / 0.8 / 0.9 przeniesione do Fazy 1 i 2; epik 0.3 rozszerzony o ADR-009 z 16-20h do 36-50h; obejmuje 0.11: a11y, dashboard, pgBackRest, BYOK)
-- **Faza 0 total:** **188-260h**
+- **MVP-Alpha (epiki 0.1+0.2+0.3+0.4+0.5+0.6):** 16-22 + 10-14 + 36-50 + 10-14 + 6-8 + 20-26 = **98-134h**
+- **MVP-Final (epiki 0.10+0.11):** 8-12 + 24-34 = **32-46h**
+- **MVP Core (MVP-Alpha + MVP-Final):** **130-180h**
+- **Faza 0 total (Sprint 0 + MVP Core):** **170-235h**
 
 Skąd zmiana względem poprzedniej estymacji 201-274h:
-- Epiki 0.7 + 0.8 + 0.9 przeniesione do Fazy 1/2: **-37-49h** (rewizja 2026-04-27)
-- Epik 0.3 rozszerzony o ADR-009 (generic ObjectType): **+16-25h** (zwolnione z 0.7)
-- Epik 0.6 ticket #54 trim (Cmd+K placeholder usunięty): **-1h** (rewizja 2026-04-27)
-- Saldo: **-13 do -15h netto** względem 201-274h
+- Epiki 0.7 + 0.8 + 0.9 przeniesione do Fazy 1/2: **-51-69h** (rewizja 2026-04-27 — 0.7 25-35h + 0.8 12-16h + 0.9 14-18h)
+- Epik 0.3 rozszerzony o ADR-009 (generic ObjectType): **+20-30h** (z 16-20h do 36-50h; różnica netto)
+- Epik 0.6 ticket #54 trim (Cmd+K placeholder usunięty): **~ -1h** (w granicach noise estymaty epika)
+- Saldo netto: **-31 do -39h** względem 201-274h, wynik: **170-235h**
 
 **Tryb okrojonego MVP** (jeśli budżet czasu jest twardszy niż jakość):
 
@@ -378,16 +382,16 @@ Skąd zmiana względem poprzedniej estymacji 201-274h:
 
 **Wariant „bez generic ObjectType" — odradzany.** Pozorna oszczędność -16-25h w epiku 0.3 jest złudna: tracimy wszystkie korzyści ADR-009 (kategorie z own user-defined atrybutami, blokowanie importu z PIMCore, możliwość dodania `Customer`/`Supplier` w Fazie 2 bez migracji DDL). Klient pilotażowy z `03-funkcjonalnosci-mvp.md` (B2B technical, kategorie hierarchiczne z SEO i obrazami) nie zaakceptuje hard-coded `Category` z trzema polami. Każdy custom kind dorobiony post-factum to 8-12h migracji DDL + dataport — szybko zjada zaoszczędzone godziny. **Nie skracamy tutaj.**
 
-Tak okrojony MVP: **134-186h** MVP Core + Sprint 0 (40-55h) = **174-241h** total dla fazy 0. Akceptowalne dla pierwszego pilota; pełen MVP-Final z analytics + a11y to wersja "dla demo i sprzedaży".
+Tak okrojony MVP: **116-161h** MVP Core (130-180 minus 14-19h skrótów) + Sprint 0 (40-55h) = **156-216h** total dla fazy 0. Akceptowalne dla pierwszego pilota; pełen MVP-Final z analytics + a11y to wersja "dla demo i sprzedaży".
 
 #### Grupowanie w sub-fazy MVP — Alpha / Final (2 sub-fazy po rewizji 2026-04-27)
 
 > **Po rewizji 2026-04-27** (`06-sprint-0-findings.md` §2): epik 0.7 (Agent layer Beta-Min + Beta-Full) przeniesiony do Fazy 2, epiki 0.8 (BaseLinker) + 0.9 (Shopify) przeniesione do Fazy 1. MVP redukuje się do **2 sub-faz**: Alpha (backend + admin) i Final (API config + hardening). Gate decision po każdej.
 
-**MVP-Alpha — Backend + API + admin core CRUD (epiki 0.1–0.6, ~108-150h po ADR-009)**
+**MVP-Alpha — Backend + API + admin core CRUD (epiki 0.1–0.6, 98-134h po ADR-009)**
 Cel: działający backend z pełnym domain modelem **opartym o generic `ObjectType`** (predefiniowane Product/Category/Asset jako built-in fixtures), REST/GraphQL API z sugar paths `/api/products`, `/api/categories`, `/api/assets`, podstawowy admin Refine z CRUD dla wszystkich predefined kindów (kategorie z user-defined SEO/image atrybutami). Gate: API responses < cele wydajnościowe na 50k SKU testowych, admin pozwala na pełen workflow operatora dla produktów + kategorii bez agenta.
 
-**MVP-Final — API Configurator + hardening + a11y + analytics (epiki 0.10–0.11, ~40-55h)**
+**MVP-Final — API Configurator + hardening + a11y + analytics (epiki 0.10–0.11, 32-46h)**
 Cel: API Configurator z filtrowaniem per `object_type_id`, smoke testy E2E green, WCAG AA pass, dashboard, pgBackRest production, BYOK reservation (sam mechanizm szyfrowania klucza, konsumpcja klucza dochodzi w Fazie 2). Gate: deployment u pilota możliwy.
 
 Każda sub-faza powinna kończyć się **5-minutowym screencastem demo** dla samego siebie/inwestorów. Nawet jeśli jest jeden odbiorca — dyscyplinowane demo na koniec sub-fazy wymusza realne ukończenie.
@@ -458,7 +462,7 @@ Dojrzałość agenta — od "schema-add" przez "asystent" do "operator danych". 
 **Track A — Agent layer baseline (epik 0.7 Beta-Min, ~50-70h, przeniesione z MVP):**
 - **#63 Bundle Agent + AgentSession + AgentRun** — orchestration warstwy z lifecycle (start / step / end / error), cost guards inline.
 - **#64 Anthropic SDK PHP integration** — system prompt, twarde limity 8.5 (50 tool calls/h/user, 100k tokens/run, $20/dzień/tenant), BudgetService z hardstop'em.
-- **#65 Tool definitions** — `create_attribute`, `create_attribute_group`, `create_family`, `create_category`, `preview_changes` (read-only).
+- **#65 Tool definitions** (po ADR-009) — `search_attributes`, `search_object_types`, `create_attribute`, `create_attribute_group`, `assign_attribute_to_object_type` (rename z `assign_attribute_to_family`), `create_object_type` (reserved Faza 2/3, gated feature flagiem), `create_category` (sugar — `Object kind='category'`), `preview_changes` (read-only). `create_family` z poprzedniej iteracji deprecated.
 - **#66 Tool execution layer** — walidacja args, Voters per tool, handlers idempotentne, audit events.
 - **#67 Pending changes queue** — endpoints approve/reject + TTL 24h + Mercure live updates.
 - **#68 UI Cmd+K command bar** — pełna integracja w admin layout (rozszerzenie #54).
@@ -537,10 +541,10 @@ Estymacja godzinowa, jako orientacyjny budżet — nie zobowiązanie. Po rewizji
 | Faza | Estymacja realnych roboczogodzin człowieka | Kalendarzowo (przy 10h/tydz) | Kalendarzowo (full-time, intensywnie) |
 |---|---|---|---|
 | Sprint 0 — Vertical Slice (rozszerzony) | 40-55 h | **trzeba zrobić w 1-2 tygodniach urlopu/skupienia, nie dorywczo** | 1-2 tygodnie |
-| MVP Core okrojony (134-186h, po ADR-009) | 134-186 h | 13-19 tygodni | 4-5 tygodni |
-| MVP Core pełny (148-205h, po ADR-009) | 148-205 h | 15-21 tygodni | 4-5 tygodni |
-| **Faza 0 — okrojony MVP z Sprintem 0** | **174-241 h** | **17-24 tygodnie (5-6 mies. dorywczo)** | **5-6 tygodni full-time** |
-| **Faza 0 — pełny MVP z Sprintem 0** | **188-260 h** | **19-26 tygodni (5-7 mies. dorywczo)** | **5-7 tygodni full-time** |
+| MVP Core okrojony (116-161h, po ADR-009) | 116-161 h | 12-16 tygodni | 3-4 tygodnie |
+| MVP Core pełny (130-180h, po ADR-009) | 130-180 h | 13-18 tygodni | 4-5 tygodni |
+| **Faza 0 — okrojony MVP z Sprintem 0** | **156-216 h** | **16-22 tygodnie (4-5 mies. dorywczo)** | **5-6 tygodni full-time** |
+| **Faza 0 — pełny MVP z Sprintem 0** | **170-235 h** | **17-24 tygodnie (5-6 mies. dorywczo)** | **5-6 tygodni full-time** |
 | Faza 1 — Production-ready (BaseLinker + Shopify + RLS aktywacja + hardening) | 100-140 h | 10-14 tygodni | 3 tygodnie |
 | Faza 2 — Agent layer + Magento + IdoSell + Agentic Pro + custom ObjectType odblokowany | 200-260 h | 20-26 tygodni | 5-7 tygodni |
 | Faza 3 — Enterprise (do v1) | 300+ h | 30+ tygodni | 8+ tygodni |
@@ -562,7 +566,7 @@ Estymacja godzinowa, jako orientacyjny budżet — nie zobowiązanie. Po rewizji
 
 | ID | Ryzyko | Prawdopodobieństwo | Wpływ | Mitygacja |
 |---|---|---|---|---|
-| R-01 | Zakres MVP rozdęty, niedotrzymanie 174-260h Fazy 0 | Wysokie | Średni | Twardy backlog cut z opcją okrojonego MVP (134-186h MVP Core), epik 0.7 Agent przeniesiony do Fazy 2, epiki 0.8 BaseLinker + 0.9 Shopify do Fazy 1 (rewizja 2026-04-27), gate decision po Sprincie 0 z konkretnymi metrykami (sekcja 3.0), 2 sub-fazy MVP-Alpha/Final z możliwością early stopping |
+| R-01 | Zakres MVP rozdęty, niedotrzymanie 156-235h Fazy 0 | Wysokie | Średni | Twardy backlog cut z opcją okrojonego MVP (116-161h MVP Core), epik 0.7 Agent przeniesiony do Fazy 2, epiki 0.8 BaseLinker + 0.9 Shopify do Fazy 1 (rewizja 2026-04-27), gate decision po Sprincie 0 z konkretnymi metrykami (sekcja 3.0), 2 sub-fazy MVP-Alpha/Final z możliwością early stopping |
 | R-02 | Claude Code generuje kod niskiej jakości w wybranym stacku | Niskie | Wysoki | Code review każdego PR, PHPStan max + Psalm w CI, refactoring sessions co 2-3 epiki |
 | R-03 | Człowiek (non-expert) nie radzi sobie z review LLM-generated code | Średnie | Wysoki | Zaczynamy od epików prostszych (infra, auth), escalujemy złożoność stopniowo; w razie blokad — pair-programming z mentorem (10-20h sponsor zewnętrzny) |
 | R-04 | API Platform za mało elastyczne dla customowych endpointów PIM | Niskie | Średni | Backup plan: dodać "warstwę kontrolerów" obok ApiResource; kontrolery klasyczne Symfony zawsze możliwe |
