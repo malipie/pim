@@ -1,6 +1,15 @@
 security:
     password_hashers:
-        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+        # Argon2id is the OWASP-recommended hasher for new applications. We
+        # pin it explicitly instead of relying on `auto` because `auto` picks
+        # a runtime-detected default — that is fine when libsodium is present
+        # but yields surprising behaviour when it isn't, and the operator has
+        # no way to notice the swap. Memory/time costs follow OWASP's 2024
+        # baseline (memory >= 19 MiB, t >= 2). Cost is ~50 ms on a modern CPU.
+        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+            algorithm: argon2id
+            memory_cost: 65536
+            time_cost: 4
 
     providers:
         # Sprint 0: only the App\Identity user store is consulted. Static
@@ -56,10 +65,15 @@ security:
 when@test:
     security:
         password_hashers:
-            # Tests intentionally use the lowest cost — security is not the
-            # subject of the unit/functional suite.
+            # Tests still hash with argon2id (matching production), but at the
+            # cheapest legal parameters so the suite stays fast. memory_cost is
+            # in KiB; 8 KiB is the lowest libsodium accepts. The format check
+            # in AuthApiTest then exercises the same `$argon2id$` PHC string
+            # the production hasher would produce.
             Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
-                algorithm: auto
-                cost: 4
+                algorithm: argon2id
+                # libsodium minimums: opsLimit (time_cost) >= 3, memLimit
+                # (memory_cost in KiB) >= 64 KiB. Below those bounds the hasher
+                # throws at runtime — these are the floor values, not arbitrary.
+                memory_cost: 64
                 time_cost: 3
-                memory_cost: 10
