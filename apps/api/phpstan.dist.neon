@@ -75,3 +75,4 @@ parameters:
               - src/Catalog/Domain/Entity/Attribute.php
               - src/Catalog/Domain/Entity/AttributeGroup.php
               - src/Catalog/Domain/Entity/AttributeOption.php
+              - src/Catalog/Domain/Entity/ObjectType.php

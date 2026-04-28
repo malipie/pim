@@ -17,6 +17,15 @@ parameters:
     pim.refresh_token.ttl: 'P30D'
     pim.refresh_token.cookie_secure: true
 
+    # Catalog feature flags (#32). `enable_custom_object_types` blocks the
+    # creation of ObjectType rows with kind=custom in MVP — only the three
+    # built-in kinds (product/category/asset) are available. Phase 2 unlocks
+    # custom kinds together with the agent tool `create_object_type` (R-29
+    # mitigation: "custom kinds without UX support is an over-engineering
+    # trap"). Tests pass the flag through the constructor directly when
+    # they need to exercise the unlocked path.
+    pim.catalog.enable_custom_object_types: false
+
 services:
     _defaults:
         autowire: true
@@ -42,6 +51,10 @@ services:
     App\Identity\Presentation\LoginSuccessHandler:
         arguments:
             $inner: '@lexik_jwt_authentication.handler.authentication_success'
+
+    App\Catalog\Application\ObjectTypeService:
+        arguments:
+            $enableCustomObjectTypes: '%pim.catalog.enable_custom_object_types%'
 
 when@test:
     parameters:
