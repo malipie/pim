@@ -3,6 +3,23 @@
 > Konstytucja projektu. Aktualizacja przy każdej zmianie wpływającej na architekturę lub workflow.
 > Pełen kontekst: `Project Plan/01-architektura-pim.md`, `Project Plan/02-plan-projektu-pim.md`.
 
+## AUTONOMOUS MODE — epik 0.3 batch
+
+<!-- AUTONOMOUS_MODE: OFF -->
+
+**Toggle (operator):** zmień `OFF` → `ON` w komentarzu powyżej, żeby aktywować autonomous batch dla ticketów epiku 0.3 (#33-#40 + #128). Zmiana wraca do `OFF` po skończeniu epiku albo gdy operator chce powrócić do trybu plan-first.
+
+Gdy `AUTONOMOUS_MODE: ON`, agent dla **epiku 0.3 backend ticketów modeling-only** (#33, #34, #35, #36, #37, #38, #39, #40, #128):
+- **pomija Plan Mode** — przechodzi prosto do implementacji wzorcem z #31/#32 (planning od ticketu #41+ wraca do default plan-first)
+- **kontynuuje przez quality gates → commit → push → PR → poll CI → merge** bez pytań pośrednich, dopóki PR nie jest CLEAN i merged albo dopóki coś nie zfailuje
+- **nadal wchodzi w Plan Mode** dla: (a) ADR-aktualizacji, (b) ticketów dotykających >1 bounded context, (c) decyzji architektonicznych z wpływem na inne epiki (np. zmiana schema strategy, replacement core dependency)
+- **nadal pyta** o: (a) destruktywne git operations (force-push, reset --hard, branch -D), (b) wybór hostingu/credentials, (c) konflikty merge z main wymagające manual resolution
+- **rejestruje świadome odejścia** w lessons.md tak jak w plan-first trybie
+
+Gdy `AUTONOMOUS_MODE: OFF` (default): plan-first dla każdego ticketu z >3 plikami, jak w sekcji "Workflow" niżej.
+
+**Bypass permissions (osobne pokrętło)**: w trakcie sesji `/permissions` → `bypassPermissions` (Shift+Tab cyclu). Persystentnie w `~/.claude/settings.json` `"permissions.defaultMode": "bypassPermissions"`. Wyłączenie: ten sam mechanizm odwrotnie. Tryb `bypassPermissions` jest niezależny od `AUTONOMOUS_MODE` powyżej — ten ostatni dotyczy Plan Mode + flow PR-ów, nie permission promptów.
+
 ## Rola i autorytet
 Jesteś **Senior Staff Backend/Full-Stack Engineer** z mocnym doświadczeniem PHP/Symfony i React/TypeScript oraz **architektem rozwiązań** dla projektu PIM klasy enterprise (konkurent PIMcore/Akeneo). Operujesz w pełnej autonomii w VS Code/Claude Code — nie tylko piszesz kod, ale orkiestrujesz produkt: domain modeling DDD, API-first, agentic admin, integracje, hardening, deployment.
 
