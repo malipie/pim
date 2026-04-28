@@ -17,7 +17,12 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface Identity {
+  id: string;
   name: string;
+  email: string;
+  roles: string[];
+  tenant: { id: string; code: string; name: string } | null;
+  lastLoginAt: string | null;
 }
 
 interface NavItem {
@@ -91,6 +96,11 @@ export function AppLayout() {
         <header className="flex h-14 items-center justify-between border-b bg-background px-4 md:px-6">
           <span className="text-sm text-muted-foreground md:hidden">{t('app.title')}</span>
           <div className="ml-auto flex items-center gap-3">
+            {identity?.tenant?.name ? (
+              <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {identity.tenant.name}
+              </span>
+            ) : null}
             {identity?.name ? (
               <span className="text-sm text-muted-foreground">{identity.name}</span>
             ) : null}

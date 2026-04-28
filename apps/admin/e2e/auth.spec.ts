@@ -37,4 +37,41 @@ test.describe('Authentication', () => {
     await loginAsAdmin(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await expect(page).toHaveURL(/\/products$/);
   });
+
+  test('hard reload preserves the session via silent refresh', async ({ page }) => {
+    await loginAsAdmin(page);
+
+    // The reload drops the in-memory access token. /api/auth/refresh against
+    // the still-present HttpOnly cookie should put a new one back, and the
+    // user must NOT be bounced to /login.
+    const refreshSeen = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/auth/refresh') &&
+        response.request().method() === 'POST' &&
+        response.status() === 200,
+    );
+    await page.reload();
+    await refreshSeen;
+
+    await expect(page).toHaveURL(/\/products$/);
+    await expect(page.getByRole('heading', { name: /produkty|products/i })).toBeVisible();
+  });
+
+  test('access token is not stored in localStorage', async ({ page }) => {
+    await loginAsAdmin(page);
+    const stored = await page.evaluate(() => window.localStorage.getItem('pim.jwt'));
+    expect(stored).toBeNull();
+  });
+
+  test('logout calls POST /api/auth/logout', async ({ page }) => {
+    await loginAsAdmin(page);
+
+    const logoutPosted = page.waitForRequest(
+      (request) => request.url().includes('/api/auth/logout') && request.method() === 'POST',
+    );
+    await page.getByRole('button', { name: /wyloguj|sign out/i }).click();
+    await logoutPosted;
+
+    await expect(page).toHaveURL(/\/login$/);
+  });
 });
