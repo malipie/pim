@@ -1,13 +1,27 @@
 /**
- * Single-origin fetch wrapper that attaches the stored JWT to every request and
- * surfaces auth failures as a typed exception so the AuthProvider can react.
+ * Single-origin fetch wrapper.
  *
  * The admin always talks to /api/* on the same Caddy origin (CLAUDE.md →
  * "Single-origin przez Caddy w FrankenPHP — TYLKO TAK"). No CORS, no separate
  * base URL configuration in the browser.
+ *
+ * Auth model after #29:
+ *   - The access JWT lives in module-scoped memory only — never localStorage.
+ *     XSS that reads `localStorage` cannot lift the token. The price is that
+ *     a hard reload starts with no token; we recover it with a silent
+ *     POST /api/auth/refresh against the path-scoped HttpOnly cookie.
+ *   - `jsonFetch` retries every 401 (except on /api/auth/login and
+ *     /api/auth/refresh themselves) by triggering one refresh and replaying
+ *     the original request. Concurrent 401s share a single in-flight refresh
+ *     promise so a burst of Refine queries does not trip the backend's
+ *     "reused refresh token" theft-detection path.
  */
 
-const TOKEN_STORAGE_KEY = 'pim.jwt';
+const LOGIN_PATH = '/api/auth/login';
+const REFRESH_PATH = '/api/auth/refresh';
+
+let accessToken: string | null = null;
+let refreshInFlight: Promise<string> | null = null;
 
 export class HttpError extends Error {
   readonly status: number;
@@ -21,16 +35,16 @@ export class HttpError extends Error {
   }
 }
 
-export function getStoredToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
+export function getAccessToken(): string | null {
+  return accessToken;
 }
 
-export function setStoredToken(token: string): void {
-  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+export function setAccessToken(token: string): void {
+  accessToken = token;
 }
 
-export function clearStoredToken(): void {
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
+export function clearAccessToken(): void {
+  accessToken = null;
 }
 
 export interface JsonRequestInit {
@@ -41,14 +55,25 @@ export interface JsonRequestInit {
   query?: Record<string, string | number | undefined>;
 }
 
+interface InternalJsonRequestInit extends JsonRequestInit {
+  /**
+   * Set on the recursive call after a 401 → silent refresh → retry. Prevents
+   * unbounded recursion if the retried request also returns 401.
+   */
+  retryAfterRefresh?: boolean;
+}
+
 export async function jsonFetch<T = unknown>(path: string, init: JsonRequestInit = {}): Promise<T> {
+  return fetchInternal<T>(path, init);
+}
+
+async function fetchInternal<T>(path: string, init: InternalJsonRequestInit): Promise<T> {
   const url = init.query ? appendQuery(path, init.query) : path;
   const headers = new Headers();
   headers.set('accept', init.accept ?? 'application/ld+json');
 
-  const token = getStoredToken();
-  if (token) {
-    headers.set('authorization', `Bearer ${token}`);
+  if (accessToken) {
+    headers.set('authorization', `Bearer ${accessToken}`);
   }
 
   let body: BodyInit | undefined;
@@ -64,7 +89,18 @@ export async function jsonFetch<T = unknown>(path: string, init: JsonRequestInit
     credentials: 'same-origin',
   });
 
-  // 204 No Content: empty body, return as-is.
+  if (response.status === 401 && shouldAttemptRefresh(path, init)) {
+    try {
+      await refreshAccessToken();
+    } catch {
+      // Refresh failed — let the original 401 propagate so authProvider.onError
+      // can boot the user. We deliberately do not throw the refresh error;
+      // callers expect the status from the original endpoint.
+      return throwHttpError<T>(response);
+    }
+    return fetchInternal<T>(path, { ...init, retryAfterRefresh: true });
+  }
+
   if (response.status === 204) {
     return undefined as T;
   }
@@ -77,6 +113,57 @@ export async function jsonFetch<T = unknown>(path: string, init: JsonRequestInit
   }
 
   return parsed as T;
+}
+
+/**
+ * POST /api/auth/refresh, parse `{token}`, store it in memory.
+ *
+ * The single-flight guard collapses concurrent callers onto one network
+ * request. Without it, a burst of expired-Bearer 401s from Refine's parallel
+ * queries would each call /refresh — the second call would hit the backend's
+ * already-used token branch and revoke the whole family.
+ */
+export async function refreshAccessToken(): Promise<string> {
+  if (!refreshInFlight) {
+    refreshInFlight = doRefresh().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+async function doRefresh(): Promise<string> {
+  const response = await fetch(REFRESH_PATH, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    accessToken = null;
+    const text = await response.text().catch(() => '');
+    throw new HttpError(response.status, text ? safeJsonParse(text) : undefined);
+  }
+
+  const payload = (await response.json()) as { token?: unknown };
+  if (typeof payload.token !== 'string' || payload.token === '') {
+    accessToken = null;
+    throw new HttpError(response.status, payload);
+  }
+
+  accessToken = payload.token;
+  return payload.token;
+}
+
+function shouldAttemptRefresh(path: string, init: InternalJsonRequestInit): boolean {
+  if (init.retryAfterRefresh) return false;
+  // Use startsWith so query strings on the same endpoint still match.
+  return !path.startsWith(LOGIN_PATH) && !path.startsWith(REFRESH_PATH);
+}
+
+async function throwHttpError<T>(response: Response): Promise<T> {
+  const text = await response.text().catch(() => '');
+  throw new HttpError(response.status, text ? safeJsonParse(text) : undefined);
 }
 
 function appendQuery(path: string, query: Record<string, string | number | undefined>): string {

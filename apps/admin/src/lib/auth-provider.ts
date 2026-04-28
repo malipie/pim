@@ -1,6 +1,13 @@
 import type { AuthProvider } from '@refinedev/core';
 
-import { clearStoredToken, getStoredToken, HttpError, jsonFetch, setStoredToken } from './http';
+import {
+  clearAccessToken,
+  getAccessToken,
+  HttpError,
+  jsonFetch,
+  refreshAccessToken,
+  setAccessToken,
+} from './http';
 
 interface LoginPayload {
   email: string;
@@ -11,13 +18,39 @@ interface LoginResponse {
   token: string;
 }
 
+interface MeResponse {
+  id: string;
+  email: string;
+  roles: string[];
+  tenant: { id: string; code: string; name: string } | null;
+  last_login_at: string | null;
+}
+
+export interface MeIdentity {
+  id: string;
+  /** Alias of {@link email} so existing `Identity { name }` consumers keep working. */
+  name: string;
+  email: string;
+  roles: string[];
+  tenant: { id: string; code: string; name: string } | null;
+  lastLoginAt: string | null;
+}
+
 /**
- * Refine AuthProvider wiring `/api/auth/login` (LexikJWT) into the admin.
+ * Refine AuthProvider after #29:
  *
- * The token is persisted in localStorage for now — ticket 0.0.5 calls this out
- * as the Sprint-0 shortcut; full httpOnly cookie + refresh token rotation lands
- * in 0.2.6 (#28). The `check` method is consulted by Refine on every protected
- * route to decide whether to let the user through.
+ *   - Login stores the access JWT in module-scoped memory only (`http.ts`).
+ *     A successful login response also installs the rotating HttpOnly refresh
+ *     cookie at /api/auth, which lets `check()` resurrect a session across a
+ *     hard reload via silent refresh.
+ *   - Logout actually calls POST /api/auth/logout so the server can revoke
+ *     the refresh token + clear the cookie. Failures are swallowed because
+ *     the user wanted out either way.
+ *   - getIdentity hits GET /api/auth/me. We no longer decode the JWT in the
+ *     browser — the server is the source of truth for roles + tenant.
+ *   - onError stays as the second-line fallback. The http layer already
+ *     retried the original request once after a silent refresh; if a 401
+ *     still bubbles out, the session is genuinely dead.
  */
 export const authProvider: AuthProvider = {
   async login(payload) {
@@ -29,7 +62,7 @@ export const authProvider: AuthProvider = {
         contentType: 'application/json',
         accept: 'application/json',
       });
-      setStoredToken(response.token);
+      setAccessToken(response.token);
       return { success: true, redirectTo: '/products' };
     } catch (error) {
       const message =
@@ -44,59 +77,63 @@ export const authProvider: AuthProvider = {
   },
 
   async logout() {
-    clearStoredToken();
+    // Best-effort: tell the backend to revoke + clear the refresh cookie.
+    // If this 401s (access token already gone) the cookie still gets cleared
+    // server-side via Set-Cookie on the response; if the request itself fails
+    // we don't want to block the client-side logout regardless.
+    try {
+      await jsonFetch('/api/auth/logout', { method: 'POST', accept: 'application/json' });
+    } catch {
+      // intentional: logout is idempotent and must always succeed client-side.
+    }
+    clearAccessToken();
     return { success: true, redirectTo: '/login' };
   },
 
   async check() {
-    const token = getStoredToken();
-    if (!token) {
+    if (getAccessToken()) {
+      return { authenticated: true };
+    }
+    // Page reload: token is gone from memory but the refresh cookie may still
+    // be valid. Try once; if it fails, the user is genuinely signed out.
+    try {
+      await refreshAccessToken();
+      return { authenticated: true };
+    } catch {
       return { authenticated: false, redirectTo: '/login' };
     }
-    return { authenticated: true };
   },
 
   async onError(error) {
     if (error instanceof HttpError && error.status === 401) {
-      clearStoredToken();
+      clearAccessToken();
       return { logout: true, redirectTo: '/login' };
     }
     return {};
   },
 
-  async getIdentity() {
-    const token = getStoredToken();
-    if (!token) return null;
-    const claims = decodeJwtClaims(token);
-    return {
-      id: claims?.username ?? 'unknown',
-      name: claims?.username ?? 'unknown',
-      roles: claims?.roles ?? [],
-    };
+  async getIdentity(): Promise<MeIdentity | null> {
+    try {
+      const me = await jsonFetch<MeResponse>('/api/auth/me', { accept: 'application/json' });
+      return {
+        id: me.id,
+        name: me.email,
+        email: me.email,
+        roles: me.roles,
+        tenant: me.tenant,
+        lastLoginAt: me.last_login_at,
+      };
+    } catch {
+      return null;
+    }
   },
 
   async getPermissions() {
-    const token = getStoredToken();
-    return decodeJwtClaims(token)?.roles ?? [];
+    try {
+      const me = await jsonFetch<MeResponse>('/api/auth/me', { accept: 'application/json' });
+      return me.roles;
+    } catch {
+      return [];
+    }
   },
 };
-
-interface JwtClaims {
-  username?: string;
-  roles?: string[];
-  exp?: number;
-  iat?: number;
-}
-
-function decodeJwtClaims(token: string | null): JwtClaims | null {
-  if (!token) return null;
-  const segments = token.split('.');
-  if (segments.length !== 3) return null;
-  const payload = segments[1];
-  try {
-    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(json) as JwtClaims;
-  } catch {
-    return null;
-  }
-}
