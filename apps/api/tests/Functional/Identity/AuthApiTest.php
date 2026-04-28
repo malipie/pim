@@ -7,6 +7,7 @@ namespace App\Tests\Functional\Identity;
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Identity\Domain\Entity\Tenant;
 use App\Identity\Domain\Entity\User;
+use App\Identity\Infrastructure\Doctrine\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -116,6 +117,62 @@ final class AuthApiTest extends ApiTestCase
         $client->request('GET', '/api/products');
 
         self::assertResponseStatusCodeSame(401);
+    }
+
+    #[Test]
+    public function failedLoginReturnsRfc7807ProblemDetails(): void
+    {
+        $response = static::createClient()->request('POST', '/api/auth/login', [
+            'headers' => ['content-type' => 'application/json'],
+            'body' => json_encode(
+                ['email' => self::ADMIN_EMAIL, 'password' => 'wrong'],
+                JSON_THROW_ON_ERROR,
+            ),
+        ]);
+
+        self::assertResponseStatusCodeSame(401);
+        self::assertResponseHeaderSame('content-type', 'application/problem+json; charset=utf-8');
+
+        $body = $response->toArray(throw: false);
+        self::assertSame('about:blank', $body['type'] ?? null);
+        self::assertSame(401, $body['status'] ?? null);
+        self::assertArrayHasKey('title', $body);
+        self::assertArrayHasKey('detail', $body);
+    }
+
+    #[Test]
+    public function logoutWithValidTokenReturns204(): void
+    {
+        $token = $this->loginAndExtractToken();
+
+        $client = static::createClient();
+        $client->setDefaultOptions(['headers' => ['authorization' => 'Bearer '.$token]]);
+        $client->request('POST', '/api/auth/logout');
+
+        self::assertResponseStatusCodeSame(204);
+    }
+
+    #[Test]
+    public function logoutWithoutTokenReturns401(): void
+    {
+        static::createClient()->request('POST', '/api/auth/logout');
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    #[Test]
+    public function fixtureAdminPasswordIsHashedWithArgon2id(): void
+    {
+        $repository = self::getContainer()->get(UserRepository::class);
+        $admin = $repository->findByEmail(self::ADMIN_EMAIL);
+        self::assertNotNull($admin);
+
+        // Argon2id PHC string is identifiable by its `$argon2id$` prefix; the
+        // fact that it survives a roundtrip through Doctrine is what matters,
+        // because the security.yaml change is silently ignored if the hasher
+        // bundle picks something else (no warning, password just keeps its
+        // legacy bcrypt format).
+        self::assertStringStartsWith('$argon2id$', $admin->getPassword());
     }
 
     private function loginAndExtractToken(): string
