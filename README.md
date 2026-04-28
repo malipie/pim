@@ -2,7 +2,7 @@
 
 Agentic-first PIM platform. Konkurent PIMcore/Akeneo.
 
-**Status:** Sprint 0 w trakcie — vertical slice walidujący architekturę (sekcja 3.0 planu).
+**Status:** Sprint 0 zamknięty 2026-04-28 (gate decision GREEN, 13/13 ticketów). Aktualnie: MVP-Alpha — patrz [`agent/current_status.md`](agent/current_status.md).
 
 ## Stack (MVP)
 
@@ -100,9 +100,37 @@ pnpm --filter @pim/admin e2e:ui       # tryb interaktywny (debug)
 
 Artefakty failure (screenshot / video / trace) lądują w `apps/admin/test-results/`. Reportowy HTML w `apps/admin/playwright-report/`. CI uploads obie ścieżki przez `actions/upload-artifact` przy failure.
 
+## Stack components
+
+| Service | Image | Purpose | Healthcheck |
+|---|---|---|---|
+| `caddy` | `caddy:2-alpine` | Edge — terminuje TLS, single-origin proxy | `wget` na `https://localhost/api` |
+| `api` | `pim-api` (FrankenPHP 1 + PHP 8.4) | Symfony 7.4 + API Platform 4 worker mode | `curl http://127.0.0.1/api` |
+| `admin` | `node:22-alpine` | Vite dev server (HMR przez WebSocket upgrade) | brak (process-based) |
+| `database` | `pim-database:local` (postgres:16-alpine + pgbackrest 2.57 + dcron) | PostgreSQL 16 + WAL archiving + hourly backup do MinIO | `pg_isready` |
+| `redis` | `redis:7-alpine` | Symfony Messenger transport + cache (AOF persistence) | `redis-cli ping` |
+| `meilisearch` | `getmeili/meilisearch:v1.13` | Full-text search | `curl /health` |
+| `minio` | `minio/minio:latest` | S3-compatible object storage (DAM + backups) | `curl /minio/health/live` |
+| `minio-tls` | `caddy:2-alpine` | TLS terminator dla pgBackRest → MinIO (pgBackRest hard-coduje HTTPS) | brak |
+| `minio-init` | `minio/mc:latest` | Init buckets `pim-assets` / `pim-backups` (one-shot, `restart: no`) | — |
+| `mercure` | `dunglas/mercure:latest` | SSE hub real-time (events do admin frontend) | brak |
+| `mailpit` | `axllent/mailpit:latest` | Dev mail catcher (SMTP + UI) | brak |
+| `k6` | `grafana/k6:latest` | Perf load tester (`profile: ["perf"]`, nie startuje z `pnpm stack:up`) | — |
+
+## Backup & restore
+
+```bash
+pnpm backup:run       # one-off pgBackRest backup do MinIO bucket pim-backups
+pnpm backup:info      # status repo, lista backup'ów
+pnpm backup:restore   # PITR — patrz docs/runbook/restore.md
+pnpm backup:test      # DoD acceptance test (insert markery → backup → drop → restore)
+```
+
+Pełen runbook: [`docs/runbook/restore.md`](docs/runbook/restore.md). Production-grade schedule (full + diff + 5-min WAL + automated weekly restore test) dochodzi w 0.11.11.
+
 ## Następny krok
 
-Sprint 0 — pozostałe tickety przed gate decision: [#13](https://github.com/malipie/PIM/issues/13), [#14](https://github.com/malipie/PIM/issues/14), [#15](https://github.com/malipie/PIM/issues/15), [#9](https://github.com/malipie/PIM/issues/9). Status: [`agent/current_status.md`](agent/current_status.md).
+MVP-Alpha — epik 0.1 zamknięty. Następny: epik 0.2 (Identity & Access, [#24-#30](https://github.com/malipie/PIM/issues?q=is%3Aopen+label%3A%22epik-0.2%22)). Pełny plan w [`Project Plan/02-plan-projektu-pim.md`](Project%20Plan/02-plan-projektu-pim.md), aktualny status w [`agent/current_status.md`](agent/current_status.md).
 
 ## Licencja
 

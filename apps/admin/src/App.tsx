@@ -5,6 +5,7 @@ import { AuthedRoute } from '@/components/AuthedRoute';
 import { AppLayout } from '@/layout/AppLayout';
 import { authProvider } from '@/lib/auth-provider';
 import { dataProvider } from '@/lib/data-provider';
+import { ComingSoon } from '@/pages/coming-soon';
 import { LoginPage } from '@/pages/login';
 import { ProductCreatePage } from '@/pages/products/create';
 import { ProductEditPage } from '@/pages/products/edit';
@@ -23,6 +24,11 @@ function App() {
             create: '/products/new',
             edit: '/products/:id/edit',
           },
+          { name: 'attributes', list: '/attributes' },
+          { name: 'object-types', list: '/object-types' },
+          { name: 'categories', list: '/categories' },
+          { name: 'assets', list: '/assets' },
+          { name: 'channels', list: '/channels' },
         ]}
         options={{
           syncWithLocation: false,
@@ -43,6 +49,26 @@ function App() {
             <Route path="/products" element={<ProductListPage />} />
             <Route path="/products/new" element={<ProductCreatePage />} />
             <Route path="/products/:id/edit" element={<ProductEditPage />} />
+            <Route
+              path="/attributes"
+              element={<ComingSoon resource="attributes" epic="0.3 / 0.6" issue={31} />}
+            />
+            <Route
+              path="/object-types"
+              element={<ComingSoon resource="object_types" epic="0.3 / 0.6" issue={32} />}
+            />
+            <Route
+              path="/categories"
+              element={<ComingSoon resource="categories" epic="0.3 / 0.6" issue={33} />}
+            />
+            <Route
+              path="/assets"
+              element={<ComingSoon resource="assets" epic="0.3 / 0.6" issue={37} />}
+            />
+            <Route
+              path="/channels"
+              element={<ComingSoon resource="channels" epic="0.3 / 0.6" issue={36} />}
+            />
           </Route>
           <Route path="*" element={<Navigate to="/products" replace />} />
         </Routes>
