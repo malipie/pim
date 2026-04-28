@@ -58,14 +58,18 @@ final class DatabaseResetCommand extends Command
                 sprintf('This drops the <comment>%s</> database. Continue? (y/N) ', $env),
                 false
             );
-            if (!$io->askQuestion($question)) {
+            // SymfonyStyle::askQuestion returns mixed; ConfirmationQuestion
+            // resolves to bool, but PHPStan max won't trust that without an
+            // explicit comparison.
+            if (true !== $io->askQuestion($question)) {
                 $io->warning('Aborted.');
 
                 return Command::FAILURE;
             }
         }
 
-        $loadFixtures = (bool) $input->getOption('with-fixtures');
+        // VALUE_NONE options are typed as bool by phpstan-symfony — no cast.
+        $loadFixtures = $input->getOption('with-fixtures');
         $steps = [
             ['doctrine:database:drop', ['--force' => true, '--if-exists' => true]],
             ['doctrine:database:create', ['--if-not-exists' => true]],
