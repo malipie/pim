@@ -526,3 +526,22 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Idempotency seedera = unique indexes z #24 są twoją siatką bezpieczeństwa.** `permissions(resource, action)` UNIQUE + `roles(tenant_id, code)` UNIQUE. Buggy seeder duplikujący row = SQL error przy flush, nie cicho duplikaty. Test: re-run `seed()` → `isNoOp() == true`.
 
 - **Stack PR-ów w epikach: rebase poprzedni branch na main przed stack'iem.** #27 stack'owany na #25. #25 branch był stworzony z main PRZED merge'em #24 → #25 nie miało Role/Permission encji. Lekarstwo: `git checkout main && git pull && git checkout #25-branch && git rebase main && git push --force-with-lease`. Why: stack `#27` na pre-#24 stanie #25 = brakuje schema. Symptom: `ls src/Identity/Domain/Entity/` pokazuje tylko Tenant.php + User.php. **Pattern:** zawsze rebase parent branch na świeże main przed odbiciem child branchu.
+
+## Lessons z 0.2.3 / #26 (Voters — ObjectVoter via ProductVoter proof)
+
+- **`AbstractRbacVoter` z `extends Voter<string, object|string>` generic**, nie `<string, mixed>`. Class-level subjects API Platform przekazuje jako FQCN string (na Post/GetCollection — bez instancji). PHPStan max wymaga jawnej deklaracji generic types — bez tego `missingType.generics`.
+
+- **`extractTenant()` przez `method_exists('getTenant')`, nie wymuszanie `TenantAware` interface.** Product (Sprint-0) ma `getTenant(): ?Tenant` (nullable bo PrePersist stempluje), a `TenantAware::getTenant(): Tenant` jest non-null (User contract). Weakening TenantAware łamie Liskov dla User. Lekarstwo: voter robi duck-typing na getter. Why: jeden interface `TenantAware` służy resolverowi tenant z auth principal'a (User), drugi case (domain entities owned by tenant) to inny use-case — interface dla obu naciągany.
+  - How to apply: jak nowa entity dochodzi w 0.3/0.6 (Object/Channel) z own getTenant accessor, voter ją podchwyci automatycznie. Jeśli accessor nazywa się inaczej (`getOwnerTenant`?) — concrete voter override'uje `extractTenant()`.
+
+- **Voter dla class-level subject (Post/GetCollection) skipuje tenant check.** Subject przy create/list to FQCN string — nie ma instancji do tenant-scopowania. Permission alone gates create; **Doctrine TenantFilter** scopuje subsequent reads. Bez tego skip'u Post = always DENY (string nie ma `getTenant()`).
+
+- **`final readonly class` na voter'ach — uważaj.** Voter base nie ma stanu, ale dziedziczone klasy mogą chcieć coś cache'ować. `final` na concrete voter (`ProductVoter`) — OK. `final` na abstract base — dziedziczenie zablokowane. Pattern: **abstract base bez final**, concrete voters z final.
+
+- **API Platform `security` expression syntax: backslash escape w stringu PHP.** `'is_granted("READ", "App\\\\Catalog\\\\Domain\\\\Entity\\\\Product")'` — quad backslash bo: (1) PHP single-quoted string bierze 2 backslash → 1, (2) ExpressionLanguage parser bierze kolejne 2 → 1. Netto `App\Catalog\Domain\Entity\Product` w expression. Dla instance subject: `'is_granted("READ", object)'` (`object` to ExpressionLanguage variable, bez quotes).
+
+- **Pre-existing tests setupowane z `roles: ['ROLE_ADMIN']` JSON łamią się gdy włączysz voter security.** Voter nie zna `ROLE_ADMIN` w matrix (matrix mówi tylko o resource×action permissions). Lekarstwo: każdy test setup który tworzy admin musi seedować RbacSeeder + addRole(super_admin). Pattern: `self::getContainer()->get(RbacSeeder::class)->seed()` w setUp + lookup `super_admin` przez RoleRepository. **Symptom**: `Failed asserting that the Response is successful. HTTP/1.1 403 Forbidden`. Zalogowane na przyszłe pre-existing testy.
+
+- **Symfony test container — service Security nie public**, ale `AccessDecisionManagerInterface` jest. Dla voter testów w PHPUnit używaj `AccessDecisionManagerInterface::decide()` z ręcznie tworzonym `UsernamePasswordToken` lub `NullToken` (anonymous). `Security::isGranted()` wymagałoby aliasu w services.yaml — overhead bez benefitu.
+
+- **API Platform `Delete` operation nie istniała w Sprint-0 Product** — z tego ticketu ją dorzuciłem żeby voter `DELETE` miał gdzie zadziałać. Bez Delete operation nawet super_admin dostaje 405 Method Not Allowed.

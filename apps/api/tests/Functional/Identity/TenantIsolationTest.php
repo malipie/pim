@@ -61,6 +61,10 @@ final class TenantIsolationTest extends ApiTestCase
         $em->persist($tenantB);
         $em->flush();
 
+        // Voters from #26 require admin users to carry the super_admin role
+        // through the M2M graph rather than the legacy ROLE_ADMIN string.
+        self::getContainer()->get(\App\Identity\Application\RbacSeeder::class)->seed();
+
         $this->seedAdmin($tenantA, self::TENANT_A_EMAIL);
         $this->seedAdmin($tenantB, self::TENANT_B_EMAIL);
         $em->flush();
@@ -156,13 +160,17 @@ final class TenantIsolationTest extends ApiTestCase
     private function seedAdmin(Tenant $tenant, string $email): void
     {
         $hasher = $this->passwordHasher();
-        $stub = new User($tenant, $email, '', ['ROLE_ADMIN']);
+        $stub = new User($tenant, $email, '');
         $admin = new User(
             $tenant,
             $email,
             $hasher->hashPassword($stub, self::ADMIN_PASSWORD),
-            ['ROLE_ADMIN'],
         );
+
+        $superAdmin = self::getContainer()->get(\App\Identity\Infrastructure\Doctrine\Repository\RoleRepository::class)
+            ->findGlobalByCode(\App\Identity\Domain\Rbac\RbacMatrix::ROLE_SUPER_ADMIN);
+        \assert(null !== $superAdmin);
+        $admin->addRole($superAdmin);
 
         $this->em()->persist($admin);
     }

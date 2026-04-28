@@ -8,6 +8,7 @@ use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
@@ -44,8 +45,9 @@ use Symfony\Component\Validator\Constraints as Assert;
             // this clients that don't pass `order[id]=desc` get an unstable
             // physical-row order from Postgres.
             order: ['id' => 'DESC'],
+            security: 'is_granted("READ", "App\\\\Catalog\\\\Domain\\\\Entity\\\\Product")',
         ),
-        new Get(),
+        new Get(security: 'is_granted("READ", object)'),
         new Post(
             openapi: new \ApiPlatform\OpenApi\Model\Operation(
                 requestBody: new \ApiPlatform\OpenApi\Model\RequestBody(
@@ -61,10 +63,13 @@ use Symfony\Component\Validator\Constraints as Assert;
                     ]),
                 ),
             ),
+            security: 'is_granted("CREATE", "App\\\\Catalog\\\\Domain\\\\Entity\\\\Product")',
         ),
         new Patch(
             denormalizationContext: ['groups' => ['product:patch']],
+            security: 'is_granted("UPDATE", object)',
         ),
+        new Delete(security: 'is_granted("DELETE", object)'),
     ],
     normalizationContext: ['groups' => ['product:read']],
     denormalizationContext: ['groups' => ['product:write']],

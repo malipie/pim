@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Identity;
 
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
+use App\Identity\Application\RbacSeeder;
 use App\Identity\Domain\Entity\Tenant;
 use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Rbac\RbacMatrix;
+use App\Identity\Infrastructure\Doctrine\Repository\RoleRepository;
 use App\Identity\Infrastructure\Doctrine\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -39,18 +42,21 @@ final class AuthApiTest extends ApiTestCase
         parent::setUp();
 
         $em = $this->em();
+        self::getContainer()->get(RbacSeeder::class)->seed();
+        $superAdmin = self::getContainer()->get(RoleRepository::class)->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);
+        \assert(null !== $superAdmin);
 
         $tenant = new Tenant(self::TENANT_CODE, 'Demo Tenant');
         $em->persist($tenant);
 
         $hasher = $this->passwordHasher();
-        $stub = new User($tenant, self::ADMIN_EMAIL, '', ['ROLE_ADMIN']);
+        $stub = new User($tenant, self::ADMIN_EMAIL, '');
         $admin = new User(
             $tenant,
             self::ADMIN_EMAIL,
             $hasher->hashPassword($stub, self::ADMIN_PASSWORD),
-            ['ROLE_ADMIN'],
         );
+        $admin->addRole($superAdmin);
         $em->persist($admin);
         $em->flush();
     }
@@ -161,6 +167,39 @@ final class AuthApiTest extends ApiTestCase
     }
 
     #[Test]
+    public function viewerRoleCannotDeleteProduct(): void
+    {
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert(null !== $tenant);
+
+        $viewerRole = self::getContainer()->get(RoleRepository::class)->findGlobalByCode(RbacMatrix::ROLE_VIEWER);
+        \assert(null !== $viewerRole);
+
+        $hasher = $this->passwordHasher();
+        $stub = new User($tenant, 'viewer@demo.localhost', '');
+        $viewer = new User($tenant, 'viewer@demo.localhost', $hasher->hashPassword($stub, 'changeme'));
+        $viewer->addRole($viewerRole);
+        $em->persist($viewer);
+
+        $product = new \App\Catalog\Domain\Entity\Product('SKU-VIEWER-1', 'Viewer test');
+        $product->assignTenant($tenant);
+        $em->persist($product);
+        $em->flush();
+
+        // Viewer can list / fetch (read permission), but DELETE returns 403.
+        $token = $this->loginAndExtractToken('viewer@demo.localhost', 'changeme');
+        $client = static::createClient();
+        $client->setDefaultOptions(['headers' => ['authorization' => 'Bearer '.$token]]);
+
+        $client->request('GET', '/api/products');
+        self::assertResponseIsSuccessful();
+
+        $client->request('DELETE', '/api/products/'.$product->getId()->toRfc4122());
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    #[Test]
     public function fixtureAdminPasswordIsHashedWithArgon2id(): void
     {
         $repository = self::getContainer()->get(UserRepository::class);
@@ -175,12 +214,12 @@ final class AuthApiTest extends ApiTestCase
         self::assertStringStartsWith('$argon2id$', $admin->getPassword());
     }
 
-    private function loginAndExtractToken(): string
+    private function loginAndExtractToken(?string $email = null, ?string $password = null): string
     {
         $response = static::createClient()->request('POST', '/api/auth/login', [
             'headers' => ['content-type' => 'application/json'],
             'body' => json_encode(
-                ['email' => self::ADMIN_EMAIL, 'password' => self::ADMIN_PASSWORD],
+                ['email' => $email ?? self::ADMIN_EMAIL, 'password' => $password ?? self::ADMIN_PASSWORD],
                 JSON_THROW_ON_ERROR,
             ),
         ]);
