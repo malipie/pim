@@ -43,7 +43,9 @@ final class DatabaseResetCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $env = $_SERVER['APP_ENV'] ?? $_ENV['APP_ENV'] ?? 'dev';
+        // PHPStan max: $_SERVER values are mixed; narrow before any sprintf.
+        $envRaw = $_SERVER['APP_ENV'] ?? $_ENV['APP_ENV'] ?? 'dev';
+        $env = \is_string($envRaw) ? $envRaw : 'dev';
 
         if ('prod' === $env && !$input->getOption('force-prod')) {
             $io->error('Refusing to reset the production database. Pass --force-prod to override.');
@@ -76,12 +78,19 @@ final class DatabaseResetCommand extends Command
 
         foreach ($steps as [$commandName, $arguments]) {
             $io->section(sprintf('→ %s', $commandName));
-            $exitCode = $this->getApplication()
-                ?->find($commandName)
+            $application = $this->getApplication();
+            if (null === $application) {
+                $io->error('Console application is not available; refusing to chain commands.');
+
+                return Command::FAILURE;
+            }
+
+            $exitCode = $application
+                ->find($commandName)
                 ->run(new \Symfony\Component\Console\Input\ArrayInput($arguments), $output);
 
             if (Command::SUCCESS !== $exitCode) {
-                $io->error(sprintf('Step "%s" failed (exit %d). Aborting.', $commandName, (int) $exitCode));
+                $io->error(sprintf('Step "%s" failed (exit %d). Aborting.', $commandName, $exitCode));
 
                 return Command::FAILURE;
             }
