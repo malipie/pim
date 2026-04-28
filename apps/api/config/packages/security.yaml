@@ -26,14 +26,17 @@ security:
             security: false
 
         # Login firewall: stateless JSON form. POST /api/auth/login with
-        # {"email": ..., "password": ...} returns a signed JWT.
+        # {"email": ..., "password": ...} returns a signed JWT in the body
+        # AND sets the rotating refresh-token cookie via LoginSuccessHandler
+        # (#28). The custom handler wraps the Lexik default; it does not
+        # replace JWT issuance.
         login:
             pattern: ^/api/auth/login$
             stateless: true
             json_login:
                 check_path: /api/auth/login
                 username_path: email
-                success_handler: lexik_jwt_authentication.handler.authentication_success
+                success_handler: App\Identity\Presentation\LoginSuccessHandler
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
 
         # API firewall: every other /api/* request must carry a valid JWT.
@@ -56,6 +59,10 @@ security:
         # bind it on a private network or fence it behind a scrape token,
         # both of which land in epik 0.11 hardening (#103-#105).
         - { path: ^/api/auth/login, roles: PUBLIC_ACCESS }
+        # /api/auth/refresh consumes the rotating refresh-token cookie. It
+        # must be reachable without an access token because the typical
+        # caller has just had its access token expire.
+        - { path: ^/api/auth/refresh, roles: PUBLIC_ACCESS }
         - { path: ^/api/docs, roles: PUBLIC_ACCESS }
         - { path: ^/api/contexts, roles: PUBLIC_ACCESS }
         - { path: ^/api/metrics$, roles: PUBLIC_ACCESS }

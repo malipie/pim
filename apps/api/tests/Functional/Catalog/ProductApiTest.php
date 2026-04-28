@@ -47,18 +47,22 @@ final class ProductApiTest extends ApiTestCase
         parent::setUp();
 
         $em = $this->em();
+        self::getContainer()->get(\App\Identity\Application\RbacSeeder::class)->seed();
+        $superAdmin = self::getContainer()->get(\App\Identity\Infrastructure\Doctrine\Repository\RoleRepository::class)
+            ->findGlobalByCode(\App\Identity\Domain\Rbac\RbacMatrix::ROLE_SUPER_ADMIN);
+        \assert(null !== $superAdmin);
 
         $tenant = new Tenant(self::TENANT_CODE, 'Demo Tenant');
         $em->persist($tenant);
 
         $hasher = $this->passwordHasher();
-        $stub = new User($tenant, self::ADMIN_EMAIL, '', ['ROLE_ADMIN']);
+        $stub = new User($tenant, self::ADMIN_EMAIL, '');
         $admin = new User(
             $tenant,
             self::ADMIN_EMAIL,
             $hasher->hashPassword($stub, self::ADMIN_PASSWORD),
-            ['ROLE_ADMIN'],
         );
+        $admin->addRole($superAdmin);
         $em->persist($admin);
         $em->flush();
     }

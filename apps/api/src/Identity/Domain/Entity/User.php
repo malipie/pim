@@ -130,6 +130,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TenantA
     public function getRoles(): array
     {
         $roles = $this->roles;
+
+        // Merge in roles assigned via the M2M graph (#27). Each Role is
+        // exposed to Symfony Security as `ROLE_<UPPERCASE_CODE>`, so the
+        // RBAC matrix from RbacMatrix and the `roles JSON` legacy column
+        // share one resolved list. Sprint-0 fixtures still rely on the JSON
+        // column; the legacy path stays until every fixture writes M2M.
+        foreach ($this->assignedRoles as $role) {
+            $roles[] = 'ROLE_'.strtoupper($role->getCode());
+        }
+
         // Symfony convention — every authenticated user must have ROLE_USER
         // even when not stored explicitly, so access_control rules behave as
         // documented across the framework.
@@ -137,7 +147,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TenantA
             $roles[] = 'ROLE_USER';
         }
 
-        return $roles;
+        return array_values(array_unique($roles));
     }
 
     public function getUserIdentifier(): string

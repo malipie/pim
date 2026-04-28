@@ -8,6 +8,15 @@ parameters:
     # authenticated user (TenantAware).
     app.default_tenant_code: '%env(default::APP_DEFAULT_TENANT_CODE)%'
 
+    # Refresh-token cookie (#28). TTL is an ISO-8601 interval so the same value
+    # drives both the persisted `expires_at` column and the cookie `Max-Age`.
+    # `cookie_secure` is forced false in `when@test` because BrowserKit talks
+    # plain HTTP to the kernel and would silently drop `Secure` cookies on
+    # follow-up requests, which would break round-trip refresh tests.
+    pim.refresh_token.cookie_name: 'pim_refresh_token'
+    pim.refresh_token.ttl: 'P30D'
+    pim.refresh_token.cookie_secure: true
+
 services:
     _defaults:
         autowire: true
@@ -19,3 +28,21 @@ services:
     App\Identity\Application\CurrentTenantProvider:
         arguments:
             $defaultTenantCode: '%app.default_tenant_code%'
+
+    App\Identity\Application\RefreshTokenService:
+        arguments:
+            $ttl: '%pim.refresh_token.ttl%'
+
+    App\Identity\Presentation\AuthCookieFactory:
+        arguments:
+            $cookieName: '%pim.refresh_token.cookie_name%'
+            $ttl: '%pim.refresh_token.ttl%'
+            $secure: '%pim.refresh_token.cookie_secure%'
+
+    App\Identity\Presentation\LoginSuccessHandler:
+        arguments:
+            $inner: '@lexik_jwt_authentication.handler.authentication_success'
+
+when@test:
+    parameters:
+        pim.refresh_token.cookie_secure: false

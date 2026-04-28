@@ -500,3 +500,58 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
   - How to apply: po każdym ticketcie z security.yaml lub event listener changes — zrób manual smoke PO restart api, nie tylko PHPUnit.
 
 - **Logout w MVP to placeholder 204** — JWT jest stateless, bez refresh tokenów + blacklist'y nie da się invalidować access tokena. Endpoint istnieje by SPA miała gdzie wpiąć button. Pełen logout (revoke refresh + clear httpOnly cookie + cookie chain) w #28+#29. Why: nie udajemy że logout działa — komentarz w controllerze + body ticketu #25 jasno mówi że to placeholder. Klient client-side dropuje access token aż server-side invalidation dochodzi w #28.
+
+## Lessons z 0.2.4 / #27 (RBAC seeder + getRoles() merge)
+
+- **Seeder seeduje matrix, nie aktualnie istniejące encje.** `RbacMatrix::RESOURCES` zawiera m.in. `object`, `channel`, `attribute_group` — encje które dochodzą w epikach 0.3/0.6. Seeder tworzy permission rows niezależnie od istnienia tabel. Why: voters (#26) i API surface'y muszą mieć permissions do referowania, nawet gdy backing entity nie istnieje. Source of truth = matrix; entity layer nadrabia. How to apply: dodanie nowego resource = edytuj `RESOURCES` list + udokumentuj w `docs/rbac.md`, voter na to czeka.
+
+- **`final readonly class` nie działa gdy klasa mutuje stan w runtime.** PHP 8.4: `readonly class` czyni wszystkie pola immutable, nawet z domyślną wartością (`private int $x = 0;` → fatal error "Readonly property cannot have default value"). Pattern dla seederów / builderów: `final class X` z `public function __construct(private readonly ...)` w konstruktorze. Why: immutable per-instance state vs counter pola które resetują się per-call.
+
+- **`User::getRoles()` jako merge point JSON legacy + M2M.** Legacy `['ROLE_ADMIN']` w JSON (Sprint-0 fixture) + `ROLE_'.strtoupper($role->getCode())` z M2M + `ROLE_USER` floor → `array_values(array_unique($roles))`. Why: jeden ticket = jedna zmiana — drop JSON column to osobny ticket post-MVP. Do tego czasu fixture'y i ad-hoc testy mogą dalej tworzyć `new User(... ['ROLE_X'])` i działa.
+
+- **Idempotency seedera = unique indexes z #24 są twoją siatką bezpieczeństwa.** `permissions(resource, action)` UNIQUE + `roles(tenant_id, code)` UNIQUE. Buggy seeder duplikujący row = SQL error przy flush, nie cicho duplikaty. Test: re-run `seed()` → `isNoOp() == true`.
+
+- **Stack PR-ów w epikach: rebase poprzedni branch na main przed stack'iem.** #27 stack'owany na #25. #25 branch był stworzony z main PRZED merge'em #24 → #25 nie miało Role/Permission encji. Lekarstwo: `git checkout main && git pull && git checkout #25-branch && git rebase main && git push --force-with-lease`. Why: stack `#27` na pre-#24 stanie #25 = brakuje schema. Symptom: `ls src/Identity/Domain/Entity/` pokazuje tylko Tenant.php + User.php. **Pattern:** zawsze rebase parent branch na świeże main przed odbiciem child branchu.
+
+## Lessons z 0.2.3 / #26 (Voters — ObjectVoter via ProductVoter proof)
+
+- **`AbstractRbacVoter` z `extends Voter<string, object|string>` generic**, nie `<string, mixed>`. Class-level subjects API Platform przekazuje jako FQCN string (na Post/GetCollection — bez instancji). PHPStan max wymaga jawnej deklaracji generic types — bez tego `missingType.generics`.
+
+- **`extractTenant()` przez `method_exists('getTenant')`, nie wymuszanie `TenantAware` interface.** Product (Sprint-0) ma `getTenant(): ?Tenant` (nullable bo PrePersist stempluje), a `TenantAware::getTenant(): Tenant` jest non-null (User contract). Weakening TenantAware łamie Liskov dla User. Lekarstwo: voter robi duck-typing na getter. Why: jeden interface `TenantAware` służy resolverowi tenant z auth principal'a (User), drugi case (domain entities owned by tenant) to inny use-case — interface dla obu naciągany.
+  - How to apply: jak nowa entity dochodzi w 0.3/0.6 (Object/Channel) z own getTenant accessor, voter ją podchwyci automatycznie. Jeśli accessor nazywa się inaczej (`getOwnerTenant`?) — concrete voter override'uje `extractTenant()`.
+
+- **Voter dla class-level subject (Post/GetCollection) skipuje tenant check.** Subject przy create/list to FQCN string — nie ma instancji do tenant-scopowania. Permission alone gates create; **Doctrine TenantFilter** scopuje subsequent reads. Bez tego skip'u Post = always DENY (string nie ma `getTenant()`).
+
+- **`final readonly class` na voter'ach — uważaj.** Voter base nie ma stanu, ale dziedziczone klasy mogą chcieć coś cache'ować. `final` na concrete voter (`ProductVoter`) — OK. `final` na abstract base — dziedziczenie zablokowane. Pattern: **abstract base bez final**, concrete voters z final.
+
+- **API Platform `security` expression syntax: backslash escape w stringu PHP.** `'is_granted("READ", "App\\\\Catalog\\\\Domain\\\\Entity\\\\Product")'` — quad backslash bo: (1) PHP single-quoted string bierze 2 backslash → 1, (2) ExpressionLanguage parser bierze kolejne 2 → 1. Netto `App\Catalog\Domain\Entity\Product` w expression. Dla instance subject: `'is_granted("READ", object)'` (`object` to ExpressionLanguage variable, bez quotes).
+
+- **Pre-existing tests setupowane z `roles: ['ROLE_ADMIN']` JSON łamią się gdy włączysz voter security.** Voter nie zna `ROLE_ADMIN` w matrix (matrix mówi tylko o resource×action permissions). Lekarstwo: każdy test setup który tworzy admin musi seedować RbacSeeder + addRole(super_admin). Pattern: `self::getContainer()->get(RbacSeeder::class)->seed()` w setUp + lookup `super_admin` przez RoleRepository. **Symptom**: `Failed asserting that the Response is successful. HTTP/1.1 403 Forbidden`. Zalogowane na przyszłe pre-existing testy.
+
+- **Symfony test container — service Security nie public**, ale `AccessDecisionManagerInterface` jest. Dla voter testów w PHPUnit używaj `AccessDecisionManagerInterface::decide()` z ręcznie tworzonym `UsernamePasswordToken` lub `NullToken` (anonymous). `Security::isGranted()` wymagałoby aliasu w services.yaml — overhead bez benefitu.
+
+- **API Platform `Delete` operation nie istniała w Sprint-0 Product** — z tego ticketu ją dorzuciłem żeby voter `DELETE` miał gdzie zadziałać. Bez Delete operation nawet super_admin dostaje 405 Method Not Allowed.
+
+## Lessons z 0.2.5 / #28 (Refresh tokens + rotation + theft detection + /me + real logout)
+
+- **Refresh-token rotation custom > `gesdinet/jwt-refresh-token-bundle`.** Bundle nie ma theft detection (reuse-detection), nie ma family invalidation, nie ma httpOnly cookies natywnie. Custom code (entity + service + 2 controllery + cookie factory) = ~250 LOC w jednym contextcie i nie wprowadza zewnętrznej zależności. Why: kiedy bundle pokrywa <70% wymagań twardych ticketu — pisz ręcznie. Wynik: PR siedzi w `Identity` jak reszta, bez Composer-level coupling, łatwiejsza ścieżka do BYOK / row-level encryption w fazie 1.
+  - How to apply: zanim zaciągniesz bundle, sprawdź checklistę: (1) handle wszystkie security requirementy ticketu? (2) integruje się z istniejącymi listenerami (failure RFC 7807, tenant assignment)? (3) jeśli "nie" na którekolwiek — custom.
+
+- **`family_id` UUID na każdym tokenie zamiast linked-list `parent_id`.** Każdy refresh w obrębie jednego loginu współdzieli `family_id`; reuse already-used token wywołuje `revokeFamily()` (single UPDATE: `WHERE family_id = ? AND revoked_at IS NULL`). Linked-list wymaga rekursywnego CTE i DBAL hassle dla zera korzyści. Why: jedyne pytanie security to "czy ten ciąg tokenów jest w envelopie zabronionym" — nie "kto kogo zrodził".
+
+- **Refresh token denormalised `tenantId/userId UUID` columns, BEZ Doctrine relacji.** Lookup po `tokenHash` UNIQUE INDEX = single row, zero JOINów. FKs at schema level (`ON DELETE CASCADE`) trzymają referential integrity bez zaciągania `Tenant`/`User` entities w runtime. Why: refresh path jest hot — każdy 5xx requesty z expired access token go uderzy. Hot path nie powinien spełniać "ORM purism".
+
+- **`LoginSuccessHandler` constructor-inject `AuthenticationSuccessHandlerInterface` zamiast Symfony service decorator.** Decorator wymaga `Lexik...AuthenticationSuccessHandler` jako `@final`-violating klasa (`@final` adnotacja, nie `final` keyword) — działa, ale każdy minor bump Lexik może łamać. Pattern: implement interface, inject inner via `$inner` argument, wired w `services.yaml` z `arguments: $inner: '@lexik_jwt_authentication.handler.authentication_success'`. **`security.yaml` `success_handler: App\Identity\Presentation\LoginSuccessHandler`** — direct service ID. Symetryczne do `AuthenticationFailureListener` z #25 (event listener decoration).
+
+- **Cookie `Path=/api/auth` zamiast `/`.** Refresh cookie nigdy nie wysyłana na `/api/products`, `/api/object-types` itp — redukuje attack surface (XSS leak via `document.cookie` wciąż blokowany przez HttpOnly, ale zmniejszenie surface'u sieciowego to defence in depth). Konsumenci cookie: `/api/auth/refresh` + `/api/auth/logout` — oba pod `/api/auth`. Tradeoff: jeśli kiedyś przeniesiesz `/refresh` poza `/api/auth/...` — pamiętaj zaktualizować path.
+
+- **`when@test: parameters: pim.refresh_token.cookie_secure: false`** bo BrowserKit testuje HTTP, nie HTTPS. Cookie z `Secure=true` set-cookie'uje się normalnie (test może odczytać header), ale na follow-up request BrowserKit jej **nie wysyła** (drops Secure cookies on plain HTTP). Symptom: test rotacji passuje na pierwszej parze, drugi `/refresh` daje 401 missing. Lekarstwo: parametr dla AuthCookieFactory + override w `when@test`.
+
+- **PSR `Psr\Clock\ClockInterface` zamiast `Symfony\Component\Clock\ClockInterface`.** Symfony Clock implementuje PSR — DI auto-wiring resolve'uje `Psr\Clock\ClockInterface` na `Symfony\Component\Clock\Clock` automatycznie. Why: PSR > vendor-specific, jeśli kiedyś chcesz wymienić clock (np. `lcobucci/clock` mock w testach), nic nie zmieniasz w klasie konsumującej. **Test `ClockMock` z Symfony**: `$clock = self::getContainer()->get(Symfony\Component\Clock\MockClock::class)` (gdy potrzebujesz frozen time).
+
+- **`response->toArray()` w API Platform Test Client zwraca `mixed`** — PHPStan max nie wie czy result jest array. Pattern: `\assert(\is_array($body['tenant']))` przed indeksowaniem nested array. Albo `self::assertIsArray($body['tenant'] ?? null)` w teście. Bez tego `Cannot access offset 'code' on mixed`.
+
+- **PHPStan `(int) $execute()` cast useless, ale `assert(is_int())` dummy też.** DQL `DELETE`/`UPDATE` `->execute()` ma PHPDoc `int<0, max>`. Cast `(int) $x` na `int<0, max>` = redundant. `assert(is_int($x))` na `int<0, max>` też redundant. Lekarstwo: po prostu `return $em->createQuery(...)->execute();` z return type `int` — PHPStan zaakceptuje przez covariance.
+
+- **Stacked-PR limbo na GitHubie.** PR `B` z base=`A`-branch, `C` z base=`B`-branch. Mergujesz `C → B` i `B → A` — GH pokazuje wszystko jako MERGED. ALE main NIE MA tych zmian — squash commits siedzą na intermediate branchach które same nie wpadły do main (bo poprzedniego ticketu base nigdy nie został retargetowany). Symptom: `gh pr list --state merged` pokazuje 5 zielonych, `git log origin/main` pokazuje tylko jeden squash. **Lekarstwo**: po merge intermediate PR re-target child PR-ów na main → wymuś squash przed mergem do main. **Detekcja przed startem nowego ticketu**: `git log origin/main..feat/poprzedni-branch --oneline` — jeśli pokazuje commity, stack nie wpadł.
+  - How to apply: branch nowego ticketu odbijaj OD main TYLKO jeśli weryfikujesz że poprzedni ticket faktycznie tam jest (`git log origin/main -- ścieżka/do/wymaganego/pliku`). Jeśli nie — stackuj na lokalny branch poprzedniego ticketu i flagaj operatorowi że stack do main wymaga rozwiązania.
