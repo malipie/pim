@@ -409,7 +409,10 @@ CREATE TABLE channels (
     name JSONB NOT NULL,
     locales JSONB NOT NULL,  -- ["pl_PL", "en_US"]
     currencies JSONB NOT NULL,  -- ["PLN", "EUR"]
-    category_tree_root_id UUID REFERENCES categories(id),
+    -- Po ADR-009: kategorie żyją w `objects` z `kind='category'`. FK do `objects(id)`,
+    -- target kind enforce'owany przez listener (`ChannelCategoryRootValidator`) — nie CHECK constraint,
+    -- bo Postgres nie wspiera FK z dodatkowymi predykatami na kolumnie target.
+    category_tree_root_object_id UUID REFERENCES objects(id),
     UNIQUE (tenant_id, code)
 );
 
@@ -652,15 +655,15 @@ Agent layer jest **wbudowany w main backend** jako Symfony service. Powody: jede
 
 ### 8.2 Capabilities w MVP
 
-Agent w MVP wykonuje wyłącznie operacje **schema-extending**:
+Agent w MVP wykonuje wyłącznie operacje **schema-extending** (po ADR-009 słownik mówi językiem `ObjectType`):
 
-- Dodanie nowego atrybutu do tenant (z opcjonalnym przypisaniem do rodziny).
+- Dodanie nowego atrybutu do tenant (z opcjonalnym przypisaniem do `ObjectType`).
 - Modyfikacja metadanych atrybutu (label translations, help text, validation).
 - Dodanie nowej grupy atrybutów.
-- Tworzenie nowej rodziny produktów (z listą atrybutów).
-- Tworzenie nowej kategorii w drzewie.
+- Przypisanie atrybutów do istniejącego `ObjectType` (predefined product/category/asset). Tworzenie własnych `ObjectType` (`kind='custom'`) — zarezerwowane do Fazy 2/3.
+- Tworzenie nowej kategorii w drzewie (sugar: instancja `Object` z `kind='category'`).
 
-**Wszystkie operacje destrukcyjne** (usuwanie atrybutu, usuwanie rodziny, modyfikacja typu istniejącego atrybutu) **są poza scope MVP**. W MVP: agent może tylko dodawać.
+**Wszystkie operacje destrukcyjne** (usuwanie atrybutu, usuwanie `ObjectType`, modyfikacja typu istniejącego atrybutu) **są poza scope MVP**. W MVP: agent może tylko dodawać. Predefiniowane `ObjectType` (`is_built_in=true`) są dodatkowo blokowane przed deletion na poziomie service'u.
 
 W fazie 2 dochodzą **data-ops capabilities**:
 
@@ -691,12 +694,12 @@ Każde narzędzie tworzy wpis w `agent_runs.tool_calls` i — w przypadku operac
 ### 8.4 Approval flow
 
 ```
-User w Cmd+K: "dodaj atrybut waga opakowania, liczba, do rodziny Elektronika, wymagany"
+User w Cmd+K: "dodaj atrybut waga opakowania, liczba, do typu obiektu Elektronika, wymagany"
         │
         ▼
 Agent (Claude Sonnet) planuje:
   1. create_attribute(code: weight_packaging, type: number, label: {pl: "Waga opakowania"})
-  2. assign_attribute_to_family(family_code: electronics, attribute_code: weight_packaging, required: true)
+  2. assign_attribute_to_object_type(object_type_code: electronics, attribute_code: weight_packaging, required_for_completeness: true)
         │
         ▼
 Backend tworzy 2 wpisy w `pending_changes`, zwraca diff do UI
@@ -704,7 +707,7 @@ Backend tworzy 2 wpisy w `pending_changes`, zwraca diff do UI
         ▼
 UI pokazuje modal:
   + Atrybut: weight_packaging (number)
-  + Przypisanie do rodziny Electronics, wymagany
+  + Przypisanie do ObjectType Electronics, wymagany
   [Akceptuj] [Modyfikuj] [Odrzuć]
         │
         ▼
@@ -1082,7 +1085,7 @@ Rdzeń elastyczności już istnieje w ADR-006 (`attributes` + EAV `*_values JSON
 
 Roadmap fazowa, wysokopoziomowa. Szczegółowy backlog i estymacje w dokumencie `02-plan-projektu-pim.md`.
 
-**Faza 0 — MVP (~217-299h po rewizji 2026-04-27 i ADR-009; Sprint 0 40-55h + MVP Core okrojone 188-260h)**
+**Faza 0 — MVP (170-235h pełny / 156-216h okrojony, po rewizji 2026-04-27 i ADR-009; Sprint 0 40-55h + MVP Core 130-180h pełny)**
 Sprint 0 vertical slice + domain model PIM **z generic `ObjectType`** (predefined Product/Category/Asset, custom kindy dla Fazy 2/3 — ADR-009), admin Refine z core CRUD, **BaseLinker + Shopify przeniesione do Fazy 1**, **agent layer przeniesiony do Fazy 2** (rewizja 2026-04-27, `06-sprint-0-findings.md` §2). API publiczne z konfiguratorem, hardening + WCAG AA + analytics dashboard + pgBackRest production + BYOK. Cel: pierwszy klient pilotażowy z działającym katalogiem (produkty + kategorie z user-defined atrybutami) i niezawodnym importem/eksportem. Szczegóły, sub-fazy i milestones: `02-plan-projektu-pim.md`.
 
 **Faza 1 — Production-ready integracje (+100-140h)**

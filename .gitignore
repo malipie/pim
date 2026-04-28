@@ -12,6 +12,9 @@ Icon?
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Claude Code per-developer local state (settings.local.json, scheduled_tasks.lock)
+.claude/
+
 # Synology
 @eaDir/
 .SynologyWorkingDirectory
