@@ -76,3 +76,5 @@ parameters:
               - src/Catalog/Domain/Entity/AttributeGroup.php
               - src/Catalog/Domain/Entity/AttributeOption.php
               - src/Catalog/Domain/Entity/ObjectType.php
+              - src/Catalog/Domain/Entity/CatalogObject.php
+              - src/Catalog/Domain/Entity/ObjectValue.php

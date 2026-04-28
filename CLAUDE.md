@@ -3,13 +3,13 @@
 > Konstytucja projektu. Aktualizacja przy każdej zmianie wpływającej na architekturę lub workflow.
 > Pełen kontekst: `Project Plan/01-architektura-pim.md`, `Project Plan/02-plan-projektu-pim.md`.
 
-## AUTONOMOUS MODE — epik 0.3 batch
+## AUTONOMOUS MODE — epiki 0.3 + 0.4 batch
 
-<!-- AUTONOMOUS_MODE: OFF -->
+<!-- AUTONOMOUS_MODE: ON -->
 
-**Toggle (operator):** zmień `OFF` → `ON` w komentarzu powyżej, żeby aktywować autonomous batch dla ticketów epiku 0.3 (#33-#40 + #128). Zmiana wraca do `OFF` po skończeniu epiku albo gdy operator chce powrócić do trybu plan-first.
+**Toggle (operator):** zmień `OFF` → `ON` w komentarzu powyżej, żeby aktywować autonomous batch. Zakres rozszerzony 2026-04-29 z epiku 0.3 na **epiki 0.3 + 0.4 łącznie** — operator wskazał "jak nie będzie problemów w epiku 3 to leć od razu po zakończeniu z epikiem 4". Zmiana wraca do `OFF` po skończeniu obu epików albo gdy operator chce powrócić do trybu plan-first.
 
-Gdy `AUTONOMOUS_MODE: ON`, agent dla **epiku 0.3 backend ticketów modeling-only** (#33, #34, #35, #36, #37, #38, #39, #40, #128):
+Gdy `AUTONOMOUS_MODE: ON`, agent dla **ticketów epiku 0.3** (#33, #34, #35, #36, #37, #38, #39, #40, #128) + **epiku 0.4** (#41, #42, #43, #44, #45, #46, #47, #48):
 - **pomija Plan Mode** — przechodzi prosto do implementacji wzorcem z #31/#32 (planning od ticketu #41+ wraca do default plan-first)
 - **kontynuuje przez quality gates → commit → push → PR → poll CI → merge** bez pytań pośrednich, dopóki PR nie jest CLEAN i merged albo dopóki coś nie zfailuje
 - **nadal wchodzi w Plan Mode** dla: (a) ADR-aktualizacji, (b) ticketów dotykających >1 bounded context, (c) decyzji architektonicznych z wpływem na inne epiki (np. zmiana schema strategy, replacement core dependency)
