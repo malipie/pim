@@ -15,7 +15,17 @@
     "login_failed": "Nie udało się zalogować. Spróbuj ponownie."
   },
   "nav": {
-    "products": "Produkty"
+    "products": "Produkty",
+    "attributes": "Atrybuty",
+    "object_types": "Typy obiektów",
+    "categories": "Kategorie",
+    "assets": "Zasoby",
+    "channels": "Kanały",
+    "soon": "Wkrótce"
+  },
+  "coming_soon": {
+    "body": "Ten widok jest częścią epiku {{epic}}. Nie jest jeszcze zaimplementowany — śledź postęp w GitHub Issues.",
+    "track_issue": "Otwórz issue #{{issue}}"
   },
   "products": {
     "list_title": "Produkty",

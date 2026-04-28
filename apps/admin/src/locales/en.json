@@ -15,7 +15,17 @@
     "login_failed": "Sign-in failed. Please try again."
   },
   "nav": {
-    "products": "Products"
+    "products": "Products",
+    "attributes": "Attributes",
+    "object_types": "Object types",
+    "categories": "Categories",
+    "assets": "Assets",
+    "channels": "Channels",
+    "soon": "Soon"
+  },
+  "coming_soon": {
+    "body": "This view is part of epic {{epic}}. It is not implemented yet — track progress on GitHub Issues.",
+    "track_issue": "Open issue #{{issue}}"
   },
   "products": {
     "list_title": "Products",
