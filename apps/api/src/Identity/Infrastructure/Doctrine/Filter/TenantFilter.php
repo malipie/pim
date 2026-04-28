@@ -4,38 +4,40 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Doctrine\Filter;
 
-use App\Catalog\Domain\Entity\Product;
+use App\Identity\Application\TenantScoped;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query\Filter\SQLFilter;
 use InvalidArgumentException;
 
 /**
  * Appends `<table>.tenant_id = :current_tenant` to every SQL query touching a
- * tenant-scoped entity. The parameter is set per request by TenantFilterConfigurator
- * once the tenant is known.
+ * {@see TenantScoped} entity. The parameter is set per request by
+ * {@see \App\Identity\Application\TenantFilterConfigurator} once the tenant
+ * is known.
  *
- * RLS at the Postgres level is the second line of defence — activated in phase 1
+ * RLS at the Postgres level is the second line of defence — policies are
+ * created in migration `Version20260428...` (#30 / 0.2.7) but not enabled in
+ * MVP. Activation lands in phase 2 along with multi-tenant SaaS go-live
  * (sekcja 11.1a architektury). Until then this filter is the sole isolation
- * mechanism for application-layer queries; native SQL bypassing Doctrine still
- * sees every tenant. Smoke test #12 (0.0.12) validates the application-layer
- * boundary holds.
+ * mechanism for application-layer queries; native SQL bypassing Doctrine
+ * still sees every tenant. Smoke test #12 (0.0.12) validates the
+ * application-layer boundary holds.
  *
- * Bulk operations (`COPY`, raw INSERT … SELECT) bypass this filter by design.
- * The runbook for those workflows (sekcja 7 architektury) calls out the need
- * to disable RLS explicitly when it is enabled.
+ * Bulk operations (`COPY`, raw `INSERT … SELECT`) bypass this filter by
+ * design — see `docs/multi-tenancy.md` § "Bulk operations" for the runbook.
+ *
+ * Generalisation note (#30): we used to maintain a class-string allowlist.
+ * Switching to `is_subclass_of` against the marker interface lets new
+ * domain entities opt in without modifying this file. The runtime cost is
+ * a single string-class lookup per query — negligible vs. the SQL roundtrip.
  */
 final class TenantFilter extends SQLFilter
 {
     public const string PARAMETER = 'current_tenant';
 
-    /** @var array<class-string, true> */
-    private const array TENANT_SCOPED_ENTITIES = [
-        Product::class => true,
-    ];
-
     public function addFilterConstraint(ClassMetadata $targetEntity, string $targetTableAlias): string
     {
-        if (!isset(self::TENANT_SCOPED_ENTITIES[$targetEntity->getName()])) {
+        if (!is_subclass_of($targetEntity->getName(), TenantScoped::class, true)) {
             return '';
         }
 
