@@ -100,6 +100,7 @@
 - **Custom REST kontrolery** dla rzeczy, które API Platform potrafi → 5-10× więcej kodu i utrzymania niż dodanie `#[ApiResource]`.
 - **`StateNotifier` / `StateProvider`** (przykład z innego projektu) → tu nieaplikowalne, używamy React `useState` + Refine hooks + Zustand jeśli potrzeba global state.
 - **Hive / inne lokalne persystencje na frontend** → admin jest online-only, nie potrzebujemy offline cache w MVP.
+- **`archive-async=y` + interaktywne pgbackrest commands** w jednym container'ze → lock contention na `/tmp/pgbackrest/pim-archive-N.lock`. Sync archive_command (`archive-async=n`) jest fine dla MVP write rate. Async wraca w 0.11.11 z dedicated cron stanza-create cycle.
 - **Foldery zaczynające się od kropki** (`.agent/`, `.cache/`) w katalogach synchronizowanych przez Synology Drive / iCloud → mogą być cicho filtrowane przez sync provider. Używaj nazw bez kropki (`agent/`).
 - **Estymaty godzinowe w GitHub Issues / labelach / treści ticketów** → nie mają sensu w pracy operator + LLM. Pomijaj `est: S/M/L/XL`, pomijaj liczby godzin w body issue. Plan i architektura zachowują estymaty jako orientacja kosztu fazy, ale na poziomie pojedynczego ticketu są szumem. (Decyzja operatora 2026-04-26 przy rozpisywaniu MVP backloga.)
 
@@ -114,6 +115,8 @@
 - **Doctrine 3.x + Symfony 7.4** — drobne breaking changes względem 2.x w lifecycle events. Sprawdź `EventSubscriberInterface` patterns przy każdej migracji listener'a.
 - **`scheb/2fa-bundle`** — wymaga wpięcia w security firewall **przed** głównym authenticator'em, kolejność w `security.yaml` ma znaczenie.
 - **Meilisearch** — facetable attributes muszą być zadeklarowane explicitly w settings indeksu, inaczej facets zwracają empty bez błędu (cicha pułapka). Healthcheck w docker-compose: użyj `curl http://localhost:7700/health`, nie `wget` (image v1.13 ma wgeta ale nie łączy się przez `localhost`, prawdopodobnie IPv6 dual-stack mismatch).
+- **pgBackRest 2.57 nie supportuje plain HTTP dla S3 repos.** `repo-storage-port` defaultuje na 443, brak opcji wymuszenia HTTP. `repo1-storage-verify-tls=n` wyłącza tylko cert verify, nie sam TLS. Workaround: TLS terminator (Caddy `tls internal`) między pgBackRest a HTTP-only S3 endpoint'em (np. MinIO w dev). Production używa MinIO native TLS lub real S3 z prawdziwymi certami. (Odkryte w 0.0.15.)
+- **AWS SigV4 binds Host header w podpisie request'u.** Każdy reverse proxy między klientem S3 a endpoint'em MUSI propagować original Host header (`header_up Host {host}` w Caddy, `proxy_set_header Host $host` w nginx). Default Caddy reverse_proxy rewrituje Host na upstream → MinIO odpowiada `SignatureDoesNotMatch` HTTP 403. Bezpieczne tylko z `repo1-s3-uri-style=path`. (Odkryte w 0.0.15.)
 - **`api-platform/api-platform` na Packagist to archiwalny skeleton z 2018** (Symfony 3.4, Behat, nelmio/cors-bundle). Dla nowych projektów użyj `composer create-project symfony/skeleton apps/api 7.4.*` + `composer require api-platform/symfony:^4 api-platform/doctrine-orm:^4`. (Odkryte w 0.0.1.)
 - **API Platform 4 nie obsługuje formatu `json` na `/api/docs`** — dostępne są `.jsonld` (Hydra), `.html` (Swagger UI). Dla healthchecków używaj `/api` (entrypoint, zawsze 200 z JSON-LD). (Odkryte w 0.0.1.)
 - **Symfony Flex `composer require` z mieszanymi constraintami `^7.4` + recipes** — czasem wpisuje `^8.0` w composer.json gdy najnowszy stable tag to 8.x, ale lock fixuje 7.4.x → conflict przy następnym `composer remove`. Bezpieczniejszy bootstrap: ręcznie spisany `composer.json` z `7.4.*` na wszystkich `symfony/*`, potem `composer install`. (Odkryte w 0.0.1.)
@@ -247,6 +250,29 @@
   - Why: build vs dev mają różne code paths w Vite/esbuild — build optymalizuje, dev parsuje na żywo.
   - How to apply: po każdym merge do main odpal lokalnie `pnpm dev` z czystego cache (`docker compose restart admin`) i sprawdź `https://pim.localhost`. Albo dodaj to do `Definition of Done` ticketów frontendowych.
 
+## Lessons z 0.0.15 (pgBackRest + WAL stub + MinIO TLS terminator)
+
+- **pgBackRest 2.57 hard-coduje HTTPS dla S3 repos.** `--repo-storage-port` defaultuje na 443 i nie ma opcji "use HTTP". `--repo1-storage-verify-tls=n` wyłącza tylko weryfikację certu, nie samą warstwę TLS. MinIO w dev chodzi po plain HTTP — bez wstawienia TLS terminatora między pgBackRest a MinIO dostajesz `[ServiceError] TLS error [1:167772427] wrong version number` (TLS handshake na port który odpowiada HTTP-em). **Wzór:** mały Caddy sidecar `minio-tls` (`tls internal` + reverse_proxy do `http://minio:9000`) jako jedyny TLS terminator dla pgBackRest → MinIO traffic. (#15)
+  - Why: pgBackRest jest opinionated o tym że produkcyjne S3 to zawsze HTTPS — autorzy nie widzą value w plain-HTTP path nawet dla dev. Minimalna inwazja w MinIO config (zachowuje console na HTTP), izolowana zmiana.
+  - How to apply: dodaj service `minio-tls` (`caddy:2-alpine` + `Caddyfile.minio` z `local_certs` + `minio-tls:443 { tls internal; reverse_proxy http://minio:9000 { header_up Host {host} } }`). pgBackRest config wskazuje `repo1-s3-endpoint=minio-tls`. Production setup (0.11.11) używa MinIO native TLS lub real S3.
+
+- **AWS SigV4 zawiera Host header w podpisie — Caddy reverse_proxy MUSI zachować oryginalny Host upstream'owi.** Default Caddy reverse_proxy rewrituje Host na `upstream_hostport` (np. `minio:9000`), ale klient (pgBackRest) podpisał request używając Host'a `minio-tls`. MinIO weryfikuje sygnaturę po drugiej stronie i widzi `Host: minio:9000` w request'cie ale podpisaną wartość `minio-tls` — `<Code>SignatureDoesNotMatch</Code>` HTTP 403. **Fix:** `header_up Host {host}` w `reverse_proxy` block. Bezpieczne tylko z `repo1-s3-uri-style=path` (path-style URLs nie używają Host'a do bucket dispatch). (#15)
+  - Why: AWS Signature Version 4 wbudowuje Host w canonical request → HMAC. Każdy proxy między klientem a S3 endpoint'em musi przepuszczać Host nietknięty albo klient musi podpisywać dla docelowego upstream'a.
+  - How to apply: każdy reverse_proxy / load balancer przed S3-compatible storage MUSI mieć `header_up Host {host}` (Caddy) lub equivalent (`proxy_set_header Host $host` w nginx, `--preserve-host` w innych). Jeśli kiedyś przejdziemy na virtual-host bucket addressing (`repo1-s3-uri-style=host`), trzeba też ogarnąć subdomain bucket'u — wtedy MinIO musi widzieć `<bucket>.<host>`.
+
+- **`archive-async=y` + ad-hoc `pgbackrest stanza-create`/`backup` = lock contention.** W async mode pgBackRest spawnuje long-running spool worker (process holding `/tmp/pgbackrest/pim-archive-1.lock`) który ciągle obsługuje WAL push z lokalnego spool'a. Każda inna komenda (stanza-create, ręczny backup) failuje na: `[050]: unable to acquire lock on file '/tmp/pgbackrest/pim-archive-1.lock': Resource temporarily unavailable. HINT: is another pgBackRest process running?`. Dla Sprint-0 stuba `archive-async=n` jest poprawne (sync archive_command odpala pgbackrest archive-push i kończy się od razu — brak persistent worker'a). Production (0.11.11) wraca na async + dedicated stanza-create cycle przed backup'em. (#15)
+  - Why: async optymalizuje throughput WAL archiving pod heavy write load (postgres nie czeka na MinIO upload). Dla dev stuba write rate jest pomijalny — sync mode upraszcza model bez kosztu.
+  - How to apply: każdy long-running pgbackrest mode (async, server) trzymający lock blokuje commands w tym samym container'ze. Jeśli musimy mieć async, stanza-create idzie raz przed cron startem; backup przez kolejkę/scheduler awareness.
+
+- **pgBackRest deployment w Dockerze ma TYLKO 2 kanoniczne topologie.** Nie ma "shared volume sidecar" middle-ground: (1) **single-host** — postgres + pgbackrest w jednym obrazie/container'ze, archive_command + backup commands lokalnie; LUB (2) **server-mode TLS** — pgbackrest w drugim container'ze jako TLS server, postgres → SSH/TLS link. Próba "sidecar z shared `postgres_data` volume" nie działa bo (a) named volume mount przykrywa chown'y z Dockerfile'a → permission issues UID 70, (b) pgbackrest do `backup` potrzebuje libpq connection do pg + read access do data dir równocześnie — `pg1-host` ustawione = pgbackrest oczekuje SSH/TLS remote, NIE TCP libpq. Single-host pattern był wybrany dla Sprint-0 (busybox dcron + custom entrypoint chains do upstream `docker-entrypoint.sh postgres`). (#15)
+  - How to apply: production (0.11.11) prawdopodobnie zostanie na single-host single-container — k8s DaemonSet z postgres+pgbackrest sidecar OR systemd timers. Server-mode TLS dochodzi gdy backup repo musi być fizycznie izolowany od PG host'a (off-site DR).
+
+- **Restore = orchiestrowany na hoście, NIE jako Symfony command.** Issue #15 prosił o `pim:backup:restore` Symfony command, ale restore musi: (a) zatrzymać `api` (FrankenPHP trzyma persistent connections które blokują postgres shutdown), (b) zatrzymać `database`, (c) wytrzeć `$PGDATA`, (d) odpalić `pgbackrest restore` jako postgres user, (e) wystartować z powrotem. To są host-level orchestration steps — Symfony command runuje wewnątrz `api` container'a i nie może zatrzymać samego siebie. **Wzór:** bash skrypt `scripts/pim-backup-restore.sh` jak `scripts/perf-list-products.sh` — invokowany z hosta, używa `docker compose run --rm --no-deps --entrypoint /bin/sh database` żeby wykonać wipe+restore w one-shot container'ze (reuse env + volumes z compose service). (#15)
+
+- **Custom postgres image + named volume `postgres_data` na `/var/lib/postgresql/data` zachowuje compatibility z fresh `postgres:16-alpine`.** Switch obrazu z `postgres:16-alpine` na `pim-database:local` (postgres:16-alpine + pgbackrest + dcron) **bez wipe volume'u** działa: postgres uruchamia się z istniejącym data dir, applikuje nowe `command: -c archive_mode=on -c archive_command=...` przy starcie, archive_command zaczyna pchać WAL gdy stanza-create się zakończy. Same alpine base + UID 70 postgres user = bez konfliktów ownership. (#15)
+
+- **Recreate database container z `up -d --force-recreate database` propaguje przez depends_on tree.** compose checkuje `service_completed_successfully` minio-init z PRZESZŁOŚCI (12h temu exit 0) — to cache'owane state w docker. Dla świeżego CI każdy `down -v` + `up` wymusi re-run minio-init. Pattern działa w obu scenariuszach. (#15)
+
 ## Lessons z 0.0.16 (audit + scope revision)
 
 - **Rewizja zakresu MVP w trakcie Sprintu 0 jest NORMALNĄ częścią procesu, nie awarią.** Plan zakładał agentic-first deployment; po pierwszym frontend slice (#5) operator zobaczył że pilot ocenia "działający katalog" wyżej niż "rozmawiaj z systemem". Cofnięcie agenta + integracji do Faz 1/2 to **5 minut decyzji + 30 minut reorganizacji ticketów** (35 issues, 2 nowe milestone'y). (#16)
@@ -337,3 +363,108 @@
 
 - **Trzy fixy w CI debugowaniu = three commits, nie squash do jednego.** Pierwotna implementacja PR #122 → CI fail → fix migracji → CI fail → fix --wait list → CI fail → fix Caddy HTTPS healthcheck → CI green. Każdy commit ma czytelny `fix(ci)/fix(infra)` message + link `Refs #10`. Po squash-merge git history ma jeden czysty commit, ale podczas debug'u widać kolejność rozumowania. (#10)
   - How to apply: debugger CI commits to NORMA, nie smell. Po-mortem w `chore(agent)` na main agreguje wnioski.
+
+## Lessons z ADR-009 (Generalizacja ObjectType — 2026-04-27)
+
+> Praca planowo-dokumentacyjna na poziomie modelu domenowego. Bez zmiany kodu (epik 0.3 nie był jeszcze rozpoczęty — ADR-009 zmienia plan przed pierwszą migracją Catalog). PR #1 (`docs/adr-009-objecttype`) wprowadza ADR + audit planu; PR #2 (`chore/adr-009-issue-reshape`) reshape'uje 30+ otwartych GitHub Issues i ten log.
+
+### Decyzja
+**Generic `ObjectType` z predefiniowanymi Product/Category/Asset siedzącymi jako built-in instancje (`is_built_in=true`) + custom kindy (`Customer`, `Supplier`, `PriceList`) odblokowane w Fazie 2/3.** Pełen ADR w `Project Plan/01-architektura-pim.md` §13.
+
+### Alternatywy odrzucone
+- **(a) Hard-coded `Product` + `Category` z asymetrycznym modelem (status quo).** Asymetria blokuje import z PIMCore (eksport `Zrodla/PIMCore/masowy_eksport_konfiguracji.json` pokazuje klasę `Kategoria` z user-defined SEO + image — nie ma na to miejsca w obecnym `Category` z 3 polami). Blokuje przyszłe `Customer`/`Supplier` bez 8-12h migracji DDL per byt.
+- **(b) Pełna generalizacja jak PIMCore Class Definition** (admin/agent definiuje wszystkie typy w runtime, brak twardych encji). UX dla MVP się rozjeżdża — admin musi sam zdefiniować „produkt" przed pierwszym użyciem. Blokuje optymalizację per kind (ltree dla category, storage dla asset).
+- **(c) Generic `ObjectType` z predefined fixed UX** — wybrana opcja. Kompromis: rdzeń elastyczny (atrybuty + EAV-z-JSONB parametryzowane o `object_type_id`), UX zoptymalizowany pod 3 predefined kindy w admin UI, sugar paths w API.
+
+### Co się sprawdziło w retrospekcji
+- **Rdzeń ADR-006 (hybrid attribute model) jest wystarczająco elastyczny** — generalizacja parametryzuje go o `object_type_id` zamiast wymyślać 4 mechanizmy jak PIMCore. To dowód że decyzja architektoniczna 2-letniego horyzontu (ADR-006) potrafi pociągnąć rozszerzenie zakresu (ADR-009) bez przepisywania.
+- **Asymetria „multi-tenant ready, single-tenant deployed" (ADR-003) reaplikuje się do ObjectType** — tak samo „custom kindy ready, predefined deployed" — sprawdzony pattern.
+- **Saldo budżetu MVP** netto -31 do -39h vs poprzedni 201-274h (rewizja 2026-04-27 zwolniła 51-69h przez przeniesienie epików 0.7/0.8/0.9 do Faz 1/2, ADR-009 dodał 20-30h w epiku 0.3). Wynik: Faza 0 **170-235h pełny / 156-216h okrojony**. Top-line MVP-Alpha mieści się w okrojonym MVP. Single source of truth: sumy epików §3.3 + milestone tabela §3.4 planu.
+
+### Co pozostaje do walidacji w MVP-Alpha
+- **Benchmark `attributes_indexed`** — query po atrybut-value na 10k obiektach × 200 atrybutów × 3 kindach < 50ms. Proof że generic model nie zwalnia query path (R-29 mitigation). Jeśli benchmark fail — wracamy do partial indexes per kind.
+- **Playwright E2E „edycja kategorii z atrybutami niestandardowymi (SEO, image)"** — proof że predefined UX dla 3 kindów daje pełnoprawne user-defined atrybuty per kind.
+- **Dyscyplina `kind='custom'` wyłączony** — feature flag `enable_custom_object_types` egzekwowany w `ObjectTypeService::create()` i tool `create_object_type` agenta. PHPUnit testy + Playwright testy enforce'ują.
+- **Audit log per kind** — DoctrineAuditBundle musi pokrywać wszystkie kindy, nie tylko hard-coded `Product`. Test w 0.11.4 + 0.11.5 (#99 + #100).
+
+### Audit GitHub Issues — log per ticket (2026-04-27)
+
+**Epik 0.3 — major rebody:**
+- **#31 [0.3.1] Attribute + AttributeGroup + AttributeOption** — light append: atrybuty wiązane z `ObjectType` przez junction `object_type_attributes`; jeden atrybut może być reused przez wiele typów. Sama encja Attribute pozostaje generic, scope ticketu bez zmian.
+- **#32 [0.3.2] Family + FamilyAttribute** → **rewrite na ObjectType + ObjectTypeAttribute**. Rename w title, body przepisany od zera. Service blokuje deletion `is_built_in=true`, feature flag `enable_custom_object_types` na `ObjectTypeService::create()`.
+- **#33 [0.3.3] Category z ltree** → **rewrite na Predefined ObjectType `category` + ltree validator dla kind='category'**. Listener `CategoryPathValidator` parametryzowany przez `kind`. Sugar API `/api/categories`.
+- **#34 [0.3.4] Product (rozszerzona) + ProductValue + attributes_indexed** → **rewrite na Object (poly per kind) + ObjectValue + attributes_indexed**. Dodatkowo migracja danych ze Sprintu 0 (`products` → `objects` z `kind='product'`). Generated columns parametryzowane per kind.
+- **#35 [0.3.5] Association** — light append: działa generycznie na `Object` (`object_associations` zastępuje `product_associations`).
+- **#36 [0.3.6] Channel + Locale + Currency + ChannelAttributeMapping** — light append: rename `ChannelAttributeMapping` → `ChannelObjectTypeMapping` (poly per kind).
+- **#37 [0.3.7] Asset + AssetVariant** — light append: Asset jako predefined `ObjectType kind='asset'` + dedykowana tabela `assets` z FK `object_id` na powiązany Object (storage details w assets, user-defined metadata w object_values).
+- **#38 [0.3.8] Doctrine listenery** — light append: `AttributesIndexedSyncListener` parametryzowany per `object_type_id`, `CompletenessRecalculator` czyta reguły z `ObjectType.completeness_rules`.
+- **#39 [0.3.9] Symfony Validator constraints** — light append: parametryzacja per ObjectType w `AttributeValidationCompiler`.
+- **#40 [0.3.10] Migracje + seeders** — light append: rozszerzenie data testowych (5 kategorii z user-defined atrybutami SEO/image, 10 assetów w 1 tenancie).
+- **#128 [0.3.11] Hooks pod kind='custom' na poziomie ApiResource** — **NEW** ticket dodany (renumbered z [0.3.12] do [0.3.11] w korekcie 2026-04-28). Factory `ObjectTypeAwareApiResource`, serializer context per kind, Voter `CustomObjectTypeVoter` enforce'ujący feature flag.
+
+**Epik 0.4 — light update wszystkich (#41-#48):**
+- #41 (ApiResource) — sugar paths `/products`, `/categories`, `/assets` przez extraProperties; jeden controller pod spodem.
+- #45 (data transformers) — rename ProductDenormalizer → ObjectDenormalizer, parametryzowany per `object_type_id`.
+- #42, #43, #44, #46, #47, #48 — jednolinijkowy „post ADR-009: respect `object_type_id` in filters/serializers/data transformers/Mercure events".
+
+**Epik 0.5 — light update wszystkich (#49-#53):**
+- Indexer Meilisearch parametryzuje się o `object_type_id`, jeden indeks per kind (`products`, `categories`).
+- Reindex CLI: `pim:search:reindex --kind=product|category|all`.
+
+**Epik 0.6 — UPDATE:**
+- #54 (Layout) — Cmd+K placeholder usunięty (rewizja 2026-04-27); sidebar pokazuje fixed sekcje pierwszej klasy.
+- #55 (Resource Products) — bez zmiany scope (form parametryzowany o `object_type_id` już planowany).
+- #56 (Resource Attributes) — dochodzi filtr `applies_to_object_type`.
+- **#57 (Resource Families) → rename na Resource ObjectTypes** + UI predefined locked + sekcja Custom disabled „Faza 2".
+- #58 (Categories tree) — dochodzi dynamic attribute editor for `kind='category'` (proof of ADR-009).
+- #59 (Channels) — `ChannelObjectTypeMapping` (poly per kind).
+- #60 (Assets) — UI obsługuje storage details + user-defined attributes razem.
+- #61 (Provenance) — działa na `object_values` zamiast `product_values`; wariant `agent` zarezerwowany Faza 2.
+- #62 (i18n) — bez zmiany scope.
+
+**Epik 0.10 — light update wszystkich (#90-#95):**
+- #90 (ApiProfile + ApiKey) — pole `object_types` JSONB w ApiProfile.
+- #91-#95 — UI multiselect ObjectType, filter response per `object_type_id`, OpenAPI export sugar paths.
+
+**Epik 0.11 — light update kluczowych:**
+- #99 (Audit log) — DoctrineAuditBundle obejmuje wszystkie obiekty `Object` + dedykowany audit dla `ObjectType` i `Attribute`.
+- #100 (Playwright E2E) — dochodzi scenariusz „edycja kategorii z atrybutami niestandardowymi" + „próba `kind='custom'` blocked feature flagiem". Sync to BaseLinker/Shopify w Fazie 1, agent w Fazie 2.
+
+**Faza 1 — Integracje (light):**
+- #74 (BaseLinker adapter) — pobiera dane z `Object kind='product'`; mapping per `ObjectType`.
+- #81 (Shopify adapter) — pobiera dane z `Object kind='product'`; Collections z `Object kind='category'`; metafields per ObjectType.
+
+**Faza 2 — Agent (light):**
+- #6 (Sprint-0 agent endpoint) — `assign_attribute_to_object_type` zastępuje `assign_attribute_to_family`; `create_object_type` reserved Faza 2.
+- #63 (Bundle Agent) — AgentRun loguje tool calls per `kind` w `tool_calls` JSONB.
+- **#65 (Tool definitions) — KEY UPDATE:** lista toolów po ADR-009. `search_object_types` (nowy), `assign_attribute_to_object_type` (rename), `create_object_type` (nowy, reserved feature flagiem), `create_category` (sugar tool).
+- #66 (Tool execution) — Voter `CustomObjectTypeVoter` enforce'uje feature flag.
+- #67 (Pending changes) — `target_kind` w rekord.
+- #71 (Audit logging) — `target_kind` indeksowane.
+
+**Follow-up:**
+- **#123 (Custom PHPStan rule blocking flush in loop without clear)** — milestone przypisany do **MVP-Final** (był NONE). Po ADR-009 rule operuje na `object_values` flush patterns, nie tylko `product_values`.
+
+**Sprint-0 leftovers (#9, #15) i Epiki 0.1 (#17-#23) / 0.2 (#24-#30)** — bez zmian (czysta infra/auth/demo, neutralne wobec ADR-009).
+
+### Statystyka audytu
+- 30 ticketów edytowanych (epik 0.3: 10 + nowy 0.3.11; epik 0.4: 8 light; epik 0.5: 5 light; epik 0.6: 9 update + 1 rename; epik 0.10: 6 light; epik 0.11: 2 light; Faza 1: 2 light; Faza 2: 7 light).
+- 1 nowy ticket utworzony (#128 — 0.3.11).
+- 1 ticket dostał milestone (#123 → MVP-Final).
+- 0 ticketów zamkniętych jako duplikaty/obsolete.
+
+### Korekty post-audyt (2026-04-28)
+Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
+- **F-001 (krytyczne):** §5.2 architektury — `channels.category_tree_root_id REFERENCES categories(id)` → `category_tree_root_object_id REFERENCES objects(id)` (target enforce'owany przez `ChannelCategoryRootValidator`, bo Postgres FK nie wspiera predykatu na kolumnie target).
+- **F-002:** §8.2 + §8.4 architektury — usunięto „rodziny", przykład Approval flow przepisany na `assign_attribute_to_object_type`.
+- **F-003:** §3.1 (Cele) + §3.2 (Sprint 0 OOS) + ticket 0.2.3 + ticket 0.7.3 + Faza 2 #65 w planie — usunięto relikty „Family"/„rodziny".
+- **F-004:** estymaty zsynchronizowane z sumami epików §3.3 + milestone tabelą §3.4. Faza 0 pełna **170-235h** (poprzednio błędnie 188-260h). Source of truth: §3.3 i §3.4 planu, sekcja 7 i streszczenie z nich się derive'ują.
+- **F-006/F-007/F-008:** issues #36, #65, #41 — title + Cel + Zakres przepisane (wcześniej tylko Aktualizacje announce'owały rename, aktywne checkboxy zostawały stare).
+- **F-009:** CLAUDE.md commit example — przepisany z `Product+Family+ProductValue` na `ObjectType+ObjectTypeAttribute+is_built_in`.
+- **F-010:** lesson log #36 (rename ChannelAttributeMapping) teraz odpowiada faktycznemu stanowi issue body.
+
+**F-005 (renumeracja epiku 0.3) — wykonana 2026-04-28:**
+- Plan §3.3 zaktualizowany: 0.3.3 (Predefined fixtures) i 0.3.5 (custom logika `kind='category'` ltree) zlepione w jeden ticket 0.3.3 (fixtures są zlepione z ltree dla category — nie ma sensu rozdzielać). Epik 0.3 ma teraz 11 ticketów (było pre-rewrite 10).
+- GH issue #33: `[0.3.5]` → `[0.3.3]`, body rozszerzone o fixtures dla wszystkich trzech built-in kindów (product/category/asset).
+- GH issue #128: `[0.3.12]` → `[0.3.11]` (zlikwidowana luka po konsolidacji 0.3.3+0.3.5).
+- Reszta GH issues zachowuje swoje numery: #35 [0.3.5], #36 [0.3.6], #37 [0.3.7], #38 [0.3.8], #39 [0.3.9], #40 [0.3.10] — pasują do zaktualizowanej numeracji planu.
