@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\DataFixtures;
 
 use App\Catalog\Domain\Entity\Product;
+use App\Identity\Application\RbacSeeder;
 use App\Identity\Application\TenantContext;
 use App\Identity\Domain\Entity\Tenant;
 use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Rbac\RbacMatrix;
+use App\Identity\Infrastructure\Doctrine\Repository\RoleRepository;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -33,6 +36,8 @@ class AppFixtures extends Fixture
     public function __construct(
         private readonly TenantContext $tenantContext,
         private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly RbacSeeder $rbacSeeder,
+        private readonly RoleRepository $roleRepository,
     ) {
     }
 
@@ -49,19 +54,28 @@ class AppFixtures extends Fixture
 
         $manager->flush();
 
+        // Seed the four built-in global roles before persisting users so the
+        // admin fixture can attach the super_admin role through the M2M graph
+        // rather than the legacy `roles JSON` column.
+        $this->rbacSeeder->seed();
+
+        $superAdmin = $this->roleRepository->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);
+        \assert(null !== $superAdmin, 'RbacSeeder must create the super_admin role.');
+
         $admins = [
             'demo' => 'admin@demo.localhost',
             'acme' => 'admin@acme.localhost',
         ];
         foreach ($tenants as $tenant) {
             $email = $admins[$tenant->getCode()];
-            $stub = new User($tenant, $email, '', ['ROLE_ADMIN']);
+            $stub = new User($tenant, $email, '', []);
             $admin = new User(
                 $tenant,
                 $email,
                 $this->passwordHasher->hashPassword($stub, self::DEFAULT_ADMIN_PASSWORD),
-                ['ROLE_ADMIN'],
+                [],
             );
+            $admin->addRole($superAdmin);
             $manager->persist($admin);
         }
         $manager->flush();

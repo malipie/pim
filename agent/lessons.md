@@ -500,3 +500,15 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
   - How to apply: po każdym ticketcie z security.yaml lub event listener changes — zrób manual smoke PO restart api, nie tylko PHPUnit.
 
 - **Logout w MVP to placeholder 204** — JWT jest stateless, bez refresh tokenów + blacklist'y nie da się invalidować access tokena. Endpoint istnieje by SPA miała gdzie wpiąć button. Pełen logout (revoke refresh + clear httpOnly cookie + cookie chain) w #28+#29. Why: nie udajemy że logout działa — komentarz w controllerze + body ticketu #25 jasno mówi że to placeholder. Klient client-side dropuje access token aż server-side invalidation dochodzi w #28.
+
+## Lessons z 0.2.4 / #27 (RBAC seeder + getRoles() merge)
+
+- **Seeder seeduje matrix, nie aktualnie istniejące encje.** `RbacMatrix::RESOURCES` zawiera m.in. `object`, `channel`, `attribute_group` — encje które dochodzą w epikach 0.3/0.6. Seeder tworzy permission rows niezależnie od istnienia tabel. Why: voters (#26) i API surface'y muszą mieć permissions do referowania, nawet gdy backing entity nie istnieje. Source of truth = matrix; entity layer nadrabia. How to apply: dodanie nowego resource = edytuj `RESOURCES` list + udokumentuj w `docs/rbac.md`, voter na to czeka.
+
+- **`final readonly class` nie działa gdy klasa mutuje stan w runtime.** PHP 8.4: `readonly class` czyni wszystkie pola immutable, nawet z domyślną wartością (`private int $x = 0;` → fatal error "Readonly property cannot have default value"). Pattern dla seederów / builderów: `final class X` z `public function __construct(private readonly ...)` w konstruktorze. Why: immutable per-instance state vs counter pola które resetują się per-call.
+
+- **`User::getRoles()` jako merge point JSON legacy + M2M.** Legacy `['ROLE_ADMIN']` w JSON (Sprint-0 fixture) + `ROLE_'.strtoupper($role->getCode())` z M2M + `ROLE_USER` floor → `array_values(array_unique($roles))`. Why: jeden ticket = jedna zmiana — drop JSON column to osobny ticket post-MVP. Do tego czasu fixture'y i ad-hoc testy mogą dalej tworzyć `new User(... ['ROLE_X'])` i działa.
+
+- **Idempotency seedera = unique indexes z #24 są twoją siatką bezpieczeństwa.** `permissions(resource, action)` UNIQUE + `roles(tenant_id, code)` UNIQUE. Buggy seeder duplikujący row = SQL error przy flush, nie cicho duplikaty. Test: re-run `seed()` → `isNoOp() == true`.
+
+- **Stack PR-ów w epikach: rebase poprzedni branch na main przed stack'iem.** #27 stack'owany na #25. #25 branch był stworzony z main PRZED merge'em #24 → #25 nie miało Role/Permission encji. Lekarstwo: `git checkout main && git pull && git checkout #25-branch && git rebase main && git push --force-with-lease`. Why: stack `#27` na pre-#24 stanie #25 = brakuje schema. Symptom: `ls src/Identity/Domain/Entity/` pokazuje tylko Tenant.php + User.php. **Pattern:** zawsze rebase parent branch na świeże main przed odbiciem child branchu.
