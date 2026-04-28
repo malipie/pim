@@ -4,27 +4,40 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation;
 
+use App\Identity\Application\RefreshTokenService;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * MVP logout endpoint — placeholder.
+ * POST /api/auth/logout — revoke the active refresh token and clear the cookie.
  *
- * JWT is stateless and there is no native invalidation path; without a
- * persisted refresh-token table we cannot revoke a still-valid access token.
- * #28 lands the refresh-token rotation, persistence, and cookie clearing —
- * this controller becomes the entry point for the full logout flow then.
+ * Always returns 204 even if the cookie is missing or already invalid: a
+ * client logging out is signalling intent, not asking for verification, and
+ * a non-idempotent logout would surprise React after a full-page refresh.
  *
- * In the meantime we accept POST /api/auth/logout and return 204 so the
- * Refine SPA can wire its logout button against a real endpoint and unit
- * tests can assert the contract is reachable. Clients are expected to drop
- * the access token client-side until #28+#29 add server-side invalidation.
+ * The access token (Bearer JWT) survives until its 1 h TTL expires — that's
+ * a known limitation of stateless JWT and is mitigated by the short TTL plus
+ * the cookie clearance which prevents silent re-issue via /api/auth/refresh.
+ * A session-token blacklist is intentionally out of scope (epic 0.11).
  */
-final class LogoutController
+final readonly class LogoutController
 {
+    public function __construct(
+        private RefreshTokenService $refreshTokens,
+        private AuthCookieFactory $cookies,
+    ) {
+    }
+
     #[Route(path: '/api/auth/logout', methods: ['POST'], name: 'api_auth_logout')]
-    public function __invoke(): Response
+    public function __invoke(Request $request): Response
     {
-        return new Response(null, Response::HTTP_NO_CONTENT);
+        $cookieValue = $request->cookies->get($this->cookies->getCookieName());
+        $this->refreshTokens->revoke($cookieValue);
+
+        $response = new Response(null, Response::HTTP_NO_CONTENT);
+        $response->headers->setCookie($this->cookies->clear());
+
+        return $response;
     }
 }
