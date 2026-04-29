@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\DataFixtures;
 
+use App\Catalog\Application\BuiltInAssociationTypeSeeder;
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
@@ -38,6 +39,7 @@ class AppFixtures extends Fixture
         private readonly RbacSeeder $rbacSeeder,
         private readonly RoleRepository $roleRepository,
         private readonly BuiltInObjectTypeSeeder $builtInSeeder,
+        private readonly BuiltInAssociationTypeSeeder $associationTypeSeeder,
         private readonly ObjectTypeRepository $objectTypeRepository,
     ) {
     }
@@ -68,6 +70,7 @@ class AppFixtures extends Fixture
         // are safe.
         foreach ($tenants as $tenant) {
             $this->builtInSeeder->seed($tenant);
+            $this->associationTypeSeeder->seed($tenant);
         }
 
         $admins = [

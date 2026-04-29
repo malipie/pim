@@ -77,3 +77,5 @@ parameters:
               - src/Catalog/Domain/Entity/ObjectType.php
               - src/Catalog/Domain/Entity/CatalogObject.php
               - src/Catalog/Domain/Entity/ObjectValue.php
+              - src/Catalog/Domain/Entity/AssociationType.php
+              - src/Catalog/Domain/Entity/Association.php
