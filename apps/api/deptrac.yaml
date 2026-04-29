@@ -1,0 +1,213 @@
+# Architectural fitness rules for the modular monolith — see ADR-0013.
+#
+# Each BC is split into two layers — Internals (Domain + Application +
+# Infrastructure + Presentation) and Contracts (the public DTOs/events
+# everyone outside the BC is allowed to reach for). Cross-BC depends_on
+# only goes through the *_Contracts layer; Internals are private.
+#
+# Tooling-only directories (Benchmark, DataFixtures, Story) live in their
+# own layer that is allowed to reach into anything — fixtures and the
+# bulk-import benchmark legitimately do.
+parameters:
+    paths:
+        - src
+    exclude_files:
+        - '#src/Kernel\.php#'
+    layers:
+        # ─── Catalog ───────────────────────────────────────────────────
+        - name: Catalog_Internals
+          collectors:
+              - type: directory
+                value: 'src/Catalog/Domain/.*'
+              - type: directory
+                value: 'src/Catalog/Application/.*'
+              - type: directory
+                value: 'src/Catalog/Infrastructure/.*'
+              - type: directory
+                value: 'src/Catalog/Presentation/.*'
+        - name: Catalog_Contracts
+          collectors:
+              - type: directory
+                value: 'src/Catalog/Contracts/.*'
+
+        # ─── Channel ───────────────────────────────────────────────────
+        - name: Channel_Internals
+          collectors:
+              - type: directory
+                value: 'src/Channel/Domain/.*'
+              - type: directory
+                value: 'src/Channel/Application/.*'
+              - type: directory
+                value: 'src/Channel/Infrastructure/.*'
+              - type: directory
+                value: 'src/Channel/Presentation/.*'
+        - name: Channel_Contracts
+          collectors:
+              - type: directory
+                value: 'src/Channel/Contracts/.*'
+
+        # ─── Asset ─────────────────────────────────────────────────────
+        - name: Asset_Internals
+          collectors:
+              - type: directory
+                value: 'src/Asset/Domain/.*'
+              - type: directory
+                value: 'src/Asset/Application/.*'
+              - type: directory
+                value: 'src/Asset/Infrastructure/.*'
+              - type: directory
+                value: 'src/Asset/Presentation/.*'
+        - name: Asset_Contracts
+          collectors:
+              - type: directory
+                value: 'src/Asset/Contracts/.*'
+
+        # ─── Identity ──────────────────────────────────────────────────
+        - name: Identity_Internals
+          collectors:
+              - type: directory
+                value: 'src/Identity/Domain/.*'
+              - type: directory
+                value: 'src/Identity/Application/.*'
+              - type: directory
+                value: 'src/Identity/Infrastructure/.*'
+              - type: directory
+                value: 'src/Identity/Presentation/.*'
+        - name: Identity_Contracts
+          collectors:
+              - type: directory
+                value: 'src/Identity/Contracts/.*'
+
+        # ─── Shared (always reachable) ─────────────────────────────────
+        - name: Shared
+          collectors:
+              - type: directory
+                value: 'src/Shared/.*'
+
+        # ─── Forward-compatible BCs (empty today) ──────────────────────
+        - name: Integration
+          collectors:
+              - type: directory
+                value: 'src/Integration/.*'
+        - name: Agent
+          collectors:
+              - type: directory
+                value: 'src/Agent/.*'
+        - name: ApiConfigurator
+          collectors:
+              - type: directory
+                value: 'src/ApiConfigurator/.*'
+
+        # ─── Tooling — fixtures, benchmarks, foundry stories ───────────
+        - name: Tooling
+          collectors:
+              - type: directory
+                value: 'src/Benchmark/.*'
+              - type: directory
+                value: 'src/DataFixtures/.*'
+              - type: directory
+                value: 'src/Story/.*'
+
+    ruleset:
+        Catalog_Internals:
+            - Catalog_Contracts
+            - Asset_Contracts
+            - Channel_Contracts
+            - Identity_Contracts
+            - Shared
+        Catalog_Contracts:
+            - Shared
+
+        Channel_Internals:
+            - Channel_Contracts
+            - Catalog_Contracts
+            - Asset_Contracts
+            - Identity_Contracts
+            - Shared
+        Channel_Contracts:
+            - Shared
+
+        Asset_Internals:
+            - Asset_Contracts
+            - Catalog_Contracts
+            - Identity_Contracts
+            - Shared
+        Asset_Contracts:
+            - Shared
+
+        Identity_Internals:
+            - Identity_Contracts
+            - Shared
+        Identity_Contracts:
+            - Shared
+
+        Shared: ~
+
+        Integration:
+            - Shared
+            - Catalog_Contracts
+            - Channel_Contracts
+            - Asset_Contracts
+            - Identity_Contracts
+
+        Agent:
+            - Shared
+            - Catalog_Contracts
+            - Identity_Contracts
+
+        ApiConfigurator:
+            - Shared
+            - Catalog_Contracts
+            - Channel_Contracts
+            - Asset_Contracts
+            - Identity_Contracts
+
+        Tooling:
+            - Catalog_Internals
+            - Catalog_Contracts
+            - Channel_Internals
+            - Channel_Contracts
+            - Asset_Internals
+            - Asset_Contracts
+            - Identity_Internals
+            - Identity_Contracts
+            - Shared
+
+    # Inline baseline of pre-existing cross-BC violations that the cleanup
+    # tickets handle in follow-ups (see ADR-0013). Three clusters:
+    #   1. Catalog\Domain enums (ObjectKind / AttributeType / Provenance)
+    #      used by Catalog Contracts + Channel validator. Move them into
+    #      Catalog\Contracts\Enum next.
+    #   2. ChannelObjectTypeMapping FKs to Catalog\Domain\Entity\ObjectType
+    #      and \Attribute. RF-19 deferred the junction's Uuid sweep —
+    #      separate ticket.
+    #   3. Shared\Infrastructure\Http\RequestTenantSubscriber depending on
+    #      Identity\Application\CurrentTenantProvider. Cleanup: move
+    #      CurrentTenantProvider into Shared\Application.
+    # Every entry below is a TODO; new violations not in this list fail the
+    # build through CI.
+    skip_violations:
+        App\Catalog\Application\DemoCatalogSeeder:
+            - App\Asset\Domain\Entity\Asset
+            - App\Asset\Domain\Entity\AssetVariant
+        App\Catalog\Contracts\Event\ObjectCreated:
+            - App\Catalog\Domain\ObjectKind
+        App\Catalog\Contracts\Query\ObjectSummary:
+            - App\Catalog\Domain\ObjectKind
+        App\Catalog\Contracts\Query\ObjectTypeSummary:
+            - App\Catalog\Domain\ObjectKind
+        App\Channel\Domain\Entity\ChannelObjectTypeMapping:
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Entity\ObjectType
+        App\Channel\Domain\Repository\ChannelObjectTypeMappingRepositoryInterface:
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Entity\ObjectType
+        App\Channel\Infrastructure\Doctrine\EventListener\ChannelCategoryRootValidator:
+            - App\Catalog\Application\Query\GetObjectSummary\GetObjectSummaryHandler
+            - App\Catalog\Application\Query\GetObjectSummary\GetObjectSummaryQuery
+            - App\Catalog\Domain\ObjectKind
+        App\Channel\Infrastructure\Doctrine\Repository\DoctrineChannelObjectTypeMappingRepository:
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Entity\ObjectType
+        App\Shared\Infrastructure\Http\RequestTenantSubscriber:
+            - App\Identity\Application\CurrentTenantProvider

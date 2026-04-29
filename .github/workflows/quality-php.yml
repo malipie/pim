@@ -73,6 +73,35 @@ jobs:
           APP_ENV: dev
           JWT_PASSPHRASE: ci
 
+  deptrac:
+    name: Deptrac (architectural fitness)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: ctype, iconv, intl
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/api/vendor
+            ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Deptrac analyse
+        run: vendor/bin/deptrac analyse --no-progress --no-cache
+
   php-cs-fixer:
     name: PHP-CS-Fixer (dry-run)
     runs-on: ubuntu-latest
