@@ -79,3 +79,4 @@ parameters:
               - src/Catalog/Domain/Entity/ObjectValue.php
               - src/Catalog/Domain/Entity/AssociationType.php
               - src/Catalog/Domain/Entity/Association.php
+              - src/Channel/Domain/Entity/Channel.php

@@ -1,0 +1,191 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Channel\Domain\Entity;
+
+use App\Catalog\Domain\Entity\CatalogObject;
+use App\Channel\Infrastructure\Doctrine\Repository\ChannelRepository;
+use App\Identity\Application\TenantScoped;
+use App\Identity\Domain\Entity\Tenant;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\Mapping as ORM;
+use LogicException;
+use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Validator\Constraints as Assert;
+
+/**
+ * Tenant-scoped sales / publication channel.
+ *
+ * Examples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.
+ * Each channel carries:
+ *
+ *   - a label (`{pl, en}`) — what admins see in the UI;
+ *   - a set of supported `Locale` rows (M2M `channel_locales`);
+ *   - a set of supported `Currency` rows (M2M `channel_currencies`);
+ *   - an optional `category_tree_root_object_id` pointing at a
+ *     `CatalogObject` of `kind=category` — the root of the category tree
+ *     this channel publishes. Validation ("the target must be a
+ *     category") lives in
+ *     {@see \App\Channel\Infrastructure\Doctrine\EventListener\ChannelCategoryRootValidator}.
+ *
+ * Per-channel attribute mappings (e.g. PIM `color` ↔ Shopify
+ * `metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped
+ * per `ObjectType` so a single channel can have different field shapes
+ * for product vs. category exports.
+ */
+#[ORM\Entity(repositoryClass: ChannelRepository::class)]
+#[ORM\Table(name: 'channels')]
+#[ORM\UniqueConstraint(name: 'channels_tenant_code_uniq', columns: ['tenant_id', 'code'])]
+#[ORM\Index(name: 'channels_tenant_idx', columns: ['tenant_id'])]
+class Channel implements TenantScoped
+{
+    #[ORM\Id]
+    #[ORM\Column(type: 'uuid')]
+    private Uuid $id;
+
+    #[ORM\ManyToOne(targetEntity: Tenant::class)]
+    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
+    private ?Tenant $tenant = null;
+
+    #[ORM\Column(type: 'string', length: 64)]
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 64)]
+    private string $code;
+
+    /**
+     * @var array<string, string>
+     */
+    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]
+    #[Assert\Type('array')]
+    private array $label;
+
+    /**
+     * @var Collection<int, Locale>
+     */
+    #[ORM\ManyToMany(targetEntity: Locale::class)]
+    #[ORM\JoinTable(name: 'channel_locales')]
+    #[ORM\JoinColumn(name: 'channel_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'locale_id', referencedColumnName: 'id', onDelete: 'RESTRICT')]
+    private Collection $locales;
+
+    /**
+     * @var Collection<int, Currency>
+     */
+    #[ORM\ManyToMany(targetEntity: Currency::class)]
+    #[ORM\JoinTable(name: 'channel_currencies')]
+    #[ORM\JoinColumn(name: 'channel_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'currency_id', referencedColumnName: 'id', onDelete: 'RESTRICT')]
+    private Collection $currencies;
+
+    #[ORM\ManyToOne(targetEntity: CatalogObject::class)]
+    #[ORM\JoinColumn(name: 'category_tree_root_object_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?CatalogObject $categoryTreeRoot = null;
+
+    /**
+     * @param array<string, string> $label
+     */
+    public function __construct(string $code, array $label, ?Uuid $id = null)
+    {
+        $this->id = $id ?? Uuid::v7();
+        $this->code = $code;
+        $this->label = $label;
+        $this->locales = new ArrayCollection();
+        $this->currencies = new ArrayCollection();
+    }
+
+    public function getId(): Uuid
+    {
+        return $this->id;
+    }
+
+    public function getTenant(): ?Tenant
+    {
+        return $this->tenant;
+    }
+
+    /**
+     * @internal stamped by TenantAssignmentListener on prePersist
+     */
+    public function assignTenant(Tenant $tenant): void
+    {
+        if (null !== $this->tenant) {
+            throw new LogicException('Tenant is already assigned and cannot be reassigned.');
+        }
+
+        $this->tenant = $tenant;
+    }
+
+    public function getCode(): string
+    {
+        return $this->code;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getLabel(): array
+    {
+        return $this->label;
+    }
+
+    /**
+     * @param array<string, string> $label
+     */
+    public function setLabel(array $label): void
+    {
+        $this->label = $label;
+    }
+
+    /**
+     * @return Collection<int, Locale>
+     */
+    public function getLocales(): Collection
+    {
+        return $this->locales;
+    }
+
+    public function addLocale(Locale $locale): void
+    {
+        if (!$this->locales->contains($locale)) {
+            $this->locales->add($locale);
+        }
+    }
+
+    public function removeLocale(Locale $locale): void
+    {
+        $this->locales->removeElement($locale);
+    }
+
+    /**
+     * @return Collection<int, Currency>
+     */
+    public function getCurrencies(): Collection
+    {
+        return $this->currencies;
+    }
+
+    public function addCurrency(Currency $currency): void
+    {
+        if (!$this->currencies->contains($currency)) {
+            $this->currencies->add($currency);
+        }
+    }
+
+    public function removeCurrency(Currency $currency): void
+    {
+        $this->currencies->removeElement($currency);
+    }
+
+    public function getCategoryTreeRoot(): ?CatalogObject
+    {
+        return $this->categoryTreeRoot;
+    }
+
+    public function setCategoryTreeRoot(?CatalogObject $root): void
+    {
+        $this->categoryTreeRoot = $root;
+    }
+}

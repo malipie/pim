@@ -49,6 +49,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Catalog/Domain/Entity'
                 prefix: 'App\Catalog\Domain\Entity'
                 alias: Catalog
+            Channel:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Channel/Domain/Entity'
+                prefix: 'App\Channel\Domain\Entity'
+                alias: Channel
             Identity:
                 type: attribute
                 is_bundle: false
