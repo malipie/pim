@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Channel\Domain\Entity;
 
-use App\Catalog\Domain\Entity\CatalogObject;
 use App\Channel\Contracts\Event\CategoryTreeRootAttached;
 use App\Channel\Contracts\Event\ChannelCreated;
 use App\Shared\Application\TenantScoped;
@@ -62,7 +61,13 @@ class Channel extends AggregateRoot implements TenantScoped
      */
     private Collection $currencies;
 
-    private ?CatalogObject $categoryTreeRoot = null;
+    /**
+     * Stored as a bare UUID rather than a Doctrine relation to keep Channel
+     * Domain free of cross-BC entity imports — the FK lives at the DB layer
+     * (CASCADE-on-delete in the migration), the kind=category invariant is
+     * enforced by ChannelCategoryRootValidator via GetObjectSummary (RF-19).
+     */
+    private ?Uuid $categoryTreeRootId = null;
 
     /**
      * @param array<string, string> $label
@@ -164,20 +169,24 @@ class Channel extends AggregateRoot implements TenantScoped
         $this->currencies->removeElement($currency);
     }
 
-    public function getCategoryTreeRoot(): ?CatalogObject
+    public function getCategoryTreeRootId(): ?Uuid
     {
-        return $this->categoryTreeRoot;
+        return $this->categoryTreeRootId;
     }
 
-    public function attachCategoryTreeRoot(?CatalogObject $root): void
+    public function attachCategoryTreeRoot(?Uuid $rootId): void
     {
-        $this->categoryTreeRoot = $root;
+        if ($this->categoryTreeRootId?->toRfc4122() === $rootId?->toRfc4122()) {
+            return;
+        }
+
+        $this->categoryTreeRootId = $rootId;
 
         if (null !== $this->tenant) {
             $this->recordThat(new CategoryTreeRootAttached(
                 channelId: $this->id,
                 tenantId: $this->tenant->getId(),
-                categoryTreeRootId: $root?->getId(),
+                categoryTreeRootId: $rootId,
             ));
         }
     }

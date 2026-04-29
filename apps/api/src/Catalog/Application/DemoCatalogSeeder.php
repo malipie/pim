@@ -244,7 +244,7 @@ final readonly class DemoCatalogSeeder
                 size: 1024 * 12,
                 storagePath: $storagePath,
             );
-            $asset->linkToObject($catalogAsset);
+            $asset->linkToObject($catalogAsset->getId());
             $variant = new AssetVariant($asset, AssetVariant::CODE_ORIGINAL, $storagePath, 'image/jpeg', 1024 * 12);
             $asset->addVariant($variant);
             $this->em->persist($asset);
