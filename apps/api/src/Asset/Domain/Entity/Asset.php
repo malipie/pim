@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace App\Asset\Domain\Entity;
 
-use App\Asset\Infrastructure\Doctrine\Repository\AssetRepository;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -37,57 +34,38 @@ use Symfony\Component\Validator\Constraints as Assert;
  * {@see AssetVariant} and are derived in phase 1 (transformations are
  * out of MVP scope — #37 only handles the original upload).
  */
-#[ORM\Entity(repositoryClass: AssetRepository::class)]
-#[ORM\Table(name: 'assets')]
-#[ORM\UniqueConstraint(name: 'assets_tenant_code_uniq', columns: ['tenant_id', 'code'])]
-#[ORM\UniqueConstraint(name: 'assets_object_id_uniq', columns: ['object_id'])]
-#[ORM\Index(name: 'assets_tenant_idx', columns: ['tenant_id'])]
 class Asset implements TenantScoped
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
 
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private ?Tenant $tenant = null;
 
-    #[ORM\Column(type: 'string', length: 128)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 128)]
     private string $code;
 
-    #[ORM\OneToOne(targetEntity: CatalogObject::class)]
-    #[ORM\JoinColumn(name: 'object_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?CatalogObject $object = null;
 
-    #[ORM\Column(name: 'original_filename', type: Types::STRING, length: 255)]
     #[Assert\NotBlank]
     private string $originalFilename;
 
-    #[ORM\Column(name: 'mime_type', type: Types::STRING, length: 128)]
     private string $mimeType;
 
-    #[ORM\Column(type: Types::BIGINT)]
     private int $size;
 
     /**
      * @var array<string, mixed>
      */
-    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
     private array $metadata = [];
 
-    #[ORM\Column(name: 'storage_path', type: Types::STRING, length: 1024)]
     #[Assert\NotBlank]
     private string $storagePath;
 
-    #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     private DateTimeImmutable $createdAt;
 
     /**
      * @var Collection<int, AssetVariant>
      */
-    #[ORM\OneToMany(targetEntity: AssetVariant::class, mappedBy: 'asset', cascade: ['persist'], orphanRemoval: true)]
     private Collection $variants;
 
     public function __construct(

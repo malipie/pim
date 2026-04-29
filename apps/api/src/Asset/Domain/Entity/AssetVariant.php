@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Asset\Domain\Entity;
 
-use App\Asset\Infrastructure\Doctrine\Repository\AssetVariantRepository;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -22,35 +19,23 @@ use Symfony\Component\Validator\Constraints as Assert;
  * column. The table joins `INFRA_TABLES` allowlist in
  * `pim:tenant:audit`.
  */
-#[ORM\Entity(repositoryClass: AssetVariantRepository::class)]
-#[ORM\Table(name: 'asset_variants')]
-#[ORM\UniqueConstraint(name: 'asset_variants_asset_code_uniq', columns: ['asset_id', 'variant_code'])]
-#[ORM\Index(name: 'asset_variants_asset_idx', columns: ['asset_id'])]
 class AssetVariant
 {
     public const string CODE_ORIGINAL = 'original';
     public const string CODE_THUMB = 'thumb';
     public const string CODE_MEDIUM = 'medium';
 
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
 
-    #[ORM\ManyToOne(targetEntity: Asset::class, inversedBy: 'variants')]
-    #[ORM\JoinColumn(name: 'asset_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private Asset $asset;
 
-    #[ORM\Column(name: 'variant_code', type: Types::STRING, length: 32)]
     #[Assert\NotBlank]
     private string $variantCode;
 
-    #[ORM\Column(name: 'storage_path', type: Types::STRING, length: 1024)]
     private string $storagePath;
 
-    #[ORM\Column(name: 'mime_type', type: Types::STRING, length: 128)]
     private string $mimeType;
 
-    #[ORM\Column(type: Types::BIGINT)]
     private int $size;
 
     public function __construct(
