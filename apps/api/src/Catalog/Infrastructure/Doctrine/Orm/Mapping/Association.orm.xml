@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Catalog\Domain\Entity\Association"
+            table="object_associations"
+            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\AssociationRepository">
+
+        <unique-constraints>
+            <unique-constraint name="object_associations_triple_uniq" columns="source_object_id,target_object_id,type_id"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="object_associations_tenant_idx" columns="tenant_id"/>
+            <index name="object_associations_source_type_idx" columns="source_object_id,type_id"/>
+            <index name="object_associations_target_idx" columns="target_object_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <many-to-one field="source" target-entity="App\Catalog\Domain\Entity\CatalogObject">
+            <join-column name="source_object_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <many-to-one field="target" target-entity="App\Catalog\Domain\Entity\CatalogObject">
+            <join-column name="target_object_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <many-to-one field="type" target-entity="App\Catalog\Domain\Entity\AssociationType">
+            <join-column name="type_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="position" type="integer">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+
+    </entity>
+
+</doctrine-mapping>

@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace App\Catalog\Domain\Entity;
 
-use App\Catalog\Infrastructure\Doctrine\Repository\AssociationTypeRepository;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -28,21 +25,10 @@ use Symfony\Component\Validator\Constraints as Assert;
  * (not just products) — products linking to categories, categories
  * linking to assets, etc.
  */
-#[ORM\Entity(repositoryClass: AssociationTypeRepository::class)]
-#[ORM\Table(name: 'association_types')]
-#[ORM\UniqueConstraint(name: 'association_types_tenant_code_uniq', columns: ['tenant_id', 'code'])]
-#[ORM\Index(name: 'association_types_tenant_position_idx', columns: ['tenant_id', 'position'])]
 class AssociationType implements TenantScoped
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
-
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private ?Tenant $tenant = null;
-
-    #[ORM\Column(type: 'string', length: 64)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 64)]
     private string $code;
@@ -50,11 +36,9 @@ class AssociationType implements TenantScoped
     /**
      * @var array<string, string>
      */
-    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]
     #[Assert\Type('array')]
     private array $label;
 
-    #[ORM\Column(type: Types::INTEGER, options: ['default' => 0])]
     private int $position;
 
     /**

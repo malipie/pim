@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Catalog\Domain\Entity;
 
-use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeAttributeRepository;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -32,31 +29,15 @@ use Symfony\Component\Uid\Uuid;
  * ObjectType. Listed in `TenantAuditCommand::INFRA_TABLES` allowlist so
  * the audit doesn't flag it as an unscoped domain table.
  */
-#[ORM\Entity(repositoryClass: ObjectTypeAttributeRepository::class)]
-#[ORM\Table(name: 'object_type_attributes')]
-#[ORM\Index(name: 'object_type_attributes_object_type_sort_idx', columns: ['object_type_id', 'sort_order'])]
 class ObjectTypeAttribute
 {
-    #[ORM\Id]
-    #[ORM\ManyToOne(targetEntity: ObjectType::class)]
-    #[ORM\JoinColumn(name: 'object_type_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ObjectType $objectType;
-
-    #[ORM\Id]
-    #[ORM\ManyToOne(targetEntity: Attribute::class)]
-    #[ORM\JoinColumn(name: 'attribute_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private Attribute $attribute;
 
-    #[ORM\Column(name: 'required_for_completeness', type: Types::BOOLEAN, options: ['default' => false])]
     private bool $requiredForCompleteness = false;
 
-    #[ORM\Column(name: 'sort_order', type: Types::INTEGER, options: ['default' => 0])]
     private int $sortOrder = 0;
-
-    #[ORM\Column(name: 'channel_id', type: 'uuid', nullable: true)]
     private ?Uuid $channelId = null;
-
-    #[ORM\Column(name: 'locale', type: Types::STRING, length: 8, nullable: true)]
     private ?string $locale = null;
 
     public function __construct(

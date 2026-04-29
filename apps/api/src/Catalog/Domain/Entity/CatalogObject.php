@@ -5,12 +5,9 @@ declare(strict_types=1);
 namespace App\Catalog\Domain\Entity;
 
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Infrastructure\Doctrine\Repository\CatalogObjectRepository;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -45,57 +42,32 @@ use Symfony\Component\Validator\Constraints as Assert;
  *   - `kind='product'` for variants (size/color of a parent SKU);
  *   - `kind='category'` for the tree (parent category in ltree).
  */
-#[ORM\Entity(repositoryClass: CatalogObjectRepository::class)]
-#[ORM\Table(name: 'objects')]
-#[ORM\UniqueConstraint(name: 'objects_tenant_kind_code_uniq', columns: ['tenant_id', 'kind', 'code'])]
-#[ORM\Index(name: 'objects_tenant_type_idx', columns: ['tenant_id', 'object_type_id'])]
-#[ORM\Index(name: 'objects_tenant_kind_idx', columns: ['tenant_id', 'kind'])]
 class CatalogObject implements TenantScoped
 {
     public const string STATUS_DRAFT = 'draft';
     public const string STATUS_PUBLISHED = 'published';
     public const string STATUS_ARCHIVED = 'archived';
-
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
-
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private ?Tenant $tenant = null;
-
-    #[ORM\ManyToOne(targetEntity: ObjectType::class)]
-    #[ORM\JoinColumn(name: 'object_type_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private ObjectType $objectType;
-
-    #[ORM\Column(type: Types::STRING, length: 32, enumType: ObjectKind::class)]
     private ObjectKind $kind;
-
-    #[ORM\Column(type: 'string', length: 128)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 128)]
     private string $code;
-
-    #[ORM\ManyToOne(targetEntity: self::class)]
-    #[ORM\JoinColumn(name: 'parent_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?self $parent = null;
 
-    #[ORM\Column(type: Types::BOOLEAN, options: ['default' => true])]
     private bool $enabled = true;
 
-    #[ORM\Column(type: 'string', length: 16, options: ['default' => self::STATUS_DRAFT])]
     private string $status = self::STATUS_DRAFT;
 
     /**
      * @var array<string, mixed>
      */
-    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
     private array $completeness = [];
 
     /**
      * @var array<string, mixed>
      */
-    #[ORM\Column(name: 'attributes_indexed', type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
     private array $attributesIndexed = [];
 
     /**
@@ -107,13 +79,8 @@ class CatalogObject implements TenantScoped
      * enforces the same invariant on writes with a friendlier error
      * message and validates ltree label format.
      */
-    #[ORM\Column(type: 'ltree', nullable: true)]
     private ?string $path = null;
-
-    #[ORM\Column(type: 'datetime_immutable')]
     private DateTimeImmutable $createdAt;
-
-    #[ORM\Column(type: 'datetime_immutable')]
     private DateTimeImmutable $updatedAt;
 
     public function __construct(

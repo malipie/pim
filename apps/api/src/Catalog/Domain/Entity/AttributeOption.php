@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace App\Catalog\Domain\Entity;
 
-use App\Catalog\Infrastructure\Doctrine\Repository\AttributeOptionRepository;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -25,26 +22,11 @@ use Symfony\Component\Validator\Constraints as Assert;
  * without a JOIN, and so `pim:tenant:audit` sees the table as domain.
  * Cost: 16 extra bytes per row, plus listener stamping.
  */
-#[ORM\Entity(repositoryClass: AttributeOptionRepository::class)]
-#[ORM\Table(name: 'attribute_options')]
-#[ORM\UniqueConstraint(name: 'attribute_options_attribute_code_uniq', columns: ['attribute_id', 'code'])]
-#[ORM\Index(name: 'attribute_options_attribute_position_idx', columns: ['attribute_id', 'position'])]
-#[ORM\Index(name: 'attribute_options_tenant_idx', columns: ['tenant_id'])]
 class AttributeOption implements TenantScoped
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
-
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private ?Tenant $tenant = null;
-
-    #[ORM\ManyToOne(targetEntity: Attribute::class)]
-    #[ORM\JoinColumn(name: 'attribute_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private Attribute $attribute;
-
-    #[ORM\Column(type: 'string', length: 64)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 64)]
     private string $code;
@@ -52,11 +34,9 @@ class AttributeOption implements TenantScoped
     /**
      * @var array<string, string>
      */
-    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]
     #[Assert\Type('array')]
     private array $label;
 
-    #[ORM\Column(type: Types::INTEGER, options: ['default' => 0])]
     private int $position;
 
     /**

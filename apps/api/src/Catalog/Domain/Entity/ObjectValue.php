@@ -5,11 +5,8 @@ declare(strict_types=1);
 namespace App\Catalog\Domain\Entity;
 
 use App\Catalog\Domain\Provenance;
-use App\Catalog\Infrastructure\Doctrine\Repository\ObjectValueRepository;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 
@@ -33,38 +30,13 @@ use Symfony\Component\Uid\Uuid;
  * (#61) reads them for the per-field badge ("manual" / "import" /
  * "integration"). Phase 2 adds the `agent` case to {@see Provenance}.
  */
-#[ORM\Entity(repositoryClass: ObjectValueRepository::class)]
-#[ORM\Table(name: 'object_values')]
-#[ORM\UniqueConstraint(
-    name: 'object_values_scope_uniq',
-    columns: ['object_id', 'attribute_id', 'channel_id', 'locale'],
-    options: ['nulls_not_distinct' => true],
-)]
-#[ORM\Index(name: 'object_values_tenant_idx', columns: ['tenant_id'])]
-#[ORM\Index(name: 'object_values_object_idx', columns: ['object_id'])]
-#[ORM\Index(name: 'object_values_attribute_idx', columns: ['attribute_id'])]
 class ObjectValue implements TenantScoped
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
-
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private ?Tenant $tenant = null;
-
-    #[ORM\ManyToOne(targetEntity: CatalogObject::class)]
-    #[ORM\JoinColumn(name: 'object_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private CatalogObject $object;
-
-    #[ORM\ManyToOne(targetEntity: Attribute::class)]
-    #[ORM\JoinColumn(name: 'attribute_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private Attribute $attribute;
-
-    #[ORM\Column(name: 'channel_id', type: 'uuid', nullable: true)]
     private ?Uuid $channelId = null;
-
-    #[ORM\Column(type: 'string', length: 8, nullable: true)]
     private ?string $locale = null;
 
     /**
@@ -81,16 +53,13 @@ class ObjectValue implements TenantScoped
      *
      * @var array<string, mixed>
      */
-    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]
     private array $value;
 
-    #[ORM\Column(type: Types::STRING, length: 16, enumType: Provenance::class, options: ['default' => Provenance::Manual->value])]
     private Provenance $provenance = Provenance::Manual;
 
     /**
      * @var array<string, mixed>
      */
-    #[ORM\Column(name: 'provenance_meta', type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
     private array $provenanceMeta = [];
 
     /**
