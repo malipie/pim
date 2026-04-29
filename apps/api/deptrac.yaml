@@ -154,6 +154,7 @@ parameters:
             - Catalog_Contracts
             - Catalog_Internals
             - Channel_Contracts
+            - Identity_Internals
 
         Integration:
             - Shared
