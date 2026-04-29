@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application;
 
+use Symfony\Contracts\Service\ResetInterface;
+
 /**
  * Toggle that bulk handlers flip ON to opt the synchronous Doctrine
  * listeners ({@see \App\Catalog\Infrastructure\Doctrine\EventListener\AttributesIndexedSyncListener},
@@ -22,7 +24,7 @@ namespace App\Catalog\Application;
  * is request-shared by default), so a misbehaving bulk run cannot leak
  * into a follow-up admin request.
  */
-final class BulkContext
+final class BulkContext implements ResetInterface
 {
     private bool $bulk = false;
 
@@ -34,5 +36,15 @@ final class BulkContext
     public function isBulk(): bool
     {
         return $this->bulk;
+    }
+
+    /**
+     * Worker-mode safety: the singleton BulkContext gets reset between
+     * requests so an early-terminated bulk job does not leave the flag on
+     * for the next caller's listeners.
+     */
+    public function reset(): void
+    {
+        $this->bulk = false;
     }
 }

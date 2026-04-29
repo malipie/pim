@@ -10,6 +10,13 @@ ENV APP_ENV=dev \
     SERVER_NAME=":80" \
     FRANKENPHP_CONFIG="worker /app/public/index.php"
 
+# Worker-mode safety net: even with the disciplined `EntityManager::clear()`
+# cadence enforced through Shared\Application\AbstractBatchHandler,
+# long-running PHP processes inevitably leak (Dunglas: "PHP was not
+# designed for long-running"). FrankenPHP recycles the worker after this
+# many requests so unbounded growth cannot starve the box.
+ENV MAX_REQUESTS=1000
+
 WORKDIR /app
 
 # System packages required by Symfony + Doctrine + Postgres + tooling
