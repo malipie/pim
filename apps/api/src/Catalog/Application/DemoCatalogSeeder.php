@@ -18,7 +18,7 @@ use App\Catalog\Domain\Provenance;
 use App\Catalog\Infrastructure\Doctrine\Repository\AttributeRepository;
 use App\Catalog\Infrastructure\Doctrine\Repository\CatalogObjectRepository;
 use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
-use App\Identity\Application\TenantContext;
+use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 

@@ -6,7 +6,7 @@ namespace App\Catalog\Domain\Entity;
 
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
-use App\Identity\Application\TenantScoped;
+use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;

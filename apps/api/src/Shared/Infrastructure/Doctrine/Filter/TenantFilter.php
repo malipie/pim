@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Infrastructure\Doctrine\Filter;
+namespace App\Shared\Infrastructure\Doctrine\Filter;
 
-use App\Identity\Application\TenantScoped;
+use App\Shared\Application\TenantScoped;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query\Filter\SQLFilter;
 use InvalidArgumentException;
@@ -12,7 +12,7 @@ use InvalidArgumentException;
 /**
  * Appends `<table>.tenant_id = :current_tenant` to every SQL query touching a
  * {@see TenantScoped} entity. The parameter is set per request by
- * {@see \App\Identity\Application\TenantFilterConfigurator} once the tenant
+ * {@see TenantFilterConfigurator} once the tenant
  * is known.
  *
  * RLS at the Postgres level is the second line of defence — policies are

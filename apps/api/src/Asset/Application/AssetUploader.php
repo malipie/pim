@@ -6,7 +6,7 @@ namespace App\Asset\Application;
 
 use App\Asset\Domain\Entity\Asset;
 use App\Asset\Domain\Entity\AssetVariant;
-use App\Identity\Application\TenantContext;
+use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemOperator;
 use RuntimeException;

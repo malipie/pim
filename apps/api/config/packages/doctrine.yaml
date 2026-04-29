@@ -81,7 +81,7 @@ doctrine:
         # Native SQL bypasses this filter — RLS in phase 1 closes the gap.
         filters:
             tenant:
-                class: App\Identity\Infrastructure\Doctrine\Filter\TenantFilter
+                class: App\Shared\Infrastructure\Doctrine\Filter\TenantFilter
                 enabled: false
 
 when@test:

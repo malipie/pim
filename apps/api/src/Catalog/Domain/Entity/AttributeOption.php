@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Domain\Entity;
 
 use App\Catalog\Infrastructure\Doctrine\Repository\AttributeOptionRepository;
-use App\Identity\Application\TenantScoped;
+use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;

@@ -12,7 +12,7 @@ use App\Catalog\Domain\Exception\BuiltInObjectTypeException;
 use App\Catalog\Domain\Exception\DisabledFeatureException;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeAttributeRepository;
-use App\Identity\Application\TenantContext;
+use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
