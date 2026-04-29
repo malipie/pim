@@ -56,6 +56,17 @@ services:
         arguments:
             $enableCustomObjectTypes: '%pim.catalog.enable_custom_object_types%'
 
+    # Idempotent CREATE EXTENSION IF NOT EXISTS ltree on every kernel boot.
+    # Migrations create the extension, but Zenstruck Foundry's ResetDatabase
+    # rebuilds the test schema from ORM metadata bypassing migrations —
+    # without this listener LTREE columns explode at schema:update time.
+    # Listening on console.command is what catches the schema:update call
+    # that Foundry runs during database reset.
+    App\Catalog\Infrastructure\Doctrine\EventListener\PostgresExtensionLoader:
+        tags:
+            - { name: kernel.event_listener, event: kernel.request, priority: 4096 }
+            - { name: kernel.event_listener, event: console.command, priority: 4096 }
+
 when@test:
     parameters:
         pim.refresh_token.cookie_secure: false

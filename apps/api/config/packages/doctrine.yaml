@@ -1,5 +1,19 @@
 doctrine:
     dbal:
+        # Custom DBAL types live next to the bounded context that owns them.
+        # `ltree` is a Postgres-only type used by `objects.path` for the
+        # category tree (#33 / 0.3.3). Doctrine ORM 3 ships no native
+        # mapping; the adapter is a thin pass-through over text.
+        types:
+            ltree: App\Catalog\Infrastructure\Doctrine\Type\LtreeType
+
+        # Tell Doctrine's schema introspector that the Postgres `ltree`
+        # column type maps back to our `ltree` Doctrine type. Without
+        # this, `doctrine:schema:drop --full-database` (Foundry's
+        # ResetDatabase trait) trips with "Unknown database type ltree".
+        mapping_types:
+            ltree: ltree
+
         url: '%env(resolve:DATABASE_URL)%'
 
         # IMPORTANT: You MUST configure your server version,

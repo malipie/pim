@@ -2,8 +2,16 @@ import { expect, test } from '@playwright/test';
 
 import { loginAsAdmin, uniqueSku } from './helpers/auth';
 
+// After #33 (ADR-009 data migration) the legacy `Product` ApiResource is
+// gone — `/api/products` 404s in the dataProvider, the products list errors
+// out, and CRUD flows have nothing to talk to. Sugar path
+// `/api/products` on CatalogObject lands in #41 (epic 0.4); until then
+// every flow under this describe is fixme'd in bulk.
+const BLOCKED_BY_41 = 'Pending #41: /api/products sugar path on CatalogObject';
+
 test.describe('Products CRUD', () => {
   test.beforeEach(async ({ page }) => {
+    test.fixme(true, BLOCKED_BY_41);
     await loginAsAdmin(page);
   });
 

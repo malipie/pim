@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\DataFixtures;
 
-use App\Catalog\Domain\Entity\Product;
+use App\Catalog\Application\BuiltInObjectTypeSeeder;
+use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
 use App\Identity\Application\RbacSeeder;
 use App\Identity\Application\TenantContext;
 use App\Identity\Domain\Entity\Tenant;
@@ -16,18 +19,14 @@ use Doctrine\Persistence\ObjectManager;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 /**
- * Sprint 0 demo dataset.
+ * Sprint 0 demo dataset, post-ADR-009 + post-#33.
  *
- * Two tenants ("demo" and "acme") each with one admin user and three products.
- * The pair lets the smoke test for tenant isolation (#12 / 0.0.12) flip
- * APP_DEFAULT_TENANT_CODE between them and assert that the TenantFilter
- * actually scopes queries; once auth lands (#4 / 0.0.4) callers obtain a JWT
- * for the desired tenant's admin instead of relying on the env fallback.
- *
- * Bootstrap order matters: tenants are persisted first (without flushing the
- * unit of work), then for each tenant we set TenantContext and persist its
- * products so the assignment listener stamps tenant_id correctly. Without the
- * context flip products of the second tenant would inherit the first.
+ * Two tenants ("demo" and "acme") each with one admin user, the three
+ * built-in ObjectTypes (product / category / asset) seeded via
+ * BuiltInObjectTypeSeeder, and three demo product objects (`CatalogObject`
+ * with `kind='product'`). The legacy `Product` entity was dropped
+ * alongside #33's data migration; demo products now live in `objects`
+ * with their data folded into `attributes_indexed` per ADR-006 hybrid.
  */
 class AppFixtures extends Fixture
 {
@@ -38,6 +37,8 @@ class AppFixtures extends Fixture
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly RbacSeeder $rbacSeeder,
         private readonly RoleRepository $roleRepository,
+        private readonly BuiltInObjectTypeSeeder $builtInSeeder,
+        private readonly ObjectTypeRepository $objectTypeRepository,
     ) {
     }
 
@@ -61,6 +62,13 @@ class AppFixtures extends Fixture
 
         $superAdmin = $this->roleRepository->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);
         \assert(null !== $superAdmin, 'RbacSeeder must create the super_admin role.');
+
+        // Per-tenant: built-in ObjectTypes (#33) → admin user → demo
+        // catalog rows. The seeder is idempotent — `pim:db:reset` re-runs
+        // are safe.
+        foreach ($tenants as $tenant) {
+            $this->builtInSeeder->seed($tenant);
+        }
 
         $admins = [
             'demo' => 'admin@demo.localhost',
@@ -96,11 +104,19 @@ class AppFixtures extends Fixture
         foreach ($tenants as $tenant) {
             $this->tenantContext->set($tenant);
 
+            $productType = $this->objectTypeRepository->findBuiltInByKind(ObjectKind::Product, $tenant);
+            \assert(null !== $productType, 'BuiltInObjectTypeSeeder must seed the product ObjectType.');
+
             foreach ($catalog[$tenant->getCode()] as [$sku, $name, $brand]) {
-                $product = new Product($sku, $name);
-                $product->setBrand($brand);
-                $product->setDescription(\sprintf('Seeded demo product for tenant %s.', $tenant->getCode()));
-                $manager->persist($product);
+                $object = new CatalogObject($productType, $sku);
+                $object->setStatus(CatalogObject::STATUS_PUBLISHED);
+                $object->setAttributesIndexed([
+                    'sku' => $sku,
+                    'name' => $name,
+                    'brand' => $brand,
+                    'description' => \sprintf('Seeded demo product for tenant %s.', $tenant->getCode()),
+                ]);
+                $manager->persist($object);
             }
 
             $manager->flush();
