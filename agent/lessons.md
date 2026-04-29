@@ -917,3 +917,21 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Mercure `Update::getData()` wraca `string`** (JSON-encoded), nie array. Test musi `json_decode($update->getData(), true)` i potem `is_array` check przed offset access. Pattern dla każdego Mercure assertion: pull updates, decode each `getData()`, assert struktura payloadu.
 
 - **`messenger.bus.default` config `allow_no_handlers: true`** zapisany w RF (lessons z 0.0.4) — był potrzebny gdy domain events nie miały subskrybentów. Po dodaniu `MercurePublisher` events mają handlerów; flag pozostaje na bezpieczność dla future events które mogą być introduced bez handler od razu.
+
+- **Mercure publisher fail-soft pattern.** Hub może być chwilowo down (network, JWT mismatch, hub container nie wystartowany w CI fixtures load order) — `MercurePublisher` catch'uje `Throwable`, log warning, `continue`. Mercure to notification channel, nie source-of-truth — write path nie powinien wywalić bo notification nie poszło.
+
+- **Mercure JWT secret musi być >=32 bajtów (256 bitów).** `lcobucci/jwt` (transitive Mercure dependency) wymusza 256-bit minimum dla HMAC-SHA256. Default `!ChangeMercureKey!` (16 chars) failuje runtime. Fix: ustaw default w `.env` + `docker-compose.yml` na ~40 chars (np. `ChangeMercureKeyAtLeast256BitsLongInDev`); CI workflows ustawiają explicit env var.
+
+## Lessons z 0.4.8 / #48 (Rate limiter — auth/agent/integration)
+
+- **`framework.rate_limiter` config registers Symfony `LimiterFactory` services per name.** `auth_login` → fixed_window 5/15min (anti-bruteforce), `agent_run` → sliding_window 50/h (sekcja 8.5 architektury, reserved dla epic 0.7 Faza 2), `integration_sync` → fixed_window 10/h (reserved dla #74/#81 Faza 1). Service ID: `limiter.<name>`. Pattern: każdy nowy limiter dorzucony przez yaml + dedykowany consumer (event listener / processor).
+
+- **Pre-auth listener z `#[AsEventListener(event: RequestEvent::class, priority: 32)]` runs przed Lexik `JsonLogin`.** Priority 32 > Lexik's default w firewall handling chain, więc throw `TooManyRequestsHttpException` przerywa kernel.request handling przed credentials evaluation. **Successful logins również tikkają budget** (defence-in-depth: stolen credential nie powinno re-arm limit).
+
+- **Rate limiter cache pool inherits `cache.app` (filesystem)** — state persists between PHPUnit tests w jednej run. Auth tests robiące multiple logins muszą reset limiter w setUp(). Override do `cache.adapter.array` w when@test NIE rozwiązuje problemu — adapter ma tag `kernel.reset` więc jest cleared między requestami w jednym tescie. Pattern: `self::getContainer()->get('limiter.auth_login')->create('127.0.0.1')->reset()` w setUp() każdego testu który robi >5 logins.
+
+- **Symfony `RateLimiterFactory` (concrete) auto-wired przez container, NIE `RateLimiterFactoryInterface`.** PHPStan symfony plugin widzi container.dev gdzie `limiter.auth_login` jest typed jako concrete `RateLimiterFactory`. `\assert($x instanceof RateLimiterFactoryInterface)` failuje "always evaluates to true". Drop assert — fluent chain `->get('limiter.auth_login')->create(IP)->reset()` jest type-safe per kontenera.
+
+- **`TooManyRequestsHttpException` constructor positional args**: `($retryAfter, $message, $previous, $code, $headers)` — `$code` defaults to 0 (NIE HTTP status; status jest hardcoded 429 w base class). `Retry-After` header musi być explicit w `$headers` array bo Symfony renderer nie auto-wstawia z constructor.
+
+- **Reserved limiters bez konsumenta są legitne** — `agent_run` i `integration_sync` zostają zarejestrowane w MVP-Alpha pomimo braku consumer endpoint. Pattern: dodaj limiter jako część architektury "bezpieczeństwa od dnia 1", consumer dochodzi w ticket który dodaje endpoint. Bez tego pattern każdy ticket dodaje swój ad-hoc rate limit logic.

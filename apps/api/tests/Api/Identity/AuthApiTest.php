@@ -41,6 +41,11 @@ final class AuthApiTest extends ApiTestCase
     {
         parent::setUp();
 
+        // Reset the auth_login rate limiter (#48 / 0.4.8) — its budget
+        // is filesystem-backed via cache.app and would carry across the
+        // many login attempts this suite exercises.
+        self::getContainer()->get('limiter.auth_login')->create('127.0.0.1')->reset();
+
         $em = $this->em();
         self::getContainer()->get(RbacSeeder::class)->seed();
         $superAdmin = self::getContainer()->get(RoleRepositoryInterface::class)->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);

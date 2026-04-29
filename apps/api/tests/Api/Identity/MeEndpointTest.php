@@ -33,6 +33,8 @@ final class MeEndpointTest extends ApiTestCase
     {
         parent::setUp();
 
+        self::getContainer()->get('limiter.auth_login')->create('127.0.0.1')->reset();
+
         $em = $this->em();
         self::getContainer()->get(RbacSeeder::class)->seed();
         $superAdmin = self::getContainer()->get(RoleRepositoryInterface::class)->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);
