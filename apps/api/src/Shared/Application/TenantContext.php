@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Application;
 
 use App\Shared\Domain\Tenant;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Mutable tenant context shared by the assignment listener and the SQL filter.
@@ -16,7 +17,7 @@ use App\Shared\Domain\Tenant;
  * by fixtures / tests; the filter and listener read it back without reaching
  * into the security stack at SQL-build time.
  */
-final class TenantContext
+final class TenantContext implements ResetInterface
 {
     private ?Tenant $tenant = null;
 
@@ -33,5 +34,16 @@ final class TenantContext
     public function get(): ?Tenant
     {
         return $this->tenant;
+    }
+
+    /**
+     * Symfony's `kernel.reset` hook — fires at the end of every request in
+     * worker mode. Without it the singleton TenantContext keeps the previous
+     * request's tenant alive across the next one and the SQL filter would
+     * read stale state until RequestTenantSubscriber overwrites it.
+     */
+    public function reset(): void
+    {
+        $this->tenant = null;
     }
 }
