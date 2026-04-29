@@ -955,3 +955,19 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Deptrac layer `Search`** — top-level w `apps/api/src/Search/` (nie wewnątrz Catalog). Search to cross-cutting infrastructure adapter: indexer może być wywoływany z różnych BC (Catalog dla kind=product, Asset dla storage details, Channel dla per-channel publish). Layer dependencies: `Search → Catalog_Internals + Catalog_Contracts + Channel_Contracts + Shared`. Catalog_Internals dependency bo Indexer (#50) potrzebuje Catalog Domain entity types do mapowania na search documents — wystarczająco luźne że Catalog może zmieniać shape bez breaking Search (ostatecznie czyta tylko getId/getCode/getKind/getAttributesIndexed).
 
 - **PHPStan max + `mixed` from `\Throwable->getMessage()` / `array_access_on_unknown`**: `$client->health()` zwraca `array<string, mixed>`, `$health['status']` jest `mixed`. PHPStan max wymaga sniff'u: `\is_scalar($x) ? (string) $x : 'fallback'` przed `(string)` cast albo `sprintf` use. Pattern dla każdej response z third-party SDK której nie kontrolujemy: `is_scalar` sniff zamiast trust przed cast.
+
+- **Service args z env vars muszą być `?string` w MVP gdy CI nie injectuje wszystkich envów.** PHPStan w CI boots container w dev env bez docker-compose ENV — `%env(MEILI_URL)%` resolves do null gdy env nie ma. Strict `string` type w factory constructor wybucha. Fix: nullable args + runtime guard `throw new LogicException` w `create()` z czytelnym message. Plus `default::` env modifier (`%env(default::MEILI_URL)%`) zwraca null zamiast wybuchać przy resolve time.
+
+## Lessons z 0.5.2 / #50 (Doctrine listener → Messenger → Meilisearch indexer)
+
+- **Search subscriber jako `#[AsMessageHandler]` per DomainEvent**, nie Doctrine listener. Catalog już emits domain events przez DomainEventDispatcher (RF-20) → messenger.bus.default. Per-event handler w Search BC konsumuje z magazynu domain events i deleguje do `CatalogObjectIndexer`. Pattern bardziej testable niż Doctrine PostFlush listener bo events carry intent (`ObjectAttributesChanged` wie co się zmieniło) zamiast generic "row changed".
+
+- **Stary `ObjectIndexedSubscriber` placeholder z RF deleted** — search index handler powinien być w `Search` BC nie w Catalog. Catalog emits events; downstream BCs (Search, Channel future) consume. Pattern dla każdego nowego BC adapter na Catalog events: utwórz subscriber w nowym BC's Application/, wired przez autoconfigure. Catalog stays unaware.
+
+- **Meilisearch `addDocuments()` upserts po primary key** — single call covers create + partial update. Nie ma osobnej `updateDocuments` API call. Indexer dla `ObjectAttributesChanged` po prostu re-pushuje cały document → Meili nadpisuje row. Cost: full document fetch z DB + push, ale at MVP scale (<50k SKU) negligible. Future optimization (batch / partial): faza 1.
+
+- **Bulk path skip via `BulkContext::isBulk()`** (sekcja 3.10 architektury) — listener wczytuje flag z service before dispatching indexer. CSV import / agent batch / demo seeder ustawiają flag → skip per-row indexing. End of bulk handler zrobi `pim:search:reindex` (#51) batch reindex. Pattern dla każdej cross-cutting Catalog reaction: BulkContext check przed expensive work.
+
+- **Indexer fail-soft pattern (per #47 lessons)** — try/catch wokół Meili calls, log warning + continue. Search to enrichment surface, write path nie powinien wybuchnąć gdy hub down. Plus Custom kind early-return — indexer nie ma indeksu dla `kind=custom` (ADR-009 reserved).
+
+- **Document shape: identifiers + state + attributesIndexed snapshot.** `tenantId` filterable attribute carries multi-tenant scope; read-side queries (#52) inject auth user's tenant przed `?filter[tenantId]=...`. `createdAt`/`updatedAt` jako Unix timestamps (sortable Numeric type w Meili). `attributesIndexed` denormalized cache (z #38) — flat lookup po code, perfect for Meili's nested JSON addressing.
