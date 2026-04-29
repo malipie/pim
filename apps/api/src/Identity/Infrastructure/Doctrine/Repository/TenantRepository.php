@@ -4,22 +4,20 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Doctrine\Repository;
 
-use App\Identity\Domain\Entity\Tenant;
-use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\Persistence\ManagerRegistry;
+use App\Shared\Infrastructure\Doctrine\Repository\DoctrineTenantRepository;
 
 /**
- * @extends ServiceEntityRepository<Tenant>
+ * Backwards-compatibility shim for the Tenant repository, which moved out of
+ * Identity into Shared (RF-02). Existing autowiring on type
+ * `App\Identity\Infrastructure\Doctrine\Repository\TenantRepository` keeps
+ * working because this subclass inherits everything from the new adapter.
+ *
+ * Removed in RF-04 once every consumer is updated to inject
+ * App\Shared\Domain\Repository\TenantRepositoryInterface.
+ *
+ * @deprecated since RF-02 — use {@see DoctrineTenantRepository} or the
+ *             {@see \App\Shared\Domain\Repository\TenantRepositoryInterface} port
  */
-class TenantRepository extends ServiceEntityRepository
+final class TenantRepository extends DoctrineTenantRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
-        parent::__construct($registry, Tenant::class);
-    }
-
-    public function findByCode(string $code): ?Tenant
-    {
-        return $this->findOneBy(['code' => $code]);
-    }
 }
