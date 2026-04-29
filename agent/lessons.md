@@ -877,3 +877,21 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **`ObjectAttributesUpserter::upsert` no-op gdy tenant nieprzypisany** — guard przeciw race condition gdy aggregate dopiero co stworzony i `assignTenant` listener nie sprintnął. W praktyce never happens (TenantAssignmentListener stempluje na PrePersist przed flush), ale defensive check chroni przed reordering ścieżek wywołania w przyszłości.
 
 - **PHPStan max + `array<string, mixed>` parameters**: `is_string($code)` po `foreach ($payload as $code => ...)` z `@param array<string, mixed>` jest dead branch (już typed). Drop the check. Plus `@var` annotation w block-comment `/** @var */` (ATM) vs single-line `/* @var */` (po cs-fixer normalize) — PHPStan akceptuje obu, cs-fixer może rewrite. Nie martw się o stylistyczne różnice gdy testy + analiza pass.
+
+- **CI vs lokalnie PHPStan różni się przy "narrow array<>" annotations.** Lokalnie PHP-CS-Fixer rewrite'uje `/** @var array<string, mixed> $x */` na `/* ... */` (single-line block), co PHPStan akceptuje. Jednak w CI pipeline PHPStan boots i analizuje plik PRZED jakimkolwiek cs-fixer pass — kod jest dokładnie zgodny z commit'em. Jeśli `@var` shorthand jest jedynym powodem dlaczego PHPStan widzi narrow type, w CI dostajesz fail. **Fix**: zamiast docblock-only narrowing, użyj eksplicit cast `foreach ($raw as $key => $value) { $out[(string) $key] = $value; }` żeby kompilator (a nie annotation) gwarantował shape.
+
+## Lessons z 0.4.6 / #46 (OpenAPI customization + spec export CI)
+
+- **AP4 4.x `swagger.api_keys` config rejestruje security schemes.** YAML format: `swagger: { api_keys: { JWT: { name: Authorization, type: header }, ApiKey: { name: X-API-Key, type: header } } }` dorzuca dwa schemes do `components.securitySchemes` w OpenAPI export. JWT bearer już używany przez Lexik (#4); ApiKey reserved dla #94 (epic 0.10) — dwa schemes są advertise'owane jednocześnie, integratorzy widzą "Authorize" button w `/api/docs` przed merge'iem #94.
+  - Why: `enable_swagger_ui` + advertise schemes w MVP-Alpha = no-cost UX win dla pierwszych integratorów którzy testują kontrakt.
+  - How to apply: każdy nowy security scheme (np. SAML w przyszłości) dorzucasz do `swagger.api_keys` map. Stay below 5-6 — UI dropdown gets noisy.
+
+- **AP4 `<resource description="...">` lands w OpenAPI tag description**, NIE w info. AP4 generuje per-shortName tag (`tags: [{name: 'CatalogObject', description: '...'}]`). Per-resource description w XML służy jako tag-level explanation żeby Swagger UI grupowanie operacji per resource miało sensowny tooltip.
+
+- **`api:openapi:export` Symfony command jako CI snapshot**. Pattern dla każdej REST API: per-PR diff `php bin/console api:openapi:export | python3 -m json.tool` przeciw committed `docs/api-spec/v0.json`. Każda zmiana API surface wymaga update'u snapshot — fail CI jest drift detector. `api:openapi:export` printuje JSON na stdout; `python3 -m json.tool` normalize'uje formatowanie deterministycznie (PHP `JSON_PRETTY_PRINT` ma inne sort order).
+
+- **OpenAPI path keys nie zawierają `.{_format}` suffix mimo że Symfony routes zawierają.** `api:openapi:export` strip'uje suffix (consumer-friendly path naming). ApiTestCase przeciw `/api/docs` body powinien sniff'ować `$paths['/api/products']` NIE `$paths['/api/products.{_format}']`. Lessons-recipe: zawsze `print_r(array_keys($body['paths']))` na pierwszej iteracji testu jeśli niepewny shape.
+
+- **`/api/docs` vs `/api/docs.jsonopenapi` content negotiation**. AP4 4.x: `GET /api/docs Accept: application/vnd.openapi+json` zwraca OpenAPI 3.1 JSON (canonical). `Accept: text/html` (default browser) renderuje Swagger UI. Plain `application/json` daje JSON-LD Hydra docs (`@context`, `@id`...). Healthcheck CI: `Accept: application/vnd.openapi+json` żeby snapshot diff działał.
+
+- **CI workflow paths trigger** dla `quality-php.yml` musi includować `docs/api-spec/**` żeby openapi-spec drift job uruchamiał się przy snapshot bump'ach (poza `apps/api/**` zmianami). Bez tego PR że tylko refresh'uje snapshot pomija openapi-spec job — drift detection becomes useless.

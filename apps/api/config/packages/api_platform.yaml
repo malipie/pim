@@ -27,3 +27,25 @@ api_platform:
         stateless: true
         cache_headers:
             vary: ['Content-Type', 'Authorization', 'Origin']
+
+    # OpenAPI customization (#46 / 0.4.6).
+    #
+    # `swagger.api_keys` advertises the JWT bearer header (current MVP) and
+    # reserves the API-key header (`X-API-Key`) for the API Configurator
+    # in epic 0.10 (#94). Both render as security schemes in `/api/docs`
+    # so an integrator gets a clickable "Authorize" button without
+    # reading the code.
+    #
+    # `enable_swagger_ui: true` is the AP4 default in dev/staging, but we
+    # pin it explicitly so production toggles cannot accidentally hide
+    # the doc surface.
+    swagger:
+        versions: [3]
+        api_keys:
+            JWT:
+                name: Authorization
+                type: header
+            ApiKey:
+                name: X-API-Key
+                type: header
+    enable_swagger_ui: true
