@@ -6,7 +6,7 @@
 
     <entity name="App\Catalog\Domain\Entity\ObjectValue"
             table="object_values"
-            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\ObjectValueRepository">
+            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\DoctrineObjectValueRepository">
 
         <unique-constraints>
             <unique-constraint name="object_values_scope_uniq" columns="object_id,attribute_id,channel_id,locale">

@@ -6,7 +6,7 @@
 
     <entity name="App\Catalog\Domain\Entity\AssociationType"
             table="association_types"
-            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\AssociationTypeRepository">
+            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\DoctrineAssociationTypeRepository">
 
         <unique-constraints>
             <unique-constraint name="association_types_tenant_code_uniq" columns="tenant_id,code"/>

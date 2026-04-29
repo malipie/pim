@@ -6,7 +6,7 @@ namespace App\Tests\Functional\Catalog;
 
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
+use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -73,9 +73,9 @@ final class BuiltInObjectTypeSeederTest extends KernelTestCase
         return self::getContainer()->get(BuiltInObjectTypeSeeder::class);
     }
 
-    private function repository(): ObjectTypeRepository
+    private function repository(): ObjectTypeRepositoryInterface
     {
-        return self::getContainer()->get(ObjectTypeRepository::class);
+        return self::getContainer()->get(ObjectTypeRepositoryInterface::class);
     }
 
     private function createTenant(string $code): Tenant

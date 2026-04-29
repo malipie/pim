@@ -6,7 +6,7 @@
 
     <entity name="App\Catalog\Domain\Entity\Attribute"
             table="attributes"
-            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\AttributeRepository">
+            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\DoctrineAttributeRepository">
 
         <unique-constraints>
             <unique-constraint name="attributes_tenant_code_uniq" columns="tenant_id,code"/>

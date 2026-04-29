@@ -7,7 +7,7 @@ namespace App\Benchmark;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
+use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use App\Shared\Infrastructure\Doctrine\Repository\DoctrineTenantRepository;
@@ -50,7 +50,7 @@ final class BulkImportBenchmarkCommand extends Command
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly DoctrineTenantRepository $tenantRepository,
-        private readonly ObjectTypeRepository $objectTypeRepository,
+        private readonly ObjectTypeRepositoryInterface $objectTypeRepository,
         private readonly TenantContext $tenantContext,
     ) {
         parent::__construct();

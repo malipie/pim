@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Application;
 
 use App\Catalog\Domain\Entity\AssociationType;
-use App\Catalog\Infrastructure\Doctrine\Repository\AssociationTypeRepository;
+use App\Catalog\Domain\Repository\AssociationTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,7 +36,7 @@ final readonly class BuiltInAssociationTypeSeeder
     ];
 
     public function __construct(
-        private AssociationTypeRepository $repository,
+        private AssociationTypeRepositoryInterface $repository,
         private EntityManagerInterface $em,
         private TenantContext $tenantContext,
     ) {

@@ -11,7 +11,7 @@ use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Exception\BuiltInObjectTypeException;
 use App\Catalog\Domain\Exception\DisabledFeatureException;
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeAttributeRepository;
+use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -137,7 +137,7 @@ final class ObjectTypeServiceTest extends KernelTestCase
         $service->assignAttribute($type, $this->someAttribute, required: true, sortOrder: 10);
 
         $junctions = self::getContainer()
-            ->get(ObjectTypeAttributeRepository::class)
+            ->get(ObjectTypeAttributeRepositoryInterface::class)
             ->findByObjectType($type);
         self::assertCount(1, $junctions);
         self::assertTrue($junctions[0]->isRequiredForCompleteness());
@@ -154,7 +154,7 @@ final class ObjectTypeServiceTest extends KernelTestCase
         $service->unassignAttribute($type, $this->someAttribute);
 
         $junctions = self::getContainer()
-            ->get(ObjectTypeAttributeRepository::class)
+            ->get(ObjectTypeAttributeRepositoryInterface::class)
             ->findByObjectType($type);
         self::assertSame([], $junctions);
     }
@@ -163,7 +163,7 @@ final class ObjectTypeServiceTest extends KernelTestCase
     {
         return new ObjectTypeService(
             $this->em(),
-            self::getContainer()->get(ObjectTypeAttributeRepository::class),
+            self::getContainer()->get(ObjectTypeAttributeRepositoryInterface::class),
             $flag,
         );
     }

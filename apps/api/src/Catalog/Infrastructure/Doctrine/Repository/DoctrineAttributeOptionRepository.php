@@ -6,13 +6,14 @@ namespace App\Catalog\Infrastructure\Doctrine\Repository;
 
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\AttributeOption;
+use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<AttributeOption>
  */
-class AttributeOptionRepository extends ServiceEntityRepository
+class DoctrineAttributeOptionRepository extends ServiceEntityRepository implements AttributeOptionRepositoryInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
@@ -33,5 +34,24 @@ class AttributeOptionRepository extends ServiceEntityRepository
             ->getResult();
 
         return $rows;
+    }
+
+    public function findById(\Symfony\Component\Uid\Uuid $id): ?AttributeOption
+    {
+        return parent::find($id->toRfc4122());
+    }
+
+    public function save(AttributeOption $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->persist($entity);
+        $em->flush();
+    }
+
+    public function remove(AttributeOption $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->remove($entity);
+        $em->flush();
     }
 }

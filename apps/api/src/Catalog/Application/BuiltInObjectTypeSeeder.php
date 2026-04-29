@@ -6,7 +6,7 @@ namespace App\Catalog\Application;
 
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
+use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,7 +36,7 @@ final readonly class BuiltInObjectTypeSeeder
     ];
 
     public function __construct(
-        private ObjectTypeRepository $repository,
+        private ObjectTypeRepositoryInterface $repository,
         private EntityManagerInterface $em,
         private TenantContext $tenantContext,
     ) {

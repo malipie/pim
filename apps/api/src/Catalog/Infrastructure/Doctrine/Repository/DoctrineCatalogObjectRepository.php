@@ -6,6 +6,7 @@ namespace App\Catalog\Infrastructure\Doctrine\Repository;
 
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -13,7 +14,7 @@ use Doctrine\Persistence\ManagerRegistry;
 /**
  * @extends ServiceEntityRepository<CatalogObject>
  */
-class CatalogObjectRepository extends ServiceEntityRepository
+class DoctrineCatalogObjectRepository extends ServiceEntityRepository implements CatalogObjectRepositoryInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
@@ -34,5 +35,24 @@ class CatalogObjectRepository extends ServiceEntityRepository
         $rows = $this->findBy(['kind' => $kind, 'tenant' => $tenant]);
 
         return $rows;
+    }
+
+    public function findById(\Symfony\Component\Uid\Uuid $id): ?CatalogObject
+    {
+        return parent::find($id->toRfc4122());
+    }
+
+    public function save(CatalogObject $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->persist($entity);
+        $em->flush();
+    }
+
+    public function remove(CatalogObject $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->remove($entity);
+        $em->flush();
     }
 }

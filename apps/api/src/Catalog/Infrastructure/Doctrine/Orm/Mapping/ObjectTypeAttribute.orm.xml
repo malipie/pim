@@ -6,7 +6,7 @@
 
     <entity name="App\Catalog\Domain\Entity\ObjectTypeAttribute"
             table="object_type_attributes"
-            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeAttributeRepository">
+            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\DoctrineObjectTypeAttributeRepository">
 
         <indexes>
             <index name="object_type_attributes_object_type_sort_idx" columns="object_type_id,sort_order"/>

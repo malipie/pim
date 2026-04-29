@@ -6,7 +6,7 @@
 
     <entity name="App\Catalog\Domain\Entity\CatalogObject"
             table="objects"
-            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\CatalogObjectRepository">
+            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\DoctrineCatalogObjectRepository">
 
         <unique-constraints>
             <unique-constraint name="objects_tenant_kind_code_uniq" columns="tenant_id,kind,code"/>

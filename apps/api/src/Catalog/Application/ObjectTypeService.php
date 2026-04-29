@@ -10,7 +10,7 @@ use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\Exception\BuiltInObjectTypeException;
 use App\Catalog\Domain\Exception\DisabledFeatureException;
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeAttributeRepository;
+use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -37,7 +37,7 @@ final readonly class ObjectTypeService
 {
     public function __construct(
         private EntityManagerInterface $em,
-        private ObjectTypeAttributeRepository $junctions,
+        private ObjectTypeAttributeRepositoryInterface $junctions,
         private bool $enableCustomObjectTypes,
     ) {
     }
