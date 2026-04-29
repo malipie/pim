@@ -7,11 +7,13 @@ on:
   pull_request:
     paths:
       - "apps/api/**"
+      - "docs/api-spec/**"
       - ".github/workflows/quality-php.yml"
   push:
     branches: [main]
     paths:
       - "apps/api/**"
+      - "docs/api-spec/**"
       - ".github/workflows/quality-php.yml"
 
 concurrency:
@@ -192,3 +194,57 @@ jobs:
           MERCURE_JWT_SECRET: ci
           JWT_PASSPHRASE: ci
           APP_DEFAULT_TENANT_CODE: demo
+
+  openapi-spec:
+    name: OpenAPI spec drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: ctype, iconv, intl, opcache, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/api/vendor
+            ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Generate JWT keypair (cache:warmup boots Lexik)
+        run: |
+          mkdir -p config/jwt
+          openssl genpkey -algorithm RSA -out config/jwt/private.pem -aes256 -pass pass:ci -pkeyopt rsa_keygen_bits:4096
+          openssl pkey -in config/jwt/private.pem -passin pass:ci -pubout -out config/jwt/public.pem
+
+      # Re-export the OpenAPI spec and compare against the snapshot
+      # at `docs/api-spec/v0.json`. The CI fails when a PR changes API
+      # surface without bumping the spec — same idea as a Doctrine
+      # schema drift check, applied to the contract integrators read.
+      - name: Export OpenAPI spec
+        run: php bin/console api:openapi:export | python3 -m json.tool > /tmp/v0.expected.json
+        env:
+          APP_ENV: dev
+          APP_DEBUG: "0"
+          DATABASE_URL: postgresql://pim:ChangeMeInDev@127.0.0.1:5432/pim?serverVersion=16&charset=utf8
+          JWT_PASSPHRASE: ci
+
+      - name: Compare against snapshot
+        working-directory: ${{ github.workspace }}
+        run: |
+          if ! diff -u docs/api-spec/v0.json /tmp/v0.expected.json; then
+            echo "::error::OpenAPI spec drift — re-export with"
+            echo "::error::    docker compose exec -T api php bin/console api:openapi:export | python3 -m json.tool > docs/api-spec/v0.json"
+            echo "::error::and commit the result."
+            exit 1
+          fi

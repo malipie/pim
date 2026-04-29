@@ -25,6 +25,7 @@
     -->
     <resource class="App\Catalog\Domain\Entity\CatalogObject"
               shortName="CatalogObject"
+              description="Generic catalog object exposed via three sugar paths per ObjectKind. /api/products + /api/categories + /api/assets share the same backing table (objects), discriminator column kind, and ApiResource — the per-kind operation extraProperties.kind drives State Processor + query extensions."
               paginationClientItemsPerPage="true"
               paginationItemsPerPage="30"
               paginationMaximumItemsPerPage="200">

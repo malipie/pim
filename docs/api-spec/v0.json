@@ -1,0 +1,4080 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "PIM API",
+        "description": "Product Information Management \u2014 REST API surface (per ADR-009 generic ObjectType + sugar paths).",
+        "version": "0.1.0"
+    },
+    "servers": [
+        {
+            "url": "/",
+            "description": ""
+        }
+    ],
+    "paths": {
+        "/api/asset_storage": {
+            "get": {
+                "operationId": "api_asset_storage_get_collection",
+                "tags": [
+                    "AssetStorage"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "AssetStorage collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "AssetStorage.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/AssetStorage.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/AssetStorage-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of AssetStorage resources.",
+                "description": "Retrieves the collection of AssetStorage resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            }
+        },
+        "/api/asset_storage/{id}": {
+            "get": {
+                "operationId": "api_asset_storage_id_get",
+                "tags": [
+                    "AssetStorage"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "AssetStorage resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssetStorage.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssetStorage-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a AssetStorage resource.",
+                "description": "Retrieves a AssetStorage resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "AssetStorage identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/associations": {
+            "get": {
+                "operationId": "api_associations_get_collection",
+                "tags": [
+                    "Association"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Association collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "Association.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Association.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Association-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of Association resources.",
+                "description": "Retrieves the collection of Association resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            }
+        },
+        "/api/associations/{id}": {
+            "get": {
+                "operationId": "api_associations_id_get",
+                "tags": [
+                    "Association"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Association resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Association.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Association-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a Association resource.",
+                "description": "Retrieves a Association resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Association identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/attributes": {
+            "get": {
+                "operationId": "api_attributes_get_collection",
+                "tags": [
+                    "Attribute"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attribute collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "Attribute.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Attribute.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Attribute-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of Attribute resources.",
+                "description": "Retrieves the collection of Attribute resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            }
+        },
+        "/api/attributes/{id}": {
+            "get": {
+                "operationId": "api_attributes_id_get",
+                "tags": [
+                    "Attribute"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attribute resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Attribute.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Attribute-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a Attribute resource.",
+                "description": "Retrieves a Attribute resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Attribute identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/attribute_groups": {
+            "get": {
+                "operationId": "api_attribute_groups_get_collection",
+                "tags": [
+                    "AttributeGroup"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "AttributeGroup collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "AttributeGroup.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/AttributeGroup.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/AttributeGroup-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of AttributeGroup resources.",
+                "description": "Retrieves the collection of AttributeGroup resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            }
+        },
+        "/api/attribute_groups/{id}": {
+            "get": {
+                "operationId": "api_attribute_groups_id_get",
+                "tags": [
+                    "AttributeGroup"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "AttributeGroup resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttributeGroup.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttributeGroup-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a AttributeGroup resource.",
+                "description": "Retrieves a AttributeGroup resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "AttributeGroup identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/assets": {
+            "get": {
+                "operationId": "assets_get_collection",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CatalogObject collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "CatalogObject.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/CatalogObject-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of CatalogObject resources.",
+                "description": "Retrieves the collection of CatalogObject resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "itemsPerPage",
+                        "in": "query",
+                        "description": "The number of items per page",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 30,
+                            "minimum": 0,
+                            "maximum": 200
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "sku",
+                        "in": "query",
+                        "description": "Case-insensitive substring search on the catalog object code (SKU).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "attribute[:code]",
+                        "in": "query",
+                        "description": "JSONB containment match on the denormalised attributes_indexed cache. Multiple pairs AND together.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "category",
+                        "in": "query",
+                        "description": "Category code; matches the row plus every descendant via Postgres ltree containment.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "completeness[eq|gt|gte|lt|lte]",
+                        "in": "query",
+                        "description": "Filter by per-row completeness percentage (`completeness.pct` JSONB key).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Editorial state: draft, published, archived.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "enabled",
+                        "in": "query",
+                        "description": "Publishing kill-switch flag.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "order[id]",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "id[lt|gt|lte|gte]",
+                        "in": "query",
+                        "description": "Uuid range filter on the cursor pagination key.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            }
+        },
+        "/api/assets/{id}": {
+            "get": {
+                "operationId": "assets_get",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CatalogObject resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a CatalogObject resource.",
+                "description": "Retrieves a CatalogObject resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "CatalogObject identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/categories": {
+            "get": {
+                "operationId": "categories_get_collection",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CatalogObject collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "CatalogObject.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/CatalogObject-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of CatalogObject resources.",
+                "description": "Retrieves the collection of CatalogObject resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "itemsPerPage",
+                        "in": "query",
+                        "description": "The number of items per page",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 30,
+                            "minimum": 0,
+                            "maximum": 200
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "sku",
+                        "in": "query",
+                        "description": "Case-insensitive substring search on the catalog object code (SKU).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "attribute[:code]",
+                        "in": "query",
+                        "description": "JSONB containment match on the denormalised attributes_indexed cache. Multiple pairs AND together.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "category",
+                        "in": "query",
+                        "description": "Category code; matches the row plus every descendant via Postgres ltree containment.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "completeness[eq|gt|gte|lt|lte]",
+                        "in": "query",
+                        "description": "Filter by per-row completeness percentage (`completeness.pct` JSONB key).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Editorial state: draft, published, archived.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "enabled",
+                        "in": "query",
+                        "description": "Publishing kill-switch flag.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "order[id]",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "id[lt|gt|lte|gte]",
+                        "in": "query",
+                        "description": "Uuid range filter on the cursor pagination key.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "categories_post",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "CatalogObject resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a CatalogObject resource.",
+                "description": "Creates a CatalogObject resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new CatalogObject resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CatalogObject.CatalogObjectInput-object.create"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CatalogObject.CatalogObjectInput-object.create"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/categories/{id}": {
+            "get": {
+                "operationId": "categories_get",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CatalogObject resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a CatalogObject resource.",
+                "description": "Retrieves a CatalogObject resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "CatalogObject identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "categories_delete",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "CatalogObject resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the CatalogObject resource.",
+                "description": "Removes the CatalogObject resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "CatalogObject identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "categories_patch",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CatalogObject resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the CatalogObject resource.",
+                "description": "Updates the CatalogObject resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "CatalogObject identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated CatalogObject resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CatalogObject.CatalogObjectPatchInput-object.patch.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/products": {
+            "get": {
+                "operationId": "products_get_collection",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CatalogObject collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "CatalogObject.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/CatalogObject-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of CatalogObject resources.",
+                "description": "Retrieves the collection of CatalogObject resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "itemsPerPage",
+                        "in": "query",
+                        "description": "The number of items per page",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 30,
+                            "minimum": 0,
+                            "maximum": 200
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "sku",
+                        "in": "query",
+                        "description": "Case-insensitive substring search on the catalog object code (SKU).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "attribute[:code]",
+                        "in": "query",
+                        "description": "JSONB containment match on the denormalised attributes_indexed cache. Multiple pairs AND together.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "category",
+                        "in": "query",
+                        "description": "Category code; matches the row plus every descendant via Postgres ltree containment.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "completeness[eq|gt|gte|lt|lte]",
+                        "in": "query",
+                        "description": "Filter by per-row completeness percentage (`completeness.pct` JSONB key).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Editorial state: draft, published, archived.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "enabled",
+                        "in": "query",
+                        "description": "Publishing kill-switch flag.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "order[id]",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "id[lt|gt|lte|gte]",
+                        "in": "query",
+                        "description": "Uuid range filter on the cursor pagination key.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "products_post",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "CatalogObject resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a CatalogObject resource.",
+                "description": "Creates a CatalogObject resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new CatalogObject resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CatalogObject.CatalogObjectInput-object.create"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CatalogObject.CatalogObjectInput-object.create"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/products/{id}": {
+            "get": {
+                "operationId": "products_get",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CatalogObject resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a CatalogObject resource.",
+                "description": "Retrieves a CatalogObject resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "CatalogObject identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "products_delete",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "CatalogObject resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the CatalogObject resource.",
+                "description": "Removes the CatalogObject resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "CatalogObject identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "products_patch",
+                "tags": [
+                    "CatalogObject"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CatalogObject resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogObject-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the CatalogObject resource.",
+                "description": "Updates the CatalogObject resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "CatalogObject identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated CatalogObject resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CatalogObject.CatalogObjectPatchInput-object.patch.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/channels": {
+            "get": {
+                "operationId": "api_channels_get_collection",
+                "tags": [
+                    "Channel"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Channel collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "Channel.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Channel.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Channel-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of Channel resources.",
+                "description": "Retrieves the collection of Channel resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            }
+        },
+        "/api/channels/{id}": {
+            "get": {
+                "operationId": "api_channels_id_get",
+                "tags": [
+                    "Channel"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Channel resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Channel.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Channel-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a Channel resource.",
+                "description": "Retrieves a Channel resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Channel identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/auth/login": {
+            "post": {
+                "operationId": "login_check_post",
+                "tags": [
+                    "Login Check"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User token created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "token": {
+                                            "readOnly": true,
+                                            "type": "string",
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": [
+                                        "token"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Creates a user token.",
+                "description": "Creates a user token.",
+                "requestBody": {
+                    "description": "The login data",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "nullable": false
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "nullable": false
+                                    }
+                                },
+                                "required": [
+                                    "email",
+                                    "password"
+                                ]
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/object_types": {
+            "get": {
+                "operationId": "api_object_types_get_collection",
+                "tags": [
+                    "ObjectType"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ObjectType collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "ObjectType.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ObjectType.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ObjectType-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of ObjectType resources.",
+                "description": "Retrieves the collection of ObjectType resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            }
+        },
+        "/api/object_types/{id}": {
+            "get": {
+                "operationId": "api_object_types_id_get",
+                "tags": [
+                    "ObjectType"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ObjectType resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ObjectType.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ObjectType-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a ObjectType resource.",
+                "description": "Retrieves a ObjectType resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ObjectType identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "AssetStorage-admin.read": {
+                "type": "object",
+                "description": "Stored binary file (image, PDF, video, \u2026) with tenant scope.\n\nPer ADR-009 Asset is split between two homes: this dedicated table\ncarries storage details (path on object storage, mime type, size,\nEXIF / dimensions JSONB), while user-defined metadata flows through\nthe catalog model \u2014 every Asset row optionally points at a\n`CatalogObject` of `kind=asset` (`object_id` UNIQUE) so admins can\nattach localised attributes (`alt_pl`, `caption_en`, \u2026) the same way\nthey do for products. Tightly-coupled storage details stay here so\nwe are not forcing them through the EAV layer.\n\n`storage_path` is relative to the Flysystem bucket (e.g. `<tenant>/\n<asset-id>/original.jpg`) \u2014 application-layer convention,\nFlysystem-agnostic.\n\nVariants (thumbnails, transcodes, alternative formats) live in\n{@see AssetVariant} and are derived in phase 1 (transformations are\nout of MVP scope \u2014 #37 only handles the original upload).",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "code": {
+                        "maxLength": 128,
+                        "type": "string"
+                    },
+                    "objectId": {
+                        "readOnly": true,
+                        "description": "Stored as a bare UUID rather than a Doctrine relation to keep Asset\nDomain free of cross-BC entity imports \u2014 DB-level FK with\n`ON DELETE SET NULL` keeps orphans out (RF-19).",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "originalFilename": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "size": {
+                        "type": "integer"
+                    },
+                    "metadata": {
+                        "readOnly": true,
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "storagePath": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "variants": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AssetVariant-admin.read"
+                        }
+                    }
+                },
+                "required": [
+                    "code",
+                    "originalFilename",
+                    "storagePath"
+                ]
+            },
+            "AssetStorage.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "code": {
+                                "maxLength": 128,
+                                "type": "string"
+                            },
+                            "objectId": {
+                                "readOnly": true,
+                                "description": "Stored as a bare UUID rather than a Doctrine relation to keep Asset\nDomain free of cross-BC entity imports \u2014 DB-level FK with\n`ON DELETE SET NULL` keeps orphans out (RF-19).",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "originalFilename": {
+                                "type": "string"
+                            },
+                            "mimeType": {
+                                "type": "string"
+                            },
+                            "size": {
+                                "type": "integer"
+                            },
+                            "metadata": {
+                                "readOnly": true,
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "storagePath": {
+                                "type": "string"
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "variants": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/AssetVariant.jsonld-admin.read"
+                                }
+                            }
+                        },
+                        "required": [
+                            "code",
+                            "originalFilename",
+                            "storagePath"
+                        ]
+                    }
+                ],
+                "description": "Stored binary file (image, PDF, video, \u2026) with tenant scope.\n\nPer ADR-009 Asset is split between two homes: this dedicated table\ncarries storage details (path on object storage, mime type, size,\nEXIF / dimensions JSONB), while user-defined metadata flows through\nthe catalog model \u2014 every Asset row optionally points at a\n`CatalogObject` of `kind=asset` (`object_id` UNIQUE) so admins can\nattach localised attributes (`alt_pl`, `caption_en`, \u2026) the same way\nthey do for products. Tightly-coupled storage details stay here so\nwe are not forcing them through the EAV layer.\n\n`storage_path` is relative to the Flysystem bucket (e.g. `<tenant>/\n<asset-id>/original.jpg`) \u2014 application-layer convention,\nFlysystem-agnostic.\n\nVariants (thumbnails, transcodes, alternative formats) live in\n{@see AssetVariant} and are derived in phase 1 (transformations are\nout of MVP scope \u2014 #37 only handles the original upload)."
+            },
+            "AssetVariant-admin.read": {
+                "type": "object"
+            },
+            "AssetVariant.jsonld-admin.read": {
+                "type": "object"
+            },
+            "Association-admin.read": {
+                "type": "object",
+                "description": "One-way relation between two {@see CatalogObject} rows under a given\n{@see AssociationType} (e.g. SKU-X \u2192 SKU-Y as `cross_sell`).\n\nPer ADR-009 the link is generic across `kind` \u2014 products \u2192 categories,\ncategories \u2192 assets, products \u2192 products. Schema enforces:\n\n  - no self-loop (`source_object_id != target_object_id`) at the\n    application layer; the migration adds a CHECK constraint;\n  - one row per (source, target, type) triple via UNIQUE index with\n    `NULLS NOT DISTINCT` (no nulls here, but the convention matches\n    the rest of the catalog).\n\nReverse direction is NOT auto-mirrored \u2014 admin UI / agent decides\nwhether (A\u2192B cross_sell) implies (B\u2192A cross_sell). Keeping rows\none-way leaves room for asymmetric semantics like \"this product\n * replaces that one\".",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/CatalogObject-admin.read"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/CatalogObject-admin.read"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/AssociationType-admin.read"
+                    },
+                    "position": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "Association.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "source": {
+                                "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                            },
+                            "target": {
+                                "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/AssociationType.jsonld-admin.read"
+                            },
+                            "position": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                ],
+                "description": "One-way relation between two {@see CatalogObject} rows under a given\n{@see AssociationType} (e.g. SKU-X \u2192 SKU-Y as `cross_sell`).\n\nPer ADR-009 the link is generic across `kind` \u2014 products \u2192 categories,\ncategories \u2192 assets, products \u2192 products. Schema enforces:\n\n  - no self-loop (`source_object_id != target_object_id`) at the\n    application layer; the migration adds a CHECK constraint;\n  - one row per (source, target, type) triple via UNIQUE index with\n    `NULLS NOT DISTINCT` (no nulls here, but the convention matches\n    the rest of the catalog).\n\nReverse direction is NOT auto-mirrored \u2014 admin UI / agent decides\nwhether (A\u2192B cross_sell) implies (B\u2192A cross_sell). Keeping rows\none-way leaves room for asymmetric semantics like \"this product\n * replaces that one\"."
+            },
+            "AssociationType-admin.read": {
+                "type": "object"
+            },
+            "AssociationType.jsonld-admin.read": {
+                "type": "object"
+            },
+            "Attribute-admin.read": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "group": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeGroup-admin.read"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "help": {
+                        "readOnly": true,
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "number",
+                            "select",
+                            "multiselect",
+                            "date",
+                            "boolean",
+                            "asset",
+                            "relation",
+                            "price",
+                            "metric"
+                        ]
+                    },
+                    "validationRules": {
+                        "readOnly": true,
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "position": {
+                        "readOnly": true,
+                        "default": 0,
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "localizable": {
+                        "readOnly": true,
+                        "type": "boolean"
+                    },
+                    "scopable": {
+                        "readOnly": true,
+                        "type": "boolean"
+                    },
+                    "required": {
+                        "readOnly": true,
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "code"
+                ]
+            },
+            "Attribute.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "group": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AttributeGroup.jsonld-admin.read"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "readOnly": true
+                            },
+                            "code": {
+                                "maxLength": 64,
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            },
+                            "help": {
+                                "readOnly": true,
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "text",
+                                    "number",
+                                    "select",
+                                    "multiselect",
+                                    "date",
+                                    "boolean",
+                                    "asset",
+                                    "relation",
+                                    "price",
+                                    "metric"
+                                ]
+                            },
+                            "validationRules": {
+                                "readOnly": true,
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "position": {
+                                "readOnly": true,
+                                "default": 0,
+                                "type": "integer"
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "localizable": {
+                                "readOnly": true,
+                                "type": "boolean"
+                            },
+                            "scopable": {
+                                "readOnly": true,
+                                "type": "boolean"
+                            },
+                            "required": {
+                                "readOnly": true,
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "code"
+                        ]
+                    }
+                ],
+                "description": "A single tenant-scoped attribute definition.\n\nAttributes describe the shape of `Object` values (per ADR-009 generic\nObjectType model). One attribute can be reused across many ObjectTypes\nvia the `object_type_attributes` junction (added in #32) \u2014 e.g. `name`\non every kind, `seo_title` on `product` + `category`.\n\n`validation_rules` is plain JSONB in #31. The per-type interpreter that\nenforces \"min/max for `number`\", \"max_length for `text`\", etc. lands in\n#39 (0.3.9). Until then it is a structured payload the entity stores\nverbatim \u2014 admins can already configure it; nothing on the server side\ntrips on out-of-range values yet.\n\n`group_id` FK is nullable + ON DELETE SET NULL \u2014 removing an attribute\ngroup leaves its members ungrouped rather than deleting them."
+            },
+            "AttributeGroup-admin.read": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "position": {
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "code"
+                ]
+            },
+            "AttributeGroup.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "code": {
+                                "maxLength": 64,
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            },
+                            "position": {
+                                "type": "integer"
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        },
+                        "required": [
+                            "code"
+                        ]
+                    }
+                ],
+                "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). A group is purely organisational \u2014 it carries a localised\nlabel + an ordering position and lives entirely within one tenant.\n\nAttributes either belong to one group or stay ungrouped (`group_id` NULL\non Attribute). Removing a group leaves its attributes alive but ungrouped\n(FK ON DELETE SET NULL) so admins do not lose data by re-organising.\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale in MVP \u2014 no separate translations table."
+            },
+            "CatalogObject-admin.read": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "objectType": {
+                        "$ref": "#/components/schemas/ObjectType-admin.read"
+                    },
+                    "kind": {
+                        "readOnly": true,
+                        "type": "string",
+                        "enum": [
+                            "product",
+                            "category",
+                            "asset",
+                            "custom"
+                        ]
+                    },
+                    "code": {
+                        "maxLength": 128,
+                        "type": "string"
+                    },
+                    "parent": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/CatalogObject-admin.read"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "enabled": {
+                        "readOnly": true,
+                        "default": true,
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "readOnly": true,
+                        "default": "draft",
+                        "type": "string"
+                    },
+                    "completeness": {
+                        "readOnly": true,
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "attributesIndexed": {
+                        "readOnly": true,
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "path": {
+                        "readOnly": true,
+                        "description": "Postgres LTREE column (`#33`). Custom Doctrine type\n{@see \\App\\Catalog\\Infrastructure\\Doctrine\\Type\\LtreeType} maps it\nas `?string` on the PHP side. Nullable + a CHECK constraint on the\ndatabase pins \"path is for `kind='category'` only\"; the\n{@see \\App\\Catalog\\Infrastructure\\Doctrine\\EventListener\\CategoryPathValidator}\nenforces the same invariant on writes with a friendlier error\nmessage and validates ltree label format.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "code"
+                ]
+            },
+            "CatalogObject.CatalogObjectInput-object.create": {
+                "type": "object",
+                "description": "Generic catalog object exposed via three sugar paths per ObjectKind. /api/products + /api/categories + /api/assets share the same backing table (objects), discriminator column kind, and ApiResource \u2014 the per-kind operation extraProperties.kind drives State Processor + query extensions.",
+                "required": [
+                    "code",
+                    "objectTypeId"
+                ],
+                "properties": {
+                    "code": {
+                        "maxLength": 128,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "objectTypeId": {
+                        "format": "uuid",
+                        "description": "UUID of the {@see \\App\\Catalog\\Domain\\Entity\\ObjectType} the new\nrow belongs to. The processor enforces that\n`objectType.kind === extraProperties.kind` (per sugar path).",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "default": "",
+                        "type": "string"
+                    },
+                    "parentId": {
+                        "format": "uuid",
+                        "description": "Optional self-reference: variants for `kind=product`, tree edges for\n`kind=category`. UUID format only \u2014 kind compatibility is checked\nby the constructor + Doctrine listener after persist.",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "attributes": {
+                        "description": "Per-attribute values keyed by attribute code:\n`{\"color\": \"red\", \"weight\": 12.5, \"name\": {\"pl\": \"Test\"}}`.",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                }
+            },
+            "CatalogObject.CatalogObjectPatchInput-object.patch.jsonMergePatch": {
+                "type": "object",
+                "description": "Generic catalog object exposed via three sugar paths per ObjectKind. /api/products + /api/categories + /api/assets share the same backing table (objects), discriminator column kind, and ApiResource \u2014 the per-kind operation extraProperties.kind drives State Processor + query extensions.",
+                "properties": {
+                    "enabled": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "status": {
+                        "enum": [
+                            "draft",
+                            "published",
+                            "archived"
+                        ],
+                        "description": "One of {@see \\App\\Catalog\\Domain\\Entity\\CatalogObject::STATUS_*}.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "parentId": {
+                        "format": "uuid",
+                        "description": "Re-parent this row. Pass `null` to remove the parent; the processor\nwill set `clearParent=true` because Merge-Patch JSON cannot express\n\"absent vs. null\" otherwise.",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "path": {
+                        "maxLength": 4096,
+                        "description": "`kind=category` ltree path (`'electronics.audio.headphones'`).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "attributes": {
+                        "description": "Partial attribute update: any code present is upserted to an\nObjectValue with `provenance=Manual`. Codes absent in the payload\nkeep their existing values \u2014 Patch semantics only touch what the\nclient sends.",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                }
+            },
+            "CatalogObject.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "objectType": {
+                                "$ref": "#/components/schemas/ObjectType.jsonld-admin.read"
+                            },
+                            "kind": {
+                                "readOnly": true,
+                                "type": "string",
+                                "enum": [
+                                    "product",
+                                    "category",
+                                    "asset",
+                                    "custom"
+                                ]
+                            },
+                            "code": {
+                                "maxLength": 128,
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "code"
+                        ]
+                    }
+                ],
+                "description": "Generic catalog object exposed via three sugar paths per ObjectKind. /api/products + /api/categories + /api/assets share the same backing table (objects), discriminator column kind, and ApiResource \u2014 the per-kind operation extraProperties.kind drives State Processor + query extensions.",
+                "properties": {
+                    "parent": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "enabled": {
+                        "readOnly": true,
+                        "default": true,
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "readOnly": true,
+                        "default": "draft",
+                        "type": "string"
+                    },
+                    "completeness": {
+                        "readOnly": true,
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "attributesIndexed": {
+                        "readOnly": true,
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "path": {
+                        "readOnly": true,
+                        "description": "Postgres LTREE column (`#33`). Custom Doctrine type\n{@see \\App\\Catalog\\Infrastructure\\Doctrine\\Type\\LtreeType} maps it\nas `?string` on the PHP side. Nullable + a CHECK constraint on the\ndatabase pins \"path is for `kind='category'` only\"; the\n{@see \\App\\Catalog\\Infrastructure\\Doctrine\\EventListener\\CategoryPathValidator}\nenforces the same invariant on writes with a friendlier error\nmessage and validates ltree label format.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "Channel-admin.read": {
+                "type": "object",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "locales": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Locale-admin.read"
+                        }
+                    },
+                    "currencies": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Currency-admin.read"
+                        }
+                    },
+                    "categoryTreeRootId": {
+                        "readOnly": true,
+                        "description": "Stored as a bare UUID rather than a Doctrine relation to keep Channel\nDomain free of cross-BC entity imports \u2014 the FK lives at the DB layer\n(CASCADE-on-delete in the migration), the kind=category invariant is\nenforced by ChannelCategoryRootValidator via GetObjectSummary (RF-19).",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "code"
+                ]
+            },
+            "Channel.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "code": {
+                                "maxLength": 64,
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            },
+                            "locales": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/Locale.jsonld-admin.read"
+                                }
+                            },
+                            "currencies": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/Currency.jsonld-admin.read"
+                                }
+                            },
+                            "categoryTreeRootId": {
+                                "readOnly": true,
+                                "description": "Stored as a bare UUID rather than a Doctrine relation to keep Channel\nDomain free of cross-BC entity imports \u2014 the FK lives at the DB layer\n(CASCADE-on-delete in the migration), the kind=category invariant is\nenforced by ChannelCategoryRootValidator via GetObjectSummary (RF-19).",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            }
+                        },
+                        "required": [
+                            "code"
+                        ]
+                    }
+                ],
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports."
+            },
+            "ConstraintViolation": {
+                "type": "object",
+                "description": "Unprocessable entity",
+                "properties": {
+                    "status": {
+                        "default": 422,
+                        "type": "integer"
+                    },
+                    "violations": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "propertyPath": {
+                                    "type": "string",
+                                    "description": "The property path of the violation"
+                                },
+                                "message": {
+                                    "type": "string",
+                                    "description": "The message associated with the violation"
+                                },
+                                "code": {
+                                    "type": "string",
+                                    "description": "The code of the violation"
+                                },
+                                "hint": {
+                                    "type": "string",
+                                    "description": "An extra hint to understand the violation"
+                                },
+                                "payload": {
+                                    "type": "object",
+                                    "additionalProperties": true,
+                                    "description": "The serialized payload of the violation"
+                                }
+                            },
+                            "required": [
+                                "propertyPath",
+                                "message"
+                            ]
+                        }
+                    },
+                    "detail": {
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "type": {
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "title": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "instance": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ConstraintViolation.jsonld": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "status": {
+                                "default": 422,
+                                "type": "integer"
+                            },
+                            "violations": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "propertyPath": {
+                                            "type": "string",
+                                            "description": "The property path of the violation"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "description": "The message associated with the violation"
+                                        },
+                                        "code": {
+                                            "type": "string",
+                                            "description": "The code of the violation"
+                                        },
+                                        "hint": {
+                                            "type": "string",
+                                            "description": "An extra hint to understand the violation"
+                                        },
+                                        "payload": {
+                                            "type": "object",
+                                            "additionalProperties": true,
+                                            "description": "The serialized payload of the violation"
+                                        }
+                                    },
+                                    "required": [
+                                        "propertyPath",
+                                        "message"
+                                    ]
+                                }
+                            },
+                            "detail": {
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "description": {
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "type": {
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "title": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "instance": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "description": "Unprocessable entity"
+            },
+            "Currency-admin.read": {
+                "type": "object"
+            },
+            "Currency.jsonld-admin.read": {
+                "type": "object"
+            },
+            "Error": {
+                "type": "object",
+                "description": "A representation of common errors.",
+                "properties": {
+                    "title": {
+                        "readOnly": true,
+                        "description": "A short, human-readable summary of the problem.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "detail": {
+                        "readOnly": true,
+                        "description": "A human-readable explanation specific to this occurrence of the problem.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "status": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "examples": [
+                            404
+                        ],
+                        "default": 400
+                    },
+                    "instance": {
+                        "readOnly": true,
+                        "description": "A URI reference that identifies the specific occurrence of the problem. It may or may not yield further information if dereferenced.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "type": {
+                        "readOnly": true,
+                        "description": "A URI reference that identifies the problem type",
+                        "type": "string"
+                    }
+                }
+            },
+            "Error.jsonld": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "title": {
+                                "readOnly": true,
+                                "description": "A short, human-readable summary of the problem.",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "detail": {
+                                "readOnly": true,
+                                "description": "A human-readable explanation specific to this occurrence of the problem.",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "status": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ],
+                                "examples": [
+                                    404
+                                ],
+                                "default": 400
+                            },
+                            "instance": {
+                                "readOnly": true,
+                                "description": "A URI reference that identifies the specific occurrence of the problem. It may or may not yield further information if dereferenced.",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "type": {
+                                "readOnly": true,
+                                "description": "A URI reference that identifies the problem type",
+                                "type": "string"
+                            },
+                            "description": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "description": "A representation of common errors."
+            },
+            "HydraCollectionBaseSchema": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraCollectionBaseSchemaNoPagination"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "view": {
+                                "type": "object",
+                                "properties": {
+                                    "@id": {
+                                        "type": "string",
+                                        "format": "iri-reference"
+                                    },
+                                    "@type": {
+                                        "type": "string"
+                                    },
+                                    "first": {
+                                        "type": "string",
+                                        "format": "iri-reference"
+                                    },
+                                    "last": {
+                                        "type": "string",
+                                        "format": "iri-reference"
+                                    },
+                                    "previous": {
+                                        "type": "string",
+                                        "format": "iri-reference"
+                                    },
+                                    "next": {
+                                        "type": "string",
+                                        "format": "iri-reference"
+                                    }
+                                },
+                                "example": {
+                                    "@id": "string",
+                                    "@type": "string",
+                                    "first": "string",
+                                    "last": "string",
+                                    "previous": "string",
+                                    "next": "string"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "HydraCollectionBaseSchemaNoPagination": {
+                "type": "object",
+                "properties": {
+                    "totalItems": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "search": {
+                        "type": "object",
+                        "properties": {
+                            "@type": {
+                                "type": "string"
+                            },
+                            "template": {
+                                "type": "string"
+                            },
+                            "variableRepresentation": {
+                                "type": "string"
+                            },
+                            "mapping": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "@type": {
+                                            "type": "string"
+                                        },
+                                        "variable": {
+                                            "type": "string"
+                                        },
+                                        "property": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "required": {
+                                            "type": "boolean"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "HydraItemBaseSchema": {
+                "type": "object",
+                "properties": {
+                    "@context": {
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "@vocab": {
+                                        "type": "string"
+                                    },
+                                    "hydra": {
+                                        "type": "string",
+                                        "enum": [
+                                            "http://www.w3.org/ns/hydra/core#"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "@vocab",
+                                    "hydra"
+                                ],
+                                "additionalProperties": true
+                            }
+                        ]
+                    },
+                    "@id": {
+                        "type": "string"
+                    },
+                    "@type": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "@id",
+                    "@type"
+                ]
+            },
+            "Locale-admin.read": {
+                "type": "object"
+            },
+            "Locale.jsonld-admin.read": {
+                "type": "object"
+            },
+            "ObjectType-admin.read": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "code": {
+                        "maxLength": 128,
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "product",
+                            "category",
+                            "asset",
+                            "custom"
+                        ]
+                    },
+                    "label": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "completenessRules": {
+                        "readOnly": true,
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "labelAttribute": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Attribute-admin.read"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "imageAttribute": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Attribute-admin.read"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "schemaVersion": {
+                        "readOnly": true,
+                        "default": 1,
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "builtIn": {
+                        "readOnly": true,
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "code"
+                ]
+            },
+            "ObjectType.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "code": {
+                                "maxLength": 128,
+                                "type": "string"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "product",
+                                    "category",
+                                    "asset",
+                                    "custom"
+                                ]
+                            },
+                            "label": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            },
+                            "completenessRules": {
+                                "readOnly": true,
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "labelAttribute": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Attribute.jsonld-admin.read"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "readOnly": true
+                            },
+                            "imageAttribute": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Attribute.jsonld-admin.read"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "readOnly": true
+                            },
+                            "schemaVersion": {
+                                "readOnly": true,
+                                "default": 1,
+                                "type": "integer"
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "updatedAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "builtIn": {
+                                "readOnly": true,
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "code"
+                        ]
+                    }
+                ],
+                "description": "Generic template for every domain object kind in PIM (per ADR-009).\n\nPredefined kinds (`Product`, `Category`, `Asset`) seed as fixtures with\n`is_built_in=true` in #33 \u2014 they are platform-owned and protected from\ndeletion by `ObjectTypeService::delete`. Custom kinds (`Customer`,\n`Supplier`, `PriceList`, etc.) are unlocked in phase 2/3 via the\n`enable_custom_object_types` feature flag.\n\n`label_attribute_id` and `image_attribute_id` are nullable foreign keys\nto `attributes` \u2014 the convention is \"name\" \u2192 display label, \"main_image\"\n\u2192 image. Cross-ObjectType reference is technically possible but should\nbe paired with the junction; a validator that enforces this lands as a\nfollow-up after #34.\n\n`completeness_rules` is a JSONB payload stored verbatim. The Doctrine\nlistener that interprets it (e.g. `{required: ['sku', 'name'], weight:\n{sku: 2, name: 1}}`) and computes `Object.completeness_pct` is in #38.\n\n`schema_version` is a forward hook for export/import tooling planned\nfor phase 2 (when enterprise customers move definitions between\nenvironments) \u2014 set on every save, bumped manually when a schema-\nbreaking change to `completeness_rules` ships."
+            }
+        },
+        "responses": {},
+        "parameters": {},
+        "examples": {},
+        "requestBodies": {},
+        "headers": {},
+        "securitySchemes": {
+            "JWT": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            },
+            "ApiKey": {
+                "type": "apiKey",
+                "description": "Value for the X-API-Key header parameter.",
+                "name": "X-API-Key",
+                "in": "header"
+            }
+        }
+    },
+    "security": [
+        {
+            "JWT": []
+        },
+        {
+            "ApiKey": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "Association",
+            "description": "One-way relation between two {@see CatalogObject} rows under a given\n{@see AssociationType} (e.g. SKU-X \u2192 SKU-Y as `cross_sell`).\n\nPer ADR-009 the link is generic across `kind` \u2014 products \u2192 categories,\ncategories \u2192 assets, products \u2192 products. Schema enforces:\n\n  - no self-loop (`source_object_id != target_object_id`) at the\n    application layer; the migration adds a CHECK constraint;\n  - one row per (source, target, type) triple via UNIQUE index with\n    `NULLS NOT DISTINCT` (no nulls here, but the convention matches\n    the rest of the catalog).\n\nReverse direction is NOT auto-mirrored \u2014 admin UI / agent decides\nwhether (A\u2192B cross_sell) implies (B\u2192A cross_sell). Keeping rows\none-way leaves room for asymmetric semantics like \"this product\n * replaces that one\"."
+        },
+        {
+            "name": "Attribute",
+            "description": "A single tenant-scoped attribute definition.\n\nAttributes describe the shape of `Object` values (per ADR-009 generic\nObjectType model). One attribute can be reused across many ObjectTypes\nvia the `object_type_attributes` junction (added in #32) \u2014 e.g. `name`\non every kind, `seo_title` on `product` + `category`.\n\n`validation_rules` is plain JSONB in #31. The per-type interpreter that\nenforces \"min/max for `number`\", \"max_length for `text`\", etc. lands in\n#39 (0.3.9). Until then it is a structured payload the entity stores\nverbatim \u2014 admins can already configure it; nothing on the server side\ntrips on out-of-range values yet.\n\n`group_id` FK is nullable + ON DELETE SET NULL \u2014 removing an attribute\ngroup leaves its members ungrouped rather than deleting them."
+        },
+        {
+            "name": "AttributeGroup",
+            "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). A group is purely organisational \u2014 it carries a localised\nlabel + an ordering position and lives entirely within one tenant.\n\nAttributes either belong to one group or stay ungrouped (`group_id` NULL\non Attribute). Removing a group leaves its attributes alive but ungrouped\n(FK ON DELETE SET NULL) so admins do not lose data by re-organising.\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale in MVP \u2014 no separate translations table."
+        },
+        {
+            "name": "CatalogObject",
+            "description": "Generic catalog object exposed via three sugar paths per ObjectKind. /api/products + /api/categories + /api/assets share the same backing table (objects), discriminator column kind, and ApiResource \u2014 the per-kind operation extraProperties.kind drives State Processor + query extensions."
+        },
+        {
+            "name": "ObjectType",
+            "description": "Generic template for every domain object kind in PIM (per ADR-009).\n\nPredefined kinds (`Product`, `Category`, `Asset`) seed as fixtures with\n`is_built_in=true` in #33 \u2014 they are platform-owned and protected from\ndeletion by `ObjectTypeService::delete`. Custom kinds (`Customer`,\n`Supplier`, `PriceList`, etc.) are unlocked in phase 2/3 via the\n`enable_custom_object_types` feature flag.\n\n`label_attribute_id` and `image_attribute_id` are nullable foreign keys\nto `attributes` \u2014 the convention is \"name\" \u2192 display label, \"main_image\"\n\u2192 image. Cross-ObjectType reference is technically possible but should\nbe paired with the junction; a validator that enforces this lands as a\nfollow-up after #34.\n\n`completeness_rules` is a JSONB payload stored verbatim. The Doctrine\nlistener that interprets it (e.g. `{required: ['sku', 'name'], weight:\n{sku: 2, name: 1}}`) and computes `Object.completeness_pct` is in #38.\n\n`schema_version` is a forward hook for export/import tooling planned\nfor phase 2 (when enterprise customers move definitions between\nenvironments) \u2014 set on every save, bumped manually when a schema-\nbreaking change to `completeness_rules` ships."
+        },
+        {
+            "name": "Channel",
+            "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports."
+        },
+        {
+            "name": "AssetStorage",
+            "description": "Stored binary file (image, PDF, video, \u2026) with tenant scope.\n\nPer ADR-009 Asset is split between two homes: this dedicated table\ncarries storage details (path on object storage, mime type, size,\nEXIF / dimensions JSONB), while user-defined metadata flows through\nthe catalog model \u2014 every Asset row optionally points at a\n`CatalogObject` of `kind=asset` (`object_id` UNIQUE) so admins can\nattach localised attributes (`alt_pl`, `caption_en`, \u2026) the same way\nthey do for products. Tightly-coupled storage details stay here so\nwe are not forcing them through the EAV layer.\n\n`storage_path` is relative to the Flysystem bucket (e.g. `<tenant>/\n<asset-id>/original.jpg`) \u2014 application-layer convention,\nFlysystem-agnostic.\n\nVariants (thumbnails, transcodes, alternative formats) live in\n{@see AssetVariant} and are derived in phase 1 (transformations are\nout of MVP scope \u2014 #37 only handles the original upload)."
+        }
+    ],
+    "webhooks": {}
+}
