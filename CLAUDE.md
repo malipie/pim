@@ -5,9 +5,9 @@
 
 ## AUTONOMOUS MODE — epik 0.3 batch
 
-<!-- AUTONOMOUS_MODE: ON -->
+<!-- AUTONOMOUS_MODE: OFF -->
 
-**Toggle (operator):** zmień `OFF` → `ON` w komentarzu powyżej, żeby aktywować autonomous batch. Zakres zawężony 2026-04-29 z "epiki 0.3 + 0.4" na **tylko epik 0.3** — operator zdecydował zakończyć autonomous na #128 (ostatni ticket epiku 0.3); epic 0.4 wraca do plan-first. Auto-flag flip do `OFF` po zamknięciu #128.
+**Toggle (operator):** zmień `OFF` → `ON` w komentarzu powyżej, żeby aktywować autonomous batch. Tryb używany w 2026-04-29 dla całego epiku 0.3 (#31–#40 + #128 — wszystkie zamknięte i mergeowane do main). Domyślnie `OFF`: epic 0.4 wraca do plan-first; ponowne włączenie wymaga rewizji listy ticketów objętych zakresem.
 
 Gdy `AUTONOMOUS_MODE: ON`, agent dla **ticketów epiku 0.3** (#33, #34, #35, #36, #37, #38, #39, #40, #128):
 - **pomija Plan Mode** — przechodzi prosto do implementacji wzorcem z #31/#32 (planning od ticketu #41+ wraca do default plan-first)
