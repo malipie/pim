@@ -4,13 +4,21 @@ declare(strict_types=1);
 
 namespace App\Catalog\Domain\Entity;
 
+use App\Catalog\Contracts\Event\ObjectArchived;
+use App\Catalog\Contracts\Event\ObjectAttributesChanged;
+use App\Catalog\Contracts\Event\ObjectCreated;
+use App\Catalog\Contracts\Event\ObjectEnabledChanged;
+use App\Catalog\Contracts\Event\ObjectPublished;
 use App\Catalog\Domain\ObjectKind;
 use App\Shared\Application\TenantScoped;
+use App\Shared\Domain\AggregateRoot;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
+
+use const ARRAY_FILTER_USE_BOTH;
 
 /**
  * Generic catalog object — polymorphic per `kind` (per ADR-009).
@@ -42,7 +50,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  *   - `kind='product'` for variants (size/color of a parent SKU);
  *   - `kind='category'` for the tree (parent category in ltree).
  */
-class CatalogObject implements TenantScoped
+class CatalogObject extends AggregateRoot implements TenantScoped
 {
     public const string STATUS_DRAFT = 'draft';
     public const string STATUS_PUBLISHED = 'published';
@@ -116,6 +124,12 @@ class CatalogObject implements TenantScoped
         }
 
         $this->tenant = $tenant;
+        $this->recordThat(new ObjectCreated(
+            objectId: $this->id,
+            kind: $this->kind,
+            code: $this->code,
+            tenantId: $tenant->getId(),
+        ));
     }
 
     public function getObjectType(): ObjectType
@@ -151,8 +165,20 @@ class CatalogObject implements TenantScoped
 
     public function changeEnabled(bool $enabled): void
     {
+        if ($this->enabled === $enabled) {
+            return;
+        }
+
         $this->enabled = $enabled;
         $this->touch();
+
+        if (null !== $this->tenant) {
+            $this->recordThat(new ObjectEnabledChanged(
+                objectId: $this->id,
+                tenantId: $this->tenant->getId(),
+                enabled: $enabled,
+            ));
+        }
     }
 
     public function getStatus(): string
@@ -162,8 +188,30 @@ class CatalogObject implements TenantScoped
 
     public function transitionTo(string $status): void
     {
+        if ($this->status === $status) {
+            return;
+        }
+
+        $previous = $this->status;
         $this->status = $status;
         $this->touch();
+
+        if (null === $this->tenant) {
+            return;
+        }
+
+        if (self::STATUS_PUBLISHED === $status) {
+            $this->recordThat(new ObjectPublished(
+                objectId: $this->id,
+                tenantId: $this->tenant->getId(),
+            ));
+        } elseif (self::STATUS_ARCHIVED === $status) {
+            $this->recordThat(new ObjectArchived(
+                objectId: $this->id,
+                tenantId: $this->tenant->getId(),
+            ));
+        }
+        unset($previous);
     }
 
     /**
@@ -196,8 +244,33 @@ class CatalogObject implements TenantScoped
      */
     public function updateAttributeIndex(array $attributes): void
     {
+        $previous = $this->attributesIndexed;
         $this->attributesIndexed = $attributes;
         $this->touch();
+
+        if (null === $this->tenant) {
+            return;
+        }
+
+        $changedCodes = array_values(array_unique(array_merge(
+            array_keys(array_diff_key($attributes, $previous)),
+            array_keys(array_diff_key($previous, $attributes)),
+            array_keys(array_filter(
+                $attributes,
+                static fn ($value, string $key) => isset($previous[$key]) && $previous[$key] !== $value,
+                ARRAY_FILTER_USE_BOTH,
+            )),
+        )));
+
+        if ([] === $changedCodes) {
+            return;
+        }
+
+        $this->recordThat(new ObjectAttributesChanged(
+            objectId: $this->id,
+            tenantId: $this->tenant->getId(),
+            changedAttributeCodes: $changedCodes,
+        ));
     }
 
     public function getPath(): ?string

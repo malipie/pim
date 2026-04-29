@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <!--
+        Mapped superclass with no persistent state. The `$pendingEvents`
+        buffer on AggregateRoot is intentionally transient; Doctrine ORM 3
+        with `report_fields_where_declared: true` would otherwise reject
+        the property as "unmapped on a mapped class". Declaring the
+        superclass here without any <field> entries makes the buffer
+        invisible to the persister.
+    -->
+    <mapped-superclass name="App\Shared\Domain\AggregateRoot"/>
+
+</doctrine-mapping>
