@@ -26,6 +26,16 @@
     <resource class="App\Catalog\Domain\Entity\CatalogObject"
               shortName="CatalogObject">
 
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>admin:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
         <operations>
             <!-- ──────────── /api/products (kind=product) ──────────── -->
             <operation class="ApiPlatform\Metadata\GetCollection"

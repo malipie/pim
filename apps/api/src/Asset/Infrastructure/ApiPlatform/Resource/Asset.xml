@@ -15,6 +15,16 @@
     <resource class="App\Asset\Domain\Entity\Asset"
               shortName="AssetStorage">
 
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>admin:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
         <operations>
             <operation class="ApiPlatform\Metadata\GetCollection"
                        uriTemplate="/asset_storage{._format}"

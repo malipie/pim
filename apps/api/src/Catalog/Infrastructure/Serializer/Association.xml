@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <class name="App\Catalog\Domain\Entity\Association">
+        <attribute name="id">
+            <group>admin:read</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="source">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="target">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="type">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="position">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+        </attribute>
+    </class>
+</serializer>

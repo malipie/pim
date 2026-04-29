@@ -79,6 +79,17 @@ services:
         arguments:
             $decorated: '@.inner'
 
+    # Context-scope decorator (#42 / 0.4.2). Wraps the KindAware decorator
+    # so the chain is: AP4 default → KindAware (per-kind groups, opt-in)
+    # → ContextScope (?context=integration|public override). Explicit
+    # `decoration_priority: 10` keeps this on the outside even if more
+    # decorators land on `api_platform.serializer.context_builder`.
+    App\Catalog\Infrastructure\ApiPlatform\ContextScopeSerializerContextBuilder:
+        decorates: 'api_platform.serializer.context_builder'
+        decoration_priority: 10
+        arguments:
+            $decorated: '@.inner'
+
     # Bind the named Flysystem storage for the Asset uploader. Without
     # this Symfony has multiple FilesystemOperator services (one per
     # named storage) and autowire can't pick. The named alias
