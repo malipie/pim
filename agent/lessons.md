@@ -935,3 +935,23 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **`TooManyRequestsHttpException` constructor positional args**: `($retryAfter, $message, $previous, $code, $headers)` — `$code` defaults to 0 (NIE HTTP status; status jest hardcoded 429 w base class). `Retry-After` header musi być explicit w `$headers` array bo Symfony renderer nie auto-wstawia z constructor.
 
 - **Reserved limiters bez konsumenta są legitne** — `agent_run` i `integration_sync` zostają zarejestrowane w MVP-Alpha pomimo braku consumer endpoint. Pattern: dodaj limiter jako część architektury "bezpieczeństwa od dnia 1", consumer dochodzi w ticket który dodaje endpoint. Bez tego pattern każdy ticket dodaje swój ad-hoc rate limit logic.
+
+## Lessons z 0.5.1 / #49 (Meilisearch bundle — settings template per ObjectKind)
+
+- **`meilisearch/meilisearch-php` SDK** ma własną HTTP client discovery (PSR-18) — `Client(URL, masterKey)` wystarczy bez factory configuration. DI factory `MeilisearchClientFactory` wraps construction żeby env vars (`MEILI_URL`, `MEILI_KEY`) były read once + autowire-able do indexerów / commands.
+
+- **3 separate indexes per ObjectKind** (`products`, `categories`, `assets`) zamiast jednego `objects` z filter na kind. Trzy małe indexes:
+  - clean filter mental model per kind (filter `status` znaczy co innego dla products vs categories);
+  - per-kind ranking / typo tolerance config;
+  - ~3× mniej memory per query bo Meili optymalizuje per-index.
+  Trade-off: cross-kind search niemożliwy (rzadki use case w PIM); jeśli pojawi się — dodajmy 4th index `objects_global` na top.
+
+- **Meilisearch Quirk: facetable attributes muszą być declared explicitly** w `filterableAttributes`. Bez tego `?facets=brand` zwraca empty bez błędu (cicha pułapka — lessons z RF). `IndexSettingsTemplate::settingsFor()` enumeruje wszystko explicit; per-kind override w MVP, future per-tenant overlay z `object_type.search_config` JSONB.
+
+- **Kind=Custom skipped w MVP indexer** — `IndexSettingsTemplate::indexName(Custom)` throws (per ADR-009 reserved Faza 2/3). `indexedKinds()` static helper zwraca tylko 3 built-in kinds — provisioner / commands iterują przez to zamiast hard-coding listy.
+
+- **`pim:search:health` CLI dwa zadania**: (1) reachability check (`$client->health()` returns `{"status": "available"}`), (2) idempotent provision (`createIndex` + `updateSettings` no-op on re-run). Exit 0 = healthy + provisioned; exit 1 = network/wrong-key/hub down. Pattern: każda integracja z external service dostaje dedicated `pim:<svc>:health` CLI dla operatorów + smoke testów.
+
+- **Deptrac layer `Search`** — top-level w `apps/api/src/Search/` (nie wewnątrz Catalog). Search to cross-cutting infrastructure adapter: indexer może być wywoływany z różnych BC (Catalog dla kind=product, Asset dla storage details, Channel dla per-channel publish). Layer dependencies: `Search → Catalog_Internals + Catalog_Contracts + Channel_Contracts + Shared`. Catalog_Internals dependency bo Indexer (#50) potrzebuje Catalog Domain entity types do mapowania na search documents — wystarczająco luźne że Catalog może zmieniać shape bez breaking Search (ostatecznie czyta tylko getId/getCode/getKind/getAttributesIndexed).
+
+- **PHPStan max + `mixed` from `\Throwable->getMessage()` / `array_access_on_unknown`**: `$client->health()` zwraca `array<string, mixed>`, `$health['status']` jest `mixed`. PHPStan max wymaga sniff'u: `\is_scalar($x) ? (string) $x : 'fallback'` przed `(string)` cast albo `sprintf` use. Pattern dla każdej response z third-party SDK której nie kontrolujemy: `is_scalar` sniff zamiast trust przed cast.

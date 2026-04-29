@@ -84,6 +84,12 @@ parameters:
               - type: directory
                 value: 'src/Shared/.*'
 
+        # ─── Search (Meilisearch adapter — epic 0.5) ───────────────────
+        - name: Search
+          collectors:
+              - type: directory
+                value: 'src/Search/.*'
+
         # ─── Forward-compatible BCs (empty today) ──────────────────────
         - name: Integration
           collectors:
@@ -142,6 +148,12 @@ parameters:
             - Shared
 
         Shared: ~
+
+        Search:
+            - Shared
+            - Catalog_Contracts
+            - Catalog_Internals
+            - Channel_Contracts
 
         Integration:
             - Shared
