@@ -1,0 +1,161 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Search\Application;
+
+use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\ObjectKind;
+use App\Search\Infrastructure\MeilisearchClientFactory;
+use App\Shared\Domain\Tenant;
+use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Throwable;
+
+/**
+ * Memory-safe bulk reindex of CatalogObject rows into Meilisearch
+ * (#51 / 0.5.3).
+ *
+ * Iterates the entire catalog (or a single kind) using
+ * `Query::toIterable()` + `EntityManager::clear()` every 200 rows so
+ * the FrankenPHP worker stays under 256 MB even for 50k SKU. Documents
+ * batch-push to Meili in chunks of 500 — one HTTP call instead of
+ * 200 — keeping the round-trip count manageable on the 50k path.
+ *
+ * The progress + dry-run UX lives in the CLI (`SearchReindexCommand`);
+ * this service is the reusable engine that the CLI, the bulk import
+ * handler, and any future replay tool can share.
+ */
+final readonly class BulkCatalogObjectIndexer
+{
+    private const int FLUSH_CLEAR_INTERVAL = 200;
+    private const int MEILI_BATCH_SIZE = 500;
+
+    private LoggerInterface $logger;
+
+    public function __construct(
+        private EntityManagerInterface $em,
+        private MeilisearchClientFactory $clientFactory,
+        ?LoggerInterface $logger = null,
+    ) {
+        $this->logger = $logger ?? new NullLogger();
+    }
+
+    /**
+     * @param callable(int, int): void|null $onProgress (indexedSoFar, batchSize)
+     *
+     * @return array{count: int, batches: int}
+     */
+    public function reindex(?ObjectKind $kind = null, bool $dryRun = false, ?callable $onProgress = null): array
+    {
+        $client = $this->clientFactory->create();
+
+        $qb = $this->em->createQueryBuilder()
+            ->select('o')
+            ->from(CatalogObject::class, 'o');
+
+        if ($kind instanceof ObjectKind) {
+            $qb->where('o.kind = :kind')->setParameter('kind', $kind);
+        } else {
+            $qb->where('o.kind != :customKind')->setParameter('customKind', ObjectKind::Custom);
+        }
+        $qb->orderBy('o.id', 'ASC');
+
+        $count = 0;
+        $batches = 0;
+        $perKindBuffer = [];
+
+        foreach ($qb->getQuery()->toIterable() as $row) {
+            $rowKind = $row->getKind();
+            if (ObjectKind::Custom === $rowKind) {
+                continue;
+            }
+
+            $perKindBuffer[$rowKind->value][] = $this->toDocument($row);
+            ++$count;
+
+            // Flush a per-kind buffer when it reaches the Meili batch size.
+            if (\count($perKindBuffer[$rowKind->value]) >= self::MEILI_BATCH_SIZE) {
+                $this->flushBatch($client, $rowKind, $perKindBuffer[$rowKind->value], $dryRun);
+                $perKindBuffer[$rowKind->value] = [];
+                ++$batches;
+                if (null !== $onProgress) {
+                    $onProgress($count, self::MEILI_BATCH_SIZE);
+                }
+            }
+
+            if (0 === $count % self::FLUSH_CLEAR_INTERVAL) {
+                // Detach managed entities so Identity Map does not
+                // accumulate; lessons #13 — flush() in loop without
+                // clear() OOMs the FrankenPHP worker on 50k SKU.
+                $this->em->clear();
+            }
+        }
+
+        // Flush any leftover buffers.
+        foreach ($perKindBuffer as $value => $documents) {
+            if ([] === $documents) {
+                continue;
+            }
+            $rowKind = ObjectKind::from($value);
+            $this->flushBatch($client, $rowKind, $documents, $dryRun);
+            ++$batches;
+            if (null !== $onProgress) {
+                $onProgress($count, \count($documents));
+            }
+        }
+
+        return ['count' => $count, 'batches' => $batches];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $documents
+     */
+    private function flushBatch(\Meilisearch\Client $client, ObjectKind $kind, array $documents, bool $dryRun): void
+    {
+        if ($dryRun) {
+            $this->logger->info('Reindex dry-run batch.', [
+                'kind' => $kind->value,
+                'count' => \count($documents),
+            ]);
+
+            return;
+        }
+
+        try {
+            $client->index(IndexSettingsTemplate::indexName($kind))->addDocuments($documents);
+        } catch (Throwable $e) {
+            $this->logger->warning('Reindex batch push failed: {message}', [
+                'message' => $e->getMessage(),
+                'kind' => $kind->value,
+                'count' => \count($documents),
+            ]);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function toDocument(CatalogObject $object): array
+    {
+        $tenant = $object->getTenant();
+        \assert($tenant instanceof Tenant);
+
+        return [
+            'id' => $object->getId()->toRfc4122(),
+            'tenantId' => $tenant->getId()->toRfc4122(),
+            'code' => $object->getCode(),
+            'kind' => $object->getKind()->value,
+            'objectTypeId' => $object->getObjectType()->getId()->toRfc4122(),
+            'status' => $object->getStatus(),
+            'enabled' => $object->isEnabled(),
+            'parentId' => $object->getParent()?->getId()->toRfc4122(),
+            'path' => $object->getPath(),
+            'attributesIndexed' => $object->getAttributesIndexed(),
+            'completeness' => $object->getCompleteness(),
+            'createdAt' => $object->getCreatedAt()->getTimestamp(),
+            'updatedAt' => $object->getUpdatedAt()->getTimestamp(),
+        ];
+    }
+}
