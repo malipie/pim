@@ -6,7 +6,7 @@ namespace App\Channel\Domain\Entity;
 
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Channel\Infrastructure\Doctrine\Repository\ChannelRepository;
-use App\Identity\Application\TenantScoped;
+use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;

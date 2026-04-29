@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Application;
+namespace App\Shared\Application;
 
 use App\Shared\Domain\Tenant;
 

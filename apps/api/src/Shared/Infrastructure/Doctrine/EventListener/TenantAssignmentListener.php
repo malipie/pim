@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Infrastructure\Doctrine\EventListener;
+namespace App\Shared\Infrastructure\Doctrine\EventListener;
 
-use App\Identity\Application\TenantContext;
-use App\Identity\Application\TenantScoped;
+use App\Shared\Application\TenantContext;
+use App\Shared\Application\TenantScoped;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\PrePersistEventArgs;
 use Doctrine\ORM\Events;

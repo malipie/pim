@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Asset\Presentation\Command;
 
 use App\Asset\Application\AssetUploader;
-use App\Identity\Application\TenantContext;
+use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use App\Shared\Infrastructure\Doctrine\Repository\DoctrineTenantRepository;
 use Symfony\Component\Console\Attribute\AsCommand;

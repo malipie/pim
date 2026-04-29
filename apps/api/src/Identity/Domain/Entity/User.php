@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Domain\Entity;
 
-use App\Identity\Application\TenantAware;
 use App\Identity\Infrastructure\Doctrine\Repository\UserRepository;
+use App\Shared\Application\TenantAware;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;

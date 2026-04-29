@@ -6,7 +6,7 @@ namespace App\Asset\Domain\Entity;
 
 use App\Asset\Infrastructure\Doctrine\Repository\AssetRepository;
 use App\Catalog\Domain\Entity\CatalogObject;
-use App\Identity\Application\TenantScoped;
+use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;

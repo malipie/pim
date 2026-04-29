@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Application;
+namespace App\Shared\Application;
 
 use App\Shared\Domain\Tenant;
 
@@ -11,10 +11,10 @@ use App\Shared\Domain\Tenant;
  * must be auto-stamped + filtered against the current tenant.
  *
  * Implementing this interface opts an entity into:
- *   - {@see \App\Identity\Infrastructure\Doctrine\EventListener\TenantAssignmentListener}:
+ *   - {@see \App\Shared\Infrastructure\Doctrine\EventListener\TenantAssignmentListener}:
  *     stamps the active tenant on `prePersist` when the entity has none yet,
  *     by calling {@see assignTenant()}.
- *   - {@see \App\Identity\Infrastructure\Doctrine\Filter\TenantFilter}:
+ *   - {@see \App\Shared\Infrastructure\Doctrine\Filter\TenantFilter}:
  *     appends `WHERE tenant_id = :current_tenant` to every query.
  *
  * Distinct from {@see TenantAware}, which says "this object can resolve the

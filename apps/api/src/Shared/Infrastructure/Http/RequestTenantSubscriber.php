@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Infrastructure;
+namespace App\Shared\Infrastructure\Http;
 
 use App\Identity\Application\CurrentTenantProvider;
-use App\Identity\Application\TenantContext;
-use App\Identity\Infrastructure\Doctrine\Filter\TenantFilterConfigurator;
+use App\Shared\Application\TenantContext;
+use App\Shared\Infrastructure\Doctrine\Filter\TenantFilterConfigurator;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Event\KernelEvent;
 use Symfony\Component\HttpKernel\Event\RequestEvent;

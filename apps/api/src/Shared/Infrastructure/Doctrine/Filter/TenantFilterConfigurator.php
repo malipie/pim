@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Infrastructure\Doctrine\Filter;
+namespace App\Shared\Infrastructure\Doctrine\Filter;
 
-use App\Identity\Application\TenantContext;
+use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
