@@ -126,6 +126,15 @@ services:
             $orderParameterName: 'order'
             $properties: { id: DESC }
 
+    # Meilisearch client factory (#49 / 0.5.1). MEILI_URL + MEILI_KEY come
+    # from docker-compose env (MEILI_KEY defaults to the dev master key).
+    # `default::` env-resolver keeps cache-warmup happy when env isn't
+    # injected (PHPStan CI boots the container without docker-compose).
+    App\Search\Infrastructure\MeilisearchClientFactory:
+        arguments:
+            $url: '%env(default::MEILI_URL)%'
+            $masterKey: '%env(default::MEILI_KEY)%'
+
     # Bind the named Flysystem storage for the Asset uploader. Without
     # this Symfony has multiple FilesystemOperator services (one per
     # named storage) and autowire can't pick. The named alias
