@@ -37,7 +37,7 @@ final class AssetTest extends TestCase
     public function metadataRoundTripsJsonbPayload(): void
     {
         $asset = $this->makeAsset();
-        $asset->setMetadata([
+        $asset->updateMetadata([
             'width' => 1920,
             'height' => 1080,
             'exif' => ['camera' => 'Sony A7'],
@@ -55,7 +55,7 @@ final class AssetTest extends TestCase
         $object = new CatalogObject($type, 'hero-image');
         $asset = $this->makeAsset();
 
-        $asset->setObject($object);
+        $asset->linkToObject($object);
 
         self::assertSame($object, $asset->getObject());
     }

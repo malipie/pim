@@ -43,7 +43,7 @@ final class ChannelCategoryRootValidatorTest extends TestCase
         $channel = new Channel('shop', ['pl' => 'Sklep']);
         $type = new ObjectType('category', ObjectKind::Category, ['pl' => 'Kategoria']);
         $root = new CatalogObject($type, 'root');
-        $channel->setCategoryTreeRoot($root);
+        $channel->attachCategoryTreeRoot($root);
 
         $this->validator->prePersist(new PrePersistEventArgs($channel, $this->em));
 
@@ -56,7 +56,7 @@ final class ChannelCategoryRootValidatorTest extends TestCase
         $channel = new Channel('shop', ['pl' => 'Sklep']);
         $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
         $root = new CatalogObject($type, 'SKU-1');
-        $channel->setCategoryTreeRoot($root);
+        $channel->attachCategoryTreeRoot($root);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('kind=category');

@@ -87,7 +87,7 @@ class ChannelObjectTypeMapping
         return $this->targetField;
     }
 
-    public function setTargetField(string $targetField): void
+    public function mapToField(string $targetField): void
     {
         $this->targetField = $targetField;
     }
@@ -97,7 +97,7 @@ class ChannelObjectTypeMapping
         return $this->isPublished;
     }
 
-    public function setPublished(bool $published): void
+    public function changePublished(bool $published): void
     {
         $this->isPublished = $published;
     }
