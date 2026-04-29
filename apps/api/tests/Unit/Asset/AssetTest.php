@@ -29,7 +29,7 @@ final class AssetTest extends TestCase
         self::assertSame(123_456, $asset->getSize());
         self::assertSame('demo/hero/original.jpg', $asset->getStoragePath());
         self::assertSame([], $asset->getMetadata());
-        self::assertNull($asset->getObject());
+        self::assertNull($asset->getObjectId());
         self::assertCount(0, $asset->getVariants());
     }
 
@@ -49,15 +49,15 @@ final class AssetTest extends TestCase
     }
 
     #[Test]
-    public function setObjectAttachesCatalogObject(): void
+    public function linkToObjectStoresUuid(): void
     {
         $type = new ObjectType('asset', ObjectKind::Asset, ['pl' => 'Zasób']);
         $object = new CatalogObject($type, 'hero-image');
         $asset = $this->makeAsset();
 
-        $asset->linkToObject($object);
+        $asset->linkToObject($object->getId());
 
-        self::assertSame($object, $asset->getObject());
+        self::assertSame($object->getId(), $asset->getObjectId());
     }
 
     #[Test]

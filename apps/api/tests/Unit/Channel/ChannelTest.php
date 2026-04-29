@@ -28,7 +28,7 @@ final class ChannelTest extends TestCase
         self::assertSame('Sklep PL', $channel->getLabel()['pl']);
         self::assertCount(0, $channel->getLocales());
         self::assertCount(0, $channel->getCurrencies());
-        self::assertNull($channel->getCategoryTreeRoot());
+        self::assertNull($channel->getCategoryTreeRootId());
         self::assertNull($channel->getTenant());
     }
 
@@ -54,15 +54,15 @@ final class ChannelTest extends TestCase
     }
 
     #[Test]
-    public function categoryTreeRootSetterStoresReference(): void
+    public function categoryTreeRootStoresUuid(): void
     {
         $channel = new Channel('shop', ['pl' => 'Sklep']);
         $categoryType = new ObjectType('category', ObjectKind::Category, ['pl' => 'Kategoria']);
         $root = new CatalogObject($categoryType, 'root');
 
-        $channel->attachCategoryTreeRoot($root);
+        $channel->attachCategoryTreeRoot($root->getId());
 
-        self::assertSame($root, $channel->getCategoryTreeRoot());
+        self::assertSame($root->getId(), $channel->getCategoryTreeRootId());
     }
 
     #[Test]

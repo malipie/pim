@@ -27,9 +27,7 @@
 
         <field name="code" type="string" length="128"/>
 
-        <one-to-one field="object" target-entity="App\Catalog\Domain\Entity\CatalogObject">
-            <join-column name="object_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
-        </one-to-one>
+        <field name="objectId" type="uuid" column="object_id" nullable="true"/>
 
         <field name="originalFilename" type="string" length="255" column="original_filename"/>
         <field name="mimeType" type="string" length="128" column="mime_type"/>

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Asset\Domain\Entity;
 
 use App\Asset\Contracts\Event\AssetUploaded;
-use App\Catalog\Domain\Entity\CatalogObject;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\AggregateRoot;
 use App\Shared\Domain\Tenant;
@@ -46,7 +45,12 @@ class Asset extends AggregateRoot implements TenantScoped
     #[Assert\Length(max: 128)]
     private string $code;
 
-    private ?CatalogObject $object = null;
+    /**
+     * Stored as a bare UUID rather than a Doctrine relation to keep Asset
+     * Domain free of cross-BC entity imports — DB-level FK with
+     * `ON DELETE SET NULL` keeps orphans out (RF-19).
+     */
+    private ?Uuid $objectId = null;
 
     #[Assert\NotBlank]
     private string $originalFilename;
@@ -113,7 +117,7 @@ class Asset extends AggregateRoot implements TenantScoped
             tenantId: $tenant->getId(),
             code: $this->code,
             mimeType: $this->mimeType,
-            linkedObjectId: $this->object?->getId(),
+            linkedObjectId: $this->objectId,
         ));
     }
 
@@ -122,14 +126,14 @@ class Asset extends AggregateRoot implements TenantScoped
         return $this->code;
     }
 
-    public function getObject(): ?CatalogObject
+    public function getObjectId(): ?Uuid
     {
-        return $this->object;
+        return $this->objectId;
     }
 
-    public function linkToObject(?CatalogObject $object): void
+    public function linkToObject(?Uuid $objectId): void
     {
-        $this->object = $object;
+        $this->objectId = $objectId;
     }
 
     public function getOriginalFilename(): string
