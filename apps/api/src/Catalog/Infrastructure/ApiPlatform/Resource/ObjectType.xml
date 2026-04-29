@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <!--
+        Read-only ApiResource for `ObjectType` (per ADR-009 the schema
+        carrier for every kind). MVP exposes the catalog of types via
+        `/api/object_types` so admins can wire UI; mutations (create
+        custom kind, rename, change schema version) flow through admin
+        UI workflows in epic 0.6 with their own dedicated processors.
+    -->
+    <resource class="App\Catalog\Domain\Entity\ObjectType"
+              shortName="ObjectType">
+
+        <operations>
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/object_types{._format}"
+                       security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\ObjectType')"/>
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/object_types/{id}{._format}"
+                       security="is_granted('READ', object)"/>
+        </operations>
+    </resource>
+</resources>

@@ -5,7 +5,7 @@
 
 ## AUTONOMOUS MODE — epik 0.3 batch
 
-<!-- AUTONOMOUS_MODE: OFF -->
+<!-- AUTONOMOUS_MODE: ON -->
 
 **Toggle (operator):** zmień `OFF` → `ON` w komentarzu powyżej, żeby aktywować autonomous batch. Tryb używany w 2026-04-29 dla całego epiku 0.3 (#31–#40 + #128 — wszystkie zamknięte i mergeowane do main). Domyślnie `OFF`: epic 0.4 wraca do plan-first; ponowne włączenie wymaga rewizji listy ticketów objętych zakresem.
 

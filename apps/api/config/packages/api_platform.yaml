@@ -1,6 +1,28 @@
 api_platform:
-    title: Hello API Platform
-    version: 1.0.0
+    title: PIM API
+    description: Product Information Management — REST API surface (per ADR-009 generic ObjectType + sugar paths).
+    version: 0.1.0
+
+    # Resource declarations live next to the bounded contexts in
+    # Infrastructure/ApiPlatform/Resource (per ADR-0011 — Domain stays
+    # framework-agnostic, AP4 metadata is bridged via XML the same way
+    # Doctrine ORM mapping is). Add a new path here when a new BC starts
+    # exposing entities.
+    mapping:
+        paths:
+            - '%kernel.project_dir%/src/Catalog/Infrastructure/ApiPlatform/Resource'
+            - '%kernel.project_dir%/src/Channel/Infrastructure/ApiPlatform/Resource'
+            - '%kernel.project_dir%/src/Asset/Infrastructure/ApiPlatform/Resource'
+
+    # AP4 default content negotiation: JSON-LD (Hydra) for application use,
+    # plain JSON kept available for tooling that does not understand
+    # JSON-LD. PATCH must use RFC 7396 merge-patch.
+    formats:
+        jsonld: ['application/ld+json']
+        json: ['application/json']
+    patch_formats:
+        json: ['application/merge-patch+json']
+
     defaults:
         stateless: true
         cache_headers:

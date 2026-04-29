@@ -51,18 +51,30 @@ final readonly class KindAwareSerializerContextBuilder implements SerializerCont
             return $context;
         }
 
-        $existing = $context['groups'] ?? [];
+        // Always expose `kind` to downstream normalisers — they may use it
+        // for per-kind branching (e.g. attribute denormalisation in #45).
+        $context['kind'] = $kind->value;
+
+        // Group filtering is opt-in: we only enrich the `groups` context
+        // when the operation already declared one. Domain entities carry
+        // no `#[Groups]` in #41 (the per-context group sets land with
+        // dedicated output DTOs in #42), so unconditionally injecting
+        // `object:read` here would filter every property out and yield
+        // an empty JSON-LD body.
+        $existing = $context['groups'] ?? null;
+        if (null === $existing || [] === $existing) {
+            return $context;
+        }
         if (\is_string($existing)) {
             $existing = [$existing];
         }
         if (!\is_array($existing)) {
-            $existing = [];
+            return $context;
         }
 
         /** @var list<string> $existingStrings */
         $existingStrings = array_values(array_filter($existing, 'is_string'));
 
-        $context['kind'] = $kind->value;
         $context['groups'] = array_values(array_unique([...$existingStrings, ...$this->router->groupsFor($kind)]));
 
         return $context;

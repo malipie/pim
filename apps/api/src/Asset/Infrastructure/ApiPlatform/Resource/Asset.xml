@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <!--
+        Storage-side Asset (binary file: path, mime, size, variants).
+        Distinct from `/api/assets` sugar path on `CatalogObject` which
+        carries user-defined attribute values for the matching
+        `CatalogObject kind=asset`. The two are joined 1:1 via
+        `assets.object_id`. Read-only here in MVP — uploads ride the
+        dedicated multipart pipeline (#37 / 0.3.7).
+    -->
+    <resource class="App\Asset\Domain\Entity\Asset"
+              shortName="AssetStorage">
+
+        <operations>
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/asset_storage{._format}"
+                       security="is_granted('READ', 'App\\Asset\\Domain\\Entity\\Asset')"/>
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/asset_storage/{id}{._format}"
+                       security="is_granted('READ', object)"/>
+        </operations>
+    </resource>
+</resources>

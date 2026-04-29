@@ -36,6 +36,7 @@ final class RbacMatrix
     private const array RESOURCES = [
         'api_profile',
         'asset',
+        'association',
         'attribute',
         'attribute_group',
         'brand',
@@ -86,7 +87,7 @@ final class RbacMatrix
                 code: self::ROLE_CATALOG_MANAGER,
                 name: 'Catalog Manager',
                 permissionCodes: self::permissionsFor(
-                    resources: ['object', 'object_type', 'attribute', 'attribute_group', 'category', 'asset', 'brand'],
+                    resources: ['object', 'object_type', 'attribute', 'attribute_group', 'association', 'category', 'asset', 'brand'],
                     actions: [self::ACTION_READ, self::ACTION_WRITE, self::ACTION_DELETE],
                 ),
             ),
