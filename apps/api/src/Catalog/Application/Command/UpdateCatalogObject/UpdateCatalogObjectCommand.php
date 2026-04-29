@@ -22,6 +22,11 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class UpdateCatalogObjectCommand
 {
+    /**
+     * @param array<string, mixed>|null $attributes per-attribute partial
+     *                                              update (`null` = no
+     *                                              attribute change)
+     */
     public function __construct(
         public Uuid $id,
         public ?bool $enabled = null,
@@ -30,6 +35,7 @@ final readonly class UpdateCatalogObjectCommand
         public bool $clearParent = false,
         public ?string $path = null,
         public bool $clearPath = false,
+        public ?array $attributes = null,
     ) {
     }
 }

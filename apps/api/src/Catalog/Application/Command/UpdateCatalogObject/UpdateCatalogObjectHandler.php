@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application\Command\UpdateCatalogObject;
 
+use App\Catalog\Application\ObjectAttributesUpserter;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -13,6 +14,7 @@ final readonly class UpdateCatalogObjectHandler
 {
     public function __construct(
         private CatalogObjectRepositoryInterface $catalogObjects,
+        private ObjectAttributesUpserter $attributesUpserter,
     ) {
     }
 
@@ -53,5 +55,9 @@ final readonly class UpdateCatalogObjectHandler
         }
 
         $this->catalogObjects->save($object);
+
+        if (null !== $command->attributes && [] !== $command->attributes) {
+            $this->attributesUpserter->upsert($object, $command->attributes);
+        }
     }
 }

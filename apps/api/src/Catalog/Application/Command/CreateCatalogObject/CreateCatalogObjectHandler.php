@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application\Command\CreateCatalogObject;
 
+use App\Catalog\Application\ObjectAttributesUpserter;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
@@ -31,6 +32,7 @@ final readonly class CreateCatalogObjectHandler
     public function __construct(
         private CatalogObjectRepositoryInterface $catalogObjects,
         private ObjectTypeRepositoryInterface $objectTypes,
+        private ObjectAttributesUpserter $attributesUpserter,
     ) {
     }
 
@@ -66,6 +68,10 @@ final readonly class CreateCatalogObjectHandler
         }
 
         $this->catalogObjects->save($object);
+
+        if ([] !== $command->attributes) {
+            $this->attributesUpserter->upsert($object, $command->attributes);
+        }
 
         return $object->getId();
     }
