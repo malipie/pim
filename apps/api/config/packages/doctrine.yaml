@@ -62,9 +62,9 @@ doctrine:
                 prefix: 'App\Channel\Domain\Entity'
                 alias: Channel
             Asset:
-                type: attribute
+                type: xml
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Asset/Domain/Entity'
+                dir: '%kernel.project_dir%/src/Asset/Infrastructure/Doctrine/Orm/Mapping'
                 prefix: 'App\Asset\Domain\Entity'
                 alias: Asset
             Identity:
