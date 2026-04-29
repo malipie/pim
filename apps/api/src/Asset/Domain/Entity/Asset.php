@@ -118,7 +118,7 @@ class Asset implements TenantScoped
         return $this->object;
     }
 
-    public function setObject(?CatalogObject $object): void
+    public function linkToObject(?CatalogObject $object): void
     {
         $this->object = $object;
     }
@@ -149,7 +149,7 @@ class Asset implements TenantScoped
     /**
      * @param array<string, mixed> $metadata
      */
-    public function setMetadata(array $metadata): void
+    public function updateMetadata(array $metadata): void
     {
         $this->metadata = $metadata;
     }

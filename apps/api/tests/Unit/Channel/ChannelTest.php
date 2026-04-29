@@ -60,7 +60,7 @@ final class ChannelTest extends TestCase
         $categoryType = new ObjectType('category', ObjectKind::Category, ['pl' => 'Kategoria']);
         $root = new CatalogObject($categoryType, 'root');
 
-        $channel->setCategoryTreeRoot($root);
+        $channel->attachCategoryTreeRoot($root);
 
         self::assertSame($root, $channel->getCategoryTreeRoot());
     }

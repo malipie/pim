@@ -111,7 +111,7 @@ class Channel implements TenantScoped
     /**
      * @param array<string, string> $label
      */
-    public function setLabel(array $label): void
+    public function rename(array $label): void
     {
         $this->label = $label;
     }
@@ -161,7 +161,7 @@ class Channel implements TenantScoped
         return $this->categoryTreeRoot;
     }
 
-    public function setCategoryTreeRoot(?CatalogObject $root): void
+    public function attachCategoryTreeRoot(?CatalogObject $root): void
     {
         $this->categoryTreeRoot = $root;
     }

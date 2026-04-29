@@ -76,7 +76,7 @@ class Tenant
         return $this->domain;
     }
 
-    public function setDomain(?string $domain): void
+    public function changeDomain(?string $domain): void
     {
         $this->domain = $domain;
     }
