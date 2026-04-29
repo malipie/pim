@@ -5,12 +5,9 @@ declare(strict_types=1);
 namespace App\Catalog\Domain\Entity;
 
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -39,59 +36,32 @@ use Symfony\Component\Validator\Constraints as Assert;
  * environments) — set on every save, bumped manually when a schema-
  * breaking change to `completeness_rules` ships.
  */
-#[ORM\Entity(repositoryClass: ObjectTypeRepository::class)]
-#[ORM\Table(name: 'object_types')]
-#[ORM\UniqueConstraint(name: 'object_types_tenant_code_uniq', columns: ['tenant_id', 'code'])]
-#[ORM\Index(name: 'object_types_tenant_kind_idx', columns: ['tenant_id', 'kind'])]
 class ObjectType implements TenantScoped
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
-
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private ?Tenant $tenant = null;
-
-    #[ORM\Column(type: 'string', length: 128)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 128)]
     private string $code;
-
-    #[ORM\Column(type: Types::STRING, length: 32, enumType: ObjectKind::class)]
     private ObjectKind $kind;
 
-    #[ORM\Column(name: 'is_built_in', type: Types::BOOLEAN, options: ['default' => false])]
     private bool $isBuiltIn = false;
 
     /**
      * @var array<string, string>
      */
-    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]
     #[Assert\Type('array')]
     private array $label;
 
     /**
      * @var array<string, mixed>
      */
-    #[ORM\Column(name: 'completeness_rules', type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
     private array $completenessRules = [];
-
-    #[ORM\ManyToOne(targetEntity: Attribute::class)]
-    #[ORM\JoinColumn(name: 'label_attribute_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?Attribute $labelAttribute = null;
-
-    #[ORM\ManyToOne(targetEntity: Attribute::class)]
-    #[ORM\JoinColumn(name: 'image_attribute_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?Attribute $imageAttribute = null;
 
-    #[ORM\Column(name: 'schema_version', type: Types::INTEGER, options: ['default' => 1])]
     private int $schemaVersion = 1;
-
-    #[ORM\Column(type: 'datetime_immutable')]
     private DateTimeImmutable $createdAt;
-
-    #[ORM\Column(type: 'datetime_immutable')]
     private DateTimeImmutable $updatedAt;
 
     /**

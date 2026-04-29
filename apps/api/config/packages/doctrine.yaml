@@ -50,9 +50,9 @@ doctrine:
                 prefix: 'App\Shared\Domain'
                 alias: Shared
             Catalog:
-                type: attribute
+                type: xml
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Catalog/Domain/Entity'
+                dir: '%kernel.project_dir%/src/Catalog/Infrastructure/Doctrine/Orm/Mapping'
                 prefix: 'App\Catalog\Domain\Entity'
                 alias: Catalog
             Channel:

@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace App\Catalog\Domain\Entity;
 
-use App\Catalog\Infrastructure\Doctrine\Repository\AssociationRepository;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 
@@ -30,35 +27,14 @@ use Symfony\Component\Uid\Uuid;
  * one-way leaves room for asymmetric semantics like "this product
  * replaces that one".
  */
-#[ORM\Entity(repositoryClass: AssociationRepository::class)]
-#[ORM\Table(name: 'object_associations')]
-#[ORM\UniqueConstraint(name: 'object_associations_triple_uniq', columns: ['source_object_id', 'target_object_id', 'type_id'])]
-#[ORM\Index(name: 'object_associations_tenant_idx', columns: ['tenant_id'])]
-#[ORM\Index(name: 'object_associations_source_type_idx', columns: ['source_object_id', 'type_id'])]
-#[ORM\Index(name: 'object_associations_target_idx', columns: ['target_object_id'])]
 class Association implements TenantScoped
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
-
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private ?Tenant $tenant = null;
-
-    #[ORM\ManyToOne(targetEntity: CatalogObject::class)]
-    #[ORM\JoinColumn(name: 'source_object_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private CatalogObject $source;
-
-    #[ORM\ManyToOne(targetEntity: CatalogObject::class)]
-    #[ORM\JoinColumn(name: 'target_object_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private CatalogObject $target;
-
-    #[ORM\ManyToOne(targetEntity: AssociationType::class)]
-    #[ORM\JoinColumn(name: 'type_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private AssociationType $type;
 
-    #[ORM\Column(type: Types::INTEGER, options: ['default' => 0])]
     private int $position;
 
     public function __construct(

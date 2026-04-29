@@ -5,12 +5,9 @@ declare(strict_types=1);
 namespace App\Catalog\Domain\Entity;
 
 use App\Catalog\Domain\AttributeType;
-use App\Catalog\Infrastructure\Doctrine\Repository\AttributeRepository;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -32,25 +29,11 @@ use Symfony\Component\Validator\Constraints as Assert;
  * `group_id` FK is nullable + ON DELETE SET NULL — removing an attribute
  * group leaves its members ungrouped rather than deleting them.
  */
-#[ORM\Entity(repositoryClass: AttributeRepository::class)]
-#[ORM\Table(name: 'attributes')]
-#[ORM\UniqueConstraint(name: 'attributes_tenant_code_uniq', columns: ['tenant_id', 'code'])]
-#[ORM\Index(name: 'attributes_tenant_group_position_idx', columns: ['tenant_id', 'group_id', 'position'])]
 class Attribute implements TenantScoped
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
-
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private ?Tenant $tenant = null;
-
-    #[ORM\ManyToOne(targetEntity: AttributeGroup::class)]
-    #[ORM\JoinColumn(name: 'group_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?AttributeGroup $group = null;
-
-    #[ORM\Column(type: 'string', length: 64)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 64)]
     private string $code;
@@ -58,38 +41,27 @@ class Attribute implements TenantScoped
     /**
      * @var array<string, string>
      */
-    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]
     #[Assert\Type('array')]
     private array $label;
 
     /**
      * @var array<string, string>|null
      */
-    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true], nullable: true)]
     private ?array $help = null;
-
-    #[ORM\Column(type: Types::STRING, length: 32, enumType: AttributeType::class)]
     private AttributeType $type;
 
-    #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
     private bool $isLocalizable = false;
 
-    #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
     private bool $isScopable = false;
 
-    #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
     private bool $isRequired = false;
 
     /**
      * @var array<string, mixed>
      */
-    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
     private array $validationRules = [];
 
-    #[ORM\Column(type: Types::INTEGER, options: ['default' => 0])]
     private int $position = 0;
-
-    #[ORM\Column(type: 'datetime_immutable')]
     private DateTimeImmutable $createdAt;
 
     /**
