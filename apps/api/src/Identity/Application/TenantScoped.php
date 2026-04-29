@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 
 /**
  * Marker interface for domain entities that carry a `tenant_id` column and

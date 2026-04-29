@@ -9,8 +9,8 @@ use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
 use App\Identity\Application\TenantContext;
-use App\Identity\Domain\Entity\Tenant;
-use App\Identity\Infrastructure\Doctrine\Repository\TenantRepository;
+use App\Shared\Domain\Tenant;
+use App\Shared\Infrastructure\Doctrine\Repository\DoctrineTenantRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -49,7 +49,7 @@ final class BulkImportBenchmarkCommand extends Command
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly TenantRepository $tenantRepository,
+        private readonly DoctrineTenantRepository $tenantRepository,
         private readonly ObjectTypeRepository $objectTypeRepository,
         private readonly TenantContext $tenantContext,
     ) {

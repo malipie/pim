@@ -76,14 +76,6 @@ doctrine:
         controller_resolver:
             auto_mapping: false
 
-        # Bridge for the RF-02 Tenant move: cross-BC entities still declare
-        # `targetEntity: App\Identity\Domain\Entity\Tenant` until RF-04 rewrites
-        # them. Doctrine's targetEntity resolver swaps the legacy FQCN out for
-        # the canonical Shared\Domain\Tenant at metadata-load time so foreign
-        # keys keep pointing at the same physical entity.
-        resolve_target_entities:
-            App\Identity\Domain\Entity\Tenant: App\Shared\Domain\Tenant
-
         # Registered (declared) but disabled by default. Each request enables
         # it via TenantFilterConfigurator once the active tenant is known.
         # Native SQL bypasses this filter — RLS in phase 1 closes the gap.

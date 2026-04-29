@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 
 /**
  * Mutable tenant context shared by the assignment listener and the SQL filter.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Domain\Entity;
 
 use App\Identity\Infrastructure\Doctrine\Repository\RoleRepository;
+use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;

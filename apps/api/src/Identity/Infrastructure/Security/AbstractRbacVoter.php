@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Security;
 
-use App\Identity\Domain\Entity\Tenant;
 use App\Identity\Domain\Entity\User;
+use App\Shared\Domain\Tenant;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 

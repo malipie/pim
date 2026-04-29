@@ -7,7 +7,7 @@ namespace App\Catalog\Application;
 use App\Catalog\Domain\Entity\AssociationType;
 use App\Catalog\Infrastructure\Doctrine\Repository\AssociationTypeRepository;
 use App\Identity\Application\TenantContext;
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

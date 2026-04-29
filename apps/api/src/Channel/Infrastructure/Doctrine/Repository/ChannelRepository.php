@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Channel\Infrastructure\Doctrine\Repository;
 
 use App\Channel\Domain\Entity\Channel;
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

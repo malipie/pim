@@ -12,13 +12,6 @@
 parameters:
     level: max
 
-    # Eagerly load the legacy-FQCN -> canonical-class bridges (e.g.
-    # App\Identity\Domain\Entity\Tenant -> App\Shared\Domain\Tenant after
-    # RF-02) so static analysis follows class_alias() the same way the
-    # runtime does. Removed in RF-04 when the bridges themselves go away.
-    bootstrapFiles:
-        - tools/phpstan/bootstrap-aliases.php
-
     paths:
         - bin
         - public

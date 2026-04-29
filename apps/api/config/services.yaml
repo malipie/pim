@@ -33,11 +33,6 @@ services:
 
     App\:
         resource: '../src/'
-        exclude:
-            # Backwards-compatibility bridge installed during the RF-02 Tenant
-            # move — the file body is `class_alias()` only, no class declaration,
-            # so Symfony's FileLoader rejects it. Removed in RF-04.
-            - '../src/Identity/Domain/Entity/Tenant.php'
 
     App\Identity\Application\CurrentTenantProvider:
         arguments:

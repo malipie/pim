@@ -6,7 +6,7 @@ namespace App\Catalog\Domain\Entity;
 
 use App\Catalog\Infrastructure\Doctrine\Repository\AttributeGroupRepository;
 use App\Identity\Application\TenantScoped;
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;

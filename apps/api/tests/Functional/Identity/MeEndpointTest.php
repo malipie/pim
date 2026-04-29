@@ -6,10 +6,10 @@ namespace App\Tests\Functional\Identity;
 
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Identity\Application\RbacSeeder;
-use App\Identity\Domain\Entity\Tenant;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
 use App\Identity\Infrastructure\Doctrine\Repository\RoleRepository;
+use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
