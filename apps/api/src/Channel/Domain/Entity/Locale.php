@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Channel\Domain\Entity;
 
-use App\Channel\Infrastructure\Doctrine\Repository\LocaleRepository;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -21,21 +18,14 @@ use Symfony\Component\Validator\Constraints as Assert;
  * No TenantScoped: the table sits on the audit allowlist as global
  * infrastructure, like `permissions` and the global RBAC roles.
  */
-#[ORM\Entity(repositoryClass: LocaleRepository::class)]
-#[ORM\Table(name: 'locales')]
-#[ORM\UniqueConstraint(name: 'locales_code_uniq', columns: ['code'])]
 class Locale
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
 
-    #[ORM\Column(type: 'string', length: 16)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 16)]
     private string $code;
 
-    #[ORM\Column(type: Types::STRING, length: 64)]
     private string $label;
 
     public function __construct(string $code, string $label, ?Uuid $id = null)

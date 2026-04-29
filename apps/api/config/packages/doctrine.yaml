@@ -56,9 +56,9 @@ doctrine:
                 prefix: 'App\Catalog\Domain\Entity'
                 alias: Catalog
             Channel:
-                type: attribute
+                type: xml
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Channel/Domain/Entity'
+                dir: '%kernel.project_dir%/src/Channel/Infrastructure/Doctrine/Orm/Mapping'
                 prefix: 'App\Channel\Domain\Entity'
                 alias: Channel
             Asset:

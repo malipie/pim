@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Channel\Domain\Entity\ChannelObjectTypeMapping"
+            table="channel_object_type_mappings"
+            repository-class="App\Channel\Infrastructure\Doctrine\Repository\ChannelObjectTypeMappingRepository">
+
+        <unique-constraints>
+            <unique-constraint name="channel_object_type_mappings_triple_uniq" columns="channel_id,object_type_id,attribute_id"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="channel_object_type_mappings_channel_idx" columns="channel_id"/>
+            <index name="channel_object_type_mappings_object_type_idx" columns="object_type_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="channel" target-entity="App\Channel\Domain\Entity\Channel">
+            <join-column name="channel_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <many-to-one field="objectType" target-entity="App\Catalog\Domain\Entity\ObjectType">
+            <join-column name="object_type_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <many-to-one field="attribute" target-entity="App\Catalog\Domain\Entity\Attribute">
+            <join-column name="attribute_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="targetField" type="string" length="255" column="target_field"/>
+        <field name="isPublished" type="boolean" column="is_published">
+            <options>
+                <option name="default">true</option>
+            </options>
+        </field>
+
+    </entity>
+
+</doctrine-mapping>
