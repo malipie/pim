@@ -1,0 +1,55 @@
+# Onboarding — PIM platform
+
+Three milestones for a developer (or a fresh Claude Code session) to land productively.
+
+## Day 1 — environment up (≤4h)
+
+Pre-requisites: Docker Desktop with at least 8 GiB allocated, Node 22, pnpm 10, OpenSSL.
+
+```bash
+git clone https://github.com/malipie/PIM.git
+cd PIM
+pnpm install
+pnpm stack:up                 # docker compose up -d (api + admin + caddy + postgres + redis + meilisearch + minio + mercure)
+docker compose exec -T api bin/console doctrine:migrations:migrate --no-interaction
+docker compose exec -T api bin/console doctrine:fixtures:load --no-interaction
+```
+
+Open `https://pim.localhost` (Caddy will produce a self-signed cert — accept it once). Login with `admin@demo.local` / `demo`. Navigate to **Products** — the demo dataset seeded by `App\DataFixtures\AppFixtures` should be visible.
+
+Verify your environment with the same gates CI runs:
+
+```bash
+docker compose exec -T api composer phpstan
+docker compose exec -T api composer cs-check
+docker compose exec -T api composer deptrac
+docker compose exec -T api php bin/phpunit --testsuite=unit
+pnpm --filter @pim/admin lint
+pnpm --filter @pim/admin typecheck
+pnpm --filter @pim/admin build
+```
+
+If any of these fail, fix before writing your first PR — the CI rejects the same matrix.
+
+## Day 3 — first PR
+
+Pick something contained: add a new `AttributeOption` to an existing `Attribute`, or extend `BuiltInObjectTypeSeeder`. Workflow:
+
+1. Read [CLAUDE.md](CLAUDE.md) — operator + agent contract for this project.
+2. Read [Project Plan/02-plan-projektu-pim.md](Project%20Plan/02-plan-projektu-pim.md) section for the epic you are working on.
+3. Read [agent/lessons.md](agent/lessons.md) — patterns to follow / avoid.
+4. Branch off main, push to GitHub, open a PR. Required CI checks are: `PHPStan max`, `PHP-CS-Fixer (dry-run)`, `Deptrac (architectural fitness)`, `PHPUnit`, `Playwright E2E`, `Biome strict`, `TypeScript noEmit`, `Vite build (smoke)`.
+5. Use Conventional Commits (`feat(catalog): ...`, `refactor(asset): ...`, `fix(identity): ...`). Commit subject ≤72 chars; body in English.
+
+## Day 10 — bigger feature
+
+Read the architecture in this order:
+
+1. [docs/architecture/c4-context.md](docs/architecture/c4-context.md) — what talks to what.
+2. [docs/architecture/c4-container.md](docs/architecture/c4-container.md) — what runs where.
+3. [docs/architecture/bounded-contexts.md](docs/architecture/bounded-contexts.md) — BC ringfence + domain event flow.
+4. [docs/adr/](docs/adr/) — architectural decisions, especially ADR-0010 (top-level layout), ADR-0013 (Deptrac), ADR-0014 (Tenant in Shared), ADR-0015 (cross-BC FK policy).
+
+Then pick a BC, follow its `Domain/Application/Infrastructure/Contracts` ring, and add the use case. New aggregates extend `Shared\Domain\AggregateRoot` and emit events; subscribers live next to the BC that reacts. Cross-BC reads go through `<BC>\Contracts\Query\*` DTOs; cross-BC writes go through events.
+
+When in doubt: re-run the audit at `Zrodla/Zalecana_struktura_kodu/Audyt/AUDIT-CHECKLIST.md` and look at the latest report under `docs/audits/`.
