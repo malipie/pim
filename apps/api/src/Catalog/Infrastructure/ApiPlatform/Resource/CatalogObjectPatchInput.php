@@ -49,4 +49,15 @@ final class CatalogObjectPatchInput
     #[Assert\Length(max: 4096)]
     #[Groups(['object:patch'])]
     public ?string $path = null;
+
+    /**
+     * Partial attribute update: any code present is upserted to an
+     * ObjectValue with `provenance=Manual`. Codes absent in the payload
+     * keep their existing values — Patch semantics only touch what the
+     * client sends.
+     *
+     * @var array<string, mixed>|null
+     */
+    #[Groups(['object:patch'])]
+    public ?array $attributes = null;
 }

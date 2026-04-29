@@ -90,6 +90,7 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
             code: $data->code,
             expectedKind: $this->kindOrFail($operation),
             parentId: null !== $data->parentId ? Uuid::fromString($data->parentId) : null,
+            attributes: $data->attributes ?? [],
         );
 
         $envelope = $this->dispatch($command);
@@ -129,6 +130,7 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
             clearParent: false,
             path: $data->path,
             clearPath: false,
+            attributes: $data->attributes,
         );
         $this->dispatch($command);
 

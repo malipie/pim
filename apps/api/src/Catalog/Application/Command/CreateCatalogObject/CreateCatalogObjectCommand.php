@@ -18,11 +18,17 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class CreateCatalogObjectCommand
 {
+    /**
+     * @param array<string, mixed> $attributes per-attribute payload
+     *                                         (`{code => value}`); empty
+     *                                         array = no attributes upserted
+     */
     public function __construct(
         public Uuid $objectTypeId,
         public string $code,
         public ObjectKind $expectedKind,
         public ?Uuid $parentId = null,
+        public array $attributes = [],
     ) {
     }
 }

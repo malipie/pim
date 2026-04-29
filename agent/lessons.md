@@ -860,3 +860,20 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **JSON-LD response zawiera `view` (no prefix) z `next`/`previous` keys**, a NIE `hydra:view` z `hydra:next`. AP4 4.x używa context decompression by default (no hydra prefix). ApiTestCase pattern: `$body['view'] ?? $body['hydra:view']` + `$view['next'] ?? $view['hydra:next']` żeby był forward-compatible.
 
 - **`Operation::getPaginationViaCursor()` może zwrócić `null|array<string,string>` lub `null|list<array{field,direction}>`** zależnie od źródła config (PHP attributes vs XML extractor). Decorator który normalizuje musi obsłużyć oba kształty — sniffing po `is_int($key) && is_array($value) && isset($value['field'])` dla list shape, fallback `is_string($key)` dla assoc shape.
+
+## Lessons z 0.4.5 / #45 (ObjectDenormalizer/Normalizer — attributes ↔ object_values)
+
+- **Input DTO + Application service jako attributes pipeline** zamiast custom Symfony Denormalizer. Zamiast hookować denormalizer na `Attribute::class` lub na `CatalogObject` z dynamicznym shape per ObjectType, prościej: dodać optional `attributes: ?array<string,mixed>` field do `CatalogObjectInput` / `CatalogObjectPatchInput`. Processor przekazuje array do Command. Handler woła dedykowany `ObjectAttributesUpserter` po `repository->save($object)`. Odpowiedzialności rozdzielone — DTO szanuje setter-less Domain, Upserter to pure-Application service który findByCode + create/update ObjectValue + provenance.
+  - Why: prawdziwy custom Symfony Denormalizer na CatalogObject byłby reverse-engineerem AP4 hydration pipeline z dwoma branch'ami (Post vs Patch) i konfliktami z standard ObjectNormalizer. DTO + service izolują logikę, są PHPUnit-testable bez bootu kernela.
+
+- **`AttributesIndexedSyncListener` (#38) odpowiada za sync cache po Doctrine flush** — handler nie musi ręcznie aktualizować `attributes_indexed`. Listener działa onFlush + postFlush: zbiera CatalogObject IDs gdzie ObjectValue rows changed, dispatch'uje rebuild po commit. Pattern: write side touch'uje ObjectValue, read side czyta z cache. ObjectAttributesUpserter zapisuje canonical store; cache aktualizuje się sam.
+
+- **JSONB wrapper shape `{value: 'red'}`, NIE flat `'red'`**. ObjectValue::$value to `array<string, mixed>` per ADR-006 — type-specific shapes (text wraps `{value: ...}`, select `{option_code: ...}`, price `{amount, currency}`, etc.). Cache `attributes_indexed` mirrors canonical shape. Future #45-followup może unwrap scalar wrappers w response normalizerze (`{color: 'red'}` zamiast `{color: {value: 'red'}}`) — tymczasowo testy asercjują wrapped shape.
+
+- **Unknown attribute codes silently dropped, NIE 422.** Strict mode wymagałby że każdy fixture/migration enumeruje exact attribute set per ObjectType — overkill w MVP. Admin UI's dynamic schema picker (epic 0.6) surfacuje dropped keys przed POST. Pattern dla payload-driven CRUD: tolerant input z opportunistic mapping; strict validation w specific cases (Post mismatch kind = 422 bo bezpieczeństwo, missing attribute code = silent bo flexibility).
+
+- **Provenance default = `Manual` w handler API processor**. Phase 2 (epic 0.7 agent) doda `Provenance::Agent` case + agent tool execution layer woła `Upserter::upsert(provenance: Agent)`. Reserved enum case zachowuje forward-compat bez migracji DDL.
+
+- **`ObjectAttributesUpserter::upsert` no-op gdy tenant nieprzypisany** — guard przeciw race condition gdy aggregate dopiero co stworzony i `assignTenant` listener nie sprintnął. W praktyce never happens (TenantAssignmentListener stempluje na PrePersist przed flush), ale defensive check chroni przed reordering ścieżek wywołania w przyszłości.
+
+- **PHPStan max + `array<string, mixed>` parameters**: `is_string($code)` po `foreach ($payload as $code => ...)` z `@param array<string, mixed>` jest dead branch (już typed). Drop the check. Plus `@var` annotation w block-comment `/** @var */` (ATM) vs single-line `/* @var */` (po cs-fixer normalize) — PHPStan akceptuje obu, cs-fixer może rewrite. Nie martw się o stylistyczne różnice gdy testy + analiza pass.

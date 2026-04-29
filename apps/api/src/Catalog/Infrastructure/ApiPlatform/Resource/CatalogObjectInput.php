@@ -45,4 +45,24 @@ final class CatalogObjectInput
     #[Assert\Uuid(versions: [Assert\Uuid::V7_MONOTONIC])]
     #[Groups(['object:create'])]
     public ?string $parentId = null;
+
+    /**
+     * Per-attribute values keyed by attribute code:
+     * `{"color": "red", "weight": 12.5, "name": {"pl": "Test"}}`.
+     *
+     * The processor resolves each code to an `Attribute` (per-tenant)
+     * and creates an `ObjectValue` with `provenance=Manual`. Unknown
+     * codes are dropped silently — strict-mode validation lands when
+     * the admin UI gains its dynamic schema picker.
+     *
+     * #45: ObjectDenormalizer/Normalizer parametryzowany per
+     * `object_type_id`. The flat dict here is the canonical write
+     * shape; the read shape lives in `CatalogObject.attributesIndexed`
+     * (denormalised cache rebuilt by `AttributesIndexedSyncListener`
+     * after each ObjectValue change).
+     *
+     * @var array<string, mixed>|null
+     */
+    #[Groups(['object:create'])]
+    public ?array $attributes = null;
 }
