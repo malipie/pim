@@ -6,7 +6,7 @@
 
     <entity name="App\Identity\Domain\Entity\RefreshToken"
             table="refresh_tokens"
-            repository-class="App\Identity\Infrastructure\Doctrine\Repository\RefreshTokenRepository">
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineRefreshTokenRepository">
 
         <unique-constraints>
             <unique-constraint name="refresh_tokens_token_hash_uniq" columns="token_hash"/>

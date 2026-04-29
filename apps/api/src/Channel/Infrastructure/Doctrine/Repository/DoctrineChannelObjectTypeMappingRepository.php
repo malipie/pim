@@ -8,13 +8,14 @@ use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Channel\Domain\Entity\Channel;
 use App\Channel\Domain\Entity\ChannelObjectTypeMapping;
+use App\Channel\Domain\Repository\ChannelObjectTypeMappingRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<ChannelObjectTypeMapping>
  */
-class ChannelObjectTypeMappingRepository extends ServiceEntityRepository
+class DoctrineChannelObjectTypeMappingRepository extends ServiceEntityRepository implements ChannelObjectTypeMappingRepositoryInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
@@ -42,5 +43,24 @@ class ChannelObjectTypeMappingRepository extends ServiceEntityRepository
             'objectType' => $objectType,
             'attribute' => $attribute,
         ]);
+    }
+
+    public function findById(\Symfony\Component\Uid\Uuid $id): ?ChannelObjectTypeMapping
+    {
+        return parent::find($id->toRfc4122());
+    }
+
+    public function save(ChannelObjectTypeMapping $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->persist($entity);
+        $em->flush();
+    }
+
+    public function remove(ChannelObjectTypeMapping $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->remove($entity);
+        $em->flush();
     }
 }

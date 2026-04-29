@@ -9,8 +9,8 @@ use App\Identity\Domain\Entity\Role;
 use App\Identity\Domain\Rbac\PermissionDefinition;
 use App\Identity\Domain\Rbac\RbacMatrix;
 use App\Identity\Domain\Rbac\RoleDefinition;
-use App\Identity\Infrastructure\Doctrine\Repository\PermissionRepository;
-use App\Identity\Infrastructure\Doctrine\Repository\RoleRepository;
+use App\Identity\Domain\Repository\PermissionRepositoryInterface;
+use App\Identity\Domain\Repository\RoleRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use LogicException;
 
@@ -30,8 +30,8 @@ final class RbacSeeder
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly PermissionRepository $permissions,
-        private readonly RoleRepository $roles,
+        private readonly PermissionRepositoryInterface $permissions,
+        private readonly RoleRepositoryInterface $roles,
     ) {
     }
 

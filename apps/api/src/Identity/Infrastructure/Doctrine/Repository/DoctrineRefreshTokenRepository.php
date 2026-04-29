@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Infrastructure\Doctrine\Repository;
 
 use App\Identity\Domain\Entity\RefreshToken;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -13,7 +14,7 @@ use Symfony\Component\Uid\Uuid;
 /**
  * @extends ServiceEntityRepository<RefreshToken>
  */
-class RefreshTokenRepository extends ServiceEntityRepository
+class DoctrineRefreshTokenRepository extends ServiceEntityRepository implements RefreshTokenRepositoryInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
@@ -57,5 +58,24 @@ class RefreshTokenRepository extends ServiceEntityRepository
         )
             ->setParameter('cutoff', $cutoff)
             ->execute();
+    }
+
+    public function findById(Uuid $id): ?RefreshToken
+    {
+        return parent::find($id->toRfc4122());
+    }
+
+    public function save(RefreshToken $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->persist($entity);
+        $em->flush();
+    }
+
+    public function remove(RefreshToken $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->remove($entity);
+        $em->flush();
     }
 }

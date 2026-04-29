@@ -6,7 +6,7 @@
 
     <entity name="App\Channel\Domain\Entity\Channel"
             table="channels"
-            repository-class="App\Channel\Infrastructure\Doctrine\Repository\ChannelRepository">
+            repository-class="App\Channel\Infrastructure\Doctrine\Repository\DoctrineChannelRepository">
 
         <unique-constraints>
             <unique-constraint name="channels_tenant_code_uniq" columns="tenant_id,code"/>

@@ -9,7 +9,7 @@ use App\Identity\Application\RbacSeeder;
 use App\Identity\Domain\Entity\Permission;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
-use App\Identity\Infrastructure\Doctrine\Repository\RoleRepository;
+use App\Identity\Domain\Repository\RoleRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -122,9 +122,9 @@ final class RbacSeederTest extends ApiTestCase
         return self::getContainer()->get(RbacSeeder::class);
     }
 
-    private function roleRepository(): RoleRepository
+    private function roleRepository(): RoleRepositoryInterface
     {
-        return self::getContainer()->get(RoleRepository::class);
+        return self::getContainer()->get(RoleRepositoryInterface::class);
     }
 
     private function em(): EntityManagerInterface

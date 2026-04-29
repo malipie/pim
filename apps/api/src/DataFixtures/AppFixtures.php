@@ -13,7 +13,7 @@ use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Identity\Application\RbacSeeder;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
-use App\Identity\Infrastructure\Doctrine\Repository\RoleRepository;
+use App\Identity\Domain\Repository\RoleRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\Bundle\FixturesBundle\Fixture;
@@ -38,7 +38,7 @@ class AppFixtures extends Fixture
         private readonly TenantContext $tenantContext,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly RbacSeeder $rbacSeeder,
-        private readonly RoleRepository $roleRepository,
+        private readonly RoleRepositoryInterface $roleRepository,
         private readonly BuiltInObjectTypeSeeder $builtInSeeder,
         private readonly BuiltInAssociationTypeSeeder $associationTypeSeeder,
         private readonly ObjectTypeRepositoryInterface $objectTypeRepository,

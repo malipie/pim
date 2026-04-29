@@ -8,8 +8,8 @@ use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Identity\Domain\Entity\Permission;
 use App\Identity\Domain\Entity\Role;
 use App\Identity\Domain\Entity\User;
-use App\Identity\Infrastructure\Doctrine\Repository\RoleRepository;
-use App\Identity\Infrastructure\Doctrine\Repository\UserRepository;
+use App\Identity\Domain\Repository\RoleRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -163,13 +163,13 @@ final class RbacSchemaTest extends ApiTestCase
         return $em;
     }
 
-    private function roleRepository(): RoleRepository
+    private function roleRepository(): RoleRepositoryInterface
     {
-        return self::getContainer()->get(RoleRepository::class);
+        return self::getContainer()->get(RoleRepositoryInterface::class);
     }
 
-    private function userRepository(): UserRepository
+    private function userRepository(): UserRepositoryInterface
     {
-        return self::getContainer()->get(UserRepository::class);
+        return self::getContainer()->get(UserRepositoryInterface::class);
     }
 }

@@ -6,7 +6,7 @@
 
     <entity name="App\Channel\Domain\Entity\Locale"
             table="locales"
-            repository-class="App\Channel\Infrastructure\Doctrine\Repository\LocaleRepository">
+            repository-class="App\Channel\Infrastructure\Doctrine\Repository\DoctrineLocaleRepository">
 
         <unique-constraints>
             <unique-constraint name="locales_code_uniq" columns="code"/>
