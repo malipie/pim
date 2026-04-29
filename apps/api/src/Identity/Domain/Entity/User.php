@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Identity\Domain\Entity;
 
+use App\Identity\Contracts\Event\UserAuthenticated;
 use App\Shared\Application\TenantAware;
+use App\Shared\Domain\AggregateRoot;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -25,7 +27,7 @@ use Symfony\Component\Uid\Uuid;
  * The TenantAware interface lets CurrentTenantProvider read the tenant from
  * the security token's user without coupling Identity to Catalog.
  */
-class User implements UserInterface, PasswordAuthenticatedUserInterface, TenantAware
+class User extends AggregateRoot implements UserInterface, PasswordAuthenticatedUserInterface, TenantAware
 {
     public const string STATUS_ACTIVE = 'active';
     public const string STATUS_DISABLED = 'disabled';
@@ -171,6 +173,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TenantA
     public function recordLogin(?DateTimeImmutable $when = null): void
     {
         $this->lastLoginAt = $when ?? new DateTimeImmutable();
+        $this->recordThat(new UserAuthenticated(
+            userId: $this->id,
+            tenantId: $this->tenant->getId(),
+            email: $this->email,
+            occurredOn: $this->lastLoginAt,
+        ));
     }
 
     /**

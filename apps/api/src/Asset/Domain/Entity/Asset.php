@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Asset\Domain\Entity;
 
+use App\Asset\Contracts\Event\AssetUploaded;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Shared\Application\TenantScoped;
+use App\Shared\Domain\AggregateRoot;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -34,7 +36,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  * {@see AssetVariant} and are derived in phase 1 (transformations are
  * out of MVP scope — #37 only handles the original upload).
  */
-class Asset implements TenantScoped
+class Asset extends AggregateRoot implements TenantScoped
 {
     private Uuid $id;
 
@@ -106,6 +108,13 @@ class Asset implements TenantScoped
         }
 
         $this->tenant = $tenant;
+        $this->recordThat(new AssetUploaded(
+            assetId: $this->id,
+            tenantId: $tenant->getId(),
+            code: $this->code,
+            mimeType: $this->mimeType,
+            linkedObjectId: $this->object?->getId(),
+        ));
     }
 
     public function getCode(): string
