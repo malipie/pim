@@ -7,7 +7,7 @@ namespace App\Catalog\Application\Handler;
 use App\Catalog\Application\AttributesIndexedRebuilder;
 use App\Catalog\Application\Message\ObjectValuesChangedMessage;
 use App\Catalog\Domain\Entity\CatalogObject;
-use App\Messaging\AbstractBatchHandler;
+use App\Shared\Application\AbstractBatchHandler;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Uid\Uuid;

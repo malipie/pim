@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Unit\Messaging;
+namespace App\Tests\Unit\Shared\Application;
 
-use App\Messaging\AbstractBatchHandler;
+use App\Shared\Application\AbstractBatchHandler;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

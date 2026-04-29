@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Maintenance;
+namespace App\Shared\Infrastructure\Maintenance;
 
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;

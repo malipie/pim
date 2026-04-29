@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Maintenance;
+namespace App\Shared\Infrastructure\Maintenance;
 
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

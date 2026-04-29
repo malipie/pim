@@ -23,7 +23,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * Worker-memory benchmark for the FrankenPHP / Doctrine identity-map pattern.
  *
  * Inserts N synthetic CatalogObject rows in batches and reports peak
- * memory usage. The loop mirrors the {@see \App\Messaging\AbstractBatchHandler}
+ * memory usage. The loop mirrors the {@see \App\Shared\Application\AbstractBatchHandler}
  * contract: `flush()` followed by `clear()` every `batchSize` rows. A
  * green run (peak < 256 MiB on 5 000 inserts) is the Sprint 0 gate that
  * proves Messenger handlers built on the abstract base will survive a
