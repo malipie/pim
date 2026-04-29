@@ -62,7 +62,7 @@ services:
       MESSENGER_TRANSPORT_DSN: redis://redis:6379/messages
       MERCURE_URL: http://mercure/.well-known/mercure
       MERCURE_PUBLIC_URL: https://pim.localhost/.well-known/mercure
-      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeMercureKey!}
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
       MEILI_URL: http://meilisearch:7700
       MEILI_KEY: ${MEILI_MASTER_KEY:-masterKeyPleaseChangeMe}
       TRUSTED_PROXIES: 127.0.0.1,REMOTE_ADDR
@@ -246,8 +246,8 @@ services:
     <<: *default_restart
     environment:
       SERVER_NAME: ":80"
-      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeMercureKey!}
-      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeMercureKey!}
+      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
       MERCURE_EXTRA_DIRECTIVES: |
         cors_origins https://pim.localhost https://localhost
         anonymous

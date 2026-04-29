@@ -66,7 +66,7 @@ jobs:
           MESSENGER_TRANSPORT_DSN: in-memory://
           MERCURE_URL: http://localhost/.well-known/mercure
           MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
-          MERCURE_JWT_SECRET: ci
+          MERCURE_JWT_SECRET: ci-mercure-key-at-least-256-bits-long
           JWT_PASSPHRASE: ci
 
       - name: PHPStan
@@ -191,7 +191,7 @@ jobs:
           MESSENGER_TRANSPORT_DSN: in-memory://
           MERCURE_URL: http://localhost/.well-known/mercure
           MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
-          MERCURE_JWT_SECRET: ci
+          MERCURE_JWT_SECRET: ci-mercure-key-at-least-256-bits-long
           JWT_PASSPHRASE: ci
           APP_DEFAULT_TENANT_CODE: demo
 
