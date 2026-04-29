@@ -1,0 +1,8 @@
+# DAMA Doctrine Test Bundle (RF-30): wraps every test in a transaction
+# that is rolled back on tearDown. Foundry's ResetDatabase trait still
+# rebuilds the schema once per test session; DAMA cuts the per-test
+# fixture cost by replacing TRUNCATE with ROLLBACK.
+dama_doctrine_test:
+    enable_static_connection: true
+    enable_static_meta_data_cache: true
+    enable_static_query_cache: true
