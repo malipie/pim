@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Channel\Domain\Entity;
 
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Channel\Contracts\Event\CategoryTreeRootAttached;
+use App\Channel\Contracts\Event\ChannelCreated;
 use App\Shared\Application\TenantScoped;
+use App\Shared\Domain\AggregateRoot;
 use App\Shared\Domain\Tenant;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -33,7 +36,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  * per `ObjectType` so a single channel can have different field shapes
  * for product vs. category exports.
  */
-class Channel implements TenantScoped
+class Channel extends AggregateRoot implements TenantScoped
 {
     private Uuid $id;
 
@@ -93,6 +96,11 @@ class Channel implements TenantScoped
         }
 
         $this->tenant = $tenant;
+        $this->recordThat(new ChannelCreated(
+            channelId: $this->id,
+            tenantId: $tenant->getId(),
+            code: $this->code,
+        ));
     }
 
     public function getCode(): string
@@ -164,5 +172,13 @@ class Channel implements TenantScoped
     public function attachCategoryTreeRoot(?CatalogObject $root): void
     {
         $this->categoryTreeRoot = $root;
+
+        if (null !== $this->tenant) {
+            $this->recordThat(new CategoryTreeRootAttached(
+                channelId: $this->id,
+                tenantId: $this->tenant->getId(),
+                categoryTreeRootId: $root?->getId(),
+            ));
+        }
     }
 }
