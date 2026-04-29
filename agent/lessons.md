@@ -809,3 +809,36 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Write paths (`object:create`, `object:patch`) NIE są zmieniane przez `ContextScopeSerializerContextBuilder`** — `if (!$normalization) return $context` we wczesnym branchu. Decorator dotyczy tylko output normalization. Denormalization context dla POST/PATCH zostaje na declared `object:create`/`object:patch` group — Input DTOs nie mają na sobie scope-specific groups, ich kontrakt to "what API client can submit", nie "what API client can read".
 
 - **Test-driven kontrakt: ten sam endpoint, różne pola per scope.** `SerializationContextApiTest` weryfikuje że `GET /api/products/{id}` z `?context=integration` drop'uje `completeness`/`path`/`parent`, `?context=public` drop'uje też timestamps/status, default (admin) zwraca wszystko. Plus negative test: `?context=root` (unknown) → fallback do default. Pattern dla każdej zmiany Serializer XML — dodaj minimum jeden test per nowy group żeby utrwalić kontrakt.
+
+## Lessons z 0.4.3 / #43 (Custom filtry — search, attribute, category z descendants, completeness, status)
+
+- **Custom AP4 filtry implementują `ApiPlatform\Doctrine\Orm\Filter\FilterInterface` bezpośrednio**, nie `AbstractFilter`. AbstractFilter używa `properties`-based config (przez konstruktor) który dla naszego use case (fixed query parameter names: `?sku=`, `?attribute[brand]=`, `?category=`, `?completeness[gt]=`, `?status=`) jest niepotrzebnym ceremoniał. Bezpośrednia implementacja: `apply()` reads from `$context['filters'][PARAMETER]`, `getDescription()` zwraca OpenAPI metadata.
+  - Why: parametr-driven podejście zwięźlejsze (~50 LOC per filter) niż properties-config + denormalizePropertyName.
+  - How to apply: `final class XxxFilter implements FilterInterface` w `<BC>/Infrastructure/ApiPlatform/Filter/`, autotag przez `_instanceof: { ApiPlatform\Doctrine\Orm\Filter\FilterInterface: { tags: ['api_platform.filter'] } }` w services.yaml.
+
+- **Postgres-specific operators (JSONB `@>`, `->>`, ltree `<@`) wymagają custom DQL functions w Doctrine ORM 3.** Native SQL operatorów nie ma w DQL grammar. Pattern: utworzyć `final class XxxFunction extends FunctionNode` w `<BC>/Infrastructure/Doctrine/Dql/`, override `parse()` (zbiera AST nodes z `$parser->ArithmeticPrimary()`) + `getSql(SqlWalker)` (emit raw SQL z dispatchami). Rejestracja w `doctrine.yaml`:
+  ```yaml
+  orm:
+      dql:
+          string_functions:
+              JSONB_CONTAINS: ...
+              JSONB_GET_TEXT: ...
+              LTREE_DESCENDANT_OF: ...
+          numeric_functions:
+              JSONB_GET_NUMERIC: ...
+  ```
+  Numeric vs string functions kategoria zależy od return SQL type — `(field ->> 'key')::numeric` kwalifikuje się jako numeric. Rozdzielenie ma znaczenie bo Doctrine parser wybiera właściwy resolution path per arithmetic context.
+
+- **DQL FunctionNode property w PHPStan max — uninitialized properties.** PHP 8.1+ wymaga init dla typed properties. Symfony max wykrywa "uninitialized property" jeśli `private Node $field;` bez default. **Fix:** `private ?Node $field = null;` plus `\assert($field instanceof Node)` w `parse()` przed assignement i w `getSql()` przed call. Plus `$parser->ArithmeticPrimary()` zwraca `Node|string` — assertion jest required (string return path nie powinien się zdarzyć dla expression typu który podajemy, ale PHPStan tego nie wie).
+
+- **JSONB containment z Doctrine parameter binding.** AttributeFilter używa `JSONB_CONTAINS(o.attributesIndexed, :param) = true` z `:param` jako JSON-encoded string (`'{"brand":"Nike"}'`). Postgres `->::jsonb` cast wewnątrz custom DQL function: `$right_dispatched::jsonb` — bez tego cast Postgres odrzuca text-side comparison z JSONB column.
+
+- **`= true` na końcu DQL `WHERE` jest wymagany dla custom function returning boolean.** Doctrine DQL nie wie że `JSONB_CONTAINS(...)` zwraca bool — bez `= true` parser rzuca syntax error. Również dla `LTREE_DESCENDANT_OF(...) = true`. Pattern dla każdej DQL function returning bool. Alternative: użyć stringowo `$queryBuilder->where('JSONB_CONTAINS(...) = TRUE')` — wystarczy że SQL after compile zwraca bool dla `WHERE`.
+
+- **`?status=invalid_value` → silent skip nie 400.** StatusFilter validuje przeciw `CatalogObject::STATUS_*` whitelist (ENUM-style); unknown values są ignored, filter no-op'uje. Tradeoff: caller dostaje cały kolekcji zamiast 400. Wybór: zachować jako tolerant filter (jak SearchFilter w AP4) bo strict mode powodowałby 400 dla legacy URL z trailing `?status=` (empty value). Validation-by-throw w 0.4.X jeśli jakiś integration partner skarży się na cichą filtration.
+
+- **CategoryFilter: unknown category code → `1 = 0` empty result, NIE no-op.** Tolerant `if (!found) return;` powodowałby że `/api/categories?category=does_not_exist` zwraca CAŁĄ listę kategorii (silent broadening). Świadome odejście od pattern z StatusFilter — kategorie są zewnętrzne (user-typed), status jest wewnętrzna domena enum.
+
+- **Filter discoverability w resource XML** — element `<filters>` na poziomie resource zawiera FQCN per filter (`<filter>App\...\SkuFilter</filter>`). AP4 resolves FQCN → tagged service. Filter applies do każdej operation w resource (chyba że operation ma swój `<filters>` overrride).
+
+- **`_instanceof` musi być w sekcji `services` (po `_defaults`), nie top-level.** Symfony 7 services.yaml structure. Adding go między `_defaults` i pierwszym usługą: `services: _defaults: ... _instanceof: ApiPlatform\...\FilterInterface: { tags: [api_platform.filter] }`. Bez tego all filtry musiałyby mieć manual tag entry.
