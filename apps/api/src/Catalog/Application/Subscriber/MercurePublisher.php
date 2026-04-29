@@ -1,0 +1,163 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Catalog\Application\Subscriber;
+
+use App\Catalog\Contracts\Event\ObjectArchived;
+use App\Catalog\Contracts\Event\ObjectAttributesChanged;
+use App\Catalog\Contracts\Event\ObjectCreated;
+use App\Catalog\Contracts\Event\ObjectEnabledChanged;
+use App\Catalog\Contracts\Event\ObjectPublished;
+use App\Catalog\Domain\ObjectKind;
+use App\Shared\Domain\DomainEvent;
+use DateTimeInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Throwable;
+
+use const JSON_THROW_ON_ERROR;
+
+/**
+ * Publishes Catalog domain events to the Mercure hub for live admin
+ * updates and (in phase 2) agent SSE streaming (#47 / 0.4.7).
+ *
+ * Each handler maps a domain event to:
+ *   - **Type**: `object.<verb>.<kind>` (e.g. `object.created.product`)
+ *     so subscribers can filter by both the operation and the kind.
+ *   - **Topic**: `https://pim.localhost/objects/<id>` (per row) plus
+ *     `https://pim.localhost/objects` (broadcast) so the admin can
+ *     listen on a single topic for "any catalog change" or a row-
+ *     specific topic for live editing.
+ *
+ * The Mercure hub URL is the public origin from `MERCURE_PUBLIC_URL` —
+ * subscribers connect there, the publisher pushes through
+ * `MERCURE_URL` (internal). Topic strings are arbitrary IRIs
+ * (Mercure's contract) and we keep them short + URI-shaped.
+ *
+ * Sync dispatch through `messenger.bus.default` keeps the publisher
+ * simple — phase 2 may move to async if hub latency dominates the
+ * write path. {@see DomainEventDispatcher} pulls the events out of
+ * Doctrine's UoW post-flush, so the row is committed before the
+ * Mercure push lands.
+ */
+final readonly class MercurePublisher
+{
+    private const string TOPIC_PREFIX_OBJECT = 'objects';
+
+    private LoggerInterface $logger;
+
+    public function __construct(
+        private HubInterface $hub,
+        private string $topicBase = 'https://pim.localhost',
+        ?LoggerInterface $logger = null,
+    ) {
+        $this->logger = $logger ?? new NullLogger();
+    }
+
+    #[AsMessageHandler]
+    public function onObjectCreated(ObjectCreated $event): void
+    {
+        $this->publish(
+            type: 'object.created.'.$event->kind->value,
+            event: $event,
+            payload: [
+                'objectId' => $event->aggregateId(),
+                'kind' => $event->kind->value,
+                'code' => $event->code,
+            ],
+        );
+    }
+
+    #[AsMessageHandler]
+    public function onObjectAttributesChanged(ObjectAttributesChanged $event): void
+    {
+        $this->publish(
+            type: 'object.attributes_changed',
+            event: $event,
+            payload: [
+                'objectId' => $event->aggregateId(),
+                'changedAttributeCodes' => $event->changedAttributeCodes,
+            ],
+        );
+    }
+
+    #[AsMessageHandler]
+    public function onObjectEnabledChanged(ObjectEnabledChanged $event): void
+    {
+        $this->publish(
+            type: 'object.enabled_changed',
+            event: $event,
+            payload: [
+                'objectId' => $event->aggregateId(),
+                'enabled' => $event->enabled,
+            ],
+        );
+    }
+
+    #[AsMessageHandler]
+    public function onObjectPublished(ObjectPublished $event): void
+    {
+        $this->publish(
+            type: 'object.published',
+            event: $event,
+            payload: ['objectId' => $event->aggregateId()],
+        );
+    }
+
+    #[AsMessageHandler]
+    public function onObjectArchived(ObjectArchived $event): void
+    {
+        $this->publish(
+            type: 'object.archived',
+            event: $event,
+            payload: ['objectId' => $event->aggregateId()],
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function publish(string $type, DomainEvent $event, array $payload): void
+    {
+        $rowTopic = \sprintf('%s/%s/%s', $this->topicBase, self::TOPIC_PREFIX_OBJECT, $event->aggregateId());
+        $broadcastTopic = \sprintf('%s/%s', $this->topicBase, self::TOPIC_PREFIX_OBJECT);
+
+        $update = new Update(
+            topics: [$rowTopic, $broadcastTopic],
+            data: json_encode([
+                'type' => $type,
+                'occurredOn' => $event->occurredOn()->format(DateTimeInterface::RFC3339_EXTENDED),
+                'data' => $payload,
+            ], JSON_THROW_ON_ERROR),
+        );
+
+        // Hub failures (network, hub down, JWT mismatch) must not abort
+        // the originating write — Mercure is a notification channel, not
+        // the source of truth. Subscribers will reconnect on next push;
+        // a logged warning is enough for operations to spot the gap.
+        try {
+            $this->hub->publish($update);
+        } catch (Throwable $e) {
+            $this->logger->warning('Mercure publish failed: {message}', [
+                'message' => $e->getMessage(),
+                'topics' => [$rowTopic, $broadcastTopic],
+                'type' => $type,
+                'aggregateId' => $event->aggregateId(),
+            ]);
+        }
+    }
+
+    /**
+     * Helper used by ObjectKind switches outside this class. Kept here to
+     * keep topic naming colocated with the publisher (one place to bump
+     * `objects` → `catalog.objects` if the contract evolves).
+     */
+    public static function topicForKind(ObjectKind $kind, string $base = 'https://pim.localhost'): string
+    {
+        return \sprintf('%s/%s/kind/%s', $base, self::TOPIC_PREFIX_OBJECT, $kind->value);
+    }
+}

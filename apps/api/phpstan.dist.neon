@@ -64,6 +64,12 @@ parameters:
         - identifier: staticMethod.alreadyNarrowedType
           paths:
               - tests/*
+        # Test-only services live in `tests/Support/` and are registered
+        # under `when@test:`. PHPStan introspects the dev container so it
+        # cannot see them, but they exist at PHPUnit runtime.
+        - identifier: symfonyContainer.serviceNotFound
+          paths:
+              - tests/*
         # Tenant-scoped entities declare `?Tenant` in PHP for the brief
         # window between `new` and TenantAssignmentListener::prePersist;
         # the schema column itself is NOT NULL. The invariant is verified

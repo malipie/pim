@@ -895,3 +895,25 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **`/api/docs` vs `/api/docs.jsonopenapi` content negotiation**. AP4 4.x: `GET /api/docs Accept: application/vnd.openapi+json` zwraca OpenAPI 3.1 JSON (canonical). `Accept: text/html` (default browser) renderuje Swagger UI. Plain `application/json` daje JSON-LD Hydra docs (`@context`, `@id`...). Healthcheck CI: `Accept: application/vnd.openapi+json` żeby snapshot diff działał.
 
 - **CI workflow paths trigger** dla `quality-php.yml` musi includować `docs/api-spec/**` żeby openapi-spec drift job uruchamiał się przy snapshot bump'ach (poza `apps/api/**` zmianami). Bez tego PR że tylko refresh'uje snapshot pomija openapi-spec job — drift detection becomes useless.
+
+## Lessons z 0.4.7 / #47 (Mercure publisher dla zdarzeń domenowych)
+
+- **`symfony/mercure-bundle` dorzuca własny config `mercure.yaml`** z `hubs.default.{url, public_url, jwt}` z env vars. Default config używa `MERCURE_URL` (internal — publisher route) + `MERCURE_PUBLIC_URL` (browser-facing subscriber route) — w docker-compose mamy oba; domyślnie env file ma example.com placeholder który trzeba zignorować bo prod docker-compose env wins.
+
+- **`MercurePublisher` jako `#[AsMessageHandler]` per DomainEvent** — jeden handler per event type (`onObjectCreated`, `onObjectAttributesChanged`, etc.). `messenger.bus.default` z `IdempotencyMiddleware` + `doctrine_transaction` middleware już istnieje (RF-20); subscriber dziedziczy plumbing. Pattern: cross-cutting subscribers (Mercure publisher, search indexer w epic 0.5, channel adapter w faza 1) — wszyscy hooked via `#[AsMessageHandler]`, dispatch'owany via `DomainEventDispatcher` postFlush.
+
+- **Topic naming convention: `<base>/objects/<id>` per row + `<base>/objects` broadcast.** Dwa topics na każdy event — admin może subscribe na specific row dla live editing, lub na broadcast dla list view. Topic strings to arbitrary IRIs (Mercure spec) — base URL jest `https://pim.localhost` (dev) / `https://pim.example.com` (prod). Per-kind specialization: `topicForKind()` helper buduje `<base>/objects/kind/product` żeby filtrowane subscriptions mogły działać per kind.
+
+- **Mercure debug w test env wraps real Hub w `TraceableHub`.** `framework.mercure.debug: true` (default w test/dev) decoruje hub class — auto-wired `HubInterface` zwraca TraceableHub, który wraps real Hub. Override service alias `Symfony\Component\Mercure\HubInterface → MockHub-impl` w `when@test` services.yaml; **NIE alias `mercure.hub.default`** bo to invalidates env var references w `mercure.yaml` (Symfony rzuca "Environment variable MERCURE_PUBLIC_URL is never used").
+
+- **Test-only services w `tests/Support/`** — autoloaded przez `App\Tests\` w composer.json `autoload-dev`. Service registered w `when@test: services` w `config/services.yaml` z `public: true`. Pattern dla każdego replacement service którego production class wymaga external dependency (HTTP, queue, cache).
+
+- **Pull test container Hub PO request, NIE PRZED.** ApiTestCase `static::createClient()` boots kernel; `getContainer()` po requeście zwraca tego samego kernela's container (singleton instance). Tak długo jak Hub w container jest singleton, handler i test widzą ten sam instance. Pulling przed request też działa (bo singleton), ale gdy ktoś `reset()` przed request, zostawia capture clear; pulling po request idiomatyczne — naturalny order "act → assert".
+
+- **PHPStan `symfonyContainer.serviceNotFound` dla test-only services.** PHPStan analizuje przeciw container.dev (przez `phpstan-symfony` + `containerXmlPath`). Test-only services z `when@test:` nie są w container.dev → PHPStan rzuca "service not registered". **Fix:** `ignoreErrors: [{identifier: symfonyContainer.serviceNotFound, paths: [tests/*]}]` w phpstan.dist.neon. Trade-off: test może odwoływać się do nieistniejącego service'u w innym pliku — w testach to akceptowalne (PHPUnit catch exception przy boot).
+
+- **PHPStan widzi `HubInterface` jako `TraceableHub` w dev container** — `assert($hub instanceof InMemoryMercureHub)` po `getContainer()->get(HubInterface::class)` rzuca "Instanceof between TraceableHub and InMemoryMercureHub will always evaluate to false". **Fix:** request service przez concrete class (`getContainer()->get(InMemoryMercureHub::class)`) zamiast interface. Plus assertion zostaje na poziomie typeof, runtime nadal otrzymuje aliased instance.
+
+- **Mercure `Update::getData()` wraca `string`** (JSON-encoded), nie array. Test musi `json_decode($update->getData(), true)` i potem `is_array` check przed offset access. Pattern dla każdego Mercure assertion: pull updates, decode each `getData()`, assert struktura payloadu.
+
+- **`messenger.bus.default` config `allow_no_handlers: true`** zapisany w RF (lessons z 0.0.4) — był potrzebny gdy domain events nie miały subskrybentów. Po dodaniu `MercurePublisher` events mają handlerów; flag pozostaje na bezpieczność dla future events które mogą być introduced bez handler od razu.

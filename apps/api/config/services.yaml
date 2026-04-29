@@ -148,3 +148,24 @@ services:
 when@test:
     parameters:
         pim.refresh_token.cookie_secure: false
+
+    services:
+        # Mercure hub override for tests (#47 / 0.4.7). The real `Hub`
+        # would HTTP-POST to the Mercure container during PHPUnit runs;
+        # the in-memory hub captures Update objects so subscribers
+        # exercise the real flush → dispatch → publish pipeline without
+        # the network. Production / dev keep the real hub.
+        App\Tests\Support\InMemoryMercureHub:
+            public: true
+            autowire: false
+            autoconfigure: false
+
+        # Override the autowire alias `HubInterface` (which AP4's
+        # mercure-bundle wires to `mercure.hub.default` in dev/prod) so
+        # MercurePublisher's constructor receives the in-memory hub. We
+        # leave `mercure.hub.default` itself alone so the real-Hub
+        # service registration stays valid (env vars referenced by
+        # mercure.yaml continue to be "used").
+        Symfony\Component\Mercure\HubInterface:
+            alias: App\Tests\Support\InMemoryMercureHub
+            public: true
