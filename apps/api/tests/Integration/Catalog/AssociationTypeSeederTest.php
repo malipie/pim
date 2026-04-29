@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Functional\Catalog;
+namespace App\Tests\Integration\Catalog;
 
 use App\Catalog\Application\BuiltInAssociationTypeSeeder;
 use App\Catalog\Domain\Repository\AssociationTypeRepositoryInterface;
