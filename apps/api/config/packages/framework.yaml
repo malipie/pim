@@ -20,6 +20,39 @@ framework:
     #esi: true
     #fragments: true
 
+    # Rate limiters (#48 / 0.4.8). In-memory cache pool keeps Sprint 0
+    # zero-infrastructure — `cache.app` defaults to filesystem in dev
+    # and Redis in prod via Symfony's standard cache hierarchy. Move
+    # to a shared Redis pool when multi-worker FrankenPHP exposes
+    # racing windows (Faza 1).
+    rate_limiter:
+        # Anti-bruteforce on `/api/auth/login` — 5 attempts per IP per
+        # 15-minute window. Successful logins still tick the counter
+        # (defence in depth: stolen credentials should not re-tick).
+        # `0.11.2` is the dedicated hardening ticket; this lands the
+        # baseline limiter so its consumer test rides under #48 already.
+        auth_login:
+            policy: 'fixed_window'
+            limit: 5
+            interval: '15 minutes'
+
+        # Agent run limiter (sekcja 8.5 architektury — 50/h/user).
+        # Reserved here so the agent endpoint in epic 0.7 (Faza 2)
+        # consumes `LimiterFactory $agentRunLimiter`. Sliding window
+        # smooths edge-of-hour bursts.
+        agent_run:
+            policy: 'sliding_window'
+            limit: 50
+            interval: '1 hour'
+
+        # Integration sync limiter (10 syncs / hour / tenant).
+        # Reserved for BaseLinker (#74) and Shopify (#81) sync
+        # endpoints in Faza 1.
+        integration_sync:
+            policy: 'fixed_window'
+            limit: 10
+            interval: '1 hour'
+
 when@test:
     framework:
         test: true
