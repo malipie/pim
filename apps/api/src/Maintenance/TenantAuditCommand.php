@@ -78,6 +78,8 @@ final class TenantAuditCommand extends Command
         'channel_locales',
         'channel_currencies',
         'channel_object_type_mappings',
+        // Asset variants (#37) inherit tenant scope from the parent Asset.
+        'asset_variants',
     ];
 
     /**

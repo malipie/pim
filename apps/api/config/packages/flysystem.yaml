@@ -1,0 +1,44 @@
+# Flysystem storage configuration.
+#
+# `assets.storage` is the named storage for the Asset bounded context (#37).
+# Backed by an S3-compatible adapter against MinIO in dev, S3 in production.
+# All credentials + endpoint live in environment variables so the same YAML
+# works dev → prod.
+#
+# Bucket layout: every Asset row stores a `storage_path` relative to the
+# bucket root (e.g. `<tenant-uuid>/<asset-uuid>/original.jpg`). Tenant
+# isolation rides on the path prefix — RLS does not extend to object
+# storage in MVP, so the application layer is the only barrier.
+
+services:
+    pim.assets.s3_client:
+        class: Aws\S3\S3Client
+        public: false
+        arguments:
+            - endpoint: '%env(AWS_ASSETS_ENDPOINT)%'
+              region: '%env(AWS_ASSETS_REGION)%'
+              version: 'latest'
+              use_path_style_endpoint: true
+              credentials:
+                  key: '%env(AWS_ASSETS_KEY)%'
+                  secret: '%env(AWS_ASSETS_SECRET)%'
+
+flysystem:
+    storages:
+        assets.storage:
+            adapter: 'aws'
+            options:
+                client: 'pim.assets.s3_client'
+                bucket: '%env(AWS_ASSETS_BUCKET)%'
+
+# CI does not run a MinIO service; the functional `AssetUploaderTest`
+# still wants to write through the real Flysystem operator (it proves the
+# wiring + the storage path layout). Local adapter under `var/test/assets`
+# gives the same operator interface without a network dependency.
+when@test:
+    flysystem:
+        storages:
+            assets.storage:
+                adapter: 'local'
+                options:
+                    directory: '%kernel.project_dir%/var/test/assets'
