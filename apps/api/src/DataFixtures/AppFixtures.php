@@ -6,6 +6,7 @@ namespace App\DataFixtures;
 
 use App\Catalog\Application\BuiltInAssociationTypeSeeder;
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
+use App\Catalog\Application\DemoCatalogSeeder;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
@@ -41,6 +42,7 @@ class AppFixtures extends Fixture
         private readonly BuiltInObjectTypeSeeder $builtInSeeder,
         private readonly BuiltInAssociationTypeSeeder $associationTypeSeeder,
         private readonly ObjectTypeRepository $objectTypeRepository,
+        private readonly DemoCatalogSeeder $demoCatalogSeeder,
     ) {
     }
 
@@ -91,39 +93,35 @@ class AppFixtures extends Fixture
         }
         $manager->flush();
 
-        $catalog = [
-            'demo' => [
-                ['DEMO-001', 'Demo Product One',   'Acme'],
-                ['DEMO-002', 'Demo Product Two',   'Acme'],
-                ['DEMO-003', 'Demo Product Three', 'Globex'],
-            ],
-            'acme' => [
-                ['ACME-001', 'Acme Widget',        'Acme'],
-                ['ACME-002', 'Acme Gadget',        'Acme'],
-                ['ACME-003', 'Acme Sprocket',      'Acme'],
-            ],
-        ];
+        // Demo tenant: full ADR-009 dataset (#40). 100 products + 5
+        // categories with own user-defined attributes + 10 assets +
+        // ~19 attributes spanning all 10 AttributeType cases.
+        $demoTenant = $tenants[0];
+        \assert('demo' === $demoTenant->getCode());
+        $this->demoCatalogSeeder->seed($demoTenant);
 
-        foreach ($tenants as $tenant) {
-            $this->tenantContext->set($tenant);
-
-            $productType = $this->objectTypeRepository->findBuiltInByKind(ObjectKind::Product, $tenant);
-            \assert(null !== $productType, 'BuiltInObjectTypeSeeder must seed the product ObjectType.');
-
-            foreach ($catalog[$tenant->getCode()] as [$sku, $name, $brand]) {
-                $object = new CatalogObject($productType, $sku);
-                $object->setStatus(CatalogObject::STATUS_PUBLISHED);
-                $object->setAttributesIndexed([
-                    'sku' => $sku,
-                    'name' => $name,
-                    'brand' => $brand,
-                    'description' => \sprintf('Seeded demo product for tenant %s.', $tenant->getCode()),
-                ]);
-                $manager->persist($object);
-            }
-
-            $manager->flush();
+        // Acme tenant: minimal smoke dataset (3 SKUs, no attribute graph).
+        // Existing isolation tests + admin e2e probes assume the legacy shape;
+        // promoting acme to the full graph is out of scope for #40.
+        $this->tenantContext->set($tenants[1]);
+        $acmeProductType = $this->objectTypeRepository->findBuiltInByKind(ObjectKind::Product, $tenants[1]);
+        \assert(null !== $acmeProductType, 'BuiltInObjectTypeSeeder must seed the product ObjectType.');
+        foreach ([
+            ['ACME-001', 'Acme Widget',   'Acme'],
+            ['ACME-002', 'Acme Gadget',   'Acme'],
+            ['ACME-003', 'Acme Sprocket', 'Acme'],
+        ] as [$sku, $name, $brand]) {
+            $object = new CatalogObject($acmeProductType, $sku);
+            $object->setStatus(CatalogObject::STATUS_PUBLISHED);
+            $object->setAttributesIndexed([
+                'sku' => $sku,
+                'name' => $name,
+                'brand' => $brand,
+                'description' => 'Seeded demo product for tenant acme.',
+            ]);
+            $manager->persist($object);
         }
+        $manager->flush();
 
         $this->tenantContext->clear();
     }
