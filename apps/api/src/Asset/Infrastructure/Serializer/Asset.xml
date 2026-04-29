@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <class name="App\Asset\Domain\Entity\Asset">
+        <attribute name="id">
+            <group>admin:read</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="code">
+            <group>admin:read</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="objectId">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="originalFilename">
+            <group>admin:read</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="mimeType">
+            <group>admin:read</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="size">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="metadata">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="storagePath">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="variants">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
+    </class>
+</serializer>

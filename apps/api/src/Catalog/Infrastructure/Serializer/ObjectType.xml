@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <class name="App\Catalog\Domain\Entity\ObjectType">
+        <attribute name="id">
+            <group>admin:read</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="code">
+            <group>admin:read</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="kind">
+            <group>admin:read</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="label">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="builtIn">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="completenessRules">
+            <group>admin:read</group>
+            <group>admin:write</group>
+        </attribute>
+        <attribute name="labelAttribute">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="imageAttribute">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="schemaVersion">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="updatedAt">
+            <group>admin:read</group>
+        </attribute>
+    </class>
+</serializer>

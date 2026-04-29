@@ -7,6 +7,16 @@
     <resource class="App\Catalog\Domain\Entity\Attribute"
               shortName="Attribute">
 
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>admin:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
         <operations>
             <operation class="ApiPlatform\Metadata\GetCollection"
                        uriTemplate="/attributes{._format}"

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <!--
+        Per-context groups for the Catalog aggregate (ADR-009 generic CatalogObject).
+
+        Three contexts (#42 / 0.4.2):
+          - `admin:*` — full editorial view; the admin UI is the primary
+            consumer and operates on every field.
+          - `integration:*` — partner integrations (BaseLinker, Shopify in
+            Faza 1). Excludes `completeness`, `path`, `parent` because
+            those are PIM-internal book-keeping the partner cannot act on.
+          - `public:*` — read-only API Configurator (epic 0.10) for
+            anonymous catalogue browsers. Strict allow-list: id + code +
+            kind + denormalised `attributesIndexed`.
+
+        Per-kind specialisation (`product:admin:read` etc.) is layered on
+        top by `KindAwareSerializerContextBuilder` from #128 — it merges
+        the kind-specific group whenever the operation declares any group
+        in `normalizationContext.groups`. Resources stay one source of
+        truth here.
+
+        Attribute names match `getX()` reflection (Symfony PropertyInfo).
+    -->
+    <class name="App\Catalog\Domain\Entity\CatalogObject">
+        <attribute name="id">
+            <group>admin:read</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="code">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="kind">
+            <group>admin:read</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="objectType">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="parent">
+            <group>admin:read</group>
+            <group>admin:write</group>
+        </attribute>
+        <attribute name="enabled">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="status">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="completeness">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="attributesIndexed">
+            <group>admin:read</group>
+            <group>integration:read</group>
+            <group>public:read</group>
+        </attribute>
+        <attribute name="path">
+            <group>admin:read</group>
+            <group>admin:write</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="updatedAt">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
+        <!-- `tenant` is intentionally excluded from every group: leaking
+             a tenant id across contexts would defeat the multi-tenant
+             isolation guarantee and is never useful for any consumer. -->
+    </class>
+</serializer>

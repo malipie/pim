@@ -5,6 +5,18 @@ framework:
     # Note that the session will be started ONLY if you read or write from it.
     session: true
 
+    # Serializer metadata (#42 / 0.4.2 — per-context groups). Mirrors the
+    # ADR-0011 pattern for Doctrine ORM: Domain stays plain PHP, mapping
+    # lives next to the persistence adapter. Each BC contributes XML
+    # files to `<BC>/Infrastructure/Serializer/<Entity>.xml` declaring
+    # `<group>admin:read</group>` etc. per attribute.
+    serializer:
+        mapping:
+            paths:
+                - '%kernel.project_dir%/src/Catalog/Infrastructure/Serializer'
+                - '%kernel.project_dir%/src/Channel/Infrastructure/Serializer'
+                - '%kernel.project_dir%/src/Asset/Infrastructure/Serializer'
+
     #esi: true
     #fragments: true
 

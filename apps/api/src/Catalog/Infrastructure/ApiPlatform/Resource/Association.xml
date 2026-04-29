@@ -7,6 +7,16 @@
     <resource class="App\Catalog\Domain\Entity\Association"
               shortName="Association">
 
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>admin:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
         <operations>
             <operation class="ApiPlatform\Metadata\GetCollection"
                        uriTemplate="/associations{._format}"
