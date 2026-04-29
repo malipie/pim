@@ -74,13 +74,13 @@ final readonly class DemoCatalogSeeder
 
             $attributes = $this->seedAttributes($tenant);
             $this->seedJunctions($productType, $categoryType, $assetType, $attributes);
-            $productType->setLabelAttribute($attributes['name']);
-            $productType->setImageAttribute($attributes['main_image']);
-            $productType->setCompletenessRules(['required' => ['sku', 'name', 'description', 'price']]);
-            $categoryType->setLabelAttribute($attributes['name']);
-            $categoryType->setImageAttribute($attributes['main_image']);
-            $categoryType->setCompletenessRules(['required' => ['name', 'seo_title']]);
-            $assetType->setLabelAttribute($attributes['name']);
+            $productType->assignLabelAttribute($attributes['name']);
+            $productType->assignImageAttribute($attributes['main_image']);
+            $productType->updateCompletenessRules(['required' => ['sku', 'name', 'description', 'price']]);
+            $categoryType->assignLabelAttribute($attributes['name']);
+            $categoryType->assignImageAttribute($attributes['main_image']);
+            $categoryType->updateCompletenessRules(['required' => ['name', 'seo_title']]);
+            $assetType->assignLabelAttribute($attributes['name']);
             $this->em->flush();
 
             $categories = $this->seedCategories($categoryType, $attributes);
@@ -116,10 +116,10 @@ final readonly class DemoCatalogSeeder
                 continue;
             }
             $attribute = new Attribute($code, $def['label'], $def['type']);
-            $attribute->setRequired($def['required'] ?? false);
-            $attribute->setLocalizable($def['localizable'] ?? false);
-            $attribute->setValidationRules($def['rules'] ?? []);
-            $attribute->setPosition($position++);
+            $attribute->changeRequired($def['required'] ?? false);
+            $attribute->changeLocalizable($def['localizable'] ?? false);
+            $attribute->updateValidationRules($def['rules'] ?? []);
+            $attribute->reorder($position++);
             $this->em->persist($attribute);
             $attributes[$code] = $attribute;
 
@@ -180,8 +180,8 @@ final readonly class DemoCatalogSeeder
         $categories = [];
         foreach ($defs as [$code, $path, $name, $description]) {
             $category = new CatalogObject($type, $code);
-            $category->setStatus(CatalogObject::STATUS_PUBLISHED);
-            $category->setPath($path);
+            $category->transitionTo(CatalogObject::STATUS_PUBLISHED);
+            $category->attachToPath($path);
 
             $values = [
                 ['name', ['value' => $name]],
@@ -195,8 +195,8 @@ final readonly class DemoCatalogSeeder
                 $this->em->persist($value);
                 $indexed[$attrCode] = $payload;
             }
-            $category->setAttributesIndexed($indexed);
-            $category->setCompleteness(['global' => 100]);
+            $category->updateAttributeIndex($indexed);
+            $category->recordCompleteness(['global' => 100]);
             $this->em->persist($category);
             $categories[] = $category;
         }
@@ -215,7 +215,7 @@ final readonly class DemoCatalogSeeder
         for ($i = 1; $i <= 10; ++$i) {
             $code = \sprintf('ASSET-%03d', $i);
             $catalogAsset = new CatalogObject($type, $code);
-            $catalogAsset->setStatus(CatalogObject::STATUS_PUBLISHED);
+            $catalogAsset->transitionTo(CatalogObject::STATUS_PUBLISHED);
 
             $name = \sprintf('Demo image %d', $i);
             $alt = \sprintf('Image alt text #%d', $i);
@@ -225,11 +225,11 @@ final readonly class DemoCatalogSeeder
             $valueAlt = new ObjectValue($catalogAsset, $attributes['alt_text'], ['value' => $alt], Provenance::Import);
             $this->em->persist($valueAlt);
 
-            $catalogAsset->setAttributesIndexed([
+            $catalogAsset->updateAttributeIndex([
                 'name' => ['value' => $name],
                 'alt_text' => ['value' => $alt],
             ]);
-            $catalogAsset->setCompleteness(['global' => 100]);
+            $catalogAsset->recordCompleteness(['global' => 100]);
             $this->em->persist($catalogAsset);
 
             $storagePath = \sprintf(
@@ -272,7 +272,7 @@ final readonly class DemoCatalogSeeder
         for ($i = 1; $i <= self::PRODUCT_COUNT; ++$i) {
             $sku = \sprintf('DEMO-%03d', $i);
             $product = new CatalogObject($type, $sku);
-            $product->setStatus(0 === $i % 11 ? CatalogObject::STATUS_DRAFT : CatalogObject::STATUS_PUBLISHED);
+            $product->transitionTo(0 === $i % 11 ? CatalogObject::STATUS_DRAFT : CatalogObject::STATUS_PUBLISHED);
 
             $brand = $brands[$i % \count($brands)];
             $color = $colors[$i % \count($colors)];
@@ -307,8 +307,8 @@ final readonly class DemoCatalogSeeder
                 $this->em->persist($value);
                 $indexed[$code] = $payload;
             }
-            $product->setAttributesIndexed($indexed);
-            $product->setCompleteness(['global' => 100]);
+            $product->updateAttributeIndex($indexed);
+            $product->recordCompleteness(['global' => 100]);
             $this->em->persist($product);
         }
     }

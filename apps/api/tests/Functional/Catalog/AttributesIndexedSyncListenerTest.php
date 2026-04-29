@@ -42,7 +42,7 @@ final class AttributesIndexedSyncListenerTest extends KernelTestCase
         $this->tenantContext()->set($this->tenant);
 
         $this->productType = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
-        $this->productType->setCompletenessRules(['required' => ['name', 'color']]);
+        $this->productType->updateCompletenessRules(['required' => ['name', 'color']]);
         $em->persist($this->productType);
 
         $this->name = new Attribute('name', ['pl' => 'Nazwa'], AttributeType::Text);

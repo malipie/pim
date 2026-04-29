@@ -94,7 +94,7 @@ class AssociationType implements TenantScoped
     /**
      * @param array<string, string> $label
      */
-    public function setLabel(array $label): void
+    public function rename(array $label): void
     {
         $this->label = $label;
     }
@@ -104,7 +104,7 @@ class AssociationType implements TenantScoped
         return $this->position;
     }
 
-    public function setPosition(int $position): void
+    public function reorder(int $position): void
     {
         $this->position = $position;
     }

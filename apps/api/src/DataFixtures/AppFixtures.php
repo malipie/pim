@@ -112,8 +112,8 @@ class AppFixtures extends Fixture
             ['ACME-003', 'Acme Sprocket', 'Acme'],
         ] as [$sku, $name, $brand]) {
             $object = new CatalogObject($acmeProductType, $sku);
-            $object->setStatus(CatalogObject::STATUS_PUBLISHED);
-            $object->setAttributesIndexed([
+            $object->transitionTo(CatalogObject::STATUS_PUBLISHED);
+            $object->updateAttributeIndex([
                 'sku' => $sku,
                 'name' => $name,
                 'brand' => $brand,

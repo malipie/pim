@@ -48,7 +48,7 @@ final class MultiselectValidatorTest extends TestCase
     #[Test]
     public function allowlistAndCountBoundsCombineErrors(): void
     {
-        $this->attribute->setValidationRules([
+        $this->attribute->updateValidationRules([
             'option_codes' => ['red', 'green'],
             'min_count' => 2,
             'max_count' => 3,

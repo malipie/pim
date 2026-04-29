@@ -50,7 +50,7 @@ final class CatalogObjectTest extends TestCase
         $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
         $object = new CatalogObject($type, 'SKU-002');
 
-        $object->setAttributesIndexed([
+        $object->updateAttributeIndex([
             'name' => ['pl' => 'Smartfon', 'en' => 'Smartphone'],
             'sku' => 'SKU-002',
             'color' => 'red',
@@ -71,7 +71,7 @@ final class CatalogObjectTest extends TestCase
         $categoryType = new ObjectType('category', ObjectKind::Category, ['pl' => 'Kategoria']);
         $object = new CatalogObject($categoryType, 'shoes');
 
-        $object->setPath('root.men.shoes');
+        $object->attachToPath('root.men.shoes');
 
         self::assertSame('root.men.shoes', $object->getPath());
         // The kind = 'category' OR path IS NULL invariant + ltree validation
@@ -85,7 +85,7 @@ final class CatalogObjectTest extends TestCase
         $parent = new CatalogObject($type, 'PARENT-SKU');
         $variant = new CatalogObject($type, 'VARIANT-SKU');
 
-        $variant->setParent($parent);
+        $variant->assignParent($parent);
 
         self::assertSame($parent, $variant->getParent());
     }
@@ -111,10 +111,10 @@ final class CatalogObjectTest extends TestCase
         $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
         $object = new CatalogObject($type, 'SKU-004');
 
-        $object->setStatus(CatalogObject::STATUS_PUBLISHED);
+        $object->transitionTo(CatalogObject::STATUS_PUBLISHED);
         self::assertSame('published', $object->getStatus());
 
-        $object->setStatus(CatalogObject::STATUS_ARCHIVED);
+        $object->transitionTo(CatalogObject::STATUS_ARCHIVED);
         self::assertSame('archived', $object->getStatus());
     }
 }

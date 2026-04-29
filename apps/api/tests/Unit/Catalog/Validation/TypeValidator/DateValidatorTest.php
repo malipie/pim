@@ -45,7 +45,7 @@ final class DateValidatorTest extends TestCase
     #[Test]
     public function minMaxBoundsAreEnforced(): void
     {
-        $this->attribute->setValidationRules(['min' => '2026-01-01', 'max' => '2026-12-31']);
+        $this->attribute->updateValidationRules(['min' => '2026-01-01', 'max' => '2026-12-31']);
 
         $low = $this->validator->validate($this->attribute, ['value' => '2025-12-31']);
         $high = $this->validator->validate($this->attribute, ['value' => '2027-01-01']);

@@ -37,7 +37,7 @@ final class SelectValidatorTest extends TestCase
     #[Test]
     public function unknownOptionRejectedWhenAllowlistConfigured(): void
     {
-        $this->attribute->setValidationRules(['option_codes' => ['red', 'green', 'blue']]);
+        $this->attribute->updateValidationRules(['option_codes' => ['red', 'green', 'blue']]);
 
         $ok = $this->validator->validate($this->attribute, ['option_code' => 'red']);
         $bad = $this->validator->validate($this->attribute, ['option_code' => 'magenta']);

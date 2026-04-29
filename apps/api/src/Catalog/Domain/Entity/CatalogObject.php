@@ -138,7 +138,7 @@ class CatalogObject implements TenantScoped
         return $this->parent;
     }
 
-    public function setParent(?self $parent): void
+    public function assignParent(?self $parent): void
     {
         $this->parent = $parent;
         $this->touch();
@@ -149,7 +149,7 @@ class CatalogObject implements TenantScoped
         return $this->enabled;
     }
 
-    public function setEnabled(bool $enabled): void
+    public function changeEnabled(bool $enabled): void
     {
         $this->enabled = $enabled;
         $this->touch();
@@ -160,7 +160,7 @@ class CatalogObject implements TenantScoped
         return $this->status;
     }
 
-    public function setStatus(string $status): void
+    public function transitionTo(string $status): void
     {
         $this->status = $status;
         $this->touch();
@@ -177,7 +177,7 @@ class CatalogObject implements TenantScoped
     /**
      * @param array<string, mixed> $completeness
      */
-    public function setCompleteness(array $completeness): void
+    public function recordCompleteness(array $completeness): void
     {
         $this->completeness = $completeness;
         $this->touch();
@@ -194,7 +194,7 @@ class CatalogObject implements TenantScoped
     /**
      * @param array<string, mixed> $attributes
      */
-    public function setAttributesIndexed(array $attributes): void
+    public function updateAttributeIndex(array $attributes): void
     {
         $this->attributesIndexed = $attributes;
         $this->touch();
@@ -205,7 +205,7 @@ class CatalogObject implements TenantScoped
         return $this->path;
     }
 
-    public function setPath(?string $path): void
+    public function attachToPath(?string $path): void
     {
         $this->path = $path;
         $this->touch();

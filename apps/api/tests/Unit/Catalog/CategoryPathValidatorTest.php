@@ -120,7 +120,7 @@ final class CategoryPathValidatorTest extends TestCase
     {
         $type = new ObjectType($kind->value, $kind, ['pl' => 'X']);
         $object = new CatalogObject($type, $code);
-        $object->setPath($path);
+        $object->attachToPath($path);
 
         return $object;
     }
