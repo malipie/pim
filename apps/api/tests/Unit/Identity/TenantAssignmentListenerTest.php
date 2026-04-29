@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Catalog\Domain\Entity\Product;
+use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectType;
+use App\Catalog\Domain\ObjectKind;
 use App\Identity\Application\TenantContext;
 use App\Identity\Application\TenantScoped;
 use App\Identity\Domain\Entity\Tenant;
@@ -32,16 +34,16 @@ final class TenantAssignmentListenerTest extends TestCase
     }
 
     #[Test]
-    public function itStampsTenantOnAFreshlyCreatedProduct(): void
+    public function itStampsTenantOnAFreshlyCreatedCatalogObject(): void
     {
         $tenant = new Tenant('demo', 'Demo Tenant');
         $this->tenantContext->set($tenant);
 
-        $product = new Product('SKU-001', 'A product');
+        $object = $this->makeProductObject('SKU-001');
 
-        $this->listener->prePersist(new PrePersistEventArgs($product, $this->entityManager));
+        $this->listener->prePersist(new PrePersistEventArgs($object, $this->entityManager));
 
-        self::assertSame($tenant, $product->getTenant(), 'Listener must inject the current tenant on prePersist.');
+        self::assertSame($tenant, $object->getTenant(), 'Listener must inject the current tenant on prePersist.');
     }
 
     #[Test]
@@ -50,23 +52,23 @@ final class TenantAssignmentListenerTest extends TestCase
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('without a current tenant');
 
-        $product = new Product('SKU-002', 'Orphan product');
+        $object = $this->makeProductObject('SKU-002');
 
-        $this->listener->prePersist(new PrePersistEventArgs($product, $this->entityManager));
+        $this->listener->prePersist(new PrePersistEventArgs($object, $this->entityManager));
     }
 
     #[Test]
     public function itDoesNotOverwriteAnAlreadyAssignedTenant(): void
     {
         $existingTenant = new Tenant('demo', 'Demo Tenant');
-        $product = new Product('SKU-003', 'Already-bound product');
-        $product->assignTenant($existingTenant);
+        $object = $this->makeProductObject('SKU-003');
+        $object->assignTenant($existingTenant);
 
         $this->tenantContext->set(new Tenant('acme', 'Acme Industries'));
 
-        $this->listener->prePersist(new PrePersistEventArgs($product, $this->entityManager));
+        $this->listener->prePersist(new PrePersistEventArgs($object, $this->entityManager));
 
-        self::assertSame($existingTenant, $product->getTenant(), 'Listener must respect a tenant already set by the caller.');
+        self::assertSame($existingTenant, $object->getTenant(), 'Listener must respect a tenant already set by the caller.');
     }
 
     #[Test]
@@ -83,15 +85,15 @@ final class TenantAssignmentListenerTest extends TestCase
     }
 
     #[Test]
-    public function itStampsAnyTenantScopedEntityNotJustProduct(): void
+    public function itStampsAnyTenantScopedEntityNotJustCatalogObject(): void
     {
         $tenant = new Tenant('demo', 'Demo Tenant');
         $this->tenantContext->set($tenant);
 
         // An anonymous class implementing TenantScoped is enough to prove
         // generalisation — Sprint-0 hard-coded `instanceof Product`, #30
-        // dispatches by interface, so any future domain entity (Object,
-        // Channel, Asset in epic 0.3) will be picked up the same way.
+        // dispatches by interface, so any future domain entity (Channel,
+        // Asset in epic 0.3) will be picked up the same way.
         $entity = new class implements TenantScoped {
             private ?Tenant $tenant = null;
 
@@ -109,5 +111,12 @@ final class TenantAssignmentListenerTest extends TestCase
         $this->listener->prePersist(new PrePersistEventArgs($entity, $this->entityManager));
 
         self::assertSame($tenant, $entity->getTenant(), 'Listener must dispatch by TenantScoped interface, not FQCN.');
+    }
+
+    private function makeProductObject(string $code): CatalogObject
+    {
+        $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
+
+        return new CatalogObject($type, $code);
     }
 }

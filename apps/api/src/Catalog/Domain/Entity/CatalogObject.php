@@ -99,11 +99,15 @@ class CatalogObject implements TenantScoped
     private array $attributesIndexed = [];
 
     /**
-     * Postgres LTREE column. Doctrine has no native ltree type — we map
-     * it as a plain string (the Doctrine listener in #33 validates
-     * format). Nullable; only `kind='category'` rows carry a value.
+     * Postgres LTREE column (`#33`). Custom Doctrine type
+     * {@see \App\Catalog\Infrastructure\Doctrine\Type\LtreeType} maps it
+     * as `?string` on the PHP side. Nullable + a CHECK constraint on the
+     * database pins "path is for `kind='category'` only"; the
+     * {@see \App\Catalog\Infrastructure\Doctrine\EventListener\CategoryPathValidator}
+     * enforces the same invariant on writes with a friendlier error
+     * message and validates ltree label format.
      */
-    #[ORM\Column(type: Types::STRING, length: 4096, nullable: true)]
+    #[ORM\Column(type: 'ltree', nullable: true)]
     private ?string $path = null;
 
     #[ORM\Column(type: 'datetime_immutable')]

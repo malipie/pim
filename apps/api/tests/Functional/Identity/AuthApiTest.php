@@ -98,7 +98,7 @@ final class AuthApiTest extends ApiTestCase
     #[Test]
     public function protectedEndpointWithoutTokenReturns401(): void
     {
-        static::createClient()->request('GET', '/api/products');
+        static::createClient()->request('GET', '/api/auth/me');
 
         self::assertResponseStatusCodeSame(401);
     }
@@ -110,7 +110,7 @@ final class AuthApiTest extends ApiTestCase
 
         $client = static::createClient();
         $client->setDefaultOptions(['headers' => ['authorization' => 'Bearer '.$token]]);
-        $client->request('GET', '/api/products');
+        $client->request('GET', '/api/auth/me');
 
         self::assertResponseIsSuccessful();
     }
@@ -120,7 +120,7 @@ final class AuthApiTest extends ApiTestCase
     {
         $client = static::createClient();
         $client->setDefaultOptions(['headers' => ['authorization' => 'Bearer not.a.real.jwt']]);
-        $client->request('GET', '/api/products');
+        $client->request('GET', '/api/auth/me');
 
         self::assertResponseStatusCodeSame(401);
     }
@@ -169,34 +169,14 @@ final class AuthApiTest extends ApiTestCase
     #[Test]
     public function viewerRoleCannotDeleteProduct(): void
     {
-        $em = $this->em();
-        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
-        \assert(null !== $tenant);
-
-        $viewerRole = self::getContainer()->get(RoleRepository::class)->findGlobalByCode(RbacMatrix::ROLE_VIEWER);
-        \assert(null !== $viewerRole);
-
-        $hasher = $this->passwordHasher();
-        $stub = new User($tenant, 'viewer@demo.localhost', '');
-        $viewer = new User($tenant, 'viewer@demo.localhost', $hasher->hashPassword($stub, 'changeme'));
-        $viewer->addRole($viewerRole);
-        $em->persist($viewer);
-
-        $product = new \App\Catalog\Domain\Entity\Product('SKU-VIEWER-1', 'Viewer test');
-        $product->assignTenant($tenant);
-        $em->persist($product);
-        $em->flush();
-
-        // Viewer can list / fetch (read permission), but DELETE returns 403.
-        $token = $this->loginAndExtractToken('viewer@demo.localhost', 'changeme');
-        $client = static::createClient();
-        $client->setDefaultOptions(['headers' => ['authorization' => 'Bearer '.$token]]);
-
-        $client->request('GET', '/api/products');
-        self::assertResponseIsSuccessful();
-
-        $client->request('DELETE', '/api/products/'.$product->getId()->toRfc4122());
-        self::assertResponseStatusCodeSame(403);
+        // After #33 (ADR-009 data migration) the legacy `Product` entity
+        // and its `/api/products` ApiResource are gone. The voter contract
+        // (#26) still exists but targets `App\Catalog\Domain\Entity\Product`
+        // which no longer compiles. Sugar paths `/api/products` on
+        // `CatalogObject` + a fresh CatalogObjectVoter land in #41 (epic
+        // 0.4 ApiResource exposure) + #57 (Resource ObjectTypes admin UI).
+        // Restoring this exact test depends on those.
+        self::markTestSkipped('Pending #41 sugar paths + voter on CatalogObject; Product entity removed in #33.');
     }
 
     #[Test]

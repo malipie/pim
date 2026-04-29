@@ -25,9 +25,11 @@ final class TenantAuditCommandTest extends KernelTestCase
         self::assertSame(Command::SUCCESS, $exitCode, $tester->getDisplay());
         $output = $tester->getDisplay();
         // Every domain table the audit knows about today should land green —
-        // regression guard for future schema work.
+        // regression guard for future schema work. After #33 (ADR-009 data
+        // migration) the legacy `products` table is gone; the inventory
+        // covers `objects` + `object_values` instead.
         self::assertStringContainsString('All domain tables carry tenant_id.', $output);
-        foreach (['products', 'refresh_tokens', 'users', 'roles'] as $table) {
+        foreach (['objects', 'object_values', 'refresh_tokens', 'users', 'roles'] as $table) {
             self::assertStringContainsString($table, $output, \sprintf('Audit must list %s.', $table));
         }
     }
@@ -39,8 +41,9 @@ final class TenantAuditCommandTest extends KernelTestCase
         $connection = $kernel->getContainer()->get('doctrine')->getConnection();
         \assert($connection instanceof \Doctrine\DBAL\Connection);
         // Drop a domain column to simulate a forgotten migration. Any non-
-        // infra table works; products is the canonical example.
-        $connection->executeStatement('ALTER TABLE products DROP COLUMN tenant_id CASCADE');
+        // infra table works; `objects` is the canonical post-#33 example
+        // (the legacy `products` table no longer exists).
+        $connection->executeStatement('ALTER TABLE objects DROP COLUMN tenant_id CASCADE');
 
         try {
             $tester = $this->commandTester();
@@ -53,7 +56,7 @@ final class TenantAuditCommandTest extends KernelTestCase
             // Restore the column so subsequent tests in the same kernel boot
             // do not see the broken schema. ResetDatabase between tests
             // would also clean up, but explicit is friendlier.
-            $connection->executeStatement('ALTER TABLE products ADD COLUMN tenant_id UUID');
+            $connection->executeStatement('ALTER TABLE objects ADD COLUMN tenant_id UUID');
         }
     }
 

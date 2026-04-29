@@ -71,7 +71,6 @@ parameters:
         # TenantScoped entities should be added here as they land.
         - identifier: doctrine.associationType
           paths:
-              - src/Catalog/Domain/Entity/Product.php
               - src/Catalog/Domain/Entity/Attribute.php
               - src/Catalog/Domain/Entity/AttributeGroup.php
               - src/Catalog/Domain/Entity/AttributeOption.php

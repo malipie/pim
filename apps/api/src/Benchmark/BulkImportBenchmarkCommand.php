@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Benchmark;
 
-use App\Catalog\Domain\Entity\Product;
+use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectType;
+use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
 use App\Identity\Application\TenantContext;
 use App\Identity\Domain\Entity\Tenant;
 use App\Identity\Infrastructure\Doctrine\Repository\TenantRepository;
@@ -19,26 +22,26 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * Worker-memory benchmark for the FrankenPHP / Doctrine identity-map pattern.
  *
- * Inserts N synthetic products in batches and reports peak memory usage. The
- * loop mirrors the {@see \App\Messaging\AbstractBatchHandler} contract:
- * `flush()` followed by `clear()` every `batchSize` rows. A green run
- * (peak < 256 MiB on 5 000 inserts) is the Sprint 0 gate that proves
- * Messenger handlers built on the abstract base will survive a 50k-SKU import
- * without OOM-ing the worker (ticket 0.0.13, ryzyko R-25, sekcja 3.10
- * architektury).
+ * Inserts N synthetic CatalogObject rows in batches and reports peak
+ * memory usage. The loop mirrors the {@see \App\Messaging\AbstractBatchHandler}
+ * contract: `flush()` followed by `clear()` every `batchSize` rows. A
+ * green run (peak < 256 MiB on 5 000 inserts) is the Sprint 0 gate that
+ * proves Messenger handlers built on the abstract base will survive a
+ * 50k-SKU import without OOM-ing the worker (ticket 0.0.13, ryzyko R-25,
+ * sekcja 3.10 architektury).
  *
- * `--no-clear` reproduces the leak so the operator can witness the pattern's
- * value: memory grows roughly linearly with row count when `clear()` is
- * skipped. After the run the command deletes everything it created unless
- * `--keep` is passed.
+ * Updated for #33: legacy `Product` entity is gone; the benchmark now
+ * inserts `CatalogObject` rows of `kind='product'` against the tenant's
+ * built-in product ObjectType.
  *
- * The verification phase reads the inserted rows back through Doctrine's
- * `Query::toIterable()` API — the same idiom every bulk export in the
- * codebase will follow once epik 0.4 introduces them.
+ * `--no-clear` reproduces the leak so the operator can witness the
+ * pattern's value: memory grows roughly linearly with row count when
+ * `clear()` is skipped. After the run the command deletes everything it
+ * created unless `--keep` is passed.
  */
 #[AsCommand(
     name: 'pim:benchmark:bulk-import',
-    description: 'Insert N products in batches and report peak memory usage (ticket 0.0.13).',
+    description: 'Insert N CatalogObject rows in batches and report peak memory usage (ticket 0.0.13).',
 )]
 final class BulkImportBenchmarkCommand extends Command
 {
@@ -47,6 +50,7 @@ final class BulkImportBenchmarkCommand extends Command
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly TenantRepository $tenantRepository,
+        private readonly ObjectTypeRepository $objectTypeRepository,
         private readonly TenantContext $tenantContext,
     ) {
         parent::__construct();
@@ -55,11 +59,11 @@ final class BulkImportBenchmarkCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('count', 'c', InputOption::VALUE_REQUIRED, 'Number of products to insert', '5000')
+            ->addOption('count', 'c', InputOption::VALUE_REQUIRED, 'Number of rows to insert', '5000')
             ->addOption('batch-size', 'b', InputOption::VALUE_REQUIRED, 'Flush + clear cadence', '200')
-            ->addOption('tenant', 't', InputOption::VALUE_REQUIRED, 'Tenant code to assign products to', 'acme')
+            ->addOption('tenant', 't', InputOption::VALUE_REQUIRED, 'Tenant code to assign rows to', 'acme')
             ->addOption('no-clear', null, InputOption::VALUE_NONE, 'Skip EntityManager::clear() — reproduces the leak')
-            ->addOption('keep', null, InputOption::VALUE_NONE, 'Keep inserted products after the run');
+            ->addOption('keep', null, InputOption::VALUE_NONE, 'Keep inserted rows after the run');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -96,10 +100,18 @@ final class BulkImportBenchmarkCommand extends Command
         $tenantId = $tenant->getId();
         $this->tenantContext->set($tenant);
 
+        $productType = $this->objectTypeRepository->findBuiltInByKind(ObjectKind::Product, $tenant);
+        if (!$productType instanceof ObjectType) {
+            $io->error(\sprintf('Built-in product ObjectType missing for tenant "%s". Run `doctrine:fixtures:load`.', $tenantCode));
+
+            return Command::FAILURE;
+        }
+        $productTypeId = $productType->getId();
+
         $skuPrefix = \sprintf('bench-%s-', \dechex(\random_int(0x100000, 0xFFFFFF)));
 
         $io->section(\sprintf(
-            'Inserting %d products (batch=%d, clear=%s) for tenant "%s" with SKU prefix "%s"',
+            'Inserting %d CatalogObject rows (batch=%d, clear=%s) for tenant "%s" with SKU prefix "%s"',
             $count,
             $batchSize,
             $noClear ? 'OFF' : 'ON',
@@ -112,24 +124,30 @@ final class BulkImportBenchmarkCommand extends Command
 
         for ($i = 1; $i <= $count; ++$i) {
             $sku = \sprintf('%s%05d', $skuPrefix, $i);
-            $product = new Product($sku, \sprintf('Benchmark product %05d', $i));
-            $product->setBrand('Benchmark Co');
-            $product->setDescription(\sprintf('Synthetic row %d generated by pim:benchmark:bulk-import.', $i));
+            $object = new CatalogObject($productType, $sku);
+            $object->setStatus(CatalogObject::STATUS_PUBLISHED);
+            $object->setAttributesIndexed([
+                'sku' => $sku,
+                'name' => \sprintf('Benchmark product %05d', $i),
+                'brand' => 'Benchmark Co',
+                'description' => \sprintf('Synthetic row %d generated by pim:benchmark:bulk-import.', $i),
+            ]);
 
-            $this->entityManager->persist($product);
+            $this->entityManager->persist($object);
 
             if (0 === $i % $batchSize) {
                 $this->entityManager->flush();
                 if (!$noClear) {
                     $this->entityManager->clear();
-                    // After clear(), the Tenant we held is detached. The next batch's
-                    // TenantAssignmentListener pulls from TenantContext, which would
-                    // hand it a detached object and break flush(). Re-fetch by id to
-                    // get a freshly managed instance — same idiom every batch worker
-                    // will use (sekcja 3.10 architektury).
+                    // After clear(), every entity we held is detached.
+                    // Re-fetch tenant + product type so the next batch's
+                    // TenantAssignmentListener and CatalogObject FK both
+                    // see managed instances (sekcja 3.10 architektury).
                     $tenant = $this->tenantRepository->find($tenantId);
                     \assert($tenant instanceof Tenant);
                     $this->tenantContext->set($tenant);
+                    $productType = $this->entityManager->find(ObjectType::class, $productTypeId);
+                    \assert($productType instanceof ObjectType);
                 }
             }
         }
@@ -143,7 +161,7 @@ final class BulkImportBenchmarkCommand extends Command
         $endMemory = \memory_get_usage(true);
         $peakMemory = \memory_get_peak_usage(true);
 
-        $io->success(\sprintf('Inserted %d products in %.2fs.', $count, $insertDuration));
+        $io->success(\sprintf('Inserted %d rows in %.2fs.', $count, $insertDuration));
 
         // Streaming verification phase. Query::toIterable() walks the result set
         // without ever materialising every row into the identity map — the same
@@ -152,7 +170,7 @@ final class BulkImportBenchmarkCommand extends Command
         $verified = 0;
         $verifyStartedAt = \microtime(true);
         $verifyQuery = $this->entityManager->createQuery(
-            'SELECT p FROM '.Product::class.' p WHERE p.sku LIKE :prefix',
+            'SELECT o FROM '.CatalogObject::class.' o WHERE o.code LIKE :prefix',
         )->setParameter('prefix', $skuPrefix.'%');
 
         foreach ($verifyQuery->toIterable() as $_row) {
@@ -176,7 +194,7 @@ final class BulkImportBenchmarkCommand extends Command
                 ['threshold_mib', '256.00'],
                 ['insert_duration_seconds', \sprintf('%.2f', $insertDuration)],
                 ['verify_duration_seconds', \sprintf('%.2f', $verifyDuration)],
-                ['products_per_second', \sprintf('%.1f', $count / $insertDuration)],
+                ['rows_per_second', \sprintf('%.1f', $count / $insertDuration)],
             ],
         );
 
@@ -187,12 +205,12 @@ final class BulkImportBenchmarkCommand extends Command
 
         if (!$keep) {
             $deleted = (int) $this->entityManager->getConnection()->executeStatement(
-                'DELETE FROM products WHERE sku LIKE :prefix',
+                "DELETE FROM objects WHERE kind = 'product' AND code LIKE :prefix",
                 ['prefix' => $skuPrefix.'%'],
             );
-            $io->writeln(\sprintf('Cleaned up %d benchmark products.', $deleted));
+            $io->writeln(\sprintf('Cleaned up %d benchmark rows.', $deleted));
         } else {
-            $io->note('--keep flag set; benchmark products left in the database.');
+            $io->note('--keep flag set; benchmark rows left in the database.');
         }
 
         if ($verified !== $count) {
