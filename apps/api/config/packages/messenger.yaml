@@ -1,22 +1,32 @@
 framework:
     messenger:
-        # Uncomment this (and the failed transport below) to send failed messages to this transport for later handling.
-        # failure_transport: failed
+        # Failed-handler envelopes are routed here so the worker pool can be
+        # restarted without losing payloads. `messenger:failed:show` lists
+        # them; `messenger:failed:retry` replays the queue.
+        failure_transport: failed
 
         transports:
-            # https://symfony.com/doc/current/messenger.html#transport-configuration
-            # async: '%env(MESSENGER_TRANSPORT_DSN)%'
-            # failed: 'doctrine://default?queue_name=failed'
             sync: 'sync://'
+            # Async transport ships in Faza 1 together with the worker pool.
+            # The DSN is read from MESSENGER_TRANSPORT_DSN (defaults to
+            # doctrine://default?queue_name=async).
+            # async: '%env(MESSENGER_TRANSPORT_DSN)%'
+            failed: 'doctrine://default?queue_name=failed'
+
+        buses:
+            messenger.bus.default:
+                middleware:
+                    - 'App\Shared\Infrastructure\Messenger\IdempotencyMiddleware'
+                    - doctrine_transaction
 
         routing:
-            # Route your messages to the transports
-            # 'App\Message\YourMessage': async
+            # Domain events stay on the synchronous bus until async transports
+            # come online. The dispatcher routes per concrete event class
+            # rather than by namespace so subscribers keep their typing.
+            # 'App\Catalog\Contracts\Event\ObjectCreated': async
 
 # when@test:
 #    framework:
 #        messenger:
 #            transports:
-#                # replace with your transport name here (e.g., my_transport: 'in-memory://')
-#                # For more Messenger testing tools, see https://github.com/zenstruck/messenger-test
 #                async: 'in-memory://'
