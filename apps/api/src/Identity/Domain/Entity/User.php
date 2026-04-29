@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace App\Identity\Domain\Entity;
 
-use App\Identity\Infrastructure\Doctrine\Repository\UserRepository;
 use App\Shared\Application\TenantAware;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Uid\Uuid;
@@ -27,27 +25,17 @@ use Symfony\Component\Uid\Uuid;
  * The TenantAware interface lets CurrentTenantProvider read the tenant from
  * the security token's user without coupling Identity to Catalog.
  */
-#[ORM\Entity(repositoryClass: UserRepository::class)]
-#[ORM\Table(name: 'users')]
-#[ORM\UniqueConstraint(name: 'users_email_uniq', columns: ['email'])]
-#[ORM\Index(name: 'users_tenant_idx', columns: ['tenant_id'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface, TenantAware
 {
     public const string STATUS_ACTIVE = 'active';
     public const string STATUS_DISABLED = 'disabled';
 
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
 
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private Tenant $tenant;
 
-    #[ORM\Column(type: 'string', length: 255)]
     private string $email;
 
-    #[ORM\Column(type: 'string')]
     private string $password;
 
     /**
@@ -58,25 +46,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TenantA
      *
      * @var list<string>
      */
-    #[ORM\Column(type: 'json')]
     private array $roles;
 
     /**
      * @var Collection<int, Role>
      */
-    #[ORM\ManyToMany(targetEntity: Role::class)]
-    #[ORM\JoinTable(name: 'user_roles')]
-    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
-    #[ORM\InverseJoinColumn(name: 'role_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     private Collection $assignedRoles;
 
-    #[ORM\Column(type: 'string', length: 16, options: ['default' => self::STATUS_ACTIVE])]
     private string $status;
 
-    #[ORM\Column(name: 'last_login_at', type: 'datetime_immutable', nullable: true)]
     private ?DateTimeImmutable $lastLoginAt;
 
-    #[ORM\Column(type: 'datetime_immutable')]
     private DateTimeImmutable $createdAt;
 
     /**

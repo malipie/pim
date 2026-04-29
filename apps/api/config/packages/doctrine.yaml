@@ -68,9 +68,9 @@ doctrine:
                 prefix: 'App\Asset\Domain\Entity'
                 alias: Asset
             Identity:
-                type: attribute
+                type: xml
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Identity/Domain/Entity'
+                dir: '%kernel.project_dir%/src/Identity/Infrastructure/Doctrine/Orm/Mapping'
                 prefix: 'App\Identity\Domain\Entity'
                 alias: Identity
         controller_resolver:

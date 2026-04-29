@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Domain\Entity;
 
-use App\Identity\Infrastructure\Doctrine\Repository\RefreshTokenRepository;
 use DateTimeImmutable;
-use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -21,40 +19,24 @@ use Symfony\Component\Uid\Uuid;
  * lookups never join: the refresh path is hot and the only reads are by hash.
  * The schema-level FKs in the migration enforce referential integrity.
  */
-#[ORM\Entity(repositoryClass: RefreshTokenRepository::class)]
-#[ORM\Table(name: 'refresh_tokens')]
-#[ORM\Index(name: 'refresh_tokens_tenant_idx', columns: ['tenant_id'])]
-#[ORM\Index(name: 'refresh_tokens_user_idx', columns: ['user_id'])]
-#[ORM\Index(name: 'refresh_tokens_family_idx', columns: ['family_id'])]
-#[ORM\UniqueConstraint(name: 'refresh_tokens_token_hash_uniq', columns: ['token_hash'])]
 class RefreshToken
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
 
-    #[ORM\Column(name: 'tenant_id', type: 'uuid')]
     private Uuid $tenantId;
 
-    #[ORM\Column(name: 'user_id', type: 'uuid')]
     private Uuid $userId;
 
-    #[ORM\Column(name: 'family_id', type: 'uuid')]
     private Uuid $familyId;
 
-    #[ORM\Column(name: 'token_hash', type: 'string', length: 64)]
     private string $tokenHash;
 
-    #[ORM\Column(name: 'issued_at', type: 'datetime_immutable')]
     private DateTimeImmutable $issuedAt;
 
-    #[ORM\Column(name: 'expires_at', type: 'datetime_immutable')]
     private DateTimeImmutable $expiresAt;
 
-    #[ORM\Column(name: 'used_at', type: 'datetime_immutable', nullable: true)]
     private ?DateTimeImmutable $usedAt = null;
 
-    #[ORM\Column(name: 'revoked_at', type: 'datetime_immutable', nullable: true)]
     private ?DateTimeImmutable $revokedAt = null;
 
     public function __construct(
