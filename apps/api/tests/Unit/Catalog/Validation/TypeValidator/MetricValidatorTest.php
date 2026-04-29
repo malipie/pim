@@ -40,7 +40,7 @@ final class MetricValidatorTest extends TestCase
     #[Test]
     public function unitAllowlistIsEnforced(): void
     {
-        $this->attribute->setValidationRules(['units' => ['kg', 'g']]);
+        $this->attribute->updateValidationRules(['units' => ['kg', 'g']]);
 
         $errors = $this->validator->validate($this->attribute, ['value' => 1, 'unit' => 'lb']);
 
@@ -50,7 +50,7 @@ final class MetricValidatorTest extends TestCase
     #[Test]
     public function boundsAndPrecisionEnforced(): void
     {
-        $this->attribute->setValidationRules([
+        $this->attribute->updateValidationRules([
             'min' => 0,
             'max' => 100,
             'decimal_precision' => 1,

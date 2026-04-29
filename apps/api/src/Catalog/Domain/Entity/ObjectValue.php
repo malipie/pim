@@ -120,7 +120,7 @@ class ObjectValue implements TenantScoped
         return $this->channelId;
     }
 
-    public function setChannelId(?Uuid $channelId): void
+    public function changeChannelId(?Uuid $channelId): void
     {
         $this->channelId = $channelId;
     }
@@ -130,7 +130,7 @@ class ObjectValue implements TenantScoped
         return $this->locale;
     }
 
-    public function setLocale(?string $locale): void
+    public function changeLocale(?string $locale): void
     {
         $this->locale = $locale;
     }
@@ -146,7 +146,7 @@ class ObjectValue implements TenantScoped
     /**
      * @param array<string, mixed> $value
      */
-    public function setValue(array $value): void
+    public function updateValue(array $value): void
     {
         $this->value = $value;
     }
@@ -156,7 +156,7 @@ class ObjectValue implements TenantScoped
         return $this->provenance;
     }
 
-    public function setProvenance(Provenance $provenance): void
+    public function changeProvenance(Provenance $provenance): void
     {
         $this->provenance = $provenance;
     }
@@ -172,7 +172,7 @@ class ObjectValue implements TenantScoped
     /**
      * @param array<string, mixed> $meta
      */
-    public function setProvenanceMeta(array $meta): void
+    public function updateProvenanceMeta(array $meta): void
     {
         $this->provenanceMeta = $meta;
     }

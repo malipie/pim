@@ -92,8 +92,8 @@ final readonly class ObjectTypeService
             $junction = new ObjectTypeAttribute($objectType, $attribute, $required, $sortOrder);
             $this->em->persist($junction);
         } else {
-            $junction->setRequiredForCompleteness($required);
-            $junction->setSortOrder($sortOrder);
+            $junction->changeRequiredForCompleteness($required);
+            $junction->reorder($sortOrder);
         }
 
         $this->em->flush();

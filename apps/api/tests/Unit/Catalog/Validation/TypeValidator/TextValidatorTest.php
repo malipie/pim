@@ -39,7 +39,7 @@ final class TextValidatorTest extends TestCase
     #[Test]
     public function maxLengthIsEnforcedInUtf8Characters(): void
     {
-        $this->attribute->setValidationRules(['max_length' => 3]);
+        $this->attribute->updateValidationRules(['max_length' => 3]);
 
         // 4 utf-8 characters (with polish diacritics).
         $errors = $this->validator->validate($this->attribute, ['value' => 'łóść']);
@@ -51,7 +51,7 @@ final class TextValidatorTest extends TestCase
     #[Test]
     public function minLengthIsEnforced(): void
     {
-        $this->attribute->setValidationRules(['min_length' => 5]);
+        $this->attribute->updateValidationRules(['min_length' => 5]);
 
         $errors = $this->validator->validate($this->attribute, ['value' => 'hi']);
 
@@ -61,7 +61,7 @@ final class TextValidatorTest extends TestCase
     #[Test]
     public function patternMustMatchTheWholeValue(): void
     {
-        $this->attribute->setValidationRules(['pattern' => '/^[A-Z]{3}$/']);
+        $this->attribute->updateValidationRules(['pattern' => '/^[A-Z]{3}$/']);
 
         $ok = $this->validator->validate($this->attribute, ['value' => 'ABC']);
         $bad = $this->validator->validate($this->attribute, ['value' => 'abc']);

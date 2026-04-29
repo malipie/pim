@@ -56,13 +56,13 @@ final readonly class AttributesIndexedRebuilder
             $indexed[$code] = $value->getValue();
         }
 
-        $object->setAttributesIndexed($indexed);
+        $object->updateAttributeIndex($indexed);
 
         // Completeness: required-list / present-count. Empty rules → 100.
         $rules = $object->getObjectType()->getCompletenessRules();
         $required = \is_array($rules['required'] ?? null) ? $rules['required'] : [];
         if ([] === $required) {
-            $object->setCompleteness(['global' => 100]);
+            $object->recordCompleteness(['global' => 100]);
 
             return;
         }
@@ -74,6 +74,6 @@ final readonly class AttributesIndexedRebuilder
             }
         }
         $pct = (int) round(100 * $present / \count($required));
-        $object->setCompleteness(['global' => $pct]);
+        $object->recordCompleteness(['global' => $pct]);
     }
 }

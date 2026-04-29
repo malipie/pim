@@ -40,7 +40,7 @@ final class PriceValidatorTest extends TestCase
     #[Test]
     public function minAmountAndCurrencyAllowlistEnforced(): void
     {
-        $this->attribute->setValidationRules([
+        $this->attribute->updateValidationRules([
             'min_amount' => 10,
             'currencies' => ['PLN', 'EUR'],
         ]);

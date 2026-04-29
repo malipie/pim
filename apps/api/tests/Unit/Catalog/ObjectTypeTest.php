@@ -58,8 +58,8 @@ final class ObjectTypeTest extends TestCase
         $name = new Attribute('name', ['pl' => 'Nazwa'], AttributeType::Text);
         $image = new Attribute('main_image', ['pl' => 'Zdjęcie'], AttributeType::Asset);
 
-        $type->setLabelAttribute($name);
-        $type->setImageAttribute($image);
+        $type->assignLabelAttribute($name);
+        $type->assignImageAttribute($image);
 
         self::assertSame($name, $type->getLabelAttribute());
         self::assertSame($image, $type->getImageAttribute());
@@ -70,7 +70,7 @@ final class ObjectTypeTest extends TestCase
     {
         $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
 
-        $type->setCompletenessRules(['required' => ['sku', 'name'], 'weight' => ['sku' => 2]]);
+        $type->updateCompletenessRules(['required' => ['sku', 'name'], 'weight' => ['sku' => 2]]);
 
         self::assertSame(
             ['required' => ['sku', 'name'], 'weight' => ['sku' => 2]],

@@ -88,7 +88,7 @@ final class ObjectValueTest extends TestCase
         [$object, $attribute] = $this->fixture();
 
         $value = new ObjectValue($object, $attribute, ['value' => 'x'], Provenance::Integration);
-        $value->setProvenanceMeta([
+        $value->updateProvenanceMeta([
             'integration' => 'shopify',
             'sync_job_id' => '019dd522-6ea8-7e9d-9e63-5a4a782152e6',
         ]);

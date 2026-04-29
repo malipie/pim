@@ -67,7 +67,7 @@ class ObjectTypeAttribute
         return $this->requiredForCompleteness;
     }
 
-    public function setRequiredForCompleteness(bool $required): void
+    public function changeRequiredForCompleteness(bool $required): void
     {
         $this->requiredForCompleteness = $required;
     }
@@ -77,7 +77,7 @@ class ObjectTypeAttribute
         return $this->sortOrder;
     }
 
-    public function setSortOrder(int $sortOrder): void
+    public function reorder(int $sortOrder): void
     {
         $this->sortOrder = $sortOrder;
     }
@@ -87,7 +87,7 @@ class ObjectTypeAttribute
         return $this->channelId;
     }
 
-    public function setChannelId(?Uuid $channelId): void
+    public function changeChannelId(?Uuid $channelId): void
     {
         $this->channelId = $channelId;
     }
@@ -97,7 +97,7 @@ class ObjectTypeAttribute
         return $this->locale;
     }
 
-    public function setLocale(?string $locale): void
+    public function changeLocale(?string $locale): void
     {
         $this->locale = $locale;
     }

@@ -135,7 +135,7 @@ class ObjectType implements TenantScoped
     /**
      * @param array<string, string> $label
      */
-    public function setLabel(array $label): void
+    public function rename(array $label): void
     {
         $this->label = $label;
         $this->touch();
@@ -152,7 +152,7 @@ class ObjectType implements TenantScoped
     /**
      * @param array<string, mixed> $rules
      */
-    public function setCompletenessRules(array $rules): void
+    public function updateCompletenessRules(array $rules): void
     {
         $this->completenessRules = $rules;
         $this->touch();
@@ -163,7 +163,7 @@ class ObjectType implements TenantScoped
         return $this->labelAttribute;
     }
 
-    public function setLabelAttribute(?Attribute $attribute): void
+    public function assignLabelAttribute(?Attribute $attribute): void
     {
         $this->labelAttribute = $attribute;
         $this->touch();
@@ -174,7 +174,7 @@ class ObjectType implements TenantScoped
         return $this->imageAttribute;
     }
 
-    public function setImageAttribute(?Attribute $attribute): void
+    public function assignImageAttribute(?Attribute $attribute): void
     {
         $this->imageAttribute = $attribute;
         $this->touch();

@@ -39,7 +39,7 @@ final class NumberValidatorTest extends TestCase
     #[Test]
     public function minAndMaxBoundsAreEnforced(): void
     {
-        $this->attribute->setValidationRules(['min' => 0, 'max' => 10]);
+        $this->attribute->updateValidationRules(['min' => 0, 'max' => 10]);
 
         $low = $this->validator->validate($this->attribute, ['value' => -1]);
         $high = $this->validator->validate($this->attribute, ['value' => 11]);
@@ -51,7 +51,7 @@ final class NumberValidatorTest extends TestCase
     #[Test]
     public function decimalPrecisionRejectsExtraDigits(): void
     {
-        $this->attribute->setValidationRules(['decimal_precision' => 2]);
+        $this->attribute->updateValidationRules(['decimal_precision' => 2]);
 
         $ok = $this->validator->validate($this->attribute, ['value' => 1.23]);
         $bad = $this->validator->validate($this->attribute, ['value' => 1.234]);

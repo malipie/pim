@@ -107,7 +107,7 @@ class Attribute implements TenantScoped
         return $this->group;
     }
 
-    public function setGroup(?AttributeGroup $group): void
+    public function assignToGroup(?AttributeGroup $group): void
     {
         $this->group = $group;
     }
@@ -128,7 +128,7 @@ class Attribute implements TenantScoped
     /**
      * @param array<string, string> $label
      */
-    public function setLabel(array $label): void
+    public function rename(array $label): void
     {
         $this->label = $label;
     }
@@ -144,7 +144,7 @@ class Attribute implements TenantScoped
     /**
      * @param array<string, string>|null $help
      */
-    public function setHelp(?array $help): void
+    public function updateHelp(?array $help): void
     {
         $this->help = $help;
     }
@@ -159,7 +159,7 @@ class Attribute implements TenantScoped
         return $this->isLocalizable;
     }
 
-    public function setLocalizable(bool $localizable): void
+    public function changeLocalizable(bool $localizable): void
     {
         $this->isLocalizable = $localizable;
     }
@@ -169,7 +169,7 @@ class Attribute implements TenantScoped
         return $this->isScopable;
     }
 
-    public function setScopable(bool $scopable): void
+    public function changeScopable(bool $scopable): void
     {
         $this->isScopable = $scopable;
     }
@@ -179,7 +179,7 @@ class Attribute implements TenantScoped
         return $this->isRequired;
     }
 
-    public function setRequired(bool $required): void
+    public function changeRequired(bool $required): void
     {
         $this->isRequired = $required;
     }
@@ -195,7 +195,7 @@ class Attribute implements TenantScoped
     /**
      * @param array<string, mixed> $rules
      */
-    public function setValidationRules(array $rules): void
+    public function updateValidationRules(array $rules): void
     {
         $this->validationRules = $rules;
     }
@@ -205,7 +205,7 @@ class Attribute implements TenantScoped
         return $this->position;
     }
 
-    public function setPosition(int $position): void
+    public function reorder(int $position): void
     {
         $this->position = $position;
     }

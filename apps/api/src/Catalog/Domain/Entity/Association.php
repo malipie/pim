@@ -97,7 +97,7 @@ class Association implements TenantScoped
         return $this->position;
     }
 
-    public function setPosition(int $position): void
+    public function reorder(int $position): void
     {
         $this->position = $position;
     }
