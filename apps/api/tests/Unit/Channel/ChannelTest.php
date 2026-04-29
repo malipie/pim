@@ -10,7 +10,7 @@ use App\Catalog\Domain\ObjectKind;
 use App\Channel\Domain\Entity\Channel;
 use App\Channel\Domain\Entity\Currency;
 use App\Channel\Domain\Entity\Locale;
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 use LogicException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

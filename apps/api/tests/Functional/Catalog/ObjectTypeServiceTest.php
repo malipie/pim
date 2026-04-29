@@ -13,7 +13,7 @@ use App\Catalog\Domain\Exception\DisabledFeatureException;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeAttributeRepository;
 use App\Identity\Application\TenantContext;
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

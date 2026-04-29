@@ -6,7 +6,7 @@ namespace App\Tests\Functional\Catalog;
 
 use App\Catalog\Application\BuiltInAssociationTypeSeeder;
 use App\Catalog\Infrastructure\Doctrine\Repository\AssociationTypeRepository;
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

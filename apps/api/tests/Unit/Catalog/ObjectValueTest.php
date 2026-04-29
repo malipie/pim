@@ -102,8 +102,8 @@ final class ObjectValueTest extends TestCase
         [$object, $attribute] = $this->fixture();
         $value = new ObjectValue($object, $attribute, ['value' => 'x']);
 
-        $first = new \App\Identity\Domain\Entity\Tenant('demo', 'Demo');
-        $second = new \App\Identity\Domain\Entity\Tenant('acme', 'Acme');
+        $first = new \App\Shared\Domain\Tenant('demo', 'Demo');
+        $second = new \App\Shared\Domain\Tenant('acme', 'Acme');
 
         $value->assignTenant($first);
         self::assertSame($first, $value->getTenant());

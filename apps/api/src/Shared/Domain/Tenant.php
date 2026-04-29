@@ -2,40 +2,33 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Domain\Entity;
+namespace App\Shared\Domain;
 
-use App\Identity\Infrastructure\Doctrine\Repository\TenantRepository;
 use DateTimeImmutable;
-use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity(repositoryClass: TenantRepository::class)]
-#[ORM\Table(name: 'tenants')]
-#[ORM\UniqueConstraint(name: 'tenants_code_uniq', columns: ['code'])]
-#[ORM\UniqueConstraint(name: 'tenants_domain_uniq', columns: ['domain'])]
+/**
+ * Tenant aggregate — the single shared kernel of multi-tenant PIM.
+ *
+ * Lives in Shared/ because every business bounded context (Catalog, Channel,
+ * Asset, Integration) carries a `tenant_id` foreign key on its aggregates.
+ * Identity owns User/Role/Permission/RefreshToken but no longer owns Tenant
+ * itself — those belong to the universal isolation boundary.
+ *
+ * Mapping kept in XML at Shared/Infrastructure/Doctrine/Orm/Mapping/Tenant.orm.xml
+ * so the Domain class stays framework-agnostic.
+ */
 class Tenant
 {
     public const string PLAN_STARTER = 'starter';
     public const string PLAN_PRO = 'pro';
     public const string PLAN_ENTERPRISE = 'enterprise';
 
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
-
-    #[ORM\Column(type: 'string', length: 64)]
     private string $code;
-
-    #[ORM\Column(type: 'string', length: 255)]
     private string $name;
-
-    #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $domain;
-
-    #[ORM\Column(type: 'string', length: 32, options: ['default' => self::PLAN_STARTER])]
     private string $plan;
-
-    #[ORM\Column(type: 'datetime_immutable')]
     private DateTimeImmutable $createdAt;
 
     public function __construct(

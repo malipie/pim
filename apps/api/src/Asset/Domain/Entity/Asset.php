@@ -7,7 +7,7 @@ namespace App\Asset\Domain\Entity;
 use App\Asset\Infrastructure\Doctrine\Repository\AssetRepository;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Identity\Application\TenantScoped;
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;

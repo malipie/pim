@@ -6,8 +6,8 @@ namespace App\Asset\Presentation\Command;
 
 use App\Asset\Application\AssetUploader;
 use App\Identity\Application\TenantContext;
-use App\Identity\Domain\Entity\Tenant;
-use App\Identity\Infrastructure\Doctrine\Repository\TenantRepository;
+use App\Shared\Domain\Tenant;
+use App\Shared\Infrastructure\Doctrine\Repository\DoctrineTenantRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -33,7 +33,7 @@ final class AssetUploadCommand extends Command
 {
     public function __construct(
         private readonly AssetUploader $uploader,
-        private readonly TenantRepository $tenants,
+        private readonly DoctrineTenantRepository $tenants,
         private readonly TenantContext $tenantContext,
     ) {
         parent::__construct();

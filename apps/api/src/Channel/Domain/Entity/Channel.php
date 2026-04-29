@@ -7,7 +7,7 @@ namespace App\Channel\Domain\Entity;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Channel\Infrastructure\Doctrine\Repository\ChannelRepository;
 use App\Identity\Application\TenantScoped;
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;

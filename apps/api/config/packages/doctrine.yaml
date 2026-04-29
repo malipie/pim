@@ -43,6 +43,12 @@ doctrine:
         # with the bundle-style structure under src/{Context}/Domain/Entity.
         auto_mapping: false
         mappings:
+            Shared:
+                type: xml
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Shared/Infrastructure/Doctrine/Orm/Mapping'
+                prefix: 'App\Shared\Domain'
+                alias: Shared
             Catalog:
                 type: attribute
                 is_bundle: false

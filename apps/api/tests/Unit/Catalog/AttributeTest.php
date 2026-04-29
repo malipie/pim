@@ -8,7 +8,7 @@ use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\AttributeGroup;
 use App\Catalog\Domain\Entity\AttributeOption;
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 use LogicException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

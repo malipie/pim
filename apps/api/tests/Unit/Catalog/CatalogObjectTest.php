@@ -7,7 +7,7 @@ namespace App\Tests\Unit\Catalog;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 use LogicException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

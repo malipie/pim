@@ -7,7 +7,7 @@ namespace App\Tests\Functional\Asset;
 use App\Asset\Application\AssetUploader;
 use App\Asset\Domain\Entity\AssetVariant;
 use App\Identity\Application\TenantContext;
-use App\Identity\Domain\Entity\Tenant;
+use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemOperator;
 use PHPUnit\Framework\Attributes\Test;

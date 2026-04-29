@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-use App\Identity\Domain\Entity\Tenant;
-use App\Identity\Infrastructure\Doctrine\Repository\TenantRepository;
+use App\Shared\Domain\Tenant;
+use App\Shared\Infrastructure\Doctrine\Repository\DoctrineTenantRepository;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 /**
@@ -25,7 +25,7 @@ final class CurrentTenantProvider
 {
     public function __construct(
         private readonly TokenStorageInterface $tokenStorage,
-        private readonly TenantRepository $tenantRepository,
+        private readonly DoctrineTenantRepository $tenantRepository,
         private readonly ?string $defaultTenantCode = null,
     ) {
     }
