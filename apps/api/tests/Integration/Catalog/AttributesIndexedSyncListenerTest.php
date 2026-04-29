@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Functional\Catalog;
+namespace App\Tests\Integration\Catalog;
 
 use App\Catalog\Application\BulkContext;
 use App\Catalog\Domain\AttributeType;

@@ -9,6 +9,7 @@
          failOnWarning="true"
          bootstrap="tests/bootstrap.php"
          cacheDirectory=".phpunit.cache"
+         defaultTestSuite="all"
 >
     <php>
         <ini name="display_errors" value="1" />
@@ -18,8 +19,28 @@
     </php>
 
     <testsuites>
-        <testsuite name="Project Test Suite">
-            <directory>tests</directory>
+        <!-- Pure-PHP, no Doctrine, no kernel boot. -->
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <!-- Boots the kernel + hits the test database (Foundry ResetDatabase). -->
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+        <!-- HTTP-level tests via ApiTestCase / Refine REST + JWT. -->
+        <testsuite name="api">
+            <directory>tests/Api</directory>
+        </testsuite>
+        <!-- Static fitness tests: Deptrac analyse + custom PHPStan rules. -->
+        <testsuite name="architecture">
+            <directory>tests/Architecture</directory>
+        </testsuite>
+        <!-- Default — running `bin/phpunit` without arguments executes the lot. -->
+        <testsuite name="all">
+            <directory>tests/Unit</directory>
+            <directory>tests/Integration</directory>
+            <directory>tests/Api</directory>
+            <directory>tests/Architecture</directory>
         </testsuite>
     </testsuites>
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Functional\Asset;
+namespace App\Tests\Integration\Asset;
 
 use App\Asset\Application\AssetUploader;
 use App\Asset\Domain\Entity\AssetVariant;
