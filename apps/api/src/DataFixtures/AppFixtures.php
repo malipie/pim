@@ -9,7 +9,7 @@ use App\Catalog\Application\BuiltInObjectTypeSeeder;
 use App\Catalog\Application\DemoCatalogSeeder;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
+use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Identity\Application\RbacSeeder;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
@@ -41,7 +41,7 @@ class AppFixtures extends Fixture
         private readonly RoleRepository $roleRepository,
         private readonly BuiltInObjectTypeSeeder $builtInSeeder,
         private readonly BuiltInAssociationTypeSeeder $associationTypeSeeder,
-        private readonly ObjectTypeRepository $objectTypeRepository,
+        private readonly ObjectTypeRepositoryInterface $objectTypeRepository,
         private readonly DemoCatalogSeeder $demoCatalogSeeder,
     ) {
     }

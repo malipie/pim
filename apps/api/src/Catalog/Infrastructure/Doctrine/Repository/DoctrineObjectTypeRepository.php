@@ -6,6 +6,7 @@ namespace App\Catalog\Infrastructure\Doctrine\Repository;
 
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -13,7 +14,7 @@ use Doctrine\Persistence\ManagerRegistry;
 /**
  * @extends ServiceEntityRepository<ObjectType>
  */
-class ObjectTypeRepository extends ServiceEntityRepository
+class DoctrineObjectTypeRepository extends ServiceEntityRepository implements ObjectTypeRepositoryInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
@@ -49,5 +50,24 @@ class ObjectTypeRepository extends ServiceEntityRepository
             'tenant' => $tenant,
             'isBuiltIn' => true,
         ]);
+    }
+
+    public function findById(\Symfony\Component\Uid\Uuid $id): ?ObjectType
+    {
+        return parent::find($id->toRfc4122());
+    }
+
+    public function save(ObjectType $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->persist($entity);
+        $em->flush();
+    }
+
+    public function remove(ObjectType $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->remove($entity);
+        $em->flush();
     }
 }

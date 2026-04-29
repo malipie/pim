@@ -15,9 +15,9 @@ use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Provenance;
-use App\Catalog\Infrastructure\Doctrine\Repository\AttributeRepository;
-use App\Catalog\Infrastructure\Doctrine\Repository\CatalogObjectRepository;
-use App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository;
+use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
+use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -50,9 +50,9 @@ final readonly class DemoCatalogSeeder
         private EntityManagerInterface $em,
         private TenantContext $tenantContext,
         private BulkContext $bulkContext,
-        private ObjectTypeRepository $objectTypeRepository,
-        private AttributeRepository $attributeRepository,
-        private CatalogObjectRepository $catalogObjectRepository,
+        private ObjectTypeRepositoryInterface $objectTypeRepository,
+        private AttributeRepositoryInterface $attributeRepository,
+        private CatalogObjectRepositoryInterface $catalogObjectRepository,
     ) {
     }
 

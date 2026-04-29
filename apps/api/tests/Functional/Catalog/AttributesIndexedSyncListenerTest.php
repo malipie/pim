@@ -11,7 +11,7 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Infrastructure\Doctrine\Repository\CatalogObjectRepository;
+use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -133,8 +133,8 @@ final class AttributesIndexedSyncListenerTest extends KernelTestCase
         return self::getContainer()->get(TenantContext::class);
     }
 
-    private function repository(): CatalogObjectRepository
+    private function repository(): CatalogObjectRepositoryInterface
     {
-        return self::getContainer()->get(CatalogObjectRepository::class);
+        return self::getContainer()->get(CatalogObjectRepositoryInterface::class);
     }
 }

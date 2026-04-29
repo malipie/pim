@@ -72,7 +72,7 @@ final class DemoCatalogSeederTest extends KernelTestCase
         $em = $this->em();
         $em->clear();
 
-        $product = self::getContainer()->get(\App\Catalog\Infrastructure\Doctrine\Repository\CatalogObjectRepository::class)
+        $product = self::getContainer()->get(\App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface::class)
             ->findByCode('DEMO-001', ObjectKind::Product, $this->tenant);
         self::assertNotNull($product);
         $indexed = $product->getAttributesIndexed();
@@ -109,7 +109,7 @@ final class DemoCatalogSeederTest extends KernelTestCase
         $em = $this->em();
         $em->clear();
 
-        $category = self::getContainer()->get(\App\Catalog\Infrastructure\Doctrine\Repository\CatalogObjectRepository::class)
+        $category = self::getContainer()->get(\App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface::class)
             ->findByCode('CAT-FOOTWEAR', ObjectKind::Category, $this->tenant);
         self::assertNotNull($category);
         $indexed = $category->getAttributesIndexed();
@@ -143,7 +143,7 @@ final class DemoCatalogSeederTest extends KernelTestCase
         $em = $this->em();
         $em->clear();
 
-        $repo = self::getContainer()->get(\App\Catalog\Infrastructure\Doctrine\Repository\ObjectTypeRepository::class);
+        $repo = self::getContainer()->get(\App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface::class);
         $product = $repo->findBuiltInByKind(ObjectKind::Product, $this->tenant);
         self::assertNotNull($product);
 

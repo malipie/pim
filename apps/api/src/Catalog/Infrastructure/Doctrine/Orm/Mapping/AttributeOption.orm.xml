@@ -6,7 +6,7 @@
 
     <entity name="App\Catalog\Domain\Entity\AttributeOption"
             table="attribute_options"
-            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\AttributeOptionRepository">
+            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\DoctrineAttributeOptionRepository">
 
         <unique-constraints>
             <unique-constraint name="attribute_options_attribute_code_uniq" columns="attribute_id,code"/>

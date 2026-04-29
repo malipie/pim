@@ -7,13 +7,14 @@ namespace App\Catalog\Infrastructure\Doctrine\Repository;
 use App\Catalog\Domain\Entity\Association;
 use App\Catalog\Domain\Entity\AssociationType;
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Repository\AssociationRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<Association>
  */
-class AssociationRepository extends ServiceEntityRepository
+class DoctrineAssociationRepository extends ServiceEntityRepository implements AssociationRepositoryInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
@@ -60,5 +61,24 @@ class AssociationRepository extends ServiceEntityRepository
             'target' => $target,
             'type' => $type,
         ]);
+    }
+
+    public function findById(\Symfony\Component\Uid\Uuid $id): ?Association
+    {
+        return parent::find($id->toRfc4122());
+    }
+
+    public function save(Association $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->persist($entity);
+        $em->flush();
+    }
+
+    public function remove(Association $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->remove($entity);
+        $em->flush();
     }
 }

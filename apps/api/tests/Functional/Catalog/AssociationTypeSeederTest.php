@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Catalog;
 
 use App\Catalog\Application\BuiltInAssociationTypeSeeder;
-use App\Catalog\Infrastructure\Doctrine\Repository\AssociationTypeRepository;
+use App\Catalog\Domain\Repository\AssociationTypeRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -67,9 +67,9 @@ final class AssociationTypeSeederTest extends KernelTestCase
         return self::getContainer()->get(BuiltInAssociationTypeSeeder::class);
     }
 
-    private function repository(): AssociationTypeRepository
+    private function repository(): AssociationTypeRepositoryInterface
     {
-        return self::getContainer()->get(AssociationTypeRepository::class);
+        return self::getContainer()->get(AssociationTypeRepositoryInterface::class);
     }
 
     private function createTenant(string $code): Tenant

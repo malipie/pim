@@ -6,7 +6,7 @@
 
     <entity name="App\Catalog\Domain\Entity\Association"
             table="object_associations"
-            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\AssociationRepository">
+            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\DoctrineAssociationRepository">
 
         <unique-constraints>
             <unique-constraint name="object_associations_triple_uniq" columns="source_object_id,target_object_id,type_id"/>

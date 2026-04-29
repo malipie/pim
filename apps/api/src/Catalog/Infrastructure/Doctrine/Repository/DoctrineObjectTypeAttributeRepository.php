@@ -7,13 +7,14 @@ namespace App\Catalog\Infrastructure\Doctrine\Repository;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectTypeAttribute;
+use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<ObjectTypeAttribute>
  */
-class ObjectTypeAttributeRepository extends ServiceEntityRepository
+class DoctrineObjectTypeAttributeRepository extends ServiceEntityRepository implements ObjectTypeAttributeRepositoryInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
@@ -39,5 +40,19 @@ class ObjectTypeAttributeRepository extends ServiceEntityRepository
     public function findOne(ObjectType $objectType, Attribute $attribute): ?ObjectTypeAttribute
     {
         return $this->findOneBy(['objectType' => $objectType, 'attribute' => $attribute]);
+    }
+
+    public function save(ObjectTypeAttribute $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->persist($entity);
+        $em->flush();
+    }
+
+    public function remove(ObjectTypeAttribute $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->remove($entity);
+        $em->flush();
     }
 }
