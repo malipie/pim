@@ -699,3 +699,65 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Skeleton ticket pattern**: #128 dostarcza extension pointy, NIE wire'uje ich do call site'ów. `KindAwareSerializerContextBuilder` jest wired do AP4 ale jest no-op dopóki #41 nie doda `#[ApiResource(extraProperties: ['kind' => ...])]`. `CustomObjectTypeApiGuard` jest dostępny jako service ale nie woła go żaden denormalizer (też scope #41). Testy są dla pure logic na poziomie classes. **Anti-pattern**: tworzenie skeleton + integrating w faux call site'y "for completeness" — następny ticket musi to bezpiecznie usunąć przed swoim implementacją. Skeleton = dostarcz tools, NIE używaj ich. Compile + test, nie wire.
 
 - **Autonomous batch zamknął epik 0.3 w jednej sesji 11/11.** #31, #32, #34, #33, #35, #36, #37, #38, #39, #40, #128 — wszystkie zamknięte przez PR z auto-merge'm bez intervencji operatora poza decyzjami architektonicznymi (ADR-009 alignment, scope rewizji "epiki 0.3+0.4 → tylko 0.3"). Pattern dla autonomous batch: ścisłe quality gates per ticket (PHPStan max + cs-fixer + PHPUnit + Playwright + audit) + atomic PR per ticket + squash-merge eliminują drift. Lekcja: autonomous mode wymaga bardziej rygorystycznych gate'ów niż plan-first (operator nie review'uje per ticket), ale daje 8-10× speed-up gdy gate'y są dobrze skonfigurowane.
+
+
+---
+
+## Lessons z Epic RF — Refactor for tip-top (2026-04-29)
+
+### Patterns to Follow (validated in RF)
+
+- **Refaktor strukturalny atomicznie + Foundry rebuild schema = no migration headaches.** 4 BC migracja na XML mapping (RF-06..09) + Tenant move do Shared (RF-02..04) + Repository port-adapter ×19 (RF-10/11) — wszystkie zrobione bez touching migrations. Foundry `ResetDatabase` rebuilduje schema z entity metadata przed każdym test session, więc `bin/phpunit` widzi tylko aktualny mapping. Mass refaktor namespace'ów + class renamów był bezpieczny dzięki temu.
+  - Why: pre-RF strach że "muszę przepisać 13 migracji" okazał się niesłuszny — migracje pozostały nietknięte, były tylko jako reference dla docker compose / E2E flow.
+  - How to apply: w refaktorze schema mapping ZAUFAJ Foundry. Jedyne migracje które piszemy to **nowe** struktury (np. `processed_messages` w RF-20).
+
+- **`git mv` + namespace sweep przez Python script** dla refaktoru ~50 plików w jeden PR. Pattern z RF-02+04 (sweep 47 plików): (1) `git mv` plików; (2) sed/Python replace FQCN imports; (3) sed/Python replace bare class refs (z dual `use` re-imports); (4) `composer phpstan && composer cs-fix && bin/phpunit tests/Unit` żeby wykryć residue. Mass refaktor wsparty PHPStan max + Deptrac CI gate idzie przewidywalnie.
+
+- **Inline baseline w Deptrac vs separate `deptrac-baseline.yaml`.** Próba użycia `imports: [deptrac-baseline.yaml]` na top level deptrac.yaml nie zadziałała (deptrac oczekuje innej struktury YAML). Działa: inline `skip_violations` w głównym `deptrac.yaml` + komentarze opisujące każdą cluster jako follow-up cleanup. Pragmatic — finalny baseline jest finite i tracked w jednym miejscu.
+
+- **`failure_transport` + `default_middleware.allow_no_handlers: true`** dla Symfony Messenger gdy domain events nie mają jeszcze subscriberów. Pre-CI wszystkie 209 testów Functional + Playwright failed bo `UserAuthenticated` event nie miał handlera. Po `allow_no_handlers: true` events się dispatchują, route do whatever subscribers istnieją, brak NoHandlerForMessageException.
+  - Why: events z RF-16/17 są emitowane przez agregaty zaraz po wprowadzeniu. Subscribers (search indexer, channel publisher) dochodzą w epic 0.5 / Faza 1. Bez `allow_no_handlers` Messenger blokuje request.
+
+- **Cross-BC FK przez Uuid + Contracts/Query lookup** zamiast `targetEntity:` (RF-19, ADR-0015). DB-level FK pozostaje (orphan protection); Doctrine ORM widzi tylko Uuid column. Schema validate report'uje drift (intentional). Validator wstrzykuje `GetObjectSummaryHandler` zamiast lazy-load encji.
+
+- **Pragmatic CQRS rollout** (ADR-0012): real Command/Handler dla user-facing actions (epic 0.4 ApiResource processors); services pozostają legitne dla seederów / batch builders / providers. Audit DDD-005 MEDIUM → WONTFIX z ADR.
+
+### Patterns to Avoid
+
+- **`class_alias` bridge dla migracji namespace'ów w PHP 8.4.** Próba w RF-02 commit'cie `652d7a5`: utworzono `Identity\Tenant.php` z `class_alias(Shared\Tenant::class, Identity\Tenant::class)`. Dwa runtime fail-modes:
+  1. Symfony FileLoader (services discovery) odrzuca pliki które nie deklarują klasy o spodziewanym FQCN (`Expected to find class App\Identity\Domain\Entity\Tenant in file ...`).
+  2. PHP 8.4 lazy-resolves return type declarations as FQCN strings — `function getCurrent(): ?Identity\Tenant { ... return new Shared\Tenant(); }` rzuca TypeError nawet gdy class_alias wykonany.
+  - Conclusion: dla migracji namespace klas Domain entity → big sweep (rewrite wszystkich callsite + delete original) jest jedyną zdrową opcją. `class_alias` works dla helpers/enums/value objects bez Doctrine relations, ale nie dla mapped entities z return type declarations.
+
+- **Pełny CQRS Command/Handler dla seederów/batch builders.** RF-14 pierwotnie planował split `DemoCatalogSeeder`/`BuiltInObjectTypeSeeder`/`AttributesIndexedRebuilder` na vertical slices `Application/Command/<UseCase>/`. Realizacja pokazała że seedery są:
+  1. uruchamiane wyłącznie przez `bin/console doctrine:fixtures:load` (single-call, idempotent);
+  2. nie mają user-facing dispatcher path;
+  3. CQRS-acja dodaje narzut (envelope + middleware) bez żadnej wartości.
+  - Conclusion: pragmatic CQRS — robisz Command/Handler dla user-facing actions (RestProcessor, controllers, agent tools), a seedery / providers / batch builders zostają jako services. Decyzja udokumentowana w ADR-0012.
+
+- **`pendingEvents` array w `AggregateRoot` jako transient property bez Doctrine mapping**. ORM 3 z `report_fields_where_declared: true` zażąda mapping dla każdego property. Solution: utworzyć `<mapped-superclass>` XML w `Shared/Infrastructure/Doctrine/Orm/Mapping/AggregateRoot.orm.xml` **bez `<field>` elementów** — Doctrine pomija pole bo nie zna mapping.
+
+- **DAMA Doctrine Test Bundle z `enable_static_meta_data_cache: true` + Foundry ResetDatabase** — incompatible jeśli Foundry recompilingu schema między test session i DAMA cache'uje stare metadata. W RF-30 użyłem trzech flag DAMA — działa, ale jeśli nowe encje dochodzą w epicach 0.4+, sprawdzić czy `enable_static_meta_data_cache: false` nie jest bezpieczniejsze.
+
+### Świadome odejścia z Epic RF
+
+1. **`ChannelObjectTypeMapping` cross-BC FK do Catalog\Domain\Entity\ObjectType + Attribute** — RF-19 zostawił tę junction table z bezpośrednimi `targetEntity:` references. Trzy cross-BC FK w jednej tabeli to większy refaktor (wymaga zmiany M:N junction na pure Uuid + double Query handler). Tracked w Deptrac baseline + ADR-0015 jako follow-up ticket.
+
+2. **`Catalog\Domain` enums (ObjectKind, AttributeType, Provenance) używane przez Catalog\Contracts** — Deptrac baseline. Cleanup: przenieść enums do `Catalog/Contracts/Enum/` (no logic, pure backed enums). Niewielki ticket.
+
+3. **`Shared\Infrastructure\Http\RequestTenantSubscriber` zależy od `Identity\Application\CurrentTenantProvider`** — Shared depend on Identity. Cleanup: przenieść CurrentTenantProvider do Shared\Application (logicznie pasuje). Mały ticket, mostly mechanical.
+
+4. **Schema validate drift dla `Channel.categoryTreeRootId` / `Asset.objectId`** — Doctrine widzi tylko Uuid column, nie wie o DB-level FK constraint. **Intencjonalne** — `--skip-sync` flag dla `doctrine:schema:validate`, codified w ADR-0015.
+
+5. **API-004 + FE-003 = WONTFIX-łańcuch** — `@pim/shared-types` generation + frontend Zod schemas wymagają API Platform `#[ApiResource]` (epik 0.4 / #41+). Reopens po zamknięciu 0.4.
+
+6. **Custom PHPStan rule `FlushWithoutClearInBatchHandlerRule`** (TOOL-005, RF-22 secondary scope) — deferred. AbstractBatchHandler + Deptrac/PHPStan deprecation rules już blokują patterns które chciał wyłapać. Reopen tylko po wystąpieniu regresji.
+
+### Stats Epic RF
+
+- **35 ticketów planowanych** → 28 wdrożone + 5 WONTFIX + 1 duplikat + 1 deferred
+- **23 PR-y** zmergowane do main (#186-#208)
+- **Pre-RF audit:** 5 CRITICAL / 9 HIGH / 8 MEDIUM
+- **Post-RF audit:** 0 CRITICAL / 2 HIGH (WONTFIX-łańcuch ApiResource) / 4 MEDIUM (3 WONTFIX z ADR + 1 OPEN low-priority)
+- **Cross-BC violations:** 65 → 23 (z czego 14 ALLOWED Tooling layer + 9 baseline)
+- **Czas:** ~7h sesji (vs estymowane 148h ticket-by-ticket — refaktor tip top idzie szybciej z mass-pattern PR-ami)
