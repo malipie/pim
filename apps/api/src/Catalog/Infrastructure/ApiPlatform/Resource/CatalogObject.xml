@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <!--
+        Single CatalogObject resource exposing the three sugar paths
+        (`/api/products`, `/api/categories`, `/api/assets`) per ADR-009.
+        Each operation carries its `extraProperties.kind` discriminator;
+        the State Processor reads it to validate `objectTypeId` and the
+        Doctrine query extensions narrow reads to the matching kind.
+
+        Putting all three sugar paths under one resource (instead of three
+        siblings on the same class) sidesteps the AP4 IRI-resolution
+        ambiguity — when multiple resources share a class, AP4 picks the
+        last one wins for `@id` / `@type` rendering, which yielded
+        `@type: AssetObject` for `POST /api/products` responses. With
+        operations holding the per-kind config, the resource itself stays
+        anchored as "Product" by `shortName` for all three paths.
+
+        The Domain entity (`App\Catalog\Domain\Entity\CatalogObject`)
+        stays framework-agnostic; AP4 attribute-resolves properties
+        through Symfony PropertyInfo (private fields + public getters).
+    -->
+    <resource class="App\Catalog\Domain\Entity\CatalogObject"
+              shortName="CatalogObject">
+
+        <operations>
+            <!-- ──────────── /api/products (kind=product) ──────────── -->
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/products{._format}"
+                       name="products_get_collection"
+                       security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
+                <extraProperties>
+                    <values>
+                        <value name="kind">product</value>
+                    </values>
+                </extraProperties>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/products/{id}{._format}"
+                       name="products_get"
+                       security="is_granted('READ', object)">
+                <extraProperties>
+                    <values>
+                        <value name="kind">product</value>
+                    </values>
+                </extraProperties>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Post"
+                       uriTemplate="/products{._format}"
+                       name="products_post"
+                       input="App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectInput"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectProcessor"
+                       security="is_granted('CREATE', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
+                <extraProperties>
+                    <values>
+                        <value name="kind">product</value>
+                    </values>
+                </extraProperties>
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>object:create</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Patch"
+                       uriTemplate="/products/{id}{._format}"
+                       name="products_patch"
+                       input="App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectPatchInput"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectProcessor"
+                       security="is_granted('UPDATE', object)">
+                <extraProperties>
+                    <values>
+                        <value name="kind">product</value>
+                    </values>
+                </extraProperties>
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>object:patch</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Delete"
+                       uriTemplate="/products/{id}{._format}"
+                       name="products_delete"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectProcessor"
+                       security="is_granted('DELETE', object)">
+                <extraProperties>
+                    <values>
+                        <value name="kind">product</value>
+                    </values>
+                </extraProperties>
+            </operation>
+
+            <!-- ──────────── /api/categories (kind=category) ──────────── -->
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/categories{._format}"
+                       name="categories_get_collection"
+                       security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
+                <extraProperties>
+                    <values>
+                        <value name="kind">category</value>
+                    </values>
+                </extraProperties>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/categories/{id}{._format}"
+                       name="categories_get"
+                       security="is_granted('READ', object)">
+                <extraProperties>
+                    <values>
+                        <value name="kind">category</value>
+                    </values>
+                </extraProperties>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Post"
+                       uriTemplate="/categories{._format}"
+                       name="categories_post"
+                       input="App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectInput"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectProcessor"
+                       security="is_granted('CREATE', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
+                <extraProperties>
+                    <values>
+                        <value name="kind">category</value>
+                    </values>
+                </extraProperties>
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>object:create</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Patch"
+                       uriTemplate="/categories/{id}{._format}"
+                       name="categories_patch"
+                       input="App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectPatchInput"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectProcessor"
+                       security="is_granted('UPDATE', object)">
+                <extraProperties>
+                    <values>
+                        <value name="kind">category</value>
+                    </values>
+                </extraProperties>
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>object:patch</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Delete"
+                       uriTemplate="/categories/{id}{._format}"
+                       name="categories_delete"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectProcessor"
+                       security="is_granted('DELETE', object)">
+                <extraProperties>
+                    <values>
+                        <value name="kind">category</value>
+                    </values>
+                </extraProperties>
+            </operation>
+
+            <!-- ──────────── /api/assets (kind=asset, READ-ONLY) ──────────── -->
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/assets{._format}"
+                       name="assets_get_collection"
+                       security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
+                <extraProperties>
+                    <values>
+                        <value name="kind">asset</value>
+                    </values>
+                </extraProperties>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/assets/{id}{._format}"
+                       name="assets_get"
+                       security="is_granted('READ', object)">
+                <extraProperties>
+                    <values>
+                        <value name="kind">asset</value>
+                    </values>
+                </extraProperties>
+            </operation>
+        </operations>
+    </resource>
+</resources>

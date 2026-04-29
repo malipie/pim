@@ -1,0 +1,52 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Catalog\Infrastructure\ApiPlatform\Resource;
+
+use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
+
+/**
+ * PATCH input shape for `/api/{products,categories,assets}/{id}`.
+ *
+ * `code` and `objectTypeId` are intentionally absent — they are immutable
+ * post-creation (lessons #0.0.3). Every field is nullable; the handler
+ * only calls the matching domain method when the field is non-null.
+ *
+ * For a true "remove parent / clear path" operation the client sends
+ * the field explicitly with `null` and the processor flips a separate
+ * `clearParent` / `clearPath` boolean before dispatching the Command —
+ * that keeps "field omitted" distinct from "field set to null".
+ */
+final class CatalogObjectPatchInput
+{
+    #[Groups(['object:patch'])]
+    public ?bool $enabled = null;
+
+    /**
+     * One of {@see \App\Catalog\Domain\Entity\CatalogObject::STATUS_*}.
+     * The handler delegates to `transitionTo()` which encodes the FSM.
+     */
+    #[Assert\Choice(choices: ['draft', 'published', 'archived'])]
+    #[Groups(['object:patch'])]
+    public ?string $status = null;
+
+    /**
+     * Re-parent this row. Pass `null` to remove the parent; the processor
+     * will set `clearParent=true` because Merge-Patch JSON cannot express
+     * "absent vs. null" otherwise.
+     */
+    #[Assert\Uuid(versions: [Assert\Uuid::V7_MONOTONIC])]
+    #[Groups(['object:patch'])]
+    public ?string $parentId = null;
+
+    /**
+     * `kind=category` ltree path (`'electronics.audio.headphones'`).
+     * The Doctrine listener {@see \App\Catalog\Infrastructure\Doctrine\EventListener\CategoryPathValidator}
+     * still rejects values for non-category rows.
+     */
+    #[Assert\Length(max: 4096)]
+    #[Groups(['object:patch'])]
+    public ?string $path = null;
+}
