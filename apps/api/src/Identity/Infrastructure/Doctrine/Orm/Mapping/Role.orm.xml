@@ -6,7 +6,7 @@
 
     <entity name="App\Identity\Domain\Entity\Role"
             table="roles"
-            repository-class="App\Identity\Infrastructure\Doctrine\Repository\RoleRepository">
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineRoleRepository">
 
         <unique-constraints>
             <unique-constraint name="roles_tenant_code_uniq" columns="tenant_id,code"/>

@@ -6,7 +6,7 @@
 
     <entity name="App\Channel\Domain\Entity\ChannelObjectTypeMapping"
             table="channel_object_type_mappings"
-            repository-class="App\Channel\Infrastructure\Doctrine\Repository\ChannelObjectTypeMappingRepository">
+            repository-class="App\Channel\Infrastructure\Doctrine\Repository\DoctrineChannelObjectTypeMappingRepository">
 
         <unique-constraints>
             <unique-constraint name="channel_object_type_mappings_triple_uniq" columns="channel_id,object_type_id,attribute_id"/>

@@ -11,8 +11,8 @@ use App\Identity\Application\RefreshTokenService;
 use App\Identity\Domain\Entity\RefreshToken;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
-use App\Identity\Infrastructure\Doctrine\Repository\RefreshTokenRepository;
-use App\Identity\Infrastructure\Doctrine\Repository\RoleRepository;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
+use App\Identity\Domain\Repository\RoleRepositoryInterface;
 use App\Identity\Presentation\AuthCookieFactory;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -46,7 +46,7 @@ final class RefreshTokenApiTest extends ApiTestCase
 
         $em = $this->em();
         self::getContainer()->get(RbacSeeder::class)->seed();
-        $superAdmin = self::getContainer()->get(RoleRepository::class)->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);
+        $superAdmin = self::getContainer()->get(RoleRepositoryInterface::class)->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);
         \assert(null !== $superAdmin);
 
         $tenant = new Tenant(self::TENANT_CODE, 'Demo Tenant');
@@ -112,8 +112,7 @@ final class RefreshTokenApiTest extends ApiTestCase
 
         $em = $this->em();
         $em->clear();
-        /** @var RefreshTokenRepository $tokens */
-        $tokens = self::getContainer()->get(RefreshTokenRepository::class);
+        $tokens = self::getContainer()->get(RefreshTokenRepositoryInterface::class);
         $oldDb = $tokens->findByHash($this->hash($first->getValue()));
         \assert(null !== $oldDb);
         self::assertNotNull($oldDb->getUsedAt(), 'Rotated token must be marked used.');
@@ -142,8 +141,7 @@ final class RefreshTokenApiTest extends ApiTestCase
         self::assertSame('reused', $body['reason'] ?? null);
 
         $this->em()->clear();
-        /** @var RefreshTokenRepository $tokens */
-        $tokens = self::getContainer()->get(RefreshTokenRepository::class);
+        $tokens = self::getContainer()->get(RefreshTokenRepositoryInterface::class);
         $reusedRow = $tokens->findByHash($this->hash($first->getValue()));
         \assert(null !== $reusedRow);
         $familyId = $reusedRow->getFamilyId();
@@ -166,8 +164,7 @@ final class RefreshTokenApiTest extends ApiTestCase
         \assert(null !== $cookie);
 
         $em = $this->em();
-        /** @var RefreshTokenRepository $tokens */
-        $tokens = self::getContainer()->get(RefreshTokenRepository::class);
+        $tokens = self::getContainer()->get(RefreshTokenRepositoryInterface::class);
         $row = $tokens->findByHash($this->hash($cookie->getValue()));
         \assert(null !== $row);
         $em->getConnection()->executeStatement(
@@ -222,8 +219,7 @@ final class RefreshTokenApiTest extends ApiTestCase
         self::assertNull($cleared, 'Refresh cookie must be cleared on logout.');
 
         $this->em()->clear();
-        /** @var RefreshTokenRepository $tokens */
-        $tokens = self::getContainer()->get(RefreshTokenRepository::class);
+        $tokens = self::getContainer()->get(RefreshTokenRepositoryInterface::class);
         $row = $tokens->findByHash($this->hash($cookie->getValue()));
         \assert(null !== $row);
         self::assertNotNull($row->getRevokedAt(), 'Active refresh token must be revoked on logout.');

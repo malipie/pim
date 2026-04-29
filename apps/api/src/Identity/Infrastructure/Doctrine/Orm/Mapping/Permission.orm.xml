@@ -6,7 +6,7 @@
 
     <entity name="App\Identity\Domain\Entity\Permission"
             table="permissions"
-            repository-class="App\Identity\Infrastructure\Doctrine\Repository\PermissionRepository">
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrinePermissionRepository">
 
         <unique-constraints>
             <unique-constraint name="permissions_resource_action_uniq" columns="resource,action"/>

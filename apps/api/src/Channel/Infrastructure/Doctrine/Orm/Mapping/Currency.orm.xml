@@ -6,7 +6,7 @@
 
     <entity name="App\Channel\Domain\Entity\Currency"
             table="currencies"
-            repository-class="App\Channel\Infrastructure\Doctrine\Repository\CurrencyRepository">
+            repository-class="App\Channel\Infrastructure\Doctrine\Repository\DoctrineCurrencyRepository">
 
         <unique-constraints>
             <unique-constraint name="currencies_code_uniq" columns="code"/>

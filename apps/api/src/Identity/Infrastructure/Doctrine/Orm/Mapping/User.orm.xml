@@ -6,7 +6,7 @@
 
     <entity name="App\Identity\Domain\Entity\User"
             table="users"
-            repository-class="App\Identity\Infrastructure\Doctrine\Repository\UserRepository">
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineUserRepository">
 
         <unique-constraints>
             <unique-constraint name="users_email_uniq" columns="email"/>

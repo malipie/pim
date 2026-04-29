@@ -6,7 +6,7 @@
 
     <entity name="App\Asset\Domain\Entity\AssetVariant"
             table="asset_variants"
-            repository-class="App\Asset\Infrastructure\Doctrine\Repository\AssetVariantRepository">
+            repository-class="App\Asset\Infrastructure\Doctrine\Repository\DoctrineAssetVariantRepository">
 
         <unique-constraints>
             <unique-constraint name="asset_variants_asset_code_uniq" columns="asset_id,variant_code"/>

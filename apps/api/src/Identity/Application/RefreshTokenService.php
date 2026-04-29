@@ -7,8 +7,8 @@ namespace App\Identity\Application;
 use App\Identity\Application\Exception\RefreshTokenException;
 use App\Identity\Domain\Entity\RefreshToken;
 use App\Identity\Domain\Entity\User;
-use App\Identity\Infrastructure\Doctrine\Repository\RefreshTokenRepository;
-use App\Identity\Infrastructure\Doctrine\Repository\UserRepository;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use DateInterval;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,8 +33,8 @@ use Symfony\Component\Uid\Uuid;
 final readonly class RefreshTokenService
 {
     public function __construct(
-        private RefreshTokenRepository $tokens,
-        private UserRepository $users,
+        private RefreshTokenRepositoryInterface $tokens,
+        private UserRepositoryInterface $users,
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private string $ttl = 'P30D',
@@ -77,7 +77,7 @@ final readonly class RefreshTokenService
             throw RefreshTokenException::expired();
         }
 
-        $user = $this->users->find($token->getUserId());
+        $user = $this->users->findById($token->getUserId());
         if (null === $user) {
             // User disappeared (cascade delete) but the token survived a
             // microsecond too long — treat as invalid rather than 500.

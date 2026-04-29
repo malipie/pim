@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Asset\Infrastructure\Doctrine\Repository;
 
 use App\Asset\Domain\Entity\Asset;
+use App\Asset\Domain\Repository\AssetRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -12,7 +13,7 @@ use Doctrine\Persistence\ManagerRegistry;
 /**
  * @extends ServiceEntityRepository<Asset>
  */
-class AssetRepository extends ServiceEntityRepository
+class DoctrineAssetRepository extends ServiceEntityRepository implements AssetRepositoryInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
@@ -22,5 +23,24 @@ class AssetRepository extends ServiceEntityRepository
     public function findByCode(string $code, Tenant $tenant): ?Asset
     {
         return $this->findOneBy(['code' => $code, 'tenant' => $tenant]);
+    }
+
+    public function findById(\Symfony\Component\Uid\Uuid $id): ?Asset
+    {
+        return parent::find($id->toRfc4122());
+    }
+
+    public function save(Asset $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->persist($entity);
+        $em->flush();
+    }
+
+    public function remove(Asset $entity): void
+    {
+        $em = $this->getEntityManager();
+        $em->remove($entity);
+        $em->flush();
     }
 }

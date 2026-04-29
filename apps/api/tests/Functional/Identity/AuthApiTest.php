@@ -8,8 +8,8 @@ use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Identity\Application\RbacSeeder;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
-use App\Identity\Infrastructure\Doctrine\Repository\RoleRepository;
-use App\Identity\Infrastructure\Doctrine\Repository\UserRepository;
+use App\Identity\Domain\Repository\RoleRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -43,7 +43,7 @@ final class AuthApiTest extends ApiTestCase
 
         $em = $this->em();
         self::getContainer()->get(RbacSeeder::class)->seed();
-        $superAdmin = self::getContainer()->get(RoleRepository::class)->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);
+        $superAdmin = self::getContainer()->get(RoleRepositoryInterface::class)->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);
         \assert(null !== $superAdmin);
 
         $tenant = new Tenant(self::TENANT_CODE, 'Demo Tenant');
@@ -182,7 +182,7 @@ final class AuthApiTest extends ApiTestCase
     #[Test]
     public function fixtureAdminPasswordIsHashedWithArgon2id(): void
     {
-        $repository = self::getContainer()->get(UserRepository::class);
+        $repository = self::getContainer()->get(UserRepositoryInterface::class);
         $admin = $repository->findByEmail(self::ADMIN_EMAIL);
         self::assertNotNull($admin);
 
