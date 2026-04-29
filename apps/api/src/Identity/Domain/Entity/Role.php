@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Identity\Domain\Entity;
 
-use App\Identity\Infrastructure\Doctrine\Repository\RoleRepository;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -19,36 +17,21 @@ use Symfony\Component\Uid\Uuid;
  * super_admin / catalog_manager / integration_manager / viewer). Per-tenant
  * custom roles land in Faza 2+ once admin UI for role management arrives.
  */
-#[ORM\Entity(repositoryClass: RoleRepository::class)]
-#[ORM\Table(name: 'roles')]
-#[ORM\UniqueConstraint(name: 'roles_tenant_code_uniq', columns: ['tenant_id', 'code'])]
-#[ORM\Index(name: 'roles_tenant_idx', columns: ['tenant_id'])]
 class Role
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
 
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
     private ?Tenant $tenant;
 
-    #[ORM\Column(type: 'string', length: 64)]
     private string $code;
 
-    #[ORM\Column(type: 'string', length: 255)]
     private string $name;
 
-    #[ORM\Column(type: 'datetime_immutable')]
     private DateTimeImmutable $createdAt;
 
     /**
      * @var Collection<int, Permission>
      */
-    #[ORM\ManyToMany(targetEntity: Permission::class)]
-    #[ORM\JoinTable(name: 'role_permissions')]
-    #[ORM\JoinColumn(name: 'role_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
-    #[ORM\InverseJoinColumn(name: 'permission_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     private Collection $permissions;
 
     public function __construct(
