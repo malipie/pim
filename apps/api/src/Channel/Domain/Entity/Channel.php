@@ -5,13 +5,10 @@ declare(strict_types=1);
 namespace App\Channel\Domain\Entity;
 
 use App\Catalog\Domain\Entity\CatalogObject;
-use App\Channel\Infrastructure\Doctrine\Repository\ChannelRepository;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -36,21 +33,12 @@ use Symfony\Component\Validator\Constraints as Assert;
  * per `ObjectType` so a single channel can have different field shapes
  * for product vs. category exports.
  */
-#[ORM\Entity(repositoryClass: ChannelRepository::class)]
-#[ORM\Table(name: 'channels')]
-#[ORM\UniqueConstraint(name: 'channels_tenant_code_uniq', columns: ['tenant_id', 'code'])]
-#[ORM\Index(name: 'channels_tenant_idx', columns: ['tenant_id'])]
 class Channel implements TenantScoped
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
 
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(name: 'tenant_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private ?Tenant $tenant = null;
 
-    #[ORM\Column(type: 'string', length: 64)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 64)]
     private string $code;
@@ -58,30 +46,19 @@ class Channel implements TenantScoped
     /**
      * @var array<string, string>
      */
-    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]
     #[Assert\Type('array')]
     private array $label;
 
     /**
      * @var Collection<int, Locale>
      */
-    #[ORM\ManyToMany(targetEntity: Locale::class)]
-    #[ORM\JoinTable(name: 'channel_locales')]
-    #[ORM\JoinColumn(name: 'channel_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
-    #[ORM\InverseJoinColumn(name: 'locale_id', referencedColumnName: 'id', onDelete: 'RESTRICT')]
     private Collection $locales;
 
     /**
      * @var Collection<int, Currency>
      */
-    #[ORM\ManyToMany(targetEntity: Currency::class)]
-    #[ORM\JoinTable(name: 'channel_currencies')]
-    #[ORM\JoinColumn(name: 'channel_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
-    #[ORM\InverseJoinColumn(name: 'currency_id', referencedColumnName: 'id', onDelete: 'RESTRICT')]
     private Collection $currencies;
 
-    #[ORM\ManyToOne(targetEntity: CatalogObject::class)]
-    #[ORM\JoinColumn(name: 'category_tree_root_object_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?CatalogObject $categoryTreeRoot = null;
 
     /**

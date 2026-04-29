@@ -6,9 +6,6 @@ namespace App\Channel\Domain\Entity;
 
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\ObjectType;
-use App\Channel\Infrastructure\Doctrine\Repository\ChannelObjectTypeMappingRepository;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -33,35 +30,20 @@ use Symfony\Component\Validator\Constraints as Assert;
  * Tenant scope is inherited via the parent Channel — no own `tenant_id`.
  * The table joins `INFRA_TABLES` allowlist in `pim:tenant:audit`.
  */
-#[ORM\Entity(repositoryClass: ChannelObjectTypeMappingRepository::class)]
-#[ORM\Table(name: 'channel_object_type_mappings')]
-#[ORM\UniqueConstraint(name: 'channel_object_type_mappings_triple_uniq', columns: ['channel_id', 'object_type_id', 'attribute_id'])]
-#[ORM\Index(name: 'channel_object_type_mappings_channel_idx', columns: ['channel_id'])]
-#[ORM\Index(name: 'channel_object_type_mappings_object_type_idx', columns: ['object_type_id'])]
 class ChannelObjectTypeMapping
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'uuid')]
     private Uuid $id;
 
-    #[ORM\ManyToOne(targetEntity: Channel::class)]
-    #[ORM\JoinColumn(name: 'channel_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private Channel $channel;
 
-    #[ORM\ManyToOne(targetEntity: ObjectType::class)]
-    #[ORM\JoinColumn(name: 'object_type_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ObjectType $objectType;
 
-    #[ORM\ManyToOne(targetEntity: Attribute::class)]
-    #[ORM\JoinColumn(name: 'attribute_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private Attribute $attribute;
 
-    #[ORM\Column(name: 'target_field', type: Types::STRING, length: 255)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 255)]
     private string $targetField;
 
-    #[ORM\Column(name: 'is_published', type: Types::BOOLEAN, options: ['default' => true])]
     private bool $isPublished = true;
 
     public function __construct(
