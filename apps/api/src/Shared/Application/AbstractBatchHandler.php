@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Messaging;
+namespace App\Shared\Application;
 
 use Doctrine\ORM\EntityManagerInterface;
 
