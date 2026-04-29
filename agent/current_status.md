@@ -1,5 +1,16 @@
 # Current Status
 
+## Sub-faza: MVP-ALPHA — **Epic RF — Refactor for tip-top ZAMKNIĘTY 28/35** ✅ + 5 WONTFIX + 1 duplikat + 1 follow-up. PR #186..#208 wszystkie w main. Cel: 0 CRITICAL + 0 HIGH w post-RF audycie — ✅ osiągnięty (HIGH × 2 to WONTFIX-łańcuch ApiResource z epiku 0.4).
+
+`AUTONOMOUS_MODE: OFF` — RF wykonany w ramach jednej sesji z pełnym autonomicznym ciągiem PR-ów (każdy zazielenił 9-10 CI checków przed merge).
+
+## Następny krok
+**Epic 0.4 (API Platform — exposing entities) — plan-first.** Fundament jest dramatycznie czystszy niż przed RF: Domain framework-agnostic (XML mapping w Infrastructure), 0 publicznych setterów, 19 Repository port-adapter, AggregateRoot + DomainEventDispatcher fundamenty pod async event-driven cross-BC, Deptrac CI-required gate z 0 violations + finite baseline. ApiResource processory w 0.4 wpinają się przez CommandBus / QueryBus zamiast wstrzykiwać Application services bezpośrednio (ADR-0012). Po zamknięciu 0.4 odblokują się RF-27 / RF-28 / API-004 / FE-003 (typed shared-types z OpenAPI + Zod schemas).
+
+## Ostatnie 3 akcje (Epic RF closing wave)
+
+1. **Epic RF — Refactor for tip-top — ZAMKNIĘTY** (2026-04-29). 35 ticketów RF-01..35 zaplanowane → 28 wdrożonych, 5 WONTFIX (RF-14, RF-15, RF-27, RF-28, RF-33 — wszystkie z uzasadnieniem w ADR-0012 lub łańcuchu zależności od epiku 0.4), 1 duplikat (RF-04 → wchłonięty w #187 RF-02), 1 follow-up (RF-22 custom PHPStan rule deferred). PR-y zmergowane w main: #186 (RF-01 Shared/), #187 (RF-02+04 Tenant→Shared sweep), #188 (RF-03 Tenant infra→Shared), #189 (RF-05 AggregateRoot), #190..#193 (RF-06..09 XML mapping per BC), #194 (RF-10 Catalog repos), #195 (RF-11 pozostałe repos), #196 (RF-12 Catalog domain methods), #197 (RF-13 pozostałe), #198..#199 (RF-16/17 Contracts/Event), #200 (RF-18 Query DTO), #201 (RF-19 cross-BC FK→Uuid), #202 (RF-20 DomainEventDispatcher + Idempotency), #203 (RF-21 Deptrac CI gate), #204 (RF-22..25 PHPStan deprecation + Rector + ResetInterface + MAX_REQUESTS), #205 (RF-26 frontend features/), #206 (RF-29 tests reorg), #207 (RF-30 DAMA + TenantFactory), #208 (RF-31/32 ADR + C4 + ONBOARDING). **Quality gates wszystkich PR-ów:** PHPStan max + Deptrac (0 violations + 27 baseline) + PHP-CS-Fixer + PHPUnit (155+ unit tests) + Playwright + Biome + tsc + Vite + audits. **Post-RF audit:** [docs/audits/AUDIT-REPORT-2026-04-29-post-RF.md](docs/audits/AUDIT-REPORT-2026-04-29-post-RF.md) — pre-RF 5 CRITICAL + 9 HIGH + 8 MEDIUM → post-RF 0 CRITICAL + 2 HIGH (oba WONTFIX-łańcuch epiku 0.4) + 4 MEDIUM (3 WONTFIX/deferred + 1 OPEN low-priority). **Decyzje architektoniczne udokumentowane w 6 nowych ADR-ach** (`docs/adr/0010..0015`) + C4 diagrams + ONBOARDING.md.
+
 ## Sub-faza: MVP-ALPHA — **epik 0.2 ZAMKNIĘTY 7/7** ✅, **epik 0.3 ZAMKNIĘTY 11/11** ✅ (#31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #128 wszystkie w main). `AUTONOMOUS_MODE: OFF` (auto-flipped 2026-04-29 po zamknięciu #128 — epic 0.4 wraca do plan-first per ustaleniu z operatorem).
 
 ## Ostatnie 3 akcje
