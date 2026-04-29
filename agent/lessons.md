@@ -842,3 +842,21 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Filter discoverability w resource XML** — element `<filters>` na poziomie resource zawiera FQCN per filter (`<filter>App\...\SkuFilter</filter>`). AP4 resolves FQCN → tagged service. Filter applies do każdej operation w resource (chyba że operation ma swój `<filters>` overrride).
 
 - **`_instanceof` musi być w sekcji `services` (po `_defaults`), nie top-level.** Symfony 7 services.yaml structure. Adding go między `_defaults` i pierwszym usługą: `services: _defaults: ... _instanceof: ApiPlatform\...\FilterInterface: { tags: [api_platform.filter] }`. Bez tego all filtry musiałyby mieć manual tag entry.
+
+## Lessons z 0.4.4 / #44 (Cursor-based pagination)
+
+- **AP4 4.x XmlResourceExtractor zwraca `paginationViaCursor` jako assoc array `['id' => 'DESC']`**, ale `PartialCollectionViewNormalizer::cursorPaginationFields()` iteruje to jako list of dicts `[['field' => 'id', 'direction' => 'DESC']]` — `$field['field']` failuje na "cannot access offset of type string on string" gdy XML jest source. Vendor bug. **Fix:** `CursorPaginationFieldsNormalizer` decorator on `api_platform.metadata.resource.metadata_collection_factory` przepisuje shape do canonical list. `decoration_priority: -10` runs after cache decorator więc rezultat jest cached.
+
+- **AP4 cursor pagination wymaga 3 elementy razem** (lessons #0.0.3 zaktualizowane): (1) `paginationType="cursor"` na operacji, (2) `<paginationViaCursor><paginationField field="id" direction="DESC"/></paginationViaCursor>`, (3) OrderFilter + RangeFilter na tym samym polu. Bez którejkolwiek części cursor link albo nie advance'uje (loop) albo nie ma ordering stability (skip/duplicate).
+
+- **AP4 vendor `OrderFilter` / `RangeFilter` są `final`** — nie można subclass'ować. Zamiast tego rejestruje się concrete instance jako Symfony service z parameterised `$properties` argumentem. Service ID = FQCN style (`App\Catalog\Infrastructure\ApiPlatform\Filter\OrderById`) żeby AP4's `<filter>FQCN</filter>` resolve działał — service ID musi być `App\...` prefixed lub vendor class FQCN, inaczej resolve nie znajdzie service'u. Custom service ID like `app.catalog.filter.order_by_id` było zignorowane przez AP4 mimo poprawnego tagowania.
+
+- **AP4 vendor `RangeFilter` cicho odrzuca filtry na Uuid columns**. `properties: ['id']` config jest accepted, `isPropertyMapped` zwraca true, ale faktyczne `WHERE id <op> :param` nigdy nie ląduje w QueryBuilder. Cursor walk loops na pierwszej stronie. **Fix:** custom `RangeOnId` (drop-in implementacja `FilterInterface`) który robi `WHERE %alias%.id <op> :param` bezpośrednio. Dodatkowo regex-validate Uuid format żeby Postgres `uuid` SQLSTATE 22P02 nie wybuchnął na malformed cursor → 500 zamiast graceful 200 empty.
+
+- **`paginationClientItemsPerPage="true"`** na resource musi być explicit — bez tego query parameter `?itemsPerPage=N` jest ignored i zawsze używana jest `paginationItemsPerPage` (default 30). Plus `paginationMaximumItemsPerPage="200"` chroni przed DoS w form `?itemsPerPage=999999`.
+
+- **`<order>` element na resource declaruje default sort.** Bez niego AP4 nie applikuje OrderFilter automatycznie — działa tylko gdy klient pas `?order[id]=DESC`. Dla cursor pagination wymagany jest deterministyczny order na pierwszym żądaniu (bez query params), więc `<order><values><value name="id">DESC</value></values></order>` jest niezbędny dla stability cursor walking.
+
+- **JSON-LD response zawiera `view` (no prefix) z `next`/`previous` keys**, a NIE `hydra:view` z `hydra:next`. AP4 4.x używa context decompression by default (no hydra prefix). ApiTestCase pattern: `$body['view'] ?? $body['hydra:view']` + `$view['next'] ?? $view['hydra:next']` żeby był forward-compatible.
+
+- **`Operation::getPaginationViaCursor()` może zwrócić `null|array<string,string>` lub `null|list<array{field,direction}>`** zależnie od źródła config (PHP attributes vs XML extractor). Decorator który normalizuje musi obsłużyć oba kształty — sniffing po `is_int($key) && is_array($value) && isset($value['field'])` dla list shape, fallback `is_string($key)` dla assoc shape.
