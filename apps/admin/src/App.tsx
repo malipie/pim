@@ -2,14 +2,14 @@ import { Refine } from '@refinedev/core';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
 import { AuthedRoute } from '@/components/AuthedRoute';
+import { ComingSoon } from '@/features/_shared/coming-soon';
+import { ProductCreatePage } from '@/features/catalog/products/create';
+import { ProductEditPage } from '@/features/catalog/products/edit';
+import { ProductListPage } from '@/features/catalog/products/list';
+import { LoginPage } from '@/features/identity/auth/login';
 import { AppLayout } from '@/layout/AppLayout';
 import { authProvider } from '@/lib/auth-provider';
 import { dataProvider } from '@/lib/data-provider';
-import { ComingSoon } from '@/pages/coming-soon';
-import { LoginPage } from '@/pages/login';
-import { ProductCreatePage } from '@/pages/products/create';
-import { ProductEditPage } from '@/pages/products/edit';
-import { ProductListPage } from '@/pages/products/list';
 
 function App() {
   return (
