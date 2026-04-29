@@ -42,6 +42,18 @@ doctrine:
         # the default src/Entity (Symfony skeleton placeholder) and clash
         # with the bundle-style structure under src/{Context}/Domain/Entity.
         auto_mapping: false
+
+        # Postgres JSONB containment as a DQL function (`#43`). Powers the
+        # `AttributeFilter` (`?attribute[brand]=Nike`) — emits
+        # `attributes_indexed @> '{...}'::jsonb` so the partial GIN index
+        # on `objects.attributes_indexed` answers the lookup.
+        dql:
+            string_functions:
+                JSONB_CONTAINS: App\Catalog\Infrastructure\Doctrine\Dql\JsonbContainsFunction
+                JSONB_GET_TEXT: App\Catalog\Infrastructure\Doctrine\Dql\JsonbGetTextFunction
+                LTREE_DESCENDANT_OF: App\Catalog\Infrastructure\Doctrine\Dql\LtreeDescendantOfFunction
+            numeric_functions:
+                JSONB_GET_NUMERIC: App\Catalog\Infrastructure\Doctrine\Dql\JsonbGetNumericFunction
         mappings:
             Shared:
                 type: xml

@@ -31,6 +31,12 @@ services:
         autowire: true
         autoconfigure: true
 
+    # Auto-tag concrete AP4 Doctrine filters (#43 / 0.4.3) so resource
+    # XML references work without per-class tag entries below.
+    _instanceof:
+        ApiPlatform\Doctrine\Orm\Filter\FilterInterface:
+            tags: ['api_platform.filter']
+
     App\:
         resource: '../src/'
 

@@ -36,6 +36,25 @@
             </values>
         </normalizationContext>
 
+        <!--
+            Custom filters for the catalog (`#43`):
+              - SkuFilter — `?sku=ABC` substring search on `code`.
+              - AttributeFilter — `?attribute[brand]=Nike` JSONB containment.
+              - CategoryFilter — `?category=electronics` ltree descendants.
+              - CompletenessFilter — `?completeness[gt]=80` numeric range.
+              - StatusFilter — `?status=published&enabled=true`.
+
+            All filters are tag'd `api_platform.filter` via _instanceof in
+            `services.yaml`; AP4 picks them up by FQCN here.
+        -->
+        <filters>
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\SkuFilter</filter>
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\AttributeFilter</filter>
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\CategoryFilter</filter>
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\CompletenessFilter</filter>
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\StatusFilter</filter>
+        </filters>
+
         <operations>
             <!-- ──────────── /api/products (kind=product) ──────────── -->
             <operation class="ApiPlatform\Metadata\GetCollection"
