@@ -85,6 +85,7 @@
             "@cs-check"
         ],
         "phpstan": "phpstan analyse --memory-limit=512M --no-progress",
+        "deptrac": "deptrac analyse --no-progress --no-cache",
         "cs-check": "php-cs-fixer fix --dry-run --diff --using-cache=no",
         "cs-fix": "php-cs-fixer fix --using-cache=no"
     },
@@ -98,6 +99,7 @@
         }
     },
     "require-dev": {
+        "deptrac/deptrac": "^4.6",
         "doctrine/doctrine-fixtures-bundle": "^4",
         "friendsofphp/php-cs-fixer": "^3.65",
         "phpstan/extension-installer": "^1",
