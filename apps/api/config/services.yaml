@@ -65,6 +65,20 @@ services:
         factory: ['App\Catalog\Application\Validation\AttributeValueValidator', 'default']
         arguments: []
 
+    # Kind-aware ApiResource hooks (#128). Built-in Product/Category/Asset
+    # ship via dedicated sugar paths in #41; this layer holds the metadata
+    # + decorator the AP4 declarations call into. Wired up now so #41 only
+    # has to drop the `#[ApiResource]` annotations + per-kind normalizers
+    # — no bootstrap chain change required.
+    App\Catalog\Infrastructure\ApiPlatform\CustomObjectTypeApiGuard:
+        arguments:
+            $enableCustomObjectTypes: '%pim.catalog.enable_custom_object_types%'
+
+    App\Catalog\Infrastructure\ApiPlatform\KindAwareSerializerContextBuilder:
+        decorates: 'api_platform.serializer.context_builder'
+        arguments:
+            $decorated: '@.inner'
+
     # Bind the named Flysystem storage for the Asset uploader. Without
     # this Symfony has multiple FilesystemOperator services (one per
     # named storage) and autowire can't pick. The named alias
