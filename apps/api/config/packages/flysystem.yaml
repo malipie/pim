@@ -30,3 +30,15 @@ flysystem:
             options:
                 client: 'pim.assets.s3_client'
                 bucket: '%env(AWS_ASSETS_BUCKET)%'
+
+# CI does not run a MinIO service; the functional `AssetUploaderTest`
+# still wants to write through the real Flysystem operator (it proves the
+# wiring + the storage path layout). Local adapter under `var/test/assets`
+# gives the same operator interface without a network dependency.
+when@test:
+    flysystem:
+        storages:
+            assets.storage:
+                adapter: 'local'
+                options:
+                    directory: '%kernel.project_dir%/var/test/assets'
