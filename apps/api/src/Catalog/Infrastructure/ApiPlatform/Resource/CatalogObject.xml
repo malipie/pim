@@ -24,7 +24,10 @@
         through Symfony PropertyInfo (private fields + public getters).
     -->
     <resource class="App\Catalog\Domain\Entity\CatalogObject"
-              shortName="CatalogObject">
+              shortName="CatalogObject"
+              paginationClientItemsPerPage="true"
+              paginationItemsPerPage="30"
+              paginationMaximumItemsPerPage="200">
 
         <normalizationContext>
             <values>
@@ -35,6 +38,15 @@
                 </value>
             </values>
         </normalizationContext>
+
+        <!-- Default sort: newest (highest Uuid v7) first; cursor pagination
+             relies on this being deterministic. Override per-request with
+             `?order[id]=ASC`. -->
+        <order>
+            <values>
+                <value name="id">DESC</value>
+            </values>
+        </order>
 
         <!--
             Custom filters for the catalog (`#43`):
@@ -53,6 +65,18 @@
             <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\CategoryFilter</filter>
             <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\CompletenessFilter</filter>
             <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\StatusFilter</filter>
+            <!--
+                OrderFilter + RangeFilter pinned to `id` are mandatory for
+                cursor pagination (`paginationViaCursor` below) — lessons #0.0.3
+                docu the AP4 trio. Without RangeFilter the `?id[lt]=...`
+                cursor query yields no constraint and AP4 loops on the first
+                page; without OrderFilter the order isn't stable so cursors
+                might skip / duplicate. AP4 4.x resolves `<filter>` strings
+                as either FQCN (auto-alias) or service id — we use the
+                explicit service ids wired in services.yaml.
+            -->
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\OrderById</filter>
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\RangeOnId</filter>
         </filters>
 
         <operations>
@@ -60,12 +84,16 @@
             <operation class="ApiPlatform\Metadata\GetCollection"
                        uriTemplate="/products{._format}"
                        name="products_get_collection"
+                       paginationType="cursor"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
                 <extraProperties>
                     <values>
                         <value name="kind">product</value>
                     </values>
                 </extraProperties>
+                <paginationViaCursor>
+                    <paginationField field="id" direction="DESC"/>
+                </paginationViaCursor>
             </operation>
 
             <operation class="ApiPlatform\Metadata\Get"
@@ -139,12 +167,16 @@
             <operation class="ApiPlatform\Metadata\GetCollection"
                        uriTemplate="/categories{._format}"
                        name="categories_get_collection"
+                       paginationType="cursor"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
                 <extraProperties>
                     <values>
                         <value name="kind">category</value>
                     </values>
                 </extraProperties>
+                <paginationViaCursor>
+                    <paginationField field="id" direction="DESC"/>
+                </paginationViaCursor>
             </operation>
 
             <operation class="ApiPlatform\Metadata\Get"
@@ -218,12 +250,16 @@
             <operation class="ApiPlatform\Metadata\GetCollection"
                        uriTemplate="/assets{._format}"
                        name="assets_get_collection"
+                       paginationType="cursor"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
                 <extraProperties>
                     <values>
                         <value name="kind">asset</value>
                     </values>
                 </extraProperties>
+                <paginationViaCursor>
+                    <paginationField field="id" direction="DESC"/>
+                </paginationViaCursor>
             </operation>
 
             <operation class="ApiPlatform\Metadata\Get"

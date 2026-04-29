@@ -96,6 +96,36 @@ services:
         arguments:
             $decorated: '@.inner'
 
+    # AP4 4.x XmlResourceExtractor returns paginationViaCursor as an
+    # assoc array (`['id' => 'DESC']`) but the Hydra normalizer iterates
+    # it as a list of `{field, direction}` dicts (#44 / 0.4.4). The
+    # decorator below slots into the metadata factory chain and rewrites
+    # the shape so every operation gets the canonical structure before
+    # AP4 reads it. `decoration_priority: -10` runs after the cache
+    # decorator so the result is cached.
+    App\Catalog\Infrastructure\ApiPlatform\CursorPaginationFieldsNormalizer:
+        decorates: 'api_platform.metadata.resource.metadata_collection_factory'
+        decoration_priority: -10
+        arguments:
+            $decorated: '@.inner'
+
+    # AP4 cursor pagination needs OrderFilter + RangeFilter pinned to the
+    # cursor field (`id` for CatalogObject — Uuid v7 is monotonic so it
+    # doubles as the chronological key). Both vendor classes are `final`,
+    # so subclassing isn't an option — instead we wire concrete instances
+    # parameterised with `properties` and reference them in the resource
+    # XML by service id (`<filter>app.catalog.filter.order_by_id</filter>`).
+    App\Catalog\Infrastructure\ApiPlatform\Filter\OrderById:
+        class: ApiPlatform\Doctrine\Orm\Filter\OrderFilter
+        autoconfigure: false
+        autowire: false
+        public: true
+        tags: ['api_platform.filter']
+        arguments:
+            $managerRegistry: '@doctrine'
+            $orderParameterName: 'order'
+            $properties: { id: DESC }
+
     # Bind the named Flysystem storage for the Asset uploader. Without
     # this Symfony has multiple FilesystemOperator services (one per
     # named storage) and autowire can't pick. The named alias
