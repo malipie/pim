@@ -6,6 +6,7 @@ import { ComingSoon } from '@/features/_shared/coming-soon';
 import { ProductCreatePage } from '@/features/catalog/products/create';
 import { ProductEditPage } from '@/features/catalog/products/edit';
 import { ProductListPage } from '@/features/catalog/products/list';
+import { ProductShowPage } from '@/features/catalog/products/show';
 import { LoginPage } from '@/features/identity/auth/login';
 import { AppLayout } from '@/layout/AppLayout';
 import { authProvider } from '@/lib/auth-provider';
@@ -23,6 +24,7 @@ function App() {
             list: '/products',
             create: '/products/new',
             edit: '/products/:id/edit',
+            show: '/products/:id',
           },
           { name: 'attributes', list: '/attributes' },
           { name: 'object-types', list: '/object-types' },
@@ -49,6 +51,7 @@ function App() {
             <Route path="/products" element={<ProductListPage />} />
             <Route path="/products/new" element={<ProductCreatePage />} />
             <Route path="/products/:id/edit" element={<ProductEditPage />} />
+            <Route path="/products/:id" element={<ProductShowPage />} />
             <Route
               path="/attributes"
               element={<ComingSoon resource="attributes" epic="0.3 / 0.6" issue={31} />}

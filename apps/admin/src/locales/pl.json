@@ -66,12 +66,50 @@
       "name": "Nazwa",
       "description": "Opis",
       "brand": "Marka",
+      "status": "Status",
       "created_at": "Utworzono",
       "actions": "Akcje"
     },
     "actions": {
-      "edit": "Edytuj"
+      "edit": "Edytuj",
+      "view": "Podgląd",
+      "select_all": "Zaznacz wszystkie",
+      "select_row": "Zaznacz wiersz"
     },
+    "bulk": {
+      "selected": "Zaznaczono {{count}}",
+      "selected_plural": "Zaznaczono {{count}}",
+      "enable": "Włącz",
+      "disable": "Wyłącz",
+      "delete": "Usuń"
+    },
+    "show": {
+      "tabs_aria": "Karty szczegółów produktu",
+      "no_attributes": "Ten obiekt nie ma jeszcze wartości atrybutów.",
+      "updated_at": "Ostatnia aktualizacja",
+      "tabs": {
+        "attributes": "Atrybuty",
+        "categories": "Kategorie",
+        "associations": "Powiązania",
+        "channels": "Kanały",
+        "assets": "Zasoby",
+        "history": "Historia"
+      },
+      "placeholder": {
+        "categories": "Drzewo kategorii dochodzi w #55.",
+        "associations": "Cross-sell i akcesoria dochodzą w #61.",
+        "channels": "Stan publikacji w kanałach dochodzi w #60.",
+        "assets": "Powiązane zasoby dochodzą w #56 (DAM).",
+        "history": "Ścieżka audytu dochodzi w #61 (UI provenance)."
+      },
+      "provenance": {
+        "manual": "ręcznie",
+        "import": "import",
+        "agent": "agent",
+        "integration": "integracja"
+      }
+    },
+    "no_object_type": "Brak wbudowanego typu obiektu „product\". Uruchom seeder katalogu.",
     "validation": {
       "sku_required": "SKU jest wymagane.",
       "sku_max": "SKU może mieć maksymalnie 64 znaki.",
