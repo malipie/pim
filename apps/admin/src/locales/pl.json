@@ -35,6 +35,11 @@
   },
   "nav": {
     "products": "Produkty",
+    "modeling": "Modelowanie",
+    "modeling_object_types": "Typy obiektów",
+    "modeling_attributes": "Atrybuty",
+    "modeling_attribute_groups": "Grupy atrybutów",
+    "modeling_categories": "Kategorie",
     "attributes": "Atrybuty",
     "attribute_groups": "Grupy atrybutów",
     "object_types": "Typy obiektów",
@@ -42,7 +47,9 @@
     "assets": "Zasoby",
     "channels": "Kanały",
     "api_profiles": "Profile API",
-    "soon": "Wkrótce"
+    "soon": "Wkrótce",
+    "expand_modeling": "Rozwiń sekcję modelowanie",
+    "collapse_modeling": "Zwiń sekcję modelowanie"
   },
   "attributes": {
     "list_title": "Atrybuty",

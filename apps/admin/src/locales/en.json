@@ -35,6 +35,11 @@
   },
   "nav": {
     "products": "Products",
+    "modeling": "Modeling",
+    "modeling_object_types": "Object types",
+    "modeling_attributes": "Attributes",
+    "modeling_attribute_groups": "Attribute groups",
+    "modeling_categories": "Categories",
     "attributes": "Attributes",
     "attribute_groups": "Attribute groups",
     "object_types": "Object types",
@@ -42,7 +47,9 @@
     "assets": "Assets",
     "channels": "Channels",
     "api_profiles": "API Profiles",
-    "soon": "Soon"
+    "soon": "Soon",
+    "expand_modeling": "Expand modeling section",
+    "collapse_modeling": "Collapse modeling section"
   },
   "attributes": {
     "list_title": "Attributes",
