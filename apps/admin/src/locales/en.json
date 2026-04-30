@@ -77,6 +77,17 @@
       "position": "Position"
     }
   },
+  "assets": {
+    "list_title": "Assets",
+    "list_subtitle": "Digital assets — images, video, documents — referenced from products and categories.",
+    "back": "Back to assets",
+    "empty": "No assets uploaded yet.",
+    "write_deferred_note": "Drag-and-drop upload, edit metadata dialog, preview modal, and bulk delete land in a follow-up — read-only grid + show ships now.",
+    "fields": {
+      "alt": "Alt text",
+      "mime": "MIME type"
+    }
+  },
   "channels": {
     "list_title": "Channels",
     "list_subtitle": "Publication targets — locales, currencies, and attribute mapping per kind.",
