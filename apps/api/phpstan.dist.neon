@@ -39,16 +39,17 @@ parameters:
     checkUninitializedProperties: true
     treatPhpDocTypesAsCertain: true
 
-    # Allow ignored-error patterns to be unmatched as the codebase grows from skeleton.
-    reportUnmatchedIgnoredErrors: false
+    # Fail when an `ignoreErrors` entry no longer matches anything — keeps
+    # the ignore list honest as the codebase evolves (audit MEDIUM-001).
+    # Each ignore stays only as long as the underlying error is still
+    # being thrown; otherwise CI surfaces the dead entry on the next run.
+    reportUnmatchedIgnoredErrors: true
 
-    # Skip noisy errors that are not actionable in early-stage skeleton.
+    # Tightly-scoped ignores for noise that is structural rather than a
+    # real bug. Every entry below is explicitly justified — when an
+    # ignore stops matching, `reportUnmatchedIgnoredErrors` flips CI red
+    # and the entry must be removed or moved.
     ignoreErrors:
-        # API Platform 4 attributes use generic `array` typing extensively.
-        - identifier: missingType.iterableValue
-          paths:
-              - src/ApiResource/*
-              - src/Entity/*
         # Test setUp() initialises properties that PHPStan cannot follow.
         - identifier: property.uninitialized
           paths:
