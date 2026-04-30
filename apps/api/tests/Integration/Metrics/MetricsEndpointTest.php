@@ -70,14 +70,4 @@ final class MetricsEndpointTest extends WebTestCase
             'Histogram count must be positive after at least one request through the kernel.',
         );
     }
-
-    protected static function getKernelClass(): string
-    {
-        return \App\Kernel::class;
-    }
-
-    protected static function createKernel(array $options = []): \Symfony\Component\HttpKernel\KernelInterface
-    {
-        return parent::createKernel(['environment' => 'test'] + $options);
-    }
 }
