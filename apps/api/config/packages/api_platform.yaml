@@ -37,9 +37,11 @@ api_platform:
     # so an integrator gets a clickable "Authorize" button without
     # reading the code.
     #
-    # `enable_swagger_ui: true` is the AP4 default in dev/staging, but we
-    # pin it explicitly so production toggles cannot accidentally hide
-    # the doc surface.
+    # `enable_swagger_ui: true` is the AP4 default in dev/staging.
+    # In production it is forced off via `when@prod` below — integrators
+    # consume the OpenAPI document directly (versioned snapshot under
+    # `docs/api-spec/`) instead of an interactive UI exposed on the
+    # public origin (audit MEDIUM-006).
     swagger:
         versions: [3]
         api_keys:
@@ -50,3 +52,16 @@ api_platform:
                 name: X-API-Key
                 type: header
     enable_swagger_ui: true
+
+when@prod:
+    api_platform:
+        # Disable the interactive Swagger UI surface in production.
+        # The OpenAPI JSON document remains reachable for tooling that
+        # needs the contract (e.g. integrators generating clients), but
+        # the HTML "try it now" UI is no longer exposed at `/api/docs`.
+        enable_swagger_ui: false
+        enable_re_doc: false
+        # Keep the OpenAPI JSON document; a route guard at the firewall
+        # level can be layered later if even the JSON surface becomes
+        # sensitive.
+        enable_docs: true
