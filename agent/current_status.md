@@ -4,7 +4,23 @@
 
 Wcześniejsze epiki: **MVP-Alpha 0.4 (8/8) ✅ + 0.5 (5/5) ✅ + 0.6 (9/9) ✅** — w main (#210..#231). Operator zaakceptował 2026-04-30 kierunek **MVP-Final → Faza 1 → Faza 2** zamiast skoku do Fazy 2 (epik 0.7 Agent layer odsunięty per ADR R-27 cost runaway: BYOK + monitoring + Org-level Anthropic cap muszą iść pierwsze).
 
+## 2026-05-01: Backlog UI Modelowanie utworzony (epik UI-08)
+
+**16 issues** w GitHub pod nową etykietą `epik-UI-08` + cross-cutting tag `UI`:
+- **#255** META — reorganizacja sidebar (zwijana sekcja „Modelowanie" grupująca Object Types / Attributes / Attribute Groups / Categories).
+- **#256–#263** Backend (8): UI-08.1 ADR-012 + migracje DDL (blocker), UI-08.2 ObjectType built-in flags + brand seed, UI-08.3 system attributes + Audit auto-attach, UI-08.4 EffectiveAttributeGroupResolver + form-schema endpoint, UI-08.5 AttributeGroup CRUD ApiResource, UI-08.6 attribute migrate-type endpoint, UI-08.7 where-used endpoints, UI-08.8 visible_when storage + evaluator.
+- **#264–#270** Frontend (7): UI-08.9 Modeling layout shell + 4-tab routing, UI-08.10 Object Types sub-tab (list/detail/wizard), UI-08.11 Attributes sub-tab enhanced, UI-08.12 Migration impact analyzer modal, UI-08.13 AttributeGroups sub-tab z drag-drop, UI-08.14 Categories modeling tree + inheritance preview, UI-08.15 (optional) bulk import CSV.
+
+**Estymacja całości: 60-80h.** Sequencing zatwierdzony przez operatora: epik wpada **po MVP-Final (epik 0.11)**, **przed Fazą 1** — jako „epik 0.12 / UI-08 Modelowanie". Spójne z notą `Project Plan/UI/epik-08-modelowanie.md` §15. Dependency: cały epik blokowany przez UI-08.1 (ADR-012 + migracje DDL).
+
+Pełen kontekst: [Project Plan/UI/epik-08-modelowanie.md](../Project%20Plan/UI/epik-08-modelowanie.md) (~960 linii) + [Project Plan/UI/00-plan-ui.md](../Project%20Plan/UI/00-plan-ui.md) §3.1.
+
 ## Następny krok
+**Implementacja epiku UI-08 rozpoczęta od META ticketu** (#255) — operator włączył bypass-permissions mode 2026-05-01 dla całego epiku UI-08 (wzorzec autonomous z epiku 0.3). Kolejność: #255 META (sidebar grupowanie) → #256 UI-08.1 (ADR-012 + migracje, blocker) → reszta w dependency order.
+
+Po UI-08 wraca normalny scope MVP-Final epik 0.11 (Hardening + a11y + analytics + pgBackRest + BYOK), 32-46h estymacja.
+
+## Następny krok (HISTORYCZNY — zachowany dla audit trail)
 **#90 (0.10.1) ApiProfile + ApiKey + Argon2id hashing** GOTOWE — branch `feat/0.10.1-api-configurator-entities` ma wszystkie quality gates green (PHPStan max + Deptrac + 305 PHPUnit testów + composer audit). Plik commitnąć + push + PR + CI poll + merge. **Następne tickety epiku 0.10:** #91 admin UI lista profiles, #92 attribute/format picker + JSON preview, #93 webhook config, #94 ApiProfileVoter + ApiKeyAuthenticator + serializer context, #95 endpoint test + per-profile OpenAPI export.
 
 Operator zapowiedział że po zamknięciu epiku 0.10 zrobimy świadomy audit "co jest faktycznie MVP-ready vs façade UI bez backendu" (write paths Categories/Channels/Assets, schema editor, drag-drop upload odroczone w 0.6) — celem przygotowanie widoków/funkcjonalności do MVP demo state.
