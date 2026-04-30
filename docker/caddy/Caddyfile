@@ -18,11 +18,40 @@
 }
 
 (common_security) {
-    # Subset of headers; full hardening landing in ticket 0.11.3.
+    # Edge-side hardening (#98 / 0.11.3). The single-origin setup
+    # makes CSP and friends easier to reason about — every legit
+    # request comes from the same `pim.localhost` (dev) /
+    # `pim.example.com` (prod) origin so `'self'` covers most of
+    # what the admin needs.
     header {
+        # Click-jacking — admin must never frame.
         X-Frame-Options "DENY"
+        # Stop browsers sniffing past the served Content-Type.
         X-Content-Type-Options "nosniff"
+        # Send only the origin on cross-origin nav, full URL on same-origin.
         Referrer-Policy "strict-origin-when-cross-origin"
+        # Drop browser features the admin never uses — keeps a hostile
+        # script from prompting for camera / mic / geolocation through
+        # an embedded iframe escape.
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+        # Force HTTPS for two years incl. subdomains. Caddy in dev uses
+        # the local CA so the header lands in dev too (browsers ignore
+        # HSTS on `localhost` per RFC 6797 §11).
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        # Conservative CSP — single-origin admin runs from `'self'`,
+        # everything cross-origin is denied. `'unsafe-inline'` +
+        # `'unsafe-eval'` on script-src covers Vite's HMR runtime +
+        # Refine + lazy-loaded chunks (Vite ships eval'd code in dev,
+        # rolldown emits inline bootstrap shims in prod). Style-src
+        # has the same exception for runtime CSS injections.
+        # `connect-src ws:/wss:` covers Mercure SSE on the same host.
+        # Tightening to nonces lands in a follow-up once a CSP report
+        # endpoint exists and the build pipeline can stamp them.
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+        # Cross-origin isolation hardening — partner integrations don't
+        # need cross-origin window handles.
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Resource-Policy "same-origin"
         # Remove fingerprinting hint.
         -Server
     }
