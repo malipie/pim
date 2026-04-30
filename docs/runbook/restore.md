@@ -1,12 +1,10 @@
-# Database restore runbook (Sprint 0 stub)
+# Database restore runbook
 
-> Scope: PITR (point-in-time recovery) procedure for the **dev/local** PIM stack
-> using pgBackRest backups stored in MinIO. The full production runbook —
-> off-site replication, weekly automated restore tests, alerting, escalation
-> contacts — lives in `Project Plan/02-plan-projektu-pim.md` §0.11.8 (epik 0.11)
-> and is delivered alongside the production-grade pgBackRest setup in §0.11.11.
+> Scope: PITR (point-in-time recovery) procedure for PIM's pgBackRest +
+> MinIO topology. Production schedule (weekly full + daily diff +
+> async WAL + automated weekly restore test) landed with #106 / 0.11.11.
 
-## What's wired in Sprint 0
+## What's wired
 
 - Custom `database` image: `postgres:16-alpine` + `pgbackrest` + `dcron`
   (`docker/postgres/Dockerfile`).
@@ -15,10 +13,19 @@
 - Repository: MinIO bucket `pim-backups`, path `/pim`. Credentials reuse
   `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` via `PGBACKREST_REPO1_S3_KEY*` env
   vars in `docker-compose.yml`.
-- Schedule: hourly cron (`/etc/crontabs/postgres` inside the database
-  container) runs `pgbackrest backup --stanza=pim`. Initial full backup is
-  triggered by `pim-init-backup.sh` once postgres is ready.
-- Retention: 2 full + 4 differential. Older backups are pruned automatically.
+- **Schedule** (cron inside the database container, see Dockerfile):
+  - Sundays 02:00 UTC — `pgbackrest --type=full backup`.
+  - Mon-Sat 02:00 UTC — `pgbackrest --type=diff backup`.
+  - Saturdays 03:30 UTC — automated restore test (`pim-restore-test.sh`).
+  - Initial full backup triggered by `pim-init-backup.sh` on first start.
+- **Retention**: 4 full + 28 differential. Older backups are pruned
+  automatically. Compression: `zst` level 3.
+- **Automated weekly restore test**: `pim-restore-test.sh` clones the
+  latest backup into `/tmp/pim-restore-test`, starts the side cluster on
+  port 55432, runs three smoke counts (tenants / users) against the
+  live and side clusters, and reports `PASS` / `FAIL` to
+  `/var/log/pgbackrest/restore-test.log`. The 0.11.10 dashboard widget
+  reads this file to surface the last-known-good restore time.
 - Restore orchestrator: `scripts/pim-backup-restore.sh` (host).
 - Acceptance test: `scripts/test-pgbackrest-restore.sh` (host).
 
@@ -143,16 +150,17 @@ produkty po restore = produkty przed dropem").
 | Restore fails with `unable to remove path` | API still holds connections | The orchestrator stops `api` first; if running pgbackrest manually, `docker compose stop api` before wiping `$PGDATA` |
 | Healthcheck never goes green after restore | WAL replay still in progress | `docker compose logs -f database` and wait — large WAL ranges take longer |
 
-## Production gaps (closed in 0.11.11)
+## Production gaps (post-0.11.11 follow-ups)
 
-- Schedule beyond hourly stub: weekly full + daily diff + 5-min WAL.
-- Retention beyond 2 full / 4 diff: 4 weeks full, 30 days diff, 7 days WAL.
-- Automated weekly restore test as a CI/cron job, with Slack/Sentry alert on
-  failure.
-- Off-site repo replication (or S3 bucket in a second region).
-- Encryption at rest for the repo (`repo1-cipher-type=aes-256-cbc`).
-- Hardened credentials (per-stanza S3 user, not the MinIO root).
-- Full PITR runbook with role-based escalation and decision tree for the
-  different failure scenarios (data corruption / hardware / human error).
+- **Off-site repo replication** — second MinIO region or AWS S3 cross-region.
+- **Encryption at rest** for the repo (`repo1-cipher-type=aes-256-cbc` +
+  `repo1-cipher-pass` from Vault). Today the repo lives on TLS-terminated
+  MinIO; at-rest encryption is opt-in.
+- **Hardened credentials** — dedicated S3 user with bucket-scoped IAM,
+  not the MinIO root.
+- **Slack/Sentry alert** when `pim-restore-test.sh` fails or when no
+  successful backup landed in the last 24h. The 0.11.10 dashboard
+  widget surfaces it; alerting needs a dedicated webhook in 0.11.10
+  follow-up.
 
 See `Project Plan/02-plan-projektu-pim.md` §0.11.8 and §0.11.11.
