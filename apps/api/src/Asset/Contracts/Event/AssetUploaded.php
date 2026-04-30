@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Asset\Contracts\Event;
 
+use App\Shared\Application\TenantAwareMessage;
 use App\Shared\Domain\DomainEvent;
 use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
@@ -15,7 +16,7 @@ use Symfony\Component\Uid\Uuid;
  * indexer subscribe to this for `media` blocks; Catalog can pick it up
  * to denormalize media URLs into `attributes_indexed`.
  */
-final readonly class AssetUploaded implements DomainEvent
+final readonly class AssetUploaded implements DomainEvent, TenantAwareMessage
 {
     public function __construct(
         public Uuid $assetId,
@@ -40,5 +41,10 @@ final readonly class AssetUploaded implements DomainEvent
     public function aggregateId(): string
     {
         return $this->assetId->toRfc4122();
+    }
+
+    public function tenantId(): Uuid
+    {
+        return $this->tenantId;
     }
 }

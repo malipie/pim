@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Contracts\Event;
 
+use App\Shared\Application\TenantAwareMessage;
 use App\Shared\Domain\DomainEvent;
 use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
@@ -13,7 +14,7 @@ use Symfony\Component\Uid\Uuid;
  * `enabled` flag. Cheaper than republishing on every attribute write —
  * channel adapters can short-circuit on `false`.
  */
-final readonly class ObjectEnabledChanged implements DomainEvent
+final readonly class ObjectEnabledChanged implements DomainEvent, TenantAwareMessage
 {
     public function __construct(
         public Uuid $objectId,
@@ -36,5 +37,10 @@ final readonly class ObjectEnabledChanged implements DomainEvent
     public function aggregateId(): string
     {
         return $this->objectId->toRfc4122();
+    }
+
+    public function tenantId(): Uuid
+    {
+        return $this->tenantId;
     }
 }

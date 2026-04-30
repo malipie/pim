@@ -24,6 +24,11 @@ framework:
                     enabled: true
                     allow_no_handlers: true
                 middleware:
+                    # Rebinds TenantContext on async handlers (audit
+                    # HIGH-002 / 2026-04-29). Sync dispatches pass
+                    # through — the request listener already set the
+                    # context from the JWT principal.
+                    - 'App\Shared\Infrastructure\Messenger\TenantContextRebindingMiddleware'
                     - 'App\Shared\Infrastructure\Messenger\IdempotencyMiddleware'
                     - doctrine_transaction
 

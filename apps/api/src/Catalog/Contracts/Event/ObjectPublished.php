@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Contracts\Event;
 
+use App\Shared\Application\TenantAwareMessage;
 use App\Shared\Domain\DomainEvent;
 use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
@@ -13,7 +14,7 @@ use Symfony\Component\Uid\Uuid;
  * to status=published. Triggers downstream publication (search index sync,
  * channel push, etc.).
  */
-final readonly class ObjectPublished implements DomainEvent
+final readonly class ObjectPublished implements DomainEvent, TenantAwareMessage
 {
     public function __construct(
         public Uuid $objectId,
@@ -35,5 +36,10 @@ final readonly class ObjectPublished implements DomainEvent
     public function aggregateId(): string
     {
         return $this->objectId->toRfc4122();
+    }
+
+    public function tenantId(): Uuid
+    {
+        return $this->tenantId;
     }
 }
