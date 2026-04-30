@@ -1081,6 +1081,46 @@ Rdzeń elastyczności już istnieje w ADR-006 (`attributes` + EAV `*_values JSON
 - ADR-006 (hybrid attribute model — `attributes` + `*_values JSONB` + `attributes_indexed`) — generalizacja respektuje, nie zmienia.
 - `06-sprint-0-findings.md` §2 (rewizja zakresu MVP 2026-04-27) — finansowanie kosztu generalizacji ze zwolnionego budżetu epiku 0.7.
 
+### ADR-012: Attribute Group as first-class entity for cross-objecttype data modeling
+
+**Status:** Zaakceptowany (2026-05-01)
+
+**Kontekst:**
+ADR-009 wprowadził generic `ObjectType` z parametryzowanym modelem atrybutów (`object_type_attributes` junction). Każdy ObjectType ma swój zestaw atrybutów. To wystarcza dla podstawowego CRUD-a, ale nie rozwiązuje trzech rzeczywistych problemów modelowania, które wyłaniają się przy projektowaniu pierwszej zakładki „Modelowanie" (epik UI-08, `Project Plan/UI/epik-08-modelowanie.md`):
+
+1. **Powielanie sekcji formularzy między ObjectType.** Sekcja „Marketing" (short_description + long_description + tags) ma sens w `Product`, ale również w `Service`, `Subscription`, `Bundle`. W obecnym modelu trzeba albo dodać te 3 atrybuty osobno do każdego ObjectType (powielanie metadanych), albo uznać że to ograniczenie i klient sobie poradzi (UX cierpi).
+2. **Dziedziczenie metadanych po drzewie kategorii.** Realna potrzeba z PRD: kategoria *„Lekarz"* deklaruje grupę „Wymagania medyczne" dla obiektów typu `Service`. Podkategoria *„Chirurg"* dziedziczy + dodaje „Chirurgia szczegóły". Podkategoria *„Ortopeda"* dziedziczy łącznie 5 grup (system Audit + 1 globalna z Service + 3 z Lekarz + 1 z Chirurg) + dodaje 1 własną. PIMCore i Akeneo tego nie robią natywnie — wymaga ręcznego skopiowania atrybutów per kategoria.
+3. **Wymienność grupy jako jednostka.** Migracja grupy „Wymagania medyczne" z ObjectType `Service` do ObjectType `Equipment` (np. firma rozszerza ofertę o sprzęt medyczny) musi być JEDNĄ operacją, nie *„skopiuj 4 atrybuty + zmodyfikuj 7 kategorii + sprawdź czy żadnego nie pominęliśmy"*.
+
+**Rozważane opcje:**
+- **(a)** Status quo: `attribute_groups` jako lekka tabela (już istnieje z `code` + `label` + `position`), `Attribute.group_id` 1:N — atrybut należy do ≤1 grupy, grupy są attribute-tag'em, nie samodzielnym bytem. **Problem:** brak rozwiązania dla problemów 1-3.
+- **(b)** Hard-coded sekcje per ObjectType (jak Akeneo): grupa to enumerator `'identification' | 'marketing' | 'technical_specs'` w `Attribute`, sekcje generowane w UI per ObjectType. **Problem:** brak custom grup w runtime, brak dziedziczenia po drzewie, klient bez admina nie może zmienić sekcji.
+- **(c)** Pełny first-class `AttributeGroup` z M:N attribute ↔ group (junction `attribute_group_attributes`) + M:N obj_type ↔ group (junction `object_type_attribute_groups`) + dziedziczenie po drzewie kategorii (junction `category_attribute_groups`) + opcjonalna `visible_when` reguła per attribute w grupie. Grupa jest wymienną jednostką, ma własny URL (`/modeling/attribute-groups/medical-requirements`), audit log, kontrolę dostępu.
+
+**Decyzja:** Opcja (c).
+
+**Uzasadnienie:**
+Asymetria zysków vs koszt jest podobna jak w ADR-003 (multi-tenant ready, single-tenant deployed) i ADR-009 (generalizacja ObjectType). Koszt schematu: **+1 nowa tabela rozszerzająca `attribute_groups` (description, icon, color, is_system_group, auto_attached) + 3 junction tables (attribute_group_attributes, object_type_attribute_groups, category_attribute_groups)** + listener `EffectiveAttributeGroupResolver` (~80 linii kodu). Zysk: rozwiązuje 3 problemy modelowania, których inne PIM-y nie rozwiązują, daje *killer feature* (inheritance preview w UI Modelowania). Akeneo i Pimcore nie mają tego natywnie — klient pisze SQL skrypty albo modyfikuje 50 podkategorii ręcznie.
+
+**Konsekwencje:**
+- **`attribute_groups` rozszerzona:** istniejące pola (`code`, `label`, `position`) zachowane (back-compat z 0.3.X). Dochodzą: `description JSONB` (multi-locale), `icon VARCHAR(64)`, `color VARCHAR(16)`, `is_system_group BOOLEAN` (true dla grupy „Audit" auto-attached do każdego ObjectType), `auto_attached BOOLEAN` (true gdy grupa dołączana automatycznie do nowego ObjectType — w MVP tylko Audit).
+- **Junction `attribute_group_attributes` (M:N Attribute ↔ AttributeGroup)** — `attribute_group_id, attribute_id, position, is_required_in_group, visible_when JSONB` (PK na (group, attribute)). **Pozostawia istniejący `Attribute.group_id` (1:N) jako deprecated path** — migracja danych do M:N w follow-up po `#UI-08.5` (gdy admin UI obsłuży multi-group attribute attachment). W UI-08.1 oba paths koegzystują (additive only).
+- **Junction `object_type_attribute_groups` (M:N ObjectType ↔ AttributeGroup)** — `object_type_id, attribute_group_id, position` (PK).
+- **Junction `category_attribute_groups`** — `category_object_id, target_object_type_id, attribute_group_id, position` (PK). Katergoria deklaruje która grupa atrybutów ma się pojawić *dla obiektów typu X* w tej kategorii i jej podkategoriach.
+- **Domain service `EffectiveAttributeGroupResolver`** (Catalog/Domain/Service, `#UI-08.4`) — dla danej pary (object_id, category_path) zwraca efektywną listę grup z dziedziczeniem: (1) system auto-attached (Audit), (2) globalne dla ObjectType, (3) dziedziczone po drzewie kategorii od root do leaf, (4) per-object ad-hoc (Faza 1+ nullable). Cache Redis 5min TTL z invalidation hooks.
+- **`visible_when` JSONB** w `attribute_group_attributes` — w MVP tylko `{field, operator: 'equals', value}` (`#UI-08.8`). Faza 1 dochodzi `not_equals`, `in`, `not_in` + composite AND/OR.
+- **Listener `ObjectFormSchemaListener`** — endpoint `GET /api/objects/{id}/form-schema` używa resolvera, frontend renderuje formularz dynamicznie.
+- **Brand jako 4-ty built-in ObjectType** (`#UI-08.2`) — niezależna od ADR-012, ale dochodzi razem z rozszerzeniem `object_types` o `is_built_in/code_immutable/deletable/icon/color`.
+- **Migracja istniejących danych:** w MVP-Final brak legacy AttributeGroup (~5 grup z seedera 0.3.X — 'identification', 'marketing', etc.), więc migracja DDL jest puro additive — tabele istniejące zostają, dochodzą nowe kolumny + 3 junction tables. Migracja `Attribute.group_id` → `attribute_group_attributes` zaplanowana po `#UI-08.5` (gdy admin UI ma drag-drop dla multi-group).
+- **Koszt:** **~30-40h backend (`#UI-08.1` do `#UI-08.8`) + ~30-40h frontend (`#UI-08.9` do `#UI-08.15`)**. Total **~60-80h** w epiku 0.12 / UI-08, post-MVP-Final (epik 0.11), pre-Faza 1 (`Project Plan/02-plan-projektu-pim.md` §3.6).
+- **Słownik domenowy:** „Attribute Group" (a-g w UI) zawsze. Old-aware: w 0.3.X używaliśmy „grupa atrybutów" jako lekkiego konceptu UI; teraz to first-class entity.
+
+**Referencje:**
+- `Project Plan/UI/epik-08-modelowanie.md` §3.5 (motywacja), §3.8 (pełny model encji + DDL), §12 (dependency na backend).
+- ADR-009 (generic ObjectType) — ADR-012 rozszerza, nie zastępuje.
+- ADR-006 (hybrid attribute model) — ADR-012 respektuje (`object_values JSONB` zostaje source of truth dla wartości; AttributeGroup jest tylko o organizacji formularzy + dziedziczeniu).
+- `02-plan-projektu-pim.md` §3.6 (epik 0.12 / UI-08 sequencing).
+
 ## 14. Roadmap rozwoju
 
 Roadmap fazowa, wysokopoziomowa. Szczegółowy backlog i estymacje w dokumencie `02-plan-projektu-pim.md`.

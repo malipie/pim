@@ -80,6 +80,11 @@ final class TenantAuditCommand extends Command
         'channel_object_type_mappings',
         // Asset variants (#37) inherit tenant scope from the parent Asset.
         'asset_variants',
+        // ADR-012 / UI-08.1 — AttributeGroup junction tables. Tenant scope
+        // inherited via the parent AttributeGroup / ObjectType / category row.
+        'attribute_group_attributes',
+        'object_type_attribute_groups',
+        'category_attribute_groups',
     ];
 
     /**

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Catalog\Domain\Entity\CategoryAttributeGroup"
+            table="category_attribute_groups">
+
+        <indexes>
+            <index name="category_attribute_groups_target_idx" columns="category_object_id,target_object_type_id"/>
+        </indexes>
+
+        <id name="categoryObjectId" type="uuid" column="category_object_id"/>
+        <id name="targetObjectType" association-key="true"/>
+        <id name="attributeGroup" association-key="true"/>
+
+        <many-to-one field="targetObjectType" target-entity="App\Catalog\Domain\Entity\ObjectType">
+            <join-column name="target_object_type_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <many-to-one field="attributeGroup" target-entity="App\Catalog\Domain\Entity\AttributeGroup">
+            <join-column name="attribute_group_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="position" type="integer">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+
+    </entity>
+
+</doctrine-mapping>
