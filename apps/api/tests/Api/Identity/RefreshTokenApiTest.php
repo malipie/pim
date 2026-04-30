@@ -45,6 +45,7 @@ final class RefreshTokenApiTest extends ApiTestCase
         parent::setUp();
 
         self::getContainer()->get('limiter.auth_login')->create('127.0.0.1')->reset();
+        self::getContainer()->get('limiter.auth_refresh')->create('127.0.0.1')->reset();
 
         $em = $this->em();
         self::getContainer()->get(RbacSeeder::class)->seed();
