@@ -10,6 +10,12 @@
     "account": "Account",
     "tenant": "Tenant"
   },
+  "language": {
+    "aria_label": "Switch language",
+    "title": "Language",
+    "pl": "Polski",
+    "en": "English"
+  },
   "notifications": {
     "aria_label": "Notifications",
     "title": "Recent activity",

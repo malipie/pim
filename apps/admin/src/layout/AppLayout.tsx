@@ -6,6 +6,7 @@ import { Outlet } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
+import { LanguageSwitcher } from './language-switcher';
 import { NotificationsBell } from './notifications-bell';
 import { SidebarNav } from './sidebar-nav';
 import { UserMenu } from './user-menu';
@@ -44,6 +45,7 @@ export function AppLayout() {
           </span>
 
           <div className="ml-auto flex items-center gap-2">
+            <LanguageSwitcher />
             <NotificationsBell />
             <UserMenu />
           </div>
