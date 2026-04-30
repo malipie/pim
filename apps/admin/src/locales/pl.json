@@ -279,7 +279,30 @@
     "create_subtitle": "Podstawowe dane — atrybuty / filtry / konfiguracja webhooka w #92 / #93.",
     "edit_title": "Edycja profilu API",
     "empty": "Brak profili. Utwórz pierwszy aby udostępnić wybrane API integratorowi.",
-    "tabs_deferred_note": "Zakładki Atrybuty / Filtry / Webhook dochodzą w #92 i #93. Na razie ObjectTypes konfiguruje się przez API.",
+    "tabs_deferred_note": "Konfiguracja webhooków dochodzi w #93.",
+    "form": {
+      "tabs_label": "Sekcje profilu",
+      "tabs": {
+        "basic": "Podstawowe",
+        "attributes": "Atrybuty",
+        "filters": "Filtry",
+        "preview": "Podgląd"
+      },
+      "object_types_legend": "Typy obiektów udostępniane przez ten profil",
+      "object_types_help": "Wbudowane typy product / category / asset — wybierz, które klasy obiektów profil eksponuje.",
+      "no_object_types": "Brak załadowanych typów obiektów.",
+      "attributes_legend": "Publikowane atrybuty",
+      "attributes_help": "Wybierz kody atrybutów, które API ma zwracać. Nie zaznaczone — odfiltrowane z odpowiedzi.",
+      "no_attributes": "Brak załadowanych atrybutów.",
+      "attributes_count": "Wybrane atrybuty: {{count}}",
+      "filters_help": "Filtry stosowane przy każdym zapytaniu przez ten profil. Pusty = brak filtra.",
+      "filter_status": "Status",
+      "filter_status_any": "Dowolny",
+      "filter_category": "Kod kategorii",
+      "filter_category_help": "Filtr ltree — `electronics` dopasowuje `electronics.phones.smartphones` itp.",
+      "preview_help": "Lokalny podgląd struktury odpowiedzi z wybranymi atrybutami. Live preview na realnym produkcie dochodzi w #95 (`/api/profiles/{code}/test`).",
+      "preview_live_note": "Wartości przykładowe są mockowane per typ atrybutu. Użyj endpointu testowego dla realnych danych."
+    },
     "fields": {
       "code": "Kod",
       "code_help": "Małe litery, cyfry, myślniki, podkreślenia. Nie można zmienić po utworzeniu.",

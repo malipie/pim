@@ -279,7 +279,30 @@
     "create_subtitle": "Basic info — attributes / filters / webhook configuration land in #92 / #93.",
     "edit_title": "Edit API Profile",
     "empty": "No profiles yet. Create one to expose a curated API surface to an integrator.",
-    "tabs_deferred_note": "Attributes / Filters / Webhook tabs land in #92 and #93. For now, configure ObjectTypes via API.",
+    "tabs_deferred_note": "Webhook configuration lands in #93.",
+    "form": {
+      "tabs_label": "Profile sections",
+      "tabs": {
+        "basic": "Basic info",
+        "attributes": "Attributes",
+        "filters": "Filters",
+        "preview": "Preview"
+      },
+      "object_types_legend": "ObjectTypes published through this profile",
+      "object_types_help": "Built-in product / category / asset types — pick which classes of objects this profile exposes.",
+      "no_object_types": "No ObjectTypes loaded.",
+      "attributes_legend": "Published attributes",
+      "attributes_help": "Pick attribute codes the API will project. Anything not on this list is stripped from the response.",
+      "no_attributes": "No attributes loaded.",
+      "attributes_count": "{{count}} attributes selected",
+      "filters_help": "Server-side filters applied on every request through this profile. Empty = no filter.",
+      "filter_status": "Status",
+      "filter_status_any": "Any",
+      "filter_category": "Category code",
+      "filter_category_help": "ltree descendant filter — `electronics` matches `electronics.phones.smartphones` etc.",
+      "preview_help": "Local preview of the response shape with selected attributes. Live preview against a real product lands in #95 (`/api/profiles/{code}/test`).",
+      "preview_live_note": "Sample values are mocked per attribute type. Hit the test endpoint for real data."
+    },
     "fields": {
       "code": "Code",
       "code_help": "Lowercase letters, digits, dashes or underscores. Cannot be changed after creation.",
