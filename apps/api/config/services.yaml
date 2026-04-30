@@ -154,6 +154,16 @@ services:
         arguments:
             $environment: '%kernel.environment%'
 
+    # API Configurator (#94 / 0.10.5). Decorator chain wraps the
+    # default + #41 KindAware + #42 ContextScope builders. Priority
+    # 20 keeps it on the outside so the public-read groups override
+    # any admin-side context the inner builders set up.
+    App\ApiConfigurator\Infrastructure\ApiPlatform\ApiProfileSerializerContextBuilder:
+        decorates: 'api_platform.serializer.context_builder'
+        decoration_priority: 20
+        arguments:
+            $decorated: '@.inner'
+
     # Idempotent CREATE EXTENSION IF NOT EXISTS ltree on every kernel boot.
     # Migrations create the extension, but Zenstruck Foundry's ResetDatabase
     # rebuilds the test schema from ORM metadata bypassing migrations —

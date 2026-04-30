@@ -39,14 +39,17 @@ security:
                 success_handler: App\Identity\Presentation\LoginSuccessHandler
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
 
-        # API firewall: every other /api/* request must carry a valid JWT.
-        # The exception below in access_control opens /api/docs and the JSON
-        # OpenAPI schema for unauthenticated reads (dev/staging) — production
-        # disables Swagger UI at the api_platform.enable_swagger_ui level.
+        # API firewall: every /api/* request must authenticate with EITHER
+        # a JWT (admin / human callers — issued by the login firewall) OR
+        # an `X-API-Key` header (machine integrators — minted via
+        # `pim:apikey:generate` per epic 0.10). Both authenticators run;
+        # `supports()` picks the one that matches the request.
         api:
             pattern: ^/api
             stateless: true
             jwt: ~
+            custom_authenticators:
+                - App\ApiConfigurator\Infrastructure\Security\ApiKeyAuthenticator
             provider: app_user_provider
 
         main:
@@ -67,7 +70,10 @@ security:
         - { path: ^/api/contexts, roles: PUBLIC_ACCESS }
         - { path: ^/api/metrics$, roles: PUBLIC_ACCESS }
         - { path: ^/api$, roles: PUBLIC_ACCESS }
-        - { path: ^/api, roles: ROLE_USER }
+        # `IS_AUTHENTICATED_FULLY` covers BOTH a logged-in user (ROLE_USER
+        # + tenant context) and an API key principal (ROLE_API_KEY). The
+        # voter chain enforces row-level access on top.
+        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
     security:

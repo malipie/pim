@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
+use App\Shared\Application\Auth\ApiKeyPrincipal;
 use App\Shared\Application\TenantAware;
 use App\Shared\Domain\Tenant;
 use App\Shared\Infrastructure\Doctrine\Repository\DoctrineTenantRepository;
@@ -38,6 +39,13 @@ final class CurrentTenantProvider
 
         if ($user instanceof TenantAware) {
             return $user->getTenant();
+        }
+
+        // API-key principals carry the tenant id only — fetch the
+        // managed Tenant entity so the Doctrine TenantFilter sees a
+        // hydrated row rather than a UUID string.
+        if ($user instanceof ApiKeyPrincipal) {
+            return $this->tenantRepository->findById($user->tenantId());
         }
 
         if (null !== $this->defaultTenantCode && '' !== $this->defaultTenantCode) {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Infrastructure\Security;
 
 use App\Identity\Domain\Entity\User;
+use App\Shared\Application\Auth\ApiKeyPrincipal;
 use App\Shared\Domain\Tenant;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
@@ -66,17 +67,29 @@ abstract class AbstractRbacVoter extends Voter
 
     protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token): bool
     {
-        $user = $token->getUser();
-        if (!$user instanceof User) {
-            return false;
-        }
-
         $action = $this->attributeMap()[$attribute] ?? null;
         if (null === $action) {
             return false;
         }
 
-        if (!$this->userHasPermission($user, $action)) {
+        $principal = $token->getUser();
+
+        // API-key principals are read-only (#94). Any non-`read` action
+        // is denied regardless of the key's profile scope; the public
+        // API surface is intentionally a projection, not a write path.
+        if ($principal instanceof ApiKeyPrincipal) {
+            if ('read' !== $action) {
+                return false;
+            }
+
+            return $this->matchesTenantId($subject, $principal->tenantId());
+        }
+
+        if (!$principal instanceof User) {
+            return false;
+        }
+
+        if (!$this->userHasPermission($principal, $action)) {
             return false;
         }
 
@@ -88,11 +101,31 @@ abstract class AbstractRbacVoter extends Voter
         }
 
         $subjectTenant = $this->extractTenant($subject);
-        if (null !== $subjectTenant && $subjectTenant->getId()->toRfc4122() !== $user->getTenant()->getId()->toRfc4122()) {
+        if (null !== $subjectTenant && $subjectTenant->getId()->toRfc4122() !== $principal->getTenant()->getId()->toRfc4122()) {
             return false;
         }
 
         return true;
+    }
+
+    private function matchesTenantId(mixed $subject, \Symfony\Component\Uid\Uuid $tenantId): bool
+    {
+        // Class-level subject — TenantFilter narrows reads, so listing
+        // is always granted to a key bound to the same authentication
+        // tenant context.
+        if (\is_string($subject)) {
+            return true;
+        }
+        if (!\is_object($subject)) {
+            return false;
+        }
+
+        $subjectTenant = $this->extractTenant($subject);
+        if (null === $subjectTenant) {
+            return true;
+        }
+
+        return $subjectTenant->getId()->toRfc4122() === $tenantId->toRfc4122();
     }
 
     /**
