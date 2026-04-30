@@ -1,16 +1,18 @@
-# PIM database image — postgres:16-alpine + pgBackRest stub for Sprint 0 (#15).
+# PIM database image — postgres:16-alpine + pgBackRest production setup (#106 / 0.11.11).
 #
 # Hosts both the PostgreSQL server and the pgBackRest CLI so:
-#   - `archive_command` ships WAL segments straight to MinIO from inside the
-#     server process (no SSH, no shared volume gymnastics).
-#   - The hourly cron tick (busybox dcron) runs `pgbackrest backup --stanza=pim`
-#     as the postgres user against the local data directory.
-#   - The initial stanza-create + first full backup run in the background once
+#   - `archive_command` ships WAL segments asynchronously to MinIO from
+#     inside the server process (async spool worker, no SSH, no volume
+#     gymnastics).
+#   - Cron runs the production schedule:
+#       * Sundays 02:00 — `--type=full`
+#       * Mon-Sat 02:00 — `--type=diff`
+#       * Saturdays 03:30 — automated restore test (cluster-clone smoke).
+#   - The stanza-create + first full backup run in the background once
 #     postgres is ready, so the repo is initialised the moment the stack is up.
 #
-# Production hardening (full + diff schedule, retention beyond 2/4, weekly
-# automated restore test, cron via systemd/k8s) is deferred to ticket 0.11.11.
-# See docs/runbook/restore.md and Project Plan/02-plan-projektu-pim.md §0.11.11.
+# See docs/runbook/restore.md (PITR) + docs/runbook/disaster-recovery.md
+# (incident response) for the operator-facing runbooks.
 
 FROM postgres:16-alpine
 
@@ -30,14 +32,24 @@ RUN chown postgres:postgres /etc/pgbackrest/pgbackrest.conf \
 
 COPY pim-init-backup.sh /usr/local/bin/pim-init-backup.sh
 COPY pim-cron.sh /usr/local/bin/pim-cron.sh
+COPY pim-restore-test.sh /usr/local/bin/pim-restore-test.sh
 COPY start-pim.sh /usr/local/bin/start-pim.sh
 RUN chmod 0755 /usr/local/bin/pim-init-backup.sh \
                 /usr/local/bin/pim-cron.sh \
+                /usr/local/bin/pim-restore-test.sh \
                 /usr/local/bin/start-pim.sh
 
-# Hourly schedule: run pgBackRest as postgres at minute 0 of every hour. The
-# dcron variant in busybox honours `/etc/crontabs/<user>` files.
-RUN printf '%s\n' '0 * * * * /usr/local/bin/pim-cron.sh >> /var/log/pgbackrest/cron.log 2>&1' \
+# Production schedule (#106 / 0.11.11):
+#   * Sundays    02:00 — full backup
+#   * Mon-Sat    02:00 — differential backup
+#   * Saturdays  03:30 — automated restore test (post-full, before next diff)
+#
+# WAL is archive-async pushed by archive_command on every segment switch
+# (typically every few seconds under load) — no cron entry needed.
+RUN printf '%s\n' \
+    '0 2 * * 0 /usr/local/bin/pim-cron.sh full >> /var/log/pgbackrest/cron.log 2>&1' \
+    '0 2 * * 1-6 /usr/local/bin/pim-cron.sh diff >> /var/log/pgbackrest/cron.log 2>&1' \
+    '30 3 * * 6 /usr/local/bin/pim-restore-test.sh >> /var/log/pgbackrest/restore-test.log 2>&1' \
         > /etc/crontabs/postgres \
  && chmod 0600 /etc/crontabs/postgres \
  && chown postgres:postgres /etc/crontabs/postgres
