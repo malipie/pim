@@ -22,7 +22,7 @@ use RuntimeException;
 final class AesGcmEncryptionServiceTest extends TestCase
 {
     private const string KEY_V1 = 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=';
-    private const string KEY_V2 = 'IB8eHRwbGhkYFxYVFBMSERAPDg0MCwoJCAcGBQQDAgEA';
+    private const string KEY_V2 = 'ifn4K04hpi/Gq5KqHYBlstuaxuofrlJmQw4wPYdWTTY=';
 
     protected function setUp(): void
     {
