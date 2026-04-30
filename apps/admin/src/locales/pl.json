@@ -2,7 +2,18 @@
   "app": {
     "title": "PIM Admin",
     "logout": "Wyloguj",
-    "loading": "Ładowanie..."
+    "loading": "Ładowanie...",
+    "toggle_nav": "Przełącz menu"
+  },
+  "user_menu": {
+    "aria_label": "Menu użytkownika",
+    "account": "Konto",
+    "tenant": "Najemca"
+  },
+  "notifications": {
+    "aria_label": "Powiadomienia",
+    "title": "Ostatnia aktywność",
+    "empty": "Brak ostatnich zdarzeń."
   },
   "auth": {
     "login_title": "Zaloguj się",

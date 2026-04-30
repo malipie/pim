@@ -981,3 +981,13 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Refine `useList` + custom search hook = `queryOptions: { enabled: !isSearchActive }` switch.** Gdy operator zaczyna typing lub klika facet, `useList` wyłączamy żeby nie hit'ować Refine REST endpoint w tle, a result tabela renderuje hits z `useCatalogSearch`. Hits remap'owane przez helper `toProduct(hit)` — `attributesIndexed.name|brand` → `Product` shape. Pattern dla każdej list page z search overlay w epic 0.6.
 
 - **Native `<details>` accordion zamiast shadcn `Accordion` w sidebar facetów.** Sidebar często renderuje >5 fasetów × wiele wartości — `Accordion` dorzuca state machine + animation overhead bez user-visible benefit w tym kontekście. Native `<details open>` jest a11y-correct out-of-the-box (focus + space toggles). Pattern dla list-of-toggleables w admin: prefer native gdy state szumi.
+
+## Lessons z 0.6.1 / #54 (Layout admina — Sidebar/TopBar/responsive/notifications)
+
+- **Mobile sheet drawer = Radix `Dialog` z fixed positioning + `data-[state]:animate-in`.** Nie potrzebujemy custom drawer komponentu — Radix `Dialog` z left-anchored `Content` (`fixed left-0 top-0 h-full w-72`) renderuje overlay + drawer out-of-the-box, focus management i escape-to-close gratis. Pattern dla każdego mobile-first surface w admin: Sheet → Dialog wrapper, nie reinventowanie.
+
+- **Mercure `EventSource` = window-only, `useEffect` guard `typeof window === 'undefined'`** żeby unit envs (jsdom-less, SSR) nie wybuchały na imporcie. Plus `withCredentials: true` w opts żeby HttpOnly Mercure JWT cookie wysłał się — nawet single-origin Caddy needs flag. Pattern: każdy SSE/WS hook w admin musi mieć ten guard + cleanup w return.
+
+- **Notifications surface = ostatnie N events w pamięci, NIE inbox.** Bell pokazuje "co się dzieje teraz", reload resetuje feed. Audit log live'uje w `sync_job_logs` (Faza 1). Bell badge = "since last open" counter (klik trigger → `markAllRead`). Pattern from Slack/Linear — durable inbox to overkill w MVP.
+
+- **DropdownMenuItem ma role `menuitem`, nie `button`** — istniejące E2E `getByRole('button', { name: /sign out/i })` nie znajdują logout w UserMenu. Tests blocked by #41 są fixme'd więc nie failują w CI, ale przyszły refactor E2E (gdy fixme zdejmie się) musi update'ować selector na `menuitem` lub na `getByText` z prior `click(getByRole('button', { name: 'User menu' }))` żeby najpierw otworzyć dropdown.
