@@ -175,6 +175,15 @@
     "body": "Ten widok jest częścią epiku {{epic}}. Nie jest jeszcze zaimplementowany — śledź postęp w GitHub Issues.",
     "track_issue": "Otwórz issue #{{issue}}"
   },
+  "provenance": {
+    "manual": "ręcznie",
+    "import": "import",
+    "integration": "integracja",
+    "agent": "agent",
+    "agent_phase_2": "Faza 2",
+    "source": "Źródło",
+    "timestamp": "Zaktualizowano"
+  },
   "search": {
     "placeholder": "Szukaj…",
     "aria_label": "Wyszukiwarka katalogu",
@@ -190,6 +199,8 @@
   "products": {
     "list_title": "Produkty",
     "list_subtitle": "Katalog produktów w obrębie aktualnego najemcy.",
+    "filter_provenance": "Pochodzenie",
+    "filter_provenance_all": "Wszystkie",
     "create": "Dodaj produkt",
     "create_title": "Nowy produkt",
     "edit_title": "Edytuj produkt",
