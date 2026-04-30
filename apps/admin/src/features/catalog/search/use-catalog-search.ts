@@ -1,0 +1,113 @@
+import { useEffect, useState } from 'react';
+
+import { jsonFetch } from '@/lib/http';
+
+/**
+ * Generic catalog search hook (#53 / 0.5.5).
+ *
+ * Calls the per-kind endpoint from #52 (`/api/search/products`,
+ * `/api/search/categories`, `/api/search/assets`) with debounced
+ * query input, optional facet filter map, and offset pagination.
+ *
+ * The debounce keeps the network quiet while the user types — 300 ms
+ * is the standard "I want autocomplete to feel snappy but not flood
+ * Meili" interval. The hook re-fetches when query, filters, or page
+ * change.
+ */
+export type CatalogSearchKind = 'products' | 'categories' | 'assets';
+
+export interface CatalogSearchHit {
+  id: string;
+  code?: string;
+  kind?: string;
+  status?: string;
+  enabled?: boolean;
+  attributesIndexed?: Record<string, unknown>;
+  _formatted?: Record<string, unknown>;
+}
+
+export interface CatalogSearchResult {
+  hits: CatalogSearchHit[];
+  totalHits: number;
+  facetDistribution: Record<string, Record<string, number>>;
+  processingTimeMs: number;
+  page: number;
+  perPage: number;
+}
+
+export interface UseCatalogSearchOptions {
+  kind: CatalogSearchKind;
+  query: string;
+  filters?: Record<string, string | string[]>;
+  facets?: string[];
+  page?: number;
+  perPage?: number;
+  highlight?: boolean;
+  debounceMs?: number;
+}
+
+export interface UseCatalogSearchState {
+  result: CatalogSearchResult | null;
+  isLoading: boolean;
+  error: Error | null;
+}
+
+export function useCatalogSearch(options: UseCatalogSearchOptions): UseCatalogSearchState {
+  const {
+    kind,
+    query,
+    filters,
+    facets,
+    page = 1,
+    perPage = 30,
+    highlight = false,
+    debounceMs = 300,
+  } = options;
+
+  const [result, setResult] = useState<CatalogSearchResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const handle = window.setTimeout(() => {
+      const params = new URLSearchParams();
+      if (query !== '') params.set('q', query);
+      params.set('page', String(page));
+      params.set('perPage', String(perPage));
+      if (highlight) params.set('highlight', 'true');
+      if (facets && facets.length > 0) params.set('facets', facets.join(','));
+      if (filters) {
+        for (const [key, value] of Object.entries(filters)) {
+          if (Array.isArray(value)) {
+            for (const item of value) params.append(`filter[${key}][]`, item);
+          } else {
+            params.set(`filter[${key}]`, value);
+          }
+        }
+      }
+
+      setIsLoading(true);
+      jsonFetch<CatalogSearchResult>(`/api/search/${kind}?${params.toString()}`)
+        .then((response) => {
+          if (cancelled) return;
+          setResult(response);
+          setError(null);
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          setError(err instanceof Error ? err : new Error(String(err)));
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false);
+        });
+    }, debounceMs);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [kind, query, page, perPage, highlight, debounceMs, facets, filters]);
+
+  return { result, isLoading, error };
+}

@@ -28,6 +28,18 @@
     "body": "This view is part of epic {{epic}}. It is not implemented yet — track progress on GitHub Issues.",
     "track_issue": "Open issue #{{issue}}"
   },
+  "search": {
+    "placeholder": "Search…",
+    "aria_label": "Catalog search",
+    "clear": "Clear search",
+    "loading": "Searching…",
+    "no_facets": "No filterable facets returned.",
+    "no_results": "No results match your query.",
+    "results_count": "{{count}} result",
+    "results_count_plural": "{{count}} results",
+    "facets_title": "Filters",
+    "reset_filters": "Reset filters"
+  },
   "products": {
     "list_title": "Products",
     "list_subtitle": "Catalogue of products scoped to the current tenant.",

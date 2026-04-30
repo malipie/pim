@@ -28,6 +28,18 @@
     "body": "Ten widok jest częścią epiku {{epic}}. Nie jest jeszcze zaimplementowany — śledź postęp w GitHub Issues.",
     "track_issue": "Otwórz issue #{{issue}}"
   },
+  "search": {
+    "placeholder": "Szukaj…",
+    "aria_label": "Wyszukiwarka katalogu",
+    "clear": "Wyczyść wyszukiwanie",
+    "loading": "Wyszukiwanie…",
+    "no_facets": "Brak dostępnych filtrów.",
+    "no_results": "Brak wyników dla zapytania.",
+    "results_count": "{{count}} wynik",
+    "results_count_plural": "{{count}} wyników",
+    "facets_title": "Filtry",
+    "reset_filters": "Wyczyść filtry"
+  },
   "products": {
     "list_title": "Produkty",
     "list_subtitle": "Katalog produktów w obrębie aktualnego najemcy.",
