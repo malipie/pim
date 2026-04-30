@@ -3,7 +3,8 @@
     "title": "PIM Admin",
     "logout": "Sign out",
     "loading": "Loading...",
-    "toggle_nav": "Toggle navigation"
+    "toggle_nav": "Toggle navigation",
+    "close": "Close"
   },
   "user_menu": {
     "aria_label": "User menu",
