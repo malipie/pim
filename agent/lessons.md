@@ -971,3 +971,13 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Indexer fail-soft pattern (per #47 lessons)** — try/catch wokół Meili calls, log warning + continue. Search to enrichment surface, write path nie powinien wybuchnąć gdy hub down. Plus Custom kind early-return — indexer nie ma indeksu dla `kind=custom` (ADR-009 reserved).
 
 - **Document shape: identifiers + state + attributesIndexed snapshot.** `tenantId` filterable attribute carries multi-tenant scope; read-side queries (#52) inject auth user's tenant przed `?filter[tenantId]=...`. `createdAt`/`updatedAt` jako Unix timestamps (sortable Numeric type w Meili). `attributesIndexed` denormalized cache (z #38) — flat lookup po code, perfect for Meili's nested JSON addressing.
+
+## Lessons z 0.5.5 / #53 (UI search box + faceted filters w Refine)
+
+- **`useEffect` deps array — Biome `useExhaustiveDependencies` nie godzi się na "stable serialised key + raw refs" mix.** Pierwsza próba miała `filtersKey = JSON.stringify(filters)` + `facetsKey` jako stabilne klucze i włączała w deps obok tych keys ALSO `filters, facets` (raw). Biome flag'uje to jako "extra dependencies — `filtersKey/facetsKey` already cover". Z drugiej strony usunięcie `filters/facets` daje "missing dependency". Wniosek: jeden lub drugi wzorzec. Wybrane: drop serialised keys, użyj raw refs — debounce 300ms i tak buforuje hot loop, parent komponent ma kontrolować stabilność (memoizacja przy potrzebie). Pattern dla każdego custom hook w admin: nie kombinuj z derived deps, polegaj na referential equality + parent memo.
+
+- **React 19 + `tsc -b --noEmit` nie eksponuje globalnego `JSX` namespace** — `JSX.Element` jako return type annotation rzuca `Cannot find namespace 'JSX'`. Fix: drop annotation (TS infers `Element` z React.JSX.Element automatycznie) lub import explicit `import type { JSX } from 'react'`. Wybrane: drop — function components nie potrzebują return type annotation.
+
+- **Refine `useList` + custom search hook = `queryOptions: { enabled: !isSearchActive }` switch.** Gdy operator zaczyna typing lub klika facet, `useList` wyłączamy żeby nie hit'ować Refine REST endpoint w tle, a result tabela renderuje hits z `useCatalogSearch`. Hits remap'owane przez helper `toProduct(hit)` — `attributesIndexed.name|brand` → `Product` shape. Pattern dla każdej list page z search overlay w epic 0.6.
+
+- **Native `<details>` accordion zamiast shadcn `Accordion` w sidebar facetów.** Sidebar często renderuje >5 fasetów × wiele wartości — `Accordion` dorzuca state machine + animation overhead bez user-visible benefit w tym kontekście. Native `<details open>` jest a11y-correct out-of-the-box (focus + space toggles). Pattern dla list-of-toggleables w admin: prefer native gdy state szumi.
