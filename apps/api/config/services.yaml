@@ -154,6 +154,18 @@ services:
         arguments:
             $environment: '%kernel.environment%'
 
+    # BYOK Anthropic encryption (#107 / 0.11.12, ADR-0017). The master
+    # key map is split out as a parameter so rotation = bump env var +
+    # add the version to this map. Existing rows keep decrypting with
+    # their original version until lazy-reencrypted on next read.
+    App\Shared\Infrastructure\Crypto\AesGcmEncryptionService:
+        arguments:
+            $rawKeysByVersion:
+                1: '%env(default::APP_BYOK_KEY_V1)%'
+
+    App\Shared\Application\Crypto\EncryptionServiceInterface:
+        alias: App\Shared\Infrastructure\Crypto\AesGcmEncryptionService
+
     # API Configurator (#94 / 0.10.5). Decorator chain wraps the
     # default + #41 KindAware + #42 ContextScope builders. Priority
     # 20 keeps it on the outside so the public-read groups override
