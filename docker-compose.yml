@@ -59,7 +59,12 @@ services:
       APP_ENV: ${APP_ENV:-dev}
       APP_SECRET: ${APP_SECRET:-ChangeMeBeforeDeploy}
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
-      MESSENGER_TRANSPORT_DSN: redis://redis:6379/messages
+      # Synchronous Messenger transport for local development — no worker
+      # pool runs inside this stack, so async-routed messages execute
+      # in-band when dispatched. Production deployments override to
+      # `doctrine://default?queue_name=async` so the FrankenPHP worker
+      # pool drains the queue (audit MEDIUM-007).
+      MESSENGER_TRANSPORT_DSN: sync://
       MERCURE_URL: http://mercure/.well-known/mercure
       MERCURE_PUBLIC_URL: https://pim.localhost/.well-known/mercure
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
