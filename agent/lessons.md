@@ -1019,3 +1019,11 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 **Pattern do reuse**: kiedy ticket scope >> ROI dla MVP, ship minimum widzialne (read-only) + jasno udokumentuj deferral w UI (`write_deferred_note` string), w lessons.md, i w current_status.md. NIE removuj funkcjonalności z roadmap — dokumentuj WHEN/WHY odroczenia.
 
 **Locale label resolver**: `Record<string, string>` JSONB z polską + angielską zawartością wymaga rozsądnego fallback chain — `current_lang → en → pl → first_key → '—'`. Pattern dla każdej customer-facing entity z multi-locale label (Attribute, AttributeGroup, ObjectType label/help). Komponent `resolveLabel` w `attributes/list.tsx` re-exportowany żeby `attribute_groups/list.tsx` nie powtarzał logiki.
+
+## Lessons z 0.6.4 / #57 (Resource ObjectTypes — read-only + Faza 2 Custom placeholder)
+
+- **Surface "feature flag disabled in MVP" jako visible UI element, nie ukrycie**. Custom ObjectTypes (`kind=custom`) są w bazie od dnia 1 (ADR-009) ale disabled w MVP. Zamiast hide w UI: dedykowana sekcja z dashed border + amber "Faza 2" badge + disabled button + explanatory text. Operator widzi że feature istnieje, kiedy się odblokuje, że jest świadoma decyzja inżynierska. Pattern dla każdego "shipped capability behind flag": surface + explain + show count of pending items if applicable.
+
+- **Resource name w Refine config musi matchować API endpoint slug** — zmieniłem `name: 'object-types'` na `name: 'object_types'` żeby `useList<>({resource: 'object_types'})` hit'owało `/api/object_types` (snake_case) zamiast `/api/object-types` (kebab — 404). Pattern dla każdego nowego Refine resource: sprawdź snake/kebab matching z API path PRZED commit. Wynika z AP4 default uri convention (snake_case).
+
+- **`ObjectType.builtIn !== false` jako default-true predicate** — gdy backend zwraca undefined (older row, lub serializer skip), traktujemy jako built-in. Eliminujemy false-negatives w UI gdzie operator widzi "Custom" tag ale to po prostu missing field. Pattern dla każdego boolean flag z business default: explicit `!== false` zamiast `=== true`.

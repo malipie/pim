@@ -77,6 +77,33 @@
       "position": "Pozycja"
     }
   },
+  "object_types": {
+    "list_title": "Typy obiektów",
+    "list_subtitle": "Schematy dla kindów katalogu (ADR-009). Custom kindy odblokowane w Fazie 2.",
+    "back": "Wróć do typów obiektów",
+    "built_in_title": "Predefiniowane",
+    "custom_title": "Custom",
+    "locked": "Zablokowane",
+    "phase_2_badge": "Faza 2",
+    "custom_disabled_explanation": "Custom ObjectTypes (kind=custom) są w bazie od dnia 1, ale wyłączone feature flagiem w MVP. Schema-add agent w Fazie 2 będzie tworzył i konfigurował je z naturalnego języka.",
+    "create_custom_disabled": "Utwórz custom ObjectType",
+    "custom_present_note": "{{count}} custom ObjectType istnieje w tym najemcy; widoczne po odblokowaniu w Fazie 2.",
+    "empty": "Brak typów obiektów dla aktualnego najemcy.",
+    "write_deferred_note": "Edycja predefiniowanych ObjectType (label / labelAttribute / imageAttribute / completenessRules) odroczona do agentowego flow schema-add (Faza 2).",
+    "fields": {
+      "code": "Kod",
+      "label": "Etykieta",
+      "kind": "Kind",
+      "schema_version": "Wersja schematu",
+      "label_attribute": "Atrybut etykiety",
+      "image_attribute": "Atrybut obrazu",
+      "completeness": "Reguły kompletności",
+      "actions": "Akcje"
+    },
+    "actions": {
+      "view": "Podgląd"
+    }
+  },
   "coming_soon": {
     "body": "Ten widok jest częścią epiku {{epic}}. Nie jest jeszcze zaimplementowany — śledź postęp w GitHub Issues.",
     "track_issue": "Otwórz issue #{{issue}}"

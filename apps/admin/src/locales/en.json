@@ -77,6 +77,33 @@
       "position": "Position"
     }
   },
+  "object_types": {
+    "list_title": "Object types",
+    "list_subtitle": "Schema carriers for catalog kinds (ADR-009). Custom kinds unblock in Faza 2.",
+    "back": "Back to object types",
+    "built_in_title": "Built-in",
+    "custom_title": "Custom",
+    "locked": "Locked",
+    "phase_2_badge": "Faza 2",
+    "custom_disabled_explanation": "Custom ObjectTypes (kind=custom) are stored in the database from day one but disabled by feature flag in MVP. The schema-add agent in Faza 2 will mint and configure them through natural-language requests.",
+    "create_custom_disabled": "Create custom ObjectType",
+    "custom_present_note": "{{count}} custom ObjectType(s) exist in this tenant; visible after Faza 2 unlock.",
+    "empty": "No object types for the current tenant.",
+    "write_deferred_note": "Editing built-in ObjectTypes (label / labelAttribute / imageAttribute / completenessRules) is deferred to the schema-add agent flow (Faza 2).",
+    "fields": {
+      "code": "Code",
+      "label": "Label",
+      "kind": "Kind",
+      "schema_version": "Schema v.",
+      "label_attribute": "Label attribute",
+      "image_attribute": "Image attribute",
+      "completeness": "Completeness rules",
+      "actions": "Actions"
+    },
+    "actions": {
+      "view": "View"
+    }
+  },
   "coming_soon": {
     "body": "This view is part of epic {{epic}}. It is not implemented yet — track progress on GitHub Issues.",
     "track_issue": "Open issue #{{issue}}"
