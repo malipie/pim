@@ -66,12 +66,50 @@
       "name": "Name",
       "description": "Description",
       "brand": "Brand",
+      "status": "Status",
       "created_at": "Created",
       "actions": "Actions"
     },
     "actions": {
-      "edit": "Edit"
+      "edit": "Edit",
+      "view": "View",
+      "select_all": "Select all",
+      "select_row": "Select row"
     },
+    "bulk": {
+      "selected": "{{count}} selected",
+      "selected_plural": "{{count}} selected",
+      "enable": "Enable",
+      "disable": "Disable",
+      "delete": "Delete"
+    },
+    "show": {
+      "tabs_aria": "Product detail tabs",
+      "no_attributes": "This object has no attribute values yet.",
+      "updated_at": "Last updated",
+      "tabs": {
+        "attributes": "Attributes",
+        "categories": "Categories",
+        "associations": "Associations",
+        "channels": "Channels",
+        "assets": "Assets",
+        "history": "History"
+      },
+      "placeholder": {
+        "categories": "Category links land in #55 (categories tree).",
+        "associations": "Cross-sell + accessories land in #61.",
+        "channels": "Channel publication state lands in #60.",
+        "assets": "Linked assets land in #56 (DAM).",
+        "history": "Audit trail lands in #61 (provenance UI)."
+      },
+      "provenance": {
+        "manual": "manual",
+        "import": "import",
+        "agent": "agent",
+        "integration": "integration"
+      }
+    },
+    "no_object_type": "No built-in product ObjectType is available. Run the catalog seeder.",
     "validation": {
       "sku_required": "SKU is required.",
       "sku_max": "SKU can be at most 64 characters.",

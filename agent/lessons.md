@@ -991,3 +991,15 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Notifications surface = ostatnie N events w pamięci, NIE inbox.** Bell pokazuje "co się dzieje teraz", reload resetuje feed. Audit log live'uje w `sync_job_logs` (Faza 1). Bell badge = "since last open" counter (klik trigger → `markAllRead`). Pattern from Slack/Linear — durable inbox to overkill w MVP.
 
 - **DropdownMenuItem ma role `menuitem`, nie `button`** — istniejące E2E `getByRole('button', { name: /sign out/i })` nie znajdują logout w UserMenu. Tests blocked by #41 są fixme'd więc nie failują w CI, ale przyszły refactor E2E (gdy fixme zdejmie się) musi update'ować selector na `menuitem` lub na `getByText` z prior `click(getByRole('button', { name: 'User menu' }))` żeby najpierw otworzyć dropdown.
+
+## Lessons z 0.6.2 / #55 (Resource Products — list/show/create/edit z proper AP4 shape)
+
+- **Refine `useList` zwraca `query.refetch`, nie top-level `refetch`** — Refine v5 API zmieniło shape z `{result, query, refetch}` na `{result, query}` gdzie `refetch` siedzi na `query`. tsc max wyłapuje immediately, ale subtelne bo runtime by failed silent. Pattern dla każdego list page z bulk actions: `const refetch = listQuery.refetch;` lub `useList(...).query.refetch`.
+
+- **AP4 sugar path requires `objectTypeId` per CatalogObjectInput** — admin form NIE może POST'ować `{sku, name, brand}` raw. Realna shape: `{code, objectTypeId, attributes: {...}}` (ADR-009 + #41 + #45). Walka między user-friendly form labels (SKU/Name/Brand) a API contract: form holds editor labels; submit handler maps do AP4 shape; `objectTypeId` rezolwuje się przez auto-pick `built-in` ObjectType per kind. Schema picker UI dla custom kindów jest reserved dla Fazy 2/3.
+
+- **Provenance badges placeholder** — full surface (`manual|import|agent|integration` per ObjectValue row) zostawione w #61 (epic 0.6.8). W show page każdy attribute renderuje `<ProvenanceBadge>` z hard-coded "manual" — kontrakt komponentu zlokowany, easy to upgrade gdy backend doda provenance do `attributesIndexed` (lub odrębny endpoint). Pattern dla "ship the shape, not the data" — placeholder badge teraz oszczędza refactor show page po sztywno.
+
+- **Bulk operations sequential, nie parallel** — `for (const id of ids) await jsonFetch(...)` zamiast `Promise.all(ids.map(...))`. Powód: per-row PATCH/DELETE generuje audit log + Mercure publish + reindex; parallel fan-out 200 selected rows przekłada się na 600+ concurrent backend ops i potencjalny rate-limiter trigger. Sequential at MVP scale (<200 selected) jest wystarczający. Future `/api/products/bulk` endpoint w epiku 0.7 schema-add daje single round trip.
+
+- **Kindkrolling list shape between Refine `useList` + Meili search hits** — list page receives `CatalogObjectListEntry` (z DataProvider) gdy nie-active search, `CatalogSearchHit` (z `useCatalogSearch`) gdy active. Zamiast unionu, dual mappers `searchHitToProduct` + `catalogObjectToProduct` → wspólny `ProductRow` shape. Pattern dla każdego list page z Meili overlay: keep two adapters per row source, single render shape downstream. Avoids type narrowing acrobatics inside JSX.

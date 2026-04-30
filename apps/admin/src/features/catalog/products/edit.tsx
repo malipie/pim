@@ -5,12 +5,12 @@ import { useNavigate, useParams } from 'react-router';
 
 import { ProductForm, type ProductFormValues } from './form';
 
-interface Product {
+interface CatalogObject {
   id: string;
-  sku: string;
-  name: string;
-  description: string | null;
-  brand: string | null;
+  code: string;
+  enabled?: boolean;
+  status?: string;
+  attributesIndexed?: Record<string, unknown>;
 }
 
 export function ProductEditPage() {
@@ -18,7 +18,7 @@ export function ProductEditPage() {
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
   const productId = params.id ?? '';
-  const { result, query } = useOne<Product>({
+  const { result, query } = useOne<CatalogObject>({
     resource: 'products',
     id: productId,
     queryOptions: { enabled: productId.length > 0 },
@@ -33,15 +33,19 @@ export function ProductEditPage() {
   }
 
   const product = result;
+  const attrs = (product.attributesIndexed ?? {}) as Record<string, unknown>;
+  const name = typeof attrs.name === 'string' ? attrs.name : '';
+  const brand = typeof attrs.brand === 'string' ? attrs.brand : '';
+  const description = typeof attrs.description === 'string' ? attrs.description : '';
 
   return (
     <ProductForm
       mode="edit"
       defaultValues={{
-        sku: product.sku,
-        name: product.name,
-        description: product.description ?? '',
-        brand: product.brand ?? '',
+        sku: product.code,
+        name,
+        description,
+        brand,
       }}
       isSubmitting={isPending}
       apiError={apiError}
@@ -51,9 +55,7 @@ export function ProductEditPage() {
           await mutateAsync({
             resource: 'products',
             id: productId,
-            // SKU is immutable on the API (ticket #3 — product:patch group);
-            // we still drop it client-side to avoid sending an ignored field.
-            values: cleanForPatch(values),
+            values: toPatchInput(values),
           });
           navigate('/products');
         } catch {
@@ -64,9 +66,15 @@ export function ProductEditPage() {
   );
 }
 
-function cleanForPatch(values: ProductFormValues): Record<string, unknown> {
-  const { sku: _sku, ...rest } = values;
-  return Object.fromEntries(
-    Object.entries(rest).map(([key, value]) => [key, value === '' ? null : value]),
-  );
+function toPatchInput(values: ProductFormValues): Record<string, unknown> {
+  // SKU is immutable on PATCH (per #3 / object:patch group); we ship the
+  // editable fields under `attributes` and let the merge-patch processor
+  // upsert ObjectValue rows server-side (#45).
+  const attributes: Record<string, unknown> = {
+    name: values.name,
+  };
+  attributes.brand = values.brand && values.brand !== '' ? values.brand : null;
+  attributes.description =
+    values.description && values.description !== '' ? values.description : null;
+  return { attributes };
 }
