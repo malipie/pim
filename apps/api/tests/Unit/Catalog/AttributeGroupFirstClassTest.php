@@ -40,8 +40,9 @@ final class AttributeGroupFirstClassTest extends TestCase
         self::assertSame('medical-requirements', $group->getCode());
         self::assertSame('Wymagania medyczne', $group->getLabel()['pl']);
         self::assertSame(4, $group->getPosition());
-        self::assertNotNull($group->getDescription());
-        self::assertSame('Medical service attributes', $group->getDescription()['en']);
+        $description = $group->getDescription();
+        self::assertNotNull($description);
+        self::assertSame('Medical service attributes', $description['en']);
         self::assertSame('stethoscope', $group->getIcon());
         self::assertSame('#EF4444', $group->getColor());
         self::assertFalse($group->isSystemGroup());
@@ -80,7 +81,9 @@ final class AttributeGroupFirstClassTest extends TestCase
         self::assertSame($attribute, $junction->getAttribute());
         self::assertSame(7, $junction->getPosition());
         self::assertTrue($junction->isRequiredInGroup());
-        self::assertSame('is_premium', $junction->getVisibleWhen()['field']);
+        $rule = $junction->getVisibleWhen();
+        self::assertNotNull($rule);
+        self::assertSame('is_premium', $rule['field']);
     }
 
     #[Test]

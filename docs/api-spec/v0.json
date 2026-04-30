@@ -4211,7 +4211,7 @@
                         ]
                     }
                 ],
-                "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). A group is purely organisational \u2014 it carries a localised\nlabel + an ordering position and lives entirely within one tenant.\n\nAttributes either belong to one group or stay ungrouped (`group_id` NULL\non Attribute). Removing a group leaves its attributes alive but ungrouped\n(FK ON DELETE SET NULL) so admins do not lose data by re-organising.\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale in MVP \u2014 no separate translations table."
+                "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system (e.g. the auto-\nattached \"Audit\" group #UI-08.3) \u2014 not deletable, not detachable from\nObjectType, code is immutable. `auto_attached=true` means the group is\nautomatically wired to every new ObjectType (currently only Audit)."
             },
             "CatalogObject-admin.read": {
                 "type": "object",
@@ -5219,7 +5219,7 @@
         },
         {
             "name": "AttributeGroup",
-            "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). A group is purely organisational \u2014 it carries a localised\nlabel + an ordering position and lives entirely within one tenant.\n\nAttributes either belong to one group or stay ungrouped (`group_id` NULL\non Attribute). Removing a group leaves its attributes alive but ungrouped\n(FK ON DELETE SET NULL) so admins do not lose data by re-organising.\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale in MVP \u2014 no separate translations table."
+            "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system (e.g. the auto-\nattached \"Audit\" group #UI-08.3) \u2014 not deletable, not detachable from\nObjectType, code is immutable. `auto_attached=true` means the group is\nautomatically wired to every new ObjectType (currently only Audit)."
         },
         {
             "name": "CatalogObject",
