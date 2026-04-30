@@ -11,6 +11,7 @@ use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use LogicException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Uid\Uuid;
@@ -59,6 +60,29 @@ class User extends AggregateRoot implements UserInterface, PasswordAuthenticated
 
     private ?DateTimeImmutable $lastLoginAt;
 
+    /**
+     * RFC 6238 TOTP shared secret in base32 encoding. Null while the
+     * user has not started 2FA enrolment, populated by
+     * {@see \App\Identity\Application\TotpEnrolmentService::enrol},
+     * confirmed by `confirmTotpEnrolment()`.
+     *
+     * Stored unencrypted in the column for now — production deployment
+     * will wrap reads/writes through the BYOK encrypter introduced in
+     * 0.11.12 (ADR-0017) once 2FA exits the dev fixtures.
+     */
+    private ?string $totpSecret;
+
+    private ?DateTimeImmutable $totpEnabledAt;
+
+    /**
+     * One-shot recovery codes — Argon2id hashes, single-use. Replenished
+     * via the dedicated rotate endpoint; consumed by the login flow's
+     * fallback path for users locked out of the authenticator app.
+     *
+     * @var list<string>
+     */
+    private array $totpBackupCodes;
+
     private DateTimeImmutable $createdAt;
 
     /**
@@ -79,6 +103,9 @@ class User extends AggregateRoot implements UserInterface, PasswordAuthenticated
         $this->assignedRoles = new ArrayCollection();
         $this->status = self::STATUS_ACTIVE;
         $this->lastLoginAt = null;
+        $this->totpSecret = null;
+        $this->totpEnabledAt = null;
+        $this->totpBackupCodes = [];
         $this->createdAt = new DateTimeImmutable();
     }
 
@@ -199,5 +226,71 @@ class User extends AggregateRoot implements UserInterface, PasswordAuthenticated
     public function removeRole(Role $role): void
     {
         $this->assignedRoles->removeElement($role);
+    }
+
+    public function getTotpSecret(): ?string
+    {
+        return $this->totpSecret;
+    }
+
+    public function isTotpEnabled(): bool
+    {
+        return null !== $this->totpEnabledAt;
+    }
+
+    public function getTotpEnabledAt(): ?DateTimeImmutable
+    {
+        return $this->totpEnabledAt;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getTotpBackupCodes(): array
+    {
+        return $this->totpBackupCodes;
+    }
+
+    /**
+     * Stamps the user with a freshly generated TOTP secret + recovery
+     * codes, but does NOT enable 2FA yet — `confirmTotpEnrolment()`
+     * does that after the first successful code verification, so a
+     * dropped enrolment never locks the user out.
+     *
+     * @param list<string> $backupCodeHashes
+     */
+    public function startTotpEnrolment(string $secret, array $backupCodeHashes): void
+    {
+        $this->totpSecret = $secret;
+        $this->totpBackupCodes = $backupCodeHashes;
+        $this->totpEnabledAt = null;
+    }
+
+    public function confirmTotpEnrolment(?DateTimeImmutable $when = null): void
+    {
+        if (null === $this->totpSecret) {
+            throw new LogicException('Cannot confirm TOTP enrolment before a secret has been provisioned.');
+        }
+        $this->totpEnabledAt = $when ?? new DateTimeImmutable();
+    }
+
+    public function disableTotp(): void
+    {
+        $this->totpSecret = null;
+        $this->totpEnabledAt = null;
+        $this->totpBackupCodes = [];
+    }
+
+    /**
+     * Marks one backup code as consumed. The caller is responsible for
+     * matching the cleartext code against one of the stored hashes;
+     * this method just removes the matching hash from the active list.
+     */
+    public function consumeBackupCode(string $usedHash): void
+    {
+        $this->totpBackupCodes = array_values(array_filter(
+            $this->totpBackupCodes,
+            static fn (string $hash): bool => $hash !== $usedHash,
+        ));
     }
 }

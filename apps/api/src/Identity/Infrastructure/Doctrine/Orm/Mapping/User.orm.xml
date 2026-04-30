@@ -45,6 +45,19 @@
             </options>
         </field>
         <field name="lastLoginAt" type="datetime_immutable" column="last_login_at" nullable="true"/>
+
+        <!-- TOTP 2FA (#0.11.1). Secret + recovery codes are populated by
+             the enrolment endpoint and zeroed when the user disables 2FA.
+             `totpEnabledAt` doubles as a "is 2FA active?" flag — null until
+             the user confirms the first code. -->
+        <field name="totpSecret" type="string" length="128" column="totp_secret" nullable="true"/>
+        <field name="totpEnabledAt" type="datetime_immutable" column="totp_enabled_at" nullable="true"/>
+        <field name="totpBackupCodes" type="json" column="totp_backup_codes">
+            <options>
+                <option name="default">[]</option>
+            </options>
+        </field>
+
         <field name="createdAt" type="datetime_immutable" column="created_at"/>
 
     </entity>
