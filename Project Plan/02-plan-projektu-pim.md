@@ -406,9 +406,45 @@ Tydzień 6-9:  Epik 0.6 (admin UI core)
 Tydzień 9-11: Epik 0.7 (agent layer)
 Tydzień 11-13: Epik 0.8, 0.9 (integracje BaseLinker + Shopify)
 Tydzień 13-14: Epik 0.10, 0.11 (API config + hardening)
+Tydzień 14-16: Epik 0.12 / UI-08 (Modelowanie — patrz §3.6)
 ```
 
 Założenie: 10h pracy człowieka tygodniowo (część etatu). Przy pełnym etacie (40h/tydzień) → MVP w 4-5 tygodni.
+
+### 3.6 Epik 0.12 / UI-08 — Modelowanie (post-MVP-Final, pre-Faza 1) — DODANY 2026-05-01
+
+Pierwszy epik napędzany **planem UI** (`Project Plan/UI/`) zamiast backend roadmapy. Definiuje zakładkę „Modelowanie" w admin UI (Object Types / Attributes / Attribute Groups / Categories — 4 sub-taby) + wprowadza **Attribute Group jako first-class entity** (ADR-012) i `EffectiveAttributeGroupResolver` z dziedziczeniem po drzewie kategorii — funkcjonalność, której Akeneo i Pimcore nie mają natywnie.
+
+**Tracking:** GitHub label `epik-UI-08` + cross-cutting tag `UI`. Plan szczegółowy: [`Project Plan/UI/epik-08-modelowanie.md`](UI/epik-08-modelowanie.md) (~960 linii).
+
+**Sequencing:** wchodzi **po MVP-Final (epik 0.11)**, **przed Fazą 1**. Spójne z notą `Project Plan/UI/epik-08-modelowanie.md` §15 (+42-56h impact na Faza 0). Total estymacja epiku: **60-80h** (różnica vs §15 wynika z atomowego ujęcia całości w jeden epik zamiast rozproszenia po 0.3/0.6).
+
+**Backlog (16 issues):**
+
+| # | Ticket | Tagi | Estymacja |
+|---|---|---|---|
+| **#255** | META — reorganizacja sidebar (zwijana sekcja „Modelowanie") | UI, frontend, must-have | 2-4h |
+| **#256** | UI-08.1 ADR-012 + migracje DDL + Doctrine entities | UI, backend, blocker, docs, must-have | 4-6h |
+| **#257** | UI-08.2 ObjectType built-in flags + Brand seed (4-ty built-in) | UI, backend, must-have | 2-3h |
+| **#258** | UI-08.3 System attributes + auto-attach Audit group | UI, backend, must-have | 2-3h |
+| **#259** | UI-08.4 EffectiveAttributeGroupResolver + form-schema endpoint + Redis cache | UI, backend, must-have | 4-6h |
+| **#260** | UI-08.5 ApiResource AttributeGroup CRUD + CQRS handlers + voter | UI, backend, must-have | 3-4h |
+| **#261** | UI-08.6 Attribute migrate-type endpoint (mapping plan + dry-run) | UI, backend, must-have | 4-5h |
+| **#262** | UI-08.7 Where-used endpoints (attributes / groups / object_types) | UI, backend, must-have | 2-3h |
+| **#263** | UI-08.8 visible_when storage + evaluator (MVP: equals) | UI, backend, must-have | 3-4h |
+| **#264** | UI-08.9 Modeling layout shell + 4-tab routing + back-compat redirects | UI, frontend, must-have | 2-3h |
+| **#265** | UI-08.10 Sub-tab Object Types — list + detail + Create wizard | UI, frontend, must-have | 6-8h |
+| **#266** | UI-08.11 Sub-tab Attributes — enhanced list + detail + Where-used | UI, frontend, must-have | 4-5h |
+| **#267** | UI-08.12 Migration impact analyzer modal | UI, frontend, must-have | 4-5h |
+| **#268** | UI-08.13 Sub-tab Attribute Groups — drag-drop + VisibleWhen editor | UI, frontend, must-have | 5-7h |
+| **#269** | UI-08.14 Sub-tab Categories modeling — tree + inheritance preview | UI, frontend, must-have | 5-7h |
+| **#270** | UI-08.15 Bulk import atrybutów z CSV (US-MOD-008) — *optional* | UI, frontend, optional | 3-4h |
+
+**Dependency graph:** wszystkie sub-tickety blokowane przez `#256` (UI-08.1 ADR-012 + migracje DDL). Frontend tickety dodatkowo blokowane przez `#264` (UI-08.9 layout shell), który wymaga `#259` (form-schema endpoint).
+
+**Persona główna:** Adam (NEW) — Architekt informacji, 35-45 lat, używa raz na 1-2 tygodnie. W mniejszych firmach Marcin/Kasia są w roli Adama. **MVP: brak role gating** (każdy zalogowany user ma full access do Modelowania), permissions deferred do Fazy 1 (kandydat ADR-013).
+
+**Zaktualizowana wycena (sekcja 7):** total Faza 0 + Faza 1 + Faza 2 dochodzi 60-80h (epik 0.12 / UI-08 dodatkowo do baseline).
 
 ## 4. Faza 1 — Integracje (BaseLinker + Shopify) + production-ready
 

@@ -4,6 +4,15 @@
 
 ## Patterns to Follow
 
+### Plan UI jako separate driver (post-2026-05-01)
+
+- **Plan UI w `Project Plan/UI/` napędza nowe epiki UI-XX równolegle do backend roadmapy 0.X.Y.** Pierwszy materializowany: epik **UI-08 Modelowanie** (#255 META + #256–#270 sub-tickety). Konwencja:
+  - GitHub label `epik-UI-XX` per UI epik (kolor `#1D76DB` jak inne epiki).
+  - Cross-cutting label `UI` (kolor `#FBCA04` jak `frontend`) na każdym tickecie pochodzącym z planu UI — ułatwia filtrowanie w GitHub UI bez zgadywania konkretnego epik labela.
+  - Tickety meta (reorganizacja sidebar, design system bumps, base layout changes) tagujemy `UI` **bez** epik labela jeśli scope dotyczy wielu UI domen.
+  - Why: docelowa struktura admina (Dashboard / Produkty / Multimedia / Publikacje / Workflow / Ustawienia / Modelowanie z `00-plan-ui.md` §3.1) ma 7 osobnych epików produktowych, niespójnych z numeracją 0.X.Y backendu. Numeracja UI-XX = osobna oś tracking, mapowanie na backend faz przez tabelę w `00-plan-ui.md` §5 (Roadmap UI).
+  - How to apply: gdy nowy epik UI dojrzewa do *„szczegółu"* (sekcja 7 statusu w `00-plan-ui.md`), tworzymy `epik-UI-XX` label + N sub-ticketów; aktualizujemy `Project Plan/02-plan-projektu-pim.md` o sekcję `### Epik 0.Y / UI-XX — [Nazwa]` w odpowiednim miejscu sequencingu (zwykle post-MVP-Final, pre-Faza 1).
+
 ### Memory management (FrankenPHP worker mode)
 
 - **`AbstractBatchHandler` jako baza dla każdego Symfony Messenger handlera batch.** Po `flush()` w pętli — `$entityManager->clear()`. Bez tego worker w worker-mode w 50k SKU import zje cały RAM i zabije proces na OOM (ryzyko R-25, "Krytyczny" wpływ). **Zwalidowane w #13:** prod env, 50 000 inserts → 14 MiB peak FLAT z clear, 150 MiB rosnąco bez clear. Class: `App\Messaging\AbstractBatchHandler` (`flushAndClear()` + `shouldFlush(int)`).
@@ -1111,3 +1120,22 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **CQRS Application/Command slice per UseCase** — `Command` + `Handler` w jednej namespace per akcja: `Application/Command/CreateApiProfile/{CreateApiProfileCommand,CreateApiProfileHandler}.php`. Wzorzec z Catalog (#41). State Processor (`Infrastructure/ApiPlatform/State/<Entity>Processor.php`) dispatch do MessageBus, unwrap `HandlerFailedException` → real `HttpException` (otherwise 500 maskuje 422/404/409).
 
 - **ApiResource w nowym BC** = wymóg dodania alias dla `<BC>` w API Platform `mapping.paths` (api_platform.yaml). Bez tego AP4 nie znajduje XML resources → endpoints nie istnieją (404 z `/api/api_profiles`). Pattern equivalent do Doctrine ORM mapping.
+
+## Lessons z 0.12 / UI-08 (Modelowanie — backlog grooming, 2026-05-01)
+
+- **Pierwszy non-numeryczny epik (UI-XX zamiast 0.X.Y)** — etykieta `epik-UI-XX` jako konwencja dla ticketów napędzanych planem UI (`Project Plan/UI/`). Pattern w sekcji „Patterns to Follow" → „Plan UI jako separate driver". Numeracja sub-ticketów `UI-XX.N` (zamiast `0.X.N`) podkreśla osobną oś tracking.
+
+- **Cross-cutting tag `UI` + epik-specific tag `epik-UI-08`** — dwa labele zamiast jednego, bo UI tickety mogą być meta (cross-epik scope, np. design system bumps) i wtedy mają tylko `UI` bez epik-spec. Filtrowanie w GitHub: `label:UI` zwraca cały plan UI, `label:epik-UI-08` tylko Modelowanie.
+
+- **Backlog grooming zamiast Plan Mode dla split'u dużego planu na tickety** — zamiast pełnego Plan Mode (eksploracja kodu + Plan agent + ExitPlanMode), gdy user prosi o „rozpisz tickety w GitHub issues dla [plan file]", workflow to:
+  1. Read plan file całość (1 Read).
+  2. Sprawdzić istniejące labele (`gh label list`).
+  3. Sprawdzić aktualny stan kodu touchowanego przez plan (1-2 Read na key files żeby zrozumieć current state).
+  4. AskUserQuestion dla 2-3 ambiguous decisions (struktura: 1 epic vs N podticketów, sequencing).
+  5. Write plan file → ExitPlanMode → execute (gh label create + gh issue create per ticket).
+  
+  Heurystyka: gdy plan UI ma >800 linii (`epik-08-modelowanie.md` ma ~960), split na 12-16 sub-ticketów po ~3-7h każdy. Granularność per sub-ticket = ~3-7h żeby PR-y były atomowe i CI nie zatonął.
+
+- **gh issue create z polskimi znakami w title** wymaga `--title` w **single quotes** (zsh) lub `--title-file`. Heredoc dla `--body` zawodzi gdy title ma `"` cudzysłowy (np. „Modelowanie") — interpolation kompiluje się dwukrotnie. Pattern: `--body-file /tmp/issue-N.md` (Write najpierw plik tymczasowy), title w single quotes z escape'em jeśli sam ma `'`.
+
+- **Etykiety `UI` (#FBCA04 yellow)** świadomie rozróżniają od `frontend` (też yellow, ale `#FBCA04` to ten sam hex — distinguish by name, nie kolorem; oba widoczne razem na ticketach UI). Dla kontrastu epikowego: `epik-UI-XX` używa `#1D76DB` (niebieski jak inne `epik-0.X`), nie nowy kolor.
