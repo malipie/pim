@@ -10,6 +10,12 @@
     "account": "Konto",
     "tenant": "Najemca"
   },
+  "language": {
+    "aria_label": "Zmień język",
+    "title": "Język",
+    "pl": "Polski",
+    "en": "Angielski"
+  },
   "notifications": {
     "aria_label": "Powiadomienia",
     "title": "Ostatnia aktywność",
