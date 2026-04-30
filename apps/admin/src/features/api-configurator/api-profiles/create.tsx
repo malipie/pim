@@ -36,7 +36,8 @@ export function ApiProfileCreatePage() {
                 objectTypeIds: values.objectTypeIds,
                 includedAttributes: values.includedAttributes,
                 filters: values.filters,
-                webhookEvents: [],
+                webhookUrl: values.webhookUrl !== '' ? values.webhookUrl : null,
+                webhookEvents: values.webhookEvents,
                 rateLimitPerHour: values.rateLimitPerHour,
               },
             });

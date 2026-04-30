@@ -14,7 +14,19 @@ export interface ApiProfileFormValues {
   objectTypeIds: string[];
   includedAttributes: string[];
   filters: Record<string, unknown>;
+  webhookUrl: string;
+  webhookEvents: string[];
 }
+
+export const WEBHOOK_EVENTS: readonly string[] = [
+  'object.created.product',
+  'object.created.category',
+  'object.created.asset',
+  'object.attributes_changed',
+  'object.enabled_changed',
+  'object.published',
+  'object.archived',
+];
 
 interface ApiProfileFormProps {
   mode: 'create' | 'edit';
@@ -39,9 +51,9 @@ interface AttributeRow {
   group?: string | null;
 }
 
-type Tab = 'basic' | 'attributes' | 'filters' | 'preview';
+type Tab = 'basic' | 'attributes' | 'filters' | 'webhook' | 'preview';
 
-const TABS: Tab[] = ['basic', 'attributes', 'filters', 'preview'];
+const TABS: Tab[] = ['basic', 'attributes', 'filters', 'webhook', 'preview'];
 
 export function ApiProfileForm({
   mode,
@@ -61,6 +73,8 @@ export function ApiProfileForm({
     objectTypeIds: initialValues?.objectTypeIds ?? [],
     includedAttributes: initialValues?.includedAttributes ?? [],
     filters: initialValues?.filters ?? {},
+    webhookUrl: initialValues?.webhookUrl ?? '',
+    webhookEvents: initialValues?.webhookEvents ?? [],
   });
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -83,7 +97,10 @@ export function ApiProfileForm({
     setValues((prev) => ({ ...prev, [key]: val }));
   }
 
-  function toggleListMember(key: 'objectTypeIds' | 'includedAttributes', id: string): void {
+  function toggleListMember(
+    key: 'objectTypeIds' | 'includedAttributes' | 'webhookEvents',
+    id: string,
+  ): void {
     setValues((prev) => {
       const current = prev[key];
       const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
@@ -154,6 +171,15 @@ export function ApiProfileForm({
       ) : null}
 
       {activeTab === 'filters' ? <FiltersTab values={values} handleChange={handleChange} /> : null}
+
+      {activeTab === 'webhook' ? (
+        <WebhookTab
+          values={values}
+          mode={mode}
+          handleChange={handleChange}
+          toggleListMember={toggleListMember}
+        />
+      ) : null}
 
       {activeTab === 'preview' ? <PreviewTab values={values} attributes={attributes} /> : null}
 
@@ -421,6 +447,82 @@ function FiltersTab({
           {t('api_profiles.form.filter_category_help')}
         </p>
       </div>
+    </div>
+  );
+}
+
+function WebhookTab({
+  values,
+  mode,
+  handleChange,
+  toggleListMember,
+}: {
+  values: ApiProfileFormValues;
+  mode: 'create' | 'edit';
+  handleChange: <K extends keyof ApiProfileFormValues>(
+    key: K,
+    val: ApiProfileFormValues[K],
+  ) => void;
+  toggleListMember: (
+    key: 'objectTypeIds' | 'includedAttributes' | 'webhookEvents',
+    id: string,
+  ) => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="space-y-6">
+      <p className="text-xs text-muted-foreground">{t('api_profiles.form.webhook_help')}</p>
+
+      <div className="space-y-2">
+        <label htmlFor="api-profile-webhook-url" className="block text-sm font-medium">
+          {t('api_profiles.form.webhook_url')}
+        </label>
+        <Input
+          id="api-profile-webhook-url"
+          type="url"
+          value={values.webhookUrl}
+          onChange={(e) => handleChange('webhookUrl', e.currentTarget.value)}
+          placeholder="https://partner.example.com/pim-webhook"
+        />
+        <p className="text-xs text-muted-foreground">{t('api_profiles.form.webhook_url_help')}</p>
+      </div>
+
+      {mode === 'edit' && values.webhookUrl !== '' ? (
+        <div className="rounded-md border bg-muted/30 p-4 text-sm space-y-2">
+          <p className="font-medium">{t('api_profiles.form.webhook_secret_title')}</p>
+          <p className="text-xs text-muted-foreground">
+            {t('api_profiles.form.webhook_secret_note')}
+          </p>
+        </div>
+      ) : null}
+
+      <fieldset className="space-y-3">
+        <legend className="block text-sm font-medium">
+          {t('api_profiles.form.webhook_events_legend')}
+        </legend>
+        <p className="text-xs text-muted-foreground">
+          {t('api_profiles.form.webhook_events_help')}
+        </p>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          {WEBHOOK_EVENTS.map((event) => {
+            const checked = values.webhookEvents.includes(event);
+            return (
+              <label
+                key={event}
+                className="flex items-center gap-2 rounded border bg-card px-3 py-2 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleListMember('webhookEvents', event)}
+                />
+                <span className="font-mono text-xs">{event}</span>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
     </div>
   );
 }

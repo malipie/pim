@@ -36,6 +36,7 @@
 
         <field name="webhookUrl" type="string" length="2048" column="webhook_url" nullable="true"/>
         <field name="webhookEvents" type="json" column="webhook_events"/>
+        <field name="webhookSecret" type="string" length="128" column="webhook_secret" nullable="true"/>
 
         <field name="rateLimitPerHour" type="integer" column="rate_limit_per_hour"/>
 

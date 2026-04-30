@@ -87,6 +87,15 @@ class ApiProfile implements TenantScoped
      */
     private array $webhookEvents = [];
 
+    /**
+     * Per-profile HMAC secret used to sign outbound webhook bodies
+     * (`X-Pim-Signature: sha256=<hex>`). Generated server-side at
+     * profile creation; the raw secret is shown to the admin exactly
+     * once via the form and then never returned again. Rotation =
+     * regenerate (new secret invalidates anyone who held the old).
+     */
+    private ?string $webhookSecret = null;
+
     #[Assert\Positive]
     #[Assert\LessThanOrEqual(100000)]
     private int $rateLimitPerHour;
@@ -111,6 +120,7 @@ class ApiProfile implements TenantScoped
         ?string $description = null,
         ?string $webhookUrl = null,
         array $webhookEvents = [],
+        ?string $webhookSecret = null,
         int $rateLimitPerHour = 1000,
         ?Uuid $id = null,
         ?DateTimeImmutable $createdAt = null,
@@ -125,6 +135,7 @@ class ApiProfile implements TenantScoped
         $this->description = $description;
         $this->webhookUrl = $webhookUrl;
         $this->webhookEvents = $webhookEvents;
+        $this->webhookSecret = $webhookSecret;
         $this->rateLimitPerHour = $rateLimitPerHour;
         $this->createdAt = $createdAt ?? new DateTimeImmutable();
         $this->updatedAt = $this->createdAt;
@@ -266,6 +277,22 @@ class ApiProfile implements TenantScoped
     public function setWebhookEvents(array $webhookEvents): void
     {
         $this->webhookEvents = $webhookEvents;
+        $this->touch();
+    }
+
+    public function getWebhookSecret(): ?string
+    {
+        return $this->webhookSecret;
+    }
+
+    /**
+     * Replace the HMAC secret. Server-side only — admins rotate by
+     * pressing "Regenerate" which lands a fresh secret here; no public
+     * setter from input DTOs.
+     */
+    public function setWebhookSecret(?string $webhookSecret): void
+    {
+        $this->webhookSecret = $webhookSecret;
         $this->touch();
     }
 
