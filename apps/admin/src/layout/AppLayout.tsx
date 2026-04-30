@@ -34,7 +34,11 @@ export function AppLayout() {
                 <Menu className="size-4" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0">
+            <SheetContent
+              side="left"
+              className="w-72 p-0"
+              closeLabel={t('app.close', { defaultValue: 'Close' })}
+            >
               <SheetTitle className="sr-only">{t('app.title')}</SheetTitle>
               <SidebarNav onNavigate={() => setMobileOpen(false)} />
             </SheetContent>
