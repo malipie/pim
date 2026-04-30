@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <resource class="App\ApiConfigurator\Domain\Entity\ApiProfile"
+              shortName="ApiProfile">
+
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>admin:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
+        <operations>
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/api_profiles{._format}"
+                       security="is_granted('READ', 'App\\ApiConfigurator\\Domain\\Entity\\ApiProfile')"/>
+
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/api_profiles/{id}{._format}"
+                       security="is_granted('READ', object)"/>
+
+            <operation class="ApiPlatform\Metadata\Post"
+                       uriTemplate="/api_profiles{._format}"
+                       input="App\ApiConfigurator\Infrastructure\ApiPlatform\Resource\ApiProfileInput"
+                       processor="App\ApiConfigurator\Infrastructure\ApiPlatform\State\ApiProfileProcessor"
+                       security="is_granted('CREATE', 'App\\ApiConfigurator\\Domain\\Entity\\ApiProfile')">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>api_profile:create</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Patch"
+                       uriTemplate="/api_profiles/{id}{._format}"
+                       input="App\ApiConfigurator\Infrastructure\ApiPlatform\Resource\ApiProfilePatchInput"
+                       processor="App\ApiConfigurator\Infrastructure\ApiPlatform\State\ApiProfileProcessor"
+                       security="is_granted('UPDATE', object)">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>api_profile:patch</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Delete"
+                       uriTemplate="/api_profiles/{id}{._format}"
+                       processor="App\ApiConfigurator\Infrastructure\ApiPlatform\State\ApiProfileProcessor"
+                       security="is_granted('DELETE', object)"/>
+        </operations>
+    </resource>
+</resources>

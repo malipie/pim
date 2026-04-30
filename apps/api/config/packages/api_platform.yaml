@@ -13,6 +13,7 @@ api_platform:
             - '%kernel.project_dir%/src/Catalog/Infrastructure/ApiPlatform/Resource'
             - '%kernel.project_dir%/src/Channel/Infrastructure/ApiPlatform/Resource'
             - '%kernel.project_dir%/src/Asset/Infrastructure/ApiPlatform/Resource'
+            - '%kernel.project_dir%/src/ApiConfigurator/Infrastructure/ApiPlatform/Resource'
 
     # AP4 default content negotiation: JSON-LD (Hydra) for application use,
     # plain JSON kept available for tooling that does not understand

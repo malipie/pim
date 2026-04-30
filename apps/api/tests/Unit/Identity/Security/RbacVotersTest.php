@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity\Security;
 
+use App\ApiConfigurator\Domain\Entity\ApiKey;
+use App\ApiConfigurator\Domain\Entity\ApiProfile;
+use App\ApiConfigurator\Domain\Enum\OutputFormat;
 use App\Asset\Domain\Entity\Asset;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Association;
@@ -17,6 +20,8 @@ use App\Channel\Domain\Entity\Channel;
 use App\Identity\Domain\Entity\Permission;
 use App\Identity\Domain\Entity\Role;
 use App\Identity\Domain\Entity\User;
+use App\Identity\Infrastructure\Security\ApiKeyVoter;
+use App\Identity\Infrastructure\Security\ApiProfileVoter;
 use App\Identity\Infrastructure\Security\AssetVoter;
 use App\Identity\Infrastructure\Security\AssociationVoter;
 use App\Identity\Infrastructure\Security\AttributeGroupVoter;
@@ -201,6 +206,36 @@ final class RbacVotersTest extends TestCase
         self::assertSame(
             VoterInterface::ACCESS_GRANTED,
             new AssetVoter()->vote($this->token($user), $asset, ['READ']),
+        );
+    }
+
+    #[Test]
+    public function apiProfileVoterRoutesToApiProfileResource(): void
+    {
+        $tenant = new Tenant('alpha', 'Alpha');
+        $profile = new ApiProfile('storefront', 'Storefront', OutputFormat::JSON_LD);
+        $profile->assignTenant($tenant);
+
+        $user = $this->userWithPermission($tenant, 'api_profile', 'read');
+
+        self::assertSame(
+            VoterInterface::ACCESS_GRANTED,
+            new ApiProfileVoter()->vote($this->token($user), $profile, ['READ']),
+        );
+    }
+
+    #[Test]
+    public function apiKeyVoterReusesApiProfileResource(): void
+    {
+        $tenant = new Tenant('alpha', 'Alpha');
+        $key = new ApiKey('hashed', 'pim_test_a4f2', 'demo');
+        $key->assignTenant($tenant);
+
+        $user = $this->userWithPermission($tenant, 'api_profile', 'write');
+
+        self::assertSame(
+            VoterInterface::ACCESS_GRANTED,
+            new ApiKeyVoter()->vote($this->token($user), $key, ['CREATE']),
         );
     }
 

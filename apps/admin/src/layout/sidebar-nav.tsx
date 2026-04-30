@@ -2,6 +2,7 @@ import {
   Boxes,
   FolderTree,
   Image,
+  KeyRound,
   Layers,
   LayoutList,
   ListTree,
@@ -33,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/categories', icon: FolderTree, label: 'nav.categories' },
   { to: '/assets', icon: Image, label: 'nav.assets' },
   { to: '/channels', icon: Radio, label: 'nav.channels' },
+  { to: '/api-profiles', icon: KeyRound, label: 'nav.api_profiles' },
 ];
 
 interface SidebarNavProps {

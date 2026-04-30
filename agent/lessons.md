@@ -1091,3 +1091,23 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Doctrine ORM mapping nowego BC** wymaga **trzy** miejsca update'u: (1) ORM XML w `<BC>/Infrastructure/Doctrine/Orm/Mapping/`, (2) wpis `mappings.<BC>` w `config/packages/doctrine.yaml` z `dir + prefix + alias`, (3) PHPStan `ignoreErrors[doctrine.associationType]` jeśli encja jest TenantScoped. Brakujący którykolwiek = silent gap (XML nie loaded → entity nie mapped → `EntityManager` 404 na save).
 
 - **`pim_<env>_<32 chars base62>` format kluczy API** — `random_bytes(N)` modulo 62 daje N znaków base62. Czyli `RAW_BODY_BYTES = 32` dla 32-char body. ADR-0016 dokumentował 192 bits z `random_bytes(24)` ale to byłoby 24 chars + 142 bits efective entropy (modulo bias is < 1 bit per char). 32 bytes → 32 chars + 191 bits effective + spec match. Pattern dla każdego "N-char base62 token": `random_bytes(N)`, nie `random_bytes(N * 6 / 8)`.
+
+## Lessons z 0.10.2 / #91 (Admin UI ApiProfiles + ApiResource CRUD)
+
+- **`Assert\Choice(callback: [Enum::class, 'cases'])` zwraca array **enum cases**, nie string values** — Symfony Choice constraint widzi `[OutputFormat::JSON_LD, OutputFormat::JSON]` (instances), porównuje przez identity z stringa wejścia → 422 "not a valid choice". Pattern: explicit `choices: ['json_ld', 'json']` array literalów albo `array_column(OutputFormat::cases(), 'value')`. Ujawnione w `ApiProfileInput` w #91.
+
+- **`<fieldset>` + `<legend>` zamiast `<label>` dla button-group choice'a** — Biome `noLabelWithoutControl` wymaga `htmlFor` lub wrapped input. Button group nie ma `<input>` (są `<Button>` Radix), więc semantycznie poprawny element to `<fieldset>` z `<legend>`. Pattern dla każdego segmented control / radio-as-buttons: fieldset+legend, nie label.
+
+- **Symfony Serializer mapping path per BC** — gdy nowy BC eksponuje encje przez API Platform z `<Groups>` filterem, **trzeba** dodać path do `framework.yaml` `serializer.mapping.paths`. Bez tego XML w `<BC>/Infrastructure/Serializer/` nie jest loaded → wszystkie serializer groups silnie ignored → encja serializuje wszystkie public properties (lub żadnych jeśli `normalizationContext.groups` ustawione na resource). Symptom: `keyHash` widoczny w `/api/api_keys` lub puste rows `{}`. Pattern: nowy BC z resource'ami = update **trzech** configów: `doctrine.yaml.mappings`, `api_platform.yaml.mapping.paths`, `framework.yaml.serializer.mapping.paths`.
+
+- **AP4 default sugar path = `/api_<plural>` (snake_case)** — bez `uriTemplate` AP4 generuje URI z shortName+plural zalgorithmem. `ApiProfile` → `/api_profiles`, `ApiKey` → `/api_keys`. Refine resource name musi się zgadzać (`api_profiles`, nie `api-profiles`). Pattern: konsekwentny snake_case dla resource codes; route paths w admin UI mogą być kebab-case (`/api-profiles/create`), ale Refine `resource: 'api_profiles'`.
+
+- **AP4 `<resource shortName="X">` + `kind/code` validation w `ApiProfile`** — `Assert\Regex('/^[a-z0-9_-]+$/')` na DTO daje czyste 422 dla invalid code. Plus duplicate handler-side throw `ConflictHttpException` mapuje na 409 — dwie warstwy: validation (DTO field shape) + business rule (uniqueness). State Processor `dispatch()` re-throws `HttpException` z `HandlerFailedException` → tę samą warstwę używamy w Catalog/Channel.
+
+- **`ApiKey` resource read-only by design** — write paths idą tylko przez CLI `pim:apikey:generate`. ApiResource XML deklaruje `GetCollection + Get` only, no Post/Patch/Delete. Plus serializer XML wyklucza `keyHash` z każdej grupy (defence-in-depth: nawet gdyby ktoś dodał `admin:write` w przyszłości, hash nie wyjdzie na wire). Pattern dla każdej secrets-at-rest encji: read-only ApiResource + every-group exclusion w serializer.
+
+- **`useList` + `useOne` w Refine 5 mają shape `{ result, query }`, nie `{ data, isLoading }`** — bezpośredni `result.data` (lista) lub `result?.data` (single). `query.isLoading` dla loading state. Pattern: zawsze destructuring `{ result, query }`, nie `data` (deprecated od v5).
+
+- **CQRS Application/Command slice per UseCase** — `Command` + `Handler` w jednej namespace per akcja: `Application/Command/CreateApiProfile/{CreateApiProfileCommand,CreateApiProfileHandler}.php`. Wzorzec z Catalog (#41). State Processor (`Infrastructure/ApiPlatform/State/<Entity>Processor.php`) dispatch do MessageBus, unwrap `HandlerFailedException` → real `HttpException` (otherwise 500 maskuje 422/404/409).
+
+- **ApiResource w nowym BC** = wymóg dodania alias dla `<BC>` w API Platform `mapping.paths` (api_platform.yaml). Bez tego AP4 nie znajduje XML resources → endpoints nie istnieją (404 z `/api/api_profiles`). Pattern equivalent do Doctrine ORM mapping.

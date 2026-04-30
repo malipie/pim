@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <!--
+        ApiKey is exposed read-only in epic 0.10. The raw key only ever
+        leaves the server through `pim:apikey:generate` (or the future
+        admin "Generate" button — out of #91 scope) and never through
+        a default API Platform write operation. The serializer XML
+        (`Infrastructure/Serializer/ApiKey.xml`) excludes `keyHash`
+        from every group as defence-in-depth.
+    -->
+    <resource class="App\ApiConfigurator\Domain\Entity\ApiKey"
+              shortName="ApiKey">
+
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>admin:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
+        <operations>
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/api_keys{._format}"
+                       security="is_granted('READ', 'App\\ApiConfigurator\\Domain\\Entity\\ApiKey')"/>
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/api_keys/{id}{._format}"
+                       security="is_granted('READ', object)"/>
+        </operations>
+    </resource>
+</resources>

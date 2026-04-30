@@ -41,6 +41,7 @@
     "categories": "Kategorie",
     "assets": "Zasoby",
     "channels": "Kanały",
+    "api_profiles": "Profile API",
     "soon": "Wkrótce"
   },
   "attributes": {
@@ -269,6 +270,56 @@
       "sku_max": "SKU może mieć maksymalnie 64 znaki.",
       "name_required": "Nazwa jest wymagana.",
       "name_max": "Nazwa może mieć maksymalnie 255 znaków."
+    }
+  },
+  "api_profiles": {
+    "list_title": "Profile API",
+    "list_subtitle": "Presety per integrator — widoczne typy obiektów, atrybuty, filtry, webhooki.",
+    "create_title": "Nowy profil API",
+    "create_subtitle": "Podstawowe dane — atrybuty / filtry / konfiguracja webhooka w #92 / #93.",
+    "edit_title": "Edycja profilu API",
+    "empty": "Brak profili. Utwórz pierwszy aby udostępnić wybrane API integratorowi.",
+    "tabs_deferred_note": "Zakładki Atrybuty / Filtry / Webhook dochodzą w #92 i #93. Na razie ObjectTypes konfiguruje się przez API.",
+    "fields": {
+      "code": "Kod",
+      "code_help": "Małe litery, cyfry, myślniki, podkreślenia. Nie można zmienić po utworzeniu.",
+      "name": "Nazwa",
+      "description": "Opis",
+      "output_format": "Format wyjścia",
+      "object_types_count": "Typy obiektów",
+      "included_attributes_count": "Atrybuty",
+      "rate_limit": "Limit zapytań",
+      "rate_limit_help": "Liczba zapytań na godzinę dla kluczy używających tego profilu.",
+      "actions": "Akcje"
+    },
+    "output_format": {
+      "json_ld": "JSON-LD",
+      "json": "JSON"
+    },
+    "actions": {
+      "view": "Zobacz profil",
+      "back_to_list": "Wróć do listy",
+      "create": "Nowy profil",
+      "edit": "Edytuj",
+      "create_submit": "Utwórz profil",
+      "edit_submit": "Zapisz zmiany"
+    },
+    "show": {
+      "basic_info": "Podstawowe dane",
+      "linked_keys": "Klucze API ({{count}})",
+      "no_keys": "Żaden klucz nie używa tego profilu. Wygeneruj kluczem CLI: pim:apikey:generate.",
+      "last_used": "Ostatnio użyty",
+      "never_used": "Nigdy nieużyty",
+      "keys_management_note": "Pełen UI zarządzania kluczami (generuj / unieważnij / rotuj) w follow-upie."
+    },
+    "validation": {
+      "code_format": "Kod może zawierać tylko małe litery, cyfry, myślniki i podkreślenia.",
+      "name_required": "Nazwa jest wymagana.",
+      "rate_limit_range": "Limit musi być z zakresu 1-100000."
+    },
+    "errors": {
+      "create_failed": "Nie udało się utworzyć profilu. Sprawdź czy kod jest unikalny w tenancie.",
+      "update_failed": "Nie udało się zaktualizować profilu."
     }
   }
 }
