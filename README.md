@@ -11,8 +11,14 @@ PHP 8.4 + Symfony 7.4 LTS + API Platform 4 + FrankenPHP 2.x worker mode · Postg
 ## Dokumentacja
 
 - **`CLAUDE.md`** — konstytucja projektu (system prompt dla Claude Code)
+- **`CONTRIBUTING.md`** + **`ONBOARDING.md`** — onboarding nowego developera
+- **`CHANGELOG.md`** — release history per epic
 - **`Project Plan/01-architektura-pim.md`** — pełna architektura, ADR, model danych
 - **`Project Plan/02-plan-projektu-pim.md`** — fazy, milestones, backlog, ryzyka
+- **`docs/adr/`** — Architecture Decision Records (ADR-0000..0016)
+- **`docs/runbook/restore.md`** — pgBackRest PITR walkthrough
+- **`docs/runbook/disaster-recovery.md`** — incident-response playbook (key rotation, breach forensics, async drift)
+- **`docs/multi-tenancy.md`** + **`docs/rbac.md`** — security model deep-dive
 - **`agent/current_status.md`** — aktualna sub-faza i postęp
 - **`agent/lessons.md`** — patterns to follow / avoid, package quirks
 
