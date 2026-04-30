@@ -16,4 +16,14 @@ interface ApiProfileRepositoryInterface
     public function findById(Uuid $id): ?ApiProfile;
 
     public function findByCode(string $code): ?ApiProfile;
+
+    /**
+     * Profiles with a configured `webhookUrl` + `webhookSecret` whose
+     * `webhookEvents` JSONB list contains the supplied event type
+     * (e.g. `object.created.product`). Used by the delivery
+     * subscriber — empty list = no fan-out work.
+     *
+     * @return list<ApiProfile>
+     */
+    public function findWebhookSubscribersFor(string $eventType): array;
 }

@@ -30,12 +30,29 @@
 
         <field name="outputFormat" type="string" length="16" column="output_format" enum-type="App\ApiConfigurator\Domain\Enum\OutputFormat"/>
 
-        <field name="objectTypeIds" type="json" column="object_type_ids"/>
-        <field name="includedAttributes" type="json" column="included_attributes"/>
-        <field name="filters" type="json" column="filters"/>
+        <field name="objectTypeIds" type="json" column="object_type_ids">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <field name="includedAttributes" type="json" column="included_attributes">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <field name="filters" type="json" column="filters">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
 
         <field name="webhookUrl" type="string" length="2048" column="webhook_url" nullable="true"/>
-        <field name="webhookEvents" type="json" column="webhook_events"/>
+        <field name="webhookEvents" type="json" column="webhook_events">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <field name="webhookSecret" type="string" length="128" column="webhook_secret" nullable="true"/>
 
         <field name="rateLimitPerHour" type="integer" column="rate_limit_per_hour"/>
 

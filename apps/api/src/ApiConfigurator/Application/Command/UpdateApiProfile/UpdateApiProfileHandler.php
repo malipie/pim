@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\ApiConfigurator\Application\Command\UpdateApiProfile;
 
+use App\ApiConfigurator\Application\WebhookSecretGenerator;
 use App\ApiConfigurator\Domain\Repository\ApiProfileRepositoryInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -13,6 +14,7 @@ final readonly class UpdateApiProfileHandler
 {
     public function __construct(
         private ApiProfileRepositoryInterface $profiles,
+        private WebhookSecretGenerator $secrets,
     ) {
     }
 
@@ -46,6 +48,13 @@ final readonly class UpdateApiProfileHandler
         }
         if (null !== $command->webhookUrl) {
             $profile->setWebhookUrl($command->webhookUrl);
+            // Mint the HMAC secret on first URL configuration so the
+            // admin does not need a separate "rotate" call to enable
+            // delivery. Subsequent URL changes keep the existing
+            // secret — operators rotate explicitly via the controller.
+            if ('' !== $command->webhookUrl && null === $profile->getWebhookSecret()) {
+                $profile->setWebhookSecret($this->secrets->generate());
+            }
         }
         if (null !== $command->webhookEvents) {
             $profile->setWebhookEvents($command->webhookEvents);

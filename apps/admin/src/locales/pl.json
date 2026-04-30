@@ -301,7 +301,14 @@
       "filter_category": "Kod kategorii",
       "filter_category_help": "Filtr ltree — `electronics` dopasowuje `electronics.phones.smartphones` itp.",
       "preview_help": "Lokalny podgląd struktury odpowiedzi z wybranymi atrybutami. Live preview na realnym produkcie dochodzi w #95 (`/api/profiles/{code}/test`).",
-      "preview_live_note": "Wartości przykładowe są mockowane per typ atrybutu. Użyj endpointu testowego dla realnych danych."
+      "preview_live_note": "Wartości przykładowe są mockowane per typ atrybutu. Użyj endpointu testowego dla realnych danych.",
+      "webhook_help": "Webhooki wysyłają podpisane HMAC-em POSTy na URL przy każdym subskrybowanym evencie. Sygnatura w nagłówku `X-Pim-Signature: sha256=<hex>`.",
+      "webhook_url": "URL webhooka",
+      "webhook_url_help": "Pozostaw pusty, aby wyłączyć webhooki. URL musi akceptować POST z JSON body.",
+      "webhook_secret_title": "Sekret HMAC",
+      "webhook_secret_note": "Sekret przechowywany po stronie serwera, pokazywany tylko przy rotacji. Użyj „Regeneruj sekret\" w widoku profilu.",
+      "webhook_events_legend": "Subskrybowane eventy",
+      "webhook_events_help": "Wybierz eventy uruchamiające dostarczenie. Catalog events z #47 — listed per ObjectKind."
     },
     "fields": {
       "code": "Kod",
@@ -311,6 +318,7 @@
       "output_format": "Format wyjścia",
       "object_types_count": "Typy obiektów",
       "included_attributes_count": "Atrybuty",
+      "webhook_url": "URL webhooka",
       "rate_limit": "Limit zapytań",
       "rate_limit_help": "Liczba zapytań na godzinę dla kluczy używających tego profilu.",
       "actions": "Akcje"
@@ -333,7 +341,19 @@
       "no_keys": "Żaden klucz nie używa tego profilu. Wygeneruj kluczem CLI: pim:apikey:generate.",
       "last_used": "Ostatnio użyty",
       "never_used": "Nigdy nieużyty",
-      "keys_management_note": "Pełen UI zarządzania kluczami (generuj / unieważnij / rotuj) w follow-upie."
+      "keys_management_note": "Pełen UI zarządzania kluczami (generuj / unieważnij / rotuj) w follow-upie.",
+      "webhook_title": "Webhook wychodzący",
+      "no_webhook_url": "Brak skonfigurowanego webhooka. Ustaw URL w zakładce Webhook, aby włączyć dostarczanie z podpisem HMAC.",
+      "webhook_events_count": "Subskrybowane eventy",
+      "webhook_test": "Testuj webhook",
+      "webhook_testing": "Wysyłam…",
+      "webhook_test_ok": "Dostarczono pomyślnie — HTTP {{status}} w {{duration}} ms.",
+      "webhook_test_fail": "Dostarczanie nieudane — HTTP {{status}}.",
+      "webhook_test_failed": "Dostarczanie nieudane — sprawdź czy URL jest osiągalny.",
+      "webhook_rotate_secret": "Regeneruj sekret",
+      "webhook_secret_new": "Nowy sekret HMAC (pokazywany raz)",
+      "webhook_secret_warning": "Skopiuj go teraz — starzy subskrybenci muszą zaktualizować. Zamknięcie widoku usuwa wartość.",
+      "webhook_history_note": "Historia dostaw + log retry dochodzi w follow-up (monitoring Faza 1)."
     },
     "validation": {
       "code_format": "Kod może zawierać tylko małe litery, cyfry, myślniki i podkreślenia.",

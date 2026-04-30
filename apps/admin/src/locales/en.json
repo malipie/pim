@@ -301,7 +301,14 @@
       "filter_category": "Category code",
       "filter_category_help": "ltree descendant filter — `electronics` matches `electronics.phones.smartphones` etc.",
       "preview_help": "Local preview of the response shape with selected attributes. Live preview against a real product lands in #95 (`/api/profiles/{code}/test`).",
-      "preview_live_note": "Sample values are mocked per attribute type. Hit the test endpoint for real data."
+      "preview_live_note": "Sample values are mocked per attribute type. Hit the test endpoint for real data.",
+      "webhook_help": "Outbound webhooks fire HMAC-signed POSTs to the URL on each subscribed event. The signature lands in `X-Pim-Signature: sha256=<hex>`.",
+      "webhook_url": "Webhook URL",
+      "webhook_url_help": "Leave empty to disable outbound webhooks. URL must accept POST with JSON body.",
+      "webhook_secret_title": "HMAC secret",
+      "webhook_secret_note": "The secret is stored server-side and shown only on rotation. Use \"Regenerate secret\" on the profile page.",
+      "webhook_events_legend": "Subscribed events",
+      "webhook_events_help": "Pick events that trigger a delivery. Catalog events from #47 — listing per ObjectKind."
     },
     "fields": {
       "code": "Code",
@@ -311,6 +318,7 @@
       "output_format": "Output format",
       "object_types_count": "Object types",
       "included_attributes_count": "Attributes",
+      "webhook_url": "Webhook URL",
       "rate_limit": "Rate limit",
       "rate_limit_help": "Requests per hour granted to keys scoped to this profile.",
       "actions": "Actions"
@@ -333,7 +341,19 @@
       "no_keys": "No keys reference this profile yet. Generate one via pim:apikey:generate CLI.",
       "last_used": "Last used",
       "never_used": "Never used",
-      "keys_management_note": "Full key management UI (generate / revoke / rotate) lands in a follow-up."
+      "keys_management_note": "Full key management UI (generate / revoke / rotate) lands in a follow-up.",
+      "webhook_title": "Outbound webhook",
+      "no_webhook_url": "No webhook configured. Set a URL in the Webhook tab to enable HMAC-signed delivery.",
+      "webhook_events_count": "Subscribed events",
+      "webhook_test": "Test webhook",
+      "webhook_testing": "Sending…",
+      "webhook_test_ok": "Delivered successfully — HTTP {{status}} in {{duration}} ms.",
+      "webhook_test_fail": "Delivery failed — HTTP {{status}}.",
+      "webhook_test_failed": "Delivery failed — check the URL is reachable.",
+      "webhook_rotate_secret": "Regenerate secret",
+      "webhook_secret_new": "New HMAC secret (shown once)",
+      "webhook_secret_warning": "Capture this now — old subscribers must update. Closing this view discards it.",
+      "webhook_history_note": "Delivery history + retry log lands in a follow-up (Faza 1 monitoring)."
     },
     "validation": {
       "code_format": "Code must be lowercase letters, digits, dashes or underscores.",

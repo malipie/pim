@@ -48,6 +48,8 @@ export function ApiProfileEditPage() {
           objectTypeIds: profile.objectTypeIds ?? [],
           includedAttributes: profile.includedAttributes ?? [],
           filters: profile.filters ?? {},
+          webhookUrl: profile.webhookUrl ?? '',
+          webhookEvents: profile.webhookEvents ?? [],
         }}
         isSubmitting={isPending}
         apiError={apiError}
@@ -65,6 +67,8 @@ export function ApiProfileEditPage() {
                 objectTypeIds: values.objectTypeIds,
                 includedAttributes: values.includedAttributes,
                 filters: values.filters,
+                webhookUrl: values.webhookUrl !== '' ? values.webhookUrl : null,
+                webhookEvents: values.webhookEvents,
               },
             });
             navigate(`/api-profiles/${profile.id}`);
