@@ -45,6 +45,9 @@ export function ApiProfileEditPage() {
           description: profile.description ?? '',
           outputFormat: profile.outputFormat as 'json_ld' | 'json',
           rateLimitPerHour: profile.rateLimitPerHour,
+          objectTypeIds: profile.objectTypeIds ?? [],
+          includedAttributes: profile.includedAttributes ?? [],
+          filters: profile.filters ?? {},
         }}
         isSubmitting={isPending}
         apiError={apiError}
@@ -59,6 +62,9 @@ export function ApiProfileEditPage() {
                 description: values.description !== '' ? values.description : null,
                 outputFormat: values.outputFormat,
                 rateLimitPerHour: values.rateLimitPerHour,
+                objectTypeIds: values.objectTypeIds,
+                includedAttributes: values.includedAttributes,
+                filters: values.filters,
               },
             });
             navigate(`/api-profiles/${profile.id}`);
