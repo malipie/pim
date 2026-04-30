@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Contracts\Event;
 
+use App\Shared\Application\TenantAwareMessage;
 use App\Shared\Domain\DomainEvent;
 use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
@@ -17,7 +18,7 @@ use Symfony\Component\Uid\Uuid;
  * Search indexers consume this to reindex; channel publishers compare
  * against last published payload.
  */
-final readonly class ObjectAttributesChanged implements DomainEvent
+final readonly class ObjectAttributesChanged implements DomainEvent, TenantAwareMessage
 {
     /**
      * @param list<string> $changedAttributeCodes attribute codes whose values were affected
@@ -43,5 +44,10 @@ final readonly class ObjectAttributesChanged implements DomainEvent
     public function aggregateId(): string
     {
         return $this->objectId->toRfc4122();
+    }
+
+    public function tenantId(): Uuid
+    {
+        return $this->tenantId;
     }
 }

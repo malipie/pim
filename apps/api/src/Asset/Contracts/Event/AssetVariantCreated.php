@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Asset\Contracts\Event;
 
+use App\Shared\Application\TenantAwareMessage;
 use App\Shared\Domain\DomainEvent;
 use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
@@ -14,7 +15,7 @@ use Symfony\Component\Uid\Uuid;
  * crop. Tenant scope is inherited from the parent Asset, carried here
  * to keep subscriber routing simple.
  */
-final readonly class AssetVariantCreated implements DomainEvent
+final readonly class AssetVariantCreated implements DomainEvent, TenantAwareMessage
 {
     public function __construct(
         public Uuid $variantId,
@@ -38,5 +39,10 @@ final readonly class AssetVariantCreated implements DomainEvent
     public function aggregateId(): string
     {
         return $this->variantId->toRfc4122();
+    }
+
+    public function tenantId(): Uuid
+    {
+        return $this->tenantId;
     }
 }
