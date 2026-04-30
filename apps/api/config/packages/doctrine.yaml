@@ -85,6 +85,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Identity/Infrastructure/Doctrine/Orm/Mapping'
                 prefix: 'App\Identity\Domain\Entity'
                 alias: Identity
+            ApiConfigurator:
+                type: xml
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/ApiConfigurator/Infrastructure/Doctrine/Orm/Mapping'
+                prefix: 'App\ApiConfigurator\Domain\Entity'
+                alias: ApiConfigurator
         controller_resolver:
             auto_mapping: false
 

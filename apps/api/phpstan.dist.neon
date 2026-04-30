@@ -87,3 +87,5 @@ parameters:
               - src/Catalog/Domain/Entity/Association.php
               - src/Channel/Domain/Entity/Channel.php
               - src/Asset/Domain/Entity/Asset.php
+              - src/ApiConfigurator/Domain/Entity/ApiProfile.php
+              - src/ApiConfigurator/Domain/Entity/ApiKey.php
