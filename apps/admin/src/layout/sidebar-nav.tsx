@@ -32,7 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/object-types', icon: ListTree, label: 'nav.object_types' },
   { to: '/categories', icon: FolderTree, label: 'nav.categories' },
   { to: '/assets', icon: Image, label: 'nav.assets', comingSoon: true },
-  { to: '/channels', icon: Radio, label: 'nav.channels', comingSoon: true },
+  { to: '/channels', icon: Radio, label: 'nav.channels' },
 ];
 
 interface SidebarNavProps {
