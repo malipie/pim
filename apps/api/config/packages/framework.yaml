@@ -54,6 +54,27 @@ framework:
             limit: 10
             interval: '1 hour'
 
+        # Refresh-token rotation (#28). The cookie-driven path is
+        # invoked by every browser session every ~15 minutes, but
+        # the only legitimate caller is a single tab — 30/h/IP
+        # absorbs honest tab churn while clamping a stolen-cookie
+        # replay loop (where a malicious script polls /refresh
+        # to siphon access tokens). 0.11.2 hardening.
+        auth_refresh:
+            policy: 'sliding_window'
+            limit: 30
+            interval: '1 hour'
+
+        # Public API surface for X-API-Key callers (#94). Per-key
+        # budget reuses the request key's `keyPrefix` so a partner
+        # cannot exhaust budget for another partner. 1000/h is the
+        # default; ApiProfile.rateLimitPerHour overrides per profile
+        # in a follow-up — this is the floor.
+        api_key:
+            policy: 'sliding_window'
+            limit: 1000
+            interval: '1 hour'
+
 when@test:
     framework:
         test: true
