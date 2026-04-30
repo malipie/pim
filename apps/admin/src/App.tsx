@@ -2,7 +2,8 @@ import { Refine } from '@refinedev/core';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
 import { AuthedRoute } from '@/components/AuthedRoute';
-import { ComingSoon } from '@/features/_shared/coming-soon';
+import { AssetsListPage } from '@/features/asset/assets/list';
+import { AssetShowPage } from '@/features/asset/assets/show';
 import { AttributeGroupsListPage } from '@/features/catalog/attribute-groups/list';
 import { AttributesListPage } from '@/features/catalog/attributes/list';
 import { AttributeShowPage } from '@/features/catalog/attributes/show';
@@ -39,7 +40,7 @@ function App() {
           { name: 'attribute_groups', list: '/attribute-groups' },
           { name: 'object_types', list: '/object-types', show: '/object-types/:id' },
           { name: 'categories', list: '/categories', show: '/categories/:id' },
-          { name: 'assets', list: '/assets' },
+          { name: 'assets', list: '/assets', show: '/assets/:id' },
           { name: 'channels', list: '/channels', show: '/channels/:id' },
         ]}
         options={{
@@ -69,10 +70,8 @@ function App() {
             <Route path="/object-types/:id" element={<ObjectTypeShowPage />} />
             <Route path="/categories" element={<CategoriesTreePage />} />
             <Route path="/categories/:id" element={<CategoryShowPage />} />
-            <Route
-              path="/assets"
-              element={<ComingSoon resource="assets" epic="0.3 / 0.6" issue={37} />}
-            />
+            <Route path="/assets" element={<AssetsListPage />} />
+            <Route path="/assets/:id" element={<AssetShowPage />} />
             <Route path="/channels" element={<ChannelsListPage />} />
             <Route path="/channels/:id" element={<ChannelShowPage />} />
           </Route>

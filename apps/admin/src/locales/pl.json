@@ -77,6 +77,17 @@
       "position": "Pozycja"
     }
   },
+  "assets": {
+    "list_title": "Zasoby",
+    "list_subtitle": "Zasoby cyfrowe — obrazy, wideo, dokumenty — wskazywane z produktów i kategorii.",
+    "back": "Wróć do zasobów",
+    "empty": "Brak wgranych zasobów.",
+    "write_deferred_note": "Drag-and-drop upload, dialog edycji metadanych, preview modal i bulk delete dochodzą w follow-up — read-only grid + show dostarcza ten PR.",
+    "fields": {
+      "alt": "Tekst alt",
+      "mime": "Typ MIME"
+    }
+  },
   "channels": {
     "list_title": "Kanały",
     "list_subtitle": "Cele publikacji — locale, waluty i mapping atrybutów per kind.",
