@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 
+import { ProvenanceBadge } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -129,7 +130,7 @@ function AttributesTab({ values }: { values: Record<string, unknown> }) {
         <div key={code} className="rounded-md border bg-muted/40 px-3 py-2">
           <dt className="text-xs uppercase tracking-wide text-muted-foreground">{code}</dt>
           <dd className="text-sm font-medium">{formatValue(value)}</dd>
-          <ProvenanceBadge />
+          <ProvenanceBadge provenance="manual" className="mt-1" />
         </div>
       ))}
     </dl>
@@ -157,19 +158,6 @@ function CompletenessBadge({ value }: { value?: number }) {
         : 'bg-rose-100 text-rose-900';
   return (
     <span className={`rounded px-2 py-0.5 text-xs font-medium ${tone}`}>{Math.round(value)}%</span>
-  );
-}
-
-function ProvenanceBadge() {
-  // Placeholder per #55 DoD — real provenance lives on `ObjectValue`
-  // rows; full surfacing is in #61 (Provenance UI). For now we tag every
-  // value as "manual" so the component shape is locked and the tab can
-  // upgrade in a follow-up without touching the show page.
-  const { t } = useTranslation();
-  return (
-    <span className="mt-1 inline-block rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-secondary-foreground">
-      {t('products.show.provenance.manual', { defaultValue: 'manual' })}
-    </span>
   );
 }
 

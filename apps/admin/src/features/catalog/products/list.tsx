@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { type Provenance, ProvenanceBadge } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -43,6 +44,7 @@ interface ProductRow {
 }
 
 const PRODUCT_FACETS = ['enabled', 'status'];
+const PROVENANCE_OPTIONS: ReadonlyArray<Provenance> = ['manual', 'import', 'integration', 'agent'];
 
 export function ProductListPage() {
   const { t, i18n } = useTranslation();
@@ -153,6 +155,36 @@ export function ProductListPage() {
             })}
           </span>
         ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">
+          {t('products.filter_provenance')}
+        </span>
+        <Button
+          type="button"
+          variant={filters.provenance === undefined ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => {
+            setFilters((prev) => {
+              const { provenance: _omit, ...rest } = prev;
+              return rest;
+            });
+          }}
+        >
+          {t('products.filter_provenance_all', { defaultValue: 'All' })}
+        </Button>
+        {PROVENANCE_OPTIONS.map((option) => (
+          <Button
+            key={option}
+            type="button"
+            variant={filters.provenance === option ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setFilters((prev) => ({ ...prev, provenance: option }))}
+          >
+            <ProvenanceBadge provenance={option} className="px-1 py-0" />
+          </Button>
+        ))}
       </div>
 
       {selectedIds.length > 0 ? (

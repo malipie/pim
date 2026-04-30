@@ -175,6 +175,15 @@
     "body": "This view is part of epic {{epic}}. It is not implemented yet — track progress on GitHub Issues.",
     "track_issue": "Open issue #{{issue}}"
   },
+  "provenance": {
+    "manual": "manual",
+    "import": "import",
+    "integration": "integration",
+    "agent": "agent",
+    "agent_phase_2": "Faza 2",
+    "source": "Source",
+    "timestamp": "Updated"
+  },
   "search": {
     "placeholder": "Search…",
     "aria_label": "Catalog search",
@@ -190,6 +199,8 @@
   "products": {
     "list_title": "Products",
     "list_subtitle": "Catalogue of products scoped to the current tenant.",
+    "filter_provenance": "Provenance",
+    "filter_provenance_all": "All",
     "create": "Add product",
     "create_title": "New product",
     "edit_title": "Edit product",
