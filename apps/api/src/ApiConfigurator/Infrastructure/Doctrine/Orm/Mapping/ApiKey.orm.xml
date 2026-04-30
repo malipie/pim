@@ -29,7 +29,11 @@
         <field name="keyHash" type="string" length="255" column="key_hash"/>
         <field name="keyPrefix" type="string" length="32" column="key_prefix"/>
         <field name="name" type="string" length="128" column="name"/>
-        <field name="scopes" type="json" column="scopes"/>
+        <field name="scopes" type="json" column="scopes">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
 
         <field name="expiresAt" type="datetime_immutable" column="expires_at" nullable="true"/>
         <field name="revokedAt" type="datetime_immutable" column="revoked_at" nullable="true"/>
