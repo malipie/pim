@@ -77,6 +77,26 @@
       "position": "Position"
     }
   },
+  "categories": {
+    "list_title": "Categories",
+    "list_subtitle": "Hierarchical taxonomy backed by Postgres ltree.",
+    "back": "Back to categories",
+    "tree_aria": "Category tree",
+    "empty": "No categories for the current tenant.",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "attributes_title": "Attribute values",
+    "no_attributes": "This category has no attribute values yet.",
+    "write_deferred_note": "Drag-and-drop reparenting + create/edit forms are deferred to a follow-up ticket — the read-only tree ships in this PR.",
+    "fields": {
+      "code": "Code",
+      "label": "Label",
+      "path": "ltree path"
+    },
+    "actions": {
+      "view": "View"
+    }
+  },
   "object_types": {
     "list_title": "Object types",
     "list_subtitle": "Schema carriers for catalog kinds (ADR-009). Custom kinds unblock in Faza 2.",
