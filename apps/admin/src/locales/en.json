@@ -29,11 +29,53 @@
   "nav": {
     "products": "Products",
     "attributes": "Attributes",
+    "attribute_groups": "Attribute groups",
     "object_types": "Object types",
     "categories": "Categories",
     "assets": "Assets",
     "channels": "Channels",
     "soon": "Soon"
+  },
+  "attributes": {
+    "list_title": "Attributes",
+    "list_subtitle": "Schema definitions reused across catalog objects.",
+    "back": "Back to attributes",
+    "filter_type": "Type",
+    "filter_all": "All",
+    "empty": "No attributes for the current tenant.",
+    "write_deferred_note": "Manual create / edit / drag-and-drop is deferred to the schema-add agent flow (Faza 2). The seeder ships the MVP attribute set.",
+    "fields": {
+      "code": "Code",
+      "label": "Label",
+      "type": "Type",
+      "group": "Group",
+      "flags": "Flags",
+      "actions": "Actions",
+      "help": "Help",
+      "required": "Required",
+      "localizable": "Localisable",
+      "scopable": "Scopable",
+      "validation": "Validation"
+    },
+    "flags": {
+      "required": "req",
+      "localizable": "loc",
+      "scopable": "scope"
+    },
+    "actions": {
+      "view": "View"
+    }
+  },
+  "attribute_groups": {
+    "list_title": "Attribute groups",
+    "list_subtitle": "Logical grouping for attribute layout in forms.",
+    "empty": "No attribute groups for the current tenant.",
+    "write_deferred_note": "Manual create / edit is deferred to the schema-add agent flow (Faza 2).",
+    "fields": {
+      "code": "Code",
+      "label": "Label",
+      "position": "Position"
+    }
   },
   "coming_soon": {
     "body": "This view is part of epic {{epic}}. It is not implemented yet — track progress on GitHub Issues.",

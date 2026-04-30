@@ -3,6 +3,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
 import { AuthedRoute } from '@/components/AuthedRoute';
 import { ComingSoon } from '@/features/_shared/coming-soon';
+import { AttributeGroupsListPage } from '@/features/catalog/attribute-groups/list';
+import { AttributesListPage } from '@/features/catalog/attributes/list';
+import { AttributeShowPage } from '@/features/catalog/attributes/show';
 import { ProductCreatePage } from '@/features/catalog/products/create';
 import { ProductEditPage } from '@/features/catalog/products/edit';
 import { ProductListPage } from '@/features/catalog/products/list';
@@ -26,7 +29,8 @@ function App() {
             edit: '/products/:id/edit',
             show: '/products/:id',
           },
-          { name: 'attributes', list: '/attributes' },
+          { name: 'attributes', list: '/attributes', show: '/attributes/:id' },
+          { name: 'attribute_groups', list: '/attribute-groups' },
           { name: 'object-types', list: '/object-types' },
           { name: 'categories', list: '/categories' },
           { name: 'assets', list: '/assets' },
@@ -52,10 +56,9 @@ function App() {
             <Route path="/products/new" element={<ProductCreatePage />} />
             <Route path="/products/:id/edit" element={<ProductEditPage />} />
             <Route path="/products/:id" element={<ProductShowPage />} />
-            <Route
-              path="/attributes"
-              element={<ComingSoon resource="attributes" epic="0.3 / 0.6" issue={31} />}
-            />
+            <Route path="/attributes" element={<AttributesListPage />} />
+            <Route path="/attributes/:id" element={<AttributeShowPage />} />
+            <Route path="/attribute-groups" element={<AttributeGroupsListPage />} />
             <Route
               path="/object-types"
               element={<ComingSoon resource="object_types" epic="0.3 / 0.6" issue={32} />}

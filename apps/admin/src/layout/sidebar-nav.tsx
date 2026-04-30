@@ -3,6 +3,7 @@ import {
   FolderTree,
   Image,
   Layers,
+  LayoutList,
   ListTree,
   type LucideIcon,
   Package,
@@ -26,7 +27,8 @@ interface NavItem {
 // issue, so users get a deterministic "not yet" rather than a 404.
 const NAV_ITEMS: NavItem[] = [
   { to: '/products', icon: Package, label: 'nav.products' },
-  { to: '/attributes', icon: Layers, label: 'nav.attributes', comingSoon: true },
+  { to: '/attributes', icon: Layers, label: 'nav.attributes' },
+  { to: '/attribute-groups', icon: LayoutList, label: 'nav.attribute_groups' },
   { to: '/object-types', icon: ListTree, label: 'nav.object_types', comingSoon: true },
   { to: '/categories', icon: FolderTree, label: 'nav.categories', comingSoon: true },
   { to: '/assets', icon: Image, label: 'nav.assets', comingSoon: true },
