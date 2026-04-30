@@ -1,0 +1,64 @@
+# DH Auditor configuration (#99 / 0.11.4 — audit log MVP).
+#
+# Auditor watches every domain entity that mutates user-meaningful state and
+# writes a row to a per-entity audit table (`<entity>_audit`). Each row carries
+# the user id, request id, transaction id, IP, table, type (insert/update/
+# remove/associate), discriminator, source, target, and a JSON `diffs`
+# payload — enough for the future "History" tab on show pages without
+# bespoke logging code.
+#
+# Storage: same connection as the application data — no separate audit DSN
+# in MVP. Operators can shard later by switching `storage_services` here.
+#
+# Retention: handled by the `pim:audit:cleanup --older-than=365d` CLI
+# command (cron-driven). The bundle does not prune by itself.
+dh_auditor:
+    providers:
+        doctrine:
+            table_prefix: ''
+            table_suffix: '_audit'
+            ignored_columns:
+                - created_at
+                - updated_at
+            entities:
+                # Catalog SCHEMA — the most security-sensitive surface
+                # (an attribute redefinition reshapes what every channel
+                # publishes). Catalog DATA (`CatalogObject`, `ObjectValue`,
+                # `Association`) is intentionally NOT tracked here yet: the
+                # bundle's flush listener interleaves with the search
+                # indexer (#50) and the Mercure publisher (#47) in ways
+                # that need a dedicated test harness before flipping on
+                # write-heavy paths. Schema rows in `attributes_audit`
+                # already answer the "who reshaped the published surface"
+                # question — the most operator-relevant audit case.
+                App\Catalog\Domain\Entity\ObjectType:
+                    enabled: true
+                App\Catalog\Domain\Entity\Attribute:
+                    enabled: true
+                App\Catalog\Domain\Entity\AttributeGroup:
+                    enabled: true
+                App\Catalog\Domain\Entity\AttributeOption:
+                    enabled: true
+                App\Catalog\Domain\Entity\AssociationType:
+                    enabled: true
+                # Channel — partner-publication wiring
+                App\Channel\Domain\Entity\Channel:
+                    enabled: true
+                # Asset — DAM-side state
+                App\Asset\Domain\Entity\Asset:
+                    enabled: true
+                # Identity — login + RBAC + multi-tenancy posture
+                App\Identity\Domain\Entity\User:
+                    enabled: true
+                App\Identity\Domain\Entity\Role:
+                    enabled: true
+                App\Identity\Domain\Entity\Permission:
+                    enabled: true
+                App\Shared\Domain\Tenant:
+                    enabled: true
+                # API Configurator — partner-facing surface
+                App\ApiConfigurator\Domain\Entity\ApiProfile:
+                    enabled: true
+                App\ApiConfigurator\Domain\Entity\ApiKey:
+                    enabled: true
+
