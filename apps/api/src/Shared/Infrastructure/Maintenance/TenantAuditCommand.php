@@ -112,6 +112,15 @@ final class TenantAuditCommand extends Command
                 continue;
             }
 
+            // DH Auditor (`#99`) writes per-entity tables matching
+            // `<entity>_audit`. The bundle stores `blame_id` (the
+            // mutating user) rather than `tenant_id`; tenant scope is
+            // inherited from the audited row through `object_id`.
+            if (str_ends_with($table, '_audit')) {
+                $rows[] = [$table, 'audit log (skipped)', '—', '—', self::SEVERITY_OK];
+                continue;
+            }
+
             $column = $this->fetchTenantIdColumn($table);
             if (null === $column) {
                 $rows[] = [$table, 'MISSING', '—', '—', self::SEVERITY_FAIL];
