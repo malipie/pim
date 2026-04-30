@@ -29,11 +29,53 @@
   "nav": {
     "products": "Produkty",
     "attributes": "Atrybuty",
+    "attribute_groups": "Grupy atrybutów",
     "object_types": "Typy obiektów",
     "categories": "Kategorie",
     "assets": "Zasoby",
     "channels": "Kanały",
     "soon": "Wkrótce"
+  },
+  "attributes": {
+    "list_title": "Atrybuty",
+    "list_subtitle": "Definicje schematu atrybutów współdzielone między obiektami katalogu.",
+    "back": "Wróć do atrybutów",
+    "filter_type": "Typ",
+    "filter_all": "Wszystkie",
+    "empty": "Brak atrybutów dla aktualnego najemcy.",
+    "write_deferred_note": "Ręczne tworzenie / edycja / drag-and-drop są odroczone do agentowego flow schema-add (Faza 2). Seeder dostarcza MVP zestaw atrybutów.",
+    "fields": {
+      "code": "Kod",
+      "label": "Etykieta",
+      "type": "Typ",
+      "group": "Grupa",
+      "flags": "Flagi",
+      "actions": "Akcje",
+      "help": "Pomoc",
+      "required": "Wymagane",
+      "localizable": "Lokalizowalne",
+      "scopable": "Scopable",
+      "validation": "Walidacja"
+    },
+    "flags": {
+      "required": "wym",
+      "localizable": "lok",
+      "scopable": "scope"
+    },
+    "actions": {
+      "view": "Podgląd"
+    }
+  },
+  "attribute_groups": {
+    "list_title": "Grupy atrybutów",
+    "list_subtitle": "Logiczne grupowanie atrybutów w układzie formularzy.",
+    "empty": "Brak grup atrybutów dla aktualnego najemcy.",
+    "write_deferred_note": "Ręczne tworzenie / edycja są odroczone do agentowego flow schema-add (Faza 2).",
+    "fields": {
+      "code": "Kod",
+      "label": "Etykieta",
+      "position": "Pozycja"
+    }
   },
   "coming_soon": {
     "body": "Ten widok jest częścią epiku {{epic}}. Nie jest jeszcze zaimplementowany — śledź postęp w GitHub Issues.",

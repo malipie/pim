@@ -1003,3 +1003,19 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Bulk operations sequential, nie parallel** — `for (const id of ids) await jsonFetch(...)` zamiast `Promise.all(ids.map(...))`. Powód: per-row PATCH/DELETE generuje audit log + Mercure publish + reindex; parallel fan-out 200 selected rows przekłada się na 600+ concurrent backend ops i potencjalny rate-limiter trigger. Sequential at MVP scale (<200 selected) jest wystarczający. Future `/api/products/bulk` endpoint w epiku 0.7 schema-add daje single round trip.
 
 - **Kindkrolling list shape between Refine `useList` + Meili search hits** — list page receives `CatalogObjectListEntry` (z DataProvider) gdy nie-active search, `CatalogSearchHit` (z `useCatalogSearch`) gdy active. Zamiast unionu, dual mappers `searchHitToProduct` + `catalogObjectToProduct` → wspólny `ProductRow` shape. Pattern dla każdego list page z Meili overlay: keep two adapters per row source, single render shape downstream. Avoids type narrowing acrobatics inside JSX.
+
+## Lessons z 0.6.3 / #56 (Resource Attributes + AttributeGroups read-only)
+
+**Świadome odejście od ticketowego DoD: ŻADNEGO manual create/edit/drag-drop dla Attributes + AttributeGroups w MVP**, mimo że ticket zakładał pełen CRUD + sortowanie. Powód: ADR-009 + CLAUDE.md "Reguły implementacyjne" punkt 1: schema modyfikowalna przez agenta z naturalnym językiem (Faza 2 epic 0.7). Manual UI dla schema-add to dodatkowy ~30h roboczy (write paths backend + dynamic per-type forms + drag-drop + voter ringfence) który zostanie zastąpiony agentic flow w Fazie 2. Zgodne z duchem MVP "first pilot ships with seed schema".
+
+**Zamiast tego shipped:**
+- Read-only list `/attributes` (zastępuje ComingSoon) z per-type filter chips + label/group/flags table
+- Read-only show `/attributes/:id` z full metadata
+- Read-only list `/attribute_groups` (nowy resource w sidebar nav)
+- `write_deferred_note` translation surface'uje świadomy plan na obu listach
+
+**Wartość operatora dziś:** widzi co schema zawiera + może zweryfikować że seeder zaapplikował MVP zestaw. Modyfikacje przez Faza 2 agent.
+
+**Pattern do reuse**: kiedy ticket scope >> ROI dla MVP, ship minimum widzialne (read-only) + jasno udokumentuj deferral w UI (`write_deferred_note` string), w lessons.md, i w current_status.md. NIE removuj funkcjonalności z roadmap — dokumentuj WHEN/WHY odroczenia.
+
+**Locale label resolver**: `Record<string, string>` JSONB z polską + angielską zawartością wymaga rozsądnego fallback chain — `current_lang → en → pl → first_key → '—'`. Pattern dla każdej customer-facing entity z multi-locale label (Attribute, AttributeGroup, ObjectType label/help). Komponent `resolveLabel` w `attributes/list.tsx` re-exportowany żeby `attribute_groups/list.tsx` nie powtarzał logiki.
