@@ -30,6 +30,23 @@
                 <option name="jsonb">true</option>
             </options>
         </field>
+        <field name="description" type="json" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <field name="icon" type="string" length="64" nullable="true"/>
+        <field name="color" type="string" length="16" nullable="true"/>
+        <field name="isSystemGroup" type="boolean" column="is_system_group">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+        <field name="autoAttached" type="boolean" column="auto_attached">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
         <field name="position" type="integer">
             <options>
                 <option name="default">0</option>
