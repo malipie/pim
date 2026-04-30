@@ -1,0 +1,103 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":timezone(Europe/Warsaw)"
+  ],
+  "description": "Renovate config for PIM monorepo (#102 / 0.11.7). Patch-only automerge per CLAUDE.md “Zarządzanie zależnościami” — minor/major are manual review.",
+  "schedule": ["before 8am on Monday"],
+  "rangeStrategy": "bump",
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 5,
+  "rebaseWhen": "behind-base-branch",
+  "labels": ["dependencies"],
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "separateMinorPatch": true,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 8am on the first day of the month"]
+  },
+  "vulnerabilityAlerts": {
+    "labels": ["security", "dependencies"],
+    "schedule": ["at any time"],
+    "automerge": true
+  },
+  "packageRules": [
+    {
+      "description": "Patch updates auto-merge after CI green — R-26 mitigation (CLAUDE.md §Zarządzanie zależnościami).",
+      "matchUpdateTypes": ["patch", "pin", "digest"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Minor + major — manual review. CLAUDE.md §Zarządzanie zależnościami: po major bump pakietu generującego kod (API Platform, Doctrine) wymagany regen DTO/types.",
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false,
+      "addLabels": ["needs-review"]
+    },
+    {
+      "description": "Group GitHub Actions bumps into one PR — they cluster in `.github/workflows/*`.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "addLabels": ["ci"]
+    },
+    {
+      "description": "Group Symfony components together — a single bump touches many packages but lands as one ecosystem update.",
+      "matchPackagePatterns": ["^symfony/"],
+      "groupName": "symfony",
+      "addLabels": ["backend"]
+    },
+    {
+      "description": "Doctrine ecosystem grouped (ORM + DBAL + bundles bump together).",
+      "matchPackagePatterns": ["^doctrine/"],
+      "groupName": "doctrine",
+      "addLabels": ["backend"]
+    },
+    {
+      "description": "API Platform ecosystem grouped — OpenAPI + Hydra + bundle bumps land together.",
+      "matchPackagePatterns": ["^api-platform/"],
+      "groupName": "api-platform",
+      "addLabels": ["backend"]
+    },
+    {
+      "description": "Refine + React ecosystem grouped on the admin side.",
+      "matchPackagePatterns": ["^@refinedev/", "^react", "^react-"],
+      "groupName": "react + refine",
+      "addLabels": ["frontend"]
+    },
+    {
+      "description": "Vite + Rolldown bump together — the bundler stack is coupled.",
+      "matchPackagePatterns": ["^vite", "^@vitejs/", "^rolldown"],
+      "groupName": "vite stack",
+      "addLabels": ["frontend"]
+    },
+    {
+      "description": "Playwright bump always pairs with the matching browser image — one PR.",
+      "matchPackagePatterns": ["^@playwright/", "^playwright"],
+      "groupName": "playwright",
+      "addLabels": ["test"]
+    },
+    {
+      "description": "PHPStan + extensions grouped — baseline regenerates per bump.",
+      "matchPackagePatterns": ["^phpstan/"],
+      "groupName": "phpstan",
+      "addLabels": ["test"]
+    },
+    {
+      "description": "PHP runtime pinned — require manual review for any platform bump (FrankenPHP image, php-cli image).",
+      "matchPackageNames": ["php"],
+      "automerge": false,
+      "addLabels": ["platform", "needs-review"]
+    }
+  ],
+  "ignorePaths": [
+    "**/vendor/**",
+    "**/node_modules/**",
+    "**/.cache/**",
+    "**/var/**"
+  ]
+}
