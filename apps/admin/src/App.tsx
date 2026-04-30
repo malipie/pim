@@ -2,6 +2,10 @@ import { Refine } from '@refinedev/core';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
 import { AuthedRoute } from '@/components/AuthedRoute';
+import { ApiProfileCreatePage } from '@/features/api-configurator/api-profiles/create';
+import { ApiProfileEditPage } from '@/features/api-configurator/api-profiles/edit';
+import { ApiProfilesListPage } from '@/features/api-configurator/api-profiles/list';
+import { ApiProfileShowPage } from '@/features/api-configurator/api-profiles/show';
 import { AssetsListPage } from '@/features/asset/assets/list';
 import { AssetShowPage } from '@/features/asset/assets/show';
 import { AttributeGroupsListPage } from '@/features/catalog/attribute-groups/list';
@@ -42,6 +46,13 @@ function App() {
           { name: 'categories', list: '/categories', show: '/categories/:id' },
           { name: 'assets', list: '/assets', show: '/assets/:id' },
           { name: 'channels', list: '/channels', show: '/channels/:id' },
+          {
+            name: 'api_profiles',
+            list: '/api-profiles',
+            create: '/api-profiles/create',
+            edit: '/api-profiles/:id/edit',
+            show: '/api-profiles/:id',
+          },
         ]}
         options={{
           syncWithLocation: false,
@@ -74,6 +85,10 @@ function App() {
             <Route path="/assets/:id" element={<AssetShowPage />} />
             <Route path="/channels" element={<ChannelsListPage />} />
             <Route path="/channels/:id" element={<ChannelShowPage />} />
+            <Route path="/api-profiles" element={<ApiProfilesListPage />} />
+            <Route path="/api-profiles/create" element={<ApiProfileCreatePage />} />
+            <Route path="/api-profiles/:id/edit" element={<ApiProfileEditPage />} />
+            <Route path="/api-profiles/:id" element={<ApiProfileShowPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/products" replace />} />
         </Routes>

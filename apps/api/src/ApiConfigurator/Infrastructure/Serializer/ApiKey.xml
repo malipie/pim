@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <!--
+        Defence-in-depth: `keyHash` is intentionally absent from EVERY
+        group declaration. Even if an admin context leaks a wider
+        serialization scope, the Argon2id digest can never reach the
+        wire. The display path is `keyPrefix` only — `pim_live_a4f2`.
+    -->
+    <class name="App\ApiConfigurator\Domain\Entity\ApiKey">
+        <attribute name="id">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="keyPrefix">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="name">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="scopes">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="expiresAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="revokedAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="lastUsedAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="rateLimitPerHour">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+        </attribute>
+    </class>
+</serializer>

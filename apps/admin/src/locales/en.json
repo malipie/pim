@@ -41,6 +41,7 @@
     "categories": "Categories",
     "assets": "Assets",
     "channels": "Channels",
+    "api_profiles": "API Profiles",
     "soon": "Soon"
   },
   "attributes": {
@@ -269,6 +270,56 @@
       "sku_max": "SKU can be at most 64 characters.",
       "name_required": "Name is required.",
       "name_max": "Name can be at most 255 characters."
+    }
+  },
+  "api_profiles": {
+    "list_title": "API Profiles",
+    "list_subtitle": "Per-integrator presets — visible ObjectTypes, attributes, filters, webhooks.",
+    "create_title": "New API Profile",
+    "create_subtitle": "Basic info — attributes / filters / webhook configuration land in #92 / #93.",
+    "edit_title": "Edit API Profile",
+    "empty": "No profiles yet. Create one to expose a curated API surface to an integrator.",
+    "tabs_deferred_note": "Attributes / Filters / Webhook tabs land in #92 and #93. For now, configure ObjectTypes via API.",
+    "fields": {
+      "code": "Code",
+      "code_help": "Lowercase letters, digits, dashes or underscores. Cannot be changed after creation.",
+      "name": "Name",
+      "description": "Description",
+      "output_format": "Output format",
+      "object_types_count": "Object types",
+      "included_attributes_count": "Attributes",
+      "rate_limit": "Rate limit",
+      "rate_limit_help": "Requests per hour granted to keys scoped to this profile.",
+      "actions": "Actions"
+    },
+    "output_format": {
+      "json_ld": "JSON-LD",
+      "json": "JSON"
+    },
+    "actions": {
+      "view": "View profile",
+      "back_to_list": "Back to profiles",
+      "create": "New profile",
+      "edit": "Edit",
+      "create_submit": "Create profile",
+      "edit_submit": "Save changes"
+    },
+    "show": {
+      "basic_info": "Basic info",
+      "linked_keys": "API keys ({{count}})",
+      "no_keys": "No keys reference this profile yet. Generate one via pim:apikey:generate CLI.",
+      "last_used": "Last used",
+      "never_used": "Never used",
+      "keys_management_note": "Full key management UI (generate / revoke / rotate) lands in a follow-up."
+    },
+    "validation": {
+      "code_format": "Code must be lowercase letters, digits, dashes or underscores.",
+      "name_required": "Name is required.",
+      "rate_limit_range": "Rate limit must be between 1 and 100000."
+    },
+    "errors": {
+      "create_failed": "Could not create the profile. Check the code is unique within the tenant.",
+      "update_failed": "Could not update the profile."
     }
   }
 }

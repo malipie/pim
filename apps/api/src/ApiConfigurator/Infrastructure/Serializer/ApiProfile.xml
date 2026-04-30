@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <class name="App\ApiConfigurator\Domain\Entity\ApiProfile">
+        <attribute name="id">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="code">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="name">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="description">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="outputFormat">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="objectTypeIds">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="includedAttributes">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="filters">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="webhookUrl">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="webhookEvents">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="rateLimitPerHour">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="updatedAt">
+            <group>admin:read</group>
+        </attribute>
+    </class>
+</serializer>
