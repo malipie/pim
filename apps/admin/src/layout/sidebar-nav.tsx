@@ -30,7 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/attributes', icon: Layers, label: 'nav.attributes' },
   { to: '/attribute-groups', icon: LayoutList, label: 'nav.attribute_groups' },
   { to: '/object-types', icon: ListTree, label: 'nav.object_types' },
-  { to: '/categories', icon: FolderTree, label: 'nav.categories', comingSoon: true },
+  { to: '/categories', icon: FolderTree, label: 'nav.categories' },
   { to: '/assets', icon: Image, label: 'nav.assets', comingSoon: true },
   { to: '/channels', icon: Radio, label: 'nav.channels', comingSoon: true },
 ];

@@ -6,6 +6,8 @@ import { ComingSoon } from '@/features/_shared/coming-soon';
 import { AttributeGroupsListPage } from '@/features/catalog/attribute-groups/list';
 import { AttributesListPage } from '@/features/catalog/attributes/list';
 import { AttributeShowPage } from '@/features/catalog/attributes/show';
+import { CategoriesTreePage } from '@/features/catalog/categories/list';
+import { CategoryShowPage } from '@/features/catalog/categories/show';
 import { ObjectTypesListPage } from '@/features/catalog/object-types/list';
 import { ObjectTypeShowPage } from '@/features/catalog/object-types/show';
 import { ProductCreatePage } from '@/features/catalog/products/create';
@@ -34,7 +36,7 @@ function App() {
           { name: 'attributes', list: '/attributes', show: '/attributes/:id' },
           { name: 'attribute_groups', list: '/attribute-groups' },
           { name: 'object_types', list: '/object-types', show: '/object-types/:id' },
-          { name: 'categories', list: '/categories' },
+          { name: 'categories', list: '/categories', show: '/categories/:id' },
           { name: 'assets', list: '/assets' },
           { name: 'channels', list: '/channels' },
         ]}
@@ -63,10 +65,8 @@ function App() {
             <Route path="/attribute-groups" element={<AttributeGroupsListPage />} />
             <Route path="/object-types" element={<ObjectTypesListPage />} />
             <Route path="/object-types/:id" element={<ObjectTypeShowPage />} />
-            <Route
-              path="/categories"
-              element={<ComingSoon resource="categories" epic="0.3 / 0.6" issue={33} />}
-            />
+            <Route path="/categories" element={<CategoriesTreePage />} />
+            <Route path="/categories/:id" element={<CategoryShowPage />} />
             <Route
               path="/assets"
               element={<ComingSoon resource="assets" epic="0.3 / 0.6" issue={37} />}

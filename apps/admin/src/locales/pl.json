@@ -77,6 +77,26 @@
       "position": "Pozycja"
     }
   },
+  "categories": {
+    "list_title": "Kategorie",
+    "list_subtitle": "Hierarchiczna taksonomia oparta o ltree (Postgres).",
+    "back": "Wróć do kategorii",
+    "tree_aria": "Drzewo kategorii",
+    "empty": "Brak kategorii dla aktualnego najemcy.",
+    "expand": "Rozwiń",
+    "collapse": "Zwiń",
+    "attributes_title": "Wartości atrybutów",
+    "no_attributes": "Ta kategoria nie ma jeszcze wartości atrybutów.",
+    "write_deferred_note": "Drag-and-drop zmiany rodzica + formularze create/edit odroczone do follow-up ticketu — read-only drzewo dostarcza ten PR.",
+    "fields": {
+      "code": "Kod",
+      "label": "Etykieta",
+      "path": "Ścieżka ltree"
+    },
+    "actions": {
+      "view": "Podgląd"
+    }
+  },
   "object_types": {
     "list_title": "Typy obiektów",
     "list_subtitle": "Schematy dla kindów katalogu (ADR-009). Custom kindy odblokowane w Fazie 2.",
