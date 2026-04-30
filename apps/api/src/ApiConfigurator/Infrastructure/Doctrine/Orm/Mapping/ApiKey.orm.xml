@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\ApiConfigurator\Domain\Entity\ApiKey"
+            table="api_keys"
+            repository-class="App\ApiConfigurator\Infrastructure\Doctrine\Repository\DoctrineApiKeyRepository">
+
+        <unique-constraints>
+            <unique-constraint name="api_keys_key_prefix_uniq" columns="key_prefix"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="api_keys_tenant_idx" columns="tenant_id"/>
+            <index name="api_keys_revoked_at_idx" columns="revoked_at"/>
+            <index name="api_keys_expires_at_idx" columns="expires_at"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant" fetch="EAGER">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="keyHash" type="string" length="255" column="key_hash"/>
+        <field name="keyPrefix" type="string" length="32" column="key_prefix"/>
+        <field name="name" type="string" length="128" column="name"/>
+        <field name="scopes" type="json" column="scopes"/>
+
+        <field name="expiresAt" type="datetime_immutable" column="expires_at" nullable="true"/>
+        <field name="revokedAt" type="datetime_immutable" column="revoked_at" nullable="true"/>
+        <field name="lastUsedAt" type="datetime_immutable" column="last_used_at" nullable="true"/>
+
+        <field name="rateLimitPerHour" type="integer" column="rate_limit_per_hour"/>
+
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+
+    </entity>
+
+</doctrine-mapping>

@@ -143,6 +143,17 @@ services:
         arguments:
             $assetsStorage: '@assets.storage'
 
+    # API Configurator (#90 / 0.10.1). Argon2id hasher + key generator
+    # — see ADR-0016 for the format and algorithm choice. The generator
+    # reads `kernel.environment` to embed the four-letter forensic
+    # segment (`live`/`dev`/`test`) in the raw key.
+    App\ApiConfigurator\Domain\Service\ApiKeyHasherInterface:
+        alias: App\ApiConfigurator\Infrastructure\Security\Argon2idApiKeyHasher
+
+    App\ApiConfigurator\Application\ApiKeyGenerator:
+        arguments:
+            $environment: '%kernel.environment%'
+
     # Idempotent CREATE EXTENSION IF NOT EXISTS ltree on every kernel boot.
     # Migrations create the extension, but Zenstruck Foundry's ResetDatabase
     # rebuilds the test schema from ORM metadata bypassing migrations —
