@@ -12,6 +12,654 @@
         }
     ],
     "paths": {
+        "/api/api_keys": {
+            "get": {
+                "operationId": "api_api_keys_get_collection",
+                "tags": [
+                    "ApiKey"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ApiKey collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "ApiKey.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ApiKey.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ApiKey-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of ApiKey resources.",
+                "description": "Retrieves the collection of ApiKey resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            }
+        },
+        "/api/api_keys/{id}": {
+            "get": {
+                "operationId": "api_api_keys_id_get",
+                "tags": [
+                    "ApiKey"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ApiKey resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiKey.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiKey-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a ApiKey resource.",
+                "description": "Retrieves a ApiKey resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ApiKey identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/api_profiles": {
+            "get": {
+                "operationId": "api_api_profiles_get_collection",
+                "tags": [
+                    "ApiProfile"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ApiProfile collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "ApiProfile.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ApiProfile.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ApiProfile-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of ApiProfile resources.",
+                "description": "Retrieves the collection of ApiProfile resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "api_api_profiles_post",
+                "tags": [
+                    "ApiProfile"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "ApiProfile resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProfile.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProfile-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a ApiProfile resource.",
+                "description": "Creates a ApiProfile resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new ApiProfile resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiProfile.ApiProfileInput-api_profile.create"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiProfile.ApiProfileInput-api_profile.create"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/api_profiles/{id}": {
+            "get": {
+                "operationId": "api_api_profiles_id_get",
+                "tags": [
+                    "ApiProfile"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ApiProfile resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProfile.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProfile-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a ApiProfile resource.",
+                "description": "Retrieves a ApiProfile resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ApiProfile identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "api_api_profiles_id_delete",
+                "tags": [
+                    "ApiProfile"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "ApiProfile resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the ApiProfile resource.",
+                "description": "Removes the ApiProfile resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ApiProfile identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_api_profiles_id_patch",
+                "tags": [
+                    "ApiProfile"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ApiProfile resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProfile.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProfile-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the ApiProfile resource.",
+                "description": "Updates the ApiProfile resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ApiProfile identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated ApiProfile resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiProfile.ApiProfilePatchInput-api_profile.patch.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
         "/api/asset_storage": {
             "get": {
                 "operationId": "api_asset_storage_get_collection",
@@ -2579,6 +3227,520 @@
     },
     "components": {
         "schemas": {
+            "ApiKey-admin.read": {
+                "type": "object",
+                "description": "Long-lived secret an external integrator presents on `/api/*`.\n\nThe raw key never touches this row \u2014 only its Argon2id digest\n(`keyHash`) and a 12-character display prefix (`keyPrefix`, e.g.\n`pim_live_a4f2`) the admin uses to disambiguate keys in the UI long\nafter the secret was last visible. See ADR-0016 for the algorithm\nand format choice.\n\n`scopes` is a list of {@see ApiProfile::$code} values \u2014 one key may\ngrant access to multiple profiles, but the integrator picks one per\nrequest through a header (#94). `lastUsedAt` is bumped on every\nauthenticated request so the rotation playbook (#105) can spot dead\nkeys without scanning request logs.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "keyPrefix": {
+                        "minLength": 9,
+                        "maxLength": 32,
+                        "description": "First 12 characters of the raw key \u2014 `pim_<env>_<4 chars>`. Safe\nto log and to display. Indexed for O(1) lookup before the\nArgon2id verify (#94).",
+                        "type": "string"
+                    },
+                    "name": {
+                        "maxLength": 128,
+                        "type": "string"
+                    },
+                    "scopes": {
+                        "description": "Profile codes accessible by this key.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "expiresAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "revokedAt": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "lastUsedAt": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "rateLimitPerHour": {
+                        "minimum": 0,
+                        "exclusiveMinimum": 0,
+                        "maximum": 100000,
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "keyPrefix",
+                    "name"
+                ]
+            },
+            "ApiKey.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "keyPrefix": {
+                                "minLength": 9,
+                                "maxLength": 32,
+                                "description": "First 12 characters of the raw key \u2014 `pim_<env>_<4 chars>`. Safe\nto log and to display. Indexed for O(1) lookup before the\nArgon2id verify (#94).",
+                                "type": "string"
+                            },
+                            "name": {
+                                "maxLength": 128,
+                                "type": "string"
+                            },
+                            "scopes": {
+                                "description": "Profile codes accessible by this key.",
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "expiresAt": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "revokedAt": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "lastUsedAt": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "rateLimitPerHour": {
+                                "minimum": 0,
+                                "exclusiveMinimum": 0,
+                                "maximum": 100000,
+                                "type": "integer"
+                            },
+                            "createdAt": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            }
+                        },
+                        "required": [
+                            "keyPrefix",
+                            "name"
+                        ]
+                    }
+                ],
+                "description": "Long-lived secret an external integrator presents on `/api/*`.\n\nThe raw key never touches this row \u2014 only its Argon2id digest\n(`keyHash`) and a 12-character display prefix (`keyPrefix`, e.g.\n`pim_live_a4f2`) the admin uses to disambiguate keys in the UI long\nafter the secret was last visible. See ADR-0016 for the algorithm\nand format choice.\n\n`scopes` is a list of {@see ApiProfile::$code} values \u2014 one key may\ngrant access to multiple profiles, but the integrator picks one per\nrequest through a header (#94). `lastUsedAt` is bumped on every\nauthenticated request so the rotation playbook (#105) can spot dead\nkeys without scanning request logs."
+            },
+            "ApiProfile-admin.read": {
+                "type": "object",
+                "description": "A named projection over the public API for a class of integrators.\n\nPer ADR-009 the profile filter is parameterised on `objectTypeIds`\n(UUID list of `ObjectType` rows visible through this profile) plus\n`includedAttributes` (attribute codes to publish) plus `filters`\n(JSONB dict of canonical filter parameters, e.g. `status=enabled`).\nOne canonical request \u2014 `GET /api/products` keyed by an `ApiKey`\nscoped to a profile \u2014 narrows to a per-profile view by the\nserializer context built from this row (#94).\n\nWebhook fields (`webhookUrl` + `webhookEvents`) are configuration\nonly at this point. Delivery + retry policy lands in #93.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9_-]+)$",
+                        "type": "string"
+                    },
+                    "name": {
+                        "maxLength": 128,
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "outputFormat": {
+                        "type": "string",
+                        "enum": [
+                            "json_ld",
+                            "json"
+                        ]
+                    },
+                    "objectTypeIds": {
+                        "description": "UUID strings of `App\\Catalog\\Domain\\Entity\\ObjectType` rows visible\nthrough this profile. Empty array means \"no ObjectType selected\"\n\u2014 by contract the profile resolves to an empty result set rather\nthan to \"everything\", so a half-configured profile leaks nothing.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "includedAttributes": {
+                        "description": "Attribute codes (not UUIDs \u2014 codes are stable across tenants and\nsurvive seed re-runs) to publish through this profile. Filtered\nserver-side at serializer time (#94) \u2014 fields outside the list\nare stripped before render.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "filters": {
+                        "description": "Canonical query filters applied on every request through this\nprofile. Shape mirrors the `?status=\u2026&completeness[gte]=\u2026` query\nparameters consumed by the existing `Catalog` filters (#43).",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "webhookUrl": {
+                        "maxLength": 2048,
+                        "format": "uri",
+                        "externalDocs": {
+                            "url": "https://schema.org/url"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "webhookEvents": {
+                        "description": "Domain event names this profile subscribes to (e.g.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "rateLimitPerHour": {
+                        "minimum": 0,
+                        "exclusiveMinimum": 0,
+                        "maximum": 100000,
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "code",
+                    "name"
+                ]
+            },
+            "ApiProfile.ApiProfileInput-api_profile.create": {
+                "type": "object",
+                "description": "A named projection over the public API for a class of integrators.\n\nPer ADR-009 the profile filter is parameterised on `objectTypeIds`\n(UUID list of `ObjectType` rows visible through this profile) plus\n`includedAttributes` (attribute codes to publish) plus `filters`\n(JSONB dict of canonical filter parameters, e.g. `status=enabled`).\nOne canonical request \u2014 `GET /api/products` keyed by an `ApiKey`\nscoped to a profile \u2014 narrows to a per-profile view by the\nserializer context built from this row (#94).\n\nWebhook fields (`webhookUrl` + `webhookEvents`) are configuration\nonly at this point. Delivery + retry policy lands in #93.",
+                "required": [
+                    "code",
+                    "name"
+                ],
+                "properties": {
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9_-]+)$",
+                        "default": "",
+                        "type": "string"
+                    },
+                    "name": {
+                        "maxLength": 128,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "description": {
+                        "maxLength": 4096,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "outputFormat": {
+                        "enum": [
+                            "json_ld",
+                            "json"
+                        ],
+                        "default": "json_ld",
+                        "type": "string"
+                    },
+                    "objectTypeIds": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "includedAttributes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "filters": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "webhookUrl": {
+                        "maxLength": 2048,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "webhookEvents": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "rateLimitPerHour": {
+                        "minimum": 0,
+                        "exclusiveMinimum": 0,
+                        "maximum": 100000,
+                        "default": 1000,
+                        "type": "integer"
+                    }
+                }
+            },
+            "ApiProfile.ApiProfilePatchInput-api_profile.patch.jsonMergePatch": {
+                "type": "object",
+                "description": "A named projection over the public API for a class of integrators.\n\nPer ADR-009 the profile filter is parameterised on `objectTypeIds`\n(UUID list of `ObjectType` rows visible through this profile) plus\n`includedAttributes` (attribute codes to publish) plus `filters`\n(JSONB dict of canonical filter parameters, e.g. `status=enabled`).\nOne canonical request \u2014 `GET /api/products` keyed by an `ApiKey`\nscoped to a profile \u2014 narrows to a per-profile view by the\nserializer context built from this row (#94).\n\nWebhook fields (`webhookUrl` + `webhookEvents`) are configuration\nonly at this point. Delivery + retry policy lands in #93.",
+                "properties": {
+                    "name": {
+                        "maxLength": 128,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "description": {
+                        "maxLength": 4096,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "outputFormat": {
+                        "enum": [
+                            "json_ld",
+                            "json"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "objectTypeIds": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "includedAttributes": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "filters": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "webhookUrl": {
+                        "maxLength": 2048,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "webhookEvents": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "rateLimitPerHour": {
+                        "minimum": 0,
+                        "exclusiveMinimum": 0,
+                        "maximum": 100000,
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ApiProfile.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "code": {
+                                "maxLength": 64,
+                                "pattern": "^([a-z0-9_-]+)$",
+                                "type": "string"
+                            },
+                            "name": {
+                                "maxLength": 128,
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "outputFormat": {
+                                "type": "string",
+                                "enum": [
+                                    "json_ld",
+                                    "json"
+                                ]
+                            },
+                            "objectTypeIds": {
+                                "description": "UUID strings of `App\\Catalog\\Domain\\Entity\\ObjectType` rows visible\nthrough this profile. Empty array means \"no ObjectType selected\"\n\u2014 by contract the profile resolves to an empty result set rather\nthan to \"everything\", so a half-configured profile leaks nothing.",
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "includedAttributes": {
+                                "description": "Attribute codes (not UUIDs \u2014 codes are stable across tenants and\nsurvive seed re-runs) to publish through this profile. Filtered\nserver-side at serializer time (#94) \u2014 fields outside the list\nare stripped before render.",
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "filters": {
+                                "description": "Canonical query filters applied on every request through this\nprofile. Shape mirrors the `?status=\u2026&completeness[gte]=\u2026` query\nparameters consumed by the existing `Catalog` filters (#43).",
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "webhookUrl": {
+                                "maxLength": 2048,
+                                "format": "uri",
+                                "externalDocs": {
+                                    "url": "https://schema.org/url"
+                                },
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "webhookEvents": {
+                                "description": "Domain event names this profile subscribes to (e.g.",
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "rateLimitPerHour": {
+                                "minimum": 0,
+                                "exclusiveMinimum": 0,
+                                "maximum": 100000,
+                                "type": "integer"
+                            },
+                            "createdAt": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "updatedAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        },
+                        "required": [
+                            "code",
+                            "name"
+                        ]
+                    }
+                ],
+                "description": "A named projection over the public API for a class of integrators.\n\nPer ADR-009 the profile filter is parameterised on `objectTypeIds`\n(UUID list of `ObjectType` rows visible through this profile) plus\n`includedAttributes` (attribute codes to publish) plus `filters`\n(JSONB dict of canonical filter parameters, e.g. `status=enabled`).\nOne canonical request \u2014 `GET /api/products` keyed by an `ApiKey`\nscoped to a profile \u2014 narrows to a per-profile view by the\nserializer context built from this row (#94).\n\nWebhook fields (`webhookUrl` + `webhookEvents`) are configuration\nonly at this point. Delivery + retry policy lands in #93."
+            },
             "AssetStorage-admin.read": {
                 "type": "object",
                 "description": "Stored binary file (image, PDF, video, \u2026) with tenant scope.\n\nPer ADR-009 Asset is split between two homes: this dedicated table\ncarries storage details (path on object storage, mime type, size,\nEXIF / dimensions JSONB), while user-defined metadata flows through\nthe catalog model \u2014 every Asset row optionally points at a\n`CatalogObject` of `kind=asset` (`object_id` UNIQUE) so admins can\nattach localised attributes (`alt_pl`, `caption_en`, \u2026) the same way\nthey do for products. Tightly-coupled storage details stay here so\nwe are not forcing them through the EAV layer.\n\n`storage_path` is relative to the Flysystem bucket (e.g. `<tenant>/\n<asset-id>/original.jpg`) \u2014 application-layer convention,\nFlysystem-agnostic.\n\nVariants (thumbnails, transcodes, alternative formats) live in\n{@see AssetVariant} and are derived in phase 1 (transformations are\nout of MVP scope \u2014 #37 only handles the original upload).",
@@ -4074,6 +5236,14 @@
         {
             "name": "AssetStorage",
             "description": "Stored binary file (image, PDF, video, \u2026) with tenant scope.\n\nPer ADR-009 Asset is split between two homes: this dedicated table\ncarries storage details (path on object storage, mime type, size,\nEXIF / dimensions JSONB), while user-defined metadata flows through\nthe catalog model \u2014 every Asset row optionally points at a\n`CatalogObject` of `kind=asset` (`object_id` UNIQUE) so admins can\nattach localised attributes (`alt_pl`, `caption_en`, \u2026) the same way\nthey do for products. Tightly-coupled storage details stay here so\nwe are not forcing them through the EAV layer.\n\n`storage_path` is relative to the Flysystem bucket (e.g. `<tenant>/\n<asset-id>/original.jpg`) \u2014 application-layer convention,\nFlysystem-agnostic.\n\nVariants (thumbnails, transcodes, alternative formats) live in\n{@see AssetVariant} and are derived in phase 1 (transformations are\nout of MVP scope \u2014 #37 only handles the original upload)."
+        },
+        {
+            "name": "ApiKey",
+            "description": "Long-lived secret an external integrator presents on `/api/*`.\n\nThe raw key never touches this row \u2014 only its Argon2id digest\n(`keyHash`) and a 12-character display prefix (`keyPrefix`, e.g.\n`pim_live_a4f2`) the admin uses to disambiguate keys in the UI long\nafter the secret was last visible. See ADR-0016 for the algorithm\nand format choice.\n\n`scopes` is a list of {@see ApiProfile::$code} values \u2014 one key may\ngrant access to multiple profiles, but the integrator picks one per\nrequest through a header (#94). `lastUsedAt` is bumped on every\nauthenticated request so the rotation playbook (#105) can spot dead\nkeys without scanning request logs."
+        },
+        {
+            "name": "ApiProfile",
+            "description": "A named projection over the public API for a class of integrators.\n\nPer ADR-009 the profile filter is parameterised on `objectTypeIds`\n(UUID list of `ObjectType` rows visible through this profile) plus\n`includedAttributes` (attribute codes to publish) plus `filters`\n(JSONB dict of canonical filter parameters, e.g. `status=enabled`).\nOne canonical request \u2014 `GET /api/products` keyed by an `ApiKey`\nscoped to a profile \u2014 narrows to a per-profile view by the\nserializer context built from this row (#94).\n\nWebhook fields (`webhookUrl` + `webhookEvents`) are configuration\nonly at this point. Delivery + retry policy lands in #93."
         }
     ],
     "webhooks": {}

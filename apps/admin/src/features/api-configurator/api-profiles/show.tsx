@@ -28,7 +28,7 @@ export function ApiProfileShowPage() {
     id: id ?? '',
     queryOptions: { enabled: id !== undefined && id !== '' },
   });
-  const profile = result?.data;
+  const profile = result;
 
   const keysQuery = useList<ApiKeyRow>({
     resource: 'api_keys',

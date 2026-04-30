@@ -16,7 +16,7 @@ export function ApiProfileEditPage() {
     id: id ?? '',
     queryOptions: { enabled: id !== undefined && id !== '' },
   });
-  const profile = result?.data;
+  const profile = result;
 
   const { mutateAsync, mutation } = useUpdate();
   const isPending = mutation.isPending;
