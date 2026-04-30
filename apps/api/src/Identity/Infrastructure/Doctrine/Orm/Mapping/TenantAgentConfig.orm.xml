@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Identity\Domain\Entity\TenantAgentConfig"
+            table="tenant_agent_configs"
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineTenantAgentConfigRepository">
+
+        <unique-constraints>
+            <unique-constraint name="tenant_agent_configs_tenant_uniq" columns="tenant_id"/>
+        </unique-constraints>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant" fetch="EAGER">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="anthropicApiKeyEncrypted" type="text" column="anthropic_api_key_encrypted"/>
+        <field name="encryptionKeyVersion" type="integer" column="encryption_key_version"/>
+        <field name="keyPrefix" type="string" length="16" column="key_prefix"/>
+
+        <field name="enabledAt" type="datetime_immutable" column="enabled_at"/>
+        <field name="disabledAt" type="datetime_immutable" column="disabled_at" nullable="true"/>
+        <field name="lastUsedAt" type="datetime_immutable" column="last_used_at" nullable="true"/>
+
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+        <field name="updatedAt" type="datetime_immutable" column="updated_at"/>
+
+    </entity>
+
+</doctrine-mapping>
