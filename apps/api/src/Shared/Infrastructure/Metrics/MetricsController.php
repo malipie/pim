@@ -10,26 +10,32 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * Prometheus-compatible scrape endpoint.
  *
- * Sprint 0 ships only the metric called out as the runtime guardrail in the
- * architecture — `frankenphp_worker_memory_bytes` — plus a couple of trivially
- * derivable companions. A full pipeline (Prometheus scrape config, alertmanager
- * thresholds, messenger consumer lag, business metrics) lands in epik 0.11
- * (#103-#105). The endpoint stays available in dev so the bulk-import
- * benchmark (ticket 0.0.13) has a runtime counterpart for ad-hoc inspection.
+ * Surface today:
+ * - `frankenphp_worker_memory_bytes` (architecture sekcja 3.10 guardrail).
+ * - `frankenphp_worker_peak_memory_bytes`, `frankenphp_worker_pid` companions.
+ * - `db_query_duration_seconds` histogram (audit MEDIUM-003) — emitted by
+ *   the {@see \App\Shared\Infrastructure\Doctrine\Middleware\QueryTimingMiddleware}
+ *   so ops can wire `histogram_quantile(0.95, …)` / `0.99` alerts on
+ *   slow DB without re-enabling SQL logging in production.
  *
- * Numbers reported are "memory of whichever worker handled THIS scrape" — fine
- * for single-worker dev. In production with multiple FrankenPHP workers behind
- * the edge Caddy, scraping reaches one randomly, so the alert threshold is set
- * on the rolling max across scrapes.
+ * Numbers reported are "for whichever worker handled THIS scrape" — fine
+ * for single-worker dev. In production with multiple FrankenPHP workers
+ * behind the edge Caddy, scraping reaches one randomly, so alert
+ * thresholds watch the rolling max across scrapes.
  */
-final class MetricsController
+final readonly class MetricsController
 {
+    public function __construct(private QueryDurationHistogram $queryHistogram)
+    {
+    }
+
     #[Route(path: '/api/metrics', name: 'app_metrics', methods: ['GET'])]
     public function __invoke(): Response
     {
         $resident = \memory_get_usage(true);
         $peak = \memory_get_peak_usage(true);
         $pid = \getmypid();
+        $queryMetrics = $this->queryHistogram->render();
 
         $body = <<<METRICS
             # HELP frankenphp_worker_memory_bytes Resident PHP memory of the FrankenPHP worker that handled the scrape.
@@ -41,6 +47,9 @@ final class MetricsController
             # HELP frankenphp_worker_pid Process id of the worker that handled the scrape.
             # TYPE frankenphp_worker_pid gauge
             frankenphp_worker_pid {$pid}
+            # HELP db_query_duration_seconds Wall-clock duration of every Doctrine DBAL query handled by this worker since boot.
+            # TYPE db_query_duration_seconds histogram
+            {$queryMetrics}
 
             METRICS;
 
