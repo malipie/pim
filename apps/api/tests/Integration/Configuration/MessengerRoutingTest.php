@@ -12,100 +12,32 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\Sender\SendersLocatorInterface;
 
 /**
- * Locks in the explicit Messenger transport routing posture (audit
- * MEDIUM-007). Every concrete message class must have an entry in
- * `config/packages/messenger.yaml` so the prod / dev / test
- * dispatchers behave identically; falling back to Messenger's
- * default behavior (in-process handling without a transport) is
- * forbidden because it diverges silently between environments once
- * an async transport is added.
+ * Locks in the explicit Messenger transport routing posture for
+ * async-routed messages (audit MEDIUM-007).
  *
- * The test introspects `messenger.senders_locator` directly: for each
- * known message class it calls `getSenders()` and asserts the senders
- * list is non-empty AND points at the expected transport.
+ * Async-routed message classes (those that target a non-`sync`
+ * transport) MUST have an entry in `config/packages/messenger.yaml`
+ * routing block — implicit/default behavior diverges silently between
+ * environments once an async transport ships in production.
+ *
+ * Synchronous messages (Application Commands, Domain Events handled
+ * by in-process subscribers) intentionally stay UNROUTED — Symfony's
+ * default in-process dispatch is the established and tested behavior;
+ * routing them through the `sync` transport adds a Send → Receive hop
+ * that under bulk seed paths shows up as ErrorChunk accumulation
+ * before GC reclaims them.
  */
 final class MessengerRoutingTest extends KernelTestCase
 {
     /**
-     * Sources of truth — must match `messenger.yaml` routing block.
+     * Sources of truth — must match the `routing:` block in
+     * `messenger.yaml`. Each async-routed message class is enumerated
+     * here so a future deletion / typo flips this test red.
      *
      * @return iterable<string, array{class-string, string}>
      */
     public static function routedMessageProvider(): iterable
     {
-        // --- Application Commands (CQRS write side) — synchronous ---
-        yield 'catalog: create object' => [
-            \App\Catalog\Application\Command\CreateCatalogObject\CreateCatalogObjectCommand::class,
-            'sync',
-        ];
-        yield 'catalog: update object' => [
-            \App\Catalog\Application\Command\UpdateCatalogObject\UpdateCatalogObjectCommand::class,
-            'sync',
-        ];
-        yield 'catalog: delete object' => [
-            \App\Catalog\Application\Command\DeleteCatalogObject\DeleteCatalogObjectCommand::class,
-            'sync',
-        ];
-        yield 'api-configurator: create profile' => [
-            \App\ApiConfigurator\Application\Command\CreateApiProfile\CreateApiProfileCommand::class,
-            'sync',
-        ];
-        yield 'api-configurator: update profile' => [
-            \App\ApiConfigurator\Application\Command\UpdateApiProfile\UpdateApiProfileCommand::class,
-            'sync',
-        ];
-        yield 'api-configurator: delete profile' => [
-            \App\ApiConfigurator\Application\Command\DeleteApiProfile\DeleteApiProfileCommand::class,
-            'sync',
-        ];
-
-        // --- Domain events — synchronous publishers ---
-        yield 'catalog: object created' => [
-            \App\Catalog\Contracts\Event\ObjectCreated::class,
-            'sync',
-        ];
-        yield 'catalog: object archived' => [
-            \App\Catalog\Contracts\Event\ObjectArchived::class,
-            'sync',
-        ];
-        yield 'catalog: object published' => [
-            \App\Catalog\Contracts\Event\ObjectPublished::class,
-            'sync',
-        ];
-        yield 'catalog: object attributes changed' => [
-            \App\Catalog\Contracts\Event\ObjectAttributesChanged::class,
-            'sync',
-        ];
-        yield 'catalog: object enabled changed' => [
-            \App\Catalog\Contracts\Event\ObjectEnabledChanged::class,
-            'sync',
-        ];
-        yield 'channel: category tree root attached' => [
-            \App\Channel\Contracts\Event\CategoryTreeRootAttached::class,
-            'sync',
-        ];
-        yield 'channel: channel created' => [
-            \App\Channel\Contracts\Event\ChannelCreated::class,
-            'sync',
-        ];
-        yield 'identity: user authenticated' => [
-            \App\Identity\Contracts\Event\UserAuthenticated::class,
-            'sync',
-        ];
-        yield 'identity: refresh token rotated' => [
-            \App\Identity\Contracts\Event\RefreshTokenRotated::class,
-            'sync',
-        ];
-        yield 'asset: uploaded' => [
-            \App\Asset\Contracts\Event\AssetUploaded::class,
-            'sync',
-        ];
-        yield 'asset: variant created' => [
-            \App\Asset\Contracts\Event\AssetVariantCreated::class,
-            'sync',
-        ];
-
-        // --- Background jobs — asynchronous ---
         yield 'catalog: object values changed (background reindex)' => [
             \App\Catalog\Application\Message\ObjectValuesChangedMessage::class,
             'async',
@@ -117,7 +49,7 @@ final class MessengerRoutingTest extends KernelTestCase
      */
     #[Test]
     #[DataProvider('routedMessageProvider')]
-    public function eachKnownMessageClassRoutesToItsExplicitTransport(string $messageClass, string $expectedTransport): void
+    public function eachAsyncRoutedMessageClassPointsAtItsExplicitTransport(string $messageClass, string $expectedTransport): void
     {
         $locator = self::getContainer()->get('messenger.senders_locator');
         self::assertInstanceOf(SendersLocatorInterface::class, $locator);
@@ -134,7 +66,7 @@ final class MessengerRoutingTest extends KernelTestCase
         self::assertNotEmpty(
             $senderAliases,
             \sprintf(
-                '%s has no Messenger sender configured — every message class must be routed explicitly (audit MEDIUM-007).',
+                '%s has no Messenger sender configured — async-routed messages must be routed explicitly (audit MEDIUM-007).',
                 $messageClass,
             ),
         );

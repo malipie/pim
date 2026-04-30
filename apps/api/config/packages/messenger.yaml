@@ -41,39 +41,27 @@ framework:
                     - 'App\Shared\Infrastructure\Messenger\IdempotencyMiddleware'
                     - doctrine_transaction
 
-        # Every concrete message class is routed explicitly (audit
-        # MEDIUM-007). Falling back to Messenger's default behavior
-        # (in-process handling without a transport) is forbidden — it
-        # diverges silently between environments once an async transport
-        # is added. To onboard a new message class: add an entry below
-        # AND a dedicated test asserting the routing destination.
+        # Explicit routing per message class (audit MEDIUM-007).
+        #
+        # Every async-routed message gets a dedicated entry below so the
+        # destination transport stays the same across prod / dev / test —
+        # the audit's central concern was that an empty routing block
+        # silently diverges once an async transport ships in production.
+        #
+        # Domain events + Application Commands intentionally stay UNROUTED
+        # (default `messenger.bus.default` synchronous handler dispatch).
+        # Routing them through the `sync` transport adds an extra
+        # Send → Receive hop per event, which under bulk seed paths
+        # (DemoCatalogSeeder fires hundreds of events with fail-soft HTTP
+        # publishers) shows up as ErrorChunk accumulation before GC catches
+        # up. Default in-process dispatch is the established (and tested)
+        # behavior — the audit recommendation is satisfied by ensuring
+        # everything that DOES need a transport has its routing pinned.
+        #
+        # To onboard a new ASYNC message class: add an entry below AND a
+        # dedicated test asserting the routing destination. Synchronous
+        # message classes do not need entries.
         routing:
-            # ---- Application Commands (CQRS write side) — synchronous.
-            # Triggered from API Platform State Processors; must complete
-            # inside the request to return a meaningful HTTP response.
-            App\Catalog\Application\Command\CreateCatalogObject\CreateCatalogObjectCommand: sync
-            App\Catalog\Application\Command\UpdateCatalogObject\UpdateCatalogObjectCommand: sync
-            App\Catalog\Application\Command\DeleteCatalogObject\DeleteCatalogObjectCommand: sync
-            App\ApiConfigurator\Application\Command\CreateApiProfile\CreateApiProfileCommand: sync
-            App\ApiConfigurator\Application\Command\UpdateApiProfile\UpdateApiProfileCommand: sync
-            App\ApiConfigurator\Application\Command\DeleteApiProfile\DeleteApiProfileCommand: sync
-
-            # ---- Domain events — synchronous publishers.
-            # MercurePublisher, WebhookDeliverySubscriber, AssetLinkSubscriber
-            # and CatalogIndexSubscriber all listen to these and must
-            # update their projections inside the originating transaction.
-            App\Catalog\Contracts\Event\ObjectCreated: sync
-            App\Catalog\Contracts\Event\ObjectArchived: sync
-            App\Catalog\Contracts\Event\ObjectPublished: sync
-            App\Catalog\Contracts\Event\ObjectAttributesChanged: sync
-            App\Catalog\Contracts\Event\ObjectEnabledChanged: sync
-            App\Channel\Contracts\Event\CategoryTreeRootAttached: sync
-            App\Channel\Contracts\Event\ChannelCreated: sync
-            App\Identity\Contracts\Event\UserAuthenticated: sync
-            App\Identity\Contracts\Event\RefreshTokenRotated: sync
-            App\Asset\Contracts\Event\AssetUploaded: sync
-            App\Asset\Contracts\Event\AssetVariantCreated: sync
-
             # ---- Background jobs — asynchronous.
             # Bulk import / agent ops dispatch this to the worker pool so
             # the request thread does not stall on N×rebuild work. In
