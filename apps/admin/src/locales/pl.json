@@ -77,6 +77,42 @@
       "position": "Pozycja"
     }
   },
+  "channels": {
+    "list_title": "Kanały",
+    "list_subtitle": "Cele publikacji — locale, waluty i mapping atrybutów per kind.",
+    "back": "Wróć do kanałów",
+    "empty": "Brak kanałów dla aktualnego najemcy.",
+    "write_deferred_note": "Ręczne tworzenie / edycja + autoryzacja ChannelObjectTypeMapping (per-kind mapping atrybutów) odroczone do follow-up — read-only powierzchnia dostarcza ten PR. Integracje (#74 BaseLinker, #81 Shopify) konsumują ten resource bezpośrednio.",
+    "fields": {
+      "code": "Kod",
+      "label": "Etykieta",
+      "locales": "Locale",
+      "currencies": "Waluty",
+      "locales_count": "Liczba locale",
+      "currencies_count": "Liczba walut",
+      "category_root": "Korzeń drzewa kategorii",
+      "actions": "Akcje"
+    },
+    "actions": {
+      "view": "Podgląd"
+    },
+    "show": {
+      "tabs_aria": "Karty szczegółów kanału",
+      "no_locales": "Brak skonfigurowanych locale.",
+      "no_currencies": "Brak skonfigurowanych walut.",
+      "tabs": {
+        "overview": "Przegląd",
+        "locales": "Locale",
+        "currencies": "Waluty",
+        "mapping": "Mapping",
+        "preview": "Podgląd"
+      },
+      "placeholder": {
+        "mapping": "Per-kind ChannelObjectTypeMapping editor dochodzi w follow-up — wymagany przed integracjami #74/#81.",
+        "preview": "Per-channel preview produktu dochodzi w 0.10.6 (API Configurator)."
+      }
+    }
+  },
   "categories": {
     "list_title": "Kategorie",
     "list_subtitle": "Hierarchiczna taksonomia oparta o ltree (Postgres).",

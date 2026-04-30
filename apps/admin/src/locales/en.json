@@ -77,6 +77,42 @@
       "position": "Position"
     }
   },
+  "channels": {
+    "list_title": "Channels",
+    "list_subtitle": "Publication targets — locales, currencies, and attribute mapping per kind.",
+    "back": "Back to channels",
+    "empty": "No channels for the current tenant.",
+    "write_deferred_note": "Manual create / edit + ChannelObjectTypeMapping authoring (per-kind attribute mapping) is deferred to a follow-up — read-only surface ships in this PR. The integration adapters (#74 BaseLinker, #81 Shopify) consume this resource directly.",
+    "fields": {
+      "code": "Code",
+      "label": "Label",
+      "locales": "Locales",
+      "currencies": "Currencies",
+      "locales_count": "Locales count",
+      "currencies_count": "Currencies count",
+      "category_root": "Category tree root",
+      "actions": "Actions"
+    },
+    "actions": {
+      "view": "View"
+    },
+    "show": {
+      "tabs_aria": "Channel detail tabs",
+      "no_locales": "No locales configured.",
+      "no_currencies": "No currencies configured.",
+      "tabs": {
+        "overview": "Overview",
+        "locales": "Locales",
+        "currencies": "Currencies",
+        "mapping": "Mapping",
+        "preview": "Preview"
+      },
+      "placeholder": {
+        "mapping": "Per-kind ChannelObjectTypeMapping editor lands in a follow-up — required before #74/#81 integration sync flips on.",
+        "preview": "Per-channel product preview lands in 0.10.6 (API Configurator)."
+      }
+    }
+  },
   "categories": {
     "list_title": "Categories",
     "list_subtitle": "Hierarchical taxonomy backed by Postgres ltree.",
