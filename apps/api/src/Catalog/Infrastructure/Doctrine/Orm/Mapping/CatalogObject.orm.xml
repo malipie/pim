@@ -70,6 +70,11 @@
             </options>
         </field>
         <field name="path" type="ltree" nullable="true"/>
+        <field name="variantAxes" type="json" column="variant_axes" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
         <field name="createdAt" type="datetime_immutable" column="created_at"/>
         <field name="updatedAt" type="datetime_immutable" column="updated_at"/>
 

@@ -102,6 +102,15 @@ class CatalogObject extends AggregateRoot implements TenantScoped
      * message and validates ltree label format.
      */
     private ?string $path = null;
+
+    /**
+     * UI-02.6 (#296) — axis definition on a master product row, e.g.
+     * `[{"code":"color","attribute_id":"...","values":["red","blue"]}]`.
+     * NULL on variant + non-master rows. Only writable on `kind=product`.
+     *
+     * @var list<array<string, mixed>>|null
+     */
+    private ?array $variantAxes = null;
     private DateTimeImmutable $createdAt;
     private DateTimeImmutable $updatedAt;
 
@@ -321,6 +330,23 @@ class CatalogObject extends AggregateRoot implements TenantScoped
     public function attachToPath(?string $path): void
     {
         $this->path = $path;
+        $this->touch();
+    }
+
+    /**
+     * @return list<array<string, mixed>>|null
+     */
+    public function getVariantAxes(): ?array
+    {
+        return $this->variantAxes;
+    }
+
+    /**
+     * @param list<array<string, mixed>>|null $axes
+     */
+    public function declareVariantAxes(?array $axes): void
+    {
+        $this->variantAxes = $axes;
         $this->touch();
     }
 
