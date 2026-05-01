@@ -1,10 +1,22 @@
 import { Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { jsonFetch } from '@/lib/http';
+
+interface SchemaAttribute {
+  id: string;
+  code: string;
+  type: string;
+  label: { pl?: string; en?: string };
+  options?: Array<{ code: string; label?: { pl?: string; en?: string } }>;
+}
+
+interface SchemaGroup {
+  attributes: SchemaAttribute[];
+}
 
 interface AxisDraft {
   code: string;
@@ -39,6 +51,23 @@ interface GenerateVariantsResponse {
 export function VariantsTab({ masterProductId }: { masterProductId: string }) {
   const { t } = useTranslation();
   const [axes, setAxes] = useState<AxisDraft[]>([{ code: 'color', values: [] }]);
+  const [attributes, setAttributes] = useState<SchemaAttribute[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    jsonFetch<{ groups: SchemaGroup[] }>(
+      `/api/products/${masterProductId}/effective-attribute-groups`,
+    )
+      .then((body) => {
+        if (cancelled) return;
+        const flat = body.groups.flatMap((g) => g.attributes ?? []);
+        setAttributes(flat);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [masterProductId]);
   const [skuTemplate, setSkuTemplate] = useState('');
   const [isPending, setIsPending] = useState(false);
   const [response, setResponse] = useState<GenerateVariantsResponse | null>(null);
@@ -122,6 +151,7 @@ export function VariantsTab({ masterProductId }: { masterProductId: string }) {
             // biome-ignore lint/suspicious/noArrayIndexKey: axis identity is positional in this draft form.
             key={idx}
             axis={axis}
+            attributes={attributes}
             onCodeChange={(code) => updateAxisCode(idx, code)}
             onAddValue={(value) => addAxisValue(idx, value)}
             onRemoveValue={(vi) => removeAxisValue(idx, vi)}
@@ -182,12 +212,14 @@ export function VariantsTab({ masterProductId }: { masterProductId: string }) {
 
 function AxisRow({
   axis,
+  attributes,
   onCodeChange,
   onAddValue,
   onRemoveValue,
   onRemove,
 }: {
   axis: AxisDraft;
+  attributes: SchemaAttribute[];
   onCodeChange: (code: string) => void;
   onAddValue: (value: string) => void;
   onRemoveValue: (idx: number) => void;
@@ -195,15 +227,28 @@ function AxisRow({
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState('');
+  const codeListId = `axis-codes-${axis.code || 'empty'}`;
+  const valuesListId = `axis-values-${axis.code || 'empty'}`;
+  const matchingAttribute = attributes.find((a) => a.code === axis.code);
+  const suggestedValues = matchingAttribute?.options ?? [];
 
   return (
     <div className="flex items-start gap-2">
-      <Input
-        value={axis.code}
-        onChange={(e) => onCodeChange(e.target.value)}
-        placeholder="color"
-        className="w-32"
-      />
+      <div className="w-32">
+        <Input
+          value={axis.code}
+          onChange={(e) => onCodeChange(e.target.value)}
+          placeholder="color"
+          list={codeListId}
+        />
+        <datalist id={codeListId}>
+          {attributes.map((a) => (
+            <option key={a.id} value={a.code}>
+              {a.label?.pl ?? a.label?.en ?? a.code}
+            </option>
+          ))}
+        </datalist>
+      </div>
       <div className="flex-1 space-y-1">
         <div className="flex flex-wrap gap-1">
           {axis.values.map((value, vi) => (
@@ -240,8 +285,30 @@ function AxisRow({
             placeholder={t('products.variants.add_value_placeholder', {
               defaultValue: 'Add value & press Enter',
             })}
+            list={valuesListId}
           />
+          <datalist id={valuesListId}>
+            {suggestedValues.map((opt) => (
+              <option key={opt.code} value={opt.code}>
+                {opt.label?.pl ?? opt.label?.en ?? opt.code}
+              </option>
+            ))}
+          </datalist>
         </div>
+        {suggestedValues.length > 0 && axis.values.length === 0 ? (
+          <div className="flex flex-wrap gap-1 pt-1">
+            {suggestedValues.map((opt) => (
+              <button
+                key={opt.code}
+                type="button"
+                onClick={() => onAddValue(opt.code)}
+                className="rounded border border-dashed px-1.5 py-0.5 text-[10px] text-muted-foreground hover:border-solid hover:text-foreground"
+              >
+                +{opt.code}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
       <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
         <Trash2 className="size-4" />
