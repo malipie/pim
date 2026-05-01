@@ -20,18 +20,22 @@ final class BuiltInObjectTypeSeederTest extends KernelTestCase
     use ResetDatabase;
 
     #[Test]
-    public function seedCreatesThreeBuiltInObjectTypesForTenant(): void
+    public function seedCreatesFourBuiltInObjectTypesForTenant(): void
     {
         $tenant = $this->createTenant('demo');
 
         $created = $this->seeder()->seed($tenant);
 
-        self::assertSame(3, $created);
+        self::assertSame(4, $created);
         $repo = $this->repository();
-        foreach ([ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset] as $kind) {
+        foreach ([ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset, ObjectKind::Brand] as $kind) {
             $type = $repo->findBuiltInByKind($kind, $tenant);
             self::assertNotNull($type, $kind->value);
             self::assertTrue($type->isBuiltIn());
+            self::assertTrue($type->isCodeImmutable(), $kind->value);
+            self::assertFalse($type->isDeletable(), $kind->value);
+            self::assertNotNull($type->getIcon(), $kind->value);
+            self::assertNotNull($type->getColor(), $kind->value);
             self::assertSame($kind, $type->getKind());
         }
     }
@@ -42,7 +46,7 @@ final class BuiltInObjectTypeSeederTest extends KernelTestCase
         $tenant = $this->createTenant('demo');
         $seeder = $this->seeder();
 
-        self::assertSame(3, $seeder->seed($tenant));
+        self::assertSame(4, $seeder->seed($tenant));
         self::assertSame(0, $seeder->seed($tenant), 'second run should be a no-op');
     }
 

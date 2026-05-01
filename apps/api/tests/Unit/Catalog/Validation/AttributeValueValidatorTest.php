@@ -47,13 +47,19 @@ final class AttributeValueValidatorTest extends TestCase
     }
 
     #[Test]
-    public function defaultFactoryRegistersValidatorsForAllTenAttributeTypes(): void
+    public function defaultFactoryRegistersValidatorsForEveryUserFacingAttributeType(): void
     {
         $validator = AttributeValueValidator::default();
 
-        // Smoke: every AttributeType case must dispatch to a real validator,
-        // not the unsupported_type fallback.
+        // Smoke: every non-system AttributeType case must dispatch to a real
+        // validator, not the unsupported_type fallback. System types
+        // (`datetime`, `reference` per UI-08.3) are intentionally read-only
+        // — they have no validator binding and the dispatcher's fallback is
+        // expected behaviour for them.
         foreach (AttributeType::cases() as $type) {
+            if ($type->isSystemType()) {
+                continue;
+            }
             $attribute = new Attribute('a_'.$type->value, ['pl' => $type->value], $type);
             $errors = $validator->validate($attribute, []);
 
@@ -62,6 +68,20 @@ final class AttributeValueValidatorTest extends TestCase
             foreach ($errors as $error) {
                 self::assertNotSame('attribute.unsupported_type', $error->code, \sprintf('Type "%s" hit the unsupported fallback.', $type->value));
             }
+        }
+    }
+
+    #[Test]
+    public function systemTypesIntentionallyHitUnsupportedFallback(): void
+    {
+        $validator = AttributeValueValidator::default();
+
+        foreach ([AttributeType::Datetime, AttributeType::Reference] as $type) {
+            $attribute = new Attribute('sys_'.$type->value, ['en' => 'sys'], $type);
+            $errors = $validator->validate($attribute, []);
+
+            self::assertNotEmpty($errors);
+            self::assertSame('attribute.unsupported_type', $errors[0]->code);
         }
     }
 }

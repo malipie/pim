@@ -117,6 +117,18 @@ class AttributeGroup implements TenantScoped
     }
 
     /**
+     * @throws LogicException when invoked on a system group (code immutable per UI-08.3)
+     */
+    public function changeCode(string $code): void
+    {
+        if ($this->isSystemGroup) {
+            throw new LogicException('System AttributeGroup code is immutable.');
+        }
+
+        $this->code = $code;
+    }
+
+    /**
      * @return array<string, string>
      */
     public function getLabel(): array
@@ -129,6 +141,8 @@ class AttributeGroup implements TenantScoped
      */
     public function rename(array $label): void
     {
+        // Rename is allowed for system groups (per epik plan §10.5 — name +
+        // description are translatable, only code + delete are locked).
         $this->label = $label;
     }
 

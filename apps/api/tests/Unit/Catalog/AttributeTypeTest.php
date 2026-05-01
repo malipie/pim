@@ -12,10 +12,13 @@ use PHPUnit\Framework\TestCase;
 final class AttributeTypeTest extends TestCase
 {
     #[Test]
-    public function tenCasesAreDefinedExactly(): void
+    public function twelveCasesAreDefinedExactly(): void
     {
-        // Spec is "10 typów" — guard against accidental case removal/addition.
-        self::assertCount(10, AttributeType::cases());
+        // 10 user-facing types from ADR-006 + 2 system types added by UI-08.3
+        // (#258): `datetime` and `reference`. Guard against accidental
+        // case removal/addition.
+        self::assertCount(12, AttributeType::cases());
+        self::assertCount(2, array_filter(AttributeType::cases(), static fn (AttributeType $t) => $t->isSystemType()));
     }
 
     #[Test]
@@ -44,6 +47,8 @@ final class AttributeTypeTest extends TestCase
         yield 'relation does not use options' => [AttributeType::Relation, false];
         yield 'price does not use options' => [AttributeType::Price, false];
         yield 'metric does not use options' => [AttributeType::Metric, false];
+        yield 'datetime does not use options' => [AttributeType::Datetime, false];
+        yield 'reference does not use options' => [AttributeType::Reference, false];
     }
 
     #[Test]

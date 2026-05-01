@@ -20,6 +20,11 @@ interface ObjectTypeRepositoryInterface
      */
     public function findByKind(ObjectKind $kind, Tenant $tenant): array;
 
+    /**
+     * @return list<ObjectType>
+     */
+    public function findAllByTenant(Tenant $tenant): array;
+
     public function findBuiltInByKind(ObjectKind $kind, Tenant $tenant): ?ObjectType;
 
     public function save(ObjectType $objectType): void;
