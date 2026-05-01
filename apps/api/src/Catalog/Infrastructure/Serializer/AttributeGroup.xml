@@ -12,19 +12,32 @@
         </attribute>
         <attribute name="code">
             <group>admin:read</group>
-            <group>admin:write</group>
             <group>integration:read</group>
             <group>public:read</group>
         </attribute>
         <attribute name="label">
             <group>admin:read</group>
-            <group>admin:write</group>
             <group>integration:read</group>
             <group>public:read</group>
         </attribute>
+        <attribute name="description">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="icon">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="color">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="systemGroup">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="autoAttached">
+            <group>admin:read</group>
+        </attribute>
         <attribute name="position">
             <group>admin:read</group>
-            <group>admin:write</group>
         </attribute>
         <attribute name="createdAt">
             <group>admin:read</group>

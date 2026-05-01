@@ -1251,6 +1251,112 @@
                         "explode": true
                     }
                 ]
+            },
+            "post": {
+                "operationId": "api_attribute_groups_post",
+                "tags": [
+                    "AttributeGroup"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "AttributeGroup resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttributeGroup.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttributeGroup-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a AttributeGroup resource.",
+                "description": "Creates a AttributeGroup resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new AttributeGroup resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AttributeGroup.AttributeGroupInput-attribute_group.create"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AttributeGroup.AttributeGroupInput-attribute_group.create"
+                            }
+                        }
+                    },
+                    "required": true
+                }
             }
         },
         "/api/attribute_groups/{id}": {
@@ -1334,6 +1440,210 @@
                         "explode": false
                     }
                 ]
+            },
+            "delete": {
+                "operationId": "api_attribute_groups_id_delete",
+                "tags": [
+                    "AttributeGroup"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "AttributeGroup resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the AttributeGroup resource.",
+                "description": "Removes the AttributeGroup resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "AttributeGroup identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_attribute_groups_id_patch",
+                "tags": [
+                    "AttributeGroup"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "AttributeGroup resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttributeGroup.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttributeGroup-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the AttributeGroup resource.",
+                "description": "Updates the AttributeGroup resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "AttributeGroup identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated AttributeGroup resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AttributeGroup.AttributeGroupPatchInput-attribute_group.patch.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
             }
         },
         "/api/assets": {
@@ -4163,6 +4473,33 @@
                             "type": "string"
                         }
                     },
+                    "description": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "icon": {
+                        "maxLength": 64,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "color": {
+                        "maxLength": 16,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "autoAttached": {
+                        "default": false,
+                        "type": "boolean"
+                    },
                     "position": {
                         "type": "integer"
                     },
@@ -4170,11 +4507,110 @@
                         "readOnly": true,
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "systemGroup": {
+                        "readOnly": true,
+                        "type": "boolean"
                     }
                 },
                 "required": [
                     "code"
                 ]
+            },
+            "AttributeGroup.AttributeGroupInput-attribute_group.create": {
+                "type": "object",
+                "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system (e.g. the auto-\nattached \"Audit\" group #UI-08.3) \u2014 not deletable, not detachable from\nObjectType, code is immutable. `auto_attached=true` means the group is\nautomatically wired to every new ObjectType (currently only Audit).",
+                "required": [
+                    "code",
+                    "label"
+                ],
+                "properties": {
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9_-]+)$",
+                        "default": "",
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "description": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "icon": {
+                        "maxLength": 64,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "color": {
+                        "maxLength": 16,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "position": {
+                        "minimum": 0,
+                        "default": 0,
+                        "type": "integer"
+                    }
+                }
+            },
+            "AttributeGroup.AttributeGroupPatchInput-attribute_group.patch.jsonMergePatch": {
+                "type": "object",
+                "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system (e.g. the auto-\nattached \"Audit\" group #UI-08.3) \u2014 not deletable, not detachable from\nObjectType, code is immutable. `auto_attached=true` means the group is\nautomatically wired to every new ObjectType (currently only Audit).",
+                "properties": {
+                    "label": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "description": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "icon": {
+                        "maxLength": 64,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "color": {
+                        "maxLength": 16,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "position": {
+                        "minimum": 0,
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
             },
             "AttributeGroup.jsonld-admin.read": {
                 "allOf": [
@@ -4201,6 +4637,33 @@
                                     "type": "string"
                                 }
                             },
+                            "description": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            },
+                            "icon": {
+                                "maxLength": 64,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "color": {
+                                "maxLength": 16,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "autoAttached": {
+                                "default": false,
+                                "type": "boolean"
+                            },
                             "position": {
                                 "type": "integer"
                             },
@@ -4208,6 +4671,10 @@
                                 "readOnly": true,
                                 "type": "string",
                                 "format": "date-time"
+                            },
+                            "systemGroup": {
+                                "readOnly": true,
+                                "type": "boolean"
                             }
                         },
                         "required": [
