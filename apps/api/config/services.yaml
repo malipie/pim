@@ -24,7 +24,14 @@ parameters:
     # mitigation: "custom kinds without UX support is an over-engineering
     # trap"). Tests pass the flag through the constructor directly when
     # they need to exercise the unlocked path.
-    pim.catalog.enable_custom_object_types: false
+    # 2026-05-01 (UI-02 follow-up): flipped to true so the modeling UI
+    # exposes a Create custom ObjectType flow today. The DB schema has
+    # supported `kind=custom` rows from day 1 (R-29 mitigation), and the
+    # admin already has the form (`<CreateCustomObjectTypeDialog>`)
+    # backed by the new `POST /api/object_types` endpoint. Override
+    # back to `false` per-tenant once role gating ships in Faza 1
+    # ADR-013.
+    pim.catalog.enable_custom_object_types: '%env(bool:CATALOG_ENABLE_CUSTOM_OBJECT_TYPES)%'
 
 services:
     _defaults:

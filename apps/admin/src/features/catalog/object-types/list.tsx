@@ -1,10 +1,11 @@
 import { useList } from '@refinedev/core';
-import { Eye } from 'lucide-react';
+import { Eye, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
+import { CreateCustomObjectTypeDialog } from '@/components/modeling/create-custom-object-type-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -40,6 +41,7 @@ export function ObjectTypesListPage() {
   const types = result.data;
   const isLoading = query.isLoading;
   const instanceCounts = useObjectTypeInstanceCounts(types);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const builtIn = types.filter((row) => row.builtIn !== false);
   const custom = types.filter((row) => row.builtIn === false);
@@ -127,22 +129,83 @@ export function ObjectTypesListPage() {
       <section className="space-y-3">
         <header className="flex items-center justify-between">
           <h2 className="text-sm font-medium">{t('object_types.custom_title')}</h2>
-          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
-            {t('object_types.phase_2_badge')}
-          </span>
-        </header>
-        <div className="rounded-xl border border-dashed bg-muted/30 px-4 py-6 text-sm text-muted-foreground">
-          <p className="mb-2">{t('object_types.custom_disabled_explanation')}</p>
-          <Button type="button" variant="outline" size="sm" disabled>
-            {t('object_types.create_custom_disabled')}
+          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            {t('object_types.create_custom_action', { defaultValue: 'Create custom ObjectType' })}
           </Button>
-          {custom.length > 0 ? (
-            <p className="mt-3 text-xs">
-              {t('object_types.custom_present_note', { count: custom.length })}
-            </p>
-          ) : null}
+        </header>
+        <div className="rounded-xl border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[180px]">{t('object_types.fields.code')}</TableHead>
+                <TableHead>{t('object_types.fields.label')}</TableHead>
+                <TableHead className="w-[120px]">{t('object_types.fields.kind')}</TableHead>
+                <TableHead className="w-[120px] text-right">
+                  {t('object_types.fields.instance_count')}
+                </TableHead>
+                <TableHead className="w-[120px]">
+                  {t('object_types.fields.schema_version')}
+                </TableHead>
+                <TableHead className="w-[80px] text-right">
+                  <span className="sr-only">{t('object_types.fields.actions')}</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {custom.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                    {t('object_types.custom_empty', {
+                      defaultValue: 'No custom ObjectTypes yet — create your first one above.',
+                    })}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                custom.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="font-mono text-xs">
+                      <span className="inline-flex items-center gap-2">
+                        <ColorSwatch color={row.color} />
+                        {row.code}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {resolveLabel(row.label, i18n.language)}
+                    </TableCell>
+                    <TableCell>
+                      <KindBadge kind={row.kind} />
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm tabular-nums">
+                      {instanceCounts[row.id] ?? '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {row.schemaVersion ?? 1}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button asChild variant="ghost" size="sm">
+                        <Link to={`/modeling/object-types/${row.id}`}>
+                          <Eye className="size-4" />
+                          <span className="sr-only">{t('object_types.actions.view')}</span>
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </section>
+
+      {createOpen ? (
+        <CreateCustomObjectTypeDialog
+          onClose={() => setCreateOpen(false)}
+          onCreated={() => {
+            void query.refetch();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
