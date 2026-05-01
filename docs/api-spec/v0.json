@@ -4751,6 +4751,18 @@
                             ]
                         }
                     },
+                    "completenessPct": {
+                        "readOnly": true,
+                        "description": "Flat percentage 0..100 mirrored from `completeness['global']` for\nindexable filter/sort on the products list (UI-02.1, UI-02.10).",
+                        "default": 0,
+                        "type": "integer"
+                    },
+                    "syncStatusAggregate": {
+                        "readOnly": true,
+                        "description": "Per-product sync aggregate badge \u2014 `green|yellow|red|gray`. Default\n`gray` (no sync history). Mutated by Faza 1 channel-sync subscriber;\nMVP only ships the column + serialisation (UI-02.1 / UI-02.5 / UI-02.10).",
+                        "default": "gray",
+                        "type": "string"
+                    },
                     "attributesIndexed": {
                         "readOnly": true,
                         "type": "object",
@@ -4959,6 +4971,18 @@
                                 "null"
                             ]
                         }
+                    },
+                    "completenessPct": {
+                        "readOnly": true,
+                        "description": "Flat percentage 0..100 mirrored from `completeness['global']` for\nindexable filter/sort on the products list (UI-02.1, UI-02.10).",
+                        "default": 0,
+                        "type": "integer"
+                    },
+                    "syncStatusAggregate": {
+                        "readOnly": true,
+                        "description": "Per-product sync aggregate badge \u2014 `green|yellow|red|gray`. Default\n`gray` (no sync history). Mutated by Faza 1 channel-sync subscriber;\nMVP only ships the column + serialisation (UI-02.1 / UI-02.5 / UI-02.10).",
+                        "default": "gray",
+                        "type": "string"
                     },
                     "attributesIndexed": {
                         "readOnly": true,

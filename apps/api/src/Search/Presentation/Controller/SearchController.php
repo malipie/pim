@@ -63,10 +63,26 @@ final class SearchController
         $query = $request->query->get('q', '');
 
         $filters = [];
+        $rangeFilters = [];
         /** @var array<string, mixed> $rawFilters */
         $rawFilters = $request->query->all('filter');
         foreach ($rawFilters as $key => $value) {
             if (\is_array($value)) {
+                // Range syntax: filter[key][gte]=50 / filter[key][lte]=90 (UI-02.24).
+                $isAssoc = array_keys($value) !== range(0, \count($value) - 1);
+                if ($isAssoc && (isset($value['gte']) || isset($value['lte']))) {
+                    $range = [];
+                    if (isset($value['gte']) && is_numeric($value['gte'])) {
+                        $range['gte'] = (float) $value['gte'];
+                    }
+                    if (isset($value['lte']) && is_numeric($value['lte'])) {
+                        $range['lte'] = (float) $value['lte'];
+                    }
+                    if ([] !== $range) {
+                        $rangeFilters[$key] = $range;
+                    }
+                    continue;
+                }
                 /** @var list<scalar> $coerced */
                 $coerced = array_values(array_filter($value, 'is_scalar'));
                 $filters[$key] = $coerced;
@@ -95,6 +111,7 @@ final class SearchController
             page: $page,
             perPage: $perPage,
             highlight: $highlight,
+            rangeFilters: $rangeFilters,
         );
 
         return new JsonResponse([

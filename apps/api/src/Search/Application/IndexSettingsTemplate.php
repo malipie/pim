@@ -52,7 +52,7 @@ final class IndexSettingsTemplate
         return match ($kind) {
             ObjectKind::Product => [
                 'searchableAttributes' => ['code', 'name', 'sku', 'brand', 'description'],
-                'filterableAttributes' => ['tenantId', 'kind', 'status', 'enabled', 'objectTypeId', 'brand', 'category'],
+                'filterableAttributes' => ['tenantId', 'kind', 'status', 'enabled', 'objectTypeId', 'brand', 'category', 'completeness_pct', 'sync_status_aggregate'],
                 'sortableAttributes' => ['createdAt', 'updatedAt', 'name'],
                 'displayedAttributes' => ['*'],
                 'rankingRules' => ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
