@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { jsonFetch } from '@/lib/http';
 
 interface SavedView {
   id: string;
@@ -49,18 +50,18 @@ export function SavedViewsDropdown({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetch(`/api/saved-views?resource=${encodeURIComponent(resource)}`, {
-      signal: controller.signal,
-      credentials: 'include',
-    })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((body: { views: SavedView[] }) => setViews(body.views))
+    let cancelled = false;
+    jsonFetch<{ views: SavedView[] }>(`/api/saved-views?resource=${encodeURIComponent(resource)}`)
+      .then((body) => {
+        if (!cancelled) setViews(body.views);
+      })
       .catch((err: unknown) => {
-        if (controller.signal.aborted) return;
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : 'unknown');
       });
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, [resource]);
 
   const activeName =
