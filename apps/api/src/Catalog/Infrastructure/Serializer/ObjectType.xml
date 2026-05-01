@@ -29,6 +29,18 @@
         <attribute name="builtIn">
             <group>admin:read</group>
         </attribute>
+        <attribute name="codeImmutable">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="deletable">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="icon">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="color">
+            <group>admin:read</group>
+        </attribute>
         <attribute name="completenessRules">
             <group>admin:read</group>
             <group>admin:write</group>

@@ -180,7 +180,10 @@
       "label_attribute": "Atrybut etykiety",
       "image_attribute": "Atrybut obrazu",
       "completeness": "Reguły kompletności",
-      "actions": "Akcje"
+      "actions": "Akcje",
+      "instance_count": "Instancje",
+      "icon": "Ikona",
+      "color": "Kolor"
     },
     "actions": {
       "view": "Podgląd"
@@ -381,6 +384,28 @@
       "attributes": "Atrybuty",
       "attribute_groups": "Grupy atrybutów",
       "categories": "Kategorie"
+    },
+    "built_in_lock": {
+      "label": "Zablokowane",
+      "tooltip": "Typ systemowy — chroniony przed edycją i usunięciem."
+    },
+    "where_used": {
+      "title": "Gdzie używane",
+      "empty": "Brak danych o użyciu.",
+      "error": "Nie udało się pobrać danych o użyciu.",
+      "not_found": "Endpoint usage zwrócił 404.",
+      "groups": "Grupy atrybutów",
+      "object_types": "Typy obiektów",
+      "categories": "Kategorie",
+      "instances": "Instancje obiektów",
+      "attached_object_types": "Przypięte typy obiektów",
+      "attached_categories": "Przypięte do kategorii",
+      "member_attributes": "Atrybuty w grupie",
+      "affected_instances": "Dotknięte instancje",
+      "attached_attributes": "Przypięte atrybuty",
+      "attached_groups": "Przypięte grupy atrybutów",
+      "api_profiles": "Profile API odwołujące się",
+      "category_attachments": "Przypisania w kategoriach"
     }
   }
 }

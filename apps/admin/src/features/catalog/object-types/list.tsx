@@ -1,8 +1,10 @@
 import { useList } from '@refinedev/core';
-import { Eye, Lock } from 'lucide-react';
+import { Eye } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -13,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { resolveLabel } from '@/features/catalog/attributes/list';
+import { jsonFetch } from '@/lib/http';
 
 interface ObjectTypeRow {
   id: string;
@@ -20,6 +23,10 @@ interface ObjectTypeRow {
   kind: string;
   label?: Record<string, string> | string | null;
   builtIn?: boolean;
+  codeImmutable?: boolean;
+  deletable?: boolean;
+  icon?: string | null;
+  color?: string | null;
   schemaVersion?: number;
 }
 
@@ -32,6 +39,7 @@ export function ObjectTypesListPage() {
 
   const types = result.data;
   const isLoading = query.isLoading;
+  const instanceCounts = useObjectTypeInstanceCounts(types);
 
   const builtIn = types.filter((row) => row.builtIn !== false);
   const custom = types.filter((row) => row.builtIn === false);
@@ -46,9 +54,7 @@ export function ObjectTypesListPage() {
       <section className="space-y-3">
         <header className="flex items-center justify-between">
           <h2 className="text-sm font-medium">{t('object_types.built_in_title')}</h2>
-          <span className="rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-            <Lock className="inline size-3" /> {t('object_types.locked')}
-          </span>
+          <BuiltInLockBadge />
         </header>
         <div className="rounded-xl border bg-card">
           <Table>
@@ -57,6 +63,9 @@ export function ObjectTypesListPage() {
                 <TableHead className="w-[180px]">{t('object_types.fields.code')}</TableHead>
                 <TableHead>{t('object_types.fields.label')}</TableHead>
                 <TableHead className="w-[120px]">{t('object_types.fields.kind')}</TableHead>
+                <TableHead className="w-[120px] text-right">
+                  {t('object_types.fields.instance_count')}
+                </TableHead>
                 <TableHead className="w-[120px]">
                   {t('object_types.fields.schema_version')}
                 </TableHead>
@@ -68,32 +77,40 @@ export function ObjectTypesListPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                     {t('app.loading')}
                   </TableCell>
                 </TableRow>
               ) : builtIn.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                     {t('object_types.empty')}
                   </TableCell>
                 </TableRow>
               ) : (
                 builtIn.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">{row.code}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      <span className="inline-flex items-center gap-2">
+                        <ColorSwatch color={row.color} />
+                        {row.code}
+                      </span>
+                    </TableCell>
                     <TableCell className="font-medium">
                       {resolveLabel(row.label, i18n.language)}
                     </TableCell>
                     <TableCell>
                       <KindBadge kind={row.kind} />
                     </TableCell>
+                    <TableCell className="text-right font-mono text-sm tabular-nums">
+                      {instanceCounts[row.id] ?? '—'}
+                    </TableCell>
                     <TableCell className="text-muted-foreground tabular-nums">
                       {row.schemaVersion ?? 1}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button asChild variant="ghost" size="sm">
-                        <Link to={`/object-types/${row.id}`}>
+                        <Link to={`/modeling/object-types/${row.id}`}>
                           <Eye className="size-4" />
                           <span className="sr-only">{t('object_types.actions.view')}</span>
                         </Link>
@@ -138,10 +155,60 @@ function KindBadge({ kind }: { kind: string }) {
         ? 'bg-emerald-100 text-emerald-900'
         : kind === 'asset'
           ? 'bg-purple-100 text-purple-900'
-          : 'bg-muted text-muted-foreground';
+          : kind === 'brand'
+            ? 'bg-amber-100 text-amber-900'
+            : 'bg-muted text-muted-foreground';
   return (
     <span className={`rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide ${tone}`}>
       {kind}
     </span>
   );
+}
+
+function ColorSwatch({ color }: { color?: string | null }) {
+  if (!color) return null;
+  return (
+    <span
+      aria-hidden
+      className="inline-block size-3 rounded-full border"
+      style={{ backgroundColor: color }}
+    />
+  );
+}
+
+/**
+ * Fetch `/api/object_types/{id}/usage.instanceCount` for every row.
+ * Stored in a parallel map so the row render stays decoupled — the
+ * count cell shows "—" until the per-id call resolves. Each call is
+ * its own request (UI-08.7 ships only single-row endpoints; a batch
+ * endpoint is a follow-up for huge tenants).
+ */
+function useObjectTypeInstanceCounts(types: ObjectTypeRow[]): Record<string, number> {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, number> = {};
+      await Promise.all(
+        types.map(async (row) => {
+          try {
+            const usage = await jsonFetch<{ instanceCount: number }>(
+              `/api/object_types/${row.id}/usage`,
+              { accept: 'application/json' },
+            );
+            next[row.id] = usage.instanceCount;
+          } catch {
+            // tolerate 404 / network — leave row's count blank.
+          }
+        }),
+      );
+      if (!cancelled) setCounts(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [types]);
+
+  return counts;
 }
