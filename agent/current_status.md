@@ -31,10 +31,25 @@ Pełen kontekst: [Project Plan/UI/epik-08-modelowanie.md](../Project%20Plan/UI/e
 - ✅ **#266 UI-08.11** (PR #284) — Attributes list filtry + Usages column + `<AttributePreview>` mock-data widget; serializer XML +`system` field.
 - ✅ **#267 UI-08.12** (PR #285) — `<MigrateAttributeTypePage>` 3-step flow (target → suggest → apply) na route `/modeling/attributes/:id/migrate-type`.
 - ✅ **#268 UI-08.13** (PR #286) — AttributeGroups sub-tab: list/create/show z PATCH up/down reorder + inline visible_when editor + new custom REST `GET /api/attribute_groups/{id}/attributes`.
-- 🚧 **#269 UI-08.14** (branch `feat/ui-08.14-categories-modeling`) — `<EffectiveAttributesPreview>` widget na category show page (PREVIEW_KINDS dropdown → fetch `/api/categories/{id}/effective-groups?objectTypeKind=...` → render dedup'd groups z `BuiltInLockBadge` + `auto_attached` chip + flat attributes list per group). New custom REST controller reusing `EffectiveAttributeGroupResolver::resolveForCategoryPreview`. Manual smoke: zwraca audit group + 4 system attrs dla product preview pod root category. **Świadome odejścia:** drag-drop reparenting (no @dnd-kit/react-arborist), tree filter per ObjectType, override-action UI, "create test object" button — wszystkie wymagają backend extensions które nie istnieją w MVP.
+- ✅ **#269 UI-08.14** (PR #287) — `<EffectiveAttributesPreview>` widget na category show page + `GET /api/categories/{id}/effective-groups` endpoint (reuse UI-08.4 resolver).
+- ⏭️ **#270 UI-08.15** — **deferred do Faza 1** (issue closed `not planned`). Powody: optional w MVP per issue body, wymaga full bulk-import infrastructure (CSV parser + Messenger + Mercure progress + Attribute write paths które są w MVP read-only). Re-open trigger: client request lub backend Attribute POST/PATCH endpoints.
 
-**Pozostały 1 ticket UI-08 (optional):**
-- **#270** UI-08.15 (bulk import CSV — optional, low priority).
+## **Epik UI-08 ZAMKNIĘTY 14/15 must-have + META** ✅
+
+Zamknięte:
+- META **#255** + **8 backend** (#256..#263) + **6 frontend** (#264..#269) ticketów. ~17 PR-ów (#272..#287).
+- 8 reusable komponentów / services: BuiltInLockBadge, WhereUsedList, EffectiveAttributeGroupResolver, AttributeMigrationCompatibility, AttributeMigrationPlanner+Executor, UsageQueryService, VisibleWhenRule+Evaluator, ObjectFormSchemaCacheInvalidator.
+- 4 nowe migracje: Version20260501100000 (AttributeGroup first-class), Version20260501110000 (ObjectType built-in flags + brand), Version20260501120000 (system attrs + audit auto-attach), Version20260501130000 (attribute_migration_backups).
+- 6 custom REST endpointów: form-schema, migrate-type, usage (×3), attribute_groups/attributes, attribute_groups/attributes/{aId} (PATCH visible_when), categories/effective-groups.
+- 3 ADR'y: ADR-012 (AttributeGroup first-class), ADR-009 extension (Brand jako 4-ty built-in), kolumny ObjectType code_immutable/deletable/icon/color.
+
+Świadome odejścia (do Faza 1+):
+- Custom Create wizard dla ObjectType (gated by `enable_custom_object_types` flag).
+- Edit drawer dla Attribute (read-only ApiResource).
+- Drag-drop @dnd-kit/sortable (zastąpione Up/Down PATCH'em w UI-08.13).
+- Bulk CSV import (#270 deferred).
+- AttributeFromLibraryPicker (no AttachAttributeToGroup command).
+- Override-action UI dla category groups (no override_action column).
 - **Frontend:** #264-#270 (Modeling layout shell + 4 sub-tabs + migration analyzer + drag-drop + inheritance preview + bulk import CSV).
 
 **Dependency state na końcu sesji:**
