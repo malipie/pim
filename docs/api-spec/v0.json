@@ -3998,7 +3998,9 @@
                             "asset",
                             "relation",
                             "price",
-                            "metric"
+                            "metric",
+                            "datetime",
+                            "reference"
                         ]
                     },
                     "validationRules": {
@@ -4096,7 +4098,9 @@
                                     "asset",
                                     "relation",
                                     "price",
-                                    "metric"
+                                    "metric",
+                                    "datetime",
+                                    "reference"
                                 ]
                             },
                             "validationRules": {
