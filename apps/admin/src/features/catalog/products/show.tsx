@@ -26,9 +26,9 @@ interface CatalogObject {
   updatedAt?: string;
 }
 
-type TabKey = 'attributes' | 'variants';
+type TabKey = 'attributes' | 'variants' | 'media' | 'relationships' | 'history';
 
-const TABS: TabKey[] = ['attributes', 'variants'];
+const TABS: TabKey[] = ['attributes', 'variants', 'media', 'relationships', 'history'];
 
 export function ProductShowPage() {
   const { t, i18n } = useTranslation();
@@ -52,8 +52,8 @@ export function ProductShowPage() {
 
   return (
     <div className="space-y-4">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-20 -mx-6 -mt-6 border-b bg-background/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      {/* Sticky header — handoff glass-strong */}
+      <div className="sticky top-0 z-20 -mx-6 -mt-6 border-b border-line glass-strong px-6 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
             <Button asChild variant="ghost" size="sm" className="-ml-3">
@@ -63,8 +63,8 @@ export function ProductShowPage() {
               </Link>
             </Button>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold tracking-tight">{name}</h1>
-              <span className="font-mono text-xs text-muted-foreground">{product.code}</span>
+              <h1 className="display text-[22px] font-semibold leading-tight text-ink">{name}</h1>
+              <span className="font-mono text-[12px] text-ink-2">{product.code}</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -114,6 +114,9 @@ export function ProductShowPage() {
             <DetailDynamicForm productId={productId} initialValues={attrs} />
           ) : null}
           {activeTab === 'variants' ? <VariantsTab masterProductId={productId} /> : null}
+          {activeTab === 'media' ? <MediaTabStub /> : null}
+          {activeTab === 'relationships' ? <RelationshipsTabStub /> : null}
+          {activeTab === 'history' ? <HistoryTabStub productId={productId} /> : null}
         </div>
 
         <DetailSidebar productId={productId} />
@@ -140,4 +143,55 @@ function formatDateTime(value: string, locale: string): string {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(date);
+}
+
+/**
+ * MOCK: Multimedia tab — wymaga DAM + S3/MinIO storage (#TBD).
+ * Patrz Project Plan/UI/Wdrozenie_grafiki/produkty-do-oprogramowania.md.
+ */
+function MediaTabStub() {
+  return (
+    <div className="rounded-2xl border border-dashed border-line bg-surface-2/40 p-8 text-center soft-shadow">
+      <p className="text-[14px] font-medium text-ink-2">Multimedia (mock)</p>
+      <p className="mt-1 text-[12px] text-muted-foreground">
+        Tab wymaga DAM (S3/MinIO + image transformations). Backlog:{' '}
+        <code className="font-mono text-[11px]">POST /api/products/&#123;id&#125;/media</code>
+      </p>
+    </div>
+  );
+}
+
+/**
+ * MOCK: Powiązania (relationships) tab — wymaga AssociationController CRUD (#TBD).
+ * Entity + Repository istnieją, brak HTTP controllera.
+ */
+function RelationshipsTabStub() {
+  return (
+    <div className="rounded-2xl border border-dashed border-line bg-surface-2/40 p-8 text-center soft-shadow">
+      <p className="text-[14px] font-medium text-ink-2">Powiązania (mock)</p>
+      <p className="mt-1 text-[12px] text-muted-foreground">
+        3 typy: akcesoria / cross-sell / alternatywa. Wymaga{' '}
+        <code className="font-mono text-[11px]">
+          GET/POST/DELETE /api/products/&#123;id&#125;/relationships
+        </code>
+        .
+      </p>
+    </div>
+  );
+}
+
+/**
+ * MOCK: Historia (audit timeline) tab — wymaga GET /api/products/{id}/audit-log (#TBD).
+ * DetailSidebar już używa tego endpointu (last-5), tu pełna historia z timeline UI.
+ */
+function HistoryTabStub({ productId: _productId }: { productId: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-line bg-surface-2/40 p-8 text-center soft-shadow">
+      <p className="text-[14px] font-medium text-ink-2">Historia (mock)</p>
+      <p className="mt-1 text-[12px] text-muted-foreground">
+        Pełna oś czasu z provenance per zmiana. Sidebar już pokazuje 5 ostatnich (UI-02.5); ten tab
+        potrzebuje paginowanego endpointu i timeline UI.
+      </p>
+    </div>
+  );
 }

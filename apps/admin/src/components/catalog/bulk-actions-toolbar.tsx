@@ -1,4 +1,4 @@
-import { CheckCircle2, MinusCircle, Pencil, Trash2, X } from 'lucide-react';
+import { CheckCircle2, Download, FolderTree, MinusCircle, Pencil, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -93,7 +93,7 @@ export function BulkActionsToolbar({
 
   return (
     <div
-      className="sticky bottom-4 z-30 mx-auto flex max-w-4xl flex-col gap-2 rounded-md border bg-card px-4 py-3 shadow-lg"
+      className="sticky bottom-4 z-30 mx-auto flex max-w-4xl flex-col gap-2 rounded-2xl border border-line bg-surface px-4 py-3 soft-shadow-lg"
       data-testid="bulk-actions-toolbar"
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -148,6 +148,35 @@ export function BulkActionsToolbar({
         >
           <MinusCircle className="size-4" />
           {t('products.bulk.disable', { defaultValue: 'Disable' })}
+        </Button>
+        {/* MOCK: bulk category change — wymaga rozszerzenia POST /api/products/bulk-edit
+            o operation 'change_category' (#TBD). Patrz Project Plan/UI/Wdrozenie_grafiki/produkty-do-oprogramowania.md. */}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled
+          aria-disabled="true"
+          title={t('products.bulk.change_category_disabled', {
+            defaultValue: 'Mock — wymaga operation change_category w /bulk-edit',
+          })}
+        >
+          <FolderTree className="size-4" />
+          {t('products.bulk.change_category', { defaultValue: 'Zmień kategorię' })}
+        </Button>
+        {/* MOCK: bulk export CSV/XLSX — wymaga GET /api/products/export?ids=...&format=csv (#TBD). */}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled
+          aria-disabled="true"
+          title={t('products.bulk.export_disabled', {
+            defaultValue: 'Mock — wymaga GET /api/products/export?ids=...&format=csv',
+          })}
+        >
+          <Download className="size-4" />
+          {t('products.bulk.export', { defaultValue: 'Eksport' })}
         </Button>
         <Button
           type="button"
