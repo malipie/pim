@@ -13,6 +13,7 @@ import { AttributesListPage } from '@/features/catalog/attributes/list';
 import { AttributeShowPage } from '@/features/catalog/attributes/show';
 import { CategoriesTreePage } from '@/features/catalog/categories/list';
 import { CategoryShowPage } from '@/features/catalog/categories/show';
+import { ModelingLayout } from '@/features/catalog/modeling/layout';
 import { ObjectTypesListPage } from '@/features/catalog/object-types/list';
 import { ObjectTypeShowPage } from '@/features/catalog/object-types/show';
 import { ProductCreatePage } from '@/features/catalog/products/create';
@@ -40,10 +41,22 @@ function App() {
             edit: '/products/:id/edit',
             show: '/products/:id',
           },
-          { name: 'attributes', list: '/attributes', show: '/attributes/:id' },
-          { name: 'attribute_groups', list: '/attribute-groups' },
-          { name: 'object_types', list: '/object-types', show: '/object-types/:id' },
-          { name: 'categories', list: '/categories', show: '/categories/:id' },
+          {
+            name: 'attributes',
+            list: '/modeling/attributes',
+            show: '/modeling/attributes/:id',
+          },
+          { name: 'attribute_groups', list: '/modeling/attribute-groups' },
+          {
+            name: 'object_types',
+            list: '/modeling/object-types',
+            show: '/modeling/object-types/:id',
+          },
+          {
+            name: 'categories',
+            list: '/modeling/categories',
+            show: '/modeling/categories/:id',
+          },
           { name: 'assets', list: '/assets', show: '/assets/:id' },
           { name: 'channels', list: '/channels', show: '/channels/:id' },
           {
@@ -74,13 +87,42 @@ function App() {
             <Route path="/products/new" element={<ProductCreatePage />} />
             <Route path="/products/:id/edit" element={<ProductEditPage />} />
             <Route path="/products/:id" element={<ProductShowPage />} />
-            <Route path="/attributes" element={<AttributesListPage />} />
-            <Route path="/attributes/:id" element={<AttributeShowPage />} />
-            <Route path="/attribute-groups" element={<AttributeGroupsListPage />} />
-            <Route path="/object-types" element={<ObjectTypesListPage />} />
-            <Route path="/object-types/:id" element={<ObjectTypeShowPage />} />
-            <Route path="/categories" element={<CategoriesTreePage />} />
-            <Route path="/categories/:id" element={<CategoryShowPage />} />
+            {/* UI-08.9 (#264) — Modeling shell wraps the 4 sub-tabs under
+                a shared `/modeling/*` route tree. Old top-level paths
+                redirect below for back-compat with bookmarks + the
+                Refine resource registry pointing at the new URLs. */}
+            <Route path="/modeling" element={<ModelingLayout />}>
+              <Route index element={<Navigate to="/modeling/object-types" replace />} />
+              <Route path="object-types" element={<ObjectTypesListPage />} />
+              <Route path="object-types/:id" element={<ObjectTypeShowPage />} />
+              <Route path="attributes" element={<AttributesListPage />} />
+              <Route path="attributes/:id" element={<AttributeShowPage />} />
+              <Route path="attribute-groups" element={<AttributeGroupsListPage />} />
+              <Route path="categories" element={<CategoriesTreePage />} />
+              <Route path="categories/:id" element={<CategoryShowPage />} />
+            </Route>
+            <Route path="/attributes" element={<Navigate to="/modeling/attributes" replace />} />
+            <Route
+              path="/attributes/:id"
+              element={<Navigate to="/modeling/attributes" replace />}
+            />
+            <Route
+              path="/attribute-groups"
+              element={<Navigate to="/modeling/attribute-groups" replace />}
+            />
+            <Route
+              path="/object-types"
+              element={<Navigate to="/modeling/object-types" replace />}
+            />
+            <Route
+              path="/object-types/:id"
+              element={<Navigate to="/modeling/object-types" replace />}
+            />
+            <Route path="/categories" element={<Navigate to="/modeling/categories" replace />} />
+            <Route
+              path="/categories/:id"
+              element={<Navigate to="/modeling/categories" replace />}
+            />
             <Route path="/assets" element={<AssetsListPage />} />
             <Route path="/assets/:id" element={<AssetShowPage />} />
             <Route path="/channels" element={<ChannelsListPage />} />

@@ -42,15 +42,30 @@ const MODELING_GROUP: NavGroup = {
   icon: Settings2,
   label: 'nav.modeling',
   children: [
-    { type: 'leaf', to: '/object-types', icon: ListTree, label: 'nav.modeling_object_types' },
-    { type: 'leaf', to: '/attributes', icon: Layers, label: 'nav.modeling_attributes' },
     {
       type: 'leaf',
-      to: '/attribute-groups',
+      to: '/modeling/object-types',
+      icon: ListTree,
+      label: 'nav.modeling_object_types',
+    },
+    {
+      type: 'leaf',
+      to: '/modeling/attributes',
+      icon: Layers,
+      label: 'nav.modeling_attributes',
+    },
+    {
+      type: 'leaf',
+      to: '/modeling/attribute-groups',
       icon: LayoutList,
       label: 'nav.modeling_attribute_groups',
     },
-    { type: 'leaf', to: '/categories', icon: FolderTree, label: 'nav.modeling_categories' },
+    {
+      type: 'leaf',
+      to: '/modeling/categories',
+      icon: FolderTree,
+      label: 'nav.modeling_categories',
+    },
   ],
 };
 

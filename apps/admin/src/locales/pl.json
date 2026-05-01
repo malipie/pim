@@ -371,5 +371,16 @@
       "create_failed": "Nie udało się utworzyć profilu. Sprawdź czy kod jest unikalny w tenancie.",
       "update_failed": "Nie udało się zaktualizować profilu."
     }
+  },
+  "modeling": {
+    "title": "Modelowanie",
+    "description": "Definiuj typy obiektów, atrybuty, grupy atrybutów i kategorie używane w katalogu.",
+    "tabs": {
+      "aria_label": "Sekcje modelowania",
+      "object_types": "Typy obiektów",
+      "attributes": "Atrybuty",
+      "attribute_groups": "Grupy atrybutów",
+      "categories": "Kategorie"
+    }
   }
 }

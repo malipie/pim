@@ -45,7 +45,7 @@ export function AttributeShowPage() {
     <div className="space-y-6">
       <div className="space-y-1">
         <Button asChild variant="ghost" size="sm" className="-ml-3">
-          <Link to="/attributes">
+          <Link to="/modeling/attributes">
             <ArrowLeft className="size-4" />
             {t('attributes.back')}
           </Link>

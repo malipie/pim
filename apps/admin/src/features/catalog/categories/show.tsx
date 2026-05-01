@@ -38,7 +38,7 @@ export function CategoryShowPage() {
     <div className="space-y-6">
       <div className="space-y-1">
         <Button asChild variant="ghost" size="sm" className="-ml-3">
-          <Link to="/categories">
+          <Link to="/modeling/categories">
             <ArrowLeft className="size-4" />
             {t('categories.back')}
           </Link>
