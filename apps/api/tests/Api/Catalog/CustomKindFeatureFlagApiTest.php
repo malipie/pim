@@ -44,12 +44,11 @@ final class CustomKindFeatureFlagApiTest extends CatalogApiTestCase
     #[Test]
     public function apiGuardThrowsWhenFlagDisabled(): void
     {
-        // Read the same parameter the production wiring binds to, so
-        // the test exercises the live default rather than a hard-coded
-        // boolean. Listing-side resolution stays delegated to AP4.
-        $flag = self::getContainer()->getParameter('pim.catalog.enable_custom_object_types');
-        self::assertFalse($flag, 'Default flag must stay OFF in MVP.');
-
+        // The parameter default flipped to ON in 2026-05-01 (UI-02 follow-up:
+        // modeling UI now exposes a Create custom ObjectType flow). The guard
+        // contract itself stays unchanged — operators that override
+        // `CATALOG_ENABLE_CUSTOM_OBJECT_TYPES=false` per environment must
+        // still see custom-kind writes blocked at the API edge.
         $guard = new CustomObjectTypeApiGuard(false);
 
         $this->expectException(DisabledFeatureException::class);
