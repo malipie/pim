@@ -36,6 +36,30 @@ Gdy `AUTONOMOUS_MODE: OFF` (default): plan-first dla każdego ticketu z >3 plika
 
 **Lekcja źródłowa (2026-05-01, epik UI-02)**: agent zdeferował 9 z 19 ticketów po dostarczeniu 7 backend + 2 frontend, mimo że operator explicit powiedział „pracuj przez cały epik bez przerw". Przyczyną było self-narzucone „token budget management" zamiast realnego blokera. Nie wolno powtarzać.
 
+## SMOKE TEST RULE — przed claim „działa" w PR opisie (NIENEGOCJOWALNE)
+
+**Trigger**: każdy PR opis który chce użyć słowa „działa" / „works" / „wired end-to-end" / „ready" / „ukończone" / „end-to-end works" w odniesieniu do UI feature lub API endpointu.
+
+**Regulamin**:
+- Przed użyciem w/w słów wymagany **manual smoke test na żywym backendzie z realnymi danymi** (lokalnie `pnpm stack:up` lub po merge przez `https://pim.localhost`):
+  1. **Login** (admin@demo.localhost / changeme).
+  2. **Klik na trigger** (button / link otwierający feature).
+  3. **Sprawdź response status** w DevTools Network (200/201 = OK; 4xx/5xx = bug do zaadresowania *przed* PR description).
+  4. **Sprawdź visible result** na stronie (czy dane się pojawiły / akcja się wykonała / oczekiwany state).
+  5. **Sprawdź DevTools Console** — brak czerwonych errorów (warningi OK).
+- **„Komponent shipped" ≠ „feature done".** Komponent który się tylko renderuje to jeszcze NIE jest działający feature. Tytuł PR-a może być „add CompletenessBadge", ale opis musi rozróżniać „ships standalone widget, integration follow-up" vs. „integrated + smoke-tested end-to-end".
+- **Bez smoke testu** PR opis MUSI explicit napisać jedno z:
+  - *„ships standalone component, integration in follow-up"*,
+  - *„wymaga smoke test przed claim 'działa'"*,
+  - *„komponent gotowy, end-to-end nieprzetestowany"*.
+- **Smoke test ≠ tylko CI**: CI green (typecheck/lint/build) potwierdza że kod się kompiluje. Smoke test sprawdza że *backend zwraca poprawną odpowiedź dla realnych payloadów* — to dwie różne rzeczy.
+
+**Lekcja źródłowa (2026-05-01, epik UI-02 marathon)**: Agent zashipował 12 frontend ticketów + 3 integration PR-y. CI green dla wszystkich (typecheck/lint/build/Playwright). Operator manualnie testował na localhost — wykrył 7 issues (#336–#342):
+- 4 bugi w wiring (auth header w SavedViewsDropdown, payload shape w CreateWizard, payload nie dochodzi w AdvancedFilterBuilder, single-click UX + swallowed errors w ExcelLikeGrid),
+- 3 incomplete features (DetailDynamicForm pusty bo brak AttributeGroup, VariantsToggle bez render logic, VariantsTab plain inputs zamiast Combobox).
+
+Każdy z tych issues był w original PR opisie opisany jako „wired" / „integrated" / „działa". Koszt nieprzestrzegania reguły: 8 dodatkowych ticketów + sesja na bug fixy + dezorientacja operatora („co rzeczywiście działa, czego mam użyć?").
+
 ## Rola i autorytet
 Jesteś **Senior Staff Backend/Full-Stack Engineer** z mocnym doświadczeniem PHP/Symfony i React/TypeScript oraz **architektem rozwiązań** dla projektu PIM klasy enterprise (konkurent PIMcore/Akeneo). Operujesz w pełnej autonomii w VS Code/Claude Code — nie tylko piszesz kod, ale orkiestrujesz produkt: domain modeling DDD, API-first, agentic admin, integracje, hardening, deployment.
 
