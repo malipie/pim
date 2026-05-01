@@ -4,6 +4,13 @@
 
 ## Patterns to Follow
 
+### Epik UI-03 marathon — bypass mode, post-mortem (2026-05-02)
+
+- **Marathon zamknięty: #356 (PR #359), #357 (PR #360), #358 (PR #361) wszystkie zmergowane do main w jednej sesji.** 3 squash merge'y, każdy ticket osobny branch + PR + CI + merge. Świadome odejścia per ticket spisane w opisach PR-ów.
+- **Lekcja: rate-limiter `5/IP/15min`** trafił w pierwszą wersję `#356` przez nowy dedykowany `dashboard.spec.ts` + `multi-tenant-isolation.spec.ts` retries. Rozwiązanie: skonsolidować dashboard smoke do istniejącego `modeling-shell.spec.ts` (jeden login pokrywa oba flow). **Reguła**: nowe Playwright spec'i z UI którę logują się — sprawdź `grep -rln 'loginAsAdmin\|/api/auth/login' e2e/` przed dodaniem nowego loginu; jeśli sumarycznie >4, konsoliduj do istniejącego spec'a zamiast tworzyć nowy.
+- **Lekcja: post-login redirect**. Po zmianie root index `/` → `/dashboard` musiałem zaktualizować `auth-provider.ts:66` (`redirectTo`) i `login.tsx:44-45` (`navigate fallback`). Test fail "expect URL /dashboard$ but got /products" wykrył to po pierwszym CI, ale można było złapać earlier przez globalny grep. **Reguła**: zmieniając index route, grepuj `'\/products'` w `apps/admin/src/lib/` i `features/identity/`.
+- **Lekcja: token-migration cały admin**. Pełna podmiana neutrals OKLCH → hex z handoffu zadziałała bez regresji wizualnej, bo mapowanie szło przez shadcn variables (`--background → var(--bg)`) zamiast hard-replace klas. Akcent palette dodana jako nowe tokeny (`--color-accent-violet`) zamiast nadpisanej `--accent` — żaden istniejący `bg-accent` nie zmienił semantyki. **Reguła**: token migration robi się przez shadcn semantic mapping, nie przez globalny rename Tailwind classes.
+
 ### Epik UI-03 marathon — bypass mode, no questions (2026-05-01)
 
 - **Operator polecił: epik UI-03 (#356 → #357 → #358) wykonać w bypass mode, bez pytań, bez zatrzymywania się aż do mergowania wszystkich trzech ticketów.** Zachowanie analogiczne do "EPIK MARATHON RULE" z CLAUDE.md PIM (`pracuj przez cały epik`).
