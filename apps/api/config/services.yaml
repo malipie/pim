@@ -195,6 +195,10 @@ services:
         arguments:
             $modelingCache: '@pim.modeling_cache'
 
+    App\Catalog\Application\Query\Usage\UsageQueryService:
+        arguments:
+            $modelingCache: '@pim.modeling_cache'
+
     App\Catalog\Infrastructure\Doctrine\EventListener\ObjectFormSchemaCacheInvalidator:
         arguments:
             $modelingCache: '@pim.modeling_cache'

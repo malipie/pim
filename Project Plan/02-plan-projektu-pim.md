@@ -430,7 +430,7 @@ Pierwszy epik napędzany **planem UI** (`Project Plan/UI/`) zamiast backend road
 | ✅ **#259** | UI-08.4 EffectiveAttributeGroupResolver + form-schema endpoint + Redis cache | UI, backend, must-have | 4-6h |
 | ✅ **#260** | UI-08.5 ApiResource AttributeGroup CRUD + CQRS handlers + voter | UI, backend, must-have | 3-4h |
 | ✅ **#261** | UI-08.6 Attribute migrate-type endpoint (mapping plan + dry-run) | UI, backend, must-have | 4-5h |
-| **#262** | UI-08.7 Where-used endpoints (attributes / groups / object_types) | UI, backend, must-have | 2-3h |
+| ✅ **#262** | UI-08.7 Where-used endpoints (attributes / groups / object_types) | UI, backend, must-have | 2-3h |
 | **#263** | UI-08.8 visible_when storage + evaluator (MVP: equals) | UI, backend, must-have | 3-4h |
 | **#264** | UI-08.9 Modeling layout shell + 4-tab routing + back-compat redirects | UI, frontend, must-have | 2-3h |
 | **#265** | UI-08.10 Sub-tab Object Types — list + detail + Create wizard | UI, frontend, must-have | 6-8h |

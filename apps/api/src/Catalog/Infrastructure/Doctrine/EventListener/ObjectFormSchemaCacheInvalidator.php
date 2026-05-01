@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Infrastructure\Doctrine\EventListener;
 
 use App\Catalog\Application\Query\GetObjectFormSchema\GetObjectFormSchemaHandler;
+use App\Catalog\Application\Query\Usage\UsageQueryService;
 use App\Catalog\Domain\Entity\AttributeGroupAttribute;
 use App\Catalog\Domain\Entity\CategoryAttributeGroup;
 use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
@@ -82,9 +83,14 @@ final class ObjectFormSchemaCacheInvalidator
         $tags = [];
         if ($this->globalInvalidate) {
             $tags[] = GetObjectFormSchemaHandler::CACHE_TAG;
+            // UI-08.7 (#262) — usage counts derive from the same junction
+            // tables, so any AttributeGroupAttribute mutation also
+            // invalidates every usage cache entry.
+            $tags[] = UsageQueryService::CACHE_TAG;
         }
         foreach (array_keys($this->perTypeTags) as $typeId) {
             $tags[] = GetObjectFormSchemaHandler::CACHE_TAG.'.object_type.'.$typeId;
+            $tags[] = UsageQueryService::CACHE_TAG.'.object_type.'.$typeId;
         }
 
         $this->globalInvalidate = false;
