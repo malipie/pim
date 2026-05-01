@@ -36,22 +36,15 @@
     "session_expired": "Your session has expired. Please sign in again."
   },
   "nav": {
+    "dashboard": "Dashboard",
     "products": "Products",
+    "services": "Services",
+    "publications": "Publications",
+    "multimedia": "Multimedia",
+    "workflow": "Workflow",
+    "settings": "Settings",
     "modeling": "Modeling",
-    "modeling_object_types": "Object types",
-    "modeling_attributes": "Attributes",
-    "modeling_attribute_groups": "Attribute groups",
-    "modeling_categories": "Categories",
-    "attributes": "Attributes",
-    "attribute_groups": "Attribute groups",
-    "object_types": "Object types",
-    "categories": "Categories",
-    "assets": "Assets",
-    "channels": "Channels",
-    "api_profiles": "API Profiles",
-    "soon": "Soon",
-    "expand_modeling": "Expand modeling section",
-    "collapse_modeling": "Collapse modeling section"
+    "soon": "Soon"
   },
   "attributes": {
     "list_title": "Attributes",
