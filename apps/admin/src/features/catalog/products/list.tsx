@@ -6,6 +6,10 @@ import { Link } from 'react-router';
 
 import { AdvancedFilterBuilder } from '@/components/catalog/advanced-filter-builder';
 import { BulkActionsToolbar } from '@/components/catalog/bulk-actions-toolbar';
+import {
+  ChannelInlineIcons,
+  type ChannelStatusEntry,
+} from '@/components/catalog/channel-inline-icons';
 import { CompletenessBadge } from '@/components/catalog/completeness-badge';
 import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
 import { type ExcelColumn, ExcelLikeGrid } from '@/components/catalog/excel-like-grid';
@@ -15,6 +19,7 @@ import {
   ProductFilterChips,
 } from '@/components/catalog/product-filter-chips';
 import { ProductRowActions } from '@/components/catalog/product-row-actions';
+import { SaveViewModal } from '@/components/catalog/save-view-modal';
 import { SavedViewsDropdown } from '@/components/catalog/saved-views-dropdown';
 import { SyncAggregateIcon } from '@/components/catalog/sync-aggregate-icon';
 import { type VariantsMode, VariantsToggle } from '@/components/catalog/variants-toggle';
@@ -76,6 +81,7 @@ export function ProductListPage() {
   const [variantsMode, setVariantsMode] = useState<VariantsMode>('tree');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [activeViewSlug, setActiveViewSlug] = useState<string | null>(null);
+  const [showSaveViewModal, setShowSaveViewModal] = useState(false);
 
   const isSearchActive = query !== '' || Object.keys(filters).length > 0;
 
@@ -172,20 +178,8 @@ export function ProductListPage() {
     if (mode === 'tree' || mode === 'flat') setVariantsMode(mode);
   };
 
-  const handleSaveCurrentView = async (): Promise<void> => {
-    const name = window.prompt(
-      t('products.saved_views.prompt_name', { defaultValue: 'View name' }),
-      '',
-    );
-    if (name === null || name.trim() === '') return;
-    await jsonFetch('/api/saved-views', {
-      method: 'POST',
-      body: {
-        name: name.trim(),
-        resource: 'products',
-        config: { filters, variants_mode: variantsMode },
-      },
-    });
+  const openSaveViewModal = (): void => {
+    setShowSaveViewModal(true);
   };
 
   const allSelected = visible.length > 0 && selected.size === visible.length;
@@ -225,13 +219,13 @@ export function ProductListPage() {
         <SavedViewsDropdown
           activeSlug={activeViewSlug}
           onApply={(view) => handleApplySavedView({ slug: view.slug, config: view.config })}
-          onSaveCurrent={() => void handleSaveCurrentView()}
+          onSaveCurrent={openSaveViewModal}
         />
         <VariantsToggle mode={variantsMode} onChange={setVariantsMode} />
         <AdvancedFilterBuilder
           filters={advancedFilters}
           onApply={(next) => setAdvancedFilters(next)}
-          onSaveAsView={() => void handleSaveCurrentView()}
+          onSaveAsView={openSaveViewModal}
         />
         <div className="ml-auto flex items-center gap-1 rounded-md border bg-card p-1">
           <Button
@@ -344,6 +338,9 @@ export function ProductListPage() {
                     <TableHead className="w-[60px]">
                       {t('products.fields.sync', { defaultValue: 'Sync' })}
                     </TableHead>
+                    <TableHead className="w-[120px]">
+                      {t('products.fields.channels', { defaultValue: 'Channels' })}
+                    </TableHead>
                     <TableHead className="w-[110px]">{t('products.fields.status')}</TableHead>
                     <TableHead className="w-[180px]">{t('products.fields.created_at')}</TableHead>
                     <TableHead className="w-[60px] text-right">
@@ -354,13 +351,13 @@ export function ProductListPage() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
+                      <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
                         {t('app.loading')}
                       </TableCell>
                     </TableRow>
                   ) : visible.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
+                      <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
                         {isSearchActive
                           ? t('search.no_results')
                           : t('products.empty', { defaultValue: 'No products yet' })}
@@ -392,6 +389,9 @@ export function ProductListPage() {
                         </TableCell>
                         <TableCell>
                           <SyncAggregateIcon status={product.syncStatusAggregate} />
+                        </TableCell>
+                        <TableCell>
+                          <ChannelInlineIcons channels={[] as ChannelStatusEntry[]} />
                         </TableCell>
                         <TableCell>
                           <StatusBadge enabled={product.enabled} status={product.status} />
@@ -426,6 +426,15 @@ export function ProductListPage() {
           refetch();
         }}
       />
+
+      {showSaveViewModal ? (
+        <SaveViewModal
+          resource="products"
+          config={{ filters, variants_mode: variantsMode }}
+          onClose={() => setShowSaveViewModal(false)}
+          onSaved={(slug) => setActiveViewSlug(slug)}
+        />
+      ) : null}
     </div>
   );
 }
