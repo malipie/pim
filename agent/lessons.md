@@ -1209,3 +1209,13 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Postgres SELECT DISTINCT + ORDER BY MUSI mieć ORDER BY w SELECT list** — `SELECT DISTINCT c.id FROM... ORDER BY c.path` rzuca `42P10 Invalid column reference`. Fix: albo `SELECT DISTINCT c.id, c.path` albo `SELECT c.id, c.path FROM ... WHERE c.id IN (SELECT DISTINCT ...)`. Drugi wariant cleaner gdy `ORDER BY` jest na external kolumnie. Wzorzec dla nested IN-subquery: SELECT DISTINCT idzie do subquery, outer SELECT bez DISTINCT.
 
 - **Tag-aware cache reuse między handlers** — UI-08.4 dodał `pim.modeling_cache` pool dla form-schema. UI-08.7 reusing przez własny tag (`pim_usage`). Invalidator listener (`ObjectFormSchemaCacheInvalidator`) extended o invalidację both tagów na junction mutation. Pattern dla każdego nowego cached read-side: nie tworzyć nowego pool'a, dodać tag + ewentualnie extend invalidatora.
+
+## Lessons z UI-08.8 / #263 (visible_when evaluator)
+
+- **`EntityManager::find($class, $uuid)` przyjmuje **Uuid object**, ale `getReference($class, $uuid->toRfc4122())` rzuca `Cannot assign string to property ::$id of type Uuid`** — Symfony Uid hydrator dla `getReference` nie konwertuje string→Uuid; tylko `find()` to robi. Pattern: zawsze `$em->find(...)` dla lookup, nigdy `getReference()` z toRfc4122 string'iem dla entity z `Uuid $id`. Alternatywa: `getReference($class, $uuid)` (bez toRfc4122) działa też, ale find czytelniejszy.
+
+- **Server-side `visible_when` evaluator extract'uje canonical scalar z hybrid `attributes_indexed` shape** — wartość atrybutu w cache to `{value: ...}` / `{option_code: ...}` / `{option_codes: [...]}` (per ADR-006), nie raw scalar. Bez extract'u `equals(boolean, true)` nigdy nie matchuje dla atrybutu z shape `{value: true}`. Pattern dla każdego query który czyta z attributes_indexed: extract scalar przez switch po obecności `value`/`option_code`/`option_codes`.
+
+- **Cross-group field reference** — server-side blokowane przez DBAL count query (allowlist: same-group attrs + system audit `created_at/updated_at/created_by/updated_by`). Domain-level constraint enforced w handler'ze, nie w voter'ze (voter = access decision, handler = business invariant — ten sam pattern co `DeleteAttributeGroupHandler`).
+
+- **`mixed === array<...>` vs `==`** — PHPStan custom rule blokuje `==`. Dla deep array equality regardless of key order: `ksort` recursively + `===`. Wzorzec w `VisibleWhenRuleEvaluator::sortDeep()` — pure function helper (param-by-ref + `unset $value` po loop'ie żeby uniknąć reference leak).

@@ -24,10 +24,11 @@ Pełen kontekst: [Project Plan/UI/epik-08-modelowanie.md](../Project%20Plan/UI/e
 - ✅ **#259 UI-08.4** (PR #277) — `EffectiveAttributeGroupResolver` (domain service) + `GetObjectFormSchemaHandler` (cached query handler) + `ObjectFormSchemaCacheInvalidator` (Doctrine postFlush listener inwalidujący `pim.modeling_cache` tag-aware pool) + `ObjectFormSchemaController` (`GET /api/objects/{id}/form-schema`). 2 unit + 5 integration + 3 API test.
 - ✅ **#260 UI-08.5** (PR #278) — AttributeGroup CRUD przez API Platform (POST/PATCH/DELETE) + Create/Update/Delete CQRS slice handlers + AttributeGroupInput / AttributeGroupPatchInput DTOs + AttributeGroupProcessor + delete protection (422 system, 409 attached). 7 ApiTestCase.
 - ✅ **#261 UI-08.6** (PR #279) — `POST /api/attributes/{id}/migrate-type` (custom REST). `AttributeTypeMigrationCompatibility` matrix + `AttributeMigrationPlanner` + `AttributeMigrationExecutor` + migration `Version20260501130000` + `AttributeMigrationBackup` ORM-mapped entity (Foundry ResetDatabase requires schema-tool reflection).
-- 🚧 **#262 UI-08.7** (branch `feat/ui-08.7-where-used-endpoints`) — 3 custom REST endpoints `GET /api/{attributes|attribute_groups|object_types}/{id}/usage`. `UsageQueryService` (DBAL-only, tag-aware cache 60s TTL) + `UsageController`. Cross-BC count na `api_profiles.object_type_ids @> jsonb` przez DBAL (Catalog stays in own internals). 6 ApiTestCase. Manual smoke: brand attribute → 100 instances + product objectType → 15 attrs / 1 group / 0 profiles.
+- ✅ **#262 UI-08.7** (PR #280) — 3 custom REST endpoints `GET /api/{attributes|attribute_groups|object_types}/{id}/usage`. `UsageQueryService` (DBAL-only, tag-aware cache 60s TTL) + `UsageController`.
+- 🚧 **#263 UI-08.8** (branch `feat/ui-08.8-visible-when-evaluator`) — `VisibleWhenRule` value object + `VisibleWhenRuleEvaluator` (Domain) + `UpdateAttributeGroupAttribute{Command,Handler}` (CQRS) + `PATCH /api/attribute_groups/{groupId}/attributes/{attributeId}` (custom REST). Cross-group field reference 422 (allowlist: same-group attrs + system audit). 8 unit + 7 ApiTestCase. Manual smoke: PATCH audit junction z visibleWhen rule = 204; storage round-tripsuje JSONB.
 
-**Pozostałe 8 ticketów UI-08:**
-- **Backend:** #263 UI-08.8 (visible_when evaluator).
+**Pozostałe 7 ticketów UI-08 (wszystkie frontend):**
+- **#264** UI-08.9 (Modeling layout shell + 4-tab routing), #265 UI-08.10 (Object Types sub-tab), #266 UI-08.11 (Attributes sub-tab enhanced), #267 UI-08.12 (Migration impact analyzer modal), #268 UI-08.13 (AttributeGroups sub-tab z drag-drop), #269 UI-08.14 (Categories modeling tree + inheritance preview), #270 UI-08.15 (bulk import CSV — optional).
 - **Frontend:** #264-#270 (Modeling layout shell + 4 sub-tabs + migration analyzer + drag-drop + inheritance preview + bulk import CSV).
 
 **Dependency state na końcu sesji:**
