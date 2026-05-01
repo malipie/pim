@@ -171,7 +171,20 @@
     "phase_2_badge": "Faza 2",
     "custom_disabled_explanation": "Custom ObjectTypes (kind=custom) are stored in the database from day one but disabled by feature flag in MVP. The schema-add agent in Faza 2 will mint and configure them through natural-language requests.",
     "create_custom_disabled": "Create custom ObjectType",
+    "create_custom_action": "Create custom ObjectType",
+    "custom_empty": "No custom ObjectTypes yet — create your first one above.",
     "custom_present_note": "{{count}} custom ObjectType(s) exist in this tenant; visible after Faza 2 unlock.",
+    "create_custom": {
+      "title": "Create custom ObjectType",
+      "subtitle": "Custom kinds (e.g. service, kit, bundle) ship with no built-in business logic — only the schema. Attach AttributeGroups and start adding rows from the modeling UI.",
+      "code_label": "Code",
+      "code_hint": "Lowercase letters, digits, underscore. Must be unique per tenant.",
+      "label_pl": "Label (PL)",
+      "label_en": "Label (EN)",
+      "validation": "Code and at least one label entry are required.",
+      "submit": "Create",
+      "submitting": "Creating…"
+    },
     "empty": "No object types for the current tenant.",
     "write_deferred_note": "Editing built-in ObjectTypes (label / labelAttribute / imageAttribute / completenessRules) is deferred to the schema-add agent flow (Faza 2).",
     "fields": {
