@@ -46,6 +46,51 @@
     "modeling": "Modelowanie",
     "soon": "Wkrótce"
   },
+  "dashboard": {
+    "hero": {
+      "badge": "Agent · Claude Sonnet 4.5",
+      "title": "Zapytaj agenta lub szukaj w katalogu",
+      "subtitle": "Pulpit pokazuje ruch w PIM, status integracji i propozycje agenta. Wszystkie bloki są makietą; backend dorabiamy w kolejnych ticketach.",
+      "cta": "Zapytaj agenta",
+      "cta_disabled_hint": "Mock — wymaga warstwy agenta (Faza 2)"
+    },
+    "kpi": {
+      "products": "Produkty",
+      "attributes": "Atrybuty",
+      "families": "Rodziny",
+      "categories": "Kategorie"
+    },
+    "activity": {
+      "title": "Aktywność (30 dni)",
+      "legend_added": "dodane",
+      "legend_modified": "zmodyfikowane"
+    },
+    "top_edited": {
+      "title": "Najczęściej edytowane",
+      "subtitle": "ostatnie 30 dni"
+    },
+    "syncs": {
+      "title": "Status synchronizacji",
+      "force": "Wymuś",
+      "force_disabled": "Mock — wymaga POST /api/integrations/{id}/sync"
+    },
+    "completeness": {
+      "title": "Kompletność",
+      "subtitle": "ogólna i per kanał — wskazuje gotowość do publikacji"
+    },
+    "agent_activity": {
+      "title": "Ostatnia aktywność agenta",
+      "subtitle": "ostatnie 6 wpisów audit"
+    },
+    "alerts": {
+      "title": "Alerty",
+      "subtitle": "ostatnie 5"
+    },
+    "channel_dist": {
+      "title": "Dystrybucja kanałów",
+      "unit": "produktów"
+    }
+  },
   "attributes": {
     "list_title": "Atrybuty",
     "list_subtitle": "Definicje schematu atrybutów współdzielone między obiektami katalogu.",

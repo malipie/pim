@@ -25,6 +25,7 @@ import { ProductListPage } from '@/features/catalog/products/list';
 import { ProductShowPage } from '@/features/catalog/products/show';
 import { ChannelsListPage } from '@/features/channel/channels/list';
 import { ChannelShowPage } from '@/features/channel/channels/show';
+import { DashboardPage } from '@/features/dashboard/page';
 import { LoginPage } from '@/features/identity/auth/login';
 import { AppLayout } from '@/layout/AppLayout';
 import { authProvider } from '@/lib/auth-provider';
@@ -90,7 +91,8 @@ function App() {
               </AuthedRoute>
             }
           >
-            <Route index element={<Navigate to="/products" replace />} />
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/products" element={<ProductListPage />} />
             <Route path="/products/new" element={<ProductCreatePage />} />
             <Route path="/products/:id/edit" element={<ProductEditPage />} />

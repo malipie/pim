@@ -18,9 +18,10 @@ test('Modeling layout shell — sidebar §3.1 + tablist + tab switch + legacy re
   await loginAsAdmin(page);
 
   // 0. Sidebar mirrors `00-plan-ui.md` §3.1 — 7 primary leaves followed
-  //    by a separator and a single Modeling leaf at the bottom. Three
-  //    of the primary leaves are placeholders awaiting their epics
-  //    (UI-01 / UI-03 / UI-06) and render as `aria-disabled` spans.
+  //    by a separator and a single Modeling leaf at the bottom. Two of
+  //    the primary leaves remain placeholders awaiting their epics
+  //    (UI-03 Services / UI-06 Workflow) and render as `aria-disabled`
+  //    spans. Dashboard is now wired (handoff mock — epik UI-03 #356).
   const sidebar = page.getByRole('navigation').first();
   await expect(sidebar).toBeVisible();
 
@@ -37,7 +38,7 @@ test('Modeling layout shell — sidebar §3.1 + tablist + tab switch + legacy re
     await expect(sidebar.getByText(label)).toBeVisible();
   }
 
-  for (const placeholder of [/^dashboard$|^pulpit$/i, /^services$|^usługi$/i, /^workflow$/i]) {
+  for (const placeholder of [/^services$|^usługi$/i, /^workflow$/i]) {
     const item = sidebar.getByText(placeholder).first().locator('..');
     await expect(item).toHaveAttribute('aria-disabled', 'true');
   }
