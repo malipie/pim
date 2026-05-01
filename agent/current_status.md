@@ -16,7 +16,33 @@ Wcześniejsze epiki: **MVP-Alpha 0.4 (8/8) ✅ + 0.5 (5/5) ✅ + 0.6 (9/9) ✅**
 Pełen kontekst: [Project Plan/UI/epik-08-modelowanie.md](../Project%20Plan/UI/epik-08-modelowanie.md) (~960 linii) + [Project Plan/UI/00-plan-ui.md](../Project%20Plan/UI/00-plan-ui.md) §3.1.
 
 ## Następny krok
-**Implementacja epiku UI-08 rozpoczęta od META ticketu** (#255) — operator włączył bypass-permissions mode 2026-05-01 dla całego epiku UI-08 (wzorzec autonomous z epiku 0.3). Kolejność: #255 META (sidebar grupowanie) → #256 UI-08.1 (ADR-012 + migracje, blocker) → reszta w dependency order.
+**Epik UI-08 — 3/16 ticketów MERGED w 2026-05-01:**
+- ✅ **#255 META** (PR #272) — sidebar reorganization, zwijana sekcja „Modelowanie".
+- ✅ **#256 UI-08.1** (PR #273) — ADR-012 + migracje DDL (`Version20260501100000`) + entities (AttributeGroup rozszerzony, AttributeGroupAttribute, ObjectTypeAttributeGroup, CategoryAttributeGroup) + 6 unit testów.
+- ✅ **#257 UI-08.2** (PR #274) — ObjectType `code_immutable/deletable/icon/color` + brand jako 4-ty built-in (kind=`brand`) + ObjectKind enum extension + Search/ApiPlatform router updates + 6 unit testów.
+
+**Pozostałe 13 ticketów UI-08:**
+- **Backend:** #258 UI-08.3 (system attributes + auto-attach Audit), #259 UI-08.4 (EffectiveAttributeGroupResolver + form-schema endpoint), #260 UI-08.5 (AttributeGroup CRUD ApiResource), #261 UI-08.6 (Attribute migrate-type), #262 UI-08.7 (where-used endpoints), #263 UI-08.8 (visible_when evaluator).
+- **Frontend:** #264-#270 (Modeling layout shell + 4 sub-tabs + migration analyzer + drag-drop + inheritance preview + bulk import CSV).
+
+**Dependency state na końcu sesji:**
+- UI-08.3 wymaga UI-08.1+2 (✅ merged) — gotowy do podjęcia.
+- UI-08.4 wymaga UI-08.1+2+3.
+- UI-08.5 wymaga UI-08.1+3.
+- UI-08.6/7 wymagają UI-08.1+2.
+- UI-08.8 wymaga UI-08.1+4.
+- UI-08.9 (frontend layout shell) wymaga META (✅) + UI-08.4.
+
+**Tooling state:**
+- Wszystkie quality gates green (PHPStan max + Deptrac + PHPUnit Unit 244 testów + Biome strict + tsc + Vite + Playwright + OpenAPI snapshot).
+- 2 nowe migracje (Version20260501100000 — AttributeGroup first-class; Version20260501110000 — ObjectType flags + brand seed).
+- 4 nowe Doctrine entities + ORM XML mappings.
+- ADR-012 udokumentowany w `Project Plan/01-architektura-pim.md` §13.
+
+**Wzorzec sesji autonomicznej (operator włączył bypass-permissions 2026-05-01):**
+- 1 sesja = 4 PR-y (META + UI-08.1 + UI-08.2 + status update). ~3h clock-time.
+- Każdy PR: branch → implement → quality gates lokalne → commit → push → CI poll → merge → main sync.
+- Pre-existing PHPUnit Api test infra issue na lokalnym docker (env brak `test.service_container`) — w CI działa, więc nie blokuje. Nie tracić czasu na lokalny fix.
 
 Po UI-08 wraca normalny scope MVP-Final epik 0.11 (Hardening + a11y + analytics + pgBackRest + BYOK), 32-46h estymacja.
 
