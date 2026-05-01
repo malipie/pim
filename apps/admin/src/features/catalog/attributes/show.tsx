@@ -3,6 +3,8 @@ import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 
+import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
+import { WhereUsedList } from '@/components/modeling/where-used-list';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -17,6 +19,7 @@ interface AttributeDetail {
   required?: boolean;
   localizable?: boolean;
   scopable?: boolean;
+  system?: boolean;
   validationRules?: Record<string, unknown> | null;
   position?: number;
   group?: { id: string; code?: string; label?: Record<string, string> | string } | string | null;
@@ -50,44 +53,96 @@ export function AttributeShowPage() {
             {t('attributes.back')}
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{label}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{label}</h1>
+          {attribute.system ? <BuiltInLockBadge /> : null}
+        </div>
         <p className="font-mono text-xs text-muted-foreground">{attribute.code}</p>
       </div>
 
-      <Card>
-        <CardContent className="grid gap-3 pt-6 sm:grid-cols-2">
-          <DetailRow label={t('attributes.fields.type')}>
-            <span className="rounded bg-muted px-2 py-0.5 text-xs uppercase tracking-wide">
-              {attribute.type}
-            </span>
-          </DetailRow>
-          {help !== '—' ? (
-            <DetailRow label={t('attributes.fields.help')}>
-              <span className="text-sm">{help}</span>
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <Card>
+          <CardContent className="grid gap-3 pt-6 sm:grid-cols-2">
+            <DetailRow label={t('attributes.fields.type')}>
+              <span className="rounded bg-muted px-2 py-0.5 text-xs uppercase tracking-wide">
+                {attribute.type}
+              </span>
             </DetailRow>
-          ) : null}
-          <DetailRow label={t('attributes.fields.required')}>
-            <FlagBadge value={attribute.required ?? false} />
-          </DetailRow>
-          <DetailRow label={t('attributes.fields.localizable')}>
-            <FlagBadge value={attribute.localizable ?? false} />
-          </DetailRow>
-          <DetailRow label={t('attributes.fields.scopable')}>
-            <FlagBadge value={attribute.scopable ?? false} />
-          </DetailRow>
-          {attribute.validationRules && Object.keys(attribute.validationRules).length > 0 ? (
-            <DetailRow label={t('attributes.fields.validation')}>
-              <pre className="rounded bg-muted px-2 py-1 text-xs">
-                {JSON.stringify(attribute.validationRules, null, 2)}
-              </pre>
+            {help !== '—' ? (
+              <DetailRow label={t('attributes.fields.help')}>
+                <span className="text-sm">{help}</span>
+              </DetailRow>
+            ) : null}
+            <DetailRow label={t('attributes.fields.required')}>
+              <FlagBadge value={attribute.required ?? false} />
             </DetailRow>
-          ) : null}
-        </CardContent>
-      </Card>
+            <DetailRow label={t('attributes.fields.localizable')}>
+              <FlagBadge value={attribute.localizable ?? false} />
+            </DetailRow>
+            <DetailRow label={t('attributes.fields.scopable')}>
+              <FlagBadge value={attribute.scopable ?? false} />
+            </DetailRow>
+            {attribute.validationRules && Object.keys(attribute.validationRules).length > 0 ? (
+              <DetailRow label={t('attributes.fields.validation')}>
+                <pre className="rounded bg-muted px-2 py-1 text-xs">
+                  {JSON.stringify(attribute.validationRules, null, 2)}
+                </pre>
+              </DetailRow>
+            ) : null}
+            <DetailRow label={t('modeling.attributes.preview_title')}>
+              <AttributePreview type={attribute.type} />
+            </DetailRow>
+          </CardContent>
+        </Card>
+        <WhereUsedList resource="attributes" id={attribute.id} />
+      </div>
 
-      <p className="text-xs text-muted-foreground">{t('attributes.write_deferred_note')}</p>
+      <p className="text-xs text-muted-foreground">
+        {attribute.system
+          ? t('modeling.attributes.system_immutable_note')
+          : t('attributes.write_deferred_note')}
+      </p>
     </div>
   );
+}
+
+/**
+ * UI-08.11 (#266) — minimal mock-data preview per AttributeType.
+ * Renders the kind of widget the user would see for that type (input,
+ * select-like chip, asset placeholder). Live data preview lands in
+ * Phase 2 once the form-renderer ships.
+ */
+function AttributePreview({ type }: { type: string }) {
+  switch (type) {
+    case 'number':
+    case 'price':
+    case 'metric':
+      return <span className="font-mono text-xs">42</span>;
+    case 'boolean':
+      return (
+        <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900">
+          true
+        </span>
+      );
+    case 'select':
+    case 'multiselect':
+    case 'multi_select':
+      return (
+        <span className="rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+          option
+        </span>
+      );
+    case 'date':
+    case 'datetime':
+      return <span className="font-mono text-xs">2026-01-01</span>;
+    case 'asset':
+      return <span className="font-mono text-xs text-muted-foreground">[asset]</span>;
+    case 'reference':
+    case 'relation':
+      return <span className="font-mono text-xs text-muted-foreground">[ref]</span>;
+    default:
+      return <span className="text-xs text-muted-foreground">sample text</span>;
+  }
 }
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {

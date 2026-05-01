@@ -406,6 +406,16 @@
       "attached_groups": "Attached attribute groups",
       "api_profiles": "API profiles referencing this",
       "category_attachments": "Category attachments"
+    },
+    "attributes": {
+      "filter_origin": "Origin",
+      "filter_origin_all": "All",
+      "filter_origin_business": "Business",
+      "filter_origin_system": "System",
+      "filter_flags": "Flags",
+      "usage_count": "Usages",
+      "preview_title": "Preview",
+      "system_immutable_note": "System attribute — code, type, and validation are immutable."
     }
   }
 }

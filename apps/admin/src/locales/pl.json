@@ -406,6 +406,16 @@
       "attached_groups": "Przypięte grupy atrybutów",
       "api_profiles": "Profile API odwołujące się",
       "category_attachments": "Przypisania w kategoriach"
+    },
+    "attributes": {
+      "filter_origin": "Pochodzenie",
+      "filter_origin_all": "Wszystkie",
+      "filter_origin_business": "Biznesowe",
+      "filter_origin_system": "Systemowe",
+      "filter_flags": "Flagi",
+      "usage_count": "Użycia",
+      "preview_title": "Podgląd",
+      "system_immutable_note": "Atrybut systemowy — code, typ i walidacja są niezmienne."
     }
   }
 }
