@@ -28,10 +28,11 @@ Pełen kontekst: [Project Plan/UI/epik-08-modelowanie.md](../Project%20Plan/UI/e
 - ✅ **#263 UI-08.8** (PR #281) — `VisibleWhenRule` value object + `VisibleWhenRuleEvaluator` + `PATCH /api/attribute_groups/{groupId}/attributes/{attributeId}` z cross-group reference guard. **Backend epik UI-08 zamknięty 8/8.**
 - ✅ **#264 UI-08.9** (PR #282) — `<ModelingLayout>` z 4-tab tablist'em pod `/modeling/*` + back-compat redirects + sidebar nav update + Playwright spec (1 consolidated test).
 - ✅ **#265 UI-08.10** (PR #283) — Object Types list + show enhanced + reusable `<BuiltInLockBadge>` + `<WhereUsedList>`. Custom Create wizard świadomie odroczony.
-- 🚧 **#266 UI-08.11** (branch `feat/ui-08.11-attributes-subtab`) — Attributes list rozszerzony: `Origin` filter (all/business/system) + `Localizable/Scopable` chip toggles + `Usages` column z UI-08.7 + 🔒 lock badge dla system attrs (created_at/updated_at/created_by/updated_by). Show page: WhereUsedList sidebar + AttributePreview component (mock data per AttributeType — text/number/select/asset/reference/datetime). Serializer XML rozszerzony o `system` field. Edit/Migrate/Archive świadomie odroczone (read-only ApiResource + Migrate-type modal w #UI-08.12). OpenAPI +8 linii.
+- ✅ **#266 UI-08.11** (PR #284) — Attributes list filtry + Usages column + `<AttributePreview>` mock-data widget; serializer XML +`system` field.
+- 🚧 **#267 UI-08.12** (branch `feat/ui-08.12-migration-analyzer`) — `<MigrateAttributeTypePage>` (route `/modeling/attributes/:id/migrate-type`) wired to UI-08.6 backend. Sections: target type picker → Suggest mappings (dry-run z empty plan, populates draft mappings z unmapped values) → mapping editor (input per row) → Controls (unmappedAction, backupSnapshot, force) → Cancel/Dry-run/Apply. Modeled jako pełnoprawna page (nie modal/dialog) — brak Radix Dialog primitive + back-button + deep-link UX dla destrukcyjnego workflow. `Migrate type →` button na attribute show (skipped dla system attrs).
 
-**Pozostałe 4 tickety UI-08 (wszystkie frontend):**
-- **#267** UI-08.12 (Migration impact analyzer modal), #268 UI-08.13 (AttributeGroups sub-tab z drag-drop), #269 UI-08.14 (Categories modeling tree + inheritance preview), #270 UI-08.15 (bulk import CSV — optional).
+**Pozostałe 3 tickety UI-08 (frontend):**
+- **#268** UI-08.13 (AttributeGroups sub-tab z drag-drop), #269 UI-08.14 (Categories modeling tree + inheritance preview), #270 UI-08.15 (bulk import CSV — optional).
 - **Frontend:** #264-#270 (Modeling layout shell + 4 sub-tabs + migration analyzer + drag-drop + inheritance preview + bulk import CSV).
 
 **Dependency state na końcu sesji:**
