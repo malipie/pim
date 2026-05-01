@@ -21,10 +21,11 @@ Pełen kontekst: [Project Plan/UI/epik-08-modelowanie.md](../Project%20Plan/UI/e
 - ✅ **#256 UI-08.1** (PR #273) — ADR-012 + migracje DDL (`Version20260501100000`) + entities (AttributeGroup rozszerzony, AttributeGroupAttribute, ObjectTypeAttributeGroup, CategoryAttributeGroup) + 6 unit testów.
 - ✅ **#257 UI-08.2** (PR #274) — ObjectType `code_immutable/deletable/icon/color` + brand jako 4-ty built-in (kind=`brand`) + ObjectKind enum extension + Search/ApiPlatform router updates + 6 unit testów.
 - ✅ **#258 UI-08.3** (PR #276) — `is_system` flag na Attribute, system attrs (created_at/updated_at/created_by/updated_by) + audit AttributeGroup + AutoAttachAuditGroupListener + BuiltInSystemAttributesSeeder + extension BuiltInObjectTypeSeeder o brand. Migration `Version20260501120000`. AttributeType enum + 2 cases (Datetime, Reference). 9 unit testów + 1 integration test.
-- 🚧 **#259 UI-08.4** (branch `feat/ui-08.4-effective-group-resolver`) — `EffectiveAttributeGroupResolver` (domain service) + `GetObjectFormSchemaHandler` (cached query handler) + `ObjectFormSchemaCacheInvalidator` (Doctrine postFlush listener inwalidujący `pim.modeling_cache` tag-aware pool) + `ObjectFormSchemaController` (`GET /api/objects/{id}/form-schema`). 2 unit + 5 integration + 3 API test. Manual smoke: produkt z demo zwraca audit group + 4 system attrs.
+- ✅ **#259 UI-08.4** (PR #277) — `EffectiveAttributeGroupResolver` (domain service) + `GetObjectFormSchemaHandler` (cached query handler) + `ObjectFormSchemaCacheInvalidator` (Doctrine postFlush listener inwalidujący `pim.modeling_cache` tag-aware pool) + `ObjectFormSchemaController` (`GET /api/objects/{id}/form-schema`). 2 unit + 5 integration + 3 API test.
+- 🚧 **#260 UI-08.5** (branch `feat/ui-08.5-attribute-group-crud`) — AttributeGroup CRUD przez API Platform (POST/PATCH/DELETE) + Create/Update/Delete CQRS slice handlers + AttributeGroupInput / AttributeGroupPatchInput DTOs + AttributeGroupProcessor (state processor unwrap'ujący HandlerFailedException) + extension serializer XML (description/icon/color/systemGroup/autoAttached). Delete protection: 422 dla `is_system_group`, 409 dla attached do ObjectType/Category. 7 nowych ApiTestCase. PHPStan max + Deptrac 0 + 258 unit testów green.
 
-**Pozostałe 11 ticketów UI-08:**
-- **Backend:** #260 UI-08.5 (AttributeGroup CRUD ApiResource), #261 UI-08.6 (Attribute migrate-type), #262 UI-08.7 (where-used endpoints), #263 UI-08.8 (visible_when evaluator).
+**Pozostałe 10 ticketów UI-08:**
+- **Backend:** #261 UI-08.6 (Attribute migrate-type), #262 UI-08.7 (where-used endpoints), #263 UI-08.8 (visible_when evaluator).
 - **Frontend:** #264-#270 (Modeling layout shell + 4 sub-tabs + migration analyzer + drag-drop + inheritance preview + bulk import CSV).
 
 **Dependency state na końcu sesji:**
