@@ -37,8 +37,28 @@ enum AttributeType: string
     case Price = 'price';
     case Metric = 'metric';
 
+    /**
+     * UI-08.3 (#258) — system attribute types. Used by `created_at`/
+     * `updated_at` (Datetime) and `created_by`/`updated_by` (Reference, with
+     * `validation_rules.target_entity = 'user'` per epik plan §12.2).
+     *
+     * Read-only in MVP: no AttributeValueValidator binding because system
+     * attributes are never written via the catalog write path — they are
+     * stamped on the `objects` row by Doctrine listeners and surfaced in the
+     * form schema for display only. A future ticket adds renderers; until
+     * then the dispatcher's "no validator registered" branch is the safe
+     * fallback if anyone ever tries to POST a value against these.
+     */
+    case Datetime = 'datetime';
+    case Reference = 'reference';
+
     public function usesOptions(): bool
     {
         return self::Select === $this || self::Multiselect === $this;
+    }
+
+    public function isSystemType(): bool
+    {
+        return self::Datetime === $this || self::Reference === $this;
     }
 }

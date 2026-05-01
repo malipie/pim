@@ -16,13 +16,14 @@ Wcześniejsze epiki: **MVP-Alpha 0.4 (8/8) ✅ + 0.5 (5/5) ✅ + 0.6 (9/9) ✅**
 Pełen kontekst: [Project Plan/UI/epik-08-modelowanie.md](../Project%20Plan/UI/epik-08-modelowanie.md) (~960 linii) + [Project Plan/UI/00-plan-ui.md](../Project%20Plan/UI/00-plan-ui.md) §3.1.
 
 ## Następny krok
-**Epik UI-08 — 3/16 ticketów MERGED w 2026-05-01:**
+**Epik UI-08 — 4/16 ticketów MERGED + UI-08.3 W TOKU w 2026-05-01:**
 - ✅ **#255 META** (PR #272) — sidebar reorganization, zwijana sekcja „Modelowanie".
 - ✅ **#256 UI-08.1** (PR #273) — ADR-012 + migracje DDL (`Version20260501100000`) + entities (AttributeGroup rozszerzony, AttributeGroupAttribute, ObjectTypeAttributeGroup, CategoryAttributeGroup) + 6 unit testów.
 - ✅ **#257 UI-08.2** (PR #274) — ObjectType `code_immutable/deletable/icon/color` + brand jako 4-ty built-in (kind=`brand`) + ObjectKind enum extension + Search/ApiPlatform router updates + 6 unit testów.
+- 🚧 **#258 UI-08.3** (branch `feat/ui-08.3-system-attributes-audit-group`) — `is_system` flag na Attribute, system attrs (created_at/updated_at/created_by/updated_by) + audit AttributeGroup + AutoAttachAuditGroupListener + BuiltInSystemAttributesSeeder + extension BuiltInObjectTypeSeeder o brand. Migration `Version20260501120000`. AttributeType enum + 2 cases (Datetime, Reference). 9 nowych unit testów (256/256 zielone) + integration test. Quality gates lokalne green (PHPStan max + Deptrac 0 violations + Biome).
 
-**Pozostałe 13 ticketów UI-08:**
-- **Backend:** #258 UI-08.3 (system attributes + auto-attach Audit), #259 UI-08.4 (EffectiveAttributeGroupResolver + form-schema endpoint), #260 UI-08.5 (AttributeGroup CRUD ApiResource), #261 UI-08.6 (Attribute migrate-type), #262 UI-08.7 (where-used endpoints), #263 UI-08.8 (visible_when evaluator).
+**Pozostałe 12 ticketów UI-08:**
+- **Backend:** #259 UI-08.4 (EffectiveAttributeGroupResolver + form-schema endpoint), #260 UI-08.5 (AttributeGroup CRUD ApiResource), #261 UI-08.6 (Attribute migrate-type), #262 UI-08.7 (where-used endpoints), #263 UI-08.8 (visible_when evaluator).
 - **Frontend:** #264-#270 (Modeling layout shell + 4 sub-tabs + migration analyzer + drag-drop + inheritance preview + bulk import CSV).
 
 **Dependency state na końcu sesji:**

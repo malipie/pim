@@ -6,6 +6,7 @@ namespace App\DataFixtures;
 
 use App\Catalog\Application\BuiltInAssociationTypeSeeder;
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
+use App\Catalog\Application\BuiltInSystemAttributesSeeder;
 use App\Catalog\Application\DemoCatalogSeeder;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
@@ -41,6 +42,7 @@ class AppFixtures extends Fixture
         private readonly RoleRepositoryInterface $roleRepository,
         private readonly BuiltInObjectTypeSeeder $builtInSeeder,
         private readonly BuiltInAssociationTypeSeeder $associationTypeSeeder,
+        private readonly BuiltInSystemAttributesSeeder $systemAttributesSeeder,
         private readonly ObjectTypeRepositoryInterface $objectTypeRepository,
         private readonly DemoCatalogSeeder $demoCatalogSeeder,
     ) {
@@ -73,6 +75,11 @@ class AppFixtures extends Fixture
         foreach ($tenants as $tenant) {
             $this->builtInSeeder->seed($tenant);
             $this->associationTypeSeeder->seed($tenant);
+            // System attributes + audit group must be seeded *after* the
+            // built-in ObjectTypes so the AutoAttachAuditGroupListener can
+            // wire any future ObjectType to the existing audit group.
+            // Existing ObjectTypes are back-filled by the migration.
+            $this->systemAttributesSeeder->seed($tenant);
         }
 
         $admins = [

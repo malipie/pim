@@ -57,6 +57,14 @@ class Attribute implements TenantScoped
     private bool $isRequired = false;
 
     /**
+     * UI-08.3 (#258) — `is_system=true` marks platform-owned attributes
+     * (`created_at`, `updated_at`, `created_by`, `updated_by`). They are
+     * created by migration / seeder, never deletable, code immutable, and
+     * always rendered in the auto-attached audit AttributeGroup.
+     */
+    private bool $isSystem = false;
+
+    /**
      * @var array<string, mixed>
      */
     private array $validationRules = [];
@@ -118,6 +126,18 @@ class Attribute implements TenantScoped
     }
 
     /**
+     * @throws LogicException when invoked on a system attribute (immutable code per UI-08.3)
+     */
+    public function changeCode(string $code): void
+    {
+        if ($this->isSystem) {
+            throw new LogicException('System attribute code is immutable.');
+        }
+
+        $this->code = $code;
+    }
+
+    /**
      * @return array<string, string>
      */
     public function getLabel(): array
@@ -131,6 +151,19 @@ class Attribute implements TenantScoped
     public function rename(array $label): void
     {
         $this->label = $label;
+    }
+
+    public function isSystem(): bool
+    {
+        return $this->isSystem;
+    }
+
+    /**
+     * @internal called by seeders / migrations. Once set, can never be unset.
+     */
+    public function markSystem(): void
+    {
+        $this->isSystem = true;
     }
 
     /**

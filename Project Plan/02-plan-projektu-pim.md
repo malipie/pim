@@ -426,7 +426,7 @@ Pierwszy epik napędzany **planem UI** (`Project Plan/UI/`) zamiast backend road
 | **#255** | META — reorganizacja sidebar (zwijana sekcja „Modelowanie") | UI, frontend, must-have | 2-4h |
 | **#256** | UI-08.1 ADR-012 + migracje DDL + Doctrine entities | UI, backend, blocker, docs, must-have | 4-6h |
 | **#257** | UI-08.2 ObjectType built-in flags + Brand seed (4-ty built-in) | UI, backend, must-have | 2-3h |
-| **#258** | UI-08.3 System attributes + auto-attach Audit group | UI, backend, must-have | 2-3h |
+| ✅ **#258** | UI-08.3 System attributes + auto-attach Audit group | UI, backend, must-have | 2-3h |
 | **#259** | UI-08.4 EffectiveAttributeGroupResolver + form-schema endpoint + Redis cache | UI, backend, must-have | 4-6h |
 | **#260** | UI-08.5 ApiResource AttributeGroup CRUD + CQRS handlers + voter | UI, backend, must-have | 3-4h |
 | **#261** | UI-08.6 Attribute migrate-type endpoint (mapping plan + dry-run) | UI, backend, must-have | 4-5h |

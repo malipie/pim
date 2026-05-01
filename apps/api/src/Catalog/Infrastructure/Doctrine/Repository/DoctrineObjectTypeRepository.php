@@ -38,6 +38,17 @@ class DoctrineObjectTypeRepository extends ServiceEntityRepository implements Ob
     }
 
     /**
+     * @return list<ObjectType>
+     */
+    public function findAllByTenant(Tenant $tenant): array
+    {
+        /** @var list<ObjectType> $rows */
+        $rows = $this->findBy(['tenant' => $tenant]);
+
+        return $rows;
+    }
+
+    /**
      * Returns the platform-owned built-in ObjectType for a given kind, if
      * any. After #33 (predefined fixtures) every tenant carries one row
      * per built-in kind; this helper is the canonical lookup for "the

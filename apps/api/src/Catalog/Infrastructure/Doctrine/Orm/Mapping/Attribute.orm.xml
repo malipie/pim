@@ -14,6 +14,7 @@
 
         <indexes>
             <index name="attributes_tenant_group_position_idx" columns="tenant_id,group_id,position"/>
+            <index name="attributes_tenant_is_system_idx" columns="tenant_id,is_system"/>
         </indexes>
 
         <id name="id" type="uuid" column="id">
@@ -51,6 +52,11 @@
             </options>
         </field>
         <field name="isRequired" type="boolean" column="is_required">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+        <field name="isSystem" type="boolean" column="is_system">
             <options>
                 <option name="default">false</option>
             </options>
