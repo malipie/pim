@@ -22,8 +22,10 @@ import { jsonFetch } from '@/lib/http';
  * intent parser can hand-off SKU + family at jump-in time.
  */
 export function CreateProductWizard({
+  objectTypeId,
   prefill,
 }: {
+  objectTypeId: string;
   prefill?: { sku?: string; familyCode?: string };
 }) {
   const { t, i18n } = useTranslation();
@@ -42,13 +44,18 @@ export function CreateProductWizard({
     setError(null);
     setIsPending(true);
     try {
+      const attributes: Record<string, unknown> = {};
+      if (name.trim() !== '') attributes.name = name.trim();
+      if (brand.trim() !== '') attributes.brand = brand.trim();
+
       const body: Record<string, unknown> = {
         code: sku.trim(),
-        attributesIndexed: {
-          name: name.trim(),
-          brand: brand.trim() === '' ? undefined : brand.trim(),
-        },
+        objectTypeId,
       };
+      if (Object.keys(attributes).length > 0) {
+        body.attributes = attributes;
+      }
+
       const response = await jsonFetch<{ id: string }>('/api/products', {
         method: 'POST',
         body,
@@ -62,7 +69,7 @@ export function CreateProductWizard({
         setStep(2);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'unknown');
+      setError(e instanceof Error ? e.message : 'Create failed (check console for details)');
     } finally {
       setIsPending(false);
     }
