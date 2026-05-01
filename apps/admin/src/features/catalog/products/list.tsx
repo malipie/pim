@@ -50,6 +50,8 @@ interface CatalogObjectListEntry {
   attributesIndexed?: Record<string, unknown>;
   completenessPct?: number;
   syncStatusAggregate?: string;
+  parent?: { id?: string } | null;
+  parentId?: string | null;
 }
 
 interface ProductRow {
@@ -63,6 +65,7 @@ interface ProductRow {
   status: string | null;
   completenessPct: number;
   syncStatusAggregate: SyncAggregate;
+  parentId: string | null;
 }
 
 type SyncAggregate = 'green' | 'yellow' | 'red' | 'gray';
@@ -83,6 +86,7 @@ export function ProductListPage() {
   const [activeViewSlug, setActiveViewSlug] = useState<string | null>(null);
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [expandedMasters, setExpandedMasters] = useState<Set<string>>(new Set());
 
   const { searchFilters, rangeFilters } = useMemo(() => {
     const sf: Record<string, string | string[]> = { ...filters };
@@ -130,12 +134,66 @@ export function ProductListPage() {
     return (products ?? []).map(catalogObjectToProduct);
   }, [isSearchActive, products, searchResult]);
 
-  const visible = useMemo<ProductRow[]>(() => {
+  const filteredRows = useMemo<ProductRow[]>(() => {
     if (showSelectedOnly && selected.size > 0) {
       return baseRows.filter((row) => selected.has(row.id));
     }
     return baseRows;
   }, [baseRows, showSelectedOnly, selected]);
+
+  /**
+   * UI-02.23: in tree mode, group variants under their masters using
+   * client-side `parentId`. Variants whose master is absent from the
+   * current page render flat (we treat them as standalone rather than
+   * hide them — backend `?include_variants=true` is the future scope).
+   */
+  const visible = useMemo<ProductRow[]>(() => {
+    if (variantsMode === 'flat') return filteredRows;
+    const byId = new Map(filteredRows.map((r) => [r.id, r]));
+    const masters: ProductRow[] = [];
+    const variantsByMaster = new Map<string, ProductRow[]>();
+    const orphans: ProductRow[] = [];
+    for (const row of filteredRows) {
+      if (row.parentId === null) {
+        masters.push(row);
+        continue;
+      }
+      if (byId.has(row.parentId)) {
+        const list = variantsByMaster.get(row.parentId) ?? [];
+        list.push(row);
+        variantsByMaster.set(row.parentId, list);
+      } else {
+        orphans.push(row);
+      }
+    }
+    const out: ProductRow[] = [];
+    for (const master of masters) {
+      out.push(master);
+      if (expandedMasters.has(master.id)) {
+        out.push(...(variantsByMaster.get(master.id) ?? []));
+      }
+    }
+    out.push(...orphans);
+    return out;
+  }, [filteredRows, variantsMode, expandedMasters]);
+
+  const variantsByMasterCount = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of filteredRows) {
+      if (row.parentId === null) continue;
+      counts.set(row.parentId, (counts.get(row.parentId) ?? 0) + 1);
+    }
+    return counts;
+  }, [filteredRows]);
+
+  const toggleExpand = (masterId: string): void => {
+    setExpandedMasters((prev) => {
+      const next = new Set(prev);
+      if (next.has(masterId)) next.delete(masterId);
+      else next.add(masterId);
+      return next;
+    });
+  };
 
   const isLoading = isSearchActive ? isSearchLoading : isListLoading;
 
@@ -427,9 +485,36 @@ export function ProductListPage() {
                           />
                         </TableCell>
                         <TableCell className="font-mono text-xs">
-                          <Link to={`/products/${product.id}`} className="hover:underline">
-                            {product.sku}
-                          </Link>
+                          <div className="flex items-center gap-1">
+                            {variantsMode === 'tree' && product.parentId === null ? (
+                              (variantsByMasterCount.get(product.id) ?? 0) > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpand(product.id)}
+                                  aria-label={
+                                    expandedMasters.has(product.id)
+                                      ? t('products.variants.collapse', {
+                                          defaultValue: 'Collapse variants',
+                                        })
+                                      : t('products.variants.expand', {
+                                          defaultValue: 'Expand variants',
+                                        })
+                                  }
+                                  className="inline-flex size-4 items-center justify-center rounded hover:bg-accent"
+                                >
+                                  {expandedMasters.has(product.id) ? '▼' : '▶'}
+                                </button>
+                              ) : (
+                                <span className="inline-block size-4" />
+                              )
+                            ) : null}
+                            {variantsMode === 'tree' && product.parentId !== null ? (
+                              <span className="ml-4 text-muted-foreground">↳</span>
+                            ) : null}
+                            <Link to={`/products/${product.id}`} className="hover:underline">
+                              {product.sku}
+                            </Link>
+                          </div>
                         </TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>{product.brand ?? '—'}</TableCell>
@@ -528,6 +613,12 @@ function buildRow(entry: CatalogObjectListEntry): ProductRow {
   const name = typeof attrs.name === 'string' ? attrs.name : entry.code;
   const description = typeof attrs.description === 'string' ? attrs.description : null;
   const brand = typeof attrs.brand === 'string' ? attrs.brand : null;
+  const parentId =
+    typeof entry.parentId === 'string'
+      ? entry.parentId
+      : entry.parent && typeof entry.parent.id === 'string'
+        ? entry.parent.id
+        : null;
   return {
     id: entry.id,
     sku: entry.code,
@@ -539,6 +630,7 @@ function buildRow(entry: CatalogObjectListEntry): ProductRow {
     status: typeof entry.status === 'string' ? entry.status : null,
     completenessPct: typeof entry.completenessPct === 'number' ? entry.completenessPct : 0,
     syncStatusAggregate: normaliseSyncAggregate(entry.syncStatusAggregate),
+    parentId,
   };
 }
 
