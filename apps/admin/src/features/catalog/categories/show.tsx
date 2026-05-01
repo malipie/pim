@@ -1,10 +1,14 @@
 import { useOne } from '@refinedev/core';
 import { ArrowLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 
+import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { HttpError, jsonFetch } from '@/lib/http';
 
 interface CategoryDetail {
   id: string;
@@ -70,9 +74,164 @@ export function CategoryShowPage() {
         </CardContent>
       </Card>
 
+      <EffectiveAttributesPreview categoryId={category.id} />
+
       <p className="text-xs text-muted-foreground">{t('categories.write_deferred_note')}</p>
     </div>
   );
+}
+
+interface EffectiveGroupRow {
+  id: string;
+  code: string;
+  label: Record<string, string> | string;
+  is_system_group: boolean;
+  auto_attached: boolean;
+  attributes: { id: string; code: string; type: string; is_system: boolean }[];
+}
+
+interface EffectiveResponse {
+  categoryId: string;
+  objectType: { id: string; code: string; kind: string; label: Record<string, string> };
+  effectiveGroups: EffectiveGroupRow[];
+}
+
+const PREVIEW_KINDS = ['product', 'category', 'asset', 'brand'] as const;
+
+type PreviewKind = (typeof PREVIEW_KINDS)[number];
+
+/**
+ * UI-08.14 (#269) — `<EffectiveAttributesPreview>`.
+ *
+ * Hits /api/categories/{id}/effective-groups?objectTypeKind=... and
+ * renders the deduplicated AttributeGroup list a hypothetical object of
+ * the picked kind would see if placed under this category. The killer
+ * feature competitors (Akeneo, Pimcore) lack natively.
+ */
+function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
+  const { t } = useTranslation();
+  const [kind, setKind] = useState<PreviewKind>('product');
+  const [data, setData] = useState<EffectiveResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setData(null);
+
+    jsonFetch<EffectiveResponse>(
+      `/api/categories/${categoryId}/effective-groups?objectTypeKind=${kind}`,
+      { accept: 'application/json' },
+    )
+      .then((payload) => {
+        if (!cancelled) setData(payload);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(
+          err instanceof HttpError && err.status === 404
+            ? t('modeling.inheritance_preview.not_found')
+            : t('modeling.inheritance_preview.error'),
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryId, kind, t]);
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 pt-6">
+        <div className="flex items-end justify-between gap-3">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold">{t('modeling.inheritance_preview.title')}</h2>
+            <p className="text-xs text-muted-foreground">
+              {t('modeling.inheritance_preview.description')}
+            </p>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="preview-kind" className="text-xs uppercase tracking-wide">
+              {t('modeling.inheritance_preview.target_kind')}
+            </Label>
+            <select
+              id="preview-kind"
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as PreviewKind)}
+            >
+              {PREVIEW_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-muted-foreground">{t('app.loading')}</p>
+        ) : error !== null ? (
+          <p className="text-sm text-destructive">{error}</p>
+        ) : data === null || data.effectiveGroups.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('modeling.inheritance_preview.empty')}</p>
+        ) : (
+          <ol className="space-y-2">
+            {data.effectiveGroups.map((group) => (
+              <li
+                key={group.id}
+                className="rounded-md border bg-card px-3 py-2"
+                style={
+                  typeof group.label === 'object' && group.id !== ''
+                    ? { borderLeftColor: 'transparent' }
+                    : undefined
+                }
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs text-muted-foreground">{group.code}</span>
+                  <span className="text-sm font-medium">{groupLabel(group.label)}</span>
+                  {group.is_system_group ? <BuiltInLockBadge tone="quiet" /> : null}
+                  {group.auto_attached ? (
+                    <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-blue-900">
+                      {t('modeling.attribute_groups.auto_attached')}
+                    </span>
+                  ) : null}
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {t('modeling.inheritance_preview.attribute_count', {
+                      count: group.attributes.length,
+                    })}
+                  </span>
+                </div>
+                {group.attributes.length > 0 ? (
+                  <ul className="mt-2 flex flex-wrap gap-1.5">
+                    {group.attributes.map((attr) => (
+                      <li
+                        key={attr.id}
+                        className="rounded bg-muted px-2 py-0.5 text-[11px] font-mono"
+                      >
+                        {attr.is_system ? '🔒 ' : ''}
+                        {attr.code}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function groupLabel(label: Record<string, string> | string): string {
+  if (typeof label === 'string') return label;
+  return label.en ?? label.pl ?? Object.values(label)[0] ?? '—';
 }
 
 function formatValue(value: unknown): string {
