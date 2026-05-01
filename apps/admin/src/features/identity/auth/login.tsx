@@ -41,8 +41,8 @@ export function LoginPage() {
           setError('root', { message });
           return;
         }
-        const target = response?.redirectTo ?? '/products';
-        navigate(typeof target === 'string' ? target : '/products', { replace: true });
+        const target = response?.redirectTo ?? '/dashboard';
+        navigate(typeof target === 'string' ? target : '/dashboard', { replace: true });
       },
       onError: () => {
         setError('root', { message: 'auth.login_failed' });
