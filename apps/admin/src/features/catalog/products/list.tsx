@@ -82,6 +82,7 @@ export function ProductListPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [activeViewSlug, setActiveViewSlug] = useState<string | null>(null);
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const isSearchActive = query !== '' || Object.keys(filters).length > 0;
 
@@ -214,6 +215,24 @@ export function ProductListPage() {
         </Button>
       </div>
 
+      {saveError !== null ? (
+        <div
+          role="alert"
+          className="flex items-center justify-between rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
+        >
+          <span>{saveError}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setSaveError(null)}
+            aria-label={t('app.dismiss', { defaultValue: 'Dismiss' })}
+          >
+            {t('app.dismiss', { defaultValue: 'Dismiss' })}
+          </Button>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3">
         <CatalogSearchBox value={query} onChange={setQuery} isLoading={isSearchLoading} />
         <SavedViewsDropdown
@@ -306,11 +325,20 @@ export function ProductListPage() {
                   onCommit={(rowIdx, colKey, value) => {
                     const target = visible[rowIdx];
                     if (target === undefined) return;
+                    setSaveError(null);
                     void jsonFetch(`/api/products/${target.id}`, {
                       method: 'PATCH',
-                      body: { attributesIndexed: { [colKey]: value } },
+                      body: { attributes: { [colKey]: value } },
                       contentType: 'application/merge-patch+json',
-                    }).then(() => refetch());
+                    })
+                      .then(() => refetch())
+                      .catch((err: unknown) => {
+                        setSaveError(
+                          err instanceof Error
+                            ? `${target.sku} → ${colKey}: ${err.message}`
+                            : `${target.sku} → ${colKey}: save failed`,
+                        );
+                      });
                   }}
                 />
               </div>
