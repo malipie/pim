@@ -8,6 +8,7 @@ use App\Catalog\Application\BuiltInSystemAttributesSeeder;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\Uid\Uuid;
@@ -76,6 +77,9 @@ final class ObjectFormSchemaApiTest extends CatalogApiTestCase
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
         \assert(null !== $tenant);
 
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenantContext->set($tenant);
+
         $type = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
             ->findBuiltInByKind(ObjectKind::Product, $tenant);
         \assert(null !== $type);
@@ -84,6 +88,8 @@ final class ObjectFormSchemaApiTest extends CatalogApiTestCase
         $em = $this->em();
         $em->persist($product);
         $em->flush();
+
+        $tenantContext->clear();
 
         return $product;
     }
