@@ -187,6 +187,18 @@ services:
             - { name: kernel.event_listener, event: kernel.request, priority: 4096 }
             - { name: kernel.event_listener, event: console.command, priority: 4096 }
 
+    # UI-08.4 (#259) — bind the modeling cache pool to the
+    # form-schema handler + invalidator. Pool is declared in
+    # cache.yaml; binding here so autowiring picks it up via the
+    # `$modelingCache` argument name without manual @-references.
+    App\Catalog\Application\Query\GetObjectFormSchema\GetObjectFormSchemaHandler:
+        arguments:
+            $modelingCache: '@pim.modeling_cache'
+
+    App\Catalog\Infrastructure\Doctrine\EventListener\ObjectFormSchemaCacheInvalidator:
+        arguments:
+            $modelingCache: '@pim.modeling_cache'
+
 when@test:
     parameters:
         pim.refresh_token.cookie_secure: false

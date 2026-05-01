@@ -1,0 +1,119 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Catalog\Infrastructure\Doctrine\EventListener;
+
+use App\Catalog\Application\Query\GetObjectFormSchema\GetObjectFormSchemaHandler;
+use App\Catalog\Domain\Entity\AttributeGroupAttribute;
+use App\Catalog\Domain\Entity\CategoryAttributeGroup;
+use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
+use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
+use Doctrine\ORM\Event\PostFlushEventArgs;
+use Doctrine\ORM\Event\PostPersistEventArgs;
+use Doctrine\ORM\Event\PostRemoveEventArgs;
+use Doctrine\ORM\Event\PostUpdateEventArgs;
+use Doctrine\ORM\Events;
+use Symfony\Contracts\Cache\TagAwareCacheInterface;
+
+/**
+ * UI-08.4 (#259) — invalidates the form-schema cache when the underlying
+ * AttributeGroup wiring changes.
+ *
+ * `EffectiveAttributeGroupResolver` reads three tables: `object_type_-
+ * attribute_groups` (global), `category_attribute_groups` (inherited),
+ * and `attribute_group_attributes` (members of a group). Mutations on
+ * any of those tables invalidate every cached form schema for the
+ * affected ObjectType — we cannot narrow the invalidation further
+ * without tracking which schemas referenced which junction (would
+ * require a reverse index that doesn't pay for itself in MVP).
+ *
+ * Strategy: tag every cache entry with `pim_form_schema` (global tag) +
+ * `pim_form_schema.object_type.<id>` (per-type tag). On mutation:
+ *   - ObjectTypeAttributeGroup change → invalidate the per-type tag.
+ *   - CategoryAttributeGroup change → invalidate the per-type tag for
+ *     `targetObjectType` (the type that inherits this group).
+ *   - AttributeGroupAttribute change → invalidate the global tag (a
+ *     change to a group's member set ripples to every schema that
+ *     includes that group; the per-type tags are insufficient).
+ *
+ * Defers actual invalidation to `postFlush` so a single transaction
+ * touching N rows triggers one cache invalidation per affected tag set.
+ */
+#[AsDoctrineListener(event: Events::postPersist)]
+#[AsDoctrineListener(event: Events::postUpdate)]
+#[AsDoctrineListener(event: Events::postRemove)]
+#[AsDoctrineListener(event: Events::postFlush)]
+final class ObjectFormSchemaCacheInvalidator
+{
+    /**
+     * @var array<string, true>
+     */
+    private array $perTypeTags = [];
+
+    private bool $globalInvalidate = false;
+
+    public function __construct(
+        private readonly TagAwareCacheInterface $modelingCache,
+    ) {
+    }
+
+    public function postPersist(PostPersistEventArgs $event): void
+    {
+        $this->collect($event->getObject());
+    }
+
+    public function postUpdate(PostUpdateEventArgs $event): void
+    {
+        $this->collect($event->getObject());
+    }
+
+    public function postRemove(PostRemoveEventArgs $event): void
+    {
+        $this->collect($event->getObject());
+    }
+
+    public function postFlush(PostFlushEventArgs $event): void
+    {
+        if (!$this->globalInvalidate && [] === $this->perTypeTags) {
+            return;
+        }
+
+        $tags = [];
+        if ($this->globalInvalidate) {
+            $tags[] = GetObjectFormSchemaHandler::CACHE_TAG;
+        }
+        foreach (array_keys($this->perTypeTags) as $typeId) {
+            $tags[] = GetObjectFormSchemaHandler::CACHE_TAG.'.object_type.'.$typeId;
+        }
+
+        $this->globalInvalidate = false;
+        $this->perTypeTags = [];
+
+        if ([] !== $tags) {
+            $this->modelingCache->invalidateTags(array_unique($tags));
+        }
+    }
+
+    private function collect(object $entity): void
+    {
+        if ($entity instanceof ObjectTypeAttributeGroup) {
+            $this->perTypeTags[$entity->getObjectType()->getId()->toRfc4122()] = true;
+
+            return;
+        }
+
+        if ($entity instanceof CategoryAttributeGroup) {
+            $this->perTypeTags[$entity->getTargetObjectType()->getId()->toRfc4122()] = true;
+
+            return;
+        }
+
+        if ($entity instanceof AttributeGroupAttribute) {
+            // A group's member set changed — every schema that includes
+            // this group must rebuild. Global flush is the simplest
+            // correct invalidation in MVP.
+            $this->globalInvalidate = true;
+        }
+    }
+}
