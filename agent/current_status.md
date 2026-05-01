@@ -22,10 +22,11 @@ Pełen kontekst: [Project Plan/UI/epik-08-modelowanie.md](../Project%20Plan/UI/e
 - ✅ **#257 UI-08.2** (PR #274) — ObjectType `code_immutable/deletable/icon/color` + brand jako 4-ty built-in (kind=`brand`) + ObjectKind enum extension + Search/ApiPlatform router updates + 6 unit testów.
 - ✅ **#258 UI-08.3** (PR #276) — `is_system` flag na Attribute, system attrs (created_at/updated_at/created_by/updated_by) + audit AttributeGroup + AutoAttachAuditGroupListener + BuiltInSystemAttributesSeeder + extension BuiltInObjectTypeSeeder o brand. Migration `Version20260501120000`. AttributeType enum + 2 cases (Datetime, Reference). 9 unit testów + 1 integration test.
 - ✅ **#259 UI-08.4** (PR #277) — `EffectiveAttributeGroupResolver` (domain service) + `GetObjectFormSchemaHandler` (cached query handler) + `ObjectFormSchemaCacheInvalidator` (Doctrine postFlush listener inwalidujący `pim.modeling_cache` tag-aware pool) + `ObjectFormSchemaController` (`GET /api/objects/{id}/form-schema`). 2 unit + 5 integration + 3 API test.
-- 🚧 **#260 UI-08.5** (branch `feat/ui-08.5-attribute-group-crud`) — AttributeGroup CRUD przez API Platform (POST/PATCH/DELETE) + Create/Update/Delete CQRS slice handlers + AttributeGroupInput / AttributeGroupPatchInput DTOs + AttributeGroupProcessor (state processor unwrap'ujący HandlerFailedException) + extension serializer XML (description/icon/color/systemGroup/autoAttached). Delete protection: 422 dla `is_system_group`, 409 dla attached do ObjectType/Category. 7 nowych ApiTestCase. PHPStan max + Deptrac 0 + 258 unit testów green.
+- ✅ **#260 UI-08.5** (PR #278) — AttributeGroup CRUD przez API Platform (POST/PATCH/DELETE) + Create/Update/Delete CQRS slice handlers + AttributeGroupInput / AttributeGroupPatchInput DTOs + AttributeGroupProcessor + delete protection (422 system, 409 attached). 7 ApiTestCase.
+- 🚧 **#261 UI-08.6** (branch `feat/ui-08.6-attribute-migrate-type`) — `POST /api/attributes/{id}/migrate-type` (custom REST). `AttributeTypeMigrationCompatibility` matrix (safe/requires_force/blocked) + `AttributeMigrationPlanner` (dry-run analyzer z auto-mapping przez normalize whitespace+case) + `AttributeMigrationExecutor` (transaction: backup → rewrite values → flip type) + migration `Version20260501130000` (table `attribute_migration_backups`). 6 unit testów + 6 ApiTestCase. Manual smoke: dry-run dla 100 brand values → 5 distinct + 2 mapped + 3 unmapped w <500ms.
 
-**Pozostałe 10 ticketów UI-08:**
-- **Backend:** #261 UI-08.6 (Attribute migrate-type), #262 UI-08.7 (where-used endpoints), #263 UI-08.8 (visible_when evaluator).
+**Pozostałe 9 ticketów UI-08:**
+- **Backend:** #262 UI-08.7 (where-used endpoints), #263 UI-08.8 (visible_when evaluator).
 - **Frontend:** #264-#270 (Modeling layout shell + 4 sub-tabs + migration analyzer + drag-drop + inheritance preview + bulk import CSV).
 
 **Dependency state na końcu sesji:**
