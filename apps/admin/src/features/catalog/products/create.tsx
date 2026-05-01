@@ -5,8 +5,11 @@ import { Link } from 'react-router';
 import { CreateProductWizard } from '@/components/catalog/create-product-wizard';
 import { Button } from '@/components/ui/button';
 
+import { useDefaultObjectType } from './use-default-object-type';
+
 export function ProductCreatePage() {
   const { t } = useTranslation();
+  const { objectTypeId, isLoading, error } = useDefaultObjectType('product');
 
   return (
     <div className="space-y-6">
@@ -27,7 +30,17 @@ export function ProductCreatePage() {
         </p>
       </div>
 
-      <CreateProductWizard />
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">{t('app.loading')}</p>
+      ) : error !== null || objectTypeId === null ? (
+        <p className="text-sm text-rose-600" role="alert">
+          {t('products.no_object_type', {
+            defaultValue: 'No built-in product ObjectType is available. Run the catalog seeder.',
+          })}
+        </p>
+      ) : (
+        <CreateProductWizard objectTypeId={objectTypeId} />
+      )}
     </div>
   );
 }
