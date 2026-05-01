@@ -85,6 +85,9 @@ final class TenantAuditCommand extends Command
         'attribute_group_attributes',
         'object_type_attribute_groups',
         'category_attribute_groups',
+        // UI-08.6 (#261) — pre-migration JSONB backup snapshots. Tenant
+        // scope inherited via the parent attribute.
+        'attribute_migration_backups',
     ];
 
     /**

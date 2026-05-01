@@ -168,7 +168,7 @@ Każdy plik `epik-XX-NAZWA.md` ma:
 | # | Epik | Status | Plik | Persona główna | GitHub tracking |
 |---|------|--------|------|---|---|
 | 01 | Dashboard | 🔵 placeholder | [`epik-01-dashboard.md`](epik-01-dashboard.md) | Tomasz (Owner) | — |
-| 02 | Produkty | 🔵 placeholder | [`epik-02-produkty.md`](epik-02-produkty.md) | Kasia (Catalog Manager) | — |
+| **02** | **Produkty** | 🟢 **szczegół (brainstorming zamknięty 2026-04-30)** | [`epik-02-produkty.md`](epik-02-produkty.md) | Kasia (Catalog Manager) | — |
 | 03 | Usługi | 🔵 placeholder | [`epik-03-uslugi.md`](epik-03-uslugi.md) | Kasia + custom rola per branża | — |
 | 04 | Publikacje | 🔵 placeholder | [`epik-04-publikacje.md`](epik-04-publikacje.md) | Kasia + Piotr (IT) | — |
 | 05 | Multimedia | 🔵 placeholder | [`epik-05-multimedia.md`](epik-05-multimedia.md) | Kasia + Magda (Marketing) | — |
