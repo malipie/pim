@@ -41,6 +41,10 @@ final class ObjectKindRouter
             'path' => '/api/assets',
             'groups' => ['object:read', 'object:read:asset'],
         ],
+        'brand' => [
+            'path' => '/api/brands',
+            'groups' => ['object:read', 'object:read:brand'],
+        ],
     ];
 
     /**
@@ -84,6 +88,6 @@ final class ObjectKindRouter
      */
     public static function builtInKinds(): array
     {
-        return [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset];
+        return [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset, ObjectKind::Brand];
     }
 }

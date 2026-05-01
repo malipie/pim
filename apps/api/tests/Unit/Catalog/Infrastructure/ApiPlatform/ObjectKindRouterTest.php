@@ -49,10 +49,12 @@ final class ObjectKindRouterTest extends TestCase
     }
 
     #[Test]
-    public function builtInKindsListMatchesAdr009(): void
+    public function builtInKindsListMatchesAdr009AndAdr012(): void
     {
+        // ADR-009 ships product / category / asset; ADR-012 (#257 / UI-08.2)
+        // adds brand as 4-th built-in.
         self::assertSame(
-            [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset],
+            [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset, ObjectKind::Brand],
             ObjectKindRouter::builtInKinds(),
         );
     }
