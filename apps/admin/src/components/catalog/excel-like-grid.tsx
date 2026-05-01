@@ -84,7 +84,16 @@ export function ExcelLikeGrid<T extends Record<string, unknown>>({
     }
     setActive({ rowIdx, colKey });
     setSelectionEnd({ rowIdx, colKey });
-    setEditing(null);
+    // Single-click → enter edit mode for editable cells (UI-02.25). Operators
+    // expect spreadsheet-style "click and type"; the legacy "click to select
+    // then double-click to edit" lost users every time. Read-only cells still
+    // highlight without opening the editor.
+    const col = columns.find((c) => c.key === colKey);
+    if (col !== undefined && col.readOnly !== true) {
+      setEditing({ rowIdx, colKey });
+    } else {
+      setEditing(null);
+    }
   };
 
   const handleCellDoubleClick = (rowIdx: number, colKey: string): void => {
