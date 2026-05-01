@@ -4,6 +4,31 @@
 
 Wcześniejsze epiki: **MVP-Alpha 0.4 (8/8) ✅ + 0.5 (5/5) ✅ + 0.6 (9/9) ✅** — w main (#210..#231). Operator zaakceptował 2026-04-30 kierunek **MVP-Final → Faza 1 → Faza 2** zamiast skoku do Fazy 2 (epik 0.7 Agent layer odsunięty per ADR R-27 cost runaway: BYOK + monitoring + Org-level Anthropic cap muszą iść pierwsze).
 
+## 2026-05-01 (cd. II): Epik UI-02 Produkty — pełen marathon, 19/19 ticketów dostarczone
+
+Po feedbacku operatora („pracuj przez cały epik, nie deferuj") agent dokończył wszystkie pozostałe 8 frontend ticketów (UI-02.9, UI-02.11, UI-02.12, UI-02.13, UI-02.16, UI-02.17, UI-02.18, UI-02.19) — każdy jako osobny branch + PR + CI + merge zgodnie z nową regułą **EPIK MARATHON RULE** w `CLAUDE.md`.
+
+Druga sesja PR-y:
+- **PR #321** — `docs(claude): add Epik Marathon Rule` — operator-feedback rule, nienegocjowalna kontrakta dla "całego epiku" trigger'ów.
+- **PR #322 UI-02.9** — `<ProductFilterChips>` + `<AdvancedFilterBuilder>` Sheet (brand / completeness range / status, save-as-view callback).
+- **PR #323 UI-02.11** — `<BulkActionsToolbar>` sticky-bottom nad UI-02.3 endpointem (toggle_enabled przez bulk-edit, delete loop, show-selected-only toggle, error preview).
+- **PR #324 UI-02.13** — `<ProductRowActions>` 3-dot menu (Edit/Duplicate/Toggle/Audit/CopyURL/Delete) + `<DuplicateProductDialog>` nad UI-02.4 endpointem.
+- **PR #325 UI-02.12** — `<ExcelLikeGrid>` custom impl (decyzja A vs B → B/custom; AG Grid odrzucony — ~250KB bundle bloat).
+- **PR #326 UI-02.16** — `<DetailGroupNav>` (left rail, UI-02.5 effective-attribute-groups) + `<DetailSidebar>` (Images/Related/History/Channels).
+- **PR #327 UI-02.17** — `<DetailDynamicForm>` z auto-save 3s debounce + provenance badges + lock toggle + save indicator.
+- **PR #328 UI-02.18** — `<VariantsTab>` z axes editor + matrix generator nad UI-02.6 endpointem.
+- **PR #329 UI-02.19** — `<EmptyStateProducts>` + `<CreateProductWizard>` 3-step wizard.
+
+**Łącznie sesja 1+2: 18 PR-ów merged + 1 hotfix #320 (serializer cache fields).** Epik UI-02 ZAMKNIĘTY 19/19.
+
+Świadome odejścia (Faza 1+, udokumentowane per-ticket w PR body):
+- TanStack Table swap + virtualization w produktowej liście (UI-02.8 follow-up).
+- Localizable PL/EN + Channel sub-tabs w detail form (UI-02.17 follow-up).
+- Mercure progress modal dla bulk-edit jobs (UI-02.11 follow-up).
+- Per-variant Excel-like grid w VariantsTab (UI-02.18 follow-up reuse UI-02.12).
+- Per-user owner scoping w SavedView controller (wymaga `CurrentUserProvider` cross-bundle contract).
+- Quick edit popover na komórkach listy (UI-02.13 follow-up).
+
 ## 2026-05-01 (cd.): Epik UI-02 Produkty — backend ZAMKNIĘTY 7/7 + 2 frontend tickety merged
 
 **Pełna sesja autonomous (bypass-permissions + dwa wakeup'y po 35min/20min token outage).**
