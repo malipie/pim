@@ -40,17 +40,17 @@ export function CategoryShowPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
+      <div className="space-y-2">
         <Button asChild variant="ghost" size="sm" className="-ml-3">
           <Link to="/modeling/categories">
             <ArrowLeft className="size-4" />
             {t('categories.back')}
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{name}</h1>
-        <p className="font-mono text-xs text-muted-foreground">{category.code}</p>
+        <h1 className="display text-[28px] font-semibold leading-tight text-ink">{name}</h1>
+        <p className="font-mono text-[12px] text-ink-2">{category.code}</p>
         {category.path ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[12px] text-muted-foreground">
             {t('categories.fields.path')}: <code className="font-mono">{category.path}</code>
           </p>
         ) : null}
@@ -146,12 +146,17 @@ function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
   }, [categoryId, kind, t]);
 
   return (
-    <Card>
+    <Card className="border-accent-violet/30 bg-accent-violet/5 soft-shadow">
       <CardContent className="space-y-4 pt-6">
         <div className="flex items-end justify-between gap-3">
           <div className="space-y-1">
-            <h2 className="text-sm font-semibold">{t('modeling.inheritance_preview.title')}</h2>
-            <p className="text-xs text-muted-foreground">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-accent-violet/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-violet">
+              effective preview
+            </div>
+            <h2 className="text-[15px] font-semibold text-ink">
+              {t('modeling.inheritance_preview.title')}
+            </h2>
+            <p className="text-[12px] text-muted-foreground">
               {t('modeling.inheritance_preview.description')}
             </p>
           </div>

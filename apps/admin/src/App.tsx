@@ -14,6 +14,7 @@ import { AttributeGroupShowPage } from '@/features/catalog/attribute-groups/show
 import { AttributesListPage } from '@/features/catalog/attributes/list';
 import { MigrateAttributeTypePage } from '@/features/catalog/attributes/migrate-type';
 import { AttributeShowPage } from '@/features/catalog/attributes/show';
+import { AttributeValuesPage } from '@/features/catalog/attributes/values';
 import { CategoriesTreePage } from '@/features/catalog/categories/list';
 import { CategoryShowPage } from '@/features/catalog/categories/show';
 import { ModelingLayout } from '@/features/catalog/modeling/layout';
@@ -108,6 +109,7 @@ function App() {
               <Route path="attributes" element={<AttributesListPage />} />
               <Route path="attributes/:id" element={<AttributeShowPage />} />
               <Route path="attributes/:id/migrate-type" element={<MigrateAttributeTypePage />} />
+              <Route path="attributes/:id/values" element={<AttributeValuesPage />} />
               <Route path="attribute-groups" element={<AttributeGroupsListPage />} />
               <Route path="attribute-groups/new" element={<AttributeGroupCreatePage />} />
               <Route path="attribute-groups/:id" element={<AttributeGroupShowPage />} />

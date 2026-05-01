@@ -48,17 +48,19 @@ export function ObjectTypesListPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('object_types.list_title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('object_types.list_subtitle')}</p>
+      <div className="space-y-2">
+        <h1 className="display text-[28px] font-semibold leading-tight text-ink">
+          {t('object_types.list_title')}
+        </h1>
+        <p className="max-w-3xl text-[14px] text-ink-2">{t('object_types.list_subtitle')}</p>
       </div>
 
       <section className="space-y-3">
         <header className="flex items-center justify-between">
-          <h2 className="text-sm font-medium">{t('object_types.built_in_title')}</h2>
+          <h2 className="text-[15px] font-semibold text-ink">{t('object_types.built_in_title')}</h2>
           <BuiltInLockBadge />
         </header>
-        <div className="rounded-xl border bg-card">
+        <div className="rounded-2xl border border-line bg-surface soft-shadow">
           <Table>
             <TableHeader>
               <TableRow>
@@ -128,13 +130,13 @@ export function ObjectTypesListPage() {
 
       <section className="space-y-3">
         <header className="flex items-center justify-between">
-          <h2 className="text-sm font-medium">{t('object_types.custom_title')}</h2>
+          <h2 className="text-[15px] font-semibold text-ink">{t('object_types.custom_title')}</h2>
           <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
             {t('object_types.create_custom_action', { defaultValue: 'Create custom ObjectType' })}
           </Button>
         </header>
-        <div className="rounded-xl border bg-card">
+        <div className="rounded-2xl border border-line bg-surface soft-shadow">
           <Table>
             <TableHeader>
               <TableRow>
@@ -213,16 +215,18 @@ export function ObjectTypesListPage() {
 function KindBadge({ kind }: { kind: string }) {
   const tone =
     kind === 'product'
-      ? 'bg-blue-100 text-blue-900'
+      ? 'bg-accent-blue/10 text-accent-blue'
       : kind === 'category'
-        ? 'bg-emerald-100 text-emerald-900'
+        ? 'bg-accent-emerald/10 text-accent-emerald'
         : kind === 'asset'
-          ? 'bg-purple-100 text-purple-900'
+          ? 'bg-accent-violet/10 text-accent-violet'
           : kind === 'brand'
-            ? 'bg-amber-100 text-amber-900'
+            ? 'bg-accent-amber/10 text-accent-amber'
             : 'bg-muted text-muted-foreground';
   return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide ${tone}`}>
+    <span
+      className={`rounded-md px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${tone}`}
+    >
       {kind}
     </span>
   );

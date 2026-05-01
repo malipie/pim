@@ -106,6 +106,25 @@ export function ObjectTypeShowPage() {
         <WhereUsedList resource="object_types" id={objectType.id} />
       </div>
 
+      {/*
+        MOCK: audit log (last 5 changes — who/when/diff) — wymaga
+        GET /api/object_types/{id}/audit-log (#TBD).
+        Patrz Project Plan/UI/Wdrozenie_grafiki/modelowanie-do-oprogramowania.md.
+      */}
+      <Card className="border-dashed border-line bg-surface-2/40">
+        <CardContent className="space-y-1 pt-6">
+          <h2 className="text-[15px] font-semibold text-ink">
+            {t('object_types.audit_log_title', { defaultValue: 'Historia zmian (5 ostatnich)' })}
+          </h2>
+          <p className="text-[12px] text-muted-foreground">
+            {t('object_types.audit_log_mock', {
+              defaultValue:
+                'Mock — wymaga endpointu /api/object_types/{id}/audit-log. Patrz backlog modelowania.',
+            })}
+          </p>
+        </CardContent>
+      </Card>
+
       <p className="text-xs text-muted-foreground">{t('object_types.write_deferred_note')}</p>
     </div>
   );

@@ -37,13 +37,17 @@ export function CategoriesTreePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('categories.list_title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('categories.list_subtitle')}</p>
+        <div className="space-y-2">
+          <h1 className="display text-[28px] font-semibold leading-tight text-ink">
+            {t('categories.list_title')}
+          </h1>
+          <p className="max-w-3xl text-[14px] text-ink-2">{t('categories.list_subtitle')}</p>
         </div>
+        {/* MOCK: ObjectType filter chips (Service / Product / Asset) — wymaga listing po kind (#TBD) */}
+        {/* MOCK: Drag-and-drop subtree move — wymaga PATCH /api/categories/{id}/move (#TBD) */}
       </div>
 
-      <div className="rounded-xl border bg-card p-3">
+      <div className="rounded-2xl border border-line bg-surface p-3 soft-shadow">
         {query.isLoading ? (
           <p className="py-6 text-center text-sm text-muted-foreground">{t('app.loading')}</p>
         ) : tree.length === 0 ? (
