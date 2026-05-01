@@ -585,11 +585,11 @@ function sampleValueForType(type: string): unknown {
       return '2026-04-30';
     case 'select':
       return 'option_a';
-    case 'multi_select':
+    case 'multiselect':
       return ['option_a', 'option_b'];
     case 'price':
       return { amount: 99.99, currency: 'PLN' };
-    case 'measurement':
+    case 'metric':
       return { value: 10, unit: 'kg' };
     case 'asset':
     case 'reference':

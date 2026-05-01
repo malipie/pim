@@ -33,16 +33,17 @@ type SystemFilter = 'all' | 'system' | 'business';
 
 const TYPES: ReadonlyArray<string> = [
   'text',
-  'textarea',
   'number',
   'boolean',
   'select',
-  'multi_select',
+  'multiselect',
   'date',
+  'datetime',
   'asset',
   'reference',
+  'relation',
   'price',
-  'measurement',
+  'metric',
 ];
 
 export function AttributesListPage() {
