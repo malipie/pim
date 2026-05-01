@@ -485,6 +485,15 @@
       "value": "Wartość",
       "value_placeholder": "string / true / false",
       "none": "— zawsze widoczne —"
+    },
+    "inheritance_preview": {
+      "title": "Podgląd efektywnych grup atrybutów",
+      "description": "Co zobaczy obiekt wybranego rodzaju umieszczony w tej kategorii.",
+      "target_kind": "Dla rodzaju",
+      "attribute_count": "{{count}} atrybutów",
+      "empty": "Brak efektywnych grup dla tej kombinacji.",
+      "error": "Nie udało się pobrać efektywnych grup.",
+      "not_found": "Nie znaleziono kategorii lub typu obiektu."
     }
   }
 }

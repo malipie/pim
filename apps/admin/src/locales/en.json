@@ -485,6 +485,15 @@
       "value": "Value",
       "value_placeholder": "string / true / false",
       "none": "— always visible —"
+    },
+    "inheritance_preview": {
+      "title": "Effective attribute groups preview",
+      "description": "What an object of the chosen kind would see if placed under this category.",
+      "target_kind": "For kind",
+      "attribute_count": "{{count}} attributes",
+      "empty": "No effective groups for this combination.",
+      "error": "Could not load effective groups.",
+      "not_found": "Category or ObjectType not found."
     }
   }
 }

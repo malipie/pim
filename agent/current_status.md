@@ -30,10 +30,11 @@ Pełen kontekst: [Project Plan/UI/epik-08-modelowanie.md](../Project%20Plan/UI/e
 - ✅ **#265 UI-08.10** (PR #283) — Object Types list + show enhanced + reusable `<BuiltInLockBadge>` + `<WhereUsedList>`. Custom Create wizard świadomie odroczony.
 - ✅ **#266 UI-08.11** (PR #284) — Attributes list filtry + Usages column + `<AttributePreview>` mock-data widget; serializer XML +`system` field.
 - ✅ **#267 UI-08.12** (PR #285) — `<MigrateAttributeTypePage>` 3-step flow (target → suggest → apply) na route `/modeling/attributes/:id/migrate-type`.
-- 🚧 **#268 UI-08.13** (branch `feat/ui-08.13-attribute-groups-subtab`) — AttributeGroups sub-tab: enhanced list (search + system filter + usage counts + create/delete buttons) + create page + show page z members table (PATCH up/down reorder + inline visible_when editor wired do UI-08.8). New custom REST `GET /api/attribute_groups/{id}/attributes` (z `EffectiveAttributeGroupResolver::loadGroupAttributes` reuse). **Świadome odejścia:** brak `@dnd-kit/sortable` (zastąpione up/down PATCH'em — same UX outcome bez nowej depki); attach/detach UI follow-up (wymaga `AttachAttributeToGroup` command nieistniejącego w MVP). i18n keys `modeling.attribute_groups.*` + `modeling.visible_when.*`.
+- ✅ **#268 UI-08.13** (PR #286) — AttributeGroups sub-tab: list/create/show z PATCH up/down reorder + inline visible_when editor + new custom REST `GET /api/attribute_groups/{id}/attributes`.
+- 🚧 **#269 UI-08.14** (branch `feat/ui-08.14-categories-modeling`) — `<EffectiveAttributesPreview>` widget na category show page (PREVIEW_KINDS dropdown → fetch `/api/categories/{id}/effective-groups?objectTypeKind=...` → render dedup'd groups z `BuiltInLockBadge` + `auto_attached` chip + flat attributes list per group). New custom REST controller reusing `EffectiveAttributeGroupResolver::resolveForCategoryPreview`. Manual smoke: zwraca audit group + 4 system attrs dla product preview pod root category. **Świadome odejścia:** drag-drop reparenting (no @dnd-kit/react-arborist), tree filter per ObjectType, override-action UI, "create test object" button — wszystkie wymagają backend extensions które nie istnieją w MVP.
 
-**Pozostałe 2 tickety UI-08 (frontend):**
-- **#269** UI-08.14 (Categories modeling tree + inheritance preview), #270 UI-08.15 (bulk import CSV — optional).
+**Pozostały 1 ticket UI-08 (optional):**
+- **#270** UI-08.15 (bulk import CSV — optional, low priority).
 - **Frontend:** #264-#270 (Modeling layout shell + 4 sub-tabs + migration analyzer + drag-drop + inheritance preview + bulk import CSV).
 
 **Dependency state na końcu sesji:**
