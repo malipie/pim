@@ -52,6 +52,17 @@
                 <option name="default">{}</option>
             </options>
         </field>
+        <field name="completenessPct" type="smallint" column="completeness_pct">
+            <options>
+                <option name="default">0</option>
+                <option name="unsigned">true</option>
+            </options>
+        </field>
+        <field name="syncStatusAggregate" type="string" length="8" column="sync_status_aggregate">
+            <options>
+                <option name="default">gray</option>
+            </options>
+        </field>
         <field name="attributesIndexed" type="json" column="attributes_indexed">
             <options>
                 <option name="jsonb">true</option>

@@ -117,4 +117,83 @@ final class CatalogObjectTest extends TestCase
         $object->transitionTo(CatalogObject::STATUS_ARCHIVED);
         self::assertSame('archived', $object->getStatus());
     }
+
+    #[Test]
+    public function completenessPctDefaultsToZero(): void
+    {
+        $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
+        $object = new CatalogObject($type, 'SKU-CMPL-1');
+
+        self::assertSame(0, $object->getCompletenessPct());
+    }
+
+    #[Test]
+    public function recordCompletenessMirrorsGlobalIntoCompletenessPct(): void
+    {
+        $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
+        $object = new CatalogObject($type, 'SKU-CMPL-2');
+
+        $object->recordCompleteness(['global' => 60]);
+
+        self::assertSame(60, $object->getCompletenessPct());
+        self::assertSame(['global' => 60], $object->getCompleteness());
+    }
+
+    #[Test]
+    public function recordCompletenessClampsOutOfRangeGlobalValues(): void
+    {
+        $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
+        $object = new CatalogObject($type, 'SKU-CMPL-3');
+
+        $object->recordCompleteness(['global' => 250]);
+        self::assertSame(100, $object->getCompletenessPct());
+
+        $object->recordCompleteness(['global' => -25]);
+        self::assertSame(0, $object->getCompletenessPct());
+    }
+
+    #[Test]
+    public function recordCompletenessIgnoresNonIntegerGlobal(): void
+    {
+        $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
+        $object = new CatalogObject($type, 'SKU-CMPL-4');
+
+        $object->recordCompleteness(['global' => 80]);
+        $object->recordCompleteness(['per_channel' => ['shopify' => 50]]); // no `global` key
+
+        // Last-good-value semantics — ignoring a payload without `global`
+        // beats overwriting with 0 and surprising the list view.
+        self::assertSame(80, $object->getCompletenessPct());
+    }
+
+    #[Test]
+    public function syncStatusAggregateDefaultsToGray(): void
+    {
+        $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
+        $object = new CatalogObject($type, 'SKU-SYNC-1');
+
+        self::assertSame('gray', $object->getSyncStatusAggregate());
+    }
+
+    #[Test]
+    public function recordSyncStatusAggregateAcceptsAllowedValues(): void
+    {
+        $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
+        $object = new CatalogObject($type, 'SKU-SYNC-2');
+
+        foreach (['green', 'yellow', 'red', 'gray'] as $status) {
+            $object->recordSyncStatusAggregate($status);
+            self::assertSame($status, $object->getSyncStatusAggregate());
+        }
+    }
+
+    #[Test]
+    public function recordSyncStatusAggregateRejectsUnknownValue(): void
+    {
+        $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
+        $object = new CatalogObject($type, 'SKU-SYNC-3');
+
+        $this->expectException(LogicException::class);
+        $object->recordSyncStatusAggregate('purple');
+    }
 }
