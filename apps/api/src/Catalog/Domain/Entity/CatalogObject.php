@@ -74,6 +74,20 @@ class CatalogObject extends AggregateRoot implements TenantScoped
     private array $completeness = [];
 
     /**
+     * Flat percentage 0..100 mirrored from `completeness['global']` for
+     * indexable filter/sort on the products list (UI-02.1, UI-02.10).
+     * Maintained by {@see AttributesIndexedRebuilder}.
+     */
+    private int $completenessPct = 0;
+
+    /**
+     * Per-product sync aggregate badge — `green|yellow|red|gray`. Default
+     * `gray` (no sync history). Mutated by Faza 1 channel-sync subscriber;
+     * MVP only ships the column + serialisation (UI-02.1 / UI-02.5 / UI-02.10).
+     */
+    private string $syncStatusAggregate = 'gray';
+
+    /**
      * @var array<string, mixed>
      */
     private array $attributesIndexed = [];
@@ -228,6 +242,32 @@ class CatalogObject extends AggregateRoot implements TenantScoped
     public function recordCompleteness(array $completeness): void
     {
         $this->completeness = $completeness;
+        $global = $completeness['global'] ?? null;
+        if (\is_int($global)) {
+            $this->completenessPct = max(0, min(100, $global));
+        }
+        $this->touch();
+    }
+
+    public function getCompletenessPct(): int
+    {
+        return $this->completenessPct;
+    }
+
+    public function getSyncStatusAggregate(): string
+    {
+        return $this->syncStatusAggregate;
+    }
+
+    public function recordSyncStatusAggregate(string $status): void
+    {
+        if (!\in_array($status, ['green', 'yellow', 'red', 'gray'], true)) {
+            throw new LogicException(\sprintf('Invalid sync_status_aggregate value "%s".', $status));
+        }
+        if ($this->syncStatusAggregate === $status) {
+            return;
+        }
+        $this->syncStatusAggregate = $status;
         $this->touch();
     }
 
