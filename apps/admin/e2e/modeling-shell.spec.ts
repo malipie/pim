@@ -5,17 +5,41 @@ import { loginAsAdmin } from './helpers/auth';
 /**
  * UI-08.9 (#264) — Modeling layout shell smoke.
  * META-UI v2 (#289) — sidebar reorg per `00-plan-ui.md` §3.1.
+ * UI-03.1 (#356) — adds dashboard mock smoke + redirect / → /dashboard.
  *
- * Single test exercises the full surface (sidebar layout, tablist render,
- * tab switch, legacy redirect) with one login. The auth-rate-limiter
- * (5/IP/15min) is shared across the whole Playwright run; splitting this
- * into multiple `beforeEach`-driven tests would push the cumulative
- * login count past the limit on top of the multi-tenant-isolation suite.
+ * Single test exercises the full surface (dashboard render, sidebar layout,
+ * tablist render, tab switch, legacy redirect) with one login. The
+ * auth-rate-limiter (5/IP/15min) is shared across the whole Playwright run;
+ * splitting this into multiple `beforeEach`-driven tests would push the
+ * cumulative login count past the limit on top of the multi-tenant
+ * isolation suite — every flow we care about is therefore folded in here.
  */
-test('Modeling layout shell — sidebar §3.1 + tablist + tab switch + legacy redirect', async ({
-  page,
-}) => {
+test('Modeling shell + Dashboard mock — full handoff smoke', async ({ page }) => {
   await loginAsAdmin(page);
+
+  // 0a. Login lands on /dashboard (UI-03.1) and renders the handoff hero
+  //     headline. Dashboard is a static mock — there must be ZERO requests
+  //     to /api/dashboard/* (those endpoints don't exist yet).
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+  const dashboardApiHits: string[] = [];
+  page.on('request', (req) => {
+    if (req.url().includes('/api/dashboard/')) dashboardApiHits.push(req.url());
+  });
+  // Re-open dashboard so the listener catches its requests.
+  await page.goto('/dashboard');
+  for (const heading of [
+    /aktywno[sś]|activity/i,
+    /najcz[eę][sś]ciej|most edited/i,
+    /status synchronizacji|sync status/i,
+    /alerty|alerts/i,
+  ]) {
+    await expect(page.getByText(heading).first()).toBeVisible();
+  }
+  expect(dashboardApiHits, `unexpected dashboard API hits: ${dashboardApiHits.join(', ')}`).toEqual(
+    [],
+  );
 
   // 0. Sidebar mirrors `00-plan-ui.md` §3.1 — 7 primary leaves followed
   //    by a separator and a single Modeling leaf at the bottom. Two of
