@@ -4,6 +4,14 @@
 
 Wcześniejsze epiki: **MVP-Alpha 0.4 (8/8) ✅ + 0.5 (5/5) ✅ + 0.6 (9/9) ✅** — w main (#210..#231). Operator zaakceptował 2026-04-30 kierunek **MVP-Final → Faza 1 → Faza 2** zamiast skoku do Fazy 2 (epik 0.7 Agent layer odsunięty per ADR R-27 cost runaway: BYOK + monitoring + Org-level Anthropic cap muszą iść pierwsze).
 
+## 2026-05-01 (cd.): META-UI v2 — sidebar §3.1 reorg (#289)
+
+Po zamknięciu epiku UI-08 operator zwrócił uwagę, że pierwotny META **#255** zaimplementował zwijaną grupę „Modelowanie" zamiast pełnego layoutu z `00-plan-ui.md` §3.1 (Dashboard / Produkty / Usługi / Publikacje / Multimedia / Workflow / Ustawienia + separator + Modelowanie). Korekta dostarczona jako **#289** (META-UI v2):
+- Sidebar przepisany na 7 leafów + separator + 1 leaf (Modelowanie). Dashboard / Usługi / Workflow jako disabled placeholdery z Soon badge (do zastąpienia w UI-01 / UI-03 / UI-06). Channels → label „Publikacje", Assets → label „Multimedia" (route stable). API Profiles → label „Ustawienia" (UI-07 zrobi pełne Settings page).
+- Modelowanie nie jest już collapsible group — pojedynczy `NavLink` do `/modeling`. 4 sub-tab'y żyją w `<ModelingLayout>` tablist (UI-08.9, PR #282).
+- i18n keys zwinięte do 9 wpisów per locale (en + pl).
+- Playwright spec `modeling-shell.spec.ts` rozszerzony o assertions na sidebar §3.1 layout.
+
 ## 2026-05-01: Backlog UI Modelowanie utworzony (epik UI-08)
 
 **16 issues** w GitHub pod nową etykietą `epik-UI-08` + cross-cutting tag `UI`:

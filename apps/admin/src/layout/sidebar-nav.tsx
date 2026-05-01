@@ -1,80 +1,49 @@
 import {
   Boxes,
-  ChevronDown,
-  FolderTree,
+  Cog,
   Image,
-  KeyRound,
-  Layers,
-  LayoutList,
-  ListTree,
+  LayoutDashboard,
   type LucideIcon,
   Package,
-  Radio,
   Settings2,
+  Share2,
+  Workflow,
+  Wrench,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NavLink, useLocation } from 'react-router';
+import { NavLink } from 'react-router';
 
 import { cn } from '@/lib/utils';
 
 interface NavLeaf {
-  type: 'leaf';
-  to: string;
+  to?: string;
   icon: LucideIcon;
   label: string;
   comingSoon?: boolean;
 }
 
-interface NavGroup {
-  type: 'group';
+interface NavSection {
   id: string;
-  icon: LucideIcon;
-  label: string;
-  children: NavLeaf[];
+  items: NavLeaf[];
 }
 
-type NavItem = NavLeaf | NavGroup;
-
-const MODELING_GROUP: NavGroup = {
-  type: 'group',
-  id: 'modeling',
-  icon: Settings2,
-  label: 'nav.modeling',
-  children: [
-    {
-      type: 'leaf',
-      to: '/modeling/object-types',
-      icon: ListTree,
-      label: 'nav.modeling_object_types',
-    },
-    {
-      type: 'leaf',
-      to: '/modeling/attributes',
-      icon: Layers,
-      label: 'nav.modeling_attributes',
-    },
-    {
-      type: 'leaf',
-      to: '/modeling/attribute-groups',
-      icon: LayoutList,
-      label: 'nav.modeling_attribute_groups',
-    },
-    {
-      type: 'leaf',
-      to: '/modeling/categories',
-      icon: FolderTree,
-      label: 'nav.modeling_categories',
-    },
-  ],
-};
-
-const NAV_ITEMS: NavItem[] = [
-  { type: 'leaf', to: '/products', icon: Package, label: 'nav.products' },
-  MODELING_GROUP,
-  { type: 'leaf', to: '/assets', icon: Image, label: 'nav.assets' },
-  { type: 'leaf', to: '/channels', icon: Radio, label: 'nav.channels' },
-  { type: 'leaf', to: '/api-profiles', icon: KeyRound, label: 'nav.api_profiles' },
+const NAV_SECTIONS: NavSection[] = [
+  {
+    id: 'main',
+    items: [
+      { icon: LayoutDashboard, label: 'nav.dashboard', comingSoon: true },
+      { to: '/products', icon: Package, label: 'nav.products' },
+      { icon: Wrench, label: 'nav.services', comingSoon: true },
+      { to: '/channels', icon: Share2, label: 'nav.publications' },
+      { to: '/assets', icon: Image, label: 'nav.multimedia' },
+      { icon: Workflow, label: 'nav.workflow', comingSoon: true },
+      { to: '/api-profiles', icon: Cog, label: 'nav.settings' },
+    ],
+  },
+  {
+    id: 'modeling',
+    items: [{ to: '/modeling', icon: Settings2, label: 'nav.modeling' }],
+  },
 ];
 
 interface SidebarNavProps {
@@ -89,48 +58,33 @@ const leafLinkClass = ({ isActive }: { isActive: boolean }) =>
       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
   );
 
-const subLeafLinkClass = ({ isActive }: { isActive: boolean }) =>
-  cn(
-    'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
-    isActive
-      ? 'bg-secondary text-secondary-foreground font-medium'
-      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-  );
-
-function isGroupActive(group: NavGroup, pathname: string): boolean {
-  return group.children.some((child) => pathname.startsWith(child.to));
-}
+const disabledLeafClass = cn(
+  'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium',
+  'cursor-not-allowed text-muted-foreground/60',
+);
 
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const { t } = useTranslation();
-  const { pathname } = useLocation();
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    for (const item of NAV_ITEMS) {
-      if (item.type === 'group') {
-        initial[item.id] = isGroupActive(item, pathname);
-      }
+  const renderLeaf = (item: NavLeaf, key: string) => {
+    if (item.comingSoon || !item.to) {
+      return (
+        <span key={key} className={disabledLeafClass} aria-disabled="true">
+          <item.icon className="size-4" />
+          <span className="flex-1">{t(item.label)}</span>
+          <span className="rounded bg-muted px-1.5 py-0.5 text-xs uppercase text-muted-foreground">
+            {t('nav.soon')}
+          </span>
+        </span>
+      );
     }
-    return initial;
-  });
 
-  useEffect(() => {
-    setOpenGroups((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      for (const item of NAV_ITEMS) {
-        if (item.type === 'group' && isGroupActive(item, pathname) && !next[item.id]) {
-          next[item.id] = true;
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [pathname]);
-
-  const toggleGroup = (id: string) => {
-    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
+    return (
+      <NavLink key={key} to={item.to} onClick={onNavigate} className={leafLinkClass}>
+        <item.icon className="size-4" />
+        <span className="flex-1">{t(item.label)}</span>
+      </NavLink>
+    );
   };
 
   return (
@@ -140,71 +94,17 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         <span className="font-semibold tracking-tight">{t('app.title')}</span>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-3">
-        {NAV_ITEMS.map((item) => {
-          if (item.type === 'leaf') {
-            return (
-              <NavLink key={item.to} to={item.to} onClick={onNavigate} className={leafLinkClass}>
-                <item.icon className="size-4" />
-                <span className="flex-1">{t(item.label)}</span>
-                {item.comingSoon ? (
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-xs uppercase text-muted-foreground">
-                    {t('nav.soon')}
-                  </span>
-                ) : null}
-              </NavLink>
-            );
-          }
-
-          const isOpen = openGroups[item.id] ?? false;
-          const hasActiveChild = isGroupActive(item, pathname);
-          const expandLabel = t(isOpen ? 'nav.collapse_modeling' : 'nav.expand_modeling');
-
-          return (
-            <div key={item.id} className="flex flex-col">
-              <button
-                type="button"
-                onClick={() => toggleGroup(item.id)}
-                aria-expanded={isOpen}
-                aria-controls={`nav-group-${item.id}`}
-                aria-label={expandLabel}
-                className={cn(
-                  'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                  hasActiveChild
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                )}
-              >
-                <item.icon className="size-4" />
-                <span className="flex-1 text-left">{t(item.label)}</span>
-                <ChevronDown
-                  className={cn(
-                    'size-4 shrink-0 transition-transform duration-150',
-                    isOpen ? 'rotate-0' : '-rotate-90',
-                  )}
-                  aria-hidden="true"
-                />
-              </button>
-              {isOpen ? (
-                <div
-                  id={`nav-group-${item.id}`}
-                  className="ml-4 mt-1 flex flex-col gap-0.5 border-l border-border pl-2"
-                >
-                  {item.children.map((child) => (
-                    <NavLink
-                      key={child.to}
-                      to={child.to}
-                      onClick={onNavigate}
-                      className={subLeafLinkClass}
-                    >
-                      <child.icon className="size-4" />
-                      <span className="flex-1">{t(child.label)}</span>
-                    </NavLink>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
+        {NAV_SECTIONS.map((section, sectionIndex) => (
+          <div
+            key={section.id}
+            className={cn(
+              'flex flex-col gap-1',
+              sectionIndex > 0 && 'mt-2 border-t border-border pt-2',
+            )}
+          >
+            {section.items.map((item) => renderLeaf(item, item.to ?? item.label))}
+          </div>
+        ))}
       </nav>
     </>
   );
