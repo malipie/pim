@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { CompletenessBadge } from '@/components/catalog/completeness-badge';
+import { SyncAggregateIcon } from '@/components/catalog/sync-aggregate-icon';
 import { type Provenance, ProvenanceBadge } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,6 +32,8 @@ interface CatalogObjectListEntry {
   status?: string;
   createdAt?: string;
   attributesIndexed?: Record<string, unknown>;
+  completenessPct?: number;
+  syncStatusAggregate?: string;
 }
 
 interface ProductRow {
@@ -41,7 +45,11 @@ interface ProductRow {
   createdAt: string;
   enabled: boolean;
   status: string | null;
+  completenessPct: number;
+  syncStatusAggregate: SyncAggregate;
 }
+
+type SyncAggregate = 'green' | 'yellow' | 'red' | 'gray';
 
 const PRODUCT_FACETS = ['enabled', 'status'];
 const PROVENANCE_OPTIONS: ReadonlyArray<Provenance> = ['manual', 'import', 'integration', 'agent'];
@@ -223,6 +231,12 @@ export function ProductListPage() {
                 <TableHead className="w-[180px]">{t('products.fields.sku')}</TableHead>
                 <TableHead>{t('products.fields.name')}</TableHead>
                 <TableHead className="w-[160px]">{t('products.fields.brand')}</TableHead>
+                <TableHead className="w-[140px]">
+                  {t('products.fields.completeness', { defaultValue: 'Compl.' })}
+                </TableHead>
+                <TableHead className="w-[60px]">
+                  {t('products.fields.sync', { defaultValue: 'Sync' })}
+                </TableHead>
                 <TableHead className="w-[110px]">{t('products.fields.status')}</TableHead>
                 <TableHead className="w-[180px]">{t('products.fields.created_at')}</TableHead>
                 <TableHead className="w-[120px] text-right">
@@ -233,13 +247,13 @@ export function ProductListPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
                     {t('app.loading')}
                   </TableCell>
                 </TableRow>
               ) : visible.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
                     {isSearchActive ? t('search.no_results') : t('products.empty')}
                   </TableCell>
                 </TableRow>
@@ -260,6 +274,12 @@ export function ProductListPage() {
                     <TableCell className="font-mono text-xs">{product.sku}</TableCell>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.brand ?? '—'}</TableCell>
+                    <TableCell>
+                      <CompletenessBadge pct={product.completenessPct} />
+                    </TableCell>
+                    <TableCell>
+                      <SyncAggregateIcon status={product.syncStatusAggregate} />
+                    </TableCell>
                     <TableCell>
                       <StatusBadge enabled={product.enabled} status={product.status} />
                     </TableCell>
@@ -331,7 +351,16 @@ function buildRow(entry: CatalogObjectListEntry): ProductRow {
     createdAt: entry.createdAt ?? '',
     enabled: entry.enabled !== false,
     status: typeof entry.status === 'string' ? entry.status : null,
+    completenessPct: typeof entry.completenessPct === 'number' ? entry.completenessPct : 0,
+    syncStatusAggregate: normaliseSyncAggregate(entry.syncStatusAggregate),
   };
+}
+
+function normaliseSyncAggregate(raw: string | undefined): SyncAggregate {
+  if (raw === 'green' || raw === 'yellow' || raw === 'red' || raw === 'gray') {
+    return raw;
+  }
+  return 'gray';
 }
 
 function formatDateTime(value: string, locale: string): string {
