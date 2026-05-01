@@ -41,7 +41,7 @@ export function ObjectTypeShowPage() {
     <div className="space-y-6">
       <div className="space-y-1">
         <Button asChild variant="ghost" size="sm" className="-ml-3">
-          <Link to="/object-types">
+          <Link to="/modeling/object-types">
             <ArrowLeft className="size-4" />
             {t('object_types.back')}
           </Link>

@@ -371,5 +371,16 @@
       "create_failed": "Could not create the profile. Check the code is unique within the tenant.",
       "update_failed": "Could not update the profile."
     }
+  },
+  "modeling": {
+    "title": "Modeling",
+    "description": "Define ObjectTypes, Attributes, Attribute Groups and Categories used across the catalog.",
+    "tabs": {
+      "aria_label": "Modeling sections",
+      "object_types": "Object Types",
+      "attributes": "Attributes",
+      "attribute_groups": "Attribute Groups",
+      "categories": "Categories"
+    }
   }
 }
