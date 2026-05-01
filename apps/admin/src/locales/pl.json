@@ -4,7 +4,9 @@
     "logout": "Wyloguj",
     "loading": "Ładowanie...",
     "toggle_nav": "Przełącz menu",
-    "close": "Zamknij"
+    "close": "Zamknij",
+    "cancel": "Anuluj",
+    "save": "Zapisz"
   },
   "user_menu": {
     "aria_label": "Menu użytkownika",
@@ -90,7 +92,14 @@
       "code": "Kod",
       "label": "Etykieta",
       "position": "Pozycja"
-    }
+    },
+    "actions": {
+      "view": "Pokaż",
+      "delete": "Usuń"
+    },
+    "back": "← Wróć do grup atrybutów",
+    "delete_confirm": "Usunąć grupę atrybutów \"{{name}}\"?",
+    "delete_error": "Nie udało się usunąć grupy atrybutów."
   },
   "assets": {
     "list_title": "Zasoby",
@@ -440,6 +449,42 @@
         "force_required": "Ta migracja jest destruktywna. Zaznacz Wymuś żeby potwierdzić.",
         "error_generic": "Nie udało się uruchomić migracji. Sprawdź input lub spróbuj ponownie."
       }
+    },
+    "attribute_groups": {
+      "auto_attached": "Auto-przypięta",
+      "create_action": "Nowa grupa",
+      "create_title": "Nowa grupa atrybutów",
+      "create_submit": "Utwórz grupę",
+      "create_error": "Nie udało się utworzyć grupy atrybutów.",
+      "search": "Szukaj",
+      "search_placeholder": "Filtruj po code lub nazwie",
+      "filter_all": "Wszystkie",
+      "filter_business": "Biznesowe",
+      "filter_system": "Systemowe",
+      "attributes_count": "Atrybuty",
+      "members_title": "Atrybuty w tej grupie",
+      "members_empty": "Brak atrybutów. Użyj API żeby przypiąć atrybuty (UI follow-up).",
+      "attach_deferred_note": "UI dla przypinania / odpinania w follow-upie — wymagana komenda AttachAttributeToGroup. visible_when + reorder działają już teraz (UI-08.8).",
+      "label_pl": "Etykieta (PL)",
+      "label_en": "Etykieta (EN)",
+      "description_pl": "Opis (PL)",
+      "description_en": "Opis (EN)",
+      "icon": "Ikona (nazwa Lucide)",
+      "color": "Kolor (hex)",
+      "fields": {
+        "position": "Pozycja"
+      },
+      "move_up": "Przesuń w górę",
+      "move_down": "Przesuń w dół"
+    },
+    "visible_when": {
+      "column": "Widoczne gdy",
+      "add": "Dodaj regułę",
+      "clear": "Wyczyść",
+      "field": "Pole",
+      "value": "Wartość",
+      "value_placeholder": "string / true / false",
+      "none": "— zawsze widoczne —"
     }
   }
 }

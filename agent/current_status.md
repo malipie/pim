@@ -29,10 +29,11 @@ Pełen kontekst: [Project Plan/UI/epik-08-modelowanie.md](../Project%20Plan/UI/e
 - ✅ **#264 UI-08.9** (PR #282) — `<ModelingLayout>` z 4-tab tablist'em pod `/modeling/*` + back-compat redirects + sidebar nav update + Playwright spec (1 consolidated test).
 - ✅ **#265 UI-08.10** (PR #283) — Object Types list + show enhanced + reusable `<BuiltInLockBadge>` + `<WhereUsedList>`. Custom Create wizard świadomie odroczony.
 - ✅ **#266 UI-08.11** (PR #284) — Attributes list filtry + Usages column + `<AttributePreview>` mock-data widget; serializer XML +`system` field.
-- 🚧 **#267 UI-08.12** (branch `feat/ui-08.12-migration-analyzer`) — `<MigrateAttributeTypePage>` (route `/modeling/attributes/:id/migrate-type`) wired to UI-08.6 backend. Sections: target type picker → Suggest mappings (dry-run z empty plan, populates draft mappings z unmapped values) → mapping editor (input per row) → Controls (unmappedAction, backupSnapshot, force) → Cancel/Dry-run/Apply. Modeled jako pełnoprawna page (nie modal/dialog) — brak Radix Dialog primitive + back-button + deep-link UX dla destrukcyjnego workflow. `Migrate type →` button na attribute show (skipped dla system attrs).
+- ✅ **#267 UI-08.12** (PR #285) — `<MigrateAttributeTypePage>` 3-step flow (target → suggest → apply) na route `/modeling/attributes/:id/migrate-type`.
+- 🚧 **#268 UI-08.13** (branch `feat/ui-08.13-attribute-groups-subtab`) — AttributeGroups sub-tab: enhanced list (search + system filter + usage counts + create/delete buttons) + create page + show page z members table (PATCH up/down reorder + inline visible_when editor wired do UI-08.8). New custom REST `GET /api/attribute_groups/{id}/attributes` (z `EffectiveAttributeGroupResolver::loadGroupAttributes` reuse). **Świadome odejścia:** brak `@dnd-kit/sortable` (zastąpione up/down PATCH'em — same UX outcome bez nowej depki); attach/detach UI follow-up (wymaga `AttachAttributeToGroup` command nieistniejącego w MVP). i18n keys `modeling.attribute_groups.*` + `modeling.visible_when.*`.
 
-**Pozostałe 3 tickety UI-08 (frontend):**
-- **#268** UI-08.13 (AttributeGroups sub-tab z drag-drop), #269 UI-08.14 (Categories modeling tree + inheritance preview), #270 UI-08.15 (bulk import CSV — optional).
+**Pozostałe 2 tickety UI-08 (frontend):**
+- **#269** UI-08.14 (Categories modeling tree + inheritance preview), #270 UI-08.15 (bulk import CSV — optional).
 - **Frontend:** #264-#270 (Modeling layout shell + 4 sub-tabs + migration analyzer + drag-drop + inheritance preview + bulk import CSV).
 
 **Dependency state na końcu sesji:**

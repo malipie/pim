@@ -436,7 +436,7 @@ Pierwszy epik napędzany **planem UI** (`Project Plan/UI/`) zamiast backend road
 | ✅ **#265** | UI-08.10 Sub-tab Object Types — list + detail + Create wizard | UI, frontend, must-have | 6-8h |
 | ✅ **#266** | UI-08.11 Sub-tab Attributes — enhanced list + detail + Where-used | UI, frontend, must-have | 4-5h |
 | ✅ **#267** | UI-08.12 Migration impact analyzer modal | UI, frontend, must-have | 4-5h |
-| **#268** | UI-08.13 Sub-tab Attribute Groups — drag-drop + VisibleWhen editor | UI, frontend, must-have | 5-7h |
+| ✅ **#268** | UI-08.13 Sub-tab Attribute Groups — drag-drop + VisibleWhen editor | UI, frontend, must-have | 5-7h |
 | **#269** | UI-08.14 Sub-tab Categories modeling — tree + inheritance preview | UI, frontend, must-have | 5-7h |
 | **#270** | UI-08.15 Bulk import atrybutów z CSV (US-MOD-008) — *optional* | UI, frontend, optional | 3-4h |
 
