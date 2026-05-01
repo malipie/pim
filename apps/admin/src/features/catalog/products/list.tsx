@@ -83,12 +83,33 @@ export function ProductListPage() {
   const [activeViewSlug, setActiveViewSlug] = useState<string | null>(null);
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
 
-  const isSearchActive = query !== '' || Object.keys(filters).length > 0;
+  const { searchFilters, rangeFilters } = useMemo(() => {
+    const sf: Record<string, string | string[]> = { ...filters };
+    const rf: Record<string, { gte?: number; lte?: number }> = {};
+    for (const [key, value] of Object.entries(advancedFilters)) {
+      if (value === null || value === undefined) continue;
+      if (Array.isArray(value)) {
+        sf[key] = value as string[];
+      } else if (typeof value === 'object') {
+        const range: { gte?: number; lte?: number } = {};
+        if (typeof value.gte === 'number') range.gte = value.gte;
+        if (typeof value.lte === 'number') range.lte = value.lte;
+        if (Object.keys(range).length > 0) rf[key] = range;
+      } else if (typeof value === 'string' && value !== '') {
+        sf[key] = value;
+      }
+    }
+    return { searchFilters: sf, rangeFilters: rf };
+  }, [filters, advancedFilters]);
+
+  const isSearchActive =
+    query !== '' || Object.keys(searchFilters).length > 0 || Object.keys(rangeFilters).length > 0;
 
   const { result: searchResult, isLoading: isSearchLoading } = useCatalogSearch({
     kind: 'products',
     query,
-    filters,
+    filters: searchFilters,
+    rangeFilters,
     facets: PRODUCT_FACETS,
     perPage: 30,
   });

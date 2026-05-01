@@ -41,13 +41,10 @@ final readonly class CatalogSearchService
     }
 
     /**
-     * @param array<string, scalar|list<scalar>> $filters plain key→value or
-     *                                                    key→[v1,v2] OR matches
-     *                                                    on top of tenant scope
-     * @param list<string>                       $facets  Attribute codes to facet on
-     * @param array<string, mixed>               $extra   forward-compat — Meili
-     *                                                    options not surfaced
-     *                                                    here yet (sort, ranking)
+     * @param array<string, scalar|list<scalar>>             $filters      plain key→value / key→[v1,v2] OR matches on top of tenant scope
+     * @param list<string>                                   $facets       Attribute codes to facet on
+     * @param array<string, mixed>                           $extra        forward-compat — Meili options not surfaced here yet (sort, ranking)
+     * @param array<string, array{gte?: float, lte?: float}> $rangeFilters numeric range filters (UI-02.24); mapped to Meili `key >= N AND key <= N`
      *
      * @return array{hits: list<array<string, mixed>>, totalHits: int, facetDistribution: array<string, mixed>, processingTimeMs: int}
      */
@@ -60,6 +57,7 @@ final readonly class CatalogSearchService
         int $perPage = 30,
         bool $highlight = false,
         array $extra = [],
+        array $rangeFilters = [],
     ): array {
         if (ObjectKind::Custom === $kind) {
             return $this->emptyResult();
@@ -87,6 +85,14 @@ final readonly class CatalogSearchService
                 continue;
             }
             $extraFilters[] = \sprintf('%s = "%s"', $key, addslashes((string) $value));
+        }
+        foreach ($rangeFilters as $key => $range) {
+            if (isset($range['gte'])) {
+                $extraFilters[] = \sprintf('%s >= %s', $key, $range['gte']);
+            }
+            if (isset($range['lte'])) {
+                $extraFilters[] = \sprintf('%s <= %s', $key, $range['lte']);
+            }
         }
         $filterExpression = trim($tenantFilter.([] !== $extraFilters ? ' AND '.implode(' AND ', $extraFilters) : ''));
 

@@ -39,6 +39,13 @@ export interface UseCatalogSearchOptions {
   kind: CatalogSearchKind;
   query: string;
   filters?: Record<string, string | string[]>;
+  /**
+   * Range / numeric filters (UI-02.24). Each key is mapped to
+   * `filter[key][gte]=N` / `filter[key][lte]=N` query params; the
+   * search controller forwards them to Meilisearch as
+   * `key >= N AND key <= N` filter expressions.
+   */
+  rangeFilters?: Record<string, { gte?: number; lte?: number }>;
   facets?: string[];
   page?: number;
   perPage?: number;
@@ -57,6 +64,7 @@ export function useCatalogSearch(options: UseCatalogSearchOptions): UseCatalogSe
     kind,
     query,
     filters,
+    rangeFilters,
     facets,
     page = 1,
     perPage = 30,
@@ -86,6 +94,12 @@ export function useCatalogSearch(options: UseCatalogSearchOptions): UseCatalogSe
           }
         }
       }
+      if (rangeFilters) {
+        for (const [key, range] of Object.entries(rangeFilters)) {
+          if (range.gte !== undefined) params.set(`filter[${key}][gte]`, String(range.gte));
+          if (range.lte !== undefined) params.set(`filter[${key}][lte]`, String(range.lte));
+        }
+      }
 
       setIsLoading(true);
       jsonFetch<CatalogSearchResult>(`/api/search/${kind}?${params.toString()}`)
@@ -107,7 +121,7 @@ export function useCatalogSearch(options: UseCatalogSearchOptions): UseCatalogSe
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [kind, query, page, perPage, highlight, debounceMs, facets, filters]);
+  }, [kind, query, page, perPage, highlight, debounceMs, facets, filters, rangeFilters]);
 
   return { result, isLoading, error };
 }
