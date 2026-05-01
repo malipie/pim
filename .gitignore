@@ -23,6 +23,9 @@ Icon?
 # Pre-Sprint-0 referencje (puste, niepotrzebne w repo)
 agent_sample/
 
+# Lokalne backupy (pg_dump + MinIO snapshoty) — zostają na Synology, nie w repo
+/backups/
+
 # Lokalne źródła referencyjne (Akeneo, Pimcore extracts) — nie wysyłamy na repo
 Zrodla/
 
