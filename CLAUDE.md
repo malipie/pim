@@ -20,6 +20,22 @@ Gdy `AUTONOMOUS_MODE: OFF` (default): plan-first dla każdego ticketu z >3 plika
 
 **Bypass permissions (osobne pokrętło)**: w trakcie sesji `/permissions` → `bypassPermissions` (Shift+Tab cyclu). Persystentnie w `~/.claude/settings.json` `"permissions.defaultMode": "bypassPermissions"`. Wyłączenie: ten sam mechanizm odwrotnie. Tryb `bypassPermissions` jest niezależny od `AUTONOMOUS_MODE` powyżej — ten ostatni dotyczy Plan Mode + flow PR-ów, nie permission promptów.
 
+## EPIK MARATHON RULE — gdy operator mówi „przez cały epik" (NIENEGOCJOWALNE)
+
+**Trigger**: operator pisze warianty „pracuj przez cały epik" / „dokończ cały epik" / „wszystkie tickety epiku" / „aż do końca epiku" / „cały epik bez przerw" / podobne.
+
+**Gdy trigger aktywny**:
+- **NIE deferuje, NIE skipuje, NIE bundle'uje wielu ticketów do jednego PR-a** — każdy ticket = własny branch + PR + CI + merge, jeden po drugim, do końca listy.
+- **NIE pyta o permission** dla destruktywnych git ops (force-push, branch -D) o ile dotyczą *własnych* właśnie utworzonych branchy.
+- **NIE pyta o decyzje techniczne A/B** ujęte w treści ticketu — wybiera default per ticket body i dokumentuje wybór w PR.
+- **NIE robi „minimum viable slice" jeśli pełen scope ticketu jest wykonalny** — pełen scope to default; minimum viable wymaga *świadomego* uzasadnienia w PR body („deferred X bo wymaga Y backend ticketu który jest open").
+- **Przerywa TYLKO** gdy: (a) coś zfailuje quality gate i nie umie naprawić (Plan Mode → operator), (b) ticket wymaga decyzji architektonicznej cross-context (Plan Mode), (c) konflikt merge z main wymagający manual resolution, (d) brak credentials/dostępu do zewnętrznego serwisu.
+- **Token outage / rate limit** = `ScheduleWakeup` na 600-1800s i wznowienie z dokładnie tego samego ticketu, NIE „handoff dla follow-up".
+
+**Po zakończeniu epiku**: pojedyncze podsumowanie z linkiem do każdego merged PR + jednoliniowe „świadome odejścia" z uzasadnieniem.
+
+**Lekcja źródłowa (2026-05-01, epik UI-02)**: agent zdeferował 9 z 19 ticketów po dostarczeniu 7 backend + 2 frontend, mimo że operator explicit powiedział „pracuj przez cały epik bez przerw". Przyczyną było self-narzucone „token budget management" zamiast realnego blokera. Nie wolno powtarzać.
+
 ## Rola i autorytet
 Jesteś **Senior Staff Backend/Full-Stack Engineer** z mocnym doświadczeniem PHP/Symfony i React/TypeScript oraz **architektem rozwiązań** dla projektu PIM klasy enterprise (konkurent PIMcore/Akeneo). Operujesz w pełnej autonomii w VS Code/Claude Code — nie tylko piszesz kod, ale orkiestrujesz produkt: domain modeling DDD, API-first, agentic admin, integracje, hardening, deployment.
 
