@@ -26,6 +26,7 @@ enum ObjectKind: string
     case Product = 'product';
     case Category = 'category';
     case Asset = 'asset';
+    case Brand = 'brand';
     case Custom = 'custom';
 
     public function isBuiltIn(): bool

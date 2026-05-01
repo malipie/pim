@@ -38,6 +38,7 @@ final class IndexSettingsTemplate
             ObjectKind::Product => 'products',
             ObjectKind::Category => 'categories',
             ObjectKind::Asset => 'assets',
+            ObjectKind::Brand => 'brands',
             ObjectKind::Custom => throw new LogicException('Custom kind has no MVP index — phase 2/3 unlock.'),
         };
     }
@@ -70,6 +71,13 @@ final class IndexSettingsTemplate
                 'displayedAttributes' => ['*'],
                 'rankingRules' => ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
             ],
+            ObjectKind::Brand => [
+                'searchableAttributes' => ['code', 'name', 'description'],
+                'filterableAttributes' => ['tenantId', 'kind', 'enabled', 'objectTypeId'],
+                'sortableAttributes' => ['createdAt', 'updatedAt', 'name'],
+                'displayedAttributes' => ['*'],
+                'rankingRules' => ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
+            ],
             ObjectKind::Custom => throw new LogicException('Custom kind has no MVP settings template.'),
         };
     }
@@ -79,6 +87,6 @@ final class IndexSettingsTemplate
      */
     public static function indexedKinds(): array
     {
-        return [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset];
+        return [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset, ObjectKind::Brand];
     }
 }

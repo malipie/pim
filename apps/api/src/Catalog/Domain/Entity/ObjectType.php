@@ -46,6 +46,14 @@ class ObjectType implements TenantScoped
     private ObjectKind $kind;
 
     private bool $isBuiltIn = false;
+    private bool $codeImmutable = false;
+    private bool $deletable = true;
+
+    #[Assert\Length(max: 64)]
+    private ?string $icon = null;
+
+    #[Assert\Length(max: 16)]
+    private ?string $color = null;
 
     /**
      * @var array<string, string>
@@ -121,6 +129,63 @@ class ObjectType implements TenantScoped
     public function markBuiltIn(): void
     {
         $this->isBuiltIn = true;
+        $this->touch();
+    }
+
+    public function isCodeImmutable(): bool
+    {
+        return $this->codeImmutable;
+    }
+
+    public function lockCode(): void
+    {
+        $this->codeImmutable = true;
+        $this->touch();
+    }
+
+    public function isDeletable(): bool
+    {
+        return $this->deletable;
+    }
+
+    public function markUndeletable(): void
+    {
+        $this->deletable = false;
+        $this->touch();
+    }
+
+    public function getIcon(): ?string
+    {
+        return $this->icon;
+    }
+
+    public function setIcon(?string $icon): void
+    {
+        $this->icon = $icon;
+        $this->touch();
+    }
+
+    public function getColor(): ?string
+    {
+        return $this->color;
+    }
+
+    public function setColor(?string $color): void
+    {
+        $this->color = $color;
+        $this->touch();
+    }
+
+    /**
+     * @throws LogicException when code_immutable is set
+     */
+    public function changeCode(string $code): void
+    {
+        if ($this->codeImmutable) {
+            throw new LogicException('ObjectType code is immutable for this row.');
+        }
+
+        $this->code = $code;
         $this->touch();
     }
 
