@@ -14,6 +14,13 @@ framework:
         # APCu (not recommended with heavy random-write workloads as memory fragmentation can cause perf issues)
         #app: cache.adapter.apcu
 
-        # Namespaced pools use the above "app" backend by default
-        #pools:
-            #my.dedicated.cache: null
+        pools:
+            # UI-08.4 (#259) — TagAware pool for the EffectiveAttributeGroupResolver
+            # / form-schema cache. Tags allow ObjectFormSchemaCacheInvalidator to
+            # nuke per-ObjectType groups on attachment changes without enumerating
+            # individual cache keys. Backed by `cache.app` (filesystem dev/test,
+            # Redis in prod via env override).
+            pim.modeling_cache:
+                adapter: cache.app
+                default_lifetime: 300
+                tags: true
