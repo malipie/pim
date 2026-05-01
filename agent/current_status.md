@@ -27,10 +27,11 @@ Pełen kontekst: [Project Plan/UI/epik-08-modelowanie.md](../Project%20Plan/UI/e
 - ✅ **#262 UI-08.7** (PR #280) — 3 custom REST endpoints `GET /api/{attributes|attribute_groups|object_types}/{id}/usage`. `UsageQueryService` (DBAL-only, tag-aware cache 60s TTL) + `UsageController`.
 - ✅ **#263 UI-08.8** (PR #281) — `VisibleWhenRule` value object + `VisibleWhenRuleEvaluator` + `PATCH /api/attribute_groups/{groupId}/attributes/{attributeId}` z cross-group reference guard. **Backend epik UI-08 zamknięty 8/8.**
 - ✅ **#264 UI-08.9** (PR #282) — `<ModelingLayout>` z 4-tab tablist'em pod `/modeling/*` + back-compat redirects + sidebar nav update + Playwright spec (1 consolidated test).
-- 🚧 **#265 UI-08.10** (branch `feat/ui-08.10-object-types-subtab`) — Object Types list + show enhanced. Reusable `<BuiltInLockBadge>` + `<WhereUsedList>` (modeling/* components, używane przez UI-08.11/.13/.14 też). Lista pokazuje icon + color + instance count z UI-08.7 usage endpoint. Show grid 1+sidebar z WhereUsedList. Serializer XML rozszerzony o `codeImmutable/deletable/icon/color`. Custom Create wizard świadomie odroczony — backend POST endpoint nie istnieje (ApiResource read-only) + custom kinds feature flag `pim.catalog.enable_custom_object_types=false` w MVP. OpenAPI snapshot refresh +48 linii.
+- ✅ **#265 UI-08.10** (PR #283) — Object Types list + show enhanced + reusable `<BuiltInLockBadge>` + `<WhereUsedList>`. Custom Create wizard świadomie odroczony.
+- 🚧 **#266 UI-08.11** (branch `feat/ui-08.11-attributes-subtab`) — Attributes list rozszerzony: `Origin` filter (all/business/system) + `Localizable/Scopable` chip toggles + `Usages` column z UI-08.7 + 🔒 lock badge dla system attrs (created_at/updated_at/created_by/updated_by). Show page: WhereUsedList sidebar + AttributePreview component (mock data per AttributeType — text/number/select/asset/reference/datetime). Serializer XML rozszerzony o `system` field. Edit/Migrate/Archive świadomie odroczone (read-only ApiResource + Migrate-type modal w #UI-08.12). OpenAPI +8 linii.
 
-**Pozostałe 5 ticketów UI-08 (wszystkie frontend):**
-- **#266** UI-08.11 (Attributes sub-tab enhanced), #267 UI-08.12 (Migration impact analyzer modal), #268 UI-08.13 (AttributeGroups sub-tab z drag-drop), #269 UI-08.14 (Categories modeling tree + inheritance preview), #270 UI-08.15 (bulk import CSV — optional).
+**Pozostałe 4 tickety UI-08 (wszystkie frontend):**
+- **#267** UI-08.12 (Migration impact analyzer modal), #268 UI-08.13 (AttributeGroups sub-tab z drag-drop), #269 UI-08.14 (Categories modeling tree + inheritance preview), #270 UI-08.15 (bulk import CSV — optional).
 - **Frontend:** #264-#270 (Modeling layout shell + 4 sub-tabs + migration analyzer + drag-drop + inheritance preview + bulk import CSV).
 
 **Dependency state na końcu sesji:**

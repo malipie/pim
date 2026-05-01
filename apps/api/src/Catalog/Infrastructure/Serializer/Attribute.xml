@@ -50,6 +50,9 @@
             <group>admin:write</group>
             <group>integration:read</group>
         </attribute>
+        <attribute name="system">
+            <group>admin:read</group>
+        </attribute>
         <attribute name="validationRules">
             <group>admin:read</group>
             <group>admin:write</group>
