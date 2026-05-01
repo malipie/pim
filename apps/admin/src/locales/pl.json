@@ -415,7 +415,31 @@
       "filter_flags": "Flagi",
       "usage_count": "Użycia",
       "preview_title": "Podgląd",
-      "system_immutable_note": "Atrybut systemowy — code, typ i walidacja są niezmienne."
+      "system_immutable_note": "Atrybut systemowy — code, typ i walidacja są niezmienne.",
+      "migration": {
+        "action_label": "Migracja typu →",
+        "title": "Migracja typu — {{name}}",
+        "description": "Zmień typ danych tego atrybutu. Aktualny typ: {{from}}. Istniejące wartości zostaną przekształcone wg planu mapowania; oryginalny payload jest snapshotowany do attribute_migration_backups przed jakimkolwiek update'em.",
+        "target_type": "Typ docelowy",
+        "suggest": "Podpowiedz mappingi (dry-run)",
+        "analysis_summary": "Wierszy: {{rows}} · Distinct: {{distinct}} · Bez mapowania: {{unmapped}}",
+        "mapping_plan": "Plan mapowania",
+        "mapping_empty": "Kliknij \"Podpowiedz mappingi\" żeby zobaczyć istniejące wartości.",
+        "mapping_target_label": "Wartość docelowa dla \"{{from}}\"",
+        "mapping_target_placeholder": "option_code",
+        "controls": "Kontrolki",
+        "unmapped_action": "Wartości bez mapowania",
+        "unmapped_null": "Zapisz null",
+        "unmapped_skip": "Pomiń (nie zmieniaj wiersza)",
+        "backup_snapshot": "Zrób snapshot wartości do attribute_migration_backups (zalecane).",
+        "force": "Wymuś destruktywną migrację (np. multiselect → select bierze pierwszy).",
+        "dry_run": "Dry-run",
+        "apply": "Wykonaj migrację",
+        "cancel": "Anuluj",
+        "blocked": "Ta ścieżka migracji nie jest wspierana w MVP.",
+        "force_required": "Ta migracja jest destruktywna. Zaznacz Wymuś żeby potwierdzić.",
+        "error_generic": "Nie udało się uruchomić migracji. Sprawdź input lub spróbuj ponownie."
+      }
     }
   }
 }

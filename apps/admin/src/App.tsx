@@ -10,6 +10,7 @@ import { AssetsListPage } from '@/features/asset/assets/list';
 import { AssetShowPage } from '@/features/asset/assets/show';
 import { AttributeGroupsListPage } from '@/features/catalog/attribute-groups/list';
 import { AttributesListPage } from '@/features/catalog/attributes/list';
+import { MigrateAttributeTypePage } from '@/features/catalog/attributes/migrate-type';
 import { AttributeShowPage } from '@/features/catalog/attributes/show';
 import { CategoriesTreePage } from '@/features/catalog/categories/list';
 import { CategoryShowPage } from '@/features/catalog/categories/show';
@@ -97,6 +98,7 @@ function App() {
               <Route path="object-types/:id" element={<ObjectTypeShowPage />} />
               <Route path="attributes" element={<AttributesListPage />} />
               <Route path="attributes/:id" element={<AttributeShowPage />} />
+              <Route path="attributes/:id/migrate-type" element={<MigrateAttributeTypePage />} />
               <Route path="attribute-groups" element={<AttributeGroupsListPage />} />
               <Route path="categories" element={<CategoriesTreePage />} />
               <Route path="categories/:id" element={<CategoryShowPage />} />

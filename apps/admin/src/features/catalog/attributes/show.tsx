@@ -1,5 +1,5 @@
 import { useOne } from '@refinedev/core';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Wand2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 
@@ -56,6 +56,14 @@ export function AttributeShowPage() {
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{label}</h1>
           {attribute.system ? <BuiltInLockBadge /> : null}
+          {!attribute.system ? (
+            <Button asChild variant="outline" size="sm" className="ml-auto">
+              <Link to={`/modeling/attributes/${attribute.id}/migrate-type`}>
+                <Wand2 className="size-4" />
+                {t('modeling.attributes.migration.action_label')}
+              </Link>
+            </Button>
+          ) : null}
         </div>
         <p className="font-mono text-xs text-muted-foreground">{attribute.code}</p>
       </div>

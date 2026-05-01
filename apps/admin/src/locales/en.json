@@ -415,7 +415,31 @@
       "filter_flags": "Flags",
       "usage_count": "Usages",
       "preview_title": "Preview",
-      "system_immutable_note": "System attribute — code, type, and validation are immutable."
+      "system_immutable_note": "System attribute — code, type, and validation are immutable.",
+      "migration": {
+        "action_label": "Migrate type →",
+        "title": "Migrate type — {{name}}",
+        "description": "Change the data type of this attribute. Current type: {{from}}. Existing values will be re-shaped per the mapping plan; the original payload is snapshotted into attribute_migration_backups before any update.",
+        "target_type": "Target type",
+        "suggest": "Suggest mappings (dry-run)",
+        "analysis_summary": "Rows: {{rows}} · Distinct: {{distinct}} · Unmapped: {{unmapped}}",
+        "mapping_plan": "Mapping plan",
+        "mapping_empty": "Click \"Suggest mappings\" to inspect existing values.",
+        "mapping_target_label": "Target value for \"{{from}}\"",
+        "mapping_target_placeholder": "option_code",
+        "controls": "Controls",
+        "unmapped_action": "For values without a mapping",
+        "unmapped_null": "Write null",
+        "unmapped_skip": "Skip (leave row untouched)",
+        "backup_snapshot": "Snapshot existing values into attribute_migration_backups (recommended).",
+        "force": "Force destructive migration (e.g. multiselect → select picks first).",
+        "dry_run": "Dry-run",
+        "apply": "Apply migration",
+        "cancel": "Cancel",
+        "blocked": "This migration path is not supported in MVP.",
+        "force_required": "This migration is destructive. Tick Force to confirm.",
+        "error_generic": "Could not run migration. Check your input or retry."
+      }
     }
   }
 }
