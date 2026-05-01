@@ -1,5 +1,5 @@
 import { useList } from '@refinedev/core';
-import { Eye } from 'lucide-react';
+import { Eye, Layers } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -73,9 +73,11 @@ export function AttributesListPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('attributes.list_title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('attributes.list_subtitle')}</p>
+      <div className="space-y-2">
+        <h1 className="display text-[28px] font-semibold leading-tight text-ink">
+          {t('attributes.list_title')}
+        </h1>
+        <p className="max-w-3xl text-[14px] text-ink-2">{t('attributes.list_subtitle')}</p>
       </div>
 
       <div className="space-y-2">
@@ -142,7 +144,7 @@ export function AttributesListPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card">
+      <div className="rounded-2xl border border-line bg-surface soft-shadow">
         <Table>
           <TableHeader>
             <TableRow>
@@ -154,6 +156,9 @@ export function AttributesListPage() {
               <TableHead className="w-[110px] text-right">
                 {t('modeling.attributes.usage_count')}
               </TableHead>
+              <TableHead className="w-[120px]">
+                {t('attributes.fields.values_column', { defaultValue: 'Wartości' })}
+              </TableHead>
               <TableHead className="w-[80px] text-right">
                 <span className="sr-only">{t('attributes.fields.actions')}</span>
               </TableHead>
@@ -162,13 +167,13 @@ export function AttributesListPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                   {t('app.loading')}
                 </TableCell>
               </TableRow>
             ) : visible.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                   {t('attributes.empty')}
                 </TableCell>
               </TableRow>
@@ -185,9 +190,7 @@ export function AttributesListPage() {
                     {resolveLabel(row.label, i18n.language)}
                   </TableCell>
                   <TableCell>
-                    <span className="rounded bg-muted px-2 py-0.5 text-xs uppercase tracking-wide">
-                      {row.type}
-                    </span>
+                    <TypeBadge type={row.type} />
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {resolveGroupLabel(row.group, i18n.language)}
@@ -197,8 +200,11 @@ export function AttributesListPage() {
                     {row.localizable ? <Flag>{t('attributes.flags.localizable')}</Flag> : null}
                     {row.scopable ? <Flag>{t('attributes.flags.scopable')}</Flag> : null}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm tabular-nums text-muted-foreground">
+                  <TableCell className="num text-right text-[12px] text-muted-foreground">
                     {usageCounts[row.id] ?? '—'}
+                  </TableCell>
+                  <TableCell>
+                    <ValuesBadge type={row.type} attributeId={row.id} />
                   </TableCell>
                   <TableCell className="text-right">
                     <Button asChild variant="ghost" size="sm">
@@ -225,6 +231,65 @@ function Flag({ children }: { children: React.ReactNode }) {
     <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-secondary-foreground">
       {children}
     </span>
+  );
+}
+
+/**
+ * Type-aware badge per handoff accent palette.
+ * Mapping: text/zinc, number/blue, select+multiselect/amber, boolean/emerald,
+ * date/datetime/sky, money/emerald, asset/violet, reference+relation/rose.
+ */
+function TypeBadge({ type }: { type: string }) {
+  const tone =
+    type === 'number' || type === 'metric' || type === 'price'
+      ? 'bg-accent-blue/10 text-accent-blue'
+      : type === 'select' || type === 'multiselect'
+        ? 'bg-accent-amber/10 text-accent-amber'
+        : type === 'boolean'
+          ? 'bg-accent-emerald/10 text-accent-emerald'
+          : type === 'date' || type === 'datetime'
+            ? 'bg-accent-sky/10 text-accent-sky'
+            : type === 'asset'
+              ? 'bg-accent-violet/10 text-accent-violet'
+              : type === 'reference' || type === 'relation'
+                ? 'bg-accent-rose/10 text-accent-rose'
+                : 'bg-muted text-muted-foreground';
+  return (
+    <span
+      className={`rounded-md px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${tone}`}
+    >
+      {type}
+    </span>
+  );
+}
+
+/**
+ * MOCK: violet "N wartości" badge for select/multiselect attributes —
+ * clicking should open the AttributeValuesView at
+ * /modeling/attributes/{id}/values. Both the count and the editor route
+ * require GET/POST/PATCH/DELETE /api/attributes/{id}/values which does
+ * not exist yet (see Project Plan/UI/Wdrozenie_grafiki/modelowanie-do-oprogramowania.md).
+ *
+ * For now the badge:
+ *  - renders a hard-coded "—" count for select / multiselect (we do not
+ *    know the real count without the endpoint),
+ *  - links to the placeholder route (which renders a banner explaining
+ *    the missing backend) so the UI flow exists end-to-end.
+ *  - shows "—" disabled span for non-select types (handoff convention).
+ */
+function ValuesBadge({ type, attributeId }: { type: string; attributeId: string }) {
+  if (type !== 'select' && type !== 'multiselect') {
+    return <span className="text-[12px] text-muted-foreground">—</span>;
+  }
+  return (
+    <Link
+      to={`/modeling/attributes/${attributeId}/values`}
+      className="inline-flex items-center gap-1 rounded-md bg-accent-violet/10 px-2 py-0.5 text-[11px] font-medium text-accent-violet hover:bg-accent-violet/15"
+    >
+      <Layers className="size-3" />
+      {/* MOCK: count — wymaga GET /api/attributes/{id}/values (#TBD) */}
+      <span>— wartości</span>
+    </Link>
   );
 }
 

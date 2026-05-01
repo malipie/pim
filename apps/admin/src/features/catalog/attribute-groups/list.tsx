@@ -84,11 +84,19 @@ export function AttributeGroupsListPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {t('attribute_groups.list_title')}
-          </h1>
-          <p className="text-sm text-muted-foreground">{t('attribute_groups.list_subtitle')}</p>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h1 className="display text-[28px] font-semibold leading-tight text-ink">
+              {t('attribute_groups.list_title')}
+            </h1>
+            <span className="inline-flex items-center gap-1 rounded-full bg-accent-violet/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-accent-violet">
+              ⭐{' '}
+              {t('attribute_groups.first_class_badge', {
+                defaultValue: 'first-class entity (ADR-012)',
+              })}
+            </span>
+          </div>
+          <p className="max-w-3xl text-[14px] text-ink-2">{t('attribute_groups.list_subtitle')}</p>
         </div>
         <Button asChild>
           <Link to="/modeling/attribute-groups/new">
@@ -125,7 +133,7 @@ export function AttributeGroupsListPage() {
         </p>
       ) : null}
 
-      <div className="rounded-xl border bg-card">
+      <div className="rounded-2xl border border-line bg-surface soft-shadow">
         <Table>
           <TableHeader>
             <TableRow>
