@@ -64,6 +64,14 @@
         <attribute name="completeness">
             <group>admin:read</group>
         </attribute>
+        <attribute name="completenessPct">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="syncStatusAggregate">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
         <attribute name="attributesIndexed">
             <group>admin:read</group>
             <group>integration:read</group>
