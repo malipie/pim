@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Catalog\Domain\Entity\AttributeMigrationBackup"
+            table="attribute_migration_backups">
+
+        <indexes>
+            <index name="attribute_migration_backups_attribute_idx" columns="attribute_id"/>
+            <index name="attribute_migration_backups_created_idx" columns="created_at"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <field name="attributeId" type="uuid" column="attribute_id"/>
+        <field name="sourceType" type="string" length="32" column="source_type"/>
+        <field name="targetType" type="string" length="32" column="target_type"/>
+        <field name="snapshot" type="json">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <field name="rowCount" type="integer" column="row_count"/>
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+
+    </entity>
+
+</doctrine-mapping>
