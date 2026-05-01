@@ -282,16 +282,33 @@ export function ProductListPage() {
   return (
     <div className="space-y-6 pb-24">
       <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('products.list_title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('products.list_subtitle')}</p>
+        <div className="space-y-2">
+          <h1 className="display text-[28px] font-semibold leading-tight text-ink">
+            {t('products.list_title')}
+          </h1>
+          <p className="max-w-3xl text-[14px] text-ink-2">{t('products.list_subtitle')}</p>
         </div>
-        <Button asChild>
-          <Link to="/products/new">
-            <Plus className="size-4" />
-            {t('products.create')}
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* MOCK: Import CSV/XLSX — wymaga POST /api/products/import?dryRun=true (#TBD).
+              Patrz Project Plan/UI/Wdrozenie_grafiki/produkty-do-oprogramowania.md. */}
+          <Button
+            type="button"
+            variant="outline"
+            disabled
+            aria-disabled="true"
+            title={t('products.import_disabled', {
+              defaultValue: 'Mock — wymaga oprogramowania importu CSV/XLSX',
+            })}
+          >
+            {t('products.import', { defaultValue: 'Import' })}
+          </Button>
+          <Button asChild>
+            <Link to="/products/new">
+              <Plus className="size-4" />
+              {t('products.create')}
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {saveError !== null ? (

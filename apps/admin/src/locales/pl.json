@@ -314,6 +314,9 @@
       "updated_at": "Ostatnia aktualizacja",
       "tabs": {
         "attributes": "Atrybuty",
+        "variants": "Warianty",
+        "media": "Multimedia",
+        "relationships": "Powiązania",
         "categories": "Kategorie",
         "associations": "Powiązania",
         "channels": "Kanały",
