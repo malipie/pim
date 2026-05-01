@@ -4,6 +4,21 @@
 
 Wcześniejsze epiki: **MVP-Alpha 0.4 (8/8) ✅ + 0.5 (5/5) ✅ + 0.6 (9/9) ✅** — w main (#210..#231). Operator zaakceptował 2026-04-30 kierunek **MVP-Final → Faza 1 → Faza 2** zamiast skoku do Fazy 2 (epik 0.7 Agent layer odsunięty per ADR R-27 cost runaway: BYOK + monitoring + Org-level Anthropic cap muszą iść pierwsze).
 
+## 2026-05-01 (cd. III): Epik UI-02 — post-marathon manual smoke test wykrył 7 issues
+
+Operator manualnie testował zamknięty epik UI-02 na localhost (https://pim.localhost) po wszystkich 19 ticketach + 4 integration PR-ach merged. Zweryfikował każdy widoczny komponent z lista/detail/create i wykrył **8 issues** (7 funkcjonalnych + 1 meta-update CLAUDE.md):
+
+- **#336 UI-02.20 [BUG]** — `<SavedViewsDropdown>` + `<SaveViewModal>` używają natywnego `fetch()` z `credentials: 'include'` zamiast `jsonFetch()` z JWT Bearer header. Skutek: dropdown pokazuje "Error: HTTP 401", zapis view 401. Fix: ~10 min.
+- **#337 UI-02.21 [BUG]** — `<CreateProductWizard>` wysyła `{code, attributesIndexed}` zamiast wymaganego `{code, objectTypeId, attributes}` (jak stary `<ProductForm>` z `useDefaultObjectType`). Silently fails — brak nawigacji + brak visible error.
+- **#338 UI-02.22 [INCOMPLETE]** — `<DetailDynamicForm>` renderuje TYLKO sekcję "Audyt" (4 read-only system attrs) bo product ObjectType ma zaattachowaną tylko grupę Audyt przez `AutoAttachAuditGroupListener`. SKU/name/brand/description/price istnieją jako Attribute entities ale brak AttributeGroup `Identification`. Fix: backend seed nowej grupy + frontend safety net dla `attributesIndexed` keys bez AttributeGroup.
+- **#339 UI-02.23 [INCOMPLETE]** — `<VariantsToggle>` tylko trzyma local state `variantsMode`, nigdy nie konsumuje go w rendering tabeli. Backend `GET /api/products` nie obsługuje `?include_variants=true`. Variants zawsze flat-listed.
+- **#340 UI-02.24 [INCOMPLETE]** — `<AdvancedFilterBuilder>` Sheet aktualizuje `advancedFilters` state, ale `useCatalogSearch` hook konsumuje TYLKO `filters` (chip-side state). Apply → chip pojawia się ale lista nie filtrowana, payload nie merge'owany.
+- **#341 UI-02.25 [BUG]** — `<ExcelLikeGrid>` wymaga double-click do edytora. Operatorzy oczekują single-click. Plus PATCH error w `onCommit` połykany (`then(refetch)` bez `.catch`).
+- **#342 UI-02.26 [POLISH]** — `<VariantsTab>` axes editor surowe text inputs zamiast Combobox z autocomplete + suggested values z `attribute.options`.
+- **#343 UI-02.27 [META]** — Update `CLAUDE.md` o **SMOKE TEST RULE** — PR opis nie może użyć "działa" / "wired" bez manual smoke testu na żywym backendzie. Pattern lekcji z marathon: agent zashipował 12 frontend ticketów + 3 integration PR-y, CI green dla wszystkich, ale 4 były buggy bo nikt nie testował end-to-end.
+
+**Łączna estymacja fix'ów: ~6-8h frontend + 1 backend migracja**. Sequencing zaproponowany w ticketach: #336 → #337 → #338 → #340 → #341 → #339 → #342 → #343 (od najprostszego do najtrudniejszego). Operator decyduje czy lecimy marathon czy podział na sesje.
+
 ## 2026-05-01 (cd. II): Epik UI-02 Produkty — pełen marathon, 19/19 ticketów dostarczone
 
 Po feedbacku operatora („pracuj przez cały epik, nie deferuj") agent dokończył wszystkie pozostałe 8 frontend ticketów (UI-02.9, UI-02.11, UI-02.12, UI-02.13, UI-02.16, UI-02.17, UI-02.18, UI-02.19) — każdy jako osobny branch + PR + CI + merge zgodnie z nową regułą **EPIK MARATHON RULE** w `CLAUDE.md`.
