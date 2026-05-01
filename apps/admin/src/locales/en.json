@@ -4,7 +4,9 @@
     "logout": "Sign out",
     "loading": "Loading...",
     "toggle_nav": "Toggle navigation",
-    "close": "Close"
+    "close": "Close",
+    "cancel": "Cancel",
+    "save": "Save"
   },
   "user_menu": {
     "aria_label": "User menu",
@@ -90,7 +92,14 @@
       "code": "Code",
       "label": "Label",
       "position": "Position"
-    }
+    },
+    "actions": {
+      "view": "View",
+      "delete": "Delete"
+    },
+    "back": "← Back to attribute groups",
+    "delete_confirm": "Delete attribute group \"{{name}}\"?",
+    "delete_error": "Could not delete attribute group."
   },
   "assets": {
     "list_title": "Assets",
@@ -440,6 +449,42 @@
         "force_required": "This migration is destructive. Tick Force to confirm.",
         "error_generic": "Could not run migration. Check your input or retry."
       }
+    },
+    "attribute_groups": {
+      "auto_attached": "Auto-attached",
+      "create_action": "New group",
+      "create_title": "New attribute group",
+      "create_submit": "Create group",
+      "create_error": "Could not create attribute group.",
+      "search": "Search",
+      "search_placeholder": "Filter by code or label",
+      "filter_all": "All",
+      "filter_business": "Business",
+      "filter_system": "System",
+      "attributes_count": "Attributes",
+      "members_title": "Attributes in this group",
+      "members_empty": "No attributes attached. Use the API to attach attributes (UI follow-up).",
+      "attach_deferred_note": "Attach / detach UI lands in a follow-up — wire the AttachAttributeToGroup command first. visible_when + reorder are live now (UI-08.8).",
+      "label_pl": "Label (PL)",
+      "label_en": "Label (EN)",
+      "description_pl": "Description (PL)",
+      "description_en": "Description (EN)",
+      "icon": "Icon (Lucide name)",
+      "color": "Color (hex)",
+      "fields": {
+        "position": "Position"
+      },
+      "move_up": "Move up",
+      "move_down": "Move down"
+    },
+    "visible_when": {
+      "column": "Visible when",
+      "add": "Add rule",
+      "clear": "Clear",
+      "field": "Field",
+      "value": "Value",
+      "value_placeholder": "string / true / false",
+      "none": "— always visible —"
     }
   }
 }

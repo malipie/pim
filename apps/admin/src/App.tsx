@@ -8,7 +8,9 @@ import { ApiProfilesListPage } from '@/features/api-configurator/api-profiles/li
 import { ApiProfileShowPage } from '@/features/api-configurator/api-profiles/show';
 import { AssetsListPage } from '@/features/asset/assets/list';
 import { AssetShowPage } from '@/features/asset/assets/show';
+import { AttributeGroupCreatePage } from '@/features/catalog/attribute-groups/create';
 import { AttributeGroupsListPage } from '@/features/catalog/attribute-groups/list';
+import { AttributeGroupShowPage } from '@/features/catalog/attribute-groups/show';
 import { AttributesListPage } from '@/features/catalog/attributes/list';
 import { MigrateAttributeTypePage } from '@/features/catalog/attributes/migrate-type';
 import { AttributeShowPage } from '@/features/catalog/attributes/show';
@@ -47,7 +49,12 @@ function App() {
             list: '/modeling/attributes',
             show: '/modeling/attributes/:id',
           },
-          { name: 'attribute_groups', list: '/modeling/attribute-groups' },
+          {
+            name: 'attribute_groups',
+            list: '/modeling/attribute-groups',
+            create: '/modeling/attribute-groups/new',
+            show: '/modeling/attribute-groups/:id',
+          },
           {
             name: 'object_types',
             list: '/modeling/object-types',
@@ -100,6 +107,8 @@ function App() {
               <Route path="attributes/:id" element={<AttributeShowPage />} />
               <Route path="attributes/:id/migrate-type" element={<MigrateAttributeTypePage />} />
               <Route path="attribute-groups" element={<AttributeGroupsListPage />} />
+              <Route path="attribute-groups/new" element={<AttributeGroupCreatePage />} />
+              <Route path="attribute-groups/:id" element={<AttributeGroupShowPage />} />
               <Route path="categories" element={<CategoriesTreePage />} />
               <Route path="categories/:id" element={<CategoryShowPage />} />
             </Route>
