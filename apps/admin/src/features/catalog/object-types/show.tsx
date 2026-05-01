@@ -1,8 +1,10 @@
 import { useOne } from '@refinedev/core';
-import { ArrowLeft, Lock } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 
+import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
+import { WhereUsedList } from '@/components/modeling/where-used-list';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { resolveLabel } from '@/features/catalog/attributes/list';
@@ -13,6 +15,10 @@ interface ObjectTypeDetail {
   kind: string;
   label?: Record<string, string> | string | null;
   builtIn?: boolean;
+  codeImmutable?: boolean;
+  deletable?: boolean;
+  icon?: string | null;
+  color?: string | null;
   schemaVersion?: number;
   completenessRules?: Record<string, unknown> | null;
   labelAttribute?: { id: string; code?: string } | string | null;
@@ -47,42 +53,58 @@ export function ObjectTypeShowPage() {
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{label}</h1>
-          {isBuiltIn ? (
-            <span className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-              <Lock className="size-3" />
-              {t('object_types.locked')}
-            </span>
+          {objectType.color ? (
+            <span
+              aria-hidden
+              className="inline-block size-4 rounded-full border"
+              style={{ backgroundColor: objectType.color }}
+            />
           ) : null}
+          <h1 className="text-2xl font-semibold tracking-tight">{label}</h1>
+          {isBuiltIn ? <BuiltInLockBadge /> : null}
         </div>
         <p className="font-mono text-xs text-muted-foreground">{objectType.code}</p>
       </div>
 
-      <Card>
-        <CardContent className="grid gap-3 pt-6 sm:grid-cols-2">
-          <DetailRow label={t('object_types.fields.kind')}>{objectType.kind}</DetailRow>
-          <DetailRow label={t('object_types.fields.schema_version')}>
-            {objectType.schemaVersion ?? 1}
-          </DetailRow>
-          {objectType.labelAttribute ? (
-            <DetailRow label={t('object_types.fields.label_attribute')}>
-              {resolveAttributeRef(objectType.labelAttribute)}
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <Card>
+          <CardContent className="grid gap-3 pt-6 sm:grid-cols-2">
+            <DetailRow label={t('object_types.fields.kind')}>{objectType.kind}</DetailRow>
+            <DetailRow label={t('object_types.fields.schema_version')}>
+              {objectType.schemaVersion ?? 1}
             </DetailRow>
-          ) : null}
-          {objectType.imageAttribute ? (
-            <DetailRow label={t('object_types.fields.image_attribute')}>
-              {resolveAttributeRef(objectType.imageAttribute)}
-            </DetailRow>
-          ) : null}
-          {objectType.completenessRules && Object.keys(objectType.completenessRules).length > 0 ? (
-            <DetailRow label={t('object_types.fields.completeness')}>
-              <pre className="rounded bg-muted px-2 py-1 text-xs">
-                {JSON.stringify(objectType.completenessRules, null, 2)}
-              </pre>
-            </DetailRow>
-          ) : null}
-        </CardContent>
-      </Card>
+            {objectType.icon ? (
+              <DetailRow label={t('object_types.fields.icon')}>
+                <span className="font-mono text-xs">{objectType.icon}</span>
+              </DetailRow>
+            ) : null}
+            {objectType.color ? (
+              <DetailRow label={t('object_types.fields.color')}>
+                <span className="font-mono text-xs">{objectType.color}</span>
+              </DetailRow>
+            ) : null}
+            {objectType.labelAttribute ? (
+              <DetailRow label={t('object_types.fields.label_attribute')}>
+                {resolveAttributeRef(objectType.labelAttribute)}
+              </DetailRow>
+            ) : null}
+            {objectType.imageAttribute ? (
+              <DetailRow label={t('object_types.fields.image_attribute')}>
+                {resolveAttributeRef(objectType.imageAttribute)}
+              </DetailRow>
+            ) : null}
+            {objectType.completenessRules &&
+            Object.keys(objectType.completenessRules).length > 0 ? (
+              <DetailRow label={t('object_types.fields.completeness')}>
+                <pre className="rounded bg-muted px-2 py-1 text-xs">
+                  {JSON.stringify(objectType.completenessRules, null, 2)}
+                </pre>
+              </DetailRow>
+            ) : null}
+          </CardContent>
+        </Card>
+        <WhereUsedList resource="object_types" id={objectType.id} />
+      </div>
 
       <p className="text-xs text-muted-foreground">{t('object_types.write_deferred_note')}</p>
     </div>

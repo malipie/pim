@@ -5499,6 +5499,30 @@
                             "custom"
                         ]
                     },
+                    "codeImmutable": {
+                        "readOnly": true,
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "deletable": {
+                        "readOnly": true,
+                        "default": true,
+                        "type": "boolean"
+                    },
+                    "icon": {
+                        "maxLength": 64,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "color": {
+                        "maxLength": 16,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "label": {
                         "type": "object",
                         "additionalProperties": {
@@ -5588,6 +5612,30 @@
                                     "asset",
                                     "brand",
                                     "custom"
+                                ]
+                            },
+                            "codeImmutable": {
+                                "readOnly": true,
+                                "default": false,
+                                "type": "boolean"
+                            },
+                            "deletable": {
+                                "readOnly": true,
+                                "default": true,
+                                "type": "boolean"
+                            },
+                            "icon": {
+                                "maxLength": 64,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "color": {
+                                "maxLength": 16,
+                                "type": [
+                                    "string",
+                                    "null"
                                 ]
                             },
                             "label": {

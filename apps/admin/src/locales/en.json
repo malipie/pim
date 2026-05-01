@@ -180,7 +180,10 @@
       "label_attribute": "Label attribute",
       "image_attribute": "Image attribute",
       "completeness": "Completeness rules",
-      "actions": "Actions"
+      "actions": "Actions",
+      "instance_count": "Instances",
+      "icon": "Icon",
+      "color": "Color"
     },
     "actions": {
       "view": "View"
@@ -381,6 +384,28 @@
       "attributes": "Attributes",
       "attribute_groups": "Attribute Groups",
       "categories": "Categories"
+    },
+    "built_in_lock": {
+      "label": "Locked",
+      "tooltip": "System type — protected from edits or deletion."
+    },
+    "where_used": {
+      "title": "Where used",
+      "empty": "No usage data.",
+      "error": "Could not load usage data.",
+      "not_found": "Usage endpoint returned 404.",
+      "groups": "Attribute groups",
+      "object_types": "Object types",
+      "categories": "Categories",
+      "instances": "Object instances",
+      "attached_object_types": "Attached object types",
+      "attached_categories": "Attached to categories",
+      "member_attributes": "Member attributes",
+      "affected_instances": "Affected object instances",
+      "attached_attributes": "Attached attributes",
+      "attached_groups": "Attached attribute groups",
+      "api_profiles": "API profiles referencing this",
+      "category_attachments": "Category attachments"
     }
   }
 }
