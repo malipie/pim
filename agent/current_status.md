@@ -4,6 +4,80 @@
 
 Wcześniejsze epiki: **MVP-Alpha 0.4 (8/8) ✅ + 0.5 (5/5) ✅ + 0.6 (9/9) ✅** — w main (#210..#231). Operator zaakceptował 2026-04-30 kierunek **MVP-Final → Faza 1 → Faza 2** zamiast skoku do Fazy 2 (epik 0.7 Agent layer odsunięty per ADR R-27 cost runaway: BYOK + monitoring + Org-level Anthropic cap muszą iść pierwsze).
 
+## 2026-05-01 (cd.): Epik UI-02 Produkty — backend ZAMKNIĘTY 7/7 + 2 frontend tickety merged
+
+**Pełna sesja autonomous (bypass-permissions + dwa wakeup'y po 35min/20min token outage).**
+
+Zamknięte (7 backend + 2 frontend):
+- ✅ **#291 UI-02.1** (PR #310) — `completeness_pct SMALLINT` + `sync_status_aggregate VARCHAR(8)` na `objects` z indeksami `(tenant_id, kind, completeness_pct)` + `(tenant_id, kind, sync_status_aggregate)`. `CatalogObject::recordCompleteness(['global'=>N])` mirroruje do `completenessPct` (clamped 0..100). CLI `pim:catalog:recalculate-completeness --tenant=… --kind=…` dla backfill. 8 nowych unit testów.
+- ✅ **#292 UI-02.2** (PR #311) — `GET /api/products/quick-search` strict-mode (matchingStrategy=all, attributesToSearchOn=[sku,name,code]) z route priority 200. Kontroler w `Search/Presentation/Controller/ProductQuickSearchController` (Deptrac forced cross-bundle ownership).
+- ✅ **#293 UI-02.3** (PR #312) — `bulk_edit_jobs` table + `BulkEditJob` entity + `POST /api/products/bulk-edit` (operations: `toggle_enabled`, `set_attribute_value`; sync execution capped at 5000 IDs; per-row error collection do `firstErrors[]`) + `GET /api/bulk-edit-jobs/{id}` recovery endpoint. Async via Messenger + Mercure deferred do Faza 1.
+- ✅ **#294 UI-02.4** (PR #313) — `POST /api/products/{id}/duplicate` z auto-SKU `{src}-COPY-N` + clone wszystkich `ObjectValue` (provenance reset do manual). `with_assets`/`with_relations`/`with_categories` flags reserved (DAM/Faza 1).
+- ✅ **#295 UI-02.5** (PR #314) — 3 read endpointy: audit-log (DH Auditor `objects_audit`), channels-status (aggregate column + empty per-channel list do Faza 1 publish), effective-attribute-groups (proxy nad UI-08.4 resolver). Wszystkie route priority 200.
+- ✅ **#296 UI-02.6** (PR #315) — `variant_axes JSONB` na `objects` + `POST /api/products/{master_id}/generate-variants` (cartesian product, idempotent, default SKU template `{master_sku}-{values_joined}`). Variants = istniejący `parent_id` self-FK wzorzec.
+- ✅ **#297 UI-02.7** (PR #316) — `saved_views` table + `SavedView` entity + 4 CRUD endpointy (`GET/POST` `/api/saved-views`, `PATCH/DELETE` `/api/saved-views/{id}`). Default flag enforcement. **MVP scope reduction:** per-user owner scoping (kolumna `user_id` istnieje na schemie) NIE enforce'owana w controllerze — wymaga cross-bundle `CurrentUserProvider` contract (Deptrac `Catalog → Identity` blocked). Faza 1 follow-up.
+- ✅ **#298 UI-02.8** (PR #317) — `<CompletenessBadge>` + `<SyncAggregateIcon>` reusable widgets dodane do products list jako 2 nowe kolumny między Brand a Status. TanStack Table swap deferred.
+- ✅ **#304+#305 UI-02.14+UI-02.15** (PR #318) — `<VariantsToggle>` (radio tree/flat) + `<SavedViewsDropdown>` (DropdownMenu nad UI-02.7 endpointem). Save modal / Manage views / URL routing deferred.
+
+**Łącznie 9 PR-ów merged (#310..#318).** Pełen backend gotowy dla frontu.
+
+### Deferred frontend tickety — handoff dla follow-up sesji
+
+Następujące tickety mają pełen backend + reusable widgets, ale wymagają większego frontend-side scope niż ten autonomous batch mógł pokryć w jednej sesji:
+
+- **UI-02.10 (#300) Status indicators** — częściowo done (CompletenessBadge + SyncAggregateIcon shipped w #317). Zostaje: `<ChannelInlineIcons>` (View on X), Mercure live updates, drill-down event handling.
+- **UI-02.9 (#299) Filters** — chip filters + AdvancedFilterBuilder Sheet. Backend (UI-02.5 effective-attribute-groups) ready.
+- **UI-02.11 (#301) BulkActionsToolbar** — sticky toolbar + edit modal + async progress modal nad UI-02.3 endpointem.
+- **UI-02.12 (#302) ExcelLikeGrid** — decyzja AG Grid Community vs custom w PR (ticket explicit).
+- **UI-02.13 (#303) Per-row actions** — QuickEditPopover + 3-dot menu + DuplicateProductDialog (nad UI-02.4) + AuditLogModal (nad UI-02.5).
+- **UI-02.15 (#305) Save/Manage views modals** — dropdown shipped, modal+manage+URL routing deferred.
+- **UI-02.16 (#306) ProductDetailPage layout** — 3-column shell + sticky header + left nav (effective groups) + right sidebar.
+- **UI-02.17 (#307) Detail dynamic form** — Localizable tabs + Channel sub-tabs + Provenance + Lock + auto-save + diff modal.
+- **UI-02.18 (#308) Variants tab w detail** — axes editor + matrix generator UI nad UI-02.6 endpointem + per-variant Excel-like.
+- **UI-02.19 (#309) Create wizard + EmptyState** — 3-step wizard + Cmd+K stub + EmptyStateProducts.
+
+**Estymacja remaining:** ~30-40h (większość frontend, każdy ticket 3-5h przeciętnie). Sequencing: UI-02.16+UI-02.17 (detail page) → UI-02.9 (filters) → UI-02.11 (bulk) → UI-02.13 (per-row) → UI-02.18 (variants tab) → UI-02.19 (create wizard) → UI-02.12 (excel grid, decyzja A/B) → UI-02.15 (save modal).
+
+## 2026-05-01 (cd.): Backlog UI Produkty utworzony (epik UI-02)
+
+**19 issues** w GitHub pod nową etykietą `epik-UI-02` + cross-cutting tag `UI`:
+
+- **#291–#297 Backend (7):**
+  - UI-02.1 (#291) cache columns `completeness_pct` + `sync_status_aggregate` + Doctrine listeners (blocker).
+  - UI-02.2 (#292) `GET /api/products/quick-search` Meilisearch prefix/exact.
+  - UI-02.3 (#293) `POST /api/products/bulk-edit` async via Messenger + Mercure progress.
+  - UI-02.4 (#294) `POST /api/products/{id}/duplicate` (with_assets / with_relations / with_categories).
+  - UI-02.5 (#295) Read endpoints triple — audit-log + channels-status + product effective-groups.
+  - UI-02.6 (#296) Variant entity (ADR-010) + axes generator endpoint (`POST /api/products/{master}/generate-variants`).
+  - UI-02.7 (#297) SavedView entity + CRUD ApiResource (per-user solo, JSON Schema validated config).
+- **#298–#309 Frontend (12):**
+  - UI-02.8 (#298) Products list shell + `<ProductDataTable>` (TanStack) — kolumny / sort multi-col / cursor pagination / virtualization (blocker dla pozostałych frontów).
+  - UI-02.9 (#299) Filters — quick search bar + chips + `<AdvancedFilterBuilder>` Sheet.
+  - UI-02.10 (#300) Status indicators — `<CompletenessBadge>` + `<SyncAggregateIcon>` + `<ChannelInlineIcons>` (View on X) + Mercure live updates.
+  - UI-02.11 (#301) `<BulkActionsToolbar>` sticky + bulk edit modal + show-only-selected + async progress modal.
+  - UI-02.12 (#302) `<ExcelLikeGrid>` — drag-fill + multi-cell select + copy-paste (decyzja AG Grid Community vs custom w PR).
+  - UI-02.13 (#303) Per-row actions — `<QuickEditPopover>` + 3-dot menu + `<DuplicateProductDialog>` + `<AuditLogModal>`.
+  - UI-02.14 (#304) `<VariantsToggle>` (flat/tree) + tree expand/collapse w liście.
+  - UI-02.15 (#305) Saved Views — dropdown + Save modal + Manage views + URL routing.
+  - UI-02.16 (#306) `<ProductDetailPage>` layout — sticky header + left nav (effective groups) + right sidebar (Images/Related/History/Channels).
+  - UI-02.17 (#307) Detail dynamic form — Localizable tabs + Channel sub-tabs + Provenance badges + Lock icons + auto-save 3s + diff modal przed publish.
+  - UI-02.18 (#308) Variants tab w detail — axes editor + matrix generator + per-variant Excel-like.
+  - UI-02.19 (#309) Create wizard (3 steps) + Cmd+K Beta-Demo stub + `<EmptyStateProducts>` z 3 CTA.
+
+**Estymacja całości: 50-66h** per `Project Plan/UI/epik-02-produkty.md` §15. Sequencing per dependency graph: backend UI-02.1 (blocker) → reszta backendu w parallel → UI-02.8 (frontend blocker) → reszta frontendu w fan-out (większość niezależnych poza UI-02.16↔UI-02.17 i UI-02.18 wymagającym UI-02.12+UI-02.6).
+
+Pełen kontekst: [Project Plan/UI/epik-02-produkty.md](../Project%20Plan/UI/epik-02-produkty.md) (~660 linii).
+
+Świadome odejścia (do Faza 1+):
+- `POST /api/products/{id}/publish` (Faza 1, integracje epiki 0.8/0.9 realne kanały).
+- Bulk publish do kanałów + bulk change family + soft delete (Faza 1).
+- Related products edit / rules engine (Faza 1+ epik 09).
+- Permissions ADR-013 (Faza 1).
+- Cmd+K full conversational create / data-ops agent (Faza 2 — `„zaznacz 30 Festo i ustaw kategorię"`).
+- Variant-level pricing rules / bundle products (Faza 1+).
+- Excel-like undo/redo + formula cells + conditional formatting (Faza 1+).
+- AI-suggested views / view sharing (Faza 1+ ADR-013).
+
 ## 2026-05-01 (cd.): META-UI v2 — sidebar §3.1 reorg (#289)
 
 Po zamknięciu epiku UI-08 operator zwrócił uwagę, że pierwotny META **#255** zaimplementował zwijaną grupę „Modelowanie" zamiast pełnego layoutu z `00-plan-ui.md` §3.1 (Dashboard / Produkty / Usługi / Publikacje / Multimedia / Workflow / Ustawienia + separator + Modelowanie). Korekta dostarczona jako **#289** (META-UI v2):
