@@ -1,9 +1,11 @@
-import { CheckCircle2, MinusCircle, Trash2, X } from 'lucide-react';
+import { CheckCircle2, MinusCircle, Pencil, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { jsonFetch } from '@/lib/http';
+
+import { BulkEditModal } from './bulk-edit-modal';
 
 interface BulkEditJobResponse {
   id: string;
@@ -43,6 +45,7 @@ export function BulkActionsToolbar({
   const { t } = useTranslation();
   const [isPending, setIsPending] = useState(false);
   const [lastJob, setLastJob] = useState<BulkEditJobResponse | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   if (ids.length === 0) return null;
 
@@ -120,6 +123,16 @@ export function BulkActionsToolbar({
           type="button"
           variant="outline"
           size="sm"
+          onClick={() => setShowEditModal(true)}
+          disabled={isPending}
+        >
+          <Pencil className="size-4" />
+          {t('products.bulk.edit_attribute', { defaultValue: 'Bulk edit attribute' })}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
           onClick={() => run('toggle_enabled', { enabled: true })}
           disabled={isPending}
         >
@@ -147,6 +160,17 @@ export function BulkActionsToolbar({
           {t('products.bulk.delete', { defaultValue: 'Delete' })}
         </Button>
       </div>
+
+      {showEditModal ? (
+        <BulkEditModal
+          productIds={ids}
+          onClose={() => setShowEditModal(false)}
+          onApplied={(job) => {
+            setLastJob(job);
+            if (job.errors_count === 0) onCleared();
+          }}
+        />
+      ) : null}
 
       {lastJob !== null ? (
         <div className="rounded border bg-muted/40 px-2 py-1 text-xs">
