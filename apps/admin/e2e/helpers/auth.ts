@@ -4,8 +4,9 @@ export const ADMIN_EMAIL = 'admin@demo.localhost';
 export const ADMIN_PASSWORD = 'changeme';
 
 /**
- * Log in through the actual /login form and wait for the products list to
- * render. Single happy-path login helper used by every protected-route test.
+ * Log in through the actual /login form and wait for the dashboard (new index
+ * after epik UI-03 #356) to render. Single happy-path login helper used by
+ * every protected-route test.
  */
 export async function loginAsAdmin(
   page: Page,
@@ -16,7 +17,7 @@ export async function loginAsAdmin(
   await page.getByLabel(/e-?mail/i).fill(email);
   await page.getByLabel(/has[lł]o|password/i).fill(password);
   await page.getByRole('button', { name: /zaloguj|sign in/i }).click();
-  await expect(page).toHaveURL(/\/products$/);
+  await expect(page).toHaveURL(/\/dashboard$/);
 }
 
 /**

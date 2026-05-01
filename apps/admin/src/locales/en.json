@@ -46,6 +46,51 @@
     "modeling": "Modeling",
     "soon": "Soon"
   },
+  "dashboard": {
+    "hero": {
+      "badge": "Agent · Claude Sonnet 4.5",
+      "title": "Ask the agent or search the catalog",
+      "subtitle": "The dashboard shows PIM traffic, integration status and agent suggestions. Every block is a mock; backend wiring lands in later tickets.",
+      "cta": "Ask the agent",
+      "cta_disabled_hint": "Mock — wired in Phase 2 (agent layer)"
+    },
+    "kpi": {
+      "products": "Products",
+      "attributes": "Attributes",
+      "families": "Families",
+      "categories": "Categories"
+    },
+    "activity": {
+      "title": "Activity (30 days)",
+      "legend_added": "added",
+      "legend_modified": "modified"
+    },
+    "top_edited": {
+      "title": "Most edited",
+      "subtitle": "last 30 days"
+    },
+    "syncs": {
+      "title": "Sync status",
+      "force": "Force",
+      "force_disabled": "Mock — needs POST /api/integrations/{id}/sync"
+    },
+    "completeness": {
+      "title": "Completeness",
+      "subtitle": "overall and per channel — publish readiness"
+    },
+    "agent_activity": {
+      "title": "Recent agent activity",
+      "subtitle": "last 6 audit entries"
+    },
+    "alerts": {
+      "title": "Alerts",
+      "subtitle": "last 5"
+    },
+    "channel_dist": {
+      "title": "Channel distribution",
+      "unit": "products"
+    }
+  },
   "attributes": {
     "list_title": "Attributes",
     "list_subtitle": "Schema definitions reused across catalog objects.",

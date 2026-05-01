@@ -4,6 +4,25 @@
 
 ## Patterns to Follow
 
+### Epik UI-03 marathon — bypass mode, no questions (2026-05-01)
+
+- **Operator polecił: epik UI-03 (#356 → #357 → #358) wykonać w bypass mode, bez pytań, bez zatrzymywania się aż do mergowania wszystkich trzech ticketów.** Zachowanie analogiczne do "EPIK MARATHON RULE" z CLAUDE.md PIM (`pracuj przez cały epik`).
+  - **Trigger**: ten konkretny epik UI-03 (#356/#357/#358).
+  - **Reguły**:
+    - NIE pytam o decyzje techniczne A/B opisane w treści ticketu — wybieram default per ticket body i dokumentuję wybór w PR.
+    - NIE pytam o permission dla destruktywnych git ops na własnych branchach (force-push do feat/handoff-* OK).
+    - NIE deferuję, NIE skipuję, NIE bundle'uję 3 ticketów do jednego PR-a — każdy ticket = własny branch + PR + CI + merge, jeden po drugim, do końca listy.
+    - **Przerywam TYLKO**: (a) quality gate fail bez self-fix → Plan Mode, (b) decyzja architektoniczna cross-context → Plan Mode, (c) merge conflict z main wymagający manual resolution, (d) brak credentials.
+    - Token outage / rate limit → `ScheduleWakeup` 600-1800s i wznowienie z dokładnie tego samego ticketu.
+  - **Sekwencja**: #356 (Dashboard + tokens, blocker) → po merge #357 + #358 mogą iść równolegle, ale w marathon mode robię sekwencyjnie #357 potem #358 (jeden naraz, bez switch-context).
+  - **Świadome odejścia** dokumentuję per ticket w PR body + dopisuję jednoliniowy wpis tutaj na koniec.
+
+### Epik UI-03 (handoff design) — single source of truth lokalizacja (2026-05-01)
+
+- **Plan epiku UI-03 (issues #356/#357/#358) i wszystkie pliki backlogu mieszkają w `Project Plan/UI/Wdrozenie_grafiki/`.** Główny plik: `plan-handoff-wdrozenie.md` (skopiowany z plan-mode artifactu w `~/.claude/plans/`). Trzy pliki backlogu (`dashboard-do-oprogramowania.md`, `modelowanie-do-oprogramowania.md`, `produkty-do-oprogramowania.md`) lądują tu obok, gdy powstają per ticket.
+  - Why: operator chce żeby plan i backlog były w repo (commitowane razem z PR-ami), nie w lokalnym `~/.claude/plans/`. Ten ostatni to plan-mode artifact i pozostaje tylko jako referencja historyczna.
+  - How to apply: każda aktualizacja planu (zmiana scope, dopisanie luki, post-mortem ticketu) idzie do `Project Plan/UI/Wdrozenie_grafiki/plan-handoff-wdrozenie.md`. **NIE pracuj na kopii w `~/.claude/plans/`** — staje się stale natychmiast po skopiowaniu. CLAUDE.md § "Pliki, które utrzymujesz atomowo" zawiera tę regułę.
+
 ### Plan UI jako separate driver (post-2026-05-01)
 
 - **Plan UI w `Project Plan/UI/` napędza nowe epiki UI-XX równolegle do backend roadmapy 0.X.Y.** Pierwszy materializowany: epik **UI-08 Modelowanie** (#255 META + #256–#270 sub-tickety). Konwencja:

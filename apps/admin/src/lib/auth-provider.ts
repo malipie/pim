@@ -63,7 +63,7 @@ export const authProvider: AuthProvider = {
         accept: 'application/json',
       });
       setAccessToken(response.token);
-      return { success: true, redirectTo: '/products' };
+      return { success: true, redirectTo: '/dashboard' };
     } catch (error) {
       const message =
         error instanceof HttpError && error.status === 401

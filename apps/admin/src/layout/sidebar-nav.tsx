@@ -31,7 +31,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     id: 'main',
     items: [
-      { icon: LayoutDashboard, label: 'nav.dashboard', comingSoon: true },
+      { to: '/dashboard', icon: LayoutDashboard, label: 'nav.dashboard' },
       { to: '/products', icon: Package, label: 'nav.products' },
       { icon: Wrench, label: 'nav.services', comingSoon: true },
       { to: '/channels', icon: Share2, label: 'nav.publications' },

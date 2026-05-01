@@ -14,6 +14,8 @@ test.describe('Authentication', () => {
   test('user can log in and lands on the products list', async ({ page }) => {
     test.fixme(true, BLOCKED_BY_41);
     await loginAsAdmin(page);
+    // Dashboard is the new index after epik UI-03 #356; products list moved to /products.
+    await page.goto('/products');
     await expect(page.getByRole('heading', { name: /produkty|products/i })).toBeVisible();
   });
 
@@ -46,7 +48,7 @@ test.describe('Authentication', () => {
   test('seeded credentials match the fixtures', async ({ page }) => {
     test.fixme(true, BLOCKED_BY_41);
     await loginAsAdmin(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await expect(page).toHaveURL(/\/products$/);
+    await expect(page).toHaveURL(/\/dashboard$/);
   });
 
   test('hard reload preserves the session via silent refresh', async ({ page }) => {
@@ -65,7 +67,9 @@ test.describe('Authentication', () => {
     await page.reload();
     await refreshSeen;
 
-    await expect(page).toHaveURL(/\/products$/);
+    await expect(page).toHaveURL(/\/dashboard$/);
+    // Dashboard is the new index after epik UI-03 #356; products list moved to /products.
+    await page.goto('/products');
     await expect(page.getByRole('heading', { name: /produkty|products/i })).toBeVisible();
   });
 
