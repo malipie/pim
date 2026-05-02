@@ -40,6 +40,17 @@
                 <option name="default">0</option>
             </options>
         </field>
+        <field name="color" type="string" length="7" nullable="true"/>
+        <field name="isDefault" type="boolean" column="is_default">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+        <field name="isDeprecated" type="boolean" column="is_deprecated">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
 
     </entity>
 

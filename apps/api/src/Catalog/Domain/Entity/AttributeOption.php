@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Domain\Entity;
 
+use App\Catalog\Domain\Exception\InvalidColorFormatException;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use LogicException;
@@ -39,6 +40,12 @@ class AttributeOption implements TenantScoped
 
     private int $position;
 
+    private ?string $color = null;
+
+    private bool $isDefault = false;
+
+    private bool $isDeprecated = false;
+
     /**
      * @param array<string, string> $label
      */
@@ -48,12 +55,18 @@ class AttributeOption implements TenantScoped
         array $label,
         int $position = 0,
         ?Uuid $id = null,
+        ?string $color = null,
+        bool $isDefault = false,
+        bool $isDeprecated = false,
     ) {
         $this->id = $id ?? Uuid::v7();
         $this->attribute = $attribute;
         $this->code = $code;
         $this->label = $label;
         $this->position = $position;
+        $this->setColor($color);
+        $this->isDefault = $isDefault;
+        $this->isDeprecated = $isDeprecated;
     }
 
     public function getId(): Uuid
@@ -112,5 +125,44 @@ class AttributeOption implements TenantScoped
     public function reorder(int $position): void
     {
         $this->position = $position;
+    }
+
+    public function getColor(): ?string
+    {
+        return $this->color;
+    }
+
+    public function setColor(?string $color): void
+    {
+        if (null !== $color && 1 !== preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) {
+            throw new InvalidColorFormatException($color);
+        }
+
+        $this->color = $color;
+    }
+
+    public function isDefault(): bool
+    {
+        return $this->isDefault;
+    }
+
+    /**
+     * @internal Use {@see markAsDefault()} which clears any prior default in
+     * the same attribute. The bare setter is here only so the ORM hydrator
+     * can rehydrate the persisted state without re-applying domain rules.
+     */
+    public function setDefault(bool $value): void
+    {
+        $this->isDefault = $value;
+    }
+
+    public function isDeprecated(): bool
+    {
+        return $this->isDeprecated;
+    }
+
+    public function setDeprecated(bool $value): void
+    {
+        $this->isDeprecated = $value;
     }
 }
