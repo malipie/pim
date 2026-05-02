@@ -5593,6 +5593,27 @@
                         ],
                         "readOnly": true
                     },
+                    "hierarchical": {
+                        "description": "Configurable behavior toggles surfaced in the modeling UI per VIEW-01\n(#372). Default `false`; built-in seeders set `hasVariants` for product\nand `hierarchical` for category. Built-in rows have these fields locked\nby the voter, custom rows expose them in the Settings card.",
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "hasVariants": {
+                        "description": "Symfony PropertyAccess accessor alias \u2014 `hasVariants()` reads naturally\nin domain code but PropertyAccessor expects `getHasVariants()` /\n`isHasVariants()` to expose it as the `hasVariants` property in the\nnormalized output.",
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "abstract": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "allowedParentTypeIds": {
+                        "description": "UUID list of ObjectTypes allowed as parent. Plain JSONB list (not a\njunction) \u2014 N stays small (\u2264 5 typical), and the only consumer is the\ndetail view's Allowed parent types chip strip. A junction would cost\nus a roundtrip per detail page load for no gain at this cardinality.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
                     "schemaVersion": {
                         "readOnly": true,
                         "default": 1,
@@ -5707,6 +5728,27 @@
                                     }
                                 ],
                                 "readOnly": true
+                            },
+                            "hierarchical": {
+                                "description": "Configurable behavior toggles surfaced in the modeling UI per VIEW-01\n(#372). Default `false`; built-in seeders set `hasVariants` for product\nand `hierarchical` for category. Built-in rows have these fields locked\nby the voter, custom rows expose them in the Settings card.",
+                                "default": false,
+                                "type": "boolean"
+                            },
+                            "hasVariants": {
+                                "description": "Symfony PropertyAccess accessor alias \u2014 `hasVariants()` reads naturally\nin domain code but PropertyAccessor expects `getHasVariants()` /\n`isHasVariants()` to expose it as the `hasVariants` property in the\nnormalized output.",
+                                "default": false,
+                                "type": "boolean"
+                            },
+                            "abstract": {
+                                "default": false,
+                                "type": "boolean"
+                            },
+                            "allowedParentTypeIds": {
+                                "description": "UUID list of ObjectTypes allowed as parent. Plain JSONB list (not a\njunction) \u2014 N stays small (\u2264 5 typical), and the only consumer is the\ndetail view's Allowed parent types chip strip. A junction would cost\nus a roundtrip per detail page load for no gain at this cardinality.",
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
                             },
                             "schemaVersion": {
                                 "readOnly": true,
