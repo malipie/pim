@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Catalog\Domain;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\AttributeOption;
+use App\Catalog\Domain\Exception\InvalidColorFormatException;
 use App\Shared\Domain\Tenant;
 use LogicException;
 use PHPUnit\Framework\Attributes\Test;
@@ -81,6 +82,42 @@ final class AttributeOptionTest extends TestCase
         $option->reorder(99);
 
         self::assertSame(99, $option->getPosition());
+    }
+
+    #[Test]
+    public function colorAcceptsHexAndDefaultsToNull(): void
+    {
+        $option = new AttributeOption(self::attribute(), 'red', ['en' => 'Red']);
+        self::assertNull($option->getColor());
+
+        $option->setColor('#FF0000');
+        self::assertSame('#FF0000', $option->getColor());
+
+        $option->setColor(null);
+        self::assertNull($option->getColor());
+    }
+
+    #[Test]
+    public function colorRejectsNonHexFormat(): void
+    {
+        $option = new AttributeOption(self::attribute(), 'red', ['en' => 'Red']);
+        $this->expectException(InvalidColorFormatException::class);
+        $option->setColor('rgb(255, 0, 0)');
+    }
+
+    #[Test]
+    public function isDefaultAndIsDeprecatedFlagsRoundTrip(): void
+    {
+        $option = new AttributeOption(self::attribute(), 'red', ['en' => 'Red'], 0, null, '#FF0000', true, true);
+
+        self::assertTrue($option->isDefault());
+        self::assertTrue($option->isDeprecated());
+
+        $option->setDefault(false);
+        $option->setDeprecated(false);
+
+        self::assertFalse($option->isDefault());
+        self::assertFalse($option->isDeprecated());
     }
 
     private static function attribute(): Attribute
