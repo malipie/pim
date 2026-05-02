@@ -1,20 +1,12 @@
 import { useList } from '@refinedev/core';
-import {
-  Boxes,
-  FolderTree,
-  Image as ImageIcon,
-  Layers,
-  Lock,
-  Package,
-  Plus,
-  Tag,
-} from 'lucide-react';
-import type { ComponentType, SVGProps } from 'react';
+import { Lock, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CreateCustomObjectTypeDialog } from '@/components/modeling/create-custom-object-type-dialog';
+import { useNavigate } from 'react-router';
+
 import { ModelingPageHeader } from '@/components/modeling/modeling-page-header';
 import { ModelingRow, ModelingSection } from '@/components/modeling/modeling-section';
+import { ObjectTypeIcon } from '@/components/modeling/object-type-icon';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { jsonFetch } from '@/lib/http';
 
@@ -29,15 +21,10 @@ interface ObjectTypeRow {
   icon?: string | null;
   color?: string | null;
   schemaVersion?: number;
+  hierarchical?: boolean;
+  hasVariants?: boolean;
+  abstract?: boolean;
 }
-
-const KIND_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
-  product: Boxes,
-  category: FolderTree,
-  asset: ImageIcon,
-  brand: Tag,
-  custom: Package,
-};
 
 const SECONDARY_LABEL: Record<string, string> = {
   product: 'Products',
@@ -46,8 +33,18 @@ const SECONDARY_LABEL: Record<string, string> = {
   brand: 'Brands',
 };
 
+/**
+ * VIEW-01 (#372) — modeling Object Types list. Sections split by
+ * `builtIn` flag, badges (`hierarchical` / `variants`) read from BE
+ * (no longer heuristics over `kind`), counter for attached groups
+ * coming from the new `/attached_groups` endpoint via per-row fetch.
+ *
+ * The bottom `+` CTA navigates to the wizard route — there is no
+ * popup form anymore.
+ */
 export function ObjectTypesListPage() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { result, query } = useList<ObjectTypeRow>({
     resource: 'object_types',
     pagination: { mode: 'off' },
@@ -56,7 +53,7 @@ export function ObjectTypesListPage() {
   const types = result.data;
   const isLoading = query.isLoading;
   const instanceCounts = useObjectTypeInstanceCounts(types);
-  const [createOpen, setCreateOpen] = useState(false);
+  const groupCounts = useObjectTypeGroupCounts(types);
 
   const builtIn = types.filter((row) => row.builtIn !== false);
   const custom = types.filter((row) => row.builtIn === false);
@@ -77,7 +74,7 @@ export function ObjectTypesListPage() {
             'Każdy ObjectType definiuje czym jest obiekt — Produkt, Usługa, Marka. Built-in typy (🔒) są niezbędne dla integracji i nie mogą być usunięte. Tworzenie własnych typów odblokowuje nowe rodzaje obiektów (np. Subskrypcja, Wydarzenie, Lokalizacja).',
         })}
         ctaLabel={t('object_types.create_custom_action', { defaultValue: '+ Nowy typ' })}
-        onCtaClick={() => setCreateOpen(true)}
+        onCtaClick={() => navigate('/modeling/object-types/new')}
       />
 
       {isLoading ? (
@@ -104,6 +101,7 @@ export function ObjectTypesListPage() {
                   row={row}
                   language={i18n.language}
                   instanceCount={instanceCounts[row.id]}
+                  groupCount={groupCounts[row.id]}
                 />
               ))
             )}
@@ -135,6 +133,7 @@ export function ObjectTypesListPage() {
                   row={row}
                   language={i18n.language}
                   instanceCount={instanceCounts[row.id]}
+                  groupCount={groupCounts[row.id]}
                 />
               ))
             )}
@@ -142,7 +141,7 @@ export function ObjectTypesListPage() {
 
           <button
             type="button"
-            onClick={() => setCreateOpen(true)}
+            onClick={() => navigate('/modeling/object-types/new')}
             className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-line bg-surface px-6 py-4 text-[14px] font-medium text-ink-2 transition-colors hover:border-accent-violet/40 hover:bg-accent-violet/5 hover:text-ink"
           >
             <Plus className="size-4" />
@@ -152,15 +151,6 @@ export function ObjectTypesListPage() {
           </button>
         </>
       )}
-
-      {createOpen ? (
-        <CreateCustomObjectTypeDialog
-          onClose={() => setCreateOpen(false)}
-          onCreated={() => {
-            void query.refetch();
-          }}
-        />
-      ) : null}
     </div>
   );
 }
@@ -169,25 +159,17 @@ interface ObjectTypeListRowProps {
   row: ObjectTypeRow;
   language: string;
   instanceCount: number | undefined;
+  groupCount: number | undefined;
 }
 
-function ObjectTypeListRow({ row, language, instanceCount }: ObjectTypeListRowProps) {
+function ObjectTypeListRow({ row, language, instanceCount, groupCount }: ObjectTypeListRowProps) {
   const { t } = useTranslation();
-  const Icon = KIND_ICONS[row.kind] ?? Layers;
   const isBuiltIn = row.builtIn !== false;
-  const accentColor = row.color ?? defaultAccent(row.kind);
 
   return (
     <ModelingRow
       to={`/modeling/object-types/${row.id}`}
-      leading={
-        <span
-          className="flex size-12 items-center justify-center rounded-xl"
-          style={{ backgroundColor: `${accentColor}1a`, color: accentColor }}
-        >
-          <Icon className="size-5" />
-        </span>
-      }
+      leading={<ObjectTypeIcon kind={row.kind} icon={row.icon} color={row.color} size="md" />}
       title={resolveLabel(row.label, language)}
       code={row.code}
       badges={
@@ -198,14 +180,14 @@ function ObjectTypeListRow({ row, language, instanceCount }: ObjectTypeListRowPr
               {t('object_types.system_badge', { defaultValue: 'system' })}
             </span>
           ) : null}
-          {row.kind === 'product' ? (
+          {row.hierarchical ? (
             <span className="rounded-md bg-accent-violet/10 px-1.5 py-0.5 text-[10.5px] font-medium uppercase tracking-wide text-accent-violet">
-              variants
+              hierarchical
             </span>
           ) : null}
-          {row.kind === 'category' ? (
+          {row.hasVariants ? (
             <span className="rounded-md bg-accent-emerald/10 px-1.5 py-0.5 text-[10.5px] font-medium uppercase tracking-wide text-accent-emerald">
-              hierarchical
+              variants
             </span>
           ) : null}
         </>
@@ -213,7 +195,7 @@ function ObjectTypeListRow({ row, language, instanceCount }: ObjectTypeListRowPr
       secondaryLabel={SECONDARY_LABEL[row.kind] ?? row.kind}
       metaPrimary={t('object_types.row_groups_count', {
         defaultValue: '{{count}} grup atrybutów',
-        count: row.schemaVersion ?? 3,
+        count: groupCount ?? 0,
       })}
       metaSecondary={
         <span>
@@ -227,27 +209,12 @@ function ObjectTypeListRow({ row, language, instanceCount }: ObjectTypeListRowPr
   );
 }
 
-function defaultAccent(kind: string): string {
-  switch (kind) {
-    case 'product':
-      return '#3b82f6';
-    case 'category':
-      return '#10b981';
-    case 'asset':
-      return '#a855f7';
-    case 'brand':
-      return '#f59e0b';
-    default:
-      return '#71717a';
-  }
-}
-
 function useObjectTypeInstanceCounts(types: ObjectTypeRow[]): Record<string, number> {
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const next: Record<string, number> = {};
       await Promise.all(
         types.map(async (row) => {
@@ -259,6 +226,37 @@ function useObjectTypeInstanceCounts(types: ObjectTypeRow[]): Record<string, num
             next[row.id] = usage.instanceCount;
           } catch {
             // tolerate 404 / network — leave row's count blank.
+          }
+        }),
+      );
+      if (!cancelled) setCounts(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [types]);
+
+  return counts;
+}
+
+function useObjectTypeGroupCounts(types: ObjectTypeRow[]): Record<string, number> {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const next: Record<string, number> = {};
+      await Promise.all(
+        types.map(async (row) => {
+          try {
+            const groups = await jsonFetch<unknown[]>(
+              `/api/object_types/${row.id}/attached_groups`,
+              { accept: 'application/json' },
+            );
+            next[row.id] = Array.isArray(groups) ? groups.length : 0;
+          } catch {
+            // tolerate failure — fall back to "0 grup" rather than dash.
+            next[row.id] = 0;
           }
         }),
       );

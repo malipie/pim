@@ -68,6 +68,26 @@ class ObjectType implements TenantScoped
     private ?Attribute $labelAttribute = null;
     private ?Attribute $imageAttribute = null;
 
+    /**
+     * Configurable behavior toggles surfaced in the modeling UI per VIEW-01
+     * (#372). Default `false`; built-in seeders set `hasVariants` for product
+     * and `hierarchical` for category. Built-in rows have these fields locked
+     * by the voter, custom rows expose them in the Settings card.
+     */
+    private bool $hierarchical = false;
+    private bool $hasVariants = false;
+    private bool $abstract = false;
+
+    /**
+     * UUID list of ObjectTypes allowed as parent. Plain JSONB list (not a
+     * junction) — N stays small (≤ 5 typical), and the only consumer is the
+     * detail view's Allowed parent types chip strip. A junction would cost
+     * us a roundtrip per detail page load for no gain at this cardinality.
+     *
+     * @var list<string>
+     */
+    private array $allowedParentTypeIds = [];
+
     private int $schemaVersion = 1;
     private DateTimeImmutable $createdAt;
     private DateTimeImmutable $updatedAt;
@@ -242,6 +262,67 @@ class ObjectType implements TenantScoped
     public function assignImageAttribute(?Attribute $attribute): void
     {
         $this->imageAttribute = $attribute;
+        $this->touch();
+    }
+
+    public function isHierarchical(): bool
+    {
+        return $this->hierarchical;
+    }
+
+    public function setHierarchical(bool $value): void
+    {
+        $this->hierarchical = $value;
+        $this->touch();
+    }
+
+    public function hasVariants(): bool
+    {
+        return $this->hasVariants;
+    }
+
+    /**
+     * Symfony PropertyAccess accessor alias — `hasVariants()` reads naturally
+     * in domain code but PropertyAccessor expects `getHasVariants()` /
+     * `isHasVariants()` to expose it as the `hasVariants` property in the
+     * normalized output.
+     */
+    public function getHasVariants(): bool
+    {
+        return $this->hasVariants;
+    }
+
+    public function setHasVariants(bool $value): void
+    {
+        $this->hasVariants = $value;
+        $this->touch();
+    }
+
+    public function isAbstract(): bool
+    {
+        return $this->abstract;
+    }
+
+    public function setAbstract(bool $value): void
+    {
+        $this->abstract = $value;
+        $this->touch();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getAllowedParentTypeIds(): array
+    {
+        return $this->allowedParentTypeIds;
+    }
+
+    /**
+     * @param list<string> $ids
+     */
+    public function setAllowedParentTypeIds(array $ids): void
+    {
+        $this->allowedParentTypeIds = array_values(array_unique($ids));
         $this->touch();
     }
 

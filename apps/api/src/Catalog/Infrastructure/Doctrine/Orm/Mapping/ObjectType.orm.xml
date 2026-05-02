@@ -14,6 +14,7 @@
 
         <indexes>
             <index name="object_types_tenant_kind_idx" columns="tenant_id,kind"/>
+            <index name="idx_object_types_built_in" columns="tenant_id,is_built_in"/>
         </indexes>
 
         <id name="id" type="uuid" column="id">
@@ -52,6 +53,27 @@
             <options>
                 <option name="jsonb">true</option>
                 <option name="default">{}</option>
+            </options>
+        </field>
+        <field name="hierarchical" type="boolean">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+        <field name="hasVariants" type="boolean" column="has_variants">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+        <field name="abstract" type="boolean">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+        <field name="allowedParentTypeIds" type="json" column="allowed_parent_type_ids">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">[]</option>
             </options>
         </field>
 

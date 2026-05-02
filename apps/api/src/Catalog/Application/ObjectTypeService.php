@@ -9,14 +9,18 @@ use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\Exception\BuiltInObjectTypeException;
 use App\Catalog\Domain\Exception\DisabledFeatureException;
+use App\Catalog\Domain\Exception\ObjectTypeCodeConflictException;
+use App\Catalog\Domain\Exception\ObjectTypeHasInstancesException;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Application service that owns ObjectType lifecycle invariants.
  *
- * Two guards live here, deliberately at service-level rather than schema:
+ * Three guards live here, deliberately at service-level rather than schema:
  *
  *   1. **Custom kinds gated by feature flag.** The
  *      `pim.catalog.enable_custom_object_types` parameter (default false in
@@ -30,6 +34,10 @@ use Doctrine\ORM\EntityManagerInterface;
  *      this is the only barrier between an admin and accidental tenant
  *      catalog destruction.
  *
+ *   3. **Custom delete with live instances refused** (VIEW-01 #372).
+ *      The Danger zone in modeling UI guards this client-side; the API
+ *      enforces the same invariant authoritatively via DBAL count.
+ *
  * Junction lifecycle (`assignAttribute`, `unassignAttribute`) lives here
  * too so callers do not poke at `ObjectTypeAttribute` directly.
  */
@@ -38,6 +46,7 @@ final readonly class ObjectTypeService
     public function __construct(
         private EntityManagerInterface $em,
         private ObjectTypeAttributeRepositoryInterface $junctions,
+        private Connection $connection,
         private bool $enableCustomObjectTypes,
     ) {
     }
@@ -50,6 +59,11 @@ final readonly class ObjectTypeService
         ObjectKind $kind,
         array $label,
         bool $builtIn = false,
+        ?string $icon = null,
+        ?string $color = null,
+        bool $hierarchical = false,
+        bool $hasVariants = false,
+        bool $abstract = false,
     ): ObjectType {
         if (ObjectKind::Custom === $kind && !$this->enableCustomObjectTypes) {
             throw DisabledFeatureException::customObjectTypesDisabled();
@@ -59,8 +73,101 @@ final readonly class ObjectTypeService
         if ($builtIn) {
             $objectType->markBuiltIn();
         }
+        if (null !== $icon) {
+            $objectType->setIcon($icon);
+        }
+        if (null !== $color) {
+            $objectType->setColor($color);
+        }
+        if ($hierarchical) {
+            $objectType->setHierarchical(true);
+        }
+        if ($hasVariants) {
+            $objectType->setHasVariants(true);
+        }
+        if ($abstract) {
+            $objectType->setAbstract(true);
+        }
 
         $this->em->persist($objectType);
+        try {
+            $this->em->flush();
+        } catch (UniqueConstraintViolationException $e) {
+            throw new ObjectTypeCodeConflictException($code);
+        }
+
+        return $objectType;
+    }
+
+    /**
+     * VIEW-01 (#372) — partial update over the modeling Detail view.
+     *
+     * Built-in rows can only mutate `label`, `icon`, `color`. All other
+     * fields throw `BuiltInObjectTypeException::fieldLocked()` so a client
+     * crafting a payload directly cannot bypass the FE's locked toggles.
+     *
+     * Pass `null` for fields that should not change. Pass an explicit value
+     * (including empty list / map) to overwrite. The signature uses named
+     * arguments so callers don't need to position-track the optionals.
+     *
+     * @param array<string, string>|null $label
+     * @param list<string>|null          $allowedParentTypeIds
+     * @param array<string, mixed>|null  $completenessRules
+     */
+    public function update(
+        ObjectType $objectType,
+        ?array $label = null,
+        ?string $icon = null,
+        ?string $color = null,
+        ?bool $hierarchical = null,
+        ?bool $hasVariants = null,
+        ?bool $abstract = null,
+        ?array $allowedParentTypeIds = null,
+        ?array $completenessRules = null,
+    ): ObjectType {
+        $isBuiltIn = $objectType->isBuiltIn();
+
+        if (null !== $label) {
+            $objectType->rename($label);
+        }
+        if (null !== $icon) {
+            $objectType->setIcon($icon);
+        }
+        if (null !== $color) {
+            $objectType->setColor($color);
+        }
+
+        if (null !== $hierarchical) {
+            if ($isBuiltIn && $objectType->isHierarchical() !== $hierarchical) {
+                throw BuiltInObjectTypeException::fieldLocked($objectType, 'hierarchical');
+            }
+            $objectType->setHierarchical($hierarchical);
+        }
+        if (null !== $hasVariants) {
+            if ($isBuiltIn && $objectType->hasVariants() !== $hasVariants) {
+                throw BuiltInObjectTypeException::fieldLocked($objectType, 'hasVariants');
+            }
+            $objectType->setHasVariants($hasVariants);
+        }
+        if (null !== $abstract) {
+            if ($isBuiltIn && $objectType->isAbstract() !== $abstract) {
+                throw BuiltInObjectTypeException::fieldLocked($objectType, 'abstract');
+            }
+            $objectType->setAbstract($abstract);
+        }
+        if (null !== $allowedParentTypeIds) {
+            if ($isBuiltIn && $objectType->getAllowedParentTypeIds() !== $allowedParentTypeIds) {
+                throw BuiltInObjectTypeException::fieldLocked($objectType, 'allowedParentTypeIds');
+            }
+            $objectType->setAllowedParentTypeIds($allowedParentTypeIds);
+        }
+        if (null !== $completenessRules) {
+            if ($isBuiltIn && $objectType->getCompletenessRules() !== $completenessRules) {
+                throw BuiltInObjectTypeException::fieldLocked($objectType, 'completenessRules');
+            }
+            $objectType->updateCompletenessRules($completenessRules);
+        }
+
         $this->em->flush();
 
         return $objectType;
@@ -72,8 +179,56 @@ final readonly class ObjectTypeService
             throw BuiltInObjectTypeException::cannotDelete($objectType);
         }
 
+        $instanceCount = $this->countInstances($objectType);
+        if ($instanceCount > 0) {
+            throw new ObjectTypeHasInstancesException($objectType, $instanceCount);
+        }
+
         $this->em->remove($objectType);
         $this->em->flush();
+    }
+
+    /**
+     * VIEW-01 (#372) — clone an existing ObjectType into a new custom row,
+     * copying icon/color/settings + attached AttributeGroup junctions but
+     * starting with a fresh schema_version=1 and an empty `objects` set.
+     *
+     * Built-in source allowed (e.g. clone product → new "Product Pro").
+     * Result is always custom (`kind=Custom`) regardless of source kind.
+     * Caller (controller) supplies a unique code + label for the new row.
+     *
+     * @param array<string, string> $newLabel
+     */
+    public function duplicate(
+        ObjectType $source,
+        string $newCode,
+        array $newLabel,
+    ): ObjectType {
+        if (!$this->enableCustomObjectTypes) {
+            throw DisabledFeatureException::customObjectTypesDisabled();
+        }
+
+        $clone = new ObjectType($newCode, ObjectKind::Custom, $newLabel);
+        if (null !== $source->getIcon()) {
+            $clone->setIcon($source->getIcon());
+        }
+        if (null !== $source->getColor()) {
+            $clone->setColor($source->getColor());
+        }
+        $clone->setHierarchical($source->isHierarchical());
+        $clone->setHasVariants($source->hasVariants());
+        $clone->setAbstract($source->isAbstract());
+        $clone->setAllowedParentTypeIds($source->getAllowedParentTypeIds());
+        $clone->updateCompletenessRules($source->getCompletenessRules());
+
+        $this->em->persist($clone);
+        try {
+            $this->em->flush();
+        } catch (UniqueConstraintViolationException $e) {
+            throw new ObjectTypeCodeConflictException($newCode);
+        }
+
+        return $clone;
     }
 
     /**
@@ -110,5 +265,21 @@ final readonly class ObjectTypeService
 
         $this->em->remove($junction);
         $this->em->flush();
+    }
+
+    /**
+     * Cheap DBAL count for the delete guard. Avoids hydrating the full
+     * objects collection — VIEW-01 detail view uses UsageQueryService for
+     * the same number, but the cache TTL there means a stale read could
+     * let a delete slip through; we re-check at write time.
+     */
+    private function countInstances(ObjectType $objectType): int
+    {
+        $raw = $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM objects WHERE object_type_id = ?',
+            [$objectType->getId()->toRfc4122()],
+        );
+
+        return \is_scalar($raw) ? (int) $raw : 0;
     }
 }

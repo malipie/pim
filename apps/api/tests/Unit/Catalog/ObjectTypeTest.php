@@ -104,4 +104,35 @@ final class ObjectTypeTest extends TestCase
         $this->expectExceptionMessage('already assigned');
         $type->assignTenant($second);
     }
+
+    #[Test]
+    public function settingsTogglesDefaultToFalse(): void
+    {
+        $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
+
+        self::assertFalse($type->isHierarchical());
+        self::assertFalse($type->hasVariants());
+        self::assertFalse($type->getHasVariants());
+        self::assertFalse($type->isAbstract());
+        self::assertSame([], $type->getAllowedParentTypeIds());
+    }
+
+    #[Test]
+    public function settingsTogglesAreMutable(): void
+    {
+        $type = new ObjectType('subscription', ObjectKind::Custom, ['pl' => 'Subskrypcja']);
+
+        $type->setHierarchical(true);
+        $type->setHasVariants(true);
+        $type->setAbstract(true);
+        $type->setAllowedParentTypeIds(['11111111-1111-7111-8111-111111111111', '11111111-1111-7111-8111-111111111111', '22222222-2222-7222-8222-222222222222']);
+
+        self::assertTrue($type->isHierarchical());
+        self::assertTrue($type->hasVariants());
+        self::assertTrue($type->isAbstract());
+        self::assertSame(
+            ['11111111-1111-7111-8111-111111111111', '22222222-2222-7222-8222-222222222222'],
+            $type->getAllowedParentTypeIds(),
+        );
+    }
 }

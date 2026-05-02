@@ -23,4 +23,13 @@ final class BuiltInObjectTypeException extends RuntimeException
             $objectType->getKind()->value,
         ));
     }
+
+    public static function fieldLocked(ObjectType $objectType, string $field): self
+    {
+        return new self(\sprintf(
+            'ObjectType "%s" is built-in; field "%s" cannot be edited (only icon, color and label are mutable).',
+            $objectType->getCode(),
+            $field,
+        ));
+    }
 }

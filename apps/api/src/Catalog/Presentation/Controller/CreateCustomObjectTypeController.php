@@ -6,6 +6,7 @@ namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Application\ObjectTypeService;
 use App\Catalog\Domain\Exception\DisabledFeatureException;
+use App\Catalog\Domain\Exception\ObjectTypeCodeConflictException;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
@@ -91,15 +92,31 @@ final class CreateCustomObjectTypeController
             throw new ConflictHttpException(\sprintf('ObjectType with code "%s" already exists.', $code));
         }
 
+        // VIEW-01 (#372) — wizard sends icon / color / hierarchical /
+        // hasVariants / abstract together with the basic identity. All
+        // optional; defaults match the entity defaults.
+        $icon = $this->stringOrNull($body['icon'] ?? null);
+        $color = $this->stringOrNull($body['color'] ?? null);
+        $hierarchical = (bool) ($body['hierarchical'] ?? false);
+        $hasVariants = (bool) ($body['hasVariants'] ?? false);
+        $abstract = (bool) ($body['abstract'] ?? false);
+
         try {
             $objectType = $this->service->create(
                 code: $code,
                 kind: ObjectKind::Custom,
                 label: $label,
                 builtIn: false,
+                icon: $icon,
+                color: $color,
+                hierarchical: $hierarchical,
+                hasVariants: $hasVariants,
+                abstract: $abstract,
             );
         } catch (DisabledFeatureException $e) {
             throw new HttpException(Response::HTTP_FORBIDDEN, $e->getMessage(), $e);
+        } catch (ObjectTypeCodeConflictException $e) {
+            throw new ConflictHttpException($e->getMessage(), $e);
         } catch (Throwable $e) {
             throw new HttpException(Response::HTTP_UNPROCESSABLE_ENTITY, $e->getMessage(), $e);
         }
@@ -110,6 +127,23 @@ final class CreateCustomObjectTypeController
             'kind' => $objectType->getKind()->value,
             'label' => $objectType->getLabel(),
             'builtIn' => $objectType->isBuiltIn(),
+            'icon' => $objectType->getIcon(),
+            'color' => $objectType->getColor(),
+            'hierarchical' => $objectType->isHierarchical(),
+            'hasVariants' => $objectType->hasVariants(),
+            'abstract' => $objectType->isAbstract(),
+            'allowedParentTypeIds' => $objectType->getAllowedParentTypeIds(),
+            'schemaVersion' => $objectType->getSchemaVersion(),
         ], Response::HTTP_CREATED);
+    }
+
+    private function stringOrNull(mixed $value): ?string
+    {
+        if (!\is_string($value)) {
+            return null;
+        }
+        $trimmed = trim($value);
+
+        return '' === $trimmed ? null : $trimmed;
     }
 }

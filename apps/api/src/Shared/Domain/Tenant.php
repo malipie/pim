@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Shared\Domain;
 
+use App\Shared\Domain\Exception\CannotDisablePrimaryLocaleException;
+use App\Shared\Domain\Exception\InvalidLocaleException;
+use App\Shared\Domain\Exception\LocaleNotEnabledException;
 use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
@@ -30,6 +33,19 @@ class Tenant
     private ?string $domain;
     private string $plan;
     private DateTimeImmutable $createdAt;
+
+    /**
+     * Per-workspace list of enabled locales — drives the LocaleTabsField in
+     * the modeling UI (VIEW-01) and any future multilingual surface. Default
+     * `['pl', 'en']` matches the seeded demo workspace and the schema column
+     * default. The CHECK constraint on `tenants` guarantees `primaryLocale`
+     * is always in this list.
+     *
+     * @var list<string>
+     */
+    private array $enabledLocales = ['pl', 'en'];
+
+    private string $primaryLocale = 'pl';
 
     public function __construct(
         string $code,
@@ -89,5 +105,63 @@ class Tenant
     public function changePlan(string $plan): void
     {
         $this->plan = $plan;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getEnabledLocales(): array
+    {
+        return $this->enabledLocales;
+    }
+
+    public function getPrimaryLocale(): string
+    {
+        return $this->primaryLocale;
+    }
+
+    public function isLocaleEnabled(string $locale): bool
+    {
+        return \in_array($locale, $this->enabledLocales, true);
+    }
+
+    /**
+     * Adds a locale to the enabled set. Idempotent — a duplicate add is a
+     * no-op so the FE LocaleAddDialog can fire-and-forget without checking
+     * server state first. Validates against `LocaleLibrary::CODES` to keep
+     * the column from collecting typos.
+     */
+    public function enableLocale(string $locale): void
+    {
+        if (!LocaleLibrary::isSupported($locale)) {
+            throw new InvalidLocaleException($locale);
+        }
+        if ($this->isLocaleEnabled($locale)) {
+            return;
+        }
+        $this->enabledLocales[] = $locale;
+    }
+
+    /**
+     * Removes a locale from the enabled set. Refuses to remove the primary —
+     * the operator must change the primary first. Idempotent on already-disabled.
+     */
+    public function disableLocale(string $locale): void
+    {
+        if ($locale === $this->primaryLocale) {
+            throw new CannotDisablePrimaryLocaleException($locale);
+        }
+        $this->enabledLocales = array_values(array_filter(
+            $this->enabledLocales,
+            static fn (string $l): bool => $l !== $locale,
+        ));
+    }
+
+    public function changePrimaryLocale(string $locale): void
+    {
+        if (!$this->isLocaleEnabled($locale)) {
+            throw new LocaleNotEnabledException($locale);
+        }
+        $this->primaryLocale = $locale;
     }
 }

@@ -27,6 +27,18 @@
         </field>
         <field name="createdAt" type="datetime_immutable" column="created_at"/>
 
+        <field name="enabledLocales" type="json" column="enabled_locales">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">["pl","en"]</option>
+            </options>
+        </field>
+        <field name="primaryLocale" type="string" length="8" column="primary_locale">
+            <options>
+                <option name="default">pl</option>
+            </options>
+        </field>
+
     </entity>
 
 </doctrine-mapping>
