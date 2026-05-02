@@ -1,5 +1,15 @@
 # Current Status
 
+## 2026-05-02 (cd. II): VIEW-03 view-first ticket rozpisany — Modelowanie · Attribute Groups
+
+**Issue #375** (VIEW-03) — pixel-perfect rebuild Modelowanie · Attribute Groups (lista + create `/new` + detail edit-in-place + 2 popupy: „Z biblioteki" multi-select i „Stwórz nowy" skrócony attribute create). Branch `feat/view-03-modelowanie-attribute-groups` (od main, niezależny od VIEW-02 #374).
+
+Source of truth: `Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-03-modelowanie-attribute-groups.md`.
+
+Status: **ticket rozpisany, implementacja czeka.** Operator chce zrobić VIEW-02 i VIEW-03 po kolei (oba rozpisane, implementacja sekwencyjnie). Rekomendowany flow: VIEW-02 first (reuse `<ColorSwatchPicker>`/`<TypeBadge>`/`<AttributeTypeGrid>`), potem VIEW-03.
+
+Estymacja VIEW-03: ~32h (BE 10h + FE 16h + E2E 4h + quality 2h).
+
 ## 2026-05-02 (cd.): VIEW-02 view-first ticket — Modelowanie · Attributes Library
 
 **Status**: 📋 PLANNED — ticket rozpisany, GitHub Issue otwarte, czeka na sygnał operatora „lecimy z implementacją".
