@@ -147,7 +147,7 @@ function App() {
             <Route path="/api-profiles/:id/edit" element={<ApiProfileEditPage />} />
             <Route path="/api-profiles/:id" element={<ApiProfileShowPage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/products" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Refine>
     </BrowserRouter>

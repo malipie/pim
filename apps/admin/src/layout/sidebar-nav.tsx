@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   type LucideIcon,
   Package,
+  Plus,
   Settings2,
   Share2,
   Workflow,
@@ -13,7 +14,10 @@ import {
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
 
+import { MockBadge } from '@/components/ui/mock-badge';
 import { cn } from '@/lib/utils';
+
+import { UserMenu } from './user-menu';
 
 interface NavLeaf {
   to?: string;
@@ -52,9 +56,10 @@ interface SidebarNavProps {
 
 const leafLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
-    'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+    'group relative flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
     isActive
-      ? 'bg-secondary text-secondary-foreground'
+      ? // violet accent border-left + soft accent background per UI-03b handoff
+        'bg-accent-violet/10 text-foreground before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-r before:bg-accent-violet'
       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
   );
 
@@ -65,6 +70,11 @@ const disabledLeafClass = cn(
 
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const { t } = useTranslation();
+
+  // Liczba aktywnych modułów = wszystkie wired nav items (wszystkie sekcje, bez comingSoon).
+  const activeModulesCount = NAV_SECTIONS.flatMap((section) => section.items).filter(
+    (item) => !item.comingSoon,
+  ).length;
 
   const renderLeaf = (item: NavLeaf, key: string) => {
     if (item.comingSoon || !item.to) {
@@ -90,10 +100,14 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
   return (
     <>
       <div className="flex h-14 items-center gap-2 border-b px-4">
-        <Boxes className="size-5 text-primary" />
+        <Boxes className="size-5 text-accent-violet" />
         <span className="font-semibold tracking-tight">{t('app.title')}</span>
       </div>
-      <nav className="flex flex-1 flex-col gap-1 p-3">
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+        {/* Workspace label per UI-03b handoff — separates "where I am" from "what's available". */}
+        <div className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {t('nav.workspace_label', { defaultValue: 'Workspace' })}
+        </div>
         {NAV_SECTIONS.map((section, sectionIndex) => (
           <div
             key={section.id}
@@ -105,7 +119,30 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
             {section.items.map((item) => renderLeaf(item, item.to ?? item.label))}
           </div>
         ))}
+        {/* "+ Dodaj własny moduł" — placeholder dopóki ObjectType create flow nie obsłuży nav extension */}
+        <button
+          type="button"
+          disabled
+          className={cn(
+            'mt-2 flex cursor-not-allowed items-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-sm font-medium text-muted-foreground/70',
+          )}
+        >
+          <Plus className="size-4" />
+          <span className="flex-1 text-left">
+            {t('nav.add_custom_module', { defaultValue: '+ Dodaj własny moduł' })}
+          </span>
+          <MockBadge />
+        </button>
       </nav>
+      <div className="border-t p-3">
+        <div className="mb-2 px-1 text-[11px] text-muted-foreground">
+          {t('nav.active_modules_count', {
+            defaultValue: '{{count}} modułów aktywnych',
+            count: activeModulesCount,
+          })}
+        </div>
+        <UserMenu />
+      </div>
     </>
   );
 }
