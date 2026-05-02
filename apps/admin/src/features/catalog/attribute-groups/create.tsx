@@ -3,6 +3,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 
+import { ATTRIBUTE_GROUP_SWATCHES, ColorPicker } from '@/components/modeling/color-picker';
+import { ATTRIBUTE_GROUP_ICONS, IconPicker } from '@/components/modeling/icon-picker';
+import { SettingToggleRow } from '@/components/modeling/setting-toggle-row';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,23 +14,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { HttpError, jsonFetch } from '@/lib/http';
 
 /**
- * UI-08.13 (#268) — minimal create form for AttributeGroup.
+ * VIEW-03 (#375) — pixel-perfect rebuild of the AttributeGroup create
+ * form (`NewAttributeGroupView` in `groups-categories.jsx:482–603`).
  *
- * Hits UI-08.5 backend (`POST /api/attribute_groups`). Form lives at
- * `/modeling/attribute-groups/new` (route, not Sheet drawer) for the
- * same reason MigrateAttributeTypePage does — destructive workflow +
- * deep-linkable + no Radix Dialog primitive yet.
+ * Upgrades over the UI-08.13 minimal form (#268):
+ *   - 8-swatch ColorPicker preset (was: free-text hex input).
+ *   - 14-emoji IconPicker preset (was: free-text Lucide name).
+ *   - 3 behavior toggles (Wymagana sekcja / Współdzielona /
+ *     Conditional visibility) backed by VIEW-03 schema additions.
+ *   - Sidebar Preview + Następnie cards still deferred to follow-up
+ *     (full-width form is the MVP; sidebar polish in VIEW-03b).
  *
- * Fields covered:
- *   - code (lowercase + dash + underscore + digits, immutable post-create)
- *   - label PL/EN (multi-locale JSONB)
- *   - description PL/EN (optional)
- *   - icon (free-form Lucide name string)
- *   - color (hex)
- *   - position (sort order)
- *
- * No icon/color picker widgets in MVP — operator types Lucide name +
- * hex; Phase 2 ships visual pickers.
+ * Posts to `POST /api/attribute_groups` (UI-08.5 #260 + VIEW-03 #382
+ * extension for the 3 boolean flags).
  */
 
 interface CreatePayload {
@@ -39,6 +38,9 @@ interface CreatePayload {
   icon: string;
   color: string;
   position: number;
+  requiredSection: boolean;
+  shared: boolean;
+  conditionalVisibility: boolean;
 }
 
 const EMPTY: CreatePayload = {
@@ -47,9 +49,12 @@ const EMPTY: CreatePayload = {
   labelPl: '',
   descriptionEn: '',
   descriptionPl: '',
-  icon: '',
-  color: '',
+  icon: ATTRIBUTE_GROUP_ICONS[0],
+  color: ATTRIBUTE_GROUP_SWATCHES[0],
   position: 0,
+  requiredSection: false,
+  shared: true,
+  conditionalVisibility: false,
 };
 
 export function AttributeGroupCreatePage() {
@@ -68,6 +73,9 @@ export function AttributeGroupCreatePage() {
         code: values.code,
         label: stripEmpty({ pl: values.labelPl, en: values.labelEn }),
         position: values.position,
+        requiredSection: values.requiredSection,
+        shared: values.shared,
+        conditionalVisibility: values.conditionalVisibility,
       };
       const description = stripEmpty({ pl: values.descriptionPl, en: values.descriptionEn });
       if (Object.keys(description).length > 0) body.description = description;
@@ -160,35 +168,76 @@ export function AttributeGroupCreatePage() {
                 />
               </FormRow>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <FormRow id="icon" label={t('modeling.attribute_groups.icon')}>
-                <Input
-                  id="icon"
-                  value={values.icon}
-                  onChange={(e) => setValues({ ...values, icon: e.target.value })}
-                  placeholder="Megaphone"
-                />
-              </FormRow>
-              <FormRow id="color" label={t('modeling.attribute_groups.color')}>
-                <Input
-                  id="color"
-                  value={values.color}
-                  onChange={(e) => setValues({ ...values, color: e.target.value })}
-                  placeholder="#EC4899"
-                />
-              </FormRow>
-              <FormRow id="position" label={t('attribute_groups.fields.position')}>
-                <Input
-                  id="position"
-                  type="number"
-                  min={0}
-                  value={values.position}
-                  onChange={(e) =>
-                    setValues({ ...values, position: Number.parseInt(e.target.value, 10) || 0 })
-                  }
-                />
-              </FormRow>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-6 pt-6">
+            <div className="space-y-3">
+              <Label>{t('modeling.attribute_groups.color')}</Label>
+              <ColorPicker
+                selected={values.color}
+                onSelect={(hex) => setValues({ ...values, color: hex })}
+                options={ATTRIBUTE_GROUP_SWATCHES}
+              />
             </div>
+            <div className="space-y-3">
+              <Label>{t('modeling.attribute_groups.icon')}</Label>
+              <IconPicker
+                selected={values.icon}
+                onSelect={(icon) => setValues({ ...values, icon })}
+                options={ATTRIBUTE_GROUP_ICONS}
+              />
+            </div>
+            <FormRow id="position" label={t('attribute_groups.fields.position')}>
+              <Input
+                id="position"
+                type="number"
+                min={0}
+                value={values.position}
+                onChange={(e) =>
+                  setValues({ ...values, position: Number.parseInt(e.target.value, 10) || 0 })
+                }
+              />
+            </FormRow>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-4 pt-6">
+            <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+              {t('modeling.attribute_groups.behavior_title', { defaultValue: 'Zachowanie' })}
+            </div>
+            <SettingToggleRow
+              label={t('modeling.attribute_groups.behavior_required_label', {
+                defaultValue: 'Wymagana sekcja',
+              })}
+              description={t('modeling.attribute_groups.behavior_required_desc', {
+                defaultValue: 'Grupa zawsze widoczna w formularzu',
+              })}
+              checked={values.requiredSection}
+              onChange={(next) => setValues({ ...values, requiredSection: next })}
+            />
+            <SettingToggleRow
+              label={t('modeling.attribute_groups.behavior_shared_label', {
+                defaultValue: 'Współdzielona',
+              })}
+              description={t('modeling.attribute_groups.behavior_shared_desc', {
+                defaultValue: 'Może być dołączona do wielu ObjectType',
+              })}
+              checked={values.shared}
+              onChange={(next) => setValues({ ...values, shared: next })}
+            />
+            <SettingToggleRow
+              label={t('modeling.attribute_groups.behavior_conditional_label', {
+                defaultValue: 'Conditional visibility',
+              })}
+              description={t('modeling.attribute_groups.behavior_conditional_desc', {
+                defaultValue: 'Pokaż grupę warunkowo (visible_when)',
+              })}
+              checked={values.conditionalVisibility}
+              onChange={(next) => setValues({ ...values, conditionalVisibility: next })}
+            />
           </CardContent>
         </Card>
 

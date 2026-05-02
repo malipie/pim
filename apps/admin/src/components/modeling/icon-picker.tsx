@@ -51,3 +51,25 @@ export function IconPicker({ selected, onSelect, options = DEFAULT_ICONS }: Icon
 }
 
 export const DEFAULT_WIZARD_ICONS = DEFAULT_ICONS;
+
+/**
+ * VIEW-03 (#375) — 14-icon palette from `NewAttributeGroupView`
+ * (`groups-categories.jsx:489`). Used by the AttributeGroup create
+ * form `Wygląd` section.
+ */
+export const ATTRIBUTE_GROUP_ICONS = [
+  '📦',
+  '📐',
+  '🔧',
+  '⚙️',
+  '🛡️',
+  '💧',
+  '🌡️',
+  '🏗️',
+  '📋',
+  '🎨',
+  '🔌',
+  '📡',
+  '🪛',
+  '🧰',
+] as const;

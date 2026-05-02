@@ -12,6 +12,40 @@ const DEFAULT_COLORS = [
   '#14b8a6',
 ] as const;
 
+/**
+ * VIEW-03 (#375) — 8-swatch palette from `NewAttributeGroupView`
+ * (`groups-categories.jsx:488`). Used by the AttributeGroup create
+ * form `Wygląd` section.
+ */
+export const ATTRIBUTE_GROUP_SWATCHES = [
+  '#71717a',
+  '#3b82f6',
+  '#8b5cf6',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#06b6d4',
+  '#ec4899',
+] as const;
+
+/**
+ * VIEW-02 (#374) — 10-swatch palette from `attribute-values.jsx:4–7`.
+ * Used by the AttributeOption Allowed Values editor (color dot
+ * displayed next to every option label).
+ */
+export const ATTRIBUTE_OPTION_SWATCHES = [
+  '#71717a',
+  '#3b82f6',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#a855f7',
+  '#ec4899',
+  '#14b8a6',
+  '#f97316',
+  '#06b6d4',
+] as const;
+
 interface ColorPickerProps {
   selected: string;
   onSelect: (hex: string) => void;
