@@ -1,5 +1,26 @@
 # Current Status
 
+## 2026-05-02 (cd.): VIEW-02 view-first ticket — Modelowanie · Attributes Library
+
+**Status**: 📋 PLANNED — ticket rozpisany, GitHub Issue otwarte, czeka na sygnał operatora „lecimy z implementacją".
+
+**Trigger**: operator dostarczył 2 mockupy (`Zrodla/Front_Claude_Design/design_handoff_modelowanie/src/modeling/attributes.jsx` + `attribute-values.jsx`) i poprosił o rozpisanie ticketu przez SKILL-VIEW-FIRST-TICKET. Plan-mode + 3 Explore agentów (FE/BE/handoff) + AskUserQuestion (3 pytania scope: Edit form / Migration modal / Fixtures) → 3 decyzje operatora → ExitPlanMode → ticket file + Issue.
+
+**Issue #374** — VIEW-02 — pixel-perfect biblioteka atrybutów: lista + detail edit-in-place + create form + values editor (dla typów `select`/`multi-select`).
+
+**Decyzje operatora 2026-05-02**:
+1. **Detail = edit-in-place** (nie osobna trasa `/edit`). Sticky bottom bar `Anuluj | Zapisz zmiany` zamiast „Edytuj" w header. Zgodne z VIEW-01 ObjectTypes show.tsx pattern.
+2. **MigrationImpactModal**: as-is, current `migrate-type.tsx` poza scope → follow-up VIEW-02c.
+3. **Fixtures**: dosypujemy do dokładnie 27 atrybutów wg mockupu + 7 wartości IP rating z kolorami + 5 currency + 5 vat_rate + 4 tags. Pixel-perfect screen ≡ prod.
+
+**Estymacja**: ~48h (BE 16h + FE 24h + testy 6h + PR/CI 2h).
+
+**Source of truth**: [`Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-02-modelowanie-attributes.md`](../Project%20Plan/UI/Wdrozenie_grafiki/ticket-VIEW-02-modelowanie-attributes.md).
+
+**Branch**: `feat/view-02-modelowanie-attributes` (czeka na implementację).
+
+**Następny krok**: operator zatwierdza scope → agent leci marathon (BE-first → FE → quality gates → PR → CI → merge → smoke).
+
 ## 2026-05-02: VIEW-01 view-first marathon — Modelowanie · Object Types
 
 **Nowa metodyka view-first** (operator-feedback 2026-05-02): operator dostarcza widok → agent rozpisuje jeden ticket FE+BE+testy → smoke + manual operatora. Pełen szablon w `feedback_view_first_ticket_template.md` (memory). Konstytucja: `feedback_view_first_workflow.md`.
