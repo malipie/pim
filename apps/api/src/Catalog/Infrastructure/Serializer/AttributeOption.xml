@@ -4,7 +4,18 @@
             xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
                                 https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
 
-    <class name="App\Catalog\Domain\Entity\AttributeGroup">
+    <!--
+      VIEW-02 (#374) — exposes the AttributeOption fields needed by the
+      Allowed Values editor (`/modeling/attributes/{code}/values`):
+        - color (hex swatch),
+        - default (one option per attribute),
+        - deprecated (hide in new forms, keep history).
+
+      Used as the response shape for the upcoming
+      `GET /api/attributes/{code}/options` endpoint and for nested
+      AttributeOption arrays inside Attribute responses.
+    -->
+    <class name="App\Catalog\Domain\Entity\AttributeOption">
         <attribute name="id">
             <group>admin:read</group>
             <group>integration:read</group>
@@ -12,44 +23,34 @@
         </attribute>
         <attribute name="code">
             <group>admin:read</group>
+            <group>admin:write</group>
             <group>integration:read</group>
             <group>public:read</group>
         </attribute>
         <attribute name="label">
             <group>admin:read</group>
+            <group>admin:write</group>
             <group>integration:read</group>
             <group>public:read</group>
         </attribute>
-        <attribute name="description">
+        <attribute name="position">
             <group>admin:read</group>
-            <group>integration:read</group>
-        </attribute>
-        <attribute name="icon">
-            <group>admin:read</group>
+            <group>admin:write</group>
         </attribute>
         <attribute name="color">
             <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
         </attribute>
-        <attribute name="systemGroup">
+        <attribute name="default">
             <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
         </attribute>
-        <attribute name="autoAttached">
+        <attribute name="deprecated">
             <group>admin:read</group>
-        </attribute>
-        <attribute name="requiredSection">
-            <group>admin:read</group>
-        </attribute>
-        <attribute name="shared">
-            <group>admin:read</group>
-        </attribute>
-        <attribute name="conditionalVisibility">
-            <group>admin:read</group>
-        </attribute>
-        <attribute name="position">
-            <group>admin:read</group>
-        </attribute>
-        <attribute name="createdAt">
-            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
         </attribute>
     </class>
 </serializer>

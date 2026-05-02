@@ -4519,6 +4519,15 @@
                     "systemGroup": {
                         "readOnly": true,
                         "type": "boolean"
+                    },
+                    "requiredSection": {
+                        "type": "boolean"
+                    },
+                    "shared": {
+                        "type": "boolean"
+                    },
+                    "conditionalVisibility": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -4682,6 +4691,15 @@
                             },
                             "systemGroup": {
                                 "readOnly": true,
+                                "type": "boolean"
+                            },
+                            "requiredSection": {
+                                "type": "boolean"
+                            },
+                            "shared": {
+                                "type": "boolean"
+                            },
+                            "conditionalVisibility": {
                                 "type": "boolean"
                             }
                         },
