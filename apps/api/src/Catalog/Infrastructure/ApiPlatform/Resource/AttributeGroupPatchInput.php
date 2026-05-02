@@ -46,4 +46,17 @@ final class AttributeGroupPatchInput
     #[Assert\PositiveOrZero]
     #[Groups(['attribute_group:patch'])]
     public ?int $position = null;
+
+    /**
+     * VIEW-03 (#375) — Behavior toggles. Null means "not provided" so the
+     * Update handler skips them; non-null applies the new value.
+     */
+    #[Groups(['attribute_group:patch'])]
+    public ?bool $requiredSection = null;
+
+    #[Groups(['attribute_group:patch'])]
+    public ?bool $shared = null;
+
+    #[Groups(['attribute_group:patch'])]
+    public ?bool $conditionalVisibility = null;
 }

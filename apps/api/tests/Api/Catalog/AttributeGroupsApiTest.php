@@ -165,6 +165,52 @@ final class AttributeGroupsApiTest extends CatalogApiTestCase
         self::assertSame(401, $response->getStatusCode());
     }
 
+    #[Test]
+    public function postPersistsBehaviorFlagsFromInput(): void
+    {
+        $client = $this->authenticatedClient();
+        $response = $client->request('POST', '/api/attribute_groups', [
+            'json' => [
+                'code' => 'wymagania-medyczne',
+                'label' => ['pl' => 'Wymagania medyczne'],
+                'requiredSection' => true,
+                'shared' => false,
+                'conditionalVisibility' => true,
+            ],
+        ]);
+
+        self::assertSame(201, $response->getStatusCode());
+        $payload = $response->toArray();
+        self::assertTrue($payload['requiredSection']);
+        self::assertFalse($payload['shared']);
+        self::assertTrue($payload['conditionalVisibility']);
+    }
+
+    #[Test]
+    public function patchTogglesBehaviorFlags(): void
+    {
+        $client = $this->authenticatedClient();
+        $created = $client->request('POST', '/api/attribute_groups', [
+            'json' => ['code' => 'pricing', 'label' => ['en' => 'Pricing']],
+        ]);
+        $id = self::extractId($created->toArray());
+
+        $patch = $client->request('PATCH', '/api/attribute_groups/'.$id, [
+            'json' => [
+                'requiredSection' => true,
+                'conditionalVisibility' => true,
+            ],
+            'headers' => ['content-type' => 'application/merge-patch+json'],
+        ]);
+
+        self::assertSame(200, $patch->getStatusCode());
+        $payload = $patch->toArray();
+        self::assertTrue($payload['requiredSection']);
+        self::assertTrue($payload['conditionalVisibility']);
+        // shared preserves prior value (default true) since it was not in the patch payload
+        self::assertTrue($payload['shared']);
+    }
+
     /**
      * @param array<int|string, mixed> $payload
      */

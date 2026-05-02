@@ -47,4 +47,27 @@ final class AttributeGroupInput
     #[Assert\PositiveOrZero]
     #[Groups(['attribute_group:create'])]
     public int $position = 0;
+
+    /**
+     * VIEW-03 (#375) — Behavior toggle "Wymagana sekcja". Group is always
+     * rendered in product forms (cannot be skipped/collapsed).
+     */
+    #[Groups(['attribute_group:create'])]
+    public bool $requiredSection = false;
+
+    /**
+     * VIEW-03 (#375) — Behavior toggle "Współdzielona". Group can be
+     * attached to multiple ObjectTypes (default true matches existing
+     * implicit behavior — every group was always shareable).
+     */
+    #[Groups(['attribute_group:create'])]
+    public bool $shared = true;
+
+    /**
+     * VIEW-03 (#375) — Behavior toggle "Conditional visibility". Group
+     * rendering gated by `visible_when` rules per attribute in the
+     * junction table.
+     */
+    #[Groups(['attribute_group:create'])]
+    public bool $conditionalVisibility = false;
 }

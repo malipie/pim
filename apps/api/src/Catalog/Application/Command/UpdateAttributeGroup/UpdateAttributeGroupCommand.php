@@ -22,6 +22,9 @@ final readonly class UpdateAttributeGroupCommand
         public bool $clearIcon = false,
         public bool $clearColor = false,
         public bool $clearDescription = false,
+        public ?bool $requiredSection = null,
+        public ?bool $shared = null,
+        public ?bool $conditionalVisibility = null,
     ) {
     }
 }

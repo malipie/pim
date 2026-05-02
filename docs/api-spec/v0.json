@@ -4581,6 +4581,21 @@
                         "minimum": 0,
                         "default": 0,
                         "type": "integer"
+                    },
+                    "requiredSection": {
+                        "description": "VIEW-03 (#375) \u2014 Behavior toggle \"Wymagana sekcja\". Group is always\nrendered in product forms (cannot be skipped/collapsed).",
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "shared": {
+                        "description": "VIEW-03 (#375) \u2014 Behavior toggle \"Wsp\u00f3\u0142dzielona\". Group can be\nattached to multiple ObjectTypes (default true matches existing\nimplicit behavior \u2014 every group was always shareable).",
+                        "default": true,
+                        "type": "boolean"
+                    },
+                    "conditionalVisibility": {
+                        "description": "VIEW-03 (#375) \u2014 Behavior toggle \"Conditional visibility\". Group\nrendering gated by `visible_when` rules per attribute in the\njunction table.",
+                        "default": false,
+                        "type": "boolean"
                     }
                 }
             },
@@ -4624,6 +4639,25 @@
                         "minimum": 0,
                         "type": [
                             "integer",
+                            "null"
+                        ]
+                    },
+                    "requiredSection": {
+                        "description": "VIEW-03 (#375) \u2014 Behavior toggles. Null means \"not provided\" so the\nUpdate handler skips them; non-null applies the new value.",
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "shared": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "conditionalVisibility": {
+                        "type": [
+                            "boolean",
                             "null"
                         ]
                     }

@@ -47,6 +47,15 @@ final readonly class UpdateAttributeGroupHandler
         } elseif (null !== $command->color) {
             $group->setColor($command->color);
         }
+        if (null !== $command->requiredSection) {
+            $group->setRequiredSection($command->requiredSection);
+        }
+        if (null !== $command->shared) {
+            $group->setShared($command->shared);
+        }
+        if (null !== $command->conditionalVisibility) {
+            $group->setConditionalVisibility($command->conditionalVisibility);
+        }
 
         $this->repository->save($group);
     }

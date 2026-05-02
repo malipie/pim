@@ -17,6 +17,9 @@ final readonly class CreateAttributeGroupCommand
         public ?string $icon = null,
         public ?string $color = null,
         public int $position = 0,
+        public bool $requiredSection = false,
+        public bool $shared = true,
+        public bool $conditionalVisibility = false,
     ) {
     }
 }
