@@ -101,6 +101,11 @@ final readonly class BuiltInSystemAttributesSeeder
                     color: '#64748B',
                     isSystemGroup: true,
                     autoAttached: true,
+                    // VIEW-03 (#375) behavior flags: audit is required + non-shared
+                    // (each ObjectType gets its own auto-attached copy) + non-conditional.
+                    isRequiredSection: true,
+                    isShared: false,
+                    hasConditionalVisibility: false,
                 );
                 $this->em->persist($auditGroup);
                 $this->em->flush();
