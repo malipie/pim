@@ -89,12 +89,14 @@ test('Modeling shell + Dashboard mock — full handoff smoke', async ({ page }) 
   );
 
   // 2. Clicking the Attributes tab updates the URL + active highlight.
-  await page.getByRole('tab', { name: /^attributes$|^atrybuty$/i }).click();
+  // VIEW-01 (#372): TabBadge appends a count to the accessible name once
+  // the useList hook resolves; match a leading "atrybuty"/"attributes"
+  // token anywhere in the name rather than the bare label only.
+  await tablist.getByRole('tab', { name: /(^|\s)(attributes|atrybuty)(\s|$)/i }).click();
   await expect(page).toHaveURL(/\/modeling\/attributes$/);
-  await expect(page.getByRole('tab', { name: /^attributes$|^atrybuty$/i })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
+  await expect(
+    tablist.getByRole('tab', { name: /(^|\s)(attributes|atrybuty)(\s|$)/i }),
+  ).toHaveAttribute('aria-selected', 'true');
 
   // 3. Legacy top-level URL redirects to its /modeling/... twin.
   await page.goto('/object-types');
