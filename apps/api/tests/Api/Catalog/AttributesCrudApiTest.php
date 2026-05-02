@@ -123,7 +123,6 @@ final class AttributesCrudApiTest extends CatalogApiTestCase
 
         self::assertSame(204, $response->getStatusCode());
 
-        /** @var AttributeRepositoryInterface $repo */
         $repo = self::getContainer()->get(AttributeRepositoryInterface::class);
         self::assertNull($repo->findById($id));
     }
@@ -133,7 +132,6 @@ final class AttributesCrudApiTest extends CatalogApiTestCase
     {
         // BuiltInSystemAttributesSeeder seeds `created_at` as a system
         // attribute — picking it up by code ensures we hit the guard.
-        /** @var AttributeRepositoryInterface $repo */
         $repo = self::getContainer()->get(AttributeRepositoryInterface::class);
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
         \assert($tenant instanceof Tenant);
@@ -148,14 +146,12 @@ final class AttributesCrudApiTest extends CatalogApiTestCase
 
     private function seedAttribute(string $code, AttributeType $type): \Symfony\Component\Uid\Uuid
     {
-        /** @var TenantContext $ctx */
         $ctx = self::getContainer()->get(TenantContext::class);
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
         \assert($tenant instanceof Tenant);
         $ctx->set($tenant);
 
         $attribute = new Attribute($code, ['en' => $code], $type);
-        /** @var AttributeRepositoryInterface $repo */
         $repo = self::getContainer()->get(AttributeRepositoryInterface::class);
         $repo->save($attribute);
 
