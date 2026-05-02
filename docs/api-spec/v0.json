@@ -1082,6 +1082,112 @@
                         "explode": true
                     }
                 ]
+            },
+            "post": {
+                "operationId": "api_attributes_post",
+                "tags": [
+                    "Attribute"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Attribute resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Attribute.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Attribute-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a Attribute resource.",
+                "description": "Creates a Attribute resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new Attribute resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Attribute.AttributeInput-attribute.create"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Attribute.AttributeInput-attribute.create"
+                            }
+                        }
+                    },
+                    "required": true
+                }
             }
         },
         "/api/attributes/{id}": {
@@ -1165,6 +1271,210 @@
                         "explode": false
                     }
                 ]
+            },
+            "delete": {
+                "operationId": "api_attributes_id_delete",
+                "tags": [
+                    "Attribute"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Attribute resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the Attribute resource.",
+                "description": "Removes the Attribute resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Attribute identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_attributes_id_patch",
+                "tags": [
+                    "Attribute"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attribute resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Attribute.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Attribute-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the Attribute resource.",
+                "description": "Updates the Attribute resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Attribute identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated Attribute resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Attribute.AttributePatchInput-attribute.patch.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
             }
         },
         "/api/attribute_groups": {
@@ -4353,6 +4663,141 @@
                 "required": [
                     "code"
                 ]
+            },
+            "Attribute.AttributeInput-attribute.create": {
+                "type": "object",
+                "description": "A single tenant-scoped attribute definition.\n\nAttributes describe the shape of `Object` values (per ADR-009 generic\nObjectType model). One attribute can be reused across many ObjectTypes\nvia the `object_type_attributes` junction (added in #32) \u2014 e.g. `name`\non every kind, `seo_title` on `product` + `category`.\n\n`validation_rules` is plain JSONB in #31. The per-type interpreter that\nenforces \"min/max for `number`\", \"max_length for `text`\", etc. lands in\n#39 (0.3.9). Until then it is a structured payload the entity stores\nverbatim \u2014 admins can already configure it; nothing on the server side\ntrips on out-of-range values yet.\n\n`group_id` FK is nullable + ON DELETE SET NULL \u2014 removing an attribute\ngroup leaves its members ungrouped rather than deleting them.",
+                "required": [
+                    "code",
+                    "label",
+                    "type"
+                ],
+                "properties": {
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z][a-z0-9_]{0,63})$",
+                        "default": "",
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "help": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "type": {
+                        "enum": [
+                            "text",
+                            "number",
+                            "select",
+                            "multiselect",
+                            "date",
+                            "boolean",
+                            "asset",
+                            "relation",
+                            "price",
+                            "metric"
+                        ],
+                        "default": "text",
+                        "type": "string"
+                    },
+                    "localizable": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "scopable": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "required": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "validationRules": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "position": {
+                        "minimum": 0,
+                        "default": 0,
+                        "type": "integer"
+                    }
+                }
+            },
+            "Attribute.AttributePatchInput-attribute.patch.jsonMergePatch": {
+                "type": "object",
+                "description": "A single tenant-scoped attribute definition.\n\nAttributes describe the shape of `Object` values (per ADR-009 generic\nObjectType model). One attribute can be reused across many ObjectTypes\nvia the `object_type_attributes` junction (added in #32) \u2014 e.g. `name`\non every kind, `seo_title` on `product` + `category`.\n\n`validation_rules` is plain JSONB in #31. The per-type interpreter that\nenforces \"min/max for `number`\", \"max_length for `text`\", etc. lands in\n#39 (0.3.9). Until then it is a structured payload the entity stores\nverbatim \u2014 admins can already configure it; nothing on the server side\ntrips on out-of-range values yet.\n\n`group_id` FK is nullable + ON DELETE SET NULL \u2014 removing an attribute\ngroup leaves its members ungrouped rather than deleting them.",
+                "properties": {
+                    "label": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "help": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "localizable": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "scopable": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "required": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "validationRules": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "position": {
+                        "minimum": 0,
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
             },
             "Attribute.jsonld-admin.read": {
                 "allOf": [

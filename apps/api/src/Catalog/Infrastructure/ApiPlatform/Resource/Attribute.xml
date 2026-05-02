@@ -24,6 +24,43 @@
             <operation class="ApiPlatform\Metadata\Get"
                        uriTemplate="/attributes/{id}{._format}"
                        security="is_granted('READ', object)"/>
+
+            <operation class="ApiPlatform\Metadata\Post"
+                       uriTemplate="/attributes{._format}"
+                       input="App\Catalog\Infrastructure\ApiPlatform\Resource\AttributeInput"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\AttributeProcessor"
+                       security="is_granted('CREATE', 'App\\Catalog\\Domain\\Entity\\Attribute')">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>attribute:create</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Patch"
+                       uriTemplate="/attributes/{id}{._format}"
+                       input="App\Catalog\Infrastructure\ApiPlatform\Resource\AttributePatchInput"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\AttributeProcessor"
+                       security="is_granted('UPDATE', object)">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>attribute:patch</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Delete"
+                       uriTemplate="/attributes/{id}{._format}"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\AttributeProcessor"
+                       security="is_granted('DELETE', object)"/>
         </operations>
     </resource>
 </resources>
