@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { ModelingPageHeader } from '@/components/modeling/modeling-page-header';
 import { Button } from '@/components/ui/button';
 import { MockBadge } from '@/components/ui/mock-badge';
 import { cn } from '@/lib/utils';
@@ -37,31 +38,36 @@ export function CategoriesTreePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="display text-[28px] font-semibold leading-tight text-ink">
-            {t('categories.list_title')}
-          </h1>
-          <p className="max-w-3xl text-[14px] text-ink-2">{t('categories.list_subtitle')}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* MOCK: Drag-and-drop subtree move — wymaga PATCH /api/categories/{id}/move (#TBD) */}
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-[12px] text-muted-foreground"
-          >
-            <Move className="size-3.5" />
-            {t('categories.move_action', { defaultValue: 'Przenieś gałąź' })}
-          </button>
-          <MockBadge
-            tooltip={t('categories.move_mock_tooltip', {
-              defaultValue: 'MOCK · Drag-and-drop wymaga PATCH /api/categories/{id}/move',
-            })}
-          />
-        </div>
-      </div>
+      <ModelingPageHeader
+        caption={t('categories.list_caption', {
+          defaultValue: '{{count}} kategorii',
+          count: result.data?.length ?? 0,
+        })}
+        title={t('categories.list_title')}
+        description={t('categories.list_description', {
+          defaultValue:
+            'Hierarchiczna taksonomia oparta o ltree (Postgres). Każdy node może mieć przypisaną grupę atrybutów; wartości atrybutów ustawione na rodzicu są dziedziczone w dół drzewa, chyba że dziecko je nadpisze.',
+        })}
+        ctaLabel={t('categories.create_action', { defaultValue: '+ Nowa kategoria' })}
+        trailing={
+          <span className="inline-flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-[12px] text-muted-foreground"
+            >
+              <Move className="size-3.5" />
+              {t('categories.move_action', { defaultValue: 'Przenieś gałąź' })}
+            </button>
+            <MockBadge
+              tooltip={t('categories.move_mock_tooltip', {
+                defaultValue: 'MOCK · Drag-and-drop wymaga PATCH /api/categories/{id}/move',
+              })}
+            />
+          </span>
+        }
+      />
 
       <div className="relative rounded-2xl border border-line bg-surface p-3 soft-shadow">
         {query.isLoading ? (

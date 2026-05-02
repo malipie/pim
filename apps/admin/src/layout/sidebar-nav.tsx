@@ -24,6 +24,10 @@ interface NavLeaf {
   icon: LucideIcon;
   label: string;
   comingSoon?: boolean;
+  /** MOCK count badge shown after the label (e.g. "12 847"). */
+  count?: string;
+  /** MOCK kind tag shown next to count (e.g. "CUSTOM"). */
+  kindTag?: string;
 }
 
 interface NavSection {
@@ -31,15 +35,23 @@ interface NavSection {
   items: NavLeaf[];
 }
 
+// MOCK counts per UI-03c handoff — replace with live `useList(pageSize=1)`
+// queries when a backend `GET /api/sidebar/counts` endpoint ships.
 const NAV_SECTIONS: NavSection[] = [
   {
     id: 'main',
     items: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'nav.dashboard' },
-      { to: '/products', icon: Package, label: 'nav.products' },
-      { icon: Wrench, label: 'nav.services', comingSoon: true },
+      { to: '/products', icon: Package, label: 'nav.products', count: '12 847' },
+      {
+        icon: Wrench,
+        label: 'nav.services',
+        comingSoon: true,
+        kindTag: 'CUSTOM',
+        count: '84',
+      },
       { to: '/channels', icon: Share2, label: 'nav.publications' },
-      { to: '/assets', icon: Image, label: 'nav.multimedia' },
+      { to: '/assets', icon: Image, label: 'nav.multimedia', count: '8 421' },
       { icon: Workflow, label: 'nav.workflow', comingSoon: true },
       { to: '/api-profiles', icon: Cog, label: 'nav.settings' },
     ],
@@ -76,12 +88,26 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
     (item) => !item.comingSoon,
   ).length;
 
+  const renderTrailing = (item: NavLeaf) => (
+    <>
+      {item.kindTag ? (
+        <span className="rounded bg-accent-violet/10 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-accent-violet">
+          {item.kindTag}
+        </span>
+      ) : null}
+      {item.count ? (
+        <span className="num text-[11px] text-muted-foreground tabular-nums">{item.count}</span>
+      ) : null}
+    </>
+  );
+
   const renderLeaf = (item: NavLeaf, key: string) => {
     if (item.comingSoon || !item.to) {
       return (
         <span key={key} className={disabledLeafClass} aria-disabled="true">
           <item.icon className="size-4" />
           <span className="flex-1">{t(item.label)}</span>
+          {renderTrailing(item)}
           <span className="rounded bg-muted px-1.5 py-0.5 text-xs uppercase text-muted-foreground">
             {t('nav.soon')}
           </span>
@@ -93,6 +119,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       <NavLink key={key} to={item.to} onClick={onNavigate} className={leafLinkClass}>
         <item.icon className="size-4" />
         <span className="flex-1">{t(item.label)}</span>
+        {renderTrailing(item)}
       </NavLink>
     );
   };

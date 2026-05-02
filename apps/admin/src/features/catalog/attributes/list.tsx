@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
+import { ModelingPageHeader } from '@/components/modeling/modeling-page-header';
 import { Button } from '@/components/ui/button';
 import { MockBadge } from '@/components/ui/mock-badge';
 import {
@@ -74,12 +75,19 @@ export function AttributesListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="display text-[28px] font-semibold leading-tight text-ink">
-          {t('attributes.list_title')}
-        </h1>
-        <p className="max-w-3xl text-[14px] text-ink-2">{t('attributes.list_subtitle')}</p>
-      </div>
+      <ModelingPageHeader
+        caption={t('attributes.list_caption', {
+          defaultValue: '{{count}} atrybutów',
+          count: attributes.length,
+        })}
+        title={t('attributes.list_title')}
+        description={t('attributes.list_description', {
+          defaultValue:
+            'Atrybuty opisują pojedyncze pola obiektów (SKU, nazwa, opis, certyfikaty). Built-in atrybuty są audytowymi metadanymi (created_at, updated_by) — chronione przed usunięciem. Twoje atrybuty produktowe są edytowalne; tworzenie / edycja jest odroczona do agentowego flow schema-add (Faza 2).',
+        })}
+        ctaLabel={t('attributes.create_action', { defaultValue: '+ Nowy atrybut' })}
+      />
+      <p className="text-[12px] text-muted-foreground">{t('attributes.write_deferred_note')}</p>
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
