@@ -1,5 +1,13 @@
 # Current Status
 
+## 2026-05-02: VIEW-01 view-first marathon — Modelowanie · Object Types
+
+**Nowa metodyka view-first** (operator-feedback 2026-05-02): operator dostarcza widok → agent rozpisuje jeden ticket FE+BE+testy → smoke + manual operatora. Pełen szablon w `feedback_view_first_ticket_template.md` (memory). Konstytucja: `feedback_view_first_workflow.md`.
+
+**Aktualne**: Issue **#372** (VIEW-01) — pixel-perfect rebuild Modelowanie · Object Types (lista + detail + wizard `/new` + obsługa locali workspace). Branch `feat/view-01-modelowanie-object-types`. Praca w trybie marathon (operator: „pracuj bez przerwy → CI → merge → smoke login").
+
+Source of truth: `Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-01-modelowanie-object-types.md`.
+
 ## Sub-faza: MVP-FINAL — **Epic 0.10 ZAMKNIĘTY 6/6** ✅ (#90+#91+#92+#93+#94 merged; #95 ready for PR; pełen epik 0.10 = API Configurator MVP).
 
 Wcześniejsze epiki: **MVP-Alpha 0.4 (8/8) ✅ + 0.5 (5/5) ✅ + 0.6 (9/9) ✅** — w main (#210..#231). Operator zaakceptował 2026-04-30 kierunek **MVP-Final → Faza 1 → Faza 2** zamiast skoku do Fazy 2 (epik 0.7 Agent layer odsunięty per ADR R-27 cost runaway: BYOK + monitoring + Org-level Anthropic cap muszą iść pierwsze).
