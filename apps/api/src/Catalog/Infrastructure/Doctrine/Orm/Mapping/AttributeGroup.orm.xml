@@ -47,6 +47,21 @@
                 <option name="default">false</option>
             </options>
         </field>
+        <field name="isRequiredSection" type="boolean" column="is_required_section">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+        <field name="isShared" type="boolean" column="is_shared">
+            <options>
+                <option name="default">true</option>
+            </options>
+        </field>
+        <field name="hasConditionalVisibility" type="boolean" column="has_conditional_visibility">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
         <field name="position" type="integer">
             <options>
                 <option name="default">0</option>

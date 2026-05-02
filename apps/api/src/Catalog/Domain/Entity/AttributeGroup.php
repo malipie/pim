@@ -59,6 +59,25 @@ class AttributeGroup implements TenantScoped
     private bool $isSystemGroup = false;
     private bool $autoAttached = false;
 
+    /**
+     * Group always rendered in product forms (cannot be skipped/collapsed).
+     * UI mapping: `Wymagana sekcja` toggle in NewAttributeGroupView mockup.
+     */
+    private bool $isRequiredSection = false;
+
+    /**
+     * Group can be attached to multiple ObjectTypes. Default true matches
+     * existing implicit behavior — every group was always shareable.
+     * UI mapping: `Współdzielona` toggle in NewAttributeGroupView mockup.
+     */
+    private bool $isShared = true;
+
+    /**
+     * Group rendering gated by `visible_when` rules per attribute in
+     * the junction. UI mapping: `Conditional visibility` toggle.
+     */
+    private bool $hasConditionalVisibility = false;
+
     private int $position;
     private DateTimeImmutable $createdAt;
 
@@ -76,6 +95,9 @@ class AttributeGroup implements TenantScoped
         ?string $color = null,
         bool $isSystemGroup = false,
         bool $autoAttached = false,
+        bool $isRequiredSection = false,
+        bool $isShared = true,
+        bool $hasConditionalVisibility = false,
     ) {
         $this->id = $id ?? Uuid::v7();
         $this->code = $code;
@@ -86,6 +108,9 @@ class AttributeGroup implements TenantScoped
         $this->color = $color;
         $this->isSystemGroup = $isSystemGroup;
         $this->autoAttached = $autoAttached;
+        $this->isRequiredSection = $isRequiredSection;
+        $this->isShared = $isShared;
+        $this->hasConditionalVisibility = $hasConditionalVisibility;
         $this->createdAt = new DateTimeImmutable();
     }
 
@@ -200,6 +225,36 @@ class AttributeGroup implements TenantScoped
     public function isSystemGroup(): bool
     {
         return $this->isSystemGroup;
+    }
+
+    public function isRequiredSection(): bool
+    {
+        return $this->isRequiredSection;
+    }
+
+    public function setRequiredSection(bool $value): void
+    {
+        $this->isRequiredSection = $value;
+    }
+
+    public function isShared(): bool
+    {
+        return $this->isShared;
+    }
+
+    public function setShared(bool $value): void
+    {
+        $this->isShared = $value;
+    }
+
+    public function hasConditionalVisibility(): bool
+    {
+        return $this->hasConditionalVisibility;
+    }
+
+    public function setConditionalVisibility(bool $value): void
+    {
+        $this->hasConditionalVisibility = $value;
     }
 
     public function isAutoAttached(): bool
