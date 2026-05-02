@@ -1,10 +1,11 @@
 import { useList } from '@refinedev/core';
-import { Eye, Plus, Trash2 } from 'lucide-react';
+import { Eye, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
+import { ModelingPageHeader } from '@/components/modeling/modeling-page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -83,28 +84,26 @@ export function AttributeGroupsListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <h1 className="display text-[28px] font-semibold leading-tight text-ink">
-              {t('attribute_groups.list_title')}
-            </h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-accent-violet/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-accent-violet">
-              ⭐{' '}
-              {t('attribute_groups.first_class_badge', {
-                defaultValue: 'first-class entity (ADR-012)',
-              })}
+      <ModelingPageHeader
+        caption={t('attribute_groups.list_caption', {
+          defaultValue: '{{count}} grup atrybutów',
+          count: groups.length,
+        })}
+        title={t('attribute_groups.list_title')}
+        description={
+          <span>
+            {t('attribute_groups.list_description', {
+              defaultValue:
+                'Grupy atrybutów porządkują pola w formularzach i kontrolują widoczność. Pierwszoklasowy byt domeny (ADR-012) — przypinany do ObjectType i Category, z visible_when regułami.',
+            })}{' '}
+            <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-accent-violet/10 px-2 py-0.5 align-middle text-[10.5px] font-medium uppercase tracking-wide text-accent-violet">
+              ⭐ first-class entity (ADR-012)
             </span>
-          </div>
-          <p className="max-w-3xl text-[14px] text-ink-2">{t('attribute_groups.list_subtitle')}</p>
-        </div>
-        <Button asChild>
-          <Link to="/modeling/attribute-groups/new">
-            <Plus className="size-4" />
-            {t('modeling.attribute_groups.create_action')}
-          </Link>
-        </Button>
-      </div>
+          </span>
+        }
+        ctaLabel={t('modeling.attribute_groups.create_action')}
+        ctaTo="/modeling/attribute-groups/new"
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <Input
