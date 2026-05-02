@@ -123,8 +123,24 @@ final readonly class DemoCatalogSeeder
             $this->em->persist($attribute);
             $attributes[$code] = $attribute;
 
-            foreach ($def['options'] ?? [] as $optPosition => [$optCode, $optLabel]) {
-                $option = new AttributeOption($attribute, $optCode, $optLabel, $optPosition);
+            foreach ($def['options'] ?? [] as $optPosition => $optDef) {
+                // Backward-compat: 2-element [code, label] still supported,
+                // 5-element [code, label, color, default, deprecated] is the
+                // VIEW-02 (#374) extended shape used by the `color` attribute.
+                $optCode = $optDef[0];
+                $optLabel = $optDef[1];
+                $optColor = $optDef[2] ?? null;
+                $optDefault = $optDef[3] ?? false;
+                $optDeprecated = $optDef[4] ?? false;
+                $option = new AttributeOption(
+                    attribute: $attribute,
+                    code: $optCode,
+                    label: $optLabel,
+                    position: $optPosition,
+                    color: $optColor,
+                    isDefault: $optDefault,
+                    isDeprecated: $optDeprecated,
+                );
                 $this->em->persist($option);
             }
         }
@@ -314,7 +330,7 @@ final readonly class DemoCatalogSeeder
     }
 
     /**
-     * @return array<string, array{label: array<string, string>, type: AttributeType, required?: bool, localizable?: bool, rules?: array<string, mixed>, options?: list<array{0: string, 1: array<string, string>}>}>
+     * @return array<string, array{label: array<string, string>, type: AttributeType, required?: bool, localizable?: bool, rules?: array<string, mixed>, options?: list<array{0: string, 1: array<string, string>, 2?: string, 3?: bool, 4?: bool}>}>
      */
     private static function attributeDefinitions(): array
     {
@@ -350,12 +366,16 @@ final readonly class DemoCatalogSeeder
             'color' => [
                 'label' => ['pl' => 'Kolor', 'en' => 'Color'],
                 'type' => AttributeType::Select,
+                // VIEW-02 (#374) — options carry hex colors so the FE Allowed
+                // Values editor swatch dot renders next to each label, and
+                // `red` is the default option (one default per attribute,
+                // partial unique index on attribute_options).
                 'options' => [
-                    ['red', ['pl' => 'Czerwony', 'en' => 'Red']],
-                    ['green', ['pl' => 'Zielony', 'en' => 'Green']],
-                    ['blue', ['pl' => 'Niebieski', 'en' => 'Blue']],
-                    ['black', ['pl' => 'Czarny', 'en' => 'Black']],
-                    ['white', ['pl' => 'Biały', 'en' => 'White']],
+                    ['red', ['pl' => 'Czerwony', 'en' => 'Red'], '#EF4444', true, false],
+                    ['green', ['pl' => 'Zielony', 'en' => 'Green'], '#10B981', false, false],
+                    ['blue', ['pl' => 'Niebieski', 'en' => 'Blue'], '#3B82F6', false, false],
+                    ['black', ['pl' => 'Czarny', 'en' => 'Black'], '#18181B', false, false],
+                    ['white', ['pl' => 'Biały', 'en' => 'White'], '#F4F4F5', false, false],
                 ],
             ],
             'size' => [
