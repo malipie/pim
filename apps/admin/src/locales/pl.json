@@ -486,6 +486,10 @@
       "label": "Zablokowane",
       "tooltip": "Typ systemowy — chroniony przed edycją i usunięciem."
     },
+    "audit_log": {
+      "label": "Audit log",
+      "mock_tooltip": "MOCK · Audit log wymaga endpointu BE"
+    },
     "where_used": {
       "title": "Gdzie używane",
       "empty": "Brak danych o użyciu.",

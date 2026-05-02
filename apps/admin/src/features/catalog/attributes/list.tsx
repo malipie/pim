@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
+import { MockBadge } from '@/components/ui/mock-badge';
 import {
   Table,
   TableBody,
@@ -282,14 +283,17 @@ function ValuesBadge({ type, attributeId }: { type: string; attributeId: string 
     return <span className="text-[12px] text-muted-foreground">—</span>;
   }
   return (
-    <Link
-      to={`/modeling/attributes/${attributeId}/values`}
-      className="inline-flex items-center gap-1 rounded-md bg-accent-violet/10 px-2 py-0.5 text-[11px] font-medium text-accent-violet hover:bg-accent-violet/15"
-    >
-      <Layers className="size-3" />
-      {/* MOCK: count — wymaga GET /api/attributes/{id}/values (#TBD) */}
-      <span>— wartości</span>
-    </Link>
+    <span className="inline-flex items-center gap-1.5">
+      <Link
+        to={`/modeling/attributes/${attributeId}/values`}
+        className="inline-flex items-center gap-1 rounded-md bg-accent-violet/10 px-2 py-0.5 text-[11px] font-medium text-accent-violet hover:bg-accent-violet/15"
+      >
+        <Layers className="size-3" />
+        {/* MOCK: count — wymaga GET /api/attributes/{id}/values (#TBD) */}
+        <span>— wartości</span>
+      </Link>
+      <MockBadge />
+    </span>
   );
 }
 

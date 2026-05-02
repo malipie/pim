@@ -1,34 +1,88 @@
+import { useList } from '@refinedev/core';
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet, useLocation } from 'react-router';
 
 /**
- * UI-08.9 (#264) — Modeling layout shell.
+ * UI-08.9 (#264) — Modeling layout shell. UI-03b polish (#365) added KPI
+ * counters next to each tab so operators see the catalogue size at a glance.
  *
  * Renders a 4-tab top bar (Object Types / Attributes / Attribute Groups /
  * Categories) that drives the `/modeling/*` route tree. Active tab is
  * derived from the current pathname so a deep-link (e.g.
  * `/modeling/attributes/{id}`) still highlights the parent tab.
- *
- * Tab buttons are `<NavLink>` components — keyboard navigation, focus
- * outlines, and back/forward history come for free. The visual styling
- * matches the segmented tablist used by the API Profile form
- * (`features/api-configurator/api-profiles/form.tsx`); `role="tablist"`
- * + `aria-selected` keep it screen-reader friendly without a Radix
- * `Tabs` primitive (no shadcn Tabs component is installed yet, and a
- * NavLink-driven tablist is the right primitive when each tab maps to
- * its own URL).
  */
 
-const TABS = [
-  { value: 'object-types', to: '/modeling/object-types', label: 'modeling.tabs.object_types' },
-  { value: 'attributes', to: '/modeling/attributes', label: 'modeling.tabs.attributes' },
+interface TabDef {
+  value: string;
+  to: string;
+  label: string;
+  resource: 'object_types' | 'attributes' | 'attribute_groups' | 'categories';
+}
+
+const TABS: readonly TabDef[] = [
+  {
+    value: 'object-types',
+    to: '/modeling/object-types',
+    label: 'modeling.tabs.object_types',
+    resource: 'object_types',
+  },
+  {
+    value: 'attributes',
+    to: '/modeling/attributes',
+    label: 'modeling.tabs.attributes',
+    resource: 'attributes',
+  },
   {
     value: 'attribute-groups',
     to: '/modeling/attribute-groups',
     label: 'modeling.tabs.attribute_groups',
+    resource: 'attribute_groups',
   },
-  { value: 'categories', to: '/modeling/categories', label: 'modeling.tabs.categories' },
+  {
+    value: 'categories',
+    to: '/modeling/categories',
+    label: 'modeling.tabs.categories',
+    resource: 'categories',
+  },
 ] as const;
+
+interface TabBadgeProps {
+  resource: TabDef['resource'];
+  isActive: boolean;
+}
+
+/**
+ * KPI counter rendered next to a tab label. Uses Refine's useList with
+ * `pagination.pageSize: 1` so the network call is small but still hits the
+ * server-side `total` accumulator. Falls back to a discreet dot while loading.
+ */
+function TabBadge({ resource, isActive }: TabBadgeProps) {
+  const { result, query } = useList({
+    resource,
+    pagination: { currentPage: 1, pageSize: 1 },
+    queryOptions: { staleTime: 30_000 },
+  });
+
+  if (query.isLoading) {
+    return (
+      <span className="ml-2 inline-flex size-1.5 animate-pulse rounded-full bg-muted-foreground/40" />
+    );
+  }
+
+  const total = result.total ?? result.data.length;
+
+  return (
+    <span
+      className={
+        isActive
+          ? 'num ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-accent-violet/10 px-1.5 text-[11px] font-medium text-accent-violet'
+          : 'num ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-muted px-1.5 text-[11px] font-medium text-muted-foreground'
+      }
+    >
+      {total}
+    </span>
+  );
+}
 
 export function ModelingLayout() {
   const { t } = useTranslation();
@@ -39,7 +93,7 @@ export function ModelingLayout() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('modeling.title')}</h1>
+        <h1 className="display text-[28px] font-semibold tracking-tight">{t('modeling.title')}</h1>
         <p className="text-sm text-muted-foreground">{t('modeling.description')}</p>
       </header>
       <div
@@ -58,11 +112,12 @@ export function ModelingLayout() {
               aria-controls={`modeling-panel-${tab.value}`}
               className={
                 isActive
-                  ? 'border-primary text-foreground -mb-px border-b-2 px-4 py-2 text-sm font-medium'
-                  : 'text-muted-foreground hover:text-foreground -mb-px border-b-2 border-transparent px-4 py-2 text-sm'
+                  ? 'border-accent-violet text-foreground -mb-px flex items-center border-b-2 px-4 py-2 text-sm font-medium'
+                  : 'text-muted-foreground hover:text-foreground -mb-px flex items-center border-b-2 border-transparent px-4 py-2 text-sm'
               }
             >
-              {t(tab.label)}
+              <span>{t(tab.label)}</span>
+              <TabBadge resource={tab.resource} isActive={isActive} />
             </NavLink>
           );
         })}

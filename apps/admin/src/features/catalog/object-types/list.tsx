@@ -1,5 +1,14 @@
 import { useList } from '@refinedev/core';
-import { Eye, Plus } from 'lucide-react';
+import {
+  Boxes,
+  ChevronRight,
+  FolderTree,
+  Image as ImageIcon,
+  Layers,
+  Plus,
+  Tag,
+} from 'lucide-react';
+import type { ComponentType, SVGProps } from 'react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -7,14 +16,6 @@ import { Link } from 'react-router';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { CreateCustomObjectTypeDialog } from '@/components/modeling/create-custom-object-type-dialog';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { jsonFetch } from '@/lib/http';
 
@@ -30,6 +31,14 @@ interface ObjectTypeRow {
   color?: string | null;
   schemaVersion?: number;
 }
+
+const KIND_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
+  product: Boxes,
+  category: FolderTree,
+  asset: ImageIcon,
+  brand: Tag,
+  custom: Layers,
+};
 
 export function ObjectTypesListPage() {
   const { t, i18n } = useTranslation();
@@ -57,147 +66,65 @@ export function ObjectTypesListPage() {
 
       <section className="space-y-3">
         <header className="flex items-center justify-between">
-          <h2 className="text-[15px] font-semibold text-ink">{t('object_types.built_in_title')}</h2>
-          <BuiltInLockBadge />
+          <div className="flex items-center gap-2">
+            <h2 className="text-[15px] font-semibold text-ink">
+              {t('object_types.built_in_title')}
+            </h2>
+            <BuiltInLockBadge />
+          </div>
+          <span className="text-[12px] text-muted-foreground">{builtIn.length}</span>
         </header>
-        <div className="rounded-2xl border border-line bg-surface soft-shadow">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[180px]">{t('object_types.fields.code')}</TableHead>
-                <TableHead>{t('object_types.fields.label')}</TableHead>
-                <TableHead className="w-[120px]">{t('object_types.fields.kind')}</TableHead>
-                <TableHead className="w-[120px] text-right">
-                  {t('object_types.fields.instance_count')}
-                </TableHead>
-                <TableHead className="w-[120px]">
-                  {t('object_types.fields.schema_version')}
-                </TableHead>
-                <TableHead className="w-[80px] text-right">
-                  <span className="sr-only">{t('object_types.fields.actions')}</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                    {t('app.loading')}
-                  </TableCell>
-                </TableRow>
-              ) : builtIn.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                    {t('object_types.empty')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                builtIn.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">
-                      <span className="inline-flex items-center gap-2">
-                        <ColorSwatch color={row.color} />
-                        {row.code}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {resolveLabel(row.label, i18n.language)}
-                    </TableCell>
-                    <TableCell>
-                      <KindBadge kind={row.kind} />
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm tabular-nums">
-                      {instanceCounts[row.id] ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground tabular-nums">
-                      {row.schemaVersion ?? 1}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild variant="ghost" size="sm">
-                        <Link to={`/modeling/object-types/${row.id}`}>
-                          <Eye className="size-4" />
-                          <span className="sr-only">{t('object_types.actions.view')}</span>
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        {isLoading ? (
+          <div className="rounded-2xl border border-line bg-surface p-10 text-center text-muted-foreground soft-shadow">
+            {t('app.loading')}
+          </div>
+        ) : builtIn.length === 0 ? (
+          <div className="rounded-2xl border border-line bg-surface p-10 text-center text-muted-foreground soft-shadow">
+            {t('object_types.empty')}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {builtIn.map((row) => (
+              <ObjectTypeCard
+                key={row.id}
+                row={row}
+                language={i18n.language}
+                instanceCount={instanceCounts[row.id]}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="space-y-3">
         <header className="flex items-center justify-between">
-          <h2 className="text-[15px] font-semibold text-ink">{t('object_types.custom_title')}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-[15px] font-semibold text-ink">{t('object_types.custom_title')}</h2>
+            <span className="text-[12px] text-muted-foreground">{custom.length}</span>
+          </div>
           <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
             {t('object_types.create_custom_action', { defaultValue: 'Create custom ObjectType' })}
           </Button>
         </header>
-        <div className="rounded-2xl border border-line bg-surface soft-shadow">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[180px]">{t('object_types.fields.code')}</TableHead>
-                <TableHead>{t('object_types.fields.label')}</TableHead>
-                <TableHead className="w-[120px]">{t('object_types.fields.kind')}</TableHead>
-                <TableHead className="w-[120px] text-right">
-                  {t('object_types.fields.instance_count')}
-                </TableHead>
-                <TableHead className="w-[120px]">
-                  {t('object_types.fields.schema_version')}
-                </TableHead>
-                <TableHead className="w-[80px] text-right">
-                  <span className="sr-only">{t('object_types.fields.actions')}</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {custom.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                    {t('object_types.custom_empty', {
-                      defaultValue: 'No custom ObjectTypes yet — create your first one above.',
-                    })}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                custom.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">
-                      <span className="inline-flex items-center gap-2">
-                        <ColorSwatch color={row.color} />
-                        {row.code}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {resolveLabel(row.label, i18n.language)}
-                    </TableCell>
-                    <TableCell>
-                      <KindBadge kind={row.kind} />
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm tabular-nums">
-                      {instanceCounts[row.id] ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground tabular-nums">
-                      {row.schemaVersion ?? 1}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild variant="ghost" size="sm">
-                        <Link to={`/modeling/object-types/${row.id}`}>
-                          <Eye className="size-4" />
-                          <span className="sr-only">{t('object_types.actions.view')}</span>
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        {custom.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-line bg-surface p-10 text-center text-muted-foreground">
+            {t('object_types.custom_empty', {
+              defaultValue: 'No custom ObjectTypes yet — create your first one above.',
+            })}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {custom.map((row) => (
+              <ObjectTypeCard
+                key={row.id}
+                row={row}
+                language={i18n.language}
+                instanceCount={instanceCounts[row.id]}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       {createOpen ? (
@@ -209,6 +136,71 @@ export function ObjectTypesListPage() {
         />
       ) : null}
     </div>
+  );
+}
+
+interface ObjectTypeCardProps {
+  row: ObjectTypeRow;
+  language: string;
+  instanceCount: number | undefined;
+}
+
+function ObjectTypeCard({ row, language, instanceCount }: ObjectTypeCardProps) {
+  const { t } = useTranslation();
+  const Icon = KIND_ICONS[row.kind] ?? Layers;
+  const isBuiltIn = row.builtIn !== false;
+
+  return (
+    <Link
+      to={`/modeling/object-types/${row.id}`}
+      className="group relative flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5 soft-shadow transition-all hover:-translate-y-0.5 hover:border-accent-violet/40 hover:shadow-md"
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl"
+          style={{
+            backgroundColor: row.color ? `${row.color}1a` : 'var(--surface-2)',
+            color: row.color ?? 'var(--ink)',
+          }}
+        >
+          <Icon className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="truncate text-[14px] font-semibold text-ink">
+              {resolveLabel(row.label, language)}
+            </h3>
+          </div>
+          <code className="mt-0.5 block truncate font-mono text-[11px] text-muted-foreground">
+            {row.code}
+          </code>
+        </div>
+        <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <KindBadge kind={row.kind} />
+        <span
+          className={
+            isBuiltIn
+              ? 'inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground'
+              : 'inline-flex items-center rounded-md bg-accent-violet/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-violet'
+          }
+        >
+          {isBuiltIn ? t('object_types.system_badge', { defaultValue: 'system' }) : 'custom'}
+        </span>
+        {row.schemaVersion && row.schemaVersion > 1 ? (
+          <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            v{row.schemaVersion}
+          </span>
+        ) : null}
+      </div>
+      <div className="flex items-baseline justify-between border-t border-line/70 pt-3 text-[12px] text-muted-foreground">
+        <span>{t('object_types.fields.instance_count')}</span>
+        <span className="num font-medium text-ink">
+          {instanceCount === undefined ? '—' : instanceCount.toLocaleString('pl-PL')}
+        </span>
+      </div>
+    </Link>
   );
 }
 
@@ -229,17 +221,6 @@ function KindBadge({ kind }: { kind: string }) {
     >
       {kind}
     </span>
-  );
-}
-
-function ColorSwatch({ color }: { color?: string | null }) {
-  if (!color) return null;
-  return (
-    <span
-      aria-hidden
-      className="inline-block size-3 rounded-full border"
-      style={{ backgroundColor: color }}
-    />
   );
 }
 

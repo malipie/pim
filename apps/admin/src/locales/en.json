@@ -484,6 +484,10 @@
       "label": "Locked",
       "tooltip": "System type — protected from edits or deletion."
     },
+    "audit_log": {
+      "label": "Audit log",
+      "mock_tooltip": "MOCK · Audit log requires BE endpoint"
+    },
     "where_used": {
       "title": "Where used",
       "empty": "No usage data.",
