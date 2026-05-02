@@ -42,8 +42,11 @@ final class AttributeOptionsApiTest extends CatalogApiTestCase
 
         $response = $client->request('GET', '/api/attributes/'.$attributeCode.'/options');
         self::assertSame(200, $response->getStatusCode());
-        $member = $response->toArray()['member'];
+        $payload = $response->toArray();
+        \assert(isset($payload['member']) && \is_array($payload['member']));
+        $member = $payload['member'];
         self::assertCount(2, $member);
+        \assert(\is_array($member[0]) && \is_array($member[1]));
         self::assertSame('blue', $member[0]['code']);
         self::assertSame('red', $member[1]['code']);
     }
@@ -107,10 +110,14 @@ final class AttributeOptionsApiTest extends CatalogApiTestCase
             ],
         ]);
 
-        $list = $client->request('GET', '/api/attributes/'.$code.'/options')->toArray()['member'];
+        $listPayload = $client->request('GET', '/api/attributes/'.$code.'/options')->toArray();
+        \assert(isset($listPayload['member']) && \is_array($listPayload['member']));
         $byCode = [];
-        foreach ($list as $row) {
-            $byCode[$row['code']] = $row['default'];
+        foreach ($listPayload['member'] as $row) {
+            \assert(\is_array($row));
+            $rowCode = $row['code'];
+            \assert(\is_string($rowCode));
+            $byCode[$rowCode] = $row['default'];
         }
         self::assertFalse($byCode['low']);
         self::assertTrue($byCode['high']);
@@ -135,6 +142,7 @@ final class AttributeOptionsApiTest extends CatalogApiTestCase
         self::assertSame(200, $response->getStatusCode());
         $payload = $response->toArray();
         self::assertTrue($payload['deprecated']);
+        \assert(\is_array($payload['label']));
         self::assertSame('Low priority', $payload['label']['en']);
     }
 
@@ -149,8 +157,9 @@ final class AttributeOptionsApiTest extends CatalogApiTestCase
         $response = $client->request('DELETE', '/api/attributes/'.$code.'/options/low');
         self::assertSame(204, $response->getStatusCode());
 
-        $list = $client->request('GET', '/api/attributes/'.$code.'/options')->toArray()['member'];
-        self::assertCount(0, $list);
+        $payload = $client->request('GET', '/api/attributes/'.$code.'/options')->toArray();
+        \assert(isset($payload['member']) && \is_array($payload['member']));
+        self::assertCount(0, $payload['member']);
     }
 
     private function seedSelectAttribute(string $code): Attribute
