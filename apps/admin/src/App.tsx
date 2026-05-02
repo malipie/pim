@@ -19,6 +19,7 @@ import { CategoriesTreePage } from '@/features/catalog/categories/list';
 import { CategoryShowPage } from '@/features/catalog/categories/show';
 import { ModelingLayout } from '@/features/catalog/modeling/layout';
 import { ObjectTypesListPage } from '@/features/catalog/object-types/list';
+import { ObjectTypeWizardPage } from '@/features/catalog/object-types/new';
 import { ObjectTypeShowPage } from '@/features/catalog/object-types/show';
 import { ProductCreatePage } from '@/features/catalog/products/create';
 import { ProductEditPage } from '@/features/catalog/products/edit';
@@ -60,7 +61,11 @@ function App() {
           {
             name: 'object_types',
             list: '/modeling/object-types',
+            create: '/modeling/object-types/new',
             show: '/modeling/object-types/:id',
+          },
+          {
+            name: 'workspaces',
           },
           {
             name: 'categories',
@@ -105,6 +110,7 @@ function App() {
             <Route path="/modeling" element={<ModelingLayout />}>
               <Route index element={<Navigate to="/modeling/object-types" replace />} />
               <Route path="object-types" element={<ObjectTypesListPage />} />
+              <Route path="object-types/new" element={<ObjectTypeWizardPage />} />
               <Route path="object-types/:id" element={<ObjectTypeShowPage />} />
               <Route path="attributes" element={<AttributesListPage />} />
               <Route path="attributes/:id" element={<AttributeShowPage />} />

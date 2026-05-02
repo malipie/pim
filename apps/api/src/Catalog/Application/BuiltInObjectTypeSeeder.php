@@ -68,6 +68,17 @@ final readonly class BuiltInObjectTypeSeeder
                 $type->markUndeletable();
                 $type->setIcon($icon);
                 $type->setColor($color);
+
+                // VIEW-01 (#372): the modeling UI surfaces hierarchical /
+                // hasVariants / abstract toggles per ObjectType; the built-in
+                // defaults match the historical hard-coded behavior so the
+                // badges in the list view remain accurate after the migration.
+                if (ObjectKind::Product === $kind) {
+                    $type->setHasVariants(true);
+                } elseif (ObjectKind::Category === $kind) {
+                    $type->setHierarchical(true);
+                }
+
                 $this->em->persist($type);
                 ++$created;
             }

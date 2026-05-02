@@ -192,6 +192,13 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter @pim/admin exec playwright install --with-deps chromium
 
+      - name: Reset auth rate limiter cache before E2E
+        # The login form uses a 5/15min IP limiter; the e2e suite triggers
+        # ~10 fresh logins (and triple that on retries), so a cold cache is
+        # mandatory before Playwright starts. Wipes the on-disk cache pool
+        # used by Symfony's RateLimiterFactory.
+        run: docker compose exec -T api rm -rf /app/var/share/dev/pools
+
       - name: Run Playwright tests
         run: pnpm --filter @pim/admin e2e
         env:
