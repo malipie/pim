@@ -74,12 +74,25 @@
       "products": "Products",
       "attributes": "Attributes",
       "families": "Families",
-      "categories": "Categories"
+      "categories": "Categories",
+      "enabled_share": "Enabled products",
+      "completeness_avg": "Average completeness",
+      "last_sync_minutes": "Last sync",
+      "open_alerts": "Open alerts",
+      "settings_trigger": "Pick KPIs",
+      "settings_title": "Pick KPIs",
+      "settings_description": "Pick up to {{max}} tiles for the dashboard. Selection persists in the browser.",
+      "settings_count": "{{count}} of {{max}} selected",
+      "settings_mock_tooltip": "Selection persists in localStorage, MOCK"
     },
     "activity": {
-      "title": "Activity (30 days)",
+      "title": "Activity",
       "legend_added": "added",
-      "legend_modified": "modified"
+      "legend_modified": "modified",
+      "range_aria": "Activity range",
+      "range_7d": "7 days",
+      "range_30d": "30 days",
+      "range_90d": "90 days"
     },
     "top_edited": {
       "title": "Most edited",
@@ -96,15 +109,18 @@
     },
     "agent_activity": {
       "title": "Recent agent activity",
-      "subtitle": "last 6 audit entries"
+      "subtitle": "last 6 audit entries",
+      "filter": "Filter"
     },
     "alerts": {
       "title": "Alerts",
-      "subtitle": "last 5"
+      "subtitle": "last 5",
+      "configure": "Configure alerts"
     },
     "channel_dist": {
       "title": "Channel distribution",
-      "unit": "products"
+      "unit": "products",
+      "export": "Export report"
     }
   },
   "attributes": {

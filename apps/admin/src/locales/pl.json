@@ -76,12 +76,25 @@
       "products": "Produkty",
       "attributes": "Atrybuty",
       "families": "Rodziny",
-      "categories": "Kategorie"
+      "categories": "Kategorie",
+      "enabled_share": "Aktywne produkty",
+      "completeness_avg": "Średnia kompletność",
+      "last_sync_minutes": "Ostatnia synchronizacja",
+      "open_alerts": "Otwarte alerty",
+      "settings_trigger": "Wybierz KPI",
+      "settings_title": "Wybierz KPI",
+      "settings_description": "Wybierz do {{max}} kafelków na pulpicie. Selekcja zapisuje się w przeglądarce.",
+      "settings_count": "{{count}} z {{max}} wybranych",
+      "settings_mock_tooltip": "Konfiguracja zapisywana lokalnie (localStorage), MOCK"
     },
     "activity": {
-      "title": "Aktywność (30 dni)",
+      "title": "Aktywność",
       "legend_added": "dodane",
-      "legend_modified": "zmodyfikowane"
+      "legend_modified": "zmodyfikowane",
+      "range_aria": "Zakres aktywności",
+      "range_7d": "7 dni",
+      "range_30d": "30 dni",
+      "range_90d": "90 dni"
     },
     "top_edited": {
       "title": "Najczęściej edytowane",
@@ -98,15 +111,18 @@
     },
     "agent_activity": {
       "title": "Ostatnia aktywność agenta",
-      "subtitle": "ostatnie 6 wpisów audit"
+      "subtitle": "ostatnie 6 wpisów audit",
+      "filter": "Filtruj"
     },
     "alerts": {
       "title": "Alerty",
-      "subtitle": "ostatnie 5"
+      "subtitle": "ostatnie 5",
+      "configure": "Skonfiguruj alerty"
     },
     "channel_dist": {
       "title": "Dystrybucja kanałów",
-      "unit": "produktów"
+      "unit": "produktów",
+      "export": "Eksportuj raport"
     }
   },
   "attributes": {

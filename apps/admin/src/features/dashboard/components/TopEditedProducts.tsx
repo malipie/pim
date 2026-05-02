@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
+import { MockBadge } from '@/components/ui/mock-badge';
+
 import { TOP_EDITED } from '../mock-data';
 
 /**
@@ -10,7 +12,8 @@ import { TOP_EDITED } from '../mock-data';
 export function TopEditedProducts() {
   const { t } = useTranslation();
   return (
-    <div className="rounded-2xl border border-line bg-surface soft-shadow">
+    <div className="relative rounded-2xl border border-line bg-surface soft-shadow">
+      <MockBadge variant="corner" />
       <div className="flex items-center justify-between border-b border-line px-5 py-4">
         <h3 className="text-[15px] font-semibold text-ink">{t('dashboard.top_edited.title')}</h3>
         <span className="text-[12px] text-muted-foreground">
