@@ -106,7 +106,6 @@ final class AttributeGroupMembershipApiTest extends CatalogApiTestCase
         self::assertSame(204, $resp->getStatusCode());
 
         // Attribute itself stays in the global library.
-        /** @var AttributeRepositoryInterface $repo */
         $repo = self::getContainer()->get(AttributeRepositoryInterface::class);
         self::assertNotNull($repo->findById($attrId));
     }
@@ -177,14 +176,12 @@ final class AttributeGroupMembershipApiTest extends CatalogApiTestCase
 
     private function seedAttribute(string $code, AttributeType $type): \Symfony\Component\Uid\Uuid
     {
-        /** @var TenantContext $ctx */
         $ctx = self::getContainer()->get(TenantContext::class);
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
         \assert($tenant instanceof Tenant);
         $ctx->set($tenant);
 
         $attribute = new Attribute($code, ['en' => $code], $type);
-        /** @var AttributeRepositoryInterface $repo */
         $repo = self::getContainer()->get(AttributeRepositoryInterface::class);
         $repo->save($attribute);
 
