@@ -44,7 +44,25 @@
     "workflow": "Workflow",
     "settings": "Ustawienia",
     "modeling": "Modelowanie",
-    "soon": "Wkrótce"
+    "soon": "Wkrótce",
+    "workspace_label": "Workspace",
+    "add_custom_module": "+ Dodaj własny moduł",
+    "active_modules_count_one": "{{count}} moduł aktywny",
+    "active_modules_count_few": "{{count}} moduły aktywne",
+    "active_modules_count_many": "{{count}} modułów aktywnych",
+    "active_modules_count_other": "{{count}} modułów aktywnych"
+  },
+  "topbar": {
+    "workspace": "Workspace",
+    "breadcrumb_aria": "Ścieżka nawigacji",
+    "search_agent_placeholder": "Zapytaj agenta lub szukaj...",
+    "agent_mock_tooltip": "MOCK · Agent layer wymaga oprogramowania (epik 0.7, Faza 2)",
+    "audit_log": "Audit log",
+    "audit_log_tooltip": "MOCK · Audit log wymaga endpointu BE"
+  },
+  "mock": {
+    "label": "MOCK",
+    "requires_implementation": "MOCK · Wymaga oprogramowania"
   },
   "dashboard": {
     "hero": {

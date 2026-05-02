@@ -44,7 +44,23 @@
     "workflow": "Workflow",
     "settings": "Settings",
     "modeling": "Modeling",
-    "soon": "Soon"
+    "soon": "Soon",
+    "workspace_label": "Workspace",
+    "add_custom_module": "+ Add custom module",
+    "active_modules_count_one": "{{count}} active module",
+    "active_modules_count_other": "{{count}} active modules"
+  },
+  "topbar": {
+    "workspace": "Workspace",
+    "breadcrumb_aria": "Breadcrumb",
+    "search_agent_placeholder": "Ask the agent or search...",
+    "agent_mock_tooltip": "MOCK · Agent layer requires implementation (epic 0.7, Phase 2)",
+    "audit_log": "Audit log",
+    "audit_log_tooltip": "MOCK · Audit log requires BE endpoint"
+  },
+  "mock": {
+    "label": "MOCK",
+    "requires_implementation": "MOCK · Requires implementation"
   },
   "dashboard": {
     "hero": {
