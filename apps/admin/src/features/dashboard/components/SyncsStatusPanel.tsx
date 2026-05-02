@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { MockBadge } from '@/components/ui/mock-badge';
 import { cn } from '@/lib/utils';
 
 import { SYNCS, type SyncStatus } from '../mock-data';
@@ -19,20 +20,24 @@ const STATUS_DOT: Record<SyncStatus, string> = {
 export function SyncsStatusPanel() {
   const { t } = useTranslation();
   return (
-    <div className="rounded-2xl border border-line bg-surface soft-shadow">
+    <div className="relative rounded-2xl border border-line bg-surface soft-shadow">
+      <MockBadge variant="corner" />
       <div className="flex items-center justify-between border-b border-line px-5 py-4">
         <h3 className="text-[15px] font-semibold text-ink">{t('dashboard.syncs.title')}</h3>
-        {/* MOCK: button "Wymuś synchronizację" — wymaga POST /api/integrations/{id}/sync (#TBD) */}
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-line px-2.5 py-1 text-[12px] text-muted-foreground"
-          title={t('dashboard.syncs.force_disabled') ?? ''}
-        >
-          <RefreshCw className="size-3" />
-          {t('dashboard.syncs.force')}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* MOCK: button "Wymuś synchronizację" — wymaga POST /api/integrations/{id}/sync (#TBD) */}
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-line px-2.5 py-1 text-[12px] text-muted-foreground"
+            title={t('dashboard.syncs.force_disabled') ?? ''}
+          >
+            <RefreshCw className="size-3" />
+            {t('dashboard.syncs.force')}
+          </button>
+          <MockBadge tooltip={t('dashboard.syncs.force_disabled') ?? undefined} />
+        </div>
       </div>
       <ul className="divide-y divide-line">
         {SYNCS.map((s) => (

@@ -1,6 +1,7 @@
-import { AlertTriangle, BellRing, Info } from 'lucide-react';
+import { AlertTriangle, BellRing, Info, Settings2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { MockBadge } from '@/components/ui/mock-badge';
 import { cn } from '@/lib/utils';
 
 import { ALERTS, type AlertSeverity } from '../mock-data';
@@ -30,10 +31,23 @@ const SEVERITY_STYLE: Record<
 export function AlertCenter() {
   const { t } = useTranslation();
   return (
-    <div className="rounded-2xl border border-line bg-surface soft-shadow">
+    <div className="relative rounded-2xl border border-line bg-surface soft-shadow">
+      <MockBadge variant="corner" />
       <div className="flex items-center justify-between border-b border-line px-5 py-4">
         <h3 className="text-[15px] font-semibold text-ink">{t('dashboard.alerts.title')}</h3>
-        <span className="text-[12px] text-muted-foreground">{t('dashboard.alerts.subtitle')}</span>
+        <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+          <span>{t('dashboard.alerts.subtitle')}</span>
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="inline-flex cursor-not-allowed items-center gap-1 rounded-md border border-line px-2 py-0.5 text-[11px] text-muted-foreground"
+          >
+            <Settings2 className="size-3" />
+            {t('dashboard.alerts.configure', { defaultValue: 'Skonfiguruj alerty' })}
+          </button>
+          <MockBadge />
+        </div>
       </div>
       <ul className="divide-y divide-line">
         {ALERTS.map((alert) => {

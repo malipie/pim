@@ -1,6 +1,7 @@
 import { Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { MockBadge } from '@/components/ui/mock-badge';
 import { cn } from '@/lib/utils';
 
 /**
@@ -17,6 +18,7 @@ export function HeroAgentPanel() {
         'relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-violet-50 via-white to-white p-8 soft-shadow-lg',
       )}
     >
+      <MockBadge variant="corner" />
       <div className="flex items-start justify-between gap-6">
         <div className="max-w-2xl">
           <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-accent-violet/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-accent-violet">
@@ -28,7 +30,7 @@ export function HeroAgentPanel() {
           </h1>
           <p className="mt-2 text-[15px] text-ink-2">{t('dashboard.hero.subtitle')}</p>
         </div>
-        <div className="hidden shrink-0 sm:block">
+        <div className="hidden shrink-0 items-center gap-2 sm:flex">
           {/* MOCK: command palette CTA — wymaga agent layer (Faza 2, #TBD) */}
           <button
             type="button"
@@ -46,6 +48,7 @@ export function HeroAgentPanel() {
               ⌘K
             </kbd>
           </button>
+          <MockBadge tooltip={t('dashboard.hero.cta_disabled_hint') ?? undefined} />
         </div>
       </div>
     </div>

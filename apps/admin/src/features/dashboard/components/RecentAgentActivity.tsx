@@ -1,5 +1,7 @@
+import { Filter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { MockBadge } from '@/components/ui/mock-badge';
 import { cn } from '@/lib/utils';
 
 import { AGENT_ACTIVITY, type AgentStatus } from '../mock-data';
@@ -19,14 +21,25 @@ const STATUS_BADGE: Record<AgentStatus, { label: string; className: string }> = 
 export function RecentAgentActivity() {
   const { t } = useTranslation();
   return (
-    <div className="rounded-2xl border border-line bg-surface soft-shadow">
+    <div className="relative rounded-2xl border border-line bg-surface soft-shadow">
+      <MockBadge variant="corner" />
       <div className="flex items-center justify-between border-b border-line px-5 py-4">
         <h3 className="text-[15px] font-semibold text-ink">
           {t('dashboard.agent_activity.title')}
         </h3>
-        <span className="text-[12px] text-muted-foreground">
-          {t('dashboard.agent_activity.subtitle')}
-        </span>
+        <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+          <span>{t('dashboard.agent_activity.subtitle')}</span>
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="inline-flex cursor-not-allowed items-center gap-1 rounded-md border border-line px-2 py-0.5 text-[11px] text-muted-foreground"
+          >
+            <Filter className="size-3" />
+            {t('dashboard.agent_activity.filter', { defaultValue: 'Filtruj' })}
+          </button>
+          <MockBadge />
+        </div>
       </div>
       <ul className="divide-y divide-line">
         {AGENT_ACTIVITY.map((row) => {

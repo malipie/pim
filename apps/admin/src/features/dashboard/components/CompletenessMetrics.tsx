@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
+import { MockBadge } from '@/components/ui/mock-badge';
+
 import { COMPLETENESS } from '../mock-data';
 
 /**
@@ -43,7 +45,8 @@ function Ring({ percent }: { percent: number }) {
 export function CompletenessMetrics() {
   const { t } = useTranslation();
   return (
-    <div className="rounded-2xl border border-line bg-surface p-5 soft-shadow">
+    <div className="relative rounded-2xl border border-line bg-surface p-5 soft-shadow">
+      <MockBadge variant="corner" />
       <h3 className="text-[15px] font-semibold text-ink">{t('dashboard.completeness.title')}</h3>
       <p className="mt-1 text-[12px] text-muted-foreground">
         {t('dashboard.completeness.subtitle')}

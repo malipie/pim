@@ -8,19 +8,44 @@
  * other than features/dashboard/.
  */
 
+export type KpiKey =
+  | 'products'
+  | 'attributes'
+  | 'families'
+  | 'categories'
+  | 'enabled_share'
+  | 'completeness_avg'
+  | 'last_sync_minutes'
+  | 'open_alerts';
+
 export interface KpiTile {
-  key: 'products' | 'attributes' | 'families' | 'categories';
+  key: KpiKey;
   value: number;
   delta: number;
   hint: string;
+  /** Optional unit suffix shown next to the value (e.g. "%", "min"). */
+  unit?: string;
 }
 
+/**
+ * Catalogue of available KPI tiles. The user picks 4 of these in the KPI
+ * settings sheet; selection persists in localStorage (MOCK — no backend).
+ */
 export const KPI_TILES: KpiTile[] = [
   { key: 'products', value: 12_847, delta: 184, hint: 'last 30 days' },
   { key: 'attributes', value: 312, delta: 12, hint: 'last 30 days' },
   { key: 'families', value: 47, delta: 2, hint: 'last 30 days' },
   { key: 'categories', value: 184, delta: 8, hint: 'last 30 days' },
+  { key: 'enabled_share', value: 92, delta: 3, hint: 'enabled / total', unit: '%' },
+  { key: 'completeness_avg', value: 87, delta: 4, hint: 'all channels', unit: '%' },
+  { key: 'last_sync_minutes', value: 8, delta: -2, hint: 'minutes ago', unit: 'min' },
+  { key: 'open_alerts', value: 5, delta: -1, hint: 'last 24h' },
 ];
+
+/** Default KPI selection used when the user has not customised the dashboard. */
+export const KPI_DEFAULT_SELECTION: KpiKey[] = ['products', 'attributes', 'families', 'categories'];
+
+export const KPI_MAX_SELECTION = 4;
 
 export interface ActivityPoint {
   day: number;
@@ -28,14 +53,28 @@ export interface ActivityPoint {
   modified: number;
 }
 
-export const ACTIVITY_30D: ActivityPoint[] = Array.from({ length: 30 }, (_, i) => {
-  const weekend = i % 7 === 5 || i % 7 === 6;
-  return {
-    day: i + 1,
-    added: weekend ? 4 + (i % 3) : 18 + ((i * 7) % 14),
-    modified: weekend ? 9 + (i % 4) : 32 + ((i * 11) % 22),
-  };
-});
+/** Range of days the activity chart can render. 30d is the default. */
+export type ActivityRange = '7d' | '30d' | '90d';
+
+const buildActivity = (length: number): ActivityPoint[] =>
+  Array.from({ length }, (_, i) => {
+    const weekend = i % 7 === 5 || i % 7 === 6;
+    return {
+      day: i + 1,
+      added: weekend ? 4 + (i % 3) : 18 + ((i * 7) % 14),
+      modified: weekend ? 9 + (i % 4) : 32 + ((i * 11) % 22),
+    };
+  });
+
+export const ACTIVITY_7D: ActivityPoint[] = buildActivity(7);
+export const ACTIVITY_30D: ActivityPoint[] = buildActivity(30);
+export const ACTIVITY_90D: ActivityPoint[] = buildActivity(90);
+
+export const ACTIVITY_BY_RANGE: Record<ActivityRange, ActivityPoint[]> = {
+  '7d': ACTIVITY_7D,
+  '30d': ACTIVITY_30D,
+  '90d': ACTIVITY_90D,
+};
 
 export interface TopEditedProduct {
   sku: string;

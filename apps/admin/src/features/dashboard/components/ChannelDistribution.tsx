@@ -1,5 +1,8 @@
+import { Download } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { MockBadge } from '@/components/ui/mock-badge';
 
 import { CHANNEL_DISTRIBUTION } from '../mock-data';
 
@@ -17,12 +20,25 @@ export function ChannelDistribution() {
     [],
   );
   return (
-    <div className="rounded-2xl border border-line bg-surface p-5 soft-shadow">
+    <div className="relative rounded-2xl border border-line bg-surface p-5 soft-shadow">
+      <MockBadge variant="corner" />
       <div className="flex items-baseline justify-between">
         <h3 className="text-[15px] font-semibold text-ink">{t('dashboard.channel_dist.title')}</h3>
-        <span className="num text-[12px] text-muted-foreground">
-          {total.toLocaleString('pl-PL')} {t('dashboard.channel_dist.unit')}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="num text-[12px] text-muted-foreground">
+            {total.toLocaleString('pl-PL')} {t('dashboard.channel_dist.unit')}
+          </span>
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="inline-flex cursor-not-allowed items-center gap-1 rounded-md border border-line px-2 py-0.5 text-[11px] text-muted-foreground"
+          >
+            <Download className="size-3" />
+            {t('dashboard.channel_dist.export', { defaultValue: 'Eksportuj raport' })}
+          </button>
+          <MockBadge />
+        </div>
       </div>
       <div
         className="mt-4 flex h-3 w-full overflow-hidden rounded-full bg-surface-2"
