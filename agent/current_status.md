@@ -1,5 +1,48 @@
 # Current Status
 
+## 2026-05-03: VIEW-02 + VIEW-03 marathon — backend foundation + first FE polish merged
+
+Operator: „pracuj VIEW-02 first → VIEW-03, bypass permissions, działaj aż do końca obu". Marathon mode w toku. Stan na 2026-05-03 ~01:00Z:
+
+### Zmergowane do main (8 PR-ów)
+
+VIEW-02 (Attributes Library — issue #374):
+- **#377** docs(view-02) — ticket rozpisany.
+- **#378** feat(catalog) — `AttributeOption` rozszerzenie schema/entity (`color` hex + CHECK, `is_default` partial unique, `is_deprecated`) + 2 domain exceptions + unit tests.
+- **#380** feat(catalog) — serializer expose dla VIEW-02 + VIEW-03 nowych pól.
+- **#381** feat(catalog) — `Attribute` POST/PATCH/DELETE ApiResource: 3 CQRS commands + handlers + AP4 `AttributeProcessor` (mirror `AttributeGroupProcessor`). 6 ApiTestCase scenariuszy (snake_case 422, duplicate 409, partial PATCH, system delete 422). **Merged**.
+
+VIEW-03 (Attribute Groups — issue #375):
+- **#376** docs(view-03) — ticket rozpisany.
+- **#379** feat(catalog) — `AttributeGroup` 3 boolean kolumny (`is_required_section`, `is_shared` default true, `has_conditional_visibility`) + entity setters + unit tests.
+- **#380** (shared) — serializer expose.
+- **#382** feat(catalog) — wire behavior flags przez API (Input/PatchInput/Command/Handler/Processor) + 2 ApiTestCase scenariusze. **Merged**.
+
+### W locie (CI / merge)
+
+- **#383** feat(catalog) — bulk-attach/detach/reorder dla AttributeGroup członkostwa (3 endpointy: `POST .../attributes/bulk-attach`, `DELETE .../attributes/{attributeId}`, `POST .../attributes/reorder`). 5 ApiTestCase scenariuszy.
+- **#384** feat(admin) — pixel-perfect AttributeGroup create form: `<ColorPicker>` z `ATTRIBUTE_GROUP_SWATCHES` (8-swatch) + `<IconPicker>` z `ATTRIBUTE_GROUP_ICONS` (14 emoji) + 3 `<SettingToggleRow>` Behavior cards. Submit body wysyła nowe behavior flags.
+- **#385** feat(catalog) — fixtures: audit system group seedowany z `requiredSection: true, shared: false, conditionalVisibility: false` (zamiast constructor defaults).
+
+### Zostaje na follow-up (świadome odejście — pełen scope VIEW-02+VIEW-03 ~80h, niemożliwy w jednej marathon session)
+
+VIEW-02:
+- AttributeOption ApiResource (GET nested `/api/attributes/{code}/options` + POST/PATCH/DELETE + reorder controller).
+- Per-option usage endpoint.
+- FE rebuild list.tsx (chip filtry pixel-perfect) / show.tsx (edit-in-place + sticky bottom bar) / new create.tsx (`AttributeTypeGrid` + sidebar Preview + Następnie) / values.tsx (dnd-kit + ColorSwatchPicker + ValueRowItem + AttributeValueDefinitionCard).
+- ~10 nowych komponentów FE: `<FlagPill>`, `<AttributeTypeGrid>`, `<ValueRowItem>`, `<AttributeValueDefinitionCard>`, `<AttributeValuePreviewCard>`, `<AttributeValueAuditCard>`.
+- Fixtures rozbudowanie: 27 atrybutów z mockupu + 7 IP-rating values z kolorami + 5 currency + 5 vat_rate + 4 tags z is_default.
+- ~45 i18n keys + Playwright e2e specs + axe-core.
+
+VIEW-03:
+- Rozszerzenie `POST /api/attributes` o `attachToGroups: string[]` (atomic create + attach dla popupu „Stwórz nowy").
+- Rozszerzenie `GET /api/attribute_groups/{id}/usage` o `instancesAffected`, `typesUsed`, `categoriesUsed`.
+- Sidebar Preview + Następnie cards na create form.
+- FE rebuild list.tsx (system + business sections, 2 sekcje) i show.tsx (sticky header + 4 Cards: Identyfikacja / Attributes / Visibility rules / Where used + 2 popupy).
+- 2 popupy: `<AddAttributeFromLibraryDialog>` (multi-select, search + type filter), `<CreateAttributeInGroupDialog>` (skrócony attribute create).
+- Fixtures rozbudowanie: 12 grup z mockupu (audit, identification, marketing, tech-spec, pricing, wymagania-medyczne, refundacja-nfz, chirurgia-szczegoly, ortopedia, scheduling, cennik-medyczny, specyfika-fryzjerska) + 2 visible_when rules.
+- ~75 i18n keys + Playwright e2e + axe-core.
+
 ## 2026-05-02 (cd. II): VIEW-03 view-first ticket rozpisany — Modelowanie · Attribute Groups
 
 **Issue #375** (VIEW-03) — pixel-perfect rebuild Modelowanie · Attribute Groups (lista + create `/new` + detail edit-in-place + 2 popupy: „Z biblioteki" multi-select i „Stwórz nowy" skrócony attribute create). Branch `feat/view-03-modelowanie-attribute-groups` (od main, niezależny od VIEW-02 #374).
