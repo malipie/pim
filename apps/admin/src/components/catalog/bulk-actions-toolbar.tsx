@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { MockBadge } from '@/components/ui/mock-badge';
 import { jsonFetch } from '@/lib/http';
 
 import { BulkEditModal } from './bulk-edit-modal';
@@ -151,33 +152,53 @@ export function BulkActionsToolbar({
         </Button>
         {/* MOCK: bulk category change — wymaga rozszerzenia POST /api/products/bulk-edit
             o operation 'change_category' (#TBD). Patrz Project Plan/UI/Wdrozenie_grafiki/produkty-do-oprogramowania.md. */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled
-          aria-disabled="true"
-          title={t('products.bulk.change_category_disabled', {
-            defaultValue: 'Mock — wymaga operation change_category w /bulk-edit',
-          })}
-        >
-          <FolderTree className="size-4" />
-          {t('products.bulk.change_category', { defaultValue: 'Zmień kategorię' })}
-        </Button>
+        <span className="inline-flex items-center gap-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled
+            aria-disabled="true"
+            title={t('products.bulk.change_category_disabled', {
+              defaultValue: 'Mock — wymaga operation change_category w /bulk-edit',
+            })}
+          >
+            <FolderTree className="size-4" />
+            {t('products.bulk.change_category', { defaultValue: 'Zmień kategorię' })}
+            <kbd className="ml-1.5 rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
+              K
+            </kbd>
+          </Button>
+          <MockBadge
+            tooltip={t('products.bulk.change_category_disabled', {
+              defaultValue: 'Mock — wymaga operation change_category w /bulk-edit',
+            })}
+          />
+        </span>
         {/* MOCK: bulk export CSV/XLSX — wymaga GET /api/products/export?ids=...&format=csv (#TBD). */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled
-          aria-disabled="true"
-          title={t('products.bulk.export_disabled', {
-            defaultValue: 'Mock — wymaga GET /api/products/export?ids=...&format=csv',
-          })}
-        >
-          <Download className="size-4" />
-          {t('products.bulk.export', { defaultValue: 'Eksport' })}
-        </Button>
+        <span className="inline-flex items-center gap-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled
+            aria-disabled="true"
+            title={t('products.bulk.export_disabled', {
+              defaultValue: 'Mock — wymaga GET /api/products/export?ids=...&format=csv',
+            })}
+          >
+            <Download className="size-4" />
+            {t('products.bulk.export', { defaultValue: 'Eksport' })}
+            <kbd className="ml-1.5 rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
+              X
+            </kbd>
+          </Button>
+          <MockBadge
+            tooltip={t('products.bulk.export_disabled', {
+              defaultValue: 'Mock — wymaga GET /api/products/export?ids=...&format=csv',
+            })}
+          />
+        </span>
         <Button
           type="button"
           variant="destructive"

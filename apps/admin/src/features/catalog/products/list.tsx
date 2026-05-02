@@ -306,6 +306,7 @@ export function ProductListPage() {
             <Link to="/products/new">
               <Plus className="size-4" />
               {t('products.create')}
+              <kbd className="ml-1.5 rounded bg-white/15 px-1 py-0.5 font-mono text-[10px]">⌘N</kbd>
             </Link>
           </Button>
         </div>
