@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 
+import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -41,12 +42,15 @@ export function CategoryShowPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <Button asChild variant="ghost" size="sm" className="-ml-3">
-          <Link to="/modeling/categories">
-            <ArrowLeft className="size-4" />
-            {t('categories.back')}
-          </Link>
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button asChild variant="ghost" size="sm" className="-ml-3">
+            <Link to="/modeling/categories">
+              <ArrowLeft className="size-4" />
+              {t('categories.back')}
+            </Link>
+          </Button>
+          <AuditLogIndicator />
+        </div>
         <h1 className="display text-[28px] font-semibold leading-tight text-ink">{name}</h1>
         <p className="font-mono text-[12px] text-ink-2">{category.code}</p>
         {category.path ? (

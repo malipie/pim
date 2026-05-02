@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 
+import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { WhereUsedList } from '@/components/modeling/where-used-list';
 import { Button } from '@/components/ui/button';
@@ -126,12 +127,15 @@ export function AttributeGroupShowPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <Button asChild variant="ghost" size="sm" className="-ml-3">
-          <Link to="/modeling/attribute-groups">
-            <ArrowLeft className="size-4" />
-            {t('attribute_groups.back')}
-          </Link>
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button asChild variant="ghost" size="sm" className="-ml-3">
+            <Link to="/modeling/attribute-groups">
+              <ArrowLeft className="size-4" />
+              {t('attribute_groups.back')}
+            </Link>
+          </Button>
+          <AuditLogIndicator />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {group.color ? (
             <span

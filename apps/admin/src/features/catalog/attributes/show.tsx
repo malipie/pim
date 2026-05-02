@@ -3,6 +3,7 @@ import { ArrowLeft, Wand2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 
+import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { WhereUsedList } from '@/components/modeling/where-used-list';
 import { Button } from '@/components/ui/button';
@@ -47,12 +48,15 @@ export function AttributeShowPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <Button asChild variant="ghost" size="sm" className="-ml-3">
-          <Link to="/modeling/attributes">
-            <ArrowLeft className="size-4" />
-            {t('attributes.back')}
-          </Link>
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button asChild variant="ghost" size="sm" className="-ml-3">
+            <Link to="/modeling/attributes">
+              <ArrowLeft className="size-4" />
+              {t('attributes.back')}
+            </Link>
+          </Button>
+          <AuditLogIndicator />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{label}</h1>
           {attribute.system ? <BuiltInLockBadge /> : null}

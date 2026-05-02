@@ -1,10 +1,11 @@
 import { useList } from '@refinedev/core';
-import { ChevronDown, ChevronRight, Eye, FolderTree } from 'lucide-react';
+import { ChevronDown, ChevronRight, Eye, FolderTree, Move } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { Button } from '@/components/ui/button';
+import { MockBadge } from '@/components/ui/mock-badge';
 import { cn } from '@/lib/utils';
 
 interface CategoryEntry {
@@ -43,11 +44,26 @@ export function CategoriesTreePage() {
           </h1>
           <p className="max-w-3xl text-[14px] text-ink-2">{t('categories.list_subtitle')}</p>
         </div>
-        {/* MOCK: ObjectType filter chips (Service / Product / Asset) — wymaga listing po kind (#TBD) */}
-        {/* MOCK: Drag-and-drop subtree move — wymaga PATCH /api/categories/{id}/move (#TBD) */}
+        <div className="flex items-center gap-2">
+          {/* MOCK: Drag-and-drop subtree move — wymaga PATCH /api/categories/{id}/move (#TBD) */}
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-[12px] text-muted-foreground"
+          >
+            <Move className="size-3.5" />
+            {t('categories.move_action', { defaultValue: 'Przenieś gałąź' })}
+          </button>
+          <MockBadge
+            tooltip={t('categories.move_mock_tooltip', {
+              defaultValue: 'MOCK · Drag-and-drop wymaga PATCH /api/categories/{id}/move',
+            })}
+          />
+        </div>
       </div>
 
-      <div className="rounded-2xl border border-line bg-surface p-3 soft-shadow">
+      <div className="relative rounded-2xl border border-line bg-surface p-3 soft-shadow">
         {query.isLoading ? (
           <p className="py-6 text-center text-sm text-muted-foreground">{t('app.loading')}</p>
         ) : tree.length === 0 ? (
