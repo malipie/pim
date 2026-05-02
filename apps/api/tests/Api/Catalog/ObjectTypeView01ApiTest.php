@@ -28,12 +28,16 @@ final class ObjectTypeView01ApiTest extends CatalogApiTestCase
         $response = $client->request('GET', '/api/object_types');
 
         self::assertResponseIsSuccessful();
+        /** @var array<string, mixed> $payload */
         $payload = $response->toArray();
         $items = $payload['hydra:member'] ?? $payload['member'] ?? [];
+        \assert(\is_array($items));
         self::assertNotEmpty($items);
 
+        /** @var array<string, array<string, mixed>> $byKind */
         $byKind = [];
         foreach ($items as $row) {
+            \assert(\is_array($row) && \is_string($row['kind']));
             $byKind[$row['kind']] = $row;
         }
         self::assertArrayHasKey('product', $byKind);
@@ -86,16 +90,19 @@ final class ObjectTypeView01ApiTest extends CatalogApiTestCase
             ],
         ]);
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
-        $id = $created->toArray()['id'];
+        $createdBody = $created->toArray();
+        \assert(\is_string($createdBody['id']));
+        $id = $createdBody['id'];
 
         $patched = $client->request('PATCH', '/api/object_types/'.$id, [
             'json' => ['hasVariants' => true, 'abstract' => true],
             'headers' => ['content-type' => 'application/json'],
         ]);
         self::assertResponseIsSuccessful();
-        self::assertTrue($patched->toArray()['hasVariants']);
-        self::assertTrue($patched->toArray()['abstract']);
-        self::assertGreaterThan(1, $patched->toArray()['schemaVersion']);
+        $patchedBody = $patched->toArray();
+        self::assertTrue($patchedBody['hasVariants']);
+        self::assertTrue($patchedBody['abstract']);
+        self::assertGreaterThan(1, $patchedBody['schemaVersion']);
 
         $client->request('DELETE', '/api/object_types/'.$id);
         self::assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
@@ -160,10 +167,14 @@ final class ObjectTypeView01ApiTest extends CatalogApiTestCase
             'json' => ['locale' => 'de'],
         ]);
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
-        self::assertContains('de', $second->toArray()['enabledLocales']);
+        $secondLocales = $second->toArray()['enabledLocales'];
+        \assert(\is_array($secondLocales));
+        self::assertContains('de', $secondLocales);
 
         $current = $client->request('GET', '/api/workspaces/current');
-        self::assertContains('de', $current->toArray()['enabledLocales']);
+        $currentLocales = $current->toArray()['enabledLocales'];
+        \assert(\is_array($currentLocales));
+        self::assertContains('de', $currentLocales);
     }
 
     #[Test]
@@ -193,6 +204,7 @@ final class ObjectTypeView01ApiTest extends CatalogApiTestCase
         $rows = $response->toArray();
         if ([] !== $rows) {
             $first = $rows[0];
+            \assert(\is_array($first));
             self::assertArrayHasKey('id', $first);
             self::assertArrayHasKey('code', $first);
             self::assertArrayHasKey('system', $first);
@@ -214,7 +226,9 @@ final class ObjectTypeView01ApiTest extends CatalogApiTestCase
             ],
         ]);
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
-        $id = $created->toArray()['id'];
+        $createdBody = $created->toArray();
+        \assert(\is_string($createdBody['id']));
+        $id = $createdBody['id'];
 
         // Insert an objects row directly via the EM — the catalog-side flow
         // would require attribute setup beyond the scope of this test.
