@@ -80,6 +80,9 @@ final readonly class AttributeGroupProcessor implements ProcessorInterface
             icon: $data->icon,
             color: $data->color,
             position: $data->position,
+            requiredSection: $data->requiredSection,
+            shared: $data->shared,
+            conditionalVisibility: $data->conditionalVisibility,
         );
 
         $envelope = $this->dispatch($command);
@@ -121,6 +124,9 @@ final readonly class AttributeGroupProcessor implements ProcessorInterface
             icon: $data->icon,
             color: $data->color,
             position: $data->position,
+            requiredSection: $data->requiredSection,
+            shared: $data->shared,
+            conditionalVisibility: $data->conditionalVisibility,
         );
         $this->dispatch($command);
 

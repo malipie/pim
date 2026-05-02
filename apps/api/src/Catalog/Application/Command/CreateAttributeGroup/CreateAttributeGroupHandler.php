@@ -41,6 +41,9 @@ final readonly class CreateAttributeGroupHandler
             description: $command->description,
             icon: $command->icon,
             color: $command->color,
+            isRequiredSection: $command->requiredSection,
+            isShared: $command->shared,
+            hasConditionalVisibility: $command->conditionalVisibility,
         );
 
         $this->repository->save($group);
