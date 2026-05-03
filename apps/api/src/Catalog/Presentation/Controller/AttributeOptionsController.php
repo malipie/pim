@@ -19,6 +19,8 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
+use const JSON_THROW_ON_ERROR;
+
 /**
  * VIEW-02 (#374) — read + manage AttributeOption rows backing the
  * Allowed Values editor (`/modeling/attributes/{code}/values`).
@@ -59,6 +61,45 @@ final class AttributeOptionsController
             ->findBy(['attribute' => $attribute], ['position' => 'ASC', 'code' => 'ASC']);
 
         return new JsonResponse(['member' => array_map([self::class, 'serialize'], $options)]);
+    }
+
+    /**
+     * VIEW-02 (#374) — per-option instance count for the Allowed Values
+     * editor's `<AttributeValueAuditCard>`. Counts every `object_value`
+     * row whose `value` JSONB references the option code:
+     *   - select   → `value->>'value' = '{optionCode}'`
+     *   - multiselect → `value->'option_codes' ? '{optionCode}'`
+     *
+     * The single SQL covers both shapes via OR — JSONB `?` operator on
+     * a non-array value is `false` so the select branch only matches
+     * `value->>'value'`. Tenant scoping piggybacks on object_values
+     * (already tenant-stamped via Doctrine listener).
+     */
+    #[Route(
+        '/api/attributes/{code}/options/{optionCode}/usage',
+        name: 'pim_attribute_options_usage',
+        methods: ['GET'],
+    )]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function usage(string $code, string $optionCode): JsonResponse
+    {
+        $attribute = $this->loadAttributeByCode($code);
+        $option = $this->loadOption($attribute, $optionCode);
+
+        // Postgres JSONB containment (`@>`) lets us cover both shapes
+        // without using the `?` JSONB operator (DBAL parses `?` as a
+        // bind placeholder).
+        $selectShape = json_encode(['value' => $option->getCode()], JSON_THROW_ON_ERROR);
+        $multiShape = json_encode(['option_codes' => [$option->getCode()]], JSON_THROW_ON_ERROR);
+        $row = $this->em->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM object_values'
+            .' WHERE attribute_id = ?'
+            .' AND (value @> ?::jsonb OR value @> ?::jsonb)',
+            [$attribute->getId()->toRfc4122(), $selectShape, $multiShape],
+        );
+        $instances = \is_scalar($row) ? (int) $row : 0;
+
+        return new JsonResponse(['instances' => $instances]);
     }
 
     #[Route(
