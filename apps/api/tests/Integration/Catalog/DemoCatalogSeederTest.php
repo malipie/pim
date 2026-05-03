@@ -49,8 +49,10 @@ final class DemoCatalogSeederTest extends KernelTestCase
         $seeder->seed($this->tenant);
 
         $em = $this->em();
-        // 19 attributes spanning all 10 AttributeType cases.
-        self::assertSame(19, (int) $em->createQuery('SELECT COUNT(a) FROM '.Attribute::class.' a')->getSingleScalarResult());
+        // 27 attributes (19 base + 8 VIEW-02 mockup additions: ip_rating,
+        // vat_rate, currency_code, warranty_months, voltage, power_w,
+        // requires_referral, eol_date) spanning all 10 AttributeType cases.
+        self::assertSame(27, (int) $em->createQuery('SELECT COUNT(a) FROM '.Attribute::class.' a')->getSingleScalarResult());
         // 100 products + 5 categories + 10 assets.
         self::assertSame(100, $this->countObjects(ObjectKind::Product));
         self::assertSame(5, $this->countObjects(ObjectKind::Category));
