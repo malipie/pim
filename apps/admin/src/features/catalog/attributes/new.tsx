@@ -1,3 +1,4 @@
+import { useInvalidate } from '@refinedev/core';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -74,6 +75,7 @@ const TYPES = [
 export function AttributeCreatePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const invalidate = useInvalidate();
   const [values, setValues] = useState<CreatePayload>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,6 +103,10 @@ export function AttributeCreatePage() {
         accept: 'application/ld+json',
         body,
       });
+      // Drop Refine's cached list so the new row shows up after redirect.
+      // Without this, the list (which uses useList with a stable cache key)
+      // keeps rendering the pre-create snapshot until a manual refetch.
+      void invalidate({ resource: 'attributes', invalidates: ['list', 'many'] });
       if (typeof response.id === 'string' && response.id !== '') {
         navigate(`/modeling/attributes/${response.id}`, { replace: true });
       } else {
@@ -190,23 +196,17 @@ export function AttributeCreatePage() {
                   })}
                 </p>
               </div>
-              <div>
-                <Label className="text-[11.5px] font-medium text-muted-foreground">
-                  {t('attributes.fields.name', { defaultValue: 'Nazwa' })}
-                </Label>
-                <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
-                  <Input
-                    value={values.labelPl}
-                    onChange={(e) => setValues({ ...values, labelPl: e.target.value })}
-                    placeholder="PL · np. Gwarancja (msc)"
-                  />
-                  <Input
-                    value={values.labelEn}
-                    onChange={(e) => setValues({ ...values, labelEn: e.target.value })}
-                    placeholder="EN · e.g. Warranty (months)"
-                  />
-                </div>
-              </div>
+              <LocaleField
+                label={t('attributes.fields.name', { defaultValue: 'Nazwa' })}
+                placeholder={t('attributes.fields.name_placeholder', {
+                  defaultValue: 'np. Gwarancja (msc)',
+                })}
+                values={{ pl: values.labelPl, en: values.labelEn }}
+                onChange={(locale, next) => {
+                  if (locale === 'pl') setValues({ ...values, labelPl: next });
+                  else setValues({ ...values, labelEn: next });
+                }}
+              />
               <div>
                 <Label className="text-[11.5px] font-medium text-muted-foreground">
                   {t('attributes.fields.help', { defaultValue: 'Opis (opcjonalny)' })}
@@ -347,4 +347,56 @@ function stripEmpty(record: Record<string, string>): Record<string, string> {
     if (v.trim() !== '') out[k] = v;
   }
   return out;
+}
+
+const NEW_ATTRIBUTE_LOCALES: Array<{ code: 'pl' | 'en'; flag: string }> = [
+  { code: 'pl', flag: '🇵🇱' },
+  { code: 'en', flag: '🇬🇧' },
+];
+
+function LocaleField({
+  label,
+  placeholder,
+  values,
+  onChange,
+}: {
+  label: string;
+  placeholder?: string;
+  values: { pl: string; en: string };
+  onChange: (locale: 'pl' | 'en', next: string) => void;
+}) {
+  const [active, setActive] = useState<'pl' | 'en'>('pl');
+  return (
+    <div>
+      <Label className="text-[11.5px] font-medium text-muted-foreground">{label}</Label>
+      <div className="mt-1.5 flex items-center gap-1 border-b border-zinc-100">
+        {NEW_ATTRIBUTE_LOCALES.map(({ code, flag }) => {
+          const filled = values[code].trim().length > 0;
+          return (
+            <button
+              key={code}
+              type="button"
+              onClick={() => setActive(code)}
+              className={cn(
+                '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[12.5px] font-medium uppercase tracking-wider transition',
+                active === code
+                  ? 'border-zinc-900 text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <span aria-hidden>{flag}</span>
+              <span>{code}</span>
+              {!filled ? <span className="size-1.5 rounded-full bg-amber-400" aria-hidden /> : null}
+            </button>
+          );
+        })}
+      </div>
+      <Input
+        className="mt-2"
+        value={values[active]}
+        onChange={(e) => onChange(active, e.target.value)}
+        placeholder={placeholder}
+      />
+    </div>
+  );
 }
