@@ -1,4 +1,5 @@
 import { useInvalidate } from '@refinedev/core';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -76,6 +77,7 @@ export function AttributeCreatePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const invalidate = useInvalidate();
+  const queryClient = useQueryClient();
   const [values, setValues] = useState<CreatePayload>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,10 +105,22 @@ export function AttributeCreatePage() {
         accept: 'application/ld+json',
         body,
       });
-      // Drop Refine's cached list so the new row shows up after redirect.
-      // Without this, the list (which uses useList with a stable cache key)
-      // keeps rendering the pre-create snapshot until a manual refetch.
-      void invalidate({ resource: 'attributes', invalidates: ['list', 'many'] });
+      // Drop the cached list so the new row shows up after redirect.
+      // Belt-and-suspenders: Refine's useInvalidate covers its own cache
+      // keys (`['data','attributes','list']`); the queryClient fallback
+      // wipes any custom React Query keys (e.g. usage prefetch caches)
+      // that might also be holding a stale snapshot. Both are awaited so
+      // the navigate below races with a fresh refetch, not a pending one.
+      await Promise.all([
+        invalidate({ resource: 'attributes', invalidates: ['list', 'many'] }),
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            const key = query.queryKey;
+            if (!Array.isArray(key)) return false;
+            return key.includes('attributes') || key[0] === 'attribute_options';
+          },
+        }),
+      ]);
       if (typeof response.id === 'string' && response.id !== '') {
         navigate(`/modeling/attributes/${response.id}`, { replace: true });
       } else {
