@@ -1,6 +1,6 @@
 import { useOne } from '@refinedev/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Layers, Lock, Pencil, Shield, TriangleAlert, Zap } from 'lucide-react';
+import { ArrowLeft, Layers, Lock, Pencil, Save, Shield, TriangleAlert, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -137,7 +137,7 @@ function Editor({
     setError(null);
   };
 
-  const save = async () => {
+  const save = async (): Promise<boolean> => {
     setSaving(true);
     setError(null);
     try {
@@ -157,6 +157,7 @@ function Editor({
         body,
       });
       onSaved();
+      return true;
     } catch (err) {
       if (err instanceof HttpError) {
         const detail =
@@ -167,9 +168,22 @@ function Editor({
       } else {
         setError(t('app.save_error', { defaultValue: 'Nie udało się zapisać' }));
       }
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  // Top-right primary action: when there are pending edits PATCHes the
+  // attribute and exits to the list; otherwise just exits. Mounting the
+  // list page triggers `refetchOnMount: 'always'` so the user always sees
+  // the freshest data — this is the cache-bust path operators rely on.
+  const saveAndExit = async () => {
+    if (dirty) {
+      const ok = await save();
+      if (!ok) return;
+    }
+    onClose();
   };
 
   return (
@@ -229,10 +243,19 @@ function Editor({
               </Link>
             </Button>
           ) : null}
-          <Button size="sm" disabled className="h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800">
-            <Pencil className="size-4" />
-            {t('app.edit', { defaultValue: 'Edytuj' })}
-          </Button>
+          {!isSystem ? (
+            <Button
+              size="sm"
+              disabled={saving}
+              onClick={() => {
+                void saveAndExit();
+              }}
+              className="h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800"
+            >
+              <Save className="size-4" />
+              {t('attributes.save_changes', { defaultValue: 'Zapisz zmiany' })}
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -392,10 +415,6 @@ function Editor({
           </div>
         </div>
       ) : null}
-
-      <span className="hidden">
-        <button type="button" onClick={onClose} aria-hidden />
-      </span>
     </div>
   );
 }
