@@ -1,23 +1,16 @@
 import { useList } from '@refinedev/core';
-import { Eye, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
+import { ChevronRight, Lock, Plus, Search } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
-import { ModelingPageHeader } from '@/components/modeling/modeling-page-header';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Card } from '@/components/ui/card';
 import { resolveLabel } from '@/features/catalog/attributes/list';
-import { HttpError, jsonFetch } from '@/lib/http';
+import { jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
 
 interface AttributeGroupRow {
   id: string;
@@ -27,253 +20,263 @@ interface AttributeGroupRow {
   icon?: string | null;
   color?: string | null;
   systemGroup?: boolean;
-  autoAttached?: boolean;
   position?: number;
 }
 
+interface UsageResp {
+  attributeCount: number;
+  directlyAttachedTo: {
+    objectTypes: { id: string }[];
+    categories: { id: string }[];
+  };
+}
+
+/**
+ * VIEW-03b — pixel-perfect rebuild of `AttributeGroupsView`
+ * (`groups-categories.jsx:3–80`):
+ *
+ *   - caption "{N} grup atrybutów" + violet ⭐ FIRST-CLASS ENTITY badge.
+ *   - title "Attribute Groups", description Pimcore/Akeneo positioning.
+ *   - CTA "+ Nowa grupa" (zinc-900) → /modeling/attribute-groups/new.
+ *   - Single Card with sticky search top, 2 sections:
+ *     * System (auto-attached) — lock badge prefix.
+ *     * Business groups.
+ *   - Each row: 6-col grid (icon 44 / name+desc 1.6fr / code 1fr / N attr
+ *     120 / N typy·N kat. 120 / chevron 28). Hover bg-zinc-50/70. Click →
+ *     /modeling/attribute-groups/{id} (router pushes UUID; ticket VIEW-03b
+ *     keeps the existing :id route for backward compat with VIEW-03).
+ */
 export function AttributeGroupsListPage() {
   const { t, i18n } = useTranslation();
   const [search, setSearch] = useState('');
-  const [systemFilter, setSystemFilter] = useState<'all' | 'system' | 'business'>('all');
-  const [reloadKey, setReloadKey] = useState(0);
-  const [error, setError] = useState<string | null>(null);
 
   const { result, query } = useList<AttributeGroupRow>({
     resource: 'attribute_groups',
     pagination: { mode: 'off' },
-    queryOptions: { queryKey: ['attribute_groups', reloadKey] },
+    queryOptions: { refetchOnMount: 'always', refetchOnWindowFocus: true, staleTime: 0 },
   });
 
   const groups = result.data;
   const isLoading = query.isLoading;
-  const usageCounts = useAttributeGroupUsageCounts(groups, reloadKey);
+  const usage = useGroupsUsage(groups);
 
-  const visible = groups.filter((row) => {
-    if (systemFilter === 'system' && row.systemGroup !== true) return false;
-    if (systemFilter === 'business' && row.systemGroup === true) return false;
+  const filtered = groups.filter((row) => {
     if (search === '') return true;
     const needle = search.toLowerCase();
     if (row.code.toLowerCase().includes(needle)) return true;
-    const label = resolveLabel(row.label, i18n.language).toLowerCase();
-    return label.includes(needle);
+    const labelStr = resolveLabel(row.label, i18n.language).toLowerCase();
+    return labelStr.includes(needle);
   });
 
-  const handleDelete = async (row: AttributeGroupRow) => {
-    setError(null);
-    if (!window.confirm(t('attribute_groups.delete_confirm', { name: row.code }))) {
-      return;
-    }
-    try {
-      await jsonFetch(`/api/attribute_groups/${row.id}`, {
-        method: 'DELETE',
-        accept: 'application/json',
-      });
-      setReloadKey((k) => k + 1);
-    } catch (err) {
-      if (err instanceof HttpError) {
-        const detail =
-          err.body && typeof err.body === 'object' && 'detail' in err.body
-            ? String((err.body as Record<string, unknown>).detail)
-            : null;
-        setError(detail ?? `HTTP ${err.status}`);
-      } else {
-        setError(t('attribute_groups.delete_error'));
-      }
-    }
-  };
+  const sortByPosition = (a: AttributeGroupRow, b: AttributeGroupRow) =>
+    (a.position ?? 0) - (b.position ?? 0);
+  const systemGroups = filtered.filter((r) => r.systemGroup === true).sort(sortByPosition);
+  const businessGroups = filtered.filter((r) => r.systemGroup !== true).sort(sortByPosition);
 
   return (
     <div className="space-y-6">
-      <ModelingPageHeader
-        caption={t('attribute_groups.list_caption', {
-          defaultValue: '{{count}} grup atrybutów',
-          count: groups.length,
-        })}
-        title={t('attribute_groups.list_title')}
-        description={
-          <span>
-            {t('attribute_groups.list_description', {
-              defaultValue:
-                'Grupy atrybutów porządkują pola w formularzach i kontrolują widoczność. Pierwszoklasowy byt domeny (ADR-012) — przypinany do ObjectType i Category, z visible_when regułami.',
-            })}{' '}
-            <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-accent-violet/10 px-2 py-0.5 align-middle text-[10.5px] font-medium uppercase tracking-wide text-accent-violet">
-              ⭐ first-class entity (ADR-012)
+      <div className="space-y-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] font-medium text-muted-foreground">
+              {t('modeling.attributeGroups.list_caption', {
+                defaultValue: '{{count}} grup atrybutów',
+                count: groups.length,
+              })}
             </span>
-          </span>
-        }
-        ctaLabel={t('modeling.attribute_groups.create_action')}
-        ctaTo="/modeling/attribute-groups/new"
-      />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          aria-label={t('modeling.attribute_groups.search')}
-          placeholder={t('modeling.attribute_groups.search_placeholder')}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-[260px]"
-        />
-        {(['all', 'business', 'system'] as const).map((value) => (
-          <Button
-            key={value}
-            type="button"
-            variant={systemFilter === value ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setSystemFilter(value)}
-          >
-            {t(`modeling.attribute_groups.filter_${value}`)}
+            <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-violet-700">
+              {t('modeling.attributeGroups.list_first_class_badge', {
+                defaultValue: '⭐ first-class entity',
+              })}
+            </span>
+          </div>
+          <h1 className="font-display text-[28px] font-semibold tracking-tight">
+            {t('modeling.attributeGroups.list_title', { defaultValue: 'Attribute Groups' })}
+          </h1>
+          <p className="mt-1 max-w-3xl text-[13px] text-muted-foreground">
+            {t('modeling.attributeGroups.list_description', {
+              defaultValue:
+                'Grupa atrybutów jako wymienialna jednostka — przypinasz ją do ObjectType (globalnie) lub Category (z dziedziczeniem). Pimcore nie ma tej abstrakcji, Akeneo traktuje ją tylko jako sortowanie. U nas — własny URL, audit, wersjonowanie.',
+            })}
+          </p>
+        </div>
+        <div>
+          <Button asChild size="sm" className="h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800">
+            <Link to="/modeling/attribute-groups/new">
+              <Plus className="size-4" />
+              {t('modeling.attributeGroups.create_action', { defaultValue: 'Nowa grupa' })}
+            </Link>
           </Button>
-        ))}
+        </div>
       </div>
 
-      {error !== null ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
+      <Card className="p-2">
+        <div className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3">
+          <Search className="size-4 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('modeling.attributeGroups.search_placeholder', {
+              defaultValue: 'Szukaj grup…',
+            })}
+            className="flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground"
+          />
+        </div>
 
-      <div className="rounded-2xl border border-line bg-surface soft-shadow">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[220px]">{t('attribute_groups.fields.code')}</TableHead>
-              <TableHead>{t('attribute_groups.fields.label')}</TableHead>
-              <TableHead className="w-[120px] text-right">
-                {t('modeling.attribute_groups.attributes_count')}
-              </TableHead>
-              <TableHead className="w-[160px] text-right">
-                {t('modeling.where_used.attached_object_types')}
-              </TableHead>
-              <TableHead className="w-[100px] text-right">
-                {t('attribute_groups.fields.position')}
-              </TableHead>
-              <TableHead className="w-[120px] text-right">
-                <span className="sr-only">{t('attributes.fields.actions')}</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                  {t('app.loading')}
-                </TableCell>
-              </TableRow>
-            ) : visible.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                  {t('attribute_groups.empty')}
-                </TableCell>
-              </TableRow>
-            ) : (
-              visible
-                .slice()
-                .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-                .map((group) => {
-                  const usage = usageCounts[group.id];
-                  return (
-                    <TableRow key={group.id}>
-                      <TableCell className="font-mono text-xs">
-                        <span className="inline-flex items-center gap-2">
-                          {group.color ? (
-                            <span
-                              aria-hidden
-                              className="inline-block size-3 rounded-full border"
-                              style={{ backgroundColor: group.color }}
-                            />
-                          ) : null}
-                          {group.systemGroup ? <BuiltInLockBadge tone="quiet" /> : null}
-                          {group.code}
-                        </span>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {resolveLabel(group.label, i18n.language)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {usage?.attributeCount ?? '—'}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {usage?.attachedObjectTypes ?? '—'}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {group.position ?? '—'}
-                      </TableCell>
-                      <TableCell className="space-x-1 text-right">
-                        <Button asChild variant="ghost" size="sm">
-                          <Link to={`/modeling/attribute-groups/${group.id}`}>
-                            <Eye className="size-4" />
-                            <span className="sr-only">{t('attribute_groups.actions.view')}</span>
-                          </Link>
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={
-                            group.systemGroup === true ||
-                            (usage !== undefined &&
-                              (usage.attachedObjectTypes > 0 || usage.attachedCategories > 0))
-                          }
-                          onClick={() => handleDelete(group)}
-                          aria-label={t('attribute_groups.actions.delete')}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+        {isLoading ? (
+          <p className="px-5 py-10 text-center text-sm text-muted-foreground">{t('app.loading')}</p>
+        ) : filtered.length === 0 ? (
+          <p className="px-5 py-12 text-center text-sm text-muted-foreground">
+            {t('modeling.attributeGroups.empty', {
+              defaultValue: 'Brak grup spełniających kryteria.',
+            })}
+          </p>
+        ) : (
+          <>
+            {systemGroups.length > 0 ? (
+              <>
+                <SectionDivider
+                  withLock
+                  label={t('modeling.attributeGroups.section_system_label', {
+                    defaultValue: 'System (auto-attached)',
+                  })}
+                />
+                <div className="divide-y divide-zinc-50">
+                  {systemGroups.map((row) => (
+                    <GroupRowItem
+                      key={row.id}
+                      row={row}
+                      locale={i18n.language}
+                      usage={usage[row.id]}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : null}
+            {businessGroups.length > 0 ? (
+              <>
+                <SectionDivider
+                  className={systemGroups.length > 0 ? 'mt-1' : ''}
+                  label={t('modeling.attributeGroups.section_business_label', {
+                    defaultValue: 'Business groups',
+                  })}
+                />
+                <div className="divide-y divide-zinc-50">
+                  {businessGroups.map((row) => (
+                    <GroupRowItem
+                      key={row.id}
+                      row={row}
+                      locale={i18n.language}
+                      usage={usage[row.id]}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </>
+        )}
+      </Card>
     </div>
   );
 }
 
-interface UsageCount {
-  attributeCount: number;
-  attachedObjectTypes: number;
-  attachedCategories: number;
+function SectionDivider({
+  label,
+  withLock,
+  className,
+}: {
+  label: string;
+  withLock?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 border-b border-zinc-100 px-4 py-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground',
+        className,
+      )}
+    >
+      {withLock ? <Lock className="size-3" /> : null}
+      <span>{label}</span>
+    </div>
+  );
 }
 
-function useAttributeGroupUsageCounts(
-  rows: AttributeGroupRow[],
-  reloadKey: number,
-): Record<string, UsageCount> {
-  const [counts, setCounts] = useState<Record<string, UsageCount>>({});
+function GroupRowItem({
+  row,
+  locale,
+  usage,
+}: {
+  row: AttributeGroupRow;
+  locale: string;
+  usage?: UsageResp;
+}) {
+  const { t } = useTranslation();
+  const labelStr = resolveLabel(row.label, locale);
+  const descStr = resolveLabel(row.description, locale);
+  const color = row.color ?? '#71717a';
+  const attrCount = usage?.attributeCount ?? 0;
+  const typesUsed = usage?.directlyAttachedTo.objectTypes.length ?? 0;
+  const categoriesUsed = usage?.directlyAttachedTo.categories.length ?? 0;
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const next: Record<string, UsageCount> = {};
-      await Promise.all(
-        rows.map(async (row) => {
-          try {
-            const usage = await jsonFetch<{
-              directlyAttachedTo: {
-                objectTypes: { id: string }[];
-                categories: { id: string }[];
-              };
-              attributeCount: number;
-            }>(`/api/attribute_groups/${row.id}/usage`, { accept: 'application/json' });
-            next[row.id] = {
-              attributeCount: usage.attributeCount,
-              attachedObjectTypes: usage.directlyAttachedTo.objectTypes.length,
-              attachedCategories: usage.directlyAttachedTo.categories.length,
-            };
-          } catch {
-            // tolerate
-          }
+  return (
+    <Link
+      to={`/modeling/attribute-groups/${row.id}`}
+      className="group grid w-full grid-cols-[44px_1.6fr_1fr_120px_120px_28px] items-center gap-3 px-4 py-3.5 text-left transition hover:bg-zinc-50/70"
+    >
+      <span
+        className="grid size-9 place-items-center rounded-xl text-[16px]"
+        style={{ background: `${color}18`, color }}
+      >
+        {row.icon ?? '📦'}
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="flex items-center gap-2">
+          <span className="truncate text-[13.5px] font-semibold tracking-tight">{labelStr}</span>
+          {row.systemGroup ? <BuiltInLockBadge /> : null}
+        </span>
+        {descStr !== '—' ? (
+          <span className="truncate text-[11.5px] text-muted-foreground">{descStr}</span>
+        ) : null}
+      </span>
+      <span className="truncate font-mono text-[11.5px] text-muted-foreground">{row.code}</span>
+      <span className="text-[12px] tabular-nums">
+        <span className="font-medium">{attrCount}</span>{' '}
+        <span className="text-muted-foreground">
+          {t('modeling.attributeGroups.row_attrs_count_suffix', { defaultValue: 'atrybutów' })}
+        </span>
+      </span>
+      <span className="text-[12px] tabular-nums">
+        <span className="text-zinc-700">
+          <span className="font-medium">{typesUsed}</span> typy
+        </span>
+        <span className="text-zinc-300"> · </span>
+        <span className="text-zinc-700">
+          <span className="font-medium">{categoriesUsed}</span> kat.
+        </span>
+      </span>
+      <span className="flex justify-end">
+        <ChevronRight className="size-4 text-zinc-300 group-hover:text-zinc-700" />
+      </span>
+    </Link>
+  );
+}
+
+function useGroupsUsage(rows: AttributeGroupRow[]): Record<string, UsageResp> {
+  const queries = useQueries({
+    queries: rows.map((row) => ({
+      queryKey: ['attribute-group-usage', row.id] as const,
+      queryFn: () =>
+        jsonFetch<UsageResp>(`/api/attribute_groups/${row.id}/usage`, {
+          accept: 'application/json',
         }),
-      );
-      if (!cancelled) setCounts(next);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [rows, reloadKey]);
-  // ^ reloadKey is intentional — bump triggers a refetch after a list mutation.
-
-  return counts;
+      staleTime: 60_000,
+    })),
+  });
+  const map: Record<string, UsageResp> = {};
+  for (let i = 0; i < rows.length; i += 1) {
+    const data = queries[i]?.data;
+    if (data !== undefined) map[rows[i].id] = data;
+  }
+  return map;
 }
