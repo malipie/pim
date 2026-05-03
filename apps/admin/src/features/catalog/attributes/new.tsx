@@ -1,10 +1,12 @@
 import { useInvalidate } from '@refinedev/core';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, FolderPlus, FolderTree, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 
+import { CreateGroupInlineDialog } from '@/components/modeling/create-group-inline-dialog';
+import { PickGroupsForAttributeDialog } from '@/components/modeling/pick-groups-for-attribute-dialog';
 import { SettingToggleRow } from '@/components/modeling/setting-toggle-row';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -74,13 +76,20 @@ const TYPES = [
 ] as const;
 
 export function AttributeCreatePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const invalidate = useInvalidate();
   const queryClient = useQueryClient();
   const [values, setValues] = useState<CreatePayload>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Reverse-direction "+Z grupy" / "+Stwórz grupę" — operator picks (or
+  // creates) groups while building the attribute. After POST /api/attributes
+  // succeeds we POST bulk-attach for each picked group.
+  const [pickedGroupCodes, setPickedGroupCodes] = useState<Set<string>>(new Set());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
 
   const handleSubmit = async () => {
     setError(null);
@@ -105,6 +114,28 @@ export function AttributeCreatePage() {
         accept: 'application/ld+json',
         body,
       });
+
+      // Reverse-direction attach: for each picked group, fan out a bulk-attach
+      // call with this single new attribute. Sequential to keep BE audit log
+      // ordering deterministic; failures bubble up as the same error message.
+      if (pickedGroupCodes.size > 0) {
+        const groupsList = await jsonFetch<{
+          member?: Array<{ id: string; code: string }>;
+        }>('/api/attribute_groups?itemsPerPage=200');
+        const codeToId = new Map<string, string>();
+        for (const g of groupsList.member ?? []) codeToId.set(g.code, g.id);
+        for (const code of pickedGroupCodes) {
+          const groupId = codeToId.get(code);
+          if (groupId === undefined) continue;
+          await jsonFetch(`/api/attribute_groups/${groupId}/attributes/bulk-attach`, {
+            method: 'POST',
+            contentType: 'application/json',
+            accept: 'application/json',
+            body: { attributeCodes: [values.code] },
+          });
+        }
+      }
+
       // Drop the cached list so the new row shows up after redirect.
       // Belt-and-suspenders: Refine's useInvalidate covers its own cache
       // keys (`['data','attributes','list']`); the queryClient fallback
@@ -292,6 +323,71 @@ export function AttributeCreatePage() {
             </div>
           </Section>
 
+          <Section
+            title={t('modeling.attributes.attach_groups_title', { defaultValue: 'Dołącz do grup' })}
+          >
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPickerOpen(true)}
+                  className="h-8 rounded-lg px-2.5 text-[12px]"
+                >
+                  <FolderTree className="size-3.5" />
+                  {t('modeling.attributes.attach_from_groups_action', {
+                    defaultValue: 'Z grupy',
+                  })}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setCreateGroupOpen(true)}
+                  className="h-8 rounded-lg bg-violet-50 px-2.5 text-[12px] text-violet-700 hover:bg-violet-100"
+                >
+                  <FolderPlus className="size-3.5" />
+                  {t('modeling.attributes.attach_create_group_action', {
+                    defaultValue: 'Stwórz grupę',
+                  })}
+                </Button>
+              </div>
+              {pickedGroupCodes.size === 0 ? (
+                <p className="text-[11.5px] text-muted-foreground">
+                  {t('modeling.attributes.attach_groups_hint', {
+                    defaultValue:
+                      'Opcjonalnie — wybierz lub utwórz grupy do których atrybut zostanie dołączony po utworzeniu.',
+                  })}
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {Array.from(pickedGroupCodes).map((code) => (
+                    <span
+                      key={code}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 font-mono text-[11.5px] text-zinc-700"
+                    >
+                      {code}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPickedGroupCodes((prev) => {
+                            const next = new Set(prev);
+                            next.delete(code);
+                            return next;
+                          });
+                        }}
+                        aria-label={t('app.remove', { defaultValue: 'Usuń' })}
+                        className="grid size-3.5 place-items-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Section>
+
           {error !== null ? (
             <p className="rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2 text-sm text-destructive">
               {error}
@@ -340,6 +436,25 @@ export function AttributeCreatePage() {
           </Card>
         </aside>
       </div>
+
+      <PickGroupsForAttributeDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        initialPicked={pickedGroupCodes}
+        onConfirm={(codes) => setPickedGroupCodes(codes)}
+        locale={i18n.language}
+      />
+      <CreateGroupInlineDialog
+        open={createGroupOpen}
+        onOpenChange={setCreateGroupOpen}
+        onCreated={(code) => {
+          setPickedGroupCodes((prev) => {
+            const next = new Set(prev);
+            next.add(code);
+            return next;
+          });
+        }}
+      />
     </div>
   );
 }
