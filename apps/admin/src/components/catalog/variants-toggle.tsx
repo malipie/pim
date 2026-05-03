@@ -1,13 +1,15 @@
 import { useTranslation } from 'react-i18next';
 
+import { cn } from '@/lib/utils';
+
 export type VariantsMode = 'tree' | 'flat';
 
 /**
- * UI-02.14 (#304) — radio toggle between tree (default) and flat view
- * for the products list, per `Project Plan/UI/epik-02-produkty.md` §4.4.
- *
- * Persistence per saved view (UI-02.15 `config.variants_mode`) lands
- * with the saved-views integration.
+ * VIEW-05 (#411) — segmented control matching the prototype mockup
+ * `produkty/list-view.jsx` lines 104–109. Two pills inside a soft-shadow
+ * card switch the products list between flat and tree rendering. UI-02
+ * persistence semantics (`config.variants_mode`) stay unchanged — this
+ * is purely a visual refactor from the previous radio-fieldset.
  */
 export function VariantsToggle({
   mode,
@@ -18,28 +20,31 @@ export function VariantsToggle({
 }) {
   const { t } = useTranslation();
   const options: ReadonlyArray<{ value: VariantsMode; label: string }> = [
-    { value: 'tree', label: t('products.variants.mode_tree', { defaultValue: 'As tree' }) },
-    { value: 'flat', label: t('products.variants.mode_flat', { defaultValue: 'Flat' }) },
+    { value: 'flat', label: t('products.variants.flat', { defaultValue: 'Płasko' }) },
+    { value: 'tree', label: t('products.variants.tree', { defaultValue: 'Drzewo' }) },
   ];
 
   return (
-    <fieldset className="flex items-center gap-3">
-      <legend className="text-xs uppercase tracking-wide text-muted-foreground">
-        {t('products.variants.toggle_legend', { defaultValue: 'Variants' })}
-      </legend>
-      {options.map((opt) => (
-        <label key={opt.value} className="inline-flex cursor-pointer items-center gap-1 text-sm">
-          <input
-            type="radio"
-            name="products-variants-mode"
-            value={opt.value}
-            checked={mode === opt.value}
-            onChange={() => onChange(opt.value)}
-            className="size-3"
-          />
-          {opt.label}
-        </label>
-      ))}
-    </fieldset>
+    <div className="h-11 rounded-2xl bg-white shadow-sm inline-flex items-center p-1">
+      {options.map((opt) => {
+        const active = mode === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            aria-pressed={active}
+            onClick={() => {
+              onChange(opt.value);
+            }}
+            className={cn(
+              'h-9 px-3 rounded-xl text-[12.5px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
+              active ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-700',
+            )}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }

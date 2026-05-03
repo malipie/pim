@@ -1,0 +1,180 @@
+import { Download, FolderTree, MoreHorizontal, Pencil, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from '@/components/ui/toast';
+import { jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
+
+interface BulkEditJobResponse {
+  id: string;
+  status: string;
+  total: number;
+  processed: number;
+  errors_count: number;
+  first_errors: Array<{ objectId: string; message: string }>;
+}
+
+interface BulkBarProps {
+  selectedIds: string[];
+  onClear: () => void;
+  onApplied: () => void;
+}
+
+/**
+ * VIEW-05 (#411) — pixel-perfect sticky bottom bar matching the
+ * prototype mockup `produkty/list-view.jsx` lines 176–198. Four mockup
+ * actions (edit attribute, change category, export, delegate to agent)
+ * surface as toast placeholders pointing at follow-ups VIEW-05.2–5; the
+ * overflow `…` menu keeps the existing toggle_enabled bulk operation
+ * wired through `POST /api/products/bulk-edit` so the only currently
+ * shipped destructive action stays accessible.
+ */
+export function BulkBar({ selectedIds, onClear, onApplied }: BulkBarProps) {
+  const { t } = useTranslation();
+  const [isPending, setIsPending] = useState(false);
+
+  if (selectedIds.length === 0) return null;
+
+  const placeholder = (followUp: string) => () => {
+    toast.info(
+      t('products.bulk.placeholder_in_progress', {
+        followUp,
+        defaultValue: 'W przygotowaniu — {{followUp}}',
+      }),
+    );
+  };
+
+  const runToggleEnabled = async (enabled: boolean): Promise<void> => {
+    setIsPending(true);
+    try {
+      const job = await jsonFetch<BulkEditJobResponse>('/api/products/bulk-edit', {
+        method: 'POST',
+        body: { operation: 'toggle_enabled', product_ids: selectedIds, payload: { enabled } },
+      });
+      if (job.errors_count === 0) {
+        toast.success(
+          t('products.bulk.toggle_done', {
+            count: job.processed,
+            defaultValue: 'Zaktualizowano {{count}} produktów',
+          }),
+        );
+        onApplied();
+      } else {
+        toast.error(
+          t('products.bulk.toggle_partial', {
+            errors: job.errors_count,
+            processed: job.processed,
+            defaultValue: 'Zaktualizowano {{processed}}, błędów: {{errors}}',
+          }),
+        );
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'unknown');
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  return (
+    <div className="sticky bottom-6 z-30 flex justify-center pointer-events-none">
+      <section
+        aria-label={t('products.bulk.aria_region', { defaultValue: 'Akcje masowe' })}
+        className="pointer-events-auto bg-zinc-900 text-white rounded-3xl shadow-xl px-6 py-3 flex items-center gap-5 animate-in fade-in slide-in-from-bottom-2 duration-200"
+        data-testid="bulk-bar"
+      >
+        <div className="flex items-center gap-2">
+          <span className="h-7 w-7 rounded-xl bg-white/10 grid place-items-center text-[12px] font-semibold tabular-nums">
+            {selectedIds.length}
+          </span>
+          <span className="text-[13px] font-medium">
+            {t('products.bulk.selected_label', { defaultValue: 'zaznaczonych produktów' })}
+          </span>
+        </div>
+
+        <span className="h-6 w-px bg-white/15" aria-hidden="true" />
+
+        <button
+          type="button"
+          onClick={placeholder('VIEW-05.2')}
+          className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
+        >
+          <Pencil className="size-3.5" aria-hidden="true" />
+          {t('products.bulk.edit_attribute', { defaultValue: 'Edytuj atrybut' })}
+        </button>
+        <button
+          type="button"
+          onClick={placeholder('VIEW-05.3')}
+          className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
+        >
+          <FolderTree className="size-3.5" aria-hidden="true" />
+          {t('products.bulk.change_category', { defaultValue: 'Zmień kategorię' })}
+        </button>
+        <button
+          type="button"
+          onClick={placeholder('VIEW-05.4')}
+          className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
+        >
+          <Download className="size-3.5" aria-hidden="true" />
+          {t('products.bulk.export', { defaultValue: 'Eksport' })}
+        </button>
+        <button
+          type="button"
+          onClick={placeholder('VIEW-05.5')}
+          className={cn(
+            'text-[13px] font-medium px-3 py-1.5 rounded-xl bg-violet-500 hover:bg-violet-400 inline-flex items-center gap-1.5',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+          )}
+        >
+          <Sparkles className="size-3.5" aria-hidden="true" />
+          {t('products.bulk.delegate_agent', { defaultValue: 'Zleć agentowi' })}
+        </button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={t('products.bulk.more_actions', { defaultValue: 'Więcej akcji' })}
+              disabled={isPending}
+              className="text-white/70 hover:text-white inline-flex items-center justify-center size-7 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-50"
+            >
+              <MoreHorizontal className="size-4" aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={() => {
+                void runToggleEnabled(true);
+              }}
+            >
+              {t('products.bulk.enable', { defaultValue: 'Włącz' })}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                void runToggleEnabled(false);
+              }}
+            >
+              {t('products.bulk.disable', { defaultValue: 'Wyłącz' })}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <span className="h-6 w-px bg-white/15" aria-hidden="true" />
+
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-[13px] text-white/60 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
+        >
+          {t('products.bulk.clear', { defaultValue: 'Wyczyść' })}
+        </button>
+      </section>
+    </div>
+  );
+}

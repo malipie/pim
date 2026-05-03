@@ -1,45 +1,27 @@
 import { useList } from '@refinedev/core';
-import { Plus, Sheet as SheetIcon, Table as TableIcon } from 'lucide-react';
+import { Plus, Search, Upload } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { AdvancedFilterBuilder } from '@/components/catalog/advanced-filter-builder';
-import { BulkActionsToolbar } from '@/components/catalog/bulk-actions-toolbar';
-import {
-  ChannelInlineIcons,
-  type ChannelStatusEntry,
-} from '@/components/catalog/channel-inline-icons';
-import { CompletenessBadge } from '@/components/catalog/completeness-badge';
+import { BulkBar } from '@/components/catalog/bulk-bar';
 import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
-import { type ExcelColumn, ExcelLikeGrid } from '@/components/catalog/excel-like-grid';
-import {
-  type FilterValue,
-  formatChipLabel,
-  ProductFilterChips,
-} from '@/components/catalog/product-filter-chips';
-import { ProductRowActions } from '@/components/catalog/product-row-actions';
+import { FilterPill } from '@/components/catalog/filter-pill';
+import type { FilterValue } from '@/components/catalog/product-filter-chips';
+import { ProductsGrid, type ProductsGridRow } from '@/components/catalog/products-grid';
 import { SaveViewModal } from '@/components/catalog/save-view-modal';
-import { SavedViewsDropdown } from '@/components/catalog/saved-views-dropdown';
-import { SyncAggregateIcon } from '@/components/catalog/sync-aggregate-icon';
+import { SavedViewsRail } from '@/components/catalog/saved-views-rail';
+import type { SyncAggregate } from '@/components/catalog/sync-aggregate-icon';
 import { type VariantsMode, VariantsToggle } from '@/components/catalog/variants-toggle';
-import { type Provenance, ProvenanceBadge } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { CatalogFacetList } from '@/features/catalog/search/catalog-facet-list';
-import { CatalogSearchBox } from '@/features/catalog/search/catalog-search-box';
+import { toast } from '@/components/ui/toast';
 import {
   type CatalogSearchHit,
   useCatalogSearch,
 } from '@/features/catalog/search/use-catalog-search';
 import { jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
 
 interface CatalogObjectListEntry {
   id: string;
@@ -47,6 +29,7 @@ interface CatalogObjectListEntry {
   enabled?: boolean;
   status?: string;
   createdAt?: string;
+  updatedAt?: string;
   attributesIndexed?: Record<string, unknown>;
   completenessPct?: number;
   syncStatusAggregate?: string;
@@ -54,38 +37,26 @@ interface CatalogObjectListEntry {
   parentId?: string | null;
 }
 
-interface ProductRow {
-  id: string;
-  sku: string;
-  name: string;
-  description: string | null;
-  brand: string | null;
-  createdAt: string;
-  enabled: boolean;
-  status: string | null;
-  completenessPct: number;
-  syncStatusAggregate: SyncAggregate;
-  parentId: string | null;
-}
+const PRODUCT_FACETS = ['enabled', 'status', 'brand', 'family'];
 
-type SyncAggregate = 'green' | 'yellow' | 'red' | 'gray';
-type ViewMode = 'table' | 'excel';
+const STATUS_VALUES: ReadonlyArray<{ value: string; label: string; sync: SyncAggregate }> = [
+  { value: 'green', label: 'OK', sync: 'green' },
+  { value: 'yellow', label: 'Niepełne', sync: 'yellow' },
+  { value: 'red', label: 'Błąd', sync: 'red' },
+];
 
-const PRODUCT_FACETS = ['enabled', 'status'];
-const PROVENANCE_OPTIONS: ReadonlyArray<Provenance> = ['manual', 'import', 'integration', 'agent'];
+const CHANNEL_VALUES: ReadonlyArray<string> = ['Shopify', 'BaseLinker', 'Allegro'];
 
 export function ProductListPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
   const [advancedFilters, setAdvancedFilters] = useState<Record<string, FilterValue>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   const [variantsMode, setVariantsMode] = useState<VariantsMode>('tree');
-  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [activeViewSlug, setActiveViewSlug] = useState<string | null>(null);
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [expandedMasters, setExpandedMasters] = useState<Set<string>>(new Set());
 
   const { searchFilters, rangeFilters } = useMemo(() => {
@@ -127,32 +98,35 @@ export function ProductListPage() {
   const products = result.data;
   const isListLoading = listQuery.isLoading;
 
-  const baseRows = useMemo<ProductRow[]>(() => {
+  const baseRows = useMemo<ProductsGridRow[]>(() => {
     if (isSearchActive) {
-      return (searchResult?.hits ?? []).map(searchHitToProduct);
+      return (searchResult?.hits ?? []).map(searchHitToRow);
     }
-    return (products ?? []).map(catalogObjectToProduct);
+    return (products ?? []).map(catalogObjectToRow);
   }, [isSearchActive, products, searchResult]);
 
-  const filteredRows = useMemo<ProductRow[]>(() => {
+  const filteredRows = useMemo<ProductsGridRow[]>(() => {
     if (showSelectedOnly && selected.size > 0) {
       return baseRows.filter((row) => selected.has(row.id));
     }
     return baseRows;
   }, [baseRows, showSelectedOnly, selected]);
 
-  /**
-   * UI-02.23: in tree mode, group variants under their masters using
-   * client-side `parentId`. Variants whose master is absent from the
-   * current page render flat (we treat them as standalone rather than
-   * hide them — backend `?include_variants=true` is the future scope).
-   */
-  const visible = useMemo<ProductRow[]>(() => {
+  const variantsByMasterCount = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of filteredRows) {
+      if (row.parentId === null) continue;
+      counts.set(row.parentId, (counts.get(row.parentId) ?? 0) + 1);
+    }
+    return counts;
+  }, [filteredRows]);
+
+  const visible = useMemo<ProductsGridRow[]>(() => {
     if (variantsMode === 'flat') return filteredRows;
     const byId = new Map(filteredRows.map((r) => [r.id, r]));
-    const masters: ProductRow[] = [];
-    const variantsByMaster = new Map<string, ProductRow[]>();
-    const orphans: ProductRow[] = [];
+    const masters: ProductsGridRow[] = [];
+    const variantsByMaster = new Map<string, ProductsGridRow[]>();
+    const orphans: ProductsGridRow[] = [];
     for (const row of filteredRows) {
       if (row.parentId === null) {
         masters.push(row);
@@ -166,7 +140,7 @@ export function ProductListPage() {
         orphans.push(row);
       }
     }
-    const out: ProductRow[] = [];
+    const out: ProductsGridRow[] = [];
     for (const master of masters) {
       out.push(master);
       if (expandedMasters.has(master.id)) {
@@ -176,15 +150,6 @@ export function ProductListPage() {
     out.push(...orphans);
     return out;
   }, [filteredRows, variantsMode, expandedMasters]);
-
-  const variantsByMasterCount = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const row of filteredRows) {
-      if (row.parentId === null) continue;
-      counts.set(row.parentId, (counts.get(row.parentId) ?? 0) + 1);
-    }
-    return counts;
-  }, [filteredRows]);
 
   const toggleExpand = (masterId: string): void => {
     setExpandedMasters((prev) => {
@@ -197,38 +162,40 @@ export function ProductListPage() {
 
   const isLoading = isSearchActive ? isSearchLoading : isListLoading;
 
-  const toggleFacet = (facet: string, value: string): void => {
-    setFilters((prev) => {
-      const current = prev[facet];
-      const currentArray = Array.isArray(current)
-        ? current
-        : current !== undefined
-          ? [current]
-          : [];
-      const next = currentArray.includes(value)
-        ? currentArray.filter((entry) => entry !== value)
-        : [...currentArray, value];
-      const updated = { ...prev };
-      if (next.length === 0) {
-        delete updated[facet];
-      } else {
-        updated[facet] = next;
-      }
-      return updated;
-    });
-  };
+  const totalHits = isSearchActive
+    ? (searchResult?.totalHits ?? 0)
+    : (result.total ?? products?.length ?? 0);
 
-  const removeFilterChip = (key: string): void => {
-    setFilters((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
-    setAdvancedFilters((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
+  const lastSyncMinutesAgo = useMemo<number | null>(() => {
+    const stamps = (products ?? [])
+      .map((p) => (typeof p.updatedAt === 'string' ? Date.parse(p.updatedAt) : NaN))
+      .filter((n) => !Number.isNaN(n));
+    if (stamps.length === 0) return null;
+    const newest = Math.max(...stamps);
+    return Math.max(0, Math.floor((Date.now() - newest) / 60000));
+  }, [products]);
+
+  const setPillFilter =
+    (key: string) =>
+    (next: string | null): void => {
+      setFilters((prev) => {
+        const updated = { ...prev };
+        if (next === null) {
+          delete updated[key];
+        } else {
+          updated[key] = next;
+        }
+        return updated;
+      });
+    };
+
+  const handleChannelChange = (next: string | null): void => {
+    if (next === null) return;
+    toast.info(
+      t('products.toolbar.channel_filter_pending', {
+        defaultValue: 'Filtr per kanał czeka na epik 0.6 (channel_publications)',
+      }),
+    );
   };
 
   const toggleSelect = (id: string): void => {
@@ -242,8 +209,10 @@ export function ProductListPage() {
 
   const toggleSelectAll = (): void => {
     setSelected((prev) => {
-      if (prev.size === visible.length) return new Set();
-      return new Set(visible.map((row) => row.id));
+      const masters = visible.filter((r) => r.parentId === null);
+      const allSelected = masters.every((m) => prev.has(m.id)) && prev.size === masters.length;
+      if (allSelected) return new Set();
+      return new Set(masters.map((m) => m.id));
     });
   };
 
@@ -258,360 +227,265 @@ export function ProductListPage() {
     if (mode === 'tree' || mode === 'flat') setVariantsMode(mode);
   };
 
-  const openSaveViewModal = (): void => {
-    setShowSaveViewModal(true);
+  const handleToggleEnabled = (id: string, next: boolean): void => {
+    void jsonFetch(`/api/products/${id}`, {
+      method: 'PATCH',
+      body: { enabled: next },
+      contentType: 'application/merge-patch+json',
+    })
+      .then(() => refetch())
+      .catch((err: unknown) => {
+        toast.error(err instanceof Error ? err.message : 'unknown');
+      });
   };
 
-  const allSelected = visible.length > 0 && selected.size === visible.length;
-  const selectedIds = Array.from(selected);
-
-  const filterChips = useMemo(() => {
-    const chips: Array<{ key: string; label: string; value: FilterValue }> = [];
-    for (const [key, value] of Object.entries(filters)) {
-      chips.push({ key, label: formatChipLabel(key, value), value });
-    }
-    for (const [key, value] of Object.entries(advancedFilters)) {
-      if (key in filters) continue;
-      chips.push({ key, label: formatChipLabel(key, value), value });
-    }
-    return chips;
-  }, [filters, advancedFilters]);
+  const onBulkApplied = (): void => {
+    setSelected(new Set());
+    setShowSelectedOnly(false);
+    void refetch();
+  };
 
   const showEmptyState = !isLoading && baseRows.length === 0 && !isSearchActive;
 
+  const brandOptions = useMemo(
+    () => buildFacetOptions(searchResult?.facetDistribution ?? {}, 'brand'),
+    [searchResult],
+  );
+  const familyOptions = useMemo(
+    () => buildFacetOptions(searchResult?.facetDistribution ?? {}, 'family'),
+    [searchResult],
+  );
+
   return (
-    <div className="space-y-6 pb-24">
-      <div className="flex items-end justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="display text-[28px] font-semibold leading-tight text-ink">
+    <div id="products-list-page" className="space-y-5 pb-24">
+      <div className="flex items-baseline justify-between gap-4">
+        <div>
+          <div className="text-[13px] text-zinc-500 font-medium">
+            {t('products.header.workspace', { defaultValue: 'Workspace · katalog' })}
+          </div>
+          <h1 className="font-display text-[32px] font-semibold tracking-tight leading-none mt-1">
             {t('products.list_title')}
           </h1>
-          <p className="max-w-3xl text-[14px] text-ink-2">{t('products.list_subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* MOCK: Import CSV/XLSX — wymaga POST /api/products/import?dryRun=true (#TBD).
-              Patrz Project Plan/UI/Wdrozenie_grafiki/produkty-do-oprogramowania.md. */}
-          <Button
-            type="button"
-            variant="outline"
-            disabled
-            aria-disabled="true"
-            title={t('products.import_disabled', {
-              defaultValue: 'Mock — wymaga oprogramowania importu CSV/XLSX',
-            })}
-          >
-            {t('products.import', { defaultValue: 'Import' })}
-          </Button>
-          <Button asChild>
-            <Link to="/products/new">
-              <Plus className="size-4" />
-              {t('products.create')}
-              <kbd className="ml-1.5 rounded bg-white/15 px-1 py-0.5 font-mono text-[10px]">⌘N</kbd>
-            </Link>
-          </Button>
+        <div className="text-[12px] text-zinc-500 tabular-nums text-right">
+          <span className="text-zinc-900 font-semibold">{totalHits.toLocaleString('pl-PL')}</span>{' '}
+          {t('products.header.total_skus_suffix', { defaultValue: 'SKU' })}
+          {' · '}
+          {lastSyncMinutesAgo === null
+            ? t('products.header.last_sync_unknown', { defaultValue: 'brak danych o sync' })
+            : t('products.header.last_sync_minutes_ago', {
+                minutes: lastSyncMinutesAgo,
+                defaultValue: 'ostatnia synchronizacja {{minutes}} min temu',
+              })}
         </div>
       </div>
 
-      {saveError !== null ? (
-        <div
-          role="alert"
-          className="flex items-center justify-between rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
-        >
-          <span>{saveError}</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setSaveError(null)}
-            aria-label={t('app.dismiss', { defaultValue: 'Dismiss' })}
-          >
-            {t('app.dismiss', { defaultValue: 'Dismiss' })}
-          </Button>
-        </div>
-      ) : null}
+      <SavedViewsRail
+        activeSlug={activeViewSlug}
+        onApply={(view) => {
+          handleApplySavedView({ slug: view.slug, config: view.config });
+        }}
+        onSaveCurrent={() => {
+          setShowSaveViewModal(true);
+        }}
+        currentTotal={totalHits}
+      />
 
       <div className="flex flex-wrap items-center gap-3">
-        <CatalogSearchBox value={query} onChange={setQuery} isLoading={isSearchLoading} />
-        <SavedViewsDropdown
-          activeSlug={activeViewSlug}
-          onApply={(view) => handleApplySavedView({ slug: view.slug, config: view.config })}
-          onSaveCurrent={openSaveViewModal}
+        <div className="relative flex-1 min-w-[280px]">
+          <Search
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400"
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+            }}
+            placeholder={t('products.toolbar.search_placeholder', {
+              defaultValue: 'Szukaj po SKU, nazwie, EAN, atrybucie…',
+            })}
+            aria-label={t('products.toolbar.search_aria', { defaultValue: 'Szukaj produktów' })}
+            className="w-full h-11 pl-10 pr-4 rounded-2xl bg-white shadow-sm text-[14px] placeholder:text-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
+          />
+        </div>
+
+        <FilterPill
+          label={t('products.toolbar.filter_brand', { defaultValue: 'Marka' })}
+          value={filters.brand as string | undefined}
+          options={brandOptions}
+          onChange={setPillFilter('brand')}
         />
-        <VariantsToggle mode={variantsMode} onChange={setVariantsMode} />
+        <FilterPill
+          label={t('products.toolbar.filter_family', { defaultValue: 'Rodzina' })}
+          value={filters.family as string | undefined}
+          options={familyOptions}
+          onChange={setPillFilter('family')}
+        />
+        <FilterPill
+          label={t('products.toolbar.filter_channel', { defaultValue: 'Kanał' })}
+          value={undefined}
+          options={CHANNEL_VALUES.map((v) => ({ value: v, label: v }))}
+          onChange={handleChannelChange}
+        />
+        <FilterPill
+          label={t('products.toolbar.filter_status', { defaultValue: 'Status' })}
+          value={filters.syncStatusAggregate as string | undefined}
+          options={STATUS_VALUES.map((s) => ({ value: s.sync, label: s.label }))}
+          onChange={setPillFilter('syncStatusAggregate')}
+        />
+
         <AdvancedFilterBuilder
           filters={advancedFilters}
-          onApply={(next) => setAdvancedFilters(next)}
-          onSaveAsView={openSaveViewModal}
+          onApply={setAdvancedFilters}
+          onSaveAsView={() => {
+            setShowSaveViewModal(true);
+          }}
         />
-        <div className="ml-auto flex items-center gap-1 rounded-md border bg-card p-1">
-          <Button
-            variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('table')}
-            aria-label={t('products.view_mode.table', { defaultValue: 'Table view' })}
-          >
-            <TableIcon className="size-4" />
-          </Button>
-          <Button
-            variant={viewMode === 'excel' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('excel')}
-            aria-label={t('products.view_mode.excel', { defaultValue: 'Excel view' })}
-          >
-            <SheetIcon className="size-4" />
-          </Button>
-        </div>
-      </div>
 
-      <ProductFilterChips chips={filterChips} onRemove={removeFilterChip} />
+        <VariantsToggle mode={variantsMode} onChange={setVariantsMode} />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs uppercase tracking-wide text-muted-foreground">
-          {t('products.filter_provenance')}
-        </span>
         <Button
           type="button"
-          variant={filters.provenance === undefined ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => {
-            setFilters((prev) => {
-              const { provenance: _omit, ...rest } = prev;
-              return rest;
-            });
-          }}
+          variant="outline"
+          disabled
+          aria-disabled="true"
+          title={t('products.import_disabled', {
+            defaultValue: 'Mock — wymaga oprogramowania importu CSV/XLSX',
+          })}
+          className="h-11 rounded-2xl"
         >
-          {t('products.filter_provenance_all', { defaultValue: 'All' })}
+          <Upload className="size-4" />
+          {t('products.toolbar.import', { defaultValue: 'Import' })}
         </Button>
-        {PROVENANCE_OPTIONS.map((option) => (
-          <Button
-            key={option}
-            type="button"
-            variant={filters.provenance === option ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setFilters((prev) => ({ ...prev, provenance: option }))}
-          >
-            <ProvenanceBadge provenance={option} className="px-1 py-0" />
-          </Button>
-        ))}
+        <Button asChild className="h-11 rounded-2xl px-4">
+          <Link to="/products/new">
+            <Plus className="size-4" />
+            {t('products.toolbar.new_product', { defaultValue: 'Nowy produkt' })}
+            <kbd className="ml-1.5 rounded bg-white/15 px-1 py-0.5 font-mono text-[10px]">⌘N</kbd>
+          </Link>
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-[12px] text-zinc-500">
+        <span className="tabular-nums">
+          <span className="text-zinc-900 font-semibold">{totalHits.toLocaleString('pl-PL')}</span>{' '}
+          {t('products.counter.results', {
+            count: totalHits,
+            defaultValue_one: '{{count}} wynik',
+            defaultValue_other: '{{count}} wyników',
+            defaultValue: '{{count}} wyników',
+          })}
+        </span>
+        {selected.size > 0 ? (
+          <>
+            <span className="text-zinc-300">·</span>
+            <span className="tabular-nums">
+              <span className="text-zinc-900 font-semibold">{selected.size}</span>{' '}
+              {t('products.counter.selected', {
+                count: selected.size,
+                defaultValue: 'zaznaczonych',
+              })}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setShowSelectedOnly((prev) => !prev);
+              }}
+              aria-pressed={showSelectedOnly}
+              className={cn(
+                'ml-1 inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[12px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
+                showSelectedOnly
+                  ? 'bg-violet-600 text-white hover:bg-violet-500'
+                  : 'bg-violet-100 text-violet-700 hover:bg-violet-200',
+              )}
+            >
+              {showSelectedOnly
+                ? t('products.counter.show_all', { defaultValue: 'Pokaż wszystkie' })
+                : t('products.counter.show_selected_only', {
+                    defaultValue: 'Pokaż tylko zaznaczone',
+                  })}
+            </button>
+          </>
+        ) : null}
+        <span className="ml-auto inline-flex items-center gap-1.5 text-zinc-400">
+          <kbd className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 font-mono text-[10px]">
+            ⌘C
+          </kbd>
+          {t('products.counter.shortcut_copy', { defaultValue: 'kopiuj' })}
+          <kbd className="ml-2 rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 font-mono text-[10px]">
+            ⌘V
+          </kbd>
+          {t('products.counter.shortcut_paste', { defaultValue: 'wklej' })}
+          <kbd className="ml-2 rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 font-mono text-[10px]">
+            ⇧↓
+          </kbd>
+          {t('products.counter.shortcut_select', { defaultValue: 'zaznacz' })}
+          <kbd className="ml-2 rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 font-mono text-[10px]">
+            F2
+          </kbd>
+          {t('products.counter.shortcut_edit', { defaultValue: 'edytuj' })}
+        </span>
       </div>
 
       {showEmptyState ? (
         <EmptyStateProducts />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-          <aside className="space-y-3">
-            <h2 className="text-sm font-medium">{t('search.facets_title')}</h2>
-            <CatalogFacetList
-              distribution={searchResult?.facetDistribution ?? {}}
-              active={filters}
-              onToggle={toggleFacet}
-            />
-          </aside>
-
-          <div className="rounded-xl border bg-card">
-            {viewMode === 'excel' ? (
-              <div className="overflow-x-auto p-2">
-                <ExcelLikeGrid
-                  rows={visible.map((row) => ({
-                    sku: row.sku,
-                    name: row.name,
-                    brand: row.brand ?? '',
-                    completeness: row.completenessPct,
-                  }))}
-                  columns={EXCEL_COLUMNS}
-                  onCommit={(rowIdx, colKey, value) => {
-                    const target = visible[rowIdx];
-                    if (target === undefined) return;
-                    setSaveError(null);
-                    void jsonFetch(`/api/products/${target.id}`, {
-                      method: 'PATCH',
-                      body: { attributes: { [colKey]: value } },
-                      contentType: 'application/merge-patch+json',
-                    })
-                      .then(() => refetch())
-                      .catch((err: unknown) => {
-                        setSaveError(
-                          err instanceof Error
-                            ? `${target.sku} → ${colKey}: ${err.message}`
-                            : `${target.sku} → ${colKey}: save failed`,
-                        );
-                      });
-                  }}
-                />
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40px]">
-                      <input
-                        type="checkbox"
-                        aria-label={t('products.actions.select_all', {
-                          defaultValue: 'Select all',
-                        })}
-                        checked={allSelected}
-                        onChange={toggleSelectAll}
-                        className="size-4"
-                      />
-                    </TableHead>
-                    <TableHead className="w-[180px]">{t('products.fields.sku')}</TableHead>
-                    <TableHead>{t('products.fields.name')}</TableHead>
-                    <TableHead className="w-[160px]">{t('products.fields.brand')}</TableHead>
-                    <TableHead className="w-[140px]">
-                      {t('products.fields.completeness', { defaultValue: 'Compl.' })}
-                    </TableHead>
-                    <TableHead className="w-[60px]">
-                      {t('products.fields.sync', { defaultValue: 'Sync' })}
-                    </TableHead>
-                    <TableHead className="w-[120px]">
-                      {t('products.fields.channels', { defaultValue: 'Channels' })}
-                    </TableHead>
-                    <TableHead className="w-[110px]">{t('products.fields.status')}</TableHead>
-                    <TableHead className="w-[180px]">{t('products.fields.created_at')}</TableHead>
-                    <TableHead className="w-[60px] text-right">
-                      <span className="sr-only">{t('products.fields.actions')}</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
-                        {t('app.loading')}
-                      </TableCell>
-                    </TableRow>
-                  ) : visible.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
-                        {isSearchActive
-                          ? t('search.no_results')
-                          : t('products.empty', { defaultValue: 'No products yet' })}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    visible.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            aria-label={t('products.actions.select_row', {
-                              defaultValue: 'Select row',
-                            })}
-                            checked={selected.has(product.id)}
-                            onChange={() => toggleSelect(product.id)}
-                            className="size-4"
-                          />
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          <div className="flex items-center gap-1">
-                            {variantsMode === 'tree' && product.parentId === null ? (
-                              (variantsByMasterCount.get(product.id) ?? 0) > 0 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => toggleExpand(product.id)}
-                                  aria-label={
-                                    expandedMasters.has(product.id)
-                                      ? t('products.variants.collapse', {
-                                          defaultValue: 'Collapse variants',
-                                        })
-                                      : t('products.variants.expand', {
-                                          defaultValue: 'Expand variants',
-                                        })
-                                  }
-                                  className="inline-flex size-4 items-center justify-center rounded hover:bg-accent"
-                                >
-                                  {expandedMasters.has(product.id) ? '▼' : '▶'}
-                                </button>
-                              ) : (
-                                <span className="inline-block size-4" />
-                              )
-                            ) : null}
-                            {variantsMode === 'tree' && product.parentId !== null ? (
-                              <span className="ml-4 text-muted-foreground">↳</span>
-                            ) : null}
-                            <Link to={`/products/${product.id}`} className="hover:underline">
-                              {product.sku}
-                            </Link>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>{product.brand ?? '—'}</TableCell>
-                        <TableCell>
-                          <CompletenessBadge pct={product.completenessPct} />
-                        </TableCell>
-                        <TableCell>
-                          <SyncAggregateIcon status={product.syncStatusAggregate} />
-                        </TableCell>
-                        <TableCell>
-                          <ChannelInlineIcons channels={[] as ChannelStatusEntry[]} />
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge enabled={product.enabled} status={product.status} />
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDateTime(product.createdAt, i18n.language)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <ProductRowActions
-                            productId={product.id}
-                            enabled={product.enabled}
-                            onChanged={refetch}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-        </div>
+        <ProductsGrid
+          rows={visible}
+          selected={selected}
+          onToggleSelect={toggleSelect}
+          onToggleSelectAll={toggleSelectAll}
+          expandedMasters={expandedMasters}
+          onToggleExpand={toggleExpand}
+          variantsByMasterCount={variantsByMasterCount}
+          onToggleEnabled={handleToggleEnabled}
+          onChangedRow={() => {
+            void refetch();
+          }}
+          isLoading={isLoading}
+        />
       )}
 
-      <BulkActionsToolbar
-        ids={selectedIds}
-        showSelectedOnly={showSelectedOnly}
-        onToggleShowSelectedOnly={setShowSelectedOnly}
-        onCleared={() => {
+      <BulkBar
+        selectedIds={Array.from(selected)}
+        onClear={() => {
           setSelected(new Set());
           setShowSelectedOnly(false);
-          refetch();
         }}
+        onApplied={onBulkApplied}
       />
 
       {showSaveViewModal ? (
         <SaveViewModal
           resource="products"
           config={{ filters, variants_mode: variantsMode }}
-          onClose={() => setShowSaveViewModal(false)}
-          onSaved={(slug) => setActiveViewSlug(slug)}
+          onClose={() => {
+            setShowSaveViewModal(false);
+          }}
+          onSaved={(slug) => {
+            setActiveViewSlug(slug);
+          }}
         />
       ) : null}
     </div>
   );
 }
 
-type ExcelRow = { sku: string; name: string; brand: string; completeness: number };
-
-const EXCEL_COLUMNS: ExcelColumn<ExcelRow>[] = [
-  { key: 'sku', label: 'SKU', type: 'text', width: 160, readOnly: true },
-  { key: 'name', label: 'Name', type: 'text' },
-  { key: 'brand', label: 'Brand', type: 'text' },
-  { key: 'completeness', label: 'Compl.', type: 'number', readOnly: true, width: 100 },
-];
-
-function StatusBadge({ enabled, status }: { enabled: boolean; status: string | null }) {
-  const tone = enabled
-    ? 'bg-emerald-100 text-emerald-900'
-    : 'bg-muted text-muted-foreground line-through';
-  return (
-    <span className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${tone}`}>
-      {status ?? (enabled ? 'enabled' : 'disabled')}
-    </span>
-  );
+function buildFacetOptions(
+  distribution: Record<string, Record<string, number>>,
+  field: string,
+): Array<{ value: string; label: string }> {
+  const dist = distribution[field];
+  if (dist === undefined) return [];
+  return Object.entries(dist)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 30)
+    .map(([value]) => ({ value, label: value }));
 }
 
-function searchHitToProduct(hit: CatalogSearchHit): ProductRow {
+function searchHitToRow(hit: CatalogSearchHit): ProductsGridRow {
   return buildRow({
     id: hit.id,
     code: hit.code ?? hit.id,
@@ -619,18 +493,22 @@ function searchHitToProduct(hit: CatalogSearchHit): ProductRow {
     status: hit.status,
     attributesIndexed: hit.attributesIndexed,
     createdAt: undefined,
+    updatedAt: undefined,
   });
 }
 
-function catalogObjectToProduct(entry: CatalogObjectListEntry): ProductRow {
+function catalogObjectToRow(entry: CatalogObjectListEntry): ProductsGridRow {
   return buildRow(entry);
 }
 
-function buildRow(entry: CatalogObjectListEntry): ProductRow {
+function buildRow(entry: CatalogObjectListEntry): ProductsGridRow {
   const attrs = (entry.attributesIndexed ?? {}) as Record<string, unknown>;
   const name = typeof attrs.name === 'string' ? attrs.name : entry.code;
-  const description = typeof attrs.description === 'string' ? attrs.description : null;
   const brand = typeof attrs.brand === 'string' ? attrs.brand : null;
+  const family = readString(attrs, ['family', 'product_family']);
+  const variantAxis = readString(attrs, ['variant_axis', 'axis']);
+  const categories = readCategories(attrs);
+  const price = readPrice(attrs);
   const parentId =
     typeof entry.parentId === 'string'
       ? entry.parentId
@@ -641,15 +519,48 @@ function buildRow(entry: CatalogObjectListEntry): ProductRow {
     id: entry.id,
     sku: entry.code,
     name,
-    description,
     brand,
-    createdAt: entry.createdAt ?? '',
-    enabled: entry.enabled !== false,
-    status: typeof entry.status === 'string' ? entry.status : null,
+    family,
+    categories,
+    price,
     completenessPct: typeof entry.completenessPct === 'number' ? entry.completenessPct : 0,
     syncStatusAggregate: normaliseSyncAggregate(entry.syncStatusAggregate),
+    enabled: entry.enabled !== false,
+    status: typeof entry.status === 'string' ? entry.status : null,
     parentId,
+    variantAxis,
   };
+}
+
+function readString(attrs: Record<string, unknown>, keys: ReadonlyArray<string>): string | null {
+  for (const key of keys) {
+    const value = attrs[key];
+    if (typeof value === 'string' && value.length > 0) return value;
+  }
+  return null;
+}
+
+function readCategories(attrs: Record<string, unknown>): string[] | null {
+  const raw = attrs.categories ?? attrs.category_codes;
+  if (!Array.isArray(raw)) return null;
+  const out: string[] = [];
+  for (const entry of raw) {
+    if (typeof entry === 'string') out.push(entry);
+  }
+  return out.length > 0 ? out : null;
+}
+
+function readPrice(attrs: Record<string, unknown>): { amount: number; currency: string } | null {
+  const raw = attrs.price ?? attrs.list_price;
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw === 'number') return { amount: raw, currency: 'PLN' };
+  if (typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    const amount = typeof obj.amount === 'number' ? obj.amount : null;
+    const currency = typeof obj.currency === 'string' ? obj.currency : 'PLN';
+    if (amount !== null) return { amount, currency };
+  }
+  return null;
 }
 
 function normaliseSyncAggregate(raw: string | undefined): SyncAggregate {
@@ -657,14 +568,4 @@ function normaliseSyncAggregate(raw: string | undefined): SyncAggregate {
     return raw;
   }
   return 'gray';
-}
-
-function formatDateTime(value: string, locale: string): string {
-  if (value === '') return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(date);
 }

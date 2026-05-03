@@ -1,5 +1,15 @@
 # Current Status
 
+## 2026-05-03: VIEW-05 produkty-lista marathon — pixel-perfect delta-alignment
+
+Operator: dostarczył mockup `Zrodla/Front_Claude_Design/design_handoff_modelowanie/src/produkty/list-view.jsx` z literal scope „TYLKO lista, bez szczegółów produktu". Plan-mode → 4 pytania scope (delta-alignment / 1 ikona aggregate / SavedViewsRail zastępuje Dropdown / BulkBar 4 akcje jako toast placeholder) → ExitPlanMode → ticket VIEW-05 + Issue #411 + branch `feat/view-05-produkty-lista`.
+
+Source of truth: [`Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-05-produkty-lista.md`](../Project%20Plan/UI/Wdrozenie_grafiki/ticket-VIEW-05-produkty-lista.md).
+
+Stan: lista produktów istnieje w ~75-80% (PR-y UI-02 + UI-03.3 #358). VIEW-05 dokleja delta-alignment do pixel-perfect (header 32px h1 + breadcrumb, SavedViewsRail nowy, FilterPill 4× w toolbarze, ProductsGrid 12 kolumn, BulkBar pixel-perfect, in-house toast). Backend zero zmian — wszystkie BE rozszerzenia idą do follow-up VIEW-05.1–VIEW-05.7.
+
+Estymacja: ~22-28h FE-only.
+
 ## 2026-05-03: VIEW-02 + VIEW-03 marathon — backend foundation + first FE polish merged
 
 Operator: „pracuj VIEW-02 first → VIEW-03, bypass permissions, działaj aż do końca obu". Marathon mode w toku. Stan na 2026-05-03 ~01:00Z:

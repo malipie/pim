@@ -1,0 +1,157 @@
+import { Eye, Plus } from 'lucide-react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
+
+interface SavedView {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  resource: string;
+  config: Record<string, unknown>;
+  is_default: boolean;
+  is_system: boolean;
+}
+
+interface SavedViewsRailProps {
+  resource?: string;
+  activeSlug: string | null;
+  onApply: (view: SavedView) => void;
+  onSaveCurrent: () => void;
+  currentTotal?: number | null;
+}
+
+/**
+ * VIEW-05 (#411) — pixel-perfect horizontal pill rail replacing the
+ * previous SavedViewsDropdown. Mockup ref:
+ * `Zrodla/Front_Claude_Design/design_handoff_modelowanie/src/produkty/list-view.jsx`
+ * lines 62–79. Active pill is dark, system views show an Eye icon, and
+ * the trailing dashed-border button triggers SaveViewModal via
+ * `onSaveCurrent`. Per-view counts beyond the active view are deferred
+ * to follow-up VIEW-05.7 (a dedicated `/api/saved-views/counts` endpoint
+ * would let us avoid N requests).
+ */
+export function SavedViewsRail({
+  resource = 'products',
+  activeSlug,
+  onApply,
+  onSaveCurrent,
+  currentTotal = null,
+}: SavedViewsRailProps) {
+  const { t } = useTranslation();
+  const [views, setViews] = useState<SavedView[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    jsonFetch<{ views: SavedView[] }>(`/api/saved-views?resource=${encodeURIComponent(resource)}`)
+      .then((body) => {
+        if (!cancelled) setViews(body.views);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'unknown');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [resource]);
+
+  const focusTabAt = (index: number): void => {
+    const target = tabRefs.current[index];
+    if (target !== null && target !== undefined) target.focus();
+  };
+
+  const handleKey = (event: KeyboardEvent<HTMLButtonElement>, index: number): void => {
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      focusTabAt(Math.min(index + 1, views.length - 1));
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      focusTabAt(Math.max(index - 1, 0));
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      focusTabAt(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      focusTabAt(views.length - 1);
+    }
+  };
+
+  if (error !== null) {
+    return (
+      <div role="alert" className="text-[12px] text-rose-600">
+        {t('products.saved_views.fetch_error', {
+          defaultValue: 'Nie udało się pobrać widoków: {{error}}',
+          error,
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      role="tablist"
+      aria-label={t('products.saved_views.rail_aria', { defaultValue: 'Zapisane widoki' })}
+      aria-orientation="horizontal"
+      className="scrollbar-thin flex items-center gap-1.5 overflow-x-auto"
+    >
+      {views.map((view, index) => {
+        const active = view.slug === activeSlug;
+        const countLabel =
+          active && currentTotal !== null ? currentTotal.toLocaleString('pl-PL') : '—';
+        return (
+          <button
+            key={view.id}
+            ref={(el) => {
+              tabRefs.current[index] = el;
+            }}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            tabIndex={active ? 0 : -1}
+            onClick={() => {
+              onApply(view);
+            }}
+            onKeyDown={(event) => {
+              handleKey(event, index);
+            }}
+            className={cn(
+              'shrink-0 inline-flex items-center gap-2 h-9 px-3 rounded-2xl text-[13px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
+              active
+                ? 'bg-zinc-900 text-white'
+                : 'bg-white shadow-sm text-zinc-700 hover:bg-zinc-50',
+            )}
+          >
+            {view.is_system ? (
+              <Eye
+                className={cn('size-3.5', active ? 'text-white/60' : 'text-zinc-400')}
+                aria-label={t('products.saved_views.system_view_aria', {
+                  defaultValue: 'Widok systemowy',
+                })}
+              />
+            ) : null}
+            <span>{view.name}</span>
+            <span
+              className={cn('text-[11px] tabular-nums', active ? 'text-white/60' : 'text-zinc-400')}
+            >
+              {countLabel}
+            </span>
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        onClick={onSaveCurrent}
+        className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-2xl text-[13px] text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 border border-dashed border-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
+      >
+        <Plus className="size-3.5" aria-hidden="true" />
+        <span>{t('products.saved_views.save_view', { defaultValue: 'Zapisz widok' })}</span>
+      </button>
+    </div>
+  );
+}

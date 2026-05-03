@@ -154,9 +154,10 @@ export function ExcelLikeGrid<T extends Record<string, unknown>>({
         })();
         return;
       }
-      if (event.key === 'Enter') {
+      if (event.key === 'Enter' || event.key === 'F2') {
         const col = columns.find((c) => c.key === active.colKey);
         if (col !== undefined && col.readOnly !== true) {
+          event.preventDefault();
           setEditing({ ...active });
         }
       }

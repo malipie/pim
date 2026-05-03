@@ -319,27 +319,118 @@
     "save": "Zapisz",
     "saving": "Zapisywanie...",
     "empty": "Brak produktów. Dodaj pierwszy, aby rozpocząć.",
+    "import": "Import",
+    "import_disabled": "Mock — wymaga oprogramowania importu CSV/XLSX",
+    "header": {
+      "workspace": "Workspace · katalog",
+      "total_skus_suffix": "SKU",
+      "last_sync_minutes_ago": "ostatnia synchronizacja {{minutes}} min temu",
+      "last_sync_unknown": "brak danych o sync"
+    },
+    "toolbar": {
+      "search_placeholder": "Szukaj po SKU, nazwie, EAN, atrybucie…",
+      "search_aria": "Szukaj produktów",
+      "filter_brand": "Marka",
+      "filter_family": "Rodzina",
+      "filter_channel": "Kanał",
+      "filter_status": "Status",
+      "filter_all": "wszystkie",
+      "more_filters": "Więcej",
+      "import": "Import",
+      "new_product": "Nowy produkt",
+      "channel_filter_pending": "Filtr per kanał czeka na epik 0.6 (channel_publications)"
+    },
+    "counter": {
+      "results": "wyników",
+      "results_one": "wynik",
+      "results_other": "wyników",
+      "selected": "zaznaczonych",
+      "selected_one": "zaznaczony",
+      "selected_other": "zaznaczonych",
+      "show_selected_only": "Pokaż tylko zaznaczone",
+      "show_all": "Pokaż wszystkie",
+      "shortcut_copy": "kopiuj",
+      "shortcut_paste": "wklej",
+      "shortcut_select": "zaznacz",
+      "shortcut_edit": "edytuj"
+    },
+    "saved_views": {
+      "save_view": "Zapisz widok",
+      "system_view_aria": "Widok systemowy",
+      "rail_aria": "Zapisane widoki",
+      "fetch_error": "Nie udało się pobrać widoków: {{error}}"
+    },
+    "variants": {
+      "flat": "Płasko",
+      "tree": "Drzewo",
+      "toggle_legend": "Tryb wariantów",
+      "count": "{{count}} wariantów",
+      "count_one": "{{count}} wariant",
+      "count_other": "{{count}} wariantów",
+      "mode_tree": "Drzewo",
+      "mode_flat": "Płasko",
+      "expand": "Rozwiń warianty",
+      "collapse": "Zwiń warianty"
+    },
     "fields": {
       "sku": "SKU",
       "name": "Nazwa",
       "description": "Opis",
       "brand": "Marka",
+      "family": "Rodzina",
+      "cats": "Kategorie",
+      "categories": "Kategorie",
+      "channels": "Kanały",
+      "price": "Cena",
+      "enabled": "Aktywny",
+      "compl": "Completeness",
+      "completeness": "Completeness",
       "status": "Status",
       "created_at": "Utworzono",
-      "actions": "Akcje"
+      "sync": "Sync",
+      "actions": "Akcje",
+      "img": "",
+      "sel": "",
+      "more": ""
     },
     "actions": {
       "edit": "Edytuj",
       "view": "Podgląd",
       "select_all": "Zaznacz wszystkie",
-      "select_row": "Zaznacz wiersz"
+      "select_row": "Zaznacz {{sku}}"
+    },
+    "row": {
+      "toggle_enabled_aria": "Przełącz aktywność produktu {{sku}}",
+      "expand_variants_aria": "Rozwiń warianty {{sku}}",
+      "collapse_variants_aria": "Zwiń warianty {{sku}}"
+    },
+    "grid": {
+      "aria_label": "Lista produktów",
+      "empty": "Brak wyników."
+    },
+    "sync_label": {
+      "green": "OK",
+      "yellow": "Częściowo",
+      "red": "Błąd",
+      "gray": "—"
     },
     "bulk": {
       "selected": "Zaznaczono {{count}}",
       "selected_plural": "Zaznaczono {{count}}",
+      "selected_label": "zaznaczonych produktów",
+      "edit_attribute": "Edytuj atrybut",
+      "change_category": "Zmień kategorię",
+      "export": "Eksport",
+      "delegate_agent": "Zleć agentowi",
+      "placeholder_in_progress": "W przygotowaniu — {{followUp}}",
+      "more_actions": "Więcej akcji",
+      "aria_region": "Akcje masowe",
+      "clear": "Wyczyść",
       "enable": "Włącz",
       "disable": "Wyłącz",
-      "delete": "Usuń"
+      "delete": "Usuń",
+      "toggle_done": "Zaktualizowano {{count}} produktów",
+      "toggle_partial": "Zaktualizowano {{processed}}, błędów: {{errors}}"
     },
     "show": {
       "tabs_aria": "Karty szczegółów produktu",
