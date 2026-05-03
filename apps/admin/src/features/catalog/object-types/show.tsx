@@ -14,6 +14,7 @@ import { FieldDisplay } from '@/components/modeling/field-display';
 import { type AttachedGroup, GroupCard } from '@/components/modeling/group-card';
 import { IconPicker } from '@/components/modeling/icon-picker';
 import { LocaleTabsField } from '@/components/modeling/locale-tabs-field';
+import { MenuOrderingList } from '@/components/modeling/menu-ordering-list';
 import { ObjectTypeIcon } from '@/components/modeling/object-type-icon';
 import { SettingToggleRow } from '@/components/modeling/setting-toggle-row';
 import { StatBox } from '@/components/modeling/stat-box';
@@ -22,6 +23,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { HttpError, jsonFetch } from '@/lib/http';
 import { useCurrentWorkspace } from '@/lib/use-current-workspace';
+import { SIDEBAR_OBJECT_TYPES_QUERY_KEY } from '@/lib/use-object-types-menu';
 
 interface ObjectTypeDetail {
   id: string;
@@ -37,6 +39,8 @@ interface ObjectTypeDetail {
   hierarchical?: boolean;
   hasVariants?: boolean;
   abstract?: boolean;
+  displayInMenu?: boolean;
+  menuPosition?: number;
   allowedParentTypeIds?: string[];
   completenessRules?: Record<string, unknown> | null;
 }
@@ -137,6 +141,16 @@ export function ObjectTypeShowPage() {
         setError(e instanceof Error ? e.message : 'unknown');
       }
       return false;
+    }
+  };
+
+  const handleDisplayInMenuChange = async (next: boolean): Promise<void> => {
+    const ok = await handlePatch({ displayInMenu: next });
+    if (ok) {
+      // Invalidate the sidebar query so the dynamic nav re-renders without
+      // a hard reload — the sidebar reads from `/api/object_types/menu`,
+      // which now includes (or excludes) this type.
+      await queryClient.invalidateQueries({ queryKey: SIDEBAR_OBJECT_TYPES_QUERY_KEY });
     }
   };
 
@@ -468,6 +482,27 @@ export function ObjectTypeShowPage() {
             locked={isBuiltIn}
             onChange={(next) => void handlePatch({ abstract: next })}
           />
+          <SettingToggleRow
+            label={t('object_types.setting_display_in_menu_label', {
+              defaultValue: 'Widoczne w menu',
+            })}
+            description={t('object_types.setting_display_in_menu_desc', {
+              defaultValue:
+                'Typ pojawia się jako pozycja w menu po lewej. Built-in: Produkty/Kategorie/Multimedia/Marki domyślnie tak.',
+            })}
+            checked={Boolean(objectType.displayInMenu)}
+            onChange={(next) => void handleDisplayInMenuChange(next)}
+          />
+          {objectType.displayInMenu ? (
+            <div className="border-t border-zinc-100 pt-5">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-[11.5px] font-medium text-zinc-500">
+                  {t('object_types.menu_ordering_section', { defaultValue: 'Kolejność menu' })}
+                </div>
+              </div>
+              <MenuOrderingList language={i18n.language} />
+            </div>
+          ) : null}
           <div className="border-t border-zinc-100 pt-5">
             <div className="mb-2 text-[11.5px] font-medium text-zinc-500">
               {t('object_types.allowed_parent_types_label', {

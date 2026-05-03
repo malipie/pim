@@ -13,9 +13,11 @@ use App\Catalog\Domain\Exception\ObjectTypeCodeConflictException;
 use App\Catalog\Domain\Exception\ObjectTypeHasInstancesException;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use InvalidArgumentException;
 
 /**
  * Application service that owns ObjectType lifecycle invariants.
@@ -46,6 +48,7 @@ final readonly class ObjectTypeService
     public function __construct(
         private EntityManagerInterface $em,
         private ObjectTypeAttributeRepositoryInterface $junctions,
+        private ObjectTypeRepositoryInterface $repository,
         private Connection $connection,
         private bool $enableCustomObjectTypes,
     ) {
@@ -124,6 +127,8 @@ final readonly class ObjectTypeService
         ?bool $abstract = null,
         ?array $allowedParentTypeIds = null,
         ?array $completenessRules = null,
+        ?bool $displayInMenu = null,
+        ?int $menuPosition = null,
     ): ObjectType {
         $isBuiltIn = $objectType->isBuiltIn();
 
@@ -167,10 +172,51 @@ final readonly class ObjectTypeService
             }
             $objectType->updateCompletenessRules($completenessRules);
         }
+        // VIEW-01c (#414): displayInMenu + menuPosition are operator-controlled
+        // UX preferences, NOT domain invariants — built-in rows can flip them
+        // freely (different from hierarchical / hasVariants / abstract).
+        if (null !== $displayInMenu) {
+            $objectType->setDisplayInMenu($displayInMenu);
+        }
+        if (null !== $menuPosition) {
+            $objectType->setMenuPosition($menuPosition);
+        }
 
         $this->em->flush();
 
         return $objectType;
+    }
+
+    /**
+     * VIEW-01c (#414) — atomic reorder for the sidebar drag-and-drop. The
+     * full ordered list of `display_in_menu=true` UUIDs is rewritten in one
+     * transaction; positions are normalized to multiples of 10 so future
+     * inserts have room.
+     *
+     * @param list<\Symfony\Component\Uid\Uuid> $orderedIds
+     *
+     * @throws InvalidArgumentException when an UUID is unknown or hidden
+     */
+    public function reorderMenu(array $orderedIds): void
+    {
+        if ([] === $orderedIds) {
+            return;
+        }
+
+        $position = 10;
+        foreach ($orderedIds as $id) {
+            $type = $this->repository->findById($id);
+            if (null === $type) {
+                throw new InvalidArgumentException(\sprintf('ObjectType "%s" not found.', $id->toRfc4122()));
+            }
+            if (!$type->isDisplayInMenu()) {
+                throw new InvalidArgumentException(\sprintf('ObjectType "%s" is not displayed in the menu.', $id->toRfc4122()));
+            }
+            $type->setMenuPosition($position);
+            $position += 10;
+        }
+
+        $this->em->flush();
     }
 
     public function delete(ObjectType $objectType): void

@@ -57,6 +57,12 @@
             <group>admin:read</group>
             <group>integration:read</group>
         </attribute>
+        <attribute name="displayInMenu">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="menuPosition">
+            <group>admin:read</group>
+        </attribute>
         <attribute name="allowedParentTypeIds">
             <group>admin:read</group>
         </attribute>

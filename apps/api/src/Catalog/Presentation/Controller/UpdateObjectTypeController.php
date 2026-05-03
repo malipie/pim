@@ -70,6 +70,8 @@ final class UpdateObjectTypeController
                 abstract: $this->boolOrNull($body['abstract'] ?? null),
                 allowedParentTypeIds: $this->idListOrNull($body['allowedParentTypeIds'] ?? null),
                 completenessRules: $this->mapOrNull($body['completenessRules'] ?? null),
+                displayInMenu: $this->boolOrNull($body['displayInMenu'] ?? null),
+                menuPosition: $this->intOrNull($body['menuPosition'] ?? null),
             );
         } catch (BuiltInObjectTypeException $e) {
             throw new HttpException(Response::HTTP_FORBIDDEN, $e->getMessage(), $e);
@@ -90,6 +92,8 @@ final class UpdateObjectTypeController
             'abstract' => $objectType->isAbstract(),
             'allowedParentTypeIds' => $objectType->getAllowedParentTypeIds(),
             'completenessRules' => $objectType->getCompletenessRules(),
+            'displayInMenu' => $objectType->isDisplayInMenu(),
+            'menuPosition' => $objectType->getMenuPosition(),
             'schemaVersion' => $objectType->getSchemaVersion(),
         ]);
     }
@@ -146,6 +150,17 @@ final class UpdateObjectTypeController
             return $raw;
         }
         throw new BadRequestHttpException('Boolean fields must be true or false.');
+    }
+
+    private function intOrNull(mixed $raw): ?int
+    {
+        if (null === $raw) {
+            return null;
+        }
+        if (\is_int($raw)) {
+            return $raw;
+        }
+        throw new BadRequestHttpException('Integer fields must be a number.');
     }
 
     /**

@@ -1,18 +1,21 @@
 import {
   Boxes,
   Cog,
+  FolderTree,
   Image,
   LayoutDashboard,
   type LucideIcon,
   Package,
   Settings2,
   Share2,
+  Tag,
   Workflow,
   Wrench,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
 
+import { type SidebarObjectType, useObjectTypesMenu } from '@/lib/use-object-types-menu';
 import { cn } from '@/lib/utils';
 
 import { UserMenu } from './user-menu';
@@ -21,44 +24,14 @@ interface NavLeaf {
   to?: string;
   icon: LucideIcon;
   label: string;
+  /** Pre-resolved label for dynamic items (skips i18n keys). */
+  resolvedLabel?: string;
   comingSoon?: boolean;
   /** MOCK count badge shown after the label (e.g. "12 847"). */
   count?: string;
-  /** MOCK kind tag shown next to count (e.g. "CUSTOM"). */
+  /** Kind tag shown next to count — e.g. CUSTOM for tenant-defined types. */
   kindTag?: string;
 }
-
-interface NavSection {
-  id: string;
-  items: NavLeaf[];
-}
-
-// MOCK counts per UI-03c handoff — replace with live `useList(pageSize=1)`
-// queries when a backend `GET /api/sidebar/counts` endpoint ships.
-const NAV_SECTIONS: NavSection[] = [
-  {
-    id: 'main',
-    items: [
-      { to: '/dashboard', icon: LayoutDashboard, label: 'nav.dashboard' },
-      { to: '/products', icon: Package, label: 'nav.products', count: '12 847' },
-      {
-        icon: Wrench,
-        label: 'nav.services',
-        comingSoon: true,
-        kindTag: 'CUSTOM',
-        count: '84',
-      },
-      { to: '/channels', icon: Share2, label: 'nav.publications' },
-      { to: '/assets', icon: Image, label: 'nav.multimedia', count: '8 421' },
-      { icon: Workflow, label: 'nav.workflow', comingSoon: true },
-      { to: '/api-profiles', icon: Cog, label: 'nav.settings' },
-    ],
-  },
-  {
-    id: 'modeling',
-    items: [{ to: '/modeling', icon: Settings2, label: 'nav.modeling' }],
-  },
-];
 
 interface SidebarNavProps {
   onNavigate?: () => void;
@@ -78,12 +51,63 @@ const disabledLeafClass = cn(
   'cursor-not-allowed text-muted-foreground/60',
 );
 
-export function SidebarNav({ onNavigate }: SidebarNavProps) {
-  const { t } = useTranslation();
+/**
+ * VIEW-01c (#414) — pick a sensible icon + sugar-path route per ObjectKind.
+ * Built-in kinds get their dedicated icon + the legacy `/products`,
+ * `/categories`, `/assets`, `/brands` URL. Custom kinds fall back to a
+ * generic Wrench icon and the `/object-types/{code}` instance-list route.
+ */
+function leafForObjectType(
+  row: SidebarObjectType,
+  language: string,
+): { to: string; icon: LucideIcon; label: string } {
+  const label = row.label[language] ?? row.label.pl ?? row.label.en ?? row.code;
+  switch (row.kind) {
+    case 'product':
+      return { to: '/products', icon: Package, label };
+    case 'category':
+      return { to: '/categories', icon: FolderTree, label };
+    case 'asset':
+      return { to: '/assets', icon: Image, label };
+    case 'brand':
+      return { to: '/brands', icon: Tag, label };
+    default:
+      return { to: `/object-types/${row.code}`, icon: Wrench, label };
+  }
+}
 
-  // Liczba aktywnych modułów = wszystkie wired nav items (wszystkie sekcje, bez comingSoon).
-  const activeModulesCount = NAV_SECTIONS.flatMap((section) => section.items).filter(
-    (item) => !item.comingSoon,
+export function SidebarNav({ onNavigate }: SidebarNavProps) {
+  const { t, i18n } = useTranslation();
+  const { data: objectTypesMenu = [] } = useObjectTypesMenu();
+
+  const dynamicItems: NavLeaf[] = objectTypesMenu.map((row) => {
+    const leaf = leafForObjectType(row, i18n.language);
+    return {
+      to: leaf.to,
+      icon: leaf.icon,
+      // Resolved at fetch time — no i18n key.
+      label: row.code,
+      resolvedLabel: leaf.label,
+      kindTag: row.builtIn ? undefined : 'CUSTOM',
+    };
+  });
+
+  // Static skeleton — surrounding the dynamic ObjectType slot are pieces
+  // that are not ObjectType-driven (Dashboard, channels/publications,
+  // workflow, API profiles / Settings).
+  const mainBefore: NavLeaf[] = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'nav.dashboard' },
+  ];
+  const mainAfter: NavLeaf[] = [
+    { to: '/channels', icon: Share2, label: 'nav.publications' },
+    { icon: Workflow, label: 'nav.workflow', comingSoon: true },
+    { to: '/api-profiles', icon: Cog, label: 'nav.settings' },
+  ];
+  const modeling: NavLeaf[] = [{ to: '/modeling', icon: Settings2, label: 'nav.modeling' }];
+
+  const allActiveItems = [...mainBefore, ...dynamicItems, ...mainAfter, ...modeling];
+  const activeModulesCount = allActiveItems.filter(
+    (item) => !item.comingSoon && item.to !== undefined,
   ).length;
 
   const renderTrailing = (item: NavLeaf) => (
@@ -100,11 +124,12 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
   );
 
   const renderLeaf = (item: NavLeaf, key: string) => {
+    const labelText = item.resolvedLabel ?? t(item.label);
     if (item.comingSoon || !item.to) {
       return (
         <span key={key} className={disabledLeafClass} aria-disabled="true">
           <item.icon className="size-4" />
-          <span className="flex-1">{t(item.label)}</span>
+          <span className="flex-1">{labelText}</span>
           {renderTrailing(item)}
           <span className="rounded bg-muted px-1.5 py-0.5 text-xs uppercase text-muted-foreground">
             {t('nav.soon')}
@@ -116,11 +141,13 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
     return (
       <NavLink key={key} to={item.to} onClick={onNavigate} className={leafLinkClass}>
         <item.icon className="size-4" />
-        <span className="flex-1">{t(item.label)}</span>
+        <span className="flex-1">{labelText}</span>
         {renderTrailing(item)}
       </NavLink>
     );
   };
+
+  const mainItems = [...mainBefore, ...dynamicItems, ...mainAfter];
 
   return (
     <>
@@ -133,17 +160,12 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         <div className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {t('nav.workspace_label', { defaultValue: 'Workspace' })}
         </div>
-        {NAV_SECTIONS.map((section, sectionIndex) => (
-          <div
-            key={section.id}
-            className={cn(
-              'flex flex-col gap-1',
-              sectionIndex > 0 && 'mt-2 border-t border-border pt-2',
-            )}
-          >
-            {section.items.map((item) => renderLeaf(item, item.to ?? item.label))}
-          </div>
-        ))}
+        <div className="flex flex-col gap-1">
+          {mainItems.map((item, idx) => renderLeaf(item, `${item.to ?? item.label}-${idx}`))}
+        </div>
+        <div className="mt-2 flex flex-col gap-1 border-t border-border pt-2">
+          {modeling.map((item) => renderLeaf(item, item.to ?? item.label))}
+        </div>
       </nav>
       <div className="border-t p-3">
         <div className="mb-2 px-1 text-[11px] text-muted-foreground">

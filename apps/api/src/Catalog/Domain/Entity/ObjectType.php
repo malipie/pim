@@ -79,6 +79,17 @@ class ObjectType implements TenantScoped
     private bool $abstract = false;
 
     /**
+     * VIEW-01c (#414) — sidebar surface controls. `displayInMenu=true` makes
+     * the type render as its own primary nav entry; `menuPosition` orders it
+     * (ascending). Built-ins ship with both flags set by the seeder so the
+     * default sidebar matches the existing layout. Unlike the other Settings
+     * toggles, these two are NOT domain invariants — built-in rows can
+     * change them freely (UX preference, not platform contract).
+     */
+    private bool $displayInMenu = false;
+    private int $menuPosition = 0;
+
+    /**
      * UUID list of ObjectTypes allowed as parent. Plain JSONB list (not a
      * junction) — N stays small (≤ 5 typical), and the only consumer is the
      * detail view's Allowed parent types chip strip. A junction would cost
@@ -306,6 +317,37 @@ class ObjectType implements TenantScoped
     public function setAbstract(bool $value): void
     {
         $this->abstract = $value;
+        $this->touch();
+    }
+
+    public function isDisplayInMenu(): bool
+    {
+        return $this->displayInMenu;
+    }
+
+    /**
+     * Symfony PropertyAccess accessor alias — surface as `displayInMenu`
+     * property in normalized output (mirrors `getHasVariants`).
+     */
+    public function getDisplayInMenu(): bool
+    {
+        return $this->displayInMenu;
+    }
+
+    public function setDisplayInMenu(bool $value): void
+    {
+        $this->displayInMenu = $value;
+        $this->touch();
+    }
+
+    public function getMenuPosition(): int
+    {
+        return $this->menuPosition;
+    }
+
+    public function setMenuPosition(int $value): void
+    {
+        $this->menuPosition = $value;
         $this->touch();
     }
 

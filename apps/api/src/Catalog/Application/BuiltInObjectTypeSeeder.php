@@ -29,13 +29,13 @@ use Doctrine\ORM\EntityManagerInterface;
 final readonly class BuiltInObjectTypeSeeder
 {
     /**
-     * @var array<string, array{ObjectKind, array<string, string>, string, string}>
+     * @var array<string, array{ObjectKind, array<string, string>, string, string, int}>
      */
     private const array DEFINITIONS = [
-        'product' => [ObjectKind::Product, ['pl' => 'Produkt', 'en' => 'Product'], 'Package', '#3B82F6'],
-        'category' => [ObjectKind::Category, ['pl' => 'Kategoria', 'en' => 'Category'], 'FolderTree', '#10B981'],
-        'asset' => [ObjectKind::Asset, ['pl' => 'Zasób', 'en' => 'Asset'], 'Image', '#8B5CF6'],
-        'brand' => [ObjectKind::Brand, ['pl' => 'Marka', 'en' => 'Brand'], 'Tag', '#F59E0B'],
+        'product' => [ObjectKind::Product, ['pl' => 'Produkt', 'en' => 'Product'], 'Package', '#3B82F6', 10],
+        'category' => [ObjectKind::Category, ['pl' => 'Kategoria', 'en' => 'Category'], 'FolderTree', '#10B981', 20],
+        'asset' => [ObjectKind::Asset, ['pl' => 'Zasób', 'en' => 'Asset'], 'Image', '#8B5CF6', 30],
+        'brand' => [ObjectKind::Brand, ['pl' => 'Marka', 'en' => 'Brand'], 'Tag', '#F59E0B', 40],
     ];
 
     public function __construct(
@@ -56,7 +56,7 @@ final readonly class BuiltInObjectTypeSeeder
 
         try {
             $created = 0;
-            foreach (self::DEFINITIONS as $code => [$kind, $label, $icon, $color]) {
+            foreach (self::DEFINITIONS as $code => [$kind, $label, $icon, $color, $menuPosition]) {
                 $existing = $this->repository->findBuiltInByKind($kind, $tenant);
                 if (null !== $existing) {
                     continue;
@@ -78,6 +78,13 @@ final readonly class BuiltInObjectTypeSeeder
                 } elseif (ObjectKind::Category === $kind) {
                     $type->setHierarchical(true);
                 }
+
+                // VIEW-01c (#414): every built-in is visible in the sidebar by
+                // default. Positions 10/20/30 with a step of 10 leave room for
+                // custom rows to be inserted between built-ins via the
+                // operator's drag-and-drop reorder.
+                $type->setDisplayInMenu(true);
+                $type->setMenuPosition($menuPosition);
 
                 $this->em->persist($type);
                 ++$created;
