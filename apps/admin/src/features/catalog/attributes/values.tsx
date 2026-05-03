@@ -129,21 +129,54 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
   const active = options.find((o) => o.id === activeId) ?? null;
   const refresh = () => queryClient.invalidateQueries({ queryKey });
 
-  const addValue = async () => {
-    const code = window.prompt(
-      t('attribute_values.prompt_code', { defaultValue: 'Code nowej wartości (snake_case)' }),
-    );
-    if (!code || code.trim().length === 0) return;
+  // Inline-create: pop a draft row into local state with a focusable
+  // empty Code input. Submit on Enter or click Save → POST → refetch.
+  // No native prompt — operator stays inside the editor.
+  const [draftCode, setDraftCode] = useState<string>('');
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const addValue = () => {
+    setDraftCode('');
+    setDraftError(null);
+    setCreating(true);
+  };
+
+  const cancelDraft = () => {
+    setCreating(false);
+    setDraftCode('');
+    setDraftError(null);
+  };
+
+  const submitDraft = async () => {
+    const code = draftCode.trim();
+    if (code.length === 0) {
+      setDraftError(
+        t('attribute_values.draft_code_required', { defaultValue: 'Code nie może być pusty' }),
+      );
+      return;
+    }
     try {
       const created = await jsonFetch<OptionRow>(`/api/attributes/${attribute.code}/options`, {
         method: 'POST',
         contentType: 'application/json',
-        body: { code: code.trim(), label: { en: code.trim() } },
+        body: { code, label: { pl: code, en: code } },
       });
       setActiveId(created.id);
+      cancelDraft();
       refresh();
     } catch (err) {
-      if (err instanceof HttpError) window.alert(`HTTP ${err.status}`);
+      if (err instanceof HttpError) {
+        const detail =
+          err.body && typeof err.body === 'object' && 'detail' in err.body
+            ? String((err.body as Record<string, unknown>).detail)
+            : null;
+        setDraftError(detail ?? `HTTP ${err.status}`);
+      } else {
+        setDraftError(
+          t('attribute_values.draft_save_error', { defaultValue: 'Nie udało się zapisać' }),
+        );
+      }
     }
   };
 
@@ -245,29 +278,79 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
                 </div>
               </SortableContext>
             </DndContext>
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-2 w-full border-dashed"
-              onClick={() => {
-                void addValue();
-              }}
-            >
-              <Plus className="size-4" />
-              {t('attribute_values.add_action', { defaultValue: 'Dodaj wartość' })}
-            </Button>
+            {creating ? (
+              <div className="mt-2 space-y-2 rounded-xl border border-violet-200 bg-violet-50/40 p-2">
+                <Input
+                  autoFocus
+                  value={draftCode}
+                  onChange={(e) => {
+                    setDraftCode(e.target.value);
+                    setDraftError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void submitDraft();
+                    }
+                    if (e.key === 'Escape') cancelDraft();
+                  }}
+                  placeholder={t('attribute_values.draft_code_placeholder', {
+                    defaultValue: 'code (snake_case)',
+                  })}
+                  className="h-9 font-mono"
+                />
+                {draftError !== null ? (
+                  <p className="px-1 text-[12px] text-destructive">{draftError}</p>
+                ) : null}
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8"
+                    onClick={cancelDraft}
+                  >
+                    {t('app.cancel')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                      void submitDraft();
+                    }}
+                  >
+                    {t('app.save', { defaultValue: 'Zapisz' })}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-2 w-full border-dashed"
+                onClick={addValue}
+              >
+                <Plus className="size-4" />
+                {t('attribute_values.add_action', { defaultValue: 'Dodaj wartość' })}
+              </Button>
+            )}
           </CardContent>
         </Card>
 
         {active ? (
-          <DefinitionCard
-            key={active.id}
-            attributeCode={attribute.code}
-            option={active}
-            options={options}
-            refresh={refresh}
-            onDeleted={() => setActiveId(null)}
-          />
+          <div className="space-y-6">
+            <DefinitionCard
+              key={active.id}
+              attributeCode={attribute.code}
+              option={active}
+              options={options}
+              refresh={refresh}
+              onDeleted={() => setActiveId(null)}
+            />
+            <PreviewCard option={active} attributeName={pickLabel(attribute.label, locale)} />
+            <AuditCard attributeCode={attribute.code} option={active} />
+          </div>
         ) : (
           <Card>
             <CardContent className="space-y-1 py-10 text-center">
@@ -285,6 +368,124 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
           </Card>
         )}
       </div>
+    </div>
+  );
+}
+
+function PreviewCard({ option, attributeName }: { option: OptionRow; attributeName: string }) {
+  const { t } = useTranslation();
+  const locales: Array<{ code: string; flag: string }> = [
+    { code: 'pl', flag: '🇵🇱' },
+    { code: 'en', flag: '🇬🇧' },
+    { code: 'de', flag: '🇩🇪' },
+  ];
+  return (
+    <Card className="p-6">
+      <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        {t('attribute_values.preview_title', { defaultValue: 'Podgląd' })}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {locales.map(({ code, flag }) => {
+          const localeLabel = option.label[code];
+          return (
+            <div key={code} className="rounded-xl border border-zinc-200 bg-white p-4">
+              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                <span aria-hidden>{flag}</span>
+                <span>{code}</span>
+              </div>
+              <div className="text-[11.5px] text-muted-foreground">{attributeName}</div>
+              <div className="mt-2 flex h-10 items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3">
+                {option.color !== null ? (
+                  <span
+                    className="size-2.5 rounded-full"
+                    style={{ background: option.color }}
+                    aria-hidden
+                  />
+                ) : null}
+                {localeLabel ? (
+                  <span className="text-[13px] text-foreground">{localeLabel}</span>
+                ) : (
+                  <span className="text-[12.5px] italic text-muted-foreground">
+                    {t('attribute_values.preview_no_translation', {
+                      defaultValue: '(brak tłumaczenia)',
+                    })}
+                  </span>
+                )}
+                <span className="ml-auto text-muted-foreground">▾</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function AuditCard({ attributeCode, option }: { attributeCode: string; option: OptionRow }) {
+  const { t } = useTranslation();
+  const { data } = useQuery<{ instances: number }>({
+    queryKey: ['attribute_options_usage', attributeCode, option.code],
+    queryFn: async () =>
+      jsonFetch<{ instances: number }>(
+        `/api/attributes/${attributeCode}/options/${option.code}/usage`,
+      ),
+    staleTime: 60_000,
+  });
+  const instances = data?.instances ?? 0;
+
+  return (
+    <Card className="p-6">
+      <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        {t('attribute_values.audit_title', { defaultValue: 'Wpływ i audyt' })}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Stat
+          value={instances.toLocaleString('pl-PL')}
+          label={t('attribute_values.audit_instances_label', {
+            defaultValue: 'instancji ma tę wartość',
+          })}
+        />
+        <Stat
+          value={String(option.position + 1)}
+          label={t('attribute_values.audit_position_label', {
+            defaultValue: 'pozycja w sortowaniu',
+          })}
+        />
+        <Stat
+          value="attribute.value.update"
+          label={t('attribute_values.audit_event_label', { defaultValue: 'zdarzenie audit log' })}
+          mono
+        />
+      </div>
+      {instances > 0 ? (
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5">
+          <span className="text-amber-700">⚠</span>
+          <div className="text-[12px] text-amber-900">
+            <strong>{t('attribute_values.audit_warning_title', { defaultValue: 'Uwaga:' })}</strong>{' '}
+            {t('attribute_values.audit_warning_body', {
+              defaultValue:
+                'ta wartość jest używana przez {{count}} obiektów. Usunięcie wymagać będzie migracji — system zaproponuje mapowanie na inną wartość.',
+              count: instances,
+            })}
+          </div>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
+function Stat({ value, label, mono }: { value: string; label: string; mono?: boolean }) {
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white p-3">
+      <div
+        className={cn(
+          'text-[18px] font-semibold tabular-nums',
+          mono ? 'font-mono text-[13px]' : '',
+        )}
+      >
+        {value}
+      </div>
+      <div className="mt-0.5 text-[11.5px] text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -420,8 +621,8 @@ function DefinitionCard({
   onDeleted: () => void;
 }) {
   const { t } = useTranslation();
-  const [labelPl, setLabelPl] = useState<string>(option.label.pl ?? '');
-  const [labelEn, setLabelEn] = useState<string>(option.label.en ?? '');
+  const [labelMap, setLabelMap] = useState<Record<string, string>>({ ...option.label });
+  const [activeLocale, setActiveLocale] = useState<string>('pl');
   const [color, setColor] = useState<string | null>(option.color);
   const [isDefault, setIsDefault] = useState(option.default);
   const [isDeprecated, setIsDeprecated] = useState(option.deprecated);
@@ -433,20 +634,28 @@ function DefinitionCard({
   const canMoveDown = index >= 0 && index < options.length - 1;
 
   const dirty =
-    labelPl !== (option.label.pl ?? '') ||
-    labelEn !== (option.label.en ?? '') ||
+    JSON.stringify(labelMap) !== JSON.stringify(option.label) ||
     color !== option.color ||
     isDefault !== option.default ||
     isDeprecated !== option.deprecated;
 
   const buildLabel = (): Record<string, string> => {
-    const next: Record<string, string> = { ...option.label };
-    if (labelPl.length > 0) next.pl = labelPl;
-    else delete next.pl;
-    if (labelEn.length > 0) next.en = labelEn;
-    else delete next.en;
+    const next: Record<string, string> = {};
+    for (const [code, value] of Object.entries(labelMap)) {
+      if (value.trim().length > 0) next[code] = value;
+    }
     return next;
   };
+
+  const setLabelFor = (locale: string, value: string) => {
+    setLabelMap((prev) => ({ ...prev, [locale]: value }));
+  };
+
+  const LOCALES = [
+    { code: 'pl', flag: '🇵🇱' },
+    { code: 'en', flag: '🇬🇧' },
+    { code: 'de', flag: '🇩🇪' },
+  ] as const;
 
   const save = async () => {
     setSaving(true);
@@ -574,33 +783,41 @@ function DefinitionCard({
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="label-pl">
-              {t('attribute_values.label_pl', { defaultValue: 'Etykieta (PL)' })}
-            </Label>
-            <Input
-              id="label-pl"
-              value={labelPl}
-              onChange={(e) => setLabelPl(e.target.value)}
-              placeholder={t('attribute_values.labels_placeholder', {
-                defaultValue: 'Etykieta wartości',
-              })}
-            />
+        <div className="space-y-2">
+          <Label>
+            {t('attribute_values.labels_title', { defaultValue: 'Etykiety wyświetlane' })}
+          </Label>
+          <div className="flex items-center gap-1 border-b border-zinc-100">
+            {LOCALES.map(({ code, flag }) => {
+              const filled = (labelMap[code] ?? '').trim().length > 0;
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setActiveLocale(code)}
+                  className={cn(
+                    '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[12.5px] font-medium uppercase tracking-wider transition',
+                    activeLocale === code
+                      ? 'border-zinc-900 text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <span aria-hidden>{flag}</span>
+                  <span>{code}</span>
+                  {!filled ? (
+                    <span className="size-1.5 rounded-full bg-amber-400" aria-hidden />
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="label-en">
-              {t('attribute_values.label_en', { defaultValue: 'Etykieta (EN)' })}
-            </Label>
-            <Input
-              id="label-en"
-              value={labelEn}
-              onChange={(e) => setLabelEn(e.target.value)}
-              placeholder={t('attribute_values.labels_placeholder', {
-                defaultValue: 'Etykieta wartości',
-              })}
-            />
-          </div>
+          <Input
+            value={labelMap[activeLocale] ?? ''}
+            onChange={(e) => setLabelFor(activeLocale, e.target.value)}
+            placeholder={t('attribute_values.labels_placeholder', {
+              defaultValue: 'Etykieta wartości',
+            })}
+          />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -666,8 +883,7 @@ function DefinitionCard({
             variant="ghost"
             disabled={!dirty || saving}
             onClick={() => {
-              setLabelPl(option.label.pl ?? '');
-              setLabelEn(option.label.en ?? '');
+              setLabelMap({ ...option.label });
               setColor(option.color);
               setIsDefault(option.default);
               setIsDeprecated(option.deprecated);

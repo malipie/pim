@@ -1,5 +1,5 @@
 import { useOne } from '@refinedev/core';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Layers, Lock, Pencil, Shield, TriangleAlert, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -298,6 +298,8 @@ function Editor({
           </div>
         </Card>
 
+        {isOption ? <AllowedValuesCard attribute={attribute} locale={locale} /> : null}
+
         <Card className="p-6">
           <SectionTitle>
             {t('attributes.ui_configuration_title', { defaultValue: 'UI Configuration' })}
@@ -514,4 +516,102 @@ function stripEmpty(record: Record<string, string>): Record<string, string> {
     if (v.trim() !== '') out[k] = v;
   }
   return out;
+}
+
+interface OptionPreview {
+  id: string;
+  code: string;
+  label: Record<string, string>;
+  color: string | null;
+  default: boolean;
+  deprecated: boolean;
+}
+
+function AllowedValuesCard({ attribute, locale }: { attribute: AttributeDetail; locale: string }) {
+  const { t } = useTranslation();
+  const { data: options = [] } = useQuery<OptionPreview[]>({
+    queryKey: ['attribute_options', attribute.code],
+    queryFn: async () => {
+      const payload = await jsonFetch<{ member: OptionPreview[] }>(
+        `/api/attributes/${attribute.code}/options`,
+      );
+      return payload.member ?? [];
+    },
+  });
+
+  const visible = options.slice(0, 12);
+  const overflow = Math.max(0, options.length - visible.length);
+  const localesUsed = new Set<string>();
+  for (const option of options) {
+    for (const code of Object.keys(option.label)) localesUsed.add(code);
+  }
+
+  return (
+    <Card className="p-6">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <SectionTitle>
+            {t('attributes.allowed_values_title', { defaultValue: 'Allowed values' })}
+          </SectionTitle>
+          <div className="text-[12.5px] text-muted-foreground">
+            {t('attributes.allowed_values_subtitle', {
+              defaultValue: '{{count}} wartości · z tłumaczeniami w {{locales}} językach',
+              count: options.length,
+              locales: localesUsed.size > 0 ? localesUsed.size : 1,
+            })}
+          </div>
+        </div>
+        <Button asChild size="sm" className="h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800">
+          <Link to={`/modeling/attributes/${attribute.id}/values`}>
+            <Pencil className="size-4" />
+            {t('attributes.manage_values', { defaultValue: 'Zarządzaj wartościami' })}
+          </Link>
+        </Button>
+      </div>
+
+      {options.length === 0 ? (
+        <p className="italic text-[12.5px] text-muted-foreground">
+          {t('attributes.allowed_values_empty', {
+            defaultValue: 'Brak zdefiniowanych wartości — kliknij „Zarządzaj wartościami".',
+          })}
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {visible.map((option) => {
+            const optionLabel =
+              option.label[locale.split('-')[0] ?? 'pl'] ??
+              option.label.pl ??
+              option.label.en ??
+              option.code;
+            return (
+              <span
+                key={option.id}
+                className="flex items-center gap-1.5 rounded-lg border border-zinc-100 bg-zinc-50 px-2.5 py-1 text-[12px] text-zinc-700"
+              >
+                {option.color !== null ? (
+                  <span
+                    className="size-2.5 rounded-full"
+                    style={{ background: option.color }}
+                    aria-hidden
+                  />
+                ) : null}
+                <span className="font-mono text-[10.5px] text-zinc-400">{option.code}</span>
+                <span>{optionLabel}</span>
+                {option.default ? (
+                  <span className="rounded bg-emerald-100 px-1 text-[9.5px] font-semibold uppercase tracking-wider text-emerald-700">
+                    default
+                  </span>
+                ) : null}
+              </span>
+            );
+          })}
+          {overflow > 0 ? (
+            <span className="rounded-lg px-2.5 py-1 text-[12px] text-muted-foreground">
+              +{overflow} {t('attributes.allowed_values_more', { defaultValue: 'więcej' })}
+            </span>
+          ) : null}
+        </div>
+      )}
+    </Card>
+  );
 }
