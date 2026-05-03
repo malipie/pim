@@ -1,39 +1,37 @@
 import { useList } from '@refinedev/core';
-import { Eye, Layers } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
+import { ChevronRight, Layers, Plus, Search, Shield, Zap } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
-import { ModelingPageHeader } from '@/components/modeling/modeling-page-header';
 import { Button } from '@/components/ui/button';
-import { MockBadge } from '@/components/ui/mock-badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Card } from '@/components/ui/card';
 import { jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
 
 interface AttributeRow {
   id: string;
   code: string;
   label: Record<string, string> | string | null;
   type: string;
-  group?: { id: string; code?: string; label?: Record<string, string> | string } | string | null;
   required?: boolean;
   localizable?: boolean;
   scopable?: boolean;
+  unique?: boolean;
   system?: boolean;
-  position?: number;
 }
 
-type SystemFilter = 'all' | 'system' | 'business';
+interface UsageResponse {
+  totalObjects?: number;
+  attributeGroups?: Array<{ id: string }>;
+  objectTypes?: Array<{ id: string }>;
+}
 
-const TYPES: ReadonlyArray<string> = [
+const TYPE_FILTERS = [
+  'all',
+  'system',
   'text',
   'number',
   'boolean',
@@ -46,206 +44,229 @@ const TYPES: ReadonlyArray<string> = [
   'relation',
   'price',
   'metric',
-];
+] as const;
 
+type TypeFilter = (typeof TYPE_FILTERS)[number];
+
+/**
+ * VIEW-02 (#374) — pixel-perfect rebuild of `AttributesView`
+ * (`attributes.jsx:3–112`):
+ *   - 26-attribute count caption + "Atrybuty" font-display title +
+ *     "Globalna biblioteka pól PIM-u…" description.
+ *   - Single Card with sticky search input + chip type filter inline.
+ *   - 8-col grid header (Code · nazwa | Type | Flagi | Used in | Groups
+ *     | Instances | Wartości).
+ *   - Body rows: shield/zap icon, code+name+lock+unique badges, TypeBadge,
+ *     i18n/scope chips, usage counts, violet "N wartości" link for
+ *     select/multiselect.
+ */
 export function AttributesListPage() {
   const { t, i18n } = useTranslation();
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [systemFilter, setSystemFilter] = useState<SystemFilter>('all');
-  const [localizableOnly, setLocalizableOnly] = useState(false);
-  const [scopableOnly, setScopableOnly] = useState(false);
+  const [filter, setFilter] = useState<TypeFilter>('all');
+  const [query, setQuery] = useState('');
 
-  const { result, query } = useList<AttributeRow>({
+  const { result, query: listQuery } = useList<AttributeRow>({
     resource: 'attributes',
     pagination: { mode: 'off' },
   });
 
   const attributes = result.data;
-  const isLoading = query.isLoading;
-  const usageCounts = useAttributeUsageCounts(attributes);
+  const isLoading = listQuery.isLoading;
+  const usage = useAttributeUsage(attributes);
+  const optionCounts = useOptionCounts(attributes);
 
   const visible = attributes.filter((row) => {
-    if (typeFilter !== '' && row.type !== typeFilter) return false;
-    if (systemFilter === 'system' && row.system !== true) return false;
-    if (systemFilter === 'business' && row.system === true) return false;
-    if (localizableOnly && row.localizable !== true) return false;
-    if (scopableOnly && row.scopable !== true) return false;
+    if (filter === 'system' && row.system !== true) return false;
+    if (filter !== 'all' && filter !== 'system' && row.type !== filter) return false;
+    if (query.length > 0) {
+      const q = query.toLowerCase();
+      const code = row.code.toLowerCase();
+      const labelStr =
+        typeof row.label === 'string'
+          ? row.label.toLowerCase()
+          : row.label !== null && typeof row.label === 'object'
+            ? Object.values(row.label).join(' ').toLowerCase()
+            : '';
+      if (!code.includes(q) && !labelStr.includes(q)) return false;
+    }
     return true;
   });
 
   return (
     <div className="space-y-6">
-      <ModelingPageHeader
-        caption={t('attributes.list_caption', {
-          defaultValue: '{{count}} atrybutów',
-          count: attributes.length,
-        })}
-        title={t('attributes.list_title')}
-        description={t('attributes.list_description', {
-          defaultValue:
-            'Globalna biblioteka pól PIM-u — każdy atrybut ma własny code, typ i walidację. Atrybuty dołączane są do ObjectType lub Attribute Group; tu zarządzasz nimi w jednym miejscu. Built-in atrybuty (created_at, updated_by) są chronione przed usunięciem.',
-        })}
-        ctaLabel={t('attributes.create_action', { defaultValue: '+ Nowy atrybut' })}
-        ctaTo="/modeling/attributes/new"
-      />
-
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs uppercase tracking-wide text-muted-foreground">
-            {t('attributes.filter_type')}
-          </span>
-          <Button
-            type="button"
-            variant={typeFilter === '' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setTypeFilter('')}
-          >
-            {t('attributes.filter_all')}
-          </Button>
-          {TYPES.map((type) => (
-            <Button
-              key={type}
-              type="button"
-              variant={typeFilter === type ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setTypeFilter(type)}
-            >
-              {type}
-            </Button>
-          ))}
+      <div className="space-y-3">
+        <div>
+          <div className="text-[13px] font-medium text-muted-foreground">
+            {t('attributes.list_caption', {
+              defaultValue: '{{count}} atrybutów w bibliotece',
+              count: attributes.length,
+            })}
+          </div>
+          <h1 className="font-display text-[28px] font-semibold tracking-tight">
+            {t('attributes.list_title', { defaultValue: 'Attributes' })}
+          </h1>
+          <p className="mt-1 max-w-3xl text-[13px] text-muted-foreground">
+            {t('attributes.list_description', {
+              defaultValue:
+                'Globalna biblioteka pól PIM-u — każdy atrybut ma własny code, typ i walidację. Atrybuty dołączane są do ObjectType lub Attribute Group; tu zarządzasz nimi w jednym miejscu. Built-in atrybuty (created_at, updated_by) są chronione przed usunięciem.',
+            })}
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs uppercase tracking-wide text-muted-foreground">
-            {t('modeling.attributes.filter_origin')}
-          </span>
-          {(['all', 'business', 'system'] as const).map((value) => (
-            <Button
-              key={value}
-              type="button"
-              variant={systemFilter === value ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setSystemFilter(value)}
-            >
-              {t(`modeling.attributes.filter_origin_${value}`)}
-            </Button>
-          ))}
-          <span className="ml-2 text-xs uppercase tracking-wide text-muted-foreground">
-            {t('modeling.attributes.filter_flags')}
-          </span>
-          <Button
-            type="button"
-            variant={localizableOnly ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setLocalizableOnly((v) => !v)}
-            aria-pressed={localizableOnly}
-          >
-            {t('attributes.flags.localizable')}
-          </Button>
-          <Button
-            type="button"
-            variant={scopableOnly ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setScopableOnly((v) => !v)}
-            aria-pressed={scopableOnly}
-          >
-            {t('attributes.flags.scopable')}
+        <div>
+          <Button asChild size="sm" className="h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800">
+            <Link to="/modeling/attributes/new">
+              <Plus className="size-4" />
+              {t('attributes.create_action', { defaultValue: 'Nowy atrybut' })}
+            </Link>
           </Button>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-line bg-surface soft-shadow">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[220px]">{t('attributes.fields.code')}</TableHead>
-              <TableHead>{t('attributes.fields.label')}</TableHead>
-              <TableHead className="w-[140px]">{t('attributes.fields.type')}</TableHead>
-              <TableHead className="w-[160px]">{t('attributes.fields.group')}</TableHead>
-              <TableHead className="w-[180px]">{t('attributes.fields.flags')}</TableHead>
-              <TableHead className="w-[110px] text-right">
-                {t('modeling.attributes.usage_count')}
-              </TableHead>
-              <TableHead className="w-[120px]">
-                {t('attributes.fields.values_column', { defaultValue: 'Wartości' })}
-              </TableHead>
-              <TableHead className="w-[80px] text-right">
-                <span className="sr-only">{t('attributes.fields.actions')}</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
-                  {t('app.loading')}
-                </TableCell>
-              </TableRow>
-            ) : visible.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
-                  {t('attributes.empty')}
-                </TableCell>
-              </TableRow>
-            ) : (
-              visible.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="font-mono text-xs">
-                    <span className="inline-flex items-center gap-2">
-                      {row.system ? <BuiltInLockBadge tone="quiet" /> : null}
-                      {row.code}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {resolveLabel(row.label, i18n.language)}
-                  </TableCell>
-                  <TableCell>
-                    <TypeBadge type={row.type} />
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {resolveGroupLabel(row.group, i18n.language)}
-                  </TableCell>
-                  <TableCell className="space-x-1 text-xs text-muted-foreground">
-                    {row.required ? <Flag>{t('attributes.flags.required')}</Flag> : null}
-                    {row.localizable ? <Flag>{t('attributes.flags.localizable')}</Flag> : null}
-                    {row.scopable ? <Flag>{t('attributes.flags.scopable')}</Flag> : null}
-                  </TableCell>
-                  <TableCell className="num text-right text-[12px] text-muted-foreground">
-                    {usageCounts[row.id] ?? '—'}
-                  </TableCell>
-                  <TableCell>
-                    <ValuesBadge type={row.type} attributeId={row.id} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild variant="ghost" size="sm">
-                      <Link to={`/modeling/attributes/${row.id}`}>
-                        <Eye className="size-4" />
-                        <span className="sr-only">{t('attributes.actions.view')}</span>
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <Card className="p-2">
+        <div className="flex flex-wrap items-center gap-3 border-b border-zinc-100 px-4 py-3">
+          <Search className="size-4 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('attributes.search_placeholder', {
+              defaultValue: 'Szukaj po code lub nazwie…',
+            })}
+            className="flex-1 min-w-[180px] bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground"
+          />
+          <div className="flex flex-wrap items-center gap-1">
+            {TYPE_FILTERS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFilter(t)}
+                className={cn(
+                  'flex h-7 items-center rounded-lg px-2.5 text-[11.5px] font-medium transition',
+                  filter === t
+                    ? 'bg-zinc-900 text-white'
+                    : 'text-muted-foreground hover:bg-zinc-100',
+                )}
+              >
+                {t === 'all' ? 'wszystkie' : t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-[40px_1.4fr_100px_140px_100px_90px_100px_120px] gap-3 border-b border-zinc-100 px-5 py-2.5 text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground">
+          <div />
+          <div>Code · nazwa</div>
+          <div>Type</div>
+          <div>Flagi</div>
+          <div className="text-right">Used in</div>
+          <div className="text-right">Groups</div>
+          <div className="text-right">Instances</div>
+          <div className="text-right">Wartości</div>
+        </div>
+
+        {isLoading ? (
+          <p className="px-5 py-8 text-center text-sm text-muted-foreground">{t('app.loading')}</p>
+        ) : visible.length === 0 ? (
+          <p className="px-5 py-12 text-center text-sm text-muted-foreground">
+            {t('attributes.empty', { defaultValue: 'Brak atrybutów spełniających kryteria.' })}
+          </p>
+        ) : (
+          <div className="divide-y divide-zinc-50">
+            {visible.map((row) => (
+              <AttributeRowItem
+                key={row.id}
+                row={row}
+                locale={i18n.language}
+                usage={usage[row.id]}
+                optionsCount={optionCounts[row.code]}
+              />
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
 
-function Flag({ children }: { children: React.ReactNode }) {
+function AttributeRowItem({
+  row,
+  locale,
+  usage,
+  optionsCount,
+}: {
+  row: AttributeRow;
+  locale: string;
+  usage?: { typesUsed: number; groupsUsed: number; instancesWith: number };
+  optionsCount?: number;
+}) {
+  const isOpt = row.type === 'select' || row.type === 'multiselect';
+  const label = resolveLabel(row.label, locale);
   return (
-    <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-secondary-foreground">
-      {children}
-    </span>
+    <Link
+      to={`/modeling/attributes/${row.id}`}
+      className="group grid w-full grid-cols-[40px_1.4fr_100px_140px_100px_90px_100px_120px] items-center gap-3 px-5 py-3 transition hover:bg-zinc-50/70"
+    >
+      <span className="grid h-8 w-8 place-items-center rounded-lg bg-zinc-50 text-zinc-400">
+        {row.system ? <Shield className="size-4" /> : <Zap className="size-4" />}
+      </span>
+      <span className="min-w-0">
+        <span className="flex items-center gap-2">
+          <span className="truncate font-mono text-[13.5px] font-medium">{row.code}</span>
+          {row.system ? <BuiltInLockBadge /> : null}
+          {row.unique ? (
+            <span className="rounded bg-amber-50 px-1 py-0.5 font-mono text-[10px] text-amber-700">
+              unique
+            </span>
+          ) : null}
+        </span>
+        <span className="block truncate text-[11.5px] text-muted-foreground">{label}</span>
+      </span>
+      <span>
+        <TypeBadge type={row.type} />
+      </span>
+      <span className="flex flex-wrap items-center gap-1">
+        {row.localizable ? (
+          <span className="rounded bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] text-blue-700">
+            i18n
+          </span>
+        ) : null}
+        {row.scopable ? (
+          <span className="rounded bg-purple-50 px-1.5 py-0.5 font-mono text-[10px] text-purple-700">
+            scope
+          </span>
+        ) : null}
+        {!row.localizable && !row.scopable && !row.unique ? (
+          <span className="text-[11px] text-zinc-300">—</span>
+        ) : null}
+      </span>
+      <span className="text-right text-[12.5px] tabular-nums">
+        <span className="font-medium text-foreground">{usage?.typesUsed ?? 0}</span>
+        <span className="text-muted-foreground"> typów</span>
+      </span>
+      <span className="text-right text-[12.5px] font-medium tabular-nums text-foreground">
+        {usage?.groupsUsed ?? 0}
+      </span>
+      <span className="text-right text-[12.5px] tabular-nums text-foreground/80">
+        {(usage?.instancesWith ?? 0).toLocaleString('pl-PL')}
+      </span>
+      <span className="flex justify-end">
+        {isOpt ? (
+          <Link
+            to={`/modeling/attributes/${row.id}/values`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 text-[11.5px] font-medium text-violet-700 transition hover:bg-violet-100"
+          >
+            <Layers className="size-3 text-violet-500" />
+            <span className="tabular-nums">{optionsCount ?? '—'}</span>
+            <span className="hidden xl:inline">wartości</span>
+          </Link>
+        ) : (
+          <ChevronRight className="size-4 text-zinc-300 group-hover:text-zinc-500" />
+        )}
+      </span>
+    </Link>
   );
 }
 
-/**
- * Type-aware badge per handoff accent palette.
- * Mapping: text/zinc, number/blue, select+multiselect/amber, boolean/emerald,
- * date/datetime/sky, money/emerald, asset/violet, reference+relation/rose.
- */
 function TypeBadge({ type }: { type: string }) {
   const tone =
     type === 'number' || type === 'metric' || type === 'price'
@@ -262,45 +283,55 @@ function TypeBadge({ type }: { type: string }) {
                 ? 'bg-accent-rose/10 text-accent-rose'
                 : 'bg-muted text-muted-foreground';
   return (
-    <span
-      className={`rounded-md px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${tone}`}
-    >
+    <span className={cn('rounded-md px-2 py-0.5 text-[11px] font-medium uppercase', tone)}>
       {type}
     </span>
   );
 }
 
-/**
- * MOCK: violet "N wartości" badge for select/multiselect attributes —
- * clicking should open the AttributeValuesView at
- * /modeling/attributes/{id}/values. Both the count and the editor route
- * require GET/POST/PATCH/DELETE /api/attributes/{id}/values which does
- * not exist yet (see Project Plan/UI/Wdrozenie_grafiki/modelowanie-do-oprogramowania.md).
- *
- * For now the badge:
- *  - renders a hard-coded "—" count for select / multiselect (we do not
- *    know the real count without the endpoint),
- *  - links to the placeholder route (which renders a banner explaining
- *    the missing backend) so the UI flow exists end-to-end.
- *  - shows "—" disabled span for non-select types (handoff convention).
- */
-function ValuesBadge({ type, attributeId }: { type: string; attributeId: string }) {
-  if (type !== 'select' && type !== 'multiselect') {
-    return <span className="text-[12px] text-muted-foreground">—</span>;
+function useAttributeUsage(
+  rows: AttributeRow[],
+): Record<string, { typesUsed: number; groupsUsed: number; instancesWith: number }> {
+  const queries = useQueries({
+    queries: rows.map((row) => ({
+      queryKey: ['attribute-usage', row.id] as const,
+      queryFn: () => jsonFetch<UsageResponse>(`/api/attributes/${row.id}/usage`),
+      staleTime: 60_000,
+    })),
+  });
+
+  const map: Record<string, { typesUsed: number; groupsUsed: number; instancesWith: number }> = {};
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i];
+    const data = queries[i]?.data;
+    map[row.id] = {
+      typesUsed: data?.objectTypes?.length ?? 0,
+      groupsUsed: data?.attributeGroups?.length ?? 0,
+      instancesWith: data?.totalObjects ?? 0,
+    };
   }
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <Link
-        to={`/modeling/attributes/${attributeId}/values`}
-        className="inline-flex items-center gap-1 rounded-md bg-accent-violet/10 px-2 py-0.5 text-[11px] font-medium text-accent-violet hover:bg-accent-violet/15"
-      >
-        <Layers className="size-3" />
-        {/* MOCK: count — wymaga GET /api/attributes/{id}/values (#TBD) */}
-        <span>— wartości</span>
-      </Link>
-      <MockBadge />
-    </span>
-  );
+  return map;
+}
+
+function useOptionCounts(rows: AttributeRow[]): Record<string, number> {
+  const selectRows = rows.filter((r) => r.type === 'select' || r.type === 'multiselect');
+  const queries = useQueries({
+    queries: selectRows.map((row) => ({
+      queryKey: ['attribute-options-count', row.code] as const,
+      queryFn: async () => {
+        const data = await jsonFetch<{ member?: unknown[] }>(`/api/attributes/${row.code}/options`);
+        return data.member?.length ?? 0;
+      },
+      staleTime: 60_000,
+    })),
+  });
+
+  const counts: Record<string, number> = {};
+  for (let i = 0; i < selectRows.length; i += 1) {
+    const data = queries[i]?.data;
+    if (typeof data === 'number') counts[selectRows[i].code] = data;
+  }
+  return counts;
 }
 
 export function resolveLabel(
@@ -313,47 +344,4 @@ export function resolveLabel(
     return value[lang] ?? value.en ?? value.pl ?? Object.values(value)[0] ?? '—';
   }
   return '—';
-}
-
-function resolveGroupLabel(group: AttributeRow['group'], locale: string): string {
-  if (!group) return '—';
-  if (typeof group === 'string') return group;
-  if (group.label) return resolveLabel(group.label, locale);
-  return group.code ?? '—';
-}
-
-/**
- * Per-row instance count from the UI-08.7 usage endpoint. Each row gets
- * its own request — `/api/attributes/{id}/usage` is a single-row reader.
- * The widget tolerates 404 / network errors (count stays "—") so the
- * list still renders cleanly when the endpoint is unavailable.
- */
-function useAttributeUsageCounts(rows: AttributeRow[]): Record<string, number> {
-  const [counts, setCounts] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const next: Record<string, number> = {};
-      await Promise.all(
-        rows.map(async (row) => {
-          try {
-            const usage = await jsonFetch<{ instanceCount: number }>(
-              `/api/attributes/${row.id}/usage`,
-              { accept: 'application/json' },
-            );
-            next[row.id] = usage.instanceCount;
-          } catch {
-            // tolerate — row keeps "—"
-          }
-        }),
-      );
-      if (!cancelled) setCounts(next);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [rows]);
-
-  return counts;
 }
