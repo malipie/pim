@@ -68,6 +68,12 @@ export function AttributesListPage() {
   const { result, query: listQuery } = useList<AttributeRow>({
     resource: 'attributes',
     pagination: { mode: 'off' },
+    // Always refetch on mount + window focus so the list never serves a
+    // stale snapshot after the operator creates / edits an attribute on
+    // a sibling page (new.tsx, show.tsx, values.tsx) and clicks back.
+    // The 5-minute Refine default is a footgun for navigation-driven
+    // CRUD flows where one tab can change data the other tab caches.
+    queryOptions: { refetchOnMount: 'always', refetchOnWindowFocus: true, staleTime: 0 },
   });
 
   const attributes = result.data;
