@@ -162,6 +162,32 @@ final class AttributeOptionsApiTest extends CatalogApiTestCase
         self::assertCount(0, $payload['member']);
     }
 
+    #[Test]
+    public function usageReturnsInstanceCountForOption(): void
+    {
+        $client = $this->authenticatedClient();
+        $code = 'priority';
+        $attribute = $this->seedSelectAttribute($code);
+        $this->seedOption($attribute, 'low', ['en' => 'Low'], 0);
+
+        // Brand-new option is unused — instances=0.
+        $response = $client->request('GET', '/api/attributes/'.$code.'/options/low/usage');
+        self::assertSame(200, $response->getStatusCode());
+        $payload = $response->toArray();
+        self::assertSame(0, $payload['instances']);
+    }
+
+    #[Test]
+    public function usageReturns404ForUnknownOption(): void
+    {
+        $client = $this->authenticatedClient();
+        $code = 'priority';
+        $this->seedSelectAttribute($code);
+
+        $response = $client->request('GET', '/api/attributes/'.$code.'/options/nonexistent/usage');
+        self::assertSame(404, $response->getStatusCode());
+    }
+
     private function seedSelectAttribute(string $code): Attribute
     {
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
