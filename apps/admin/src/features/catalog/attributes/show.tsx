@@ -109,11 +109,11 @@ export function AttributeShowPage() {
         <WhereUsedList resource="attributes" id={attribute.id} />
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        {attribute.system
-          ? t('modeling.attributes.system_immutable_note')
-          : t('attributes.write_deferred_note')}
-      </p>
+      {attribute.system ? (
+        <p className="text-xs text-muted-foreground">
+          {t('modeling.attributes.system_immutable_note')}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -83,11 +83,11 @@ export function AttributesListPage() {
         title={t('attributes.list_title')}
         description={t('attributes.list_description', {
           defaultValue:
-            'Atrybuty opisują pojedyncze pola obiektów (SKU, nazwa, opis, certyfikaty). Built-in atrybuty są audytowymi metadanymi (created_at, updated_by) — chronione przed usunięciem. Twoje atrybuty produktowe są edytowalne; tworzenie / edycja jest odroczona do agentowego flow schema-add (Faza 2).',
+            'Globalna biblioteka pól PIM-u — każdy atrybut ma własny code, typ i walidację. Atrybuty dołączane są do ObjectType lub Attribute Group; tu zarządzasz nimi w jednym miejscu. Built-in atrybuty (created_at, updated_by) są chronione przed usunięciem.',
         })}
         ctaLabel={t('attributes.create_action', { defaultValue: '+ Nowy atrybut' })}
+        ctaTo="/modeling/attributes/new"
       />
-      <p className="text-[12px] text-muted-foreground">{t('attributes.write_deferred_note')}</p>
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -229,8 +229,6 @@ export function AttributesListPage() {
           </TableBody>
         </Table>
       </div>
-
-      <p className="text-xs text-muted-foreground">{t('attributes.write_deferred_note')}</p>
     </div>
   );
 }
