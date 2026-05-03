@@ -101,4 +101,71 @@ test('Modeling shell + Dashboard mock — full handoff smoke', async ({ page }) 
   // 3. Legacy top-level URL redirects to its /modeling/... twin.
   await page.goto('/object-types');
   await expect(page).toHaveURL(/\/modeling\/object-types$/);
+
+  // 4. VIEW-05 (#411) — Products list pixel-perfect smoke. Consolidated
+  //    here per lessons.md §10 to share the single auth login and stay
+  //    inside the 5/IP/15min rate-limiter budget. Selectors match both
+  //    PL and EN copy because i18next picks the locale from the browser
+  //    Accept-Language header (Chromium defaults to en-US in CI).
+  await page.goto('/products');
+  await expect(page).toHaveURL(/\/products$/);
+
+  // Header pixel-perfect (32px h1 + breadcrumb + total + last sync).
+  await expect(page.getByText(/Workspace · (katalog|catalog)/, { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /Produkty|Products/ })).toBeVisible();
+
+  // Toolbar: search + 4 FilterPill + segmented + Nowy produkt.
+  await expect(
+    page.getByRole('searchbox', { name: /Szukaj produktów|Search products/i }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: /^(Marka|Brand)$/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^(Rodzina|Family)$/ })).toBeVisible();
+  const channelBtn = page.getByRole('button', { name: /^(Kanał|Channel)$/ });
+  await expect(channelBtn).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Status$/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^(Płasko|Flat)$/ })).toBeVisible();
+  const treeBtn = page.getByRole('button', { name: /^(Drzewo|Tree)$/ });
+  await expect(treeBtn).toBeVisible();
+  await expect(page.getByRole('link', { name: /(Nowy produkt|New product)/i })).toBeVisible();
+  await expect(page.getByTestId('products-grid')).toBeVisible();
+
+  // Channel pill click surfaces toast (epic 0.6 placeholder).
+  await channelBtn.click();
+  await page.getByRole('menuitem', { name: 'Shopify' }).click();
+  await expect(
+    page
+      .getByRole('status')
+      .filter({
+        hasText: /(Filtr per kanał czeka na epik 0\.6|Per-channel filter waits for epic 0\.6)/,
+      })
+      .first(),
+  ).toBeVisible();
+
+  // VariantsToggle segmented control flips active state on click.
+  const flatBtn = page.getByRole('button', { name: /^(Płasko|Flat)$/ });
+  await treeBtn.click();
+  await expect(treeBtn).toHaveAttribute('aria-pressed', 'true');
+  await expect(flatBtn).toHaveAttribute('aria-pressed', 'false');
+  await flatBtn.click();
+  await expect(flatBtn).toHaveAttribute('aria-pressed', 'true');
+  await expect(treeBtn).toHaveAttribute('aria-pressed', 'false');
+
+  // Selecting a row reveals BulkBar with placeholder toasts.
+  const grid = page.getByTestId('products-grid');
+  const firstRow = grid.locator('[data-testid^="products-grid-row-"]').first();
+  if ((await firstRow.count()) > 0) {
+    await firstRow.getByRole('checkbox').first().check();
+    const bulkBar = page.getByTestId('bulk-bar');
+    await expect(bulkBar).toBeVisible();
+    await expect(bulkBar).toContainText(/(zaznaczonych produktów|selected products)/);
+    await bulkBar.getByRole('button', { name: /(Edytuj atrybut|Edit attribute)/ }).click();
+    await expect(
+      page
+        .getByRole('status')
+        .filter({ hasText: /(W przygotowaniu|In progress) — VIEW-05\.2/ })
+        .first(),
+    ).toBeVisible();
+    await bulkBar.getByRole('button', { name: /^(Wyczyść|Clear)$/ }).click();
+    await expect(bulkBar).not.toBeVisible();
+  }
 });
