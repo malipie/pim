@@ -1,13 +1,20 @@
 import { useOne } from '@refinedev/core';
-import { ArrowLeft, Wand2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Layers, Lock, Pencil, Shield, TriangleAlert, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 
 import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { WhereUsedList } from '@/components/modeling/where-used-list';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { HttpError, jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
 
 import { resolveLabel } from './list';
 
@@ -20,15 +27,35 @@ interface AttributeDetail {
   required?: boolean;
   localizable?: boolean;
   scopable?: boolean;
+  unique?: boolean;
   system?: boolean;
-  validationRules?: Record<string, unknown> | null;
-  position?: number;
-  group?: { id: string; code?: string; label?: Record<string, string> | string } | string | null;
-  createdAt?: string;
 }
 
+/**
+ * VIEW-02 (#374) — pixel-perfect AttributeDetail with edit-in-place
+ * pattern (mockup `attributes.jsx:114–245`):
+ *
+ *   - Sticky header with shield/zap icon, mono code 26px, lock badge
+ *     (system) + TypeBadge + label/unit subtitle. Right stack: Manage
+ *     Values (violet, select/multiselect), Migrate Type (amber,
+ *     non-system), Edit (zinc-900).
+ *   - Card "Definicja": grid with locked Code + editable Nazwa
+ *     PL/EN + locked Type + 3-column FlagPill row (Localizable /
+ *     Scopable / Unique).
+ *   - Card "UI Configuration": locked Widget + editable Helper text
+ *     + live Preview row.
+ *   - Card "Where used": existing <WhereUsedList>.
+ *   - Sticky bottom bar visible when dirty: "{N} pól zmienionych"
+ *     left, "Anuluj | Zapisz zmiany" right. PATCHes /api/attributes/{id}.
+ *
+ * System attributes (`is_system=true`) get all editable fields
+ * disabled at the UI level — backend already rejects structural
+ * changes with 422.
+ */
 export function AttributeShowPage() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const params = useParams<{ id: string }>();
   const id = params.id ?? '';
   const { result, query } = useOne<AttributeDetail>({
@@ -42,133 +69,449 @@ export function AttributeShowPage() {
   }
 
   const attribute = result;
-  const label = resolveLabel(attribute.label, i18n.language);
-  const help = resolveLabel(attribute.help, i18n.language);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <Button asChild variant="ghost" size="sm" className="-ml-3">
-            <Link to="/modeling/attributes">
-              <ArrowLeft className="size-4" />
-              {t('attributes.back')}
-            </Link>
-          </Button>
-          <AuditLogIndicator />
+    <Editor
+      key={attribute.id}
+      attribute={attribute}
+      locale={i18n.language}
+      onSaved={() => {
+        queryClient.invalidateQueries({ queryKey: ['attributes', attribute.id] });
+        queryClient.invalidateQueries({ queryKey: ['attributes'] });
+      }}
+      onClose={() => navigate('/modeling/attributes')}
+    />
+  );
+}
+
+function Editor({
+  attribute,
+  locale,
+  onSaved,
+  onClose,
+}: {
+  attribute: AttributeDetail;
+  locale: string;
+  onSaved: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const initialLabel = toLocaleMap(attribute.label);
+  const initialHelp = toLocaleMap(attribute.help);
+
+  const [labelPl, setLabelPl] = useState(initialLabel.pl ?? '');
+  const [labelEn, setLabelEn] = useState(initialLabel.en ?? '');
+  const [helpPl, setHelpPl] = useState(initialHelp.pl ?? '');
+  const [helpEn, setHelpEn] = useState(initialHelp.en ?? '');
+  const [localizable, setLocalizable] = useState(attribute.localizable ?? false);
+  const [scopable, setScopable] = useState(attribute.scopable ?? false);
+  const [unique, setUnique] = useState(attribute.unique ?? false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset form when attribute changes (id-keyed Editor remounts on different id).
+  useEffect(() => {
+    setError(null);
+  }, [attribute.id]);
+
+  const dirtyFields = [
+    labelPl !== (initialLabel.pl ?? '') || labelEn !== (initialLabel.en ?? ''),
+    helpPl !== (initialHelp.pl ?? '') || helpEn !== (initialHelp.en ?? ''),
+    localizable !== (attribute.localizable ?? false),
+    scopable !== (attribute.scopable ?? false),
+    unique !== (attribute.unique ?? false),
+  ].filter(Boolean).length;
+  const dirty = dirtyFields > 0;
+
+  const isOption = attribute.type === 'select' || attribute.type === 'multiselect';
+  const isSystem = attribute.system === true;
+
+  const cancel = () => {
+    setLabelPl(initialLabel.pl ?? '');
+    setLabelEn(initialLabel.en ?? '');
+    setHelpPl(initialHelp.pl ?? '');
+    setHelpEn(initialHelp.en ?? '');
+    setLocalizable(attribute.localizable ?? false);
+    setScopable(attribute.scopable ?? false);
+    setUnique(attribute.unique ?? false);
+    setError(null);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const body: Record<string, unknown> = {};
+      const nextLabel = stripEmpty({ pl: labelPl, en: labelEn });
+      if (JSON.stringify(nextLabel) !== JSON.stringify(initialLabel)) body.label = nextLabel;
+      const nextHelp = stripEmpty({ pl: helpPl, en: helpEn });
+      if (JSON.stringify(nextHelp) !== JSON.stringify(initialHelp)) body.help = nextHelp;
+      if (!isSystem) {
+        if (localizable !== (attribute.localizable ?? false)) body.localizable = localizable;
+        if (scopable !== (attribute.scopable ?? false)) body.scopable = scopable;
+        if (unique !== (attribute.unique ?? false)) body.required = unique; // BE has no `unique` flag yet
+      }
+      await jsonFetch(`/api/attributes/${attribute.id}`, {
+        method: 'PATCH',
+        contentType: 'application/merge-patch+json',
+        body,
+      });
+      onSaved();
+    } catch (err) {
+      if (err instanceof HttpError) {
+        const detail =
+          err.body && typeof err.body === 'object' && 'detail' in err.body
+            ? String((err.body as Record<string, unknown>).detail)
+            : null;
+        setError(detail ?? `HTTP ${err.status}`);
+      } else {
+        setError(t('app.save_error', { defaultValue: 'Nie udało się zapisać' }));
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className={cn('space-y-6', dirty ? 'pb-24' : '')}>
+      <div className="flex items-center justify-between">
+        <Button asChild variant="ghost" size="sm" className="-ml-3">
+          <Link to="/modeling/attributes">
+            <ArrowLeft className="size-4" />
+            {t('attributes.back_to_library', { defaultValue: 'Wstecz do biblioteki Attributes' })}
+          </Link>
+        </Button>
+        <AuditLogIndicator />
+      </div>
+
+      <div className="flex flex-wrap items-start gap-4">
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-zinc-200 bg-white text-zinc-600">
+          {isSystem ? <Shield className="size-5" /> : <Zap className="size-5" />}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{label}</h1>
-          {attribute.system ? <BuiltInLockBadge /> : null}
-          {!attribute.system ? (
-            <Button asChild variant="outline" size="sm" className="ml-auto">
-              <Link to={`/modeling/attributes/${attribute.id}/migrate-type`}>
-                <Wand2 className="size-4" />
-                {t('modeling.attributes.migration.action_label')}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-display font-mono text-[26px] font-semibold tracking-tight">
+              {attribute.code}
+            </h1>
+            {isSystem ? <BuiltInLockBadge /> : null}
+            <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium uppercase text-muted-foreground">
+              {attribute.type}
+            </span>
+          </div>
+          <div className="mt-1 text-[13px] text-muted-foreground">
+            {resolveLabel(attribute.label, locale)}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {isOption ? (
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-9 rounded-xl bg-violet-50 text-violet-700 hover:bg-violet-100"
+            >
+              <Link to={`/modeling/attributes/${attribute.id}/values`}>
+                <Layers className="size-4" />
+                {t('attributes.manage_values', { defaultValue: 'Zarządzaj wartościami' })}
               </Link>
             </Button>
           ) : null}
+          {!isSystem ? (
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-9 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100"
+            >
+              <Link to={`/modeling/attributes/${attribute.id}/migrate-type`}>
+                <TriangleAlert className="size-4" />
+                {t('modeling.attributes.migration.action_label', { defaultValue: 'Migruj typ' })}
+              </Link>
+            </Button>
+          ) : null}
+          <Button size="sm" disabled className="h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800">
+            <Pencil className="size-4" />
+            {t('app.edit', { defaultValue: 'Edytuj' })}
+          </Button>
         </div>
-        <p className="font-mono text-xs text-muted-foreground">{attribute.code}</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <Card>
-          <CardContent className="grid gap-3 pt-6 sm:grid-cols-2">
-            <DetailRow label={t('attributes.fields.type')}>
-              <span className="rounded bg-muted px-2 py-0.5 text-xs uppercase tracking-wide">
-                {attribute.type}
-              </span>
-            </DetailRow>
-            {help !== '—' ? (
-              <DetailRow label={t('attributes.fields.help')}>
-                <span className="text-sm">{help}</span>
-              </DetailRow>
-            ) : null}
-            <DetailRow label={t('attributes.fields.required')}>
-              <FlagBadge value={attribute.required ?? false} />
-            </DetailRow>
-            <DetailRow label={t('attributes.fields.localizable')}>
-              <FlagBadge value={attribute.localizable ?? false} />
-            </DetailRow>
-            <DetailRow label={t('attributes.fields.scopable')}>
-              <FlagBadge value={attribute.scopable ?? false} />
-            </DetailRow>
-            {attribute.validationRules && Object.keys(attribute.validationRules).length > 0 ? (
-              <DetailRow label={t('attributes.fields.validation')}>
-                <pre className="rounded bg-muted px-2 py-1 text-xs">
-                  {JSON.stringify(attribute.validationRules, null, 2)}
-                </pre>
-              </DetailRow>
-            ) : null}
-            <DetailRow label={t('modeling.attributes.preview_title')}>
-              <AttributePreview type={attribute.type} />
-            </DetailRow>
-          </CardContent>
+      <div className="space-y-6">
+        <Card className="p-6">
+          <SectionTitle>
+            {t('attributes.definition_title', { defaultValue: 'Definicja' })}
+          </SectionTitle>
+          <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+            <FieldRow label={t('attributes.fields.code', { defaultValue: 'Code' })} mono lock>
+              <span className="font-mono">{attribute.code}</span>
+            </FieldRow>
+            <FieldRow label={t('attributes.fields.type', { defaultValue: 'Type' })} mono lock>
+              <span className="font-mono">{attribute.type}</span>
+            </FieldRow>
+            <FieldRow label={t('attributes.fields.label_pl', { defaultValue: 'Nazwa (PL)' })}>
+              <Input
+                value={labelPl}
+                onChange={(e) => setLabelPl(e.target.value)}
+                disabled={isSystem}
+                className="font-medium"
+              />
+            </FieldRow>
+            <FieldRow label={t('attributes.fields.label_en', { defaultValue: 'Nazwa (EN)' })}>
+              <Input
+                value={labelEn}
+                onChange={(e) => setLabelEn(e.target.value)}
+                disabled={isSystem}
+              />
+            </FieldRow>
+          </div>
+
+          <div className="mt-6 border-t border-zinc-100 pt-6">
+            <div className="mb-3 text-[11.5px] font-medium text-muted-foreground">
+              {t('attributes.flags_label', { defaultValue: 'Flagi' })}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <FlagPill
+                on={localizable}
+                label={t('attributes.flags.localizable_label', { defaultValue: 'Localizable' })}
+                desc={t('attributes.flags.localizable_desc', {
+                  defaultValue: 'per locale (PL/EN/DE)',
+                })}
+                onChange={isSystem ? undefined : setLocalizable}
+              />
+              <FlagPill
+                on={scopable}
+                label={t('attributes.flags.scopable_label', { defaultValue: 'Scopable' })}
+                desc={t('attributes.flags.scopable_desc', {
+                  defaultValue: 'per channel (Shopify/Allegro)',
+                })}
+                onChange={isSystem ? undefined : setScopable}
+              />
+              <FlagPill
+                on={unique}
+                label={t('attributes.flags.unique_label', { defaultValue: 'Unique' })}
+                desc={t('attributes.flags.unique_desc', {
+                  defaultValue: 'unikalna wartość w obrębie typu',
+                })}
+                onChange={isSystem ? undefined : setUnique}
+              />
+            </div>
+          </div>
         </Card>
+
+        <Card className="p-6">
+          <SectionTitle>
+            {t('attributes.ui_configuration_title', { defaultValue: 'UI Configuration' })}
+          </SectionTitle>
+          <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+            <FieldRow label={t('attributes.fields.widget', { defaultValue: 'Widget' })} mono lock>
+              <span className="font-mono text-[13px]">{deriveWidget(attribute.type)}</span>
+            </FieldRow>
+            <FieldRow label={t('attributes.fields.helper_pl', { defaultValue: 'Helper (PL)' })}>
+              <Textarea
+                rows={2}
+                value={helpPl}
+                onChange={(e) => setHelpPl(e.target.value)}
+                disabled={isSystem}
+              />
+            </FieldRow>
+            <FieldRow label={t('attributes.fields.helper_en', { defaultValue: 'Helper (EN)' })}>
+              <Textarea
+                rows={2}
+                value={helpEn}
+                onChange={(e) => setHelpEn(e.target.value)}
+                disabled={isSystem}
+              />
+            </FieldRow>
+          </div>
+          <div className="mt-5 rounded-2xl border border-zinc-200 bg-white p-5">
+            <div className="mb-2.5 text-[11.5px] font-medium text-muted-foreground">
+              {t('attributes.preview_title', { defaultValue: 'Preview' })}
+            </div>
+            <div className="flex items-center gap-3">
+              <Label className="w-24 text-[13px] font-medium text-foreground">
+                {labelPl || resolveLabel(attribute.label, locale)}
+              </Label>
+              <div className="flex h-10 flex-1 items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3">
+                <span className="text-[13px] text-muted-foreground">
+                  {previewValue(attribute.type)}
+                </span>
+              </div>
+            </div>
+            {(helpPl || initialHelp.pl) && (
+              <div className="ml-[6.25rem] mt-2 text-[11.5px] text-muted-foreground">
+                {helpPl || initialHelp.pl}
+              </div>
+            )}
+          </div>
+        </Card>
+
         <WhereUsedList resource="attributes" id={attribute.id} />
       </div>
 
-      {attribute.system ? (
+      {isSystem ? (
         <p className="text-xs text-muted-foreground">
           {t('modeling.attributes.system_immutable_note')}
         </p>
       ) : null}
+
+      {dirty ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white shadow-lg">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-6 py-4">
+            <span className="text-[13px] text-muted-foreground">
+              {t('attributes.dirty_count', {
+                defaultValue: '{{count}} pól zmienionych',
+                count: dirtyFields,
+              })}
+            </span>
+            {error !== null ? <span className="text-[12px] text-destructive">{error}</span> : null}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={cancel}
+                disabled={saving}
+                className="h-9 rounded-xl"
+              >
+                {t('app.cancel')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={saving}
+                onClick={() => {
+                  void save();
+                }}
+                className="h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800"
+              >
+                {t('attributes.save_changes', { defaultValue: 'Zapisz zmiany' })}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <span className="hidden">
+        <button type="button" onClick={onClose} aria-hidden />
+      </span>
     </div>
   );
 }
 
-/**
- * UI-08.11 (#266) — minimal mock-data preview per AttributeType.
- * Renders the kind of widget the user would see for that type (input,
- * select-like chip, asset placeholder). Live data preview lands in
- * Phase 2 once the form-renderer ships.
- */
-function AttributePreview({ type }: { type: string }) {
+function FlagPill({
+  on,
+  label,
+  desc,
+  onChange,
+}: {
+  on: boolean;
+  label: string;
+  desc: string;
+  onChange?: (next: boolean) => void;
+}) {
+  const interactive = onChange !== undefined;
+  return (
+    <button
+      type="button"
+      disabled={!interactive}
+      onClick={interactive ? () => onChange(!on) : undefined}
+      className={cn(
+        'rounded-xl border px-3 py-2.5 text-left transition',
+        on ? 'border-emerald-200 bg-emerald-50/50' : 'border-zinc-100 bg-zinc-50',
+        interactive ? 'hover:border-zinc-300' : 'cursor-default',
+      )}
+    >
+      <div className="flex items-center gap-2 text-[13px] font-medium">
+        {!interactive ? <Lock className="size-3 text-muted-foreground" /> : null}
+        {label}
+        <span
+          className={cn(
+            'ml-auto text-[11px] font-mono uppercase',
+            on ? 'text-emerald-700' : 'text-muted-foreground',
+          )}
+        >
+          {on ? 'ON' : 'OFF'}
+        </span>
+      </div>
+      <div className="mt-0.5 text-[11.5px] text-muted-foreground">{desc}</div>
+    </button>
+  );
+}
+
+function FieldRow({
+  label,
+  children,
+  mono,
+  lock,
+}: {
+  label: string;
+  children: React.ReactNode;
+  mono?: boolean;
+  lock?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11.5px] font-medium text-muted-foreground">{label}</span>
+        {lock ? <Lock className="size-3 text-muted-foreground" /> : null}
+      </div>
+      <div className={cn('text-[13.5px]', mono ? 'font-mono' : '')}>{children}</div>
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-4 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      {children}
+    </div>
+  );
+}
+
+function deriveWidget(type: string): string {
+  if (type === 'number' || type === 'metric') return 'number-with-unit';
+  return type;
+}
+
+function previewValue(type: string): string {
   switch (type) {
     case 'number':
-    case 'price':
     case 'metric':
-      return <span className="font-mono text-xs">42</span>;
+    case 'price':
+      return '230';
     case 'boolean':
-      return (
-        <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900">
-          true
-        </span>
-      );
-    case 'select':
-    case 'multiselect':
-    case 'multi_select':
-      return (
-        <span className="rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-          option
-        </span>
-      );
+      return 'true';
     case 'date':
     case 'datetime':
-      return <span className="font-mono text-xs">2026-01-01</span>;
+      return '2026-01-01';
     case 'asset':
-      return <span className="font-mono text-xs text-muted-foreground">[asset]</span>;
+      return '[asset]';
     case 'reference':
     case 'relation':
-      return <span className="font-mono text-xs text-muted-foreground">[ref]</span>;
+      return '[ref]';
     default:
-      return <span className="text-xs text-muted-foreground">sample text</span>;
+      return 'wartość…';
   }
 }
 
-function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className="text-sm font-medium">{children}</dd>
-    </div>
-  );
+function toLocaleMap(value: Record<string, string> | string | null | undefined): {
+  pl?: string;
+  en?: string;
+} {
+  if (typeof value === 'string') return { pl: value };
+  if (value && typeof value === 'object') {
+    const out: { pl?: string; en?: string } = {};
+    if (typeof value.pl === 'string') out.pl = value.pl;
+    if (typeof value.en === 'string') out.en = value.en;
+    return out;
+  }
+  return {};
 }
 
-function FlagBadge({ value }: { value: boolean }) {
-  const tone = value ? 'bg-emerald-100 text-emerald-900' : 'bg-muted text-muted-foreground';
-  return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${tone}`}>{value ? '✓' : '—'}</span>
-  );
+function stripEmpty(record: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(record)) {
+    if (v.trim() !== '') out[k] = v;
+  }
+  return out;
 }
