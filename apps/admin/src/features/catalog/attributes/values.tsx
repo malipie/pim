@@ -1,6 +1,23 @@
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useOne } from '@refinedev/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowLeft, ArrowUp, Layers, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, GripVertical, Layers, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
@@ -130,6 +147,45 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
     }
   };
 
+  // dnd-kit setup: pointer + keyboard sensors give us mouse and a11y
+  // out of the box. Drag distance threshold prevents row clicks (which
+  // also call setActiveId) from triggering a no-op drag.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active: dragged, over } = event;
+    if (over === null || dragged.id === over.id) return;
+    const oldIndex = options.findIndex((o) => o.id === dragged.id);
+    const newIndex = options.findIndex((o) => o.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const reordered = arrayMove(options, oldIndex, newIndex);
+    // Optimistic local state via cache write — refetch on settle
+    // matches server-assigned positions back into the cache.
+    queryClient.setQueryData<OptionRow[]>(queryKey, reordered);
+
+    // Persist by issuing per-row PATCH calls in the new order. Each row
+    // gets its index as the new position so the array order survives a
+    // hard refresh. We send the calls in parallel (the AttributeOption
+    // partial-unique only constrains `is_default`, not `position`).
+    try {
+      await Promise.all(
+        reordered.map((row, index) =>
+          jsonFetch(`/api/attributes/${attribute.code}/options/${row.code}`, {
+            method: 'PATCH',
+            contentType: 'application/merge-patch+json',
+            body: { position: index },
+          }),
+        ),
+      );
+    } finally {
+      refresh();
+    }
+  };
+
   return (
     <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-10">
       <BackLink id={attribute.id} />
@@ -158,22 +214,37 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
         <Card className="self-start">
           <CardContent className="p-3">
-            <div className="space-y-1">
-              {options.map((option) => (
-                <ValueRowItem
-                  key={option.id}
-                  option={option}
-                  isActive={option.id === activeId}
-                  locale={locale}
-                  onSelect={() => setActiveId(option.id)}
-                />
-              ))}
-              {options.length === 0 ? (
-                <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-                  {t('attribute_values.empty', { defaultValue: 'Brak zdefiniowanych wartości.' })}
-                </p>
-              ) : null}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={(event) => {
+                void handleDragEnd(event);
+              }}
+            >
+              <SortableContext
+                items={options.map((o) => o.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-1">
+                  {options.map((option) => (
+                    <ValueRowItem
+                      key={option.id}
+                      option={option}
+                      isActive={option.id === activeId}
+                      locale={locale}
+                      onSelect={() => setActiveId(option.id)}
+                    />
+                  ))}
+                  {options.length === 0 ? (
+                    <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+                      {t('attribute_values.empty', {
+                        defaultValue: 'Brak zdefiniowanych wartości.',
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+              </SortableContext>
+            </DndContext>
             <Button
               type="button"
               variant="outline"
@@ -243,66 +314,95 @@ function ValueRowItem({
 }) {
   const { t } = useTranslation();
   const label = pickLabel(option.label, locale) || option.code;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: option.id,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+
   return (
-    <button
-      type="button"
-      onClick={onSelect}
+    <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
-        'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition',
+        'flex w-full items-center gap-2 rounded-xl text-left transition',
         isActive
           ? 'bg-zinc-900 text-white'
           : 'border border-zinc-100 bg-white hover:border-zinc-200 hover:bg-zinc-50/60',
       )}
     >
-      <span
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label={t('attribute_values.drag_handle_aria', {
+          defaultValue: 'Przeciągnij aby zmienić kolejność',
+        })}
         className={cn(
-          'size-3 shrink-0 rounded-full',
-          option.color === null ? 'border border-zinc-200' : '',
+          'flex h-full cursor-grab items-center px-2 py-2.5 text-zinc-300 hover:text-zinc-500 active:cursor-grabbing',
+          isActive ? 'text-white/40 hover:text-white/70' : '',
         )}
-        style={option.color !== null ? { background: option.color } : undefined}
-        aria-hidden
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span
+      >
+        <GripVertical className="size-4" />
+      </button>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex flex-1 items-center gap-3 px-1 py-2.5 text-left"
+      >
+        <span
+          className={cn(
+            'size-3 shrink-0 rounded-full',
+            option.color === null ? 'border border-zinc-200' : '',
+          )}
+          style={option.color !== null ? { background: option.color } : undefined}
+          aria-hidden
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                'truncate font-mono text-[12.5px] font-medium',
+                isActive ? 'text-white/90' : 'text-zinc-900',
+              )}
+            >
+              {option.code}
+            </span>
+            {option.default ? (
+              <span
+                className={cn(
+                  'rounded px-1 text-[10px] font-semibold uppercase tracking-wider',
+                  isActive ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700',
+                )}
+              >
+                {t('attribute_values.default_badge', { defaultValue: 'default' })}
+              </span>
+            ) : null}
+            {option.deprecated ? (
+              <span
+                className={cn(
+                  'rounded px-1 text-[10px] font-semibold uppercase tracking-wider',
+                  isActive ? 'bg-white/20 text-white' : 'bg-zinc-200 text-zinc-600',
+                )}
+              >
+                {t('attribute_values.deprecated_badge', { defaultValue: 'wycofana' })}
+              </span>
+            ) : null}
+          </div>
+          <div
             className={cn(
-              'truncate font-mono text-[12.5px] font-medium',
-              isActive ? 'text-white/90' : 'text-zinc-900',
+              'truncate text-[11.5px]',
+              isActive ? 'text-white/70' : 'text-muted-foreground',
             )}
           >
-            {option.code}
-          </span>
-          {option.default ? (
-            <span
-              className={cn(
-                'rounded px-1 text-[10px] font-semibold uppercase tracking-wider',
-                isActive ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700',
-              )}
-            >
-              {t('attribute_values.default_badge', { defaultValue: 'default' })}
-            </span>
-          ) : null}
-          {option.deprecated ? (
-            <span
-              className={cn(
-                'rounded px-1 text-[10px] font-semibold uppercase tracking-wider',
-                isActive ? 'bg-white/20 text-white' : 'bg-zinc-200 text-zinc-600',
-              )}
-            >
-              {t('attribute_values.deprecated_badge', { defaultValue: 'wycofana' })}
-            </span>
-          ) : null}
+            {label}
+          </div>
         </div>
-        <div
-          className={cn(
-            'truncate text-[11.5px]',
-            isActive ? 'text-white/70' : 'text-muted-foreground',
-          )}
-        >
-          {label}
-        </div>
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }
 
