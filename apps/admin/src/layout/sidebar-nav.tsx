@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   type LucideIcon,
   Package,
-  Plus,
   Settings2,
   Share2,
   Workflow,
@@ -14,7 +13,6 @@ import {
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
 
-import { MockBadge } from '@/components/ui/mock-badge';
 import { cn } from '@/lib/utils';
 
 import { UserMenu } from './user-menu';
@@ -146,20 +144,6 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
             {section.items.map((item) => renderLeaf(item, item.to ?? item.label))}
           </div>
         ))}
-        {/* "+ Dodaj własny moduł" — placeholder dopóki ObjectType create flow nie obsłuży nav extension */}
-        <button
-          type="button"
-          disabled
-          className={cn(
-            'mt-2 flex cursor-not-allowed items-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-sm font-medium text-muted-foreground/70',
-          )}
-        >
-          <Plus className="size-4" />
-          <span className="flex-1 text-left">
-            {t('nav.add_custom_module', { defaultValue: '+ Dodaj własny moduł' })}
-          </span>
-          <MockBadge />
-        </button>
       </nav>
       <div className="border-t p-3">
         <div className="mb-2 px-1 text-[11px] text-muted-foreground">
