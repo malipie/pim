@@ -20,6 +20,7 @@
         <operations>
             <operation class="ApiPlatform\Metadata\GetCollection"
                        uriTemplate="/attributes{._format}"
+                       paginationItemsPerPage="200"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\Attribute')"/>
             <operation class="ApiPlatform\Metadata\Get"
                        uriTemplate="/attributes/{id}{._format}"
