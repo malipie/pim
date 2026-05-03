@@ -22,12 +22,20 @@ interface AttributeGroupRow {
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Empty string in pick-only mode (wizard, OT not yet created). */
   objectTypeId: string;
   objectTypeName: string;
   /** AttributeGroup IDs already attached — disabled in the picker. */
   attachedIds: Set<string>;
-  /** Called after a successful attach so caller can refresh attached list. */
-  onAttached: () => void;
+  /**
+   * Default mode: dialog POSTs each pick to `/api/object_types/{id}/groups/{groupId}`,
+   * then calls `onAttached()`. When `onPicked` is provided, the dialog skips
+   * the API calls and just hands the picked IDs to the caller — used by the
+   * wizard which collects picks pre-creation and attaches in one batch
+   * after `POST /api/object_types`.
+   */
+  onAttached?: () => void;
+  onPicked?: (ids: Set<string>) => void;
   locale: string;
 }
 
@@ -45,6 +53,7 @@ export function DeclareObjectTypeAttributeGroupDialog({
   objectTypeName,
   attachedIds,
   onAttached,
+  onPicked,
   locale,
 }: Props) {
   const { t } = useTranslation();
@@ -97,6 +106,14 @@ export function DeclareObjectTypeAttributeGroupDialog({
       onOpenChange(false);
       return;
     }
+
+    // Pick-only mode (wizard): hand IDs to the caller, no API call.
+    if (onPicked) {
+      onPicked(new Set(picked));
+      onOpenChange(false);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -120,12 +137,12 @@ export function DeclareObjectTypeAttributeGroupDialog({
         }
       }
       if (failed.length === 0) {
-        onAttached();
+        onAttached?.();
         onOpenChange(false);
       } else {
         // Partial success — inform the caller so it can refresh, leave
         // the dialog open so the operator can retry remaining picks.
-        onAttached();
+        onAttached?.();
       }
     } finally {
       setSubmitting(false);

@@ -1,11 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Check, Lock, Search } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Check, Library, Lock, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 
-import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
+import { AddAttributesToObjectTypeDialog } from '@/components/modeling/add-attributes-to-object-type-dialog';
 import { ColorPicker, DEFAULT_WIZARD_COLORS } from '@/components/modeling/color-picker';
+import { CreateAttributeForObjectTypeDialog } from '@/components/modeling/create-attribute-for-object-type-dialog';
+import { CreateGroupInlineDialog } from '@/components/modeling/create-group-inline-dialog';
+import { DeclareObjectTypeAttributeGroupDialog } from '@/components/modeling/declare-object-type-attribute-group-dialog';
 import { DEFAULT_WIZARD_ICONS, IconPicker } from '@/components/modeling/icon-picker';
 import { LocaleTabsField } from '@/components/modeling/locale-tabs-field';
 import { ObjectTypeIcon } from '@/components/modeling/object-type-icon';
@@ -33,6 +36,14 @@ interface AttributeGroupRow {
   color?: string | null;
   is_system_group?: boolean;
   isSystemGroup?: boolean;
+}
+
+interface AttributeRow {
+  id: string;
+  code: string;
+  type: string;
+  label?: Record<string, string> | string | null;
+  system?: boolean;
 }
 
 function resolveGroupLabel(
@@ -73,13 +84,18 @@ export function ObjectTypeWizard() {
   const [hasVariants, setHasVariants] = useState(false);
   const [abstractFlag, setAbstractFlag] = useState(false);
   const [pickedGroupIds, setPickedGroupIds] = useState<Set<string>>(new Set());
-  const [groupQuery, setGroupQuery] = useState('');
+  const [pickedAttributeIds, setPickedAttributeIds] = useState<Set<string>>(new Set());
+  const [declareGroupOpen, setDeclareGroupOpen] = useState(false);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [addAttrOpen, setAddAttrOpen] = useState(false);
+  const [createAttrOpen, setCreateAttrOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const namePrimary = label[primaryLocale]?.trim() ?? '';
+  const queryClient = useQueryClient();
 
-  const { data: attributeGroups = [], isLoading: groupsLoading } = useQuery<AttributeGroupRow[]>({
+  const { data: attributeGroups = [] } = useQuery<AttributeGroupRow[]>({
     queryKey: ['attribute_groups', 'picker'],
     queryFn: async () => {
       const data = await jsonFetch<{ member?: AttributeGroupRow[] }>(
@@ -90,26 +106,37 @@ export function ObjectTypeWizard() {
     staleTime: 30_000,
   });
 
-  const customGroups = useMemo(
-    () => attributeGroups.filter((g) => !(g.is_system_group ?? g.isSystemGroup ?? false)),
-    [attributeGroups],
+  const { data: attributes = [] } = useQuery<AttributeRow[]>({
+    queryKey: ['attributes', 'picker'],
+    queryFn: async () => {
+      const data = await jsonFetch<{ member?: AttributeRow[] }>('/api/attributes?itemsPerPage=200');
+      return data.member ?? [];
+    },
+    staleTime: 30_000,
+  });
+
+  const pickedGroupRows = useMemo(
+    () => attributeGroups.filter((g) => pickedGroupIds.has(g.id)),
+    [attributeGroups, pickedGroupIds],
   );
 
-  const filteredCustomGroups = useMemo(() => {
-    const needle = groupQuery.trim().toLowerCase();
-    if (needle === '') return customGroups;
-    return customGroups.filter(
-      (g) =>
-        g.code.toLowerCase().includes(needle) ||
-        resolveGroupLabel(g.label, i18n.language).toLowerCase().includes(needle),
-    );
-  }, [customGroups, groupQuery, i18n.language]);
+  const pickedAttributeRows = useMemo(
+    () => attributes.filter((a) => pickedAttributeIds.has(a.id)),
+    [attributes, pickedAttributeIds],
+  );
 
-  const toggleGroup = (id: string) => {
+  const removeGroup = (id: string) => {
     setPickedGroupIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const removeAttribute = (id: string) => {
+    setPickedAttributeIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
       return next;
     });
   };
@@ -176,29 +203,54 @@ export function ObjectTypeWizard() {
         },
       });
 
-      if (pickedGroupIds.size > 0) {
-        // Sequential POSTs match the DeclareAttributeGroupDialog pattern:
-        // server is idempotent on duplicate, so a partial-failure retry is
-        // safe, and ordering keeps the audit log deterministic.
-        const failed: string[] = [];
-        for (const groupId of pickedGroupIds) {
-          try {
-            await jsonFetch(`/api/object_types/${created.id}/groups/${groupId}`, {
-              method: 'POST',
-            });
-          } catch {
-            failed.push(groupId);
-          }
+      const failedGroups: string[] = [];
+      for (const groupId of pickedGroupIds) {
+        try {
+          await jsonFetch(`/api/object_types/${created.id}/groups/${groupId}`, {
+            method: 'POST',
+          });
+        } catch {
+          failedGroups.push(groupId);
         }
-        if (failed.length > 0) {
-          setError(
-            t('object_type_wizard.attach_groups_partial_error', {
-              defaultValue:
-                'Typ utworzono, ale {{count}} grup atrybutów nie zostało dołączonych. Dołącz je ręcznie na widoku detalu.',
-              count: failed.length,
-            }),
-          );
+      }
+
+      let failedAttrs = 0;
+      if (pickedAttributeIds.size > 0) {
+        try {
+          await jsonFetch(`/api/object_types/${created.id}/attributes/bulk-attach`, {
+            method: 'POST',
+            contentType: 'application/json',
+            body: { attributeIds: Array.from(pickedAttributeIds) },
+          });
+        } catch {
+          failedAttrs = pickedAttributeIds.size;
         }
+      }
+
+      const issues: string[] = [];
+      if (failedGroups.length > 0) {
+        issues.push(
+          t('object_type_wizard.attach_groups_partial_error', {
+            defaultValue: '{{count}} grup atrybutów nie zostało dołączonych',
+            count: failedGroups.length,
+          }),
+        );
+      }
+      if (failedAttrs > 0) {
+        issues.push(
+          t('object_type_wizard.attach_attrs_partial_error', {
+            defaultValue: '{{count}} atrybutów nie zostało dołączonych',
+            count: failedAttrs,
+          }),
+        );
+      }
+      if (issues.length > 0) {
+        setError(
+          t('object_type_wizard.attach_partial_prefix', {
+            defaultValue: 'Typ utworzono, ale: {{issues}}. Dokończ na widoku detalu.',
+            issues: issues.join(', '),
+          }),
+        );
       }
 
       void invalidateWorkspace();
@@ -382,107 +434,60 @@ export function ObjectTypeWizard() {
             ) : null}
             {step === 2 ? (
               <>
-                <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                  {t('object_type_wizard.step_2_builtin_section', {
-                    defaultValue: 'Built-in attribute groups',
-                  })}
-                </div>
-                <p className="-mt-2 text-[12.5px] text-zinc-500">
-                  {t('object_type_wizard.step_2_intro', {
-                    defaultValue:
-                      'Te grupy zostaną dołączone automatycznie i nie można ich usunąć:',
-                  })}
-                </p>
-                <div className="space-y-2">
-                  {['Identyfikacja', 'Audyt', 'Lokalizacje'].map((g) => (
-                    <div
-                      key={g}
-                      className="flex items-center gap-2 rounded-xl bg-zinc-50 px-3 py-2.5"
-                    >
-                      <BuiltInLockBadge />
-                      <span className="text-[13px] font-medium">{g}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between pt-3">
+                <div className="flex items-center justify-between">
                   <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                    {t('object_type_wizard.step_2_custom_label', {
-                      defaultValue: 'Custom attribute groups',
+                    {t('object_type_wizard.step_2_groups_section', {
+                      defaultValue: 'Grupy atrybutów',
                     })}
                   </div>
-                  <Button asChild variant="ghost" size="sm" className="h-7 text-[12px]">
-                    <Link to="/modeling/attribute-groups/new" target="_blank" rel="noopener">
-                      +{' '}
-                      {t('object_type_wizard.step_2_create_group', {
-                        defaultValue: 'Nowa grupa',
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1.5 text-[12px] font-medium"
+                      onClick={() => setDeclareGroupOpen(true)}
+                    >
+                      <Library className="size-3.5" />
+                      {t('object_type_wizard.step_2_groups_from_library', {
+                        defaultValue: 'Z biblioteki',
                       })}
-                    </Link>
-                  </Button>
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 gap-1.5 text-[12px] font-medium"
+                      onClick={() => setCreateGroupOpen(true)}
+                    >
+                      <Plus className="size-3.5" />
+                      {t('object_type_wizard.step_2_groups_create_new', {
+                        defaultValue: 'Stwórz nowy',
+                      })}
+                    </Button>
+                  </div>
                 </div>
                 <p className="-mt-2 text-[12.5px] text-zinc-500">
-                  {t('object_type_wizard.step_2_pick_intro', {
+                  {t('object_type_wizard.step_2_groups_intro', {
                     defaultValue:
-                      'Zaznacz grupy które chcesz dołączyć do tego typu. Built-in dołączane są automatycznie.',
+                      'Built-in (Identyfikacja, Audyt, Lokalizacje) zostaną dołączone automatycznie. Tu wybierz dodatkowe.',
                   })}
                 </p>
-                <div className="flex h-9 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3">
-                  <Search className="size-3.5 text-zinc-400" />
-                  <input
-                    type="text"
-                    value={groupQuery}
-                    onChange={(e) => setGroupQuery(e.target.value)}
-                    placeholder={t('object_type_wizard.step_2_search_placeholder', {
-                      defaultValue: 'Szukaj grup po code lub nazwie…',
-                    })}
-                    className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-zinc-400"
-                    aria-label={t('object_type_wizard.step_2_search_aria', {
-                      defaultValue: 'Filtruj grupy atrybutów',
-                    })}
-                  />
-                </div>
-                {groupsLoading ? (
-                  <p className="text-[12.5px] text-muted-foreground">
-                    {t('app.loading', { defaultValue: 'Ładowanie…' })}
-                  </p>
-                ) : customGroups.length === 0 ? (
+                {pickedGroupRows.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-6 text-center text-[12.5px] text-zinc-500">
-                    {t('object_type_wizard.step_2_empty_custom', {
+                    {t('object_type_wizard.step_2_groups_empty', {
                       defaultValue:
-                        'Brak custom grup. Utwórz pierwszą — np. Marketing, Pricing, Specyfika.',
+                        'Brak wybranych grup. Użyj „Z biblioteki" lub „Stwórz nowy" aby dodać.',
                     })}
                   </div>
-                ) : filteredCustomGroups.length === 0 ? (
-                  <p className="px-1 text-[12.5px] text-muted-foreground">
-                    {t('object_type_wizard.step_2_no_results', {
-                      defaultValue: 'Brak wyników dla podanego filtra.',
-                    })}
-                  </p>
                 ) : (
-                  <div className="max-h-[320px] divide-y divide-zinc-50 overflow-y-auto rounded-xl border border-zinc-100">
-                    {filteredCustomGroups.map((g) => {
-                      const isPicked = pickedGroupIds.has(g.id);
+                  <div className="space-y-1.5">
+                    {pickedGroupRows.map((g) => {
                       const labelText = resolveGroupLabel(g.label, i18n.language) || g.code;
                       return (
-                        <button
+                        <div
                           key={g.id}
-                          type="button"
-                          onClick={() => toggleGroup(g.id)}
-                          aria-pressed={isPicked}
-                          className={cn(
-                            'flex w-full items-center gap-3 px-4 py-2.5 text-left transition',
-                            isPicked ? 'bg-violet-50/60' : 'hover:bg-zinc-50',
-                          )}
+                          className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-white px-3 py-2"
                         >
-                          <span
-                            className={cn(
-                              'grid size-5 shrink-0 place-items-center rounded border text-[10.5px] font-semibold',
-                              isPicked
-                                ? 'border-violet-500 bg-violet-500 text-white'
-                                : 'border-zinc-300 bg-white',
-                            )}
-                          >
-                            {isPicked ? <Check className="size-3" /> : null}
-                          </span>
                           <span
                             className="grid size-8 shrink-0 place-items-center rounded-md text-[14px]"
                             style={{
@@ -501,19 +506,103 @@ export function ObjectTypeWizard() {
                               {g.code}
                             </div>
                           </div>
-                        </button>
+                          <button
+                            type="button"
+                            aria-label={t('object_type_wizard.remove_group', {
+                              defaultValue: 'Usuń grupę',
+                            })}
+                            onClick={() => removeGroup(g.id)}
+                            className="grid size-8 place-items-center rounded-lg text-zinc-400 transition hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
                 )}
-                {pickedGroupIds.size > 0 ? (
-                  <p className="text-[12px] text-muted-foreground">
-                    {t('object_type_wizard.step_2_picked_count', {
-                      defaultValue: 'Wybrano: {{count}}',
-                      count: pickedGroupIds.size,
+
+                <div className="flex items-center justify-between border-t border-zinc-100 pt-5">
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                    {t('object_type_wizard.step_2_attrs_section', {
+                      defaultValue: 'Atrybuty',
                     })}
-                  </p>
-                ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1.5 text-[12px] font-medium"
+                      onClick={() => setAddAttrOpen(true)}
+                    >
+                      <Library className="size-3.5" />
+                      {t('object_type_wizard.step_2_attrs_from_library', {
+                        defaultValue: 'Z biblioteki',
+                      })}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 gap-1.5 text-[12px] font-medium"
+                      onClick={() => setCreateAttrOpen(true)}
+                    >
+                      <Plus className="size-3.5" />
+                      {t('object_type_wizard.step_2_attrs_create_new', {
+                        defaultValue: 'Stwórz nowy',
+                      })}
+                    </Button>
+                  </div>
+                </div>
+                <p className="-mt-2 text-[12.5px] text-zinc-500">
+                  {t('object_type_wizard.step_2_attrs_intro', {
+                    defaultValue:
+                      'Pojedyncze atrybuty dołączone bezpośrednio do typu (poza grupami).',
+                  })}
+                </p>
+                {pickedAttributeRows.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-6 text-center text-[12.5px] text-zinc-500">
+                    {t('object_type_wizard.step_2_attrs_empty', {
+                      defaultValue:
+                        'Brak wybranych atrybutów. Użyj „Z biblioteki" lub „Stwórz nowy" aby dodać.',
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {pickedAttributeRows.map((a) => {
+                      const labelText =
+                        typeof a.label === 'string'
+                          ? a.label
+                          : resolveGroupLabel(a.label, i18n.language) || a.code;
+                      return (
+                        <div
+                          key={a.id}
+                          className="grid grid-cols-[1fr_120px_40px] items-center gap-3 rounded-xl border border-zinc-100 bg-white px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate font-mono text-[13px] font-medium">
+                              {a.code}
+                            </div>
+                            <div className="truncate text-[11px] text-zinc-500">{labelText}</div>
+                          </div>
+                          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-center text-[11px] font-medium uppercase text-zinc-700">
+                            {a.type}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={t('object_type_wizard.remove_attribute', {
+                              defaultValue: 'Usuń atrybut',
+                            })}
+                            onClick={() => removeAttribute(a.id)}
+                            className="grid size-8 place-items-center rounded-lg text-zinc-400 transition hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </>
             ) : null}
             {step === 3 ? (
@@ -588,7 +677,7 @@ export function ObjectTypeWizard() {
                   <div className="sm:col-span-2">
                     <span className="text-zinc-500">
                       {t('object_type_wizard.summary_groups_label', {
-                        defaultValue: 'Custom attribute groups',
+                        defaultValue: 'Grupy atrybutów',
                       })}
                       :
                     </span>{' '}
@@ -600,12 +689,28 @@ export function ObjectTypeWizard() {
                       </span>
                     ) : (
                       <span className="font-medium">
-                        {Array.from(pickedGroupIds)
-                          .map((id) => {
-                            const g = attributeGroups.find((x) => x.id === id);
-                            return g ? resolveGroupLabel(g.label, i18n.language) || g.code : id;
-                          })
+                        {pickedGroupRows
+                          .map((g) => resolveGroupLabel(g.label, i18n.language) || g.code)
                           .join(', ')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="sm:col-span-2">
+                    <span className="text-zinc-500">
+                      {t('object_type_wizard.summary_attrs_label', {
+                        defaultValue: 'Atrybuty',
+                      })}
+                      :
+                    </span>{' '}
+                    {pickedAttributeIds.size === 0 ? (
+                      <span className="text-zinc-400">
+                        {t('object_type_wizard.summary_attrs_empty', {
+                          defaultValue: '— (brak)',
+                        })}
+                      </span>
+                    ) : (
+                      <span className="font-mono text-[12px]">
+                        {pickedAttributeRows.map((a) => a.code).join(', ')}
                       </span>
                     )}
                   </div>
@@ -703,6 +808,76 @@ export function ObjectTypeWizard() {
           </Card>
         </aside>
       </div>
+
+      <DeclareObjectTypeAttributeGroupDialog
+        open={declareGroupOpen}
+        onOpenChange={setDeclareGroupOpen}
+        objectTypeId=""
+        objectTypeName={
+          namePrimary || t('object_type_wizard.default_name', { defaultValue: 'Bez nazwy' })
+        }
+        attachedIds={pickedGroupIds}
+        onPicked={(ids) => {
+          setPickedGroupIds((prev) => {
+            const next = new Set(prev);
+            for (const id of ids) next.add(id);
+            return next;
+          });
+        }}
+        locale={i18n.language}
+      />
+
+      <CreateGroupInlineDialog
+        open={createGroupOpen}
+        onOpenChange={setCreateGroupOpen}
+        onCreated={(group) => {
+          if (group.id.length > 0) {
+            setPickedGroupIds((prev) => {
+              const next = new Set(prev);
+              next.add(group.id);
+              return next;
+            });
+          }
+          void queryClient.invalidateQueries({ queryKey: ['attribute_groups', 'picker'] });
+        }}
+      />
+
+      <AddAttributesToObjectTypeDialog
+        open={addAttrOpen}
+        onOpenChange={setAddAttrOpen}
+        objectTypeId=""
+        objectTypeName={
+          namePrimary || t('object_type_wizard.default_name', { defaultValue: 'Bez nazwy' })
+        }
+        existingIds={pickedAttributeIds}
+        onPicked={(ids) => {
+          setPickedAttributeIds((prev) => {
+            const next = new Set(prev);
+            for (const id of ids) next.add(id);
+            return next;
+          });
+        }}
+        locale={i18n.language}
+      />
+
+      <CreateAttributeForObjectTypeDialog
+        open={createAttrOpen}
+        onOpenChange={setCreateAttrOpen}
+        objectTypeId=""
+        objectTypeName={
+          namePrimary || t('object_type_wizard.default_name', { defaultValue: 'Bez nazwy' })
+        }
+        onCreated={(attr) => {
+          if (attr.id.length > 0) {
+            setPickedAttributeIds((prev) => {
+              const next = new Set(prev);
+              next.add(attr.id);
+              return next;
+            });
+          }
+          void queryClient.invalidateQueries({ queryKey: ['attributes', 'picker'] });
+        }}
+      />
     </div>
   );
 }

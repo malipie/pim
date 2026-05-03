@@ -37,12 +37,19 @@ const TYPE_OPTIONS = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Empty string in pick-only mode (wizard, OT not yet created). */
   objectTypeId: string;
   objectTypeName: string;
   /** UUIDs of attributes already direct-attached — disabled in the picker. */
   existingIds: Set<string>;
-  /** Called after a successful bulk-attach so caller can refresh the list. */
-  onAttached: () => void;
+  /**
+   * Default mode: dialog POSTs to bulk-attach then calls `onAttached`. When
+   * `onPicked` is provided, the dialog skips the API call and just hands the
+   * picked IDs to the caller — used by the wizard which collects picks
+   * pre-creation and bulk-attaches in `handleSubmit` after the OT exists.
+   */
+  onAttached?: () => void;
+  onPicked?: (ids: Set<string>) => void;
   locale: string;
 }
 
@@ -60,6 +67,7 @@ export function AddAttributesToObjectTypeDialog({
   objectTypeName,
   existingIds,
   onAttached,
+  onPicked,
   locale,
 }: Props) {
   const { t } = useTranslation();
@@ -117,6 +125,14 @@ export function AddAttributesToObjectTypeDialog({
 
   const submit = async () => {
     if (picked.size === 0) return;
+
+    // Pick-only mode (wizard): hand IDs to caller, no API call.
+    if (onPicked) {
+      onPicked(new Set(picked));
+      onOpenChange(false);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -126,7 +142,7 @@ export function AddAttributesToObjectTypeDialog({
         accept: 'application/json',
         body: { attributeIds: Array.from(picked) },
       });
-      onAttached();
+      onAttached?.();
       onOpenChange(false);
     } catch (err) {
       if (err instanceof HttpError) {

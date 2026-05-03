@@ -29,9 +29,16 @@ const TYPES = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Empty string in pick-only mode (wizard, OT not yet created). */
   objectTypeId: string;
   objectTypeName: string;
-  onCreated: () => void;
+  /**
+   * Called after the attribute is created (and attached, if `objectTypeId`
+   * is non-empty). The wizard uses this to push the new attribute UUID
+   * onto its `pickedAttributeIds` set so the post-create bulk-attach
+   * picks it up too.
+   */
+  onCreated: (attribute: { id: string; code: string }) => void;
 }
 
 interface CreatedAttributeResponse {
@@ -128,9 +135,13 @@ export function CreateAttributeForObjectTypeDialog({
         );
       }
 
-      await jsonFetch(`/api/object_types/${objectTypeId}/attributes/${newId}`, {
-        method: 'POST',
-      });
+      // Skip the attach step in pick-only mode (wizard collects IDs and
+      // bulk-attaches after the OT is created).
+      if (objectTypeId.length > 0) {
+        await jsonFetch(`/api/object_types/${objectTypeId}/attributes/${newId}`, {
+          method: 'POST',
+        });
+      }
 
       await Promise.all([
         invalidate({ resource: 'attributes', invalidates: ['list', 'many'] }),
@@ -143,7 +154,7 @@ export function CreateAttributeForObjectTypeDialog({
         }),
       ]);
 
-      onCreated();
+      onCreated({ id: newId, code: code.trim() });
       onOpenChange(false);
     } catch (err) {
       if (err instanceof HttpError) {
