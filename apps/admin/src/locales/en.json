@@ -317,27 +317,118 @@
     "save": "Save",
     "saving": "Saving...",
     "empty": "No products yet. Create one to get started.",
+    "import": "Import",
+    "import_disabled": "Mock — CSV/XLSX import endpoint is pending",
+    "header": {
+      "workspace": "Workspace · catalog",
+      "total_skus_suffix": "SKU",
+      "last_sync_minutes_ago": "last sync {{minutes}} min ago",
+      "last_sync_unknown": "no sync data"
+    },
+    "toolbar": {
+      "search_placeholder": "Search by SKU, name, EAN, attribute…",
+      "search_aria": "Search products",
+      "filter_brand": "Brand",
+      "filter_family": "Family",
+      "filter_channel": "Channel",
+      "filter_status": "Status",
+      "filter_all": "all",
+      "more_filters": "More",
+      "import": "Import",
+      "new_product": "New product",
+      "channel_filter_pending": "Per-channel filter waits for epic 0.6 (channel_publications)"
+    },
+    "counter": {
+      "results": "results",
+      "results_one": "result",
+      "results_other": "results",
+      "selected": "selected",
+      "selected_one": "selected",
+      "selected_other": "selected",
+      "show_selected_only": "Show selected only",
+      "show_all": "Show all",
+      "shortcut_copy": "copy",
+      "shortcut_paste": "paste",
+      "shortcut_select": "select",
+      "shortcut_edit": "edit"
+    },
+    "saved_views": {
+      "save_view": "Save view",
+      "system_view_aria": "System view",
+      "rail_aria": "Saved views",
+      "fetch_error": "Failed to load saved views: {{error}}"
+    },
+    "variants": {
+      "flat": "Flat",
+      "tree": "Tree",
+      "toggle_legend": "Variants mode",
+      "count": "{{count}} variants",
+      "count_one": "{{count}} variant",
+      "count_other": "{{count}} variants",
+      "mode_tree": "Tree",
+      "mode_flat": "Flat",
+      "expand": "Expand variants",
+      "collapse": "Collapse variants"
+    },
     "fields": {
       "sku": "SKU",
       "name": "Name",
       "description": "Description",
       "brand": "Brand",
+      "family": "Family",
+      "cats": "Categories",
+      "categories": "Categories",
+      "channels": "Channels",
+      "price": "Price",
+      "enabled": "Active",
+      "compl": "Completeness",
+      "completeness": "Completeness",
       "status": "Status",
       "created_at": "Created",
-      "actions": "Actions"
+      "sync": "Sync",
+      "actions": "Actions",
+      "img": "",
+      "sel": "",
+      "more": ""
     },
     "actions": {
       "edit": "Edit",
       "view": "View",
       "select_all": "Select all",
-      "select_row": "Select row"
+      "select_row": "Select {{sku}}"
+    },
+    "row": {
+      "toggle_enabled_aria": "Toggle active state for product {{sku}}",
+      "expand_variants_aria": "Expand variants of {{sku}}",
+      "collapse_variants_aria": "Collapse variants of {{sku}}"
+    },
+    "grid": {
+      "aria_label": "Products list",
+      "empty": "No results."
+    },
+    "sync_label": {
+      "green": "OK",
+      "yellow": "Partial",
+      "red": "Error",
+      "gray": "—"
     },
     "bulk": {
       "selected": "{{count}} selected",
       "selected_plural": "{{count}} selected",
+      "selected_label": "selected products",
+      "edit_attribute": "Edit attribute",
+      "change_category": "Change category",
+      "export": "Export",
+      "delegate_agent": "Delegate to agent",
+      "placeholder_in_progress": "In progress — {{followUp}}",
+      "more_actions": "More actions",
+      "aria_region": "Bulk actions",
+      "clear": "Clear",
       "enable": "Enable",
       "disable": "Disable",
-      "delete": "Delete"
+      "delete": "Delete",
+      "toggle_done": "Updated {{count}} products",
+      "toggle_partial": "Updated {{processed}}, errors: {{errors}}"
     },
     "show": {
       "tabs_aria": "Product detail tabs",

@@ -2,6 +2,7 @@ import { Refine } from '@refinedev/core';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
 import { AuthedRoute } from '@/components/AuthedRoute';
+import { ToastProvider } from '@/components/ui/toast';
 import { ApiProfileCreatePage } from '@/features/api-configurator/api-profiles/create';
 import { ApiProfileEditPage } from '@/features/api-configurator/api-profiles/edit';
 import { ApiProfilesListPage } from '@/features/api-configurator/api-profiles/list';
@@ -38,130 +39,132 @@ import { dataProvider } from '@/lib/data-provider';
 function App() {
   return (
     <BrowserRouter>
-      <Refine
-        authProvider={authProvider}
-        dataProvider={dataProvider}
-        resources={[
-          {
-            name: 'products',
-            list: '/products',
-            create: '/products/new',
-            edit: '/products/:id/edit',
-            show: '/products/:id',
-          },
-          {
-            name: 'attributes',
-            list: '/modeling/attributes',
-            create: '/modeling/attributes/new',
-            show: '/modeling/attributes/:id',
-          },
-          {
-            name: 'attribute_groups',
-            list: '/modeling/attribute-groups',
-            create: '/modeling/attribute-groups/new',
-            show: '/modeling/attribute-groups/:id',
-          },
-          {
-            name: 'object_types',
-            list: '/modeling/object-types',
-            create: '/modeling/object-types/new',
-            show: '/modeling/object-types/:id',
-          },
-          {
-            name: 'workspaces',
-          },
-          {
-            name: 'categories',
-            list: '/modeling/categories',
-            create: '/modeling/categories/new',
-            show: '/modeling/categories/:id',
-          },
-          { name: 'assets', list: '/assets', show: '/assets/:id' },
-          { name: 'channels', list: '/channels', show: '/channels/:id' },
-          {
-            name: 'api_profiles',
-            list: '/api-profiles',
-            create: '/api-profiles/create',
-            edit: '/api-profiles/:id/edit',
-            show: '/api-profiles/:id',
-          },
-        ]}
-        options={{
-          syncWithLocation: false,
-          warnWhenUnsavedChanges: true,
-          disableTelemetry: true,
-        }}
-      >
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            element={
-              <AuthedRoute>
-                <AppLayout />
-              </AuthedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/products" element={<ProductListPage />} />
-            <Route path="/products/new" element={<ProductCreatePage />} />
-            <Route path="/products/:id/edit" element={<ProductEditPage />} />
-            <Route path="/products/:id" element={<ProductShowPage />} />
-            {/* UI-08.9 (#264) — Modeling shell wraps the 4 sub-tabs under
+      <ToastProvider>
+        <Refine
+          authProvider={authProvider}
+          dataProvider={dataProvider}
+          resources={[
+            {
+              name: 'products',
+              list: '/products',
+              create: '/products/new',
+              edit: '/products/:id/edit',
+              show: '/products/:id',
+            },
+            {
+              name: 'attributes',
+              list: '/modeling/attributes',
+              create: '/modeling/attributes/new',
+              show: '/modeling/attributes/:id',
+            },
+            {
+              name: 'attribute_groups',
+              list: '/modeling/attribute-groups',
+              create: '/modeling/attribute-groups/new',
+              show: '/modeling/attribute-groups/:id',
+            },
+            {
+              name: 'object_types',
+              list: '/modeling/object-types',
+              create: '/modeling/object-types/new',
+              show: '/modeling/object-types/:id',
+            },
+            {
+              name: 'workspaces',
+            },
+            {
+              name: 'categories',
+              list: '/modeling/categories',
+              create: '/modeling/categories/new',
+              show: '/modeling/categories/:id',
+            },
+            { name: 'assets', list: '/assets', show: '/assets/:id' },
+            { name: 'channels', list: '/channels', show: '/channels/:id' },
+            {
+              name: 'api_profiles',
+              list: '/api-profiles',
+              create: '/api-profiles/create',
+              edit: '/api-profiles/:id/edit',
+              show: '/api-profiles/:id',
+            },
+          ]}
+          options={{
+            syncWithLocation: false,
+            warnWhenUnsavedChanges: true,
+            disableTelemetry: true,
+          }}
+        >
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              element={
+                <AuthedRoute>
+                  <AppLayout />
+                </AuthedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/products" element={<ProductListPage />} />
+              <Route path="/products/new" element={<ProductCreatePage />} />
+              <Route path="/products/:id/edit" element={<ProductEditPage />} />
+              <Route path="/products/:id" element={<ProductShowPage />} />
+              {/* UI-08.9 (#264) — Modeling shell wraps the 4 sub-tabs under
                 a shared `/modeling/*` route tree. Old top-level paths
                 redirect below for back-compat with bookmarks + the
                 Refine resource registry pointing at the new URLs. */}
-            <Route path="/modeling" element={<ModelingLayout />}>
-              <Route index element={<Navigate to="/modeling/object-types" replace />} />
-              <Route path="object-types" element={<ObjectTypesListPage />} />
-              <Route path="object-types/new" element={<ObjectTypeWizardPage />} />
-              <Route path="object-types/:id" element={<ObjectTypeShowPage />} />
-              <Route path="attributes" element={<AttributesListPage />} />
-              <Route path="attributes/new" element={<AttributeCreatePage />} />
-              <Route path="attributes/:id" element={<AttributeShowPage />} />
-              <Route path="attributes/:id/migrate-type" element={<MigrateAttributeTypePage />} />
-              <Route path="attributes/:id/values" element={<AttributeValuesPage />} />
-              <Route path="attribute-groups" element={<AttributeGroupsListPage />} />
-              <Route path="attribute-groups/new" element={<AttributeGroupCreatePage />} />
-              <Route path="attribute-groups/:id" element={<AttributeGroupShowPage />} />
-              <Route path="categories" element={<CategoriesTreePage />} />
-              <Route path="categories/new" element={<CategoryCreatePage />} />
-              <Route path="categories/:id" element={<CategoryShowPage />} />
+              <Route path="/modeling" element={<ModelingLayout />}>
+                <Route index element={<Navigate to="/modeling/object-types" replace />} />
+                <Route path="object-types" element={<ObjectTypesListPage />} />
+                <Route path="object-types/new" element={<ObjectTypeWizardPage />} />
+                <Route path="object-types/:id" element={<ObjectTypeShowPage />} />
+                <Route path="attributes" element={<AttributesListPage />} />
+                <Route path="attributes/new" element={<AttributeCreatePage />} />
+                <Route path="attributes/:id" element={<AttributeShowPage />} />
+                <Route path="attributes/:id/migrate-type" element={<MigrateAttributeTypePage />} />
+                <Route path="attributes/:id/values" element={<AttributeValuesPage />} />
+                <Route path="attribute-groups" element={<AttributeGroupsListPage />} />
+                <Route path="attribute-groups/new" element={<AttributeGroupCreatePage />} />
+                <Route path="attribute-groups/:id" element={<AttributeGroupShowPage />} />
+                <Route path="categories" element={<CategoriesTreePage />} />
+                <Route path="categories/new" element={<CategoryCreatePage />} />
+                <Route path="categories/:id" element={<CategoryShowPage />} />
+              </Route>
+              <Route path="/attributes" element={<Navigate to="/modeling/attributes" replace />} />
+              <Route
+                path="/attributes/:id"
+                element={<Navigate to="/modeling/attributes" replace />}
+              />
+              <Route
+                path="/attribute-groups"
+                element={<Navigate to="/modeling/attribute-groups" replace />}
+              />
+              <Route
+                path="/object-types"
+                element={<Navigate to="/modeling/object-types" replace />}
+              />
+              <Route
+                path="/object-types/:id"
+                element={<Navigate to="/modeling/object-types" replace />}
+              />
+              <Route path="/categories" element={<Navigate to="/modeling/categories" replace />} />
+              <Route
+                path="/categories/:id"
+                element={<Navigate to="/modeling/categories" replace />}
+              />
+              <Route path="/assets" element={<AssetsListPage />} />
+              <Route path="/assets/:id" element={<AssetShowPage />} />
+              <Route path="/channels" element={<ChannelsListPage />} />
+              <Route path="/channels/:id" element={<ChannelShowPage />} />
+              <Route path="/api-profiles" element={<ApiProfilesListPage />} />
+              <Route path="/api-profiles/create" element={<ApiProfileCreatePage />} />
+              <Route path="/api-profiles/:id/edit" element={<ApiProfileEditPage />} />
+              <Route path="/api-profiles/:id" element={<ApiProfileShowPage />} />
             </Route>
-            <Route path="/attributes" element={<Navigate to="/modeling/attributes" replace />} />
-            <Route
-              path="/attributes/:id"
-              element={<Navigate to="/modeling/attributes" replace />}
-            />
-            <Route
-              path="/attribute-groups"
-              element={<Navigate to="/modeling/attribute-groups" replace />}
-            />
-            <Route
-              path="/object-types"
-              element={<Navigate to="/modeling/object-types" replace />}
-            />
-            <Route
-              path="/object-types/:id"
-              element={<Navigate to="/modeling/object-types" replace />}
-            />
-            <Route path="/categories" element={<Navigate to="/modeling/categories" replace />} />
-            <Route
-              path="/categories/:id"
-              element={<Navigate to="/modeling/categories" replace />}
-            />
-            <Route path="/assets" element={<AssetsListPage />} />
-            <Route path="/assets/:id" element={<AssetShowPage />} />
-            <Route path="/channels" element={<ChannelsListPage />} />
-            <Route path="/channels/:id" element={<ChannelShowPage />} />
-            <Route path="/api-profiles" element={<ApiProfilesListPage />} />
-            <Route path="/api-profiles/create" element={<ApiProfileCreatePage />} />
-            <Route path="/api-profiles/:id/edit" element={<ApiProfileEditPage />} />
-            <Route path="/api-profiles/:id" element={<ApiProfileShowPage />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </Refine>
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </Refine>
+      </ToastProvider>
     </BrowserRouter>
   );
 }
