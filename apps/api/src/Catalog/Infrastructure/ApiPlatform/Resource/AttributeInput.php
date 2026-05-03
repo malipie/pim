@@ -69,4 +69,20 @@ final class AttributeInput
     #[Assert\PositiveOrZero]
     #[Groups(['attribute:create'])]
     public int $position = 0;
+
+    /**
+     * VIEW-03 (#375) — popup „Stwórz nowy" in AttributeGroup detail
+     * (groups-categories.jsx:813–953) creates the attribute and
+     * attaches it to one or more groups atomically in the same request.
+     * Each entry is an AttributeGroup code (not UUID, FE-friendly).
+     * Unknown codes return 422 from the handler.
+     *
+     * Empty array (default) keeps the legacy POST behaviour from #381 —
+     * attribute lands in the global library only.
+     *
+     * @var list<string>
+     */
+    #[Assert\Type('array')]
+    #[Groups(['attribute:create'])]
+    public array $attachToGroups = [];
 }

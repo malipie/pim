@@ -144,6 +144,70 @@ final class AttributesCrudApiTest extends CatalogApiTestCase
         self::assertSame(422, $response->getStatusCode());
     }
 
+    #[Test]
+    public function postWithAttachToGroupsCreatesJunctionRows(): void
+    {
+        $client = $this->authenticatedClient();
+        $client->request('POST', '/api/attribute_groups', [
+            'json' => ['code' => 'marketing', 'label' => ['pl' => 'Marketing']],
+        ]);
+
+        $response = $client->request('POST', '/api/attributes', [
+            'json' => [
+                'code' => 'campaign_tag',
+                'label' => ['en' => 'Campaign tag'],
+                'type' => 'text',
+                'attachToGroups' => ['marketing'],
+            ],
+        ]);
+        self::assertSame(201, $response->getStatusCode());
+
+        $list = $client->request('GET', '/api/attribute_groups/'.$this->resolveGroupId('marketing').'/attributes');
+        $payload = $list->toArray();
+        \assert(isset($payload['members']) && \is_array($payload['members']));
+        $codes = [];
+        foreach ($payload['members'] as $row) {
+            \assert(\is_array($row));
+            $attribute = $row['attribute'] ?? null;
+            \assert(\is_array($attribute));
+            $code = $attribute['code'] ?? '';
+            \assert(\is_string($code));
+            $codes[] = $code;
+        }
+        self::assertContains('campaign_tag', $codes);
+    }
+
+    #[Test]
+    public function postWithUnknownGroupCodeReturns422(): void
+    {
+        $client = $this->authenticatedClient();
+        $response = $client->request('POST', '/api/attributes', [
+            'json' => [
+                'code' => 'campaign_tag',
+                'label' => ['en' => 'Campaign tag'],
+                'type' => 'text',
+                'attachToGroups' => ['nonexistent_group_code'],
+            ],
+        ]);
+        self::assertSame(422, $response->getStatusCode());
+
+        $repo = self::getContainer()->get(AttributeRepositoryInterface::class);
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::assertNull($repo->findByCode('campaign_tag', $tenant));
+    }
+
+    private function resolveGroupId(string $code): string
+    {
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $repo = self::getContainer()->get(\App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface::class);
+        $group = $repo->findByCode($code, $tenant);
+        \assert(null !== $group);
+
+        return $group->getId()->toRfc4122();
+    }
+
     private function seedAttribute(string $code, AttributeType $type): \Symfony\Component\Uid\Uuid
     {
         $ctx = self::getContainer()->get(TenantContext::class);

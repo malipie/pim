@@ -4735,6 +4735,13 @@
                         "minimum": 0,
                         "default": 0,
                         "type": "integer"
+                    },
+                    "attachToGroups": {
+                        "description": "VIEW-03 (#375) \u2014 popup \u201eStw\u00f3rz nowy\" in AttributeGroup detail\n(groups-categories.jsx:813\u2013953) creates the attribute and\nattaches it to one or more groups atomically in the same request.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 }
             },

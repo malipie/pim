@@ -81,6 +81,7 @@ final readonly class AttributeProcessor implements ProcessorInterface
             required: $data->required,
             validationRules: $data->validationRules,
             position: $data->position,
+            attachToGroups: $data->attachToGroups,
         );
 
         $envelope = $this->dispatch($command);
