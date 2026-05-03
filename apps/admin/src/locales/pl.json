@@ -46,7 +46,6 @@
     "modeling": "Modelowanie",
     "soon": "Wkrótce",
     "workspace_label": "Workspace",
-    "add_custom_module": "+ Dodaj własny moduł",
     "active_modules_count_one": "{{count}} moduł aktywny",
     "active_modules_count_few": "{{count}} moduły aktywne",
     "active_modules_count_many": "{{count}} modułów aktywnych",
