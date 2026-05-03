@@ -1,6 +1,23 @@
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useOne } from '@refinedev/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { GripVertical, Lock, Plus, Save, Trash2, X } from 'lucide-react';
+import { Eye, GripVertical, Lock, Plus, Save, Trash2, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
@@ -256,6 +273,49 @@ function Editor({
     }
   };
 
+  // dnd-kit: sortable wiring for the members list. Drag handles only fire
+  // on long-press / pointer-down, so checkboxes and trash icons keep their
+  // own click events without competing with drag activation. Reorder posts
+  // a strict permutation of current member codes; on error we fall back to
+  // refetching (the BE state is authoritative).
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const onDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (over === null || active.id === over.id) return;
+      const oldIndex = sortedMembers.findIndex((m) => m.attribute.id === active.id);
+      const newIndex = sortedMembers.findIndex((m) => m.attribute.id === over.id);
+      if (oldIndex < 0 || newIndex < 0) return;
+
+      const reordered = arrayMove(sortedMembers, oldIndex, newIndex).map((m, i) => ({
+        ...m,
+        position: i,
+      }));
+
+      // Optimistic update: rewrite the cached members list so the UI
+      // settles to the new order before the BE confirms.
+      queryClient.setQueryData(['attribute_groups', group.id, 'attributes'], reordered);
+
+      try {
+        await jsonFetch(`/api/attribute_groups/${group.id}/attributes/reorder`, {
+          method: 'POST',
+          contentType: 'application/json',
+          accept: 'application/json',
+          body: { order: reordered.map((m) => m.attribute.code) },
+        });
+        await reload();
+      } catch {
+        // BE rejected the permutation — pull authoritative state.
+        await reload();
+      }
+    },
+    [group.id, queryClient, reload, sortedMembers],
+  );
+
   const groupName = resolveLabel(group.label, locale);
 
   return (
@@ -449,65 +509,99 @@ function Editor({
               })}
             </button>
           ) : (
-            <div className="space-y-1.5">
-              {sortedMembers.map((row) => {
-                const labelStr = resolveLabel(row.attribute.label, locale);
-                return (
-                  <div
-                    key={row.attribute.id}
-                    className="grid grid-cols-[24px_1.5fr_120px_180px_100px_28px] items-center gap-3 rounded-xl border border-zinc-100 bg-white px-3 py-2.5 transition hover:border-zinc-200 hover:bg-zinc-50/60"
-                  >
-                    <GripVertical className="size-4 text-zinc-300" />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate font-mono text-[13px] font-medium">
-                          {row.attribute.code}
-                        </span>
-                        {row.attribute.is_system ? <BuiltInLockBadge /> : null}
-                      </div>
-                      <div className="truncate text-[11.5px] text-muted-foreground">{labelStr}</div>
-                    </div>
-                    <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium uppercase text-muted-foreground">
-                      {row.attribute.type}
-                    </span>
-                    {row.visible_when ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2 py-1 font-mono text-[11px] text-violet-700">
-                        when {row.visible_when.field}={String(row.visible_when.value)}
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-zinc-300">
-                        {t('modeling.attributeGroups.members_no_visibility_rule', {
-                          defaultValue: 'brak reguły widoczności',
-                        })}
-                      </span>
-                    )}
-                    <label className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        className="size-3.5 rounded"
-                        checked={row.is_required_in_group}
-                        onChange={(e) => {
-                          void toggleRequired(row.attribute.id, e.target.checked);
-                        }}
-                      />
-                      required
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={(e) => {
+                void onDragEnd(e);
+              }}
+            >
+              <SortableContext
+                items={sortedMembers.map((m) => m.attribute.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-1.5">
+                  {sortedMembers.map((row) => (
+                    <SortableMemberRow
+                      key={row.attribute.id}
+                      row={row}
+                      locale={locale}
+                      onToggleRequired={(next) => {
+                        void toggleRequired(row.attribute.id, next);
+                      }}
+                      onDetach={() => {
                         void detach(row.attribute.id);
                       }}
-                      className="grid size-7 place-items-center justify-self-end rounded text-zinc-300 hover:text-rose-600"
-                      aria-label={t('app.remove', { defaultValue: 'Usuń' })}
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </Card>
+
+        {sortedMembers.some((m) => m.visible_when !== null) ? (
+          <Card className="p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <SectionTitle as="span">
+                {t('modeling.attributeGroups.rules_title', { defaultValue: 'Visibility rules' })}
+              </SectionTitle>
+              <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-violet-700">
+                {t('modeling.attributeGroups.rules_visible_when_badge', {
+                  defaultValue: 'visible_when',
+                })}
+              </span>
+            </div>
+            <div className="space-y-1 rounded-2xl border border-violet-200 bg-violet-50/40 p-4">
+              {sortedMembers
+                .filter((m) => m.visible_when !== null)
+                .map((m) => (
+                  <div key={m.attribute.id} className="flex items-center gap-3 py-1">
+                    <span className="font-mono text-[12.5px] font-medium">{m.attribute.code}</span>
+                    <span className="text-[11.5px] text-muted-foreground">visible_when</span>
+                    <span className="rounded border border-violet-200 bg-white px-2 py-0.5 font-mono text-[12.5px] text-violet-700">
+                      {m.visible_when?.field}={String(m.visible_when?.value)}
+                    </span>
+                    <button
+                      type="button"
+                      disabled
+                      title={t('modeling.attributeGroups.rules_edit_action_pending', {
+                        defaultValue: 'Edytor reguły — VIEW-03c',
+                      })}
+                      className="ml-auto inline-flex items-center gap-1 text-[11.5px] text-muted-foreground/60"
+                    >
+                      <Eye className="size-3.5" />
+                      {t('modeling.attributeGroups.rules_edit_action', {
+                        defaultValue: 'Edit rule',
+                      })}
+                    </button>
+                  </div>
+                ))}
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 px-4 py-3">
+                <div className="text-[11px] font-medium uppercase tracking-wider text-emerald-700">
+                  {t('modeling.attributeGroups.rules_test_pass_status', {
+                    defaultValue: 'VISIBLE',
+                  })}
+                </div>
+                <div className="mt-0.5 font-mono text-[12px] text-emerald-900">
+                  test: rule met → field visible in form
+                </div>
+              </div>
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+                <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {t('modeling.attributeGroups.rules_test_fail_status', {
+                    defaultValue: 'HIDDEN',
+                  })}
+                </div>
+                <div className="mt-0.5 font-mono text-[12px] text-zinc-700">
+                  test: rule fails → field hidden in form
+                </div>
+              </div>
+            </div>
+          </Card>
+        ) : null}
 
         {/* Where used */}
         <Card className="p-6">
@@ -629,6 +723,85 @@ function SectionTitle({
     <Tag className="mb-4 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
       {children}
     </Tag>
+  );
+}
+
+function SortableMemberRow({
+  row,
+  locale,
+  onToggleRequired,
+  onDetach,
+}: {
+  row: MemberRow;
+  locale: string;
+  onToggleRequired: (next: boolean) => void;
+  onDetach: () => void;
+}) {
+  const { t } = useTranslation();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: row.attribute.id,
+  });
+  const labelStr = resolveLabel(row.attribute.label, locale);
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="grid grid-cols-[24px_1.5fr_120px_180px_100px_28px] items-center gap-3 rounded-xl border border-zinc-100 bg-white px-3 py-2.5 transition hover:border-zinc-200 hover:bg-zinc-50/60"
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label={t('modeling.attributeGroups.drag_handle', { defaultValue: 'Przeciągnij' })}
+        className="grid size-6 cursor-grab place-items-center text-zinc-300 hover:text-zinc-500 active:cursor-grabbing"
+      >
+        <GripVertical className="size-4" />
+      </button>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate font-mono text-[13px] font-medium">{row.attribute.code}</span>
+          {row.attribute.is_system ? <BuiltInLockBadge /> : null}
+        </div>
+        <div className="truncate text-[11.5px] text-muted-foreground">{labelStr}</div>
+      </div>
+      <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium uppercase text-muted-foreground">
+        {row.attribute.type}
+      </span>
+      {row.visible_when ? (
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2 py-1 font-mono text-[11px] text-violet-700">
+          when {row.visible_when.field}={String(row.visible_when.value)}
+        </span>
+      ) : (
+        <span className="text-[11px] text-zinc-300">
+          {t('modeling.attributeGroups.members_no_visibility_rule', {
+            defaultValue: 'brak reguły widoczności',
+          })}
+        </span>
+      )}
+      <label className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+        <input
+          type="checkbox"
+          className="size-3.5 rounded"
+          checked={row.is_required_in_group}
+          onChange={(e) => onToggleRequired(e.target.checked)}
+        />
+        required
+      </label>
+      <button
+        type="button"
+        onClick={onDetach}
+        className="grid size-7 place-items-center justify-self-end rounded text-zinc-300 hover:text-rose-600"
+        aria-label={t('app.remove', { defaultValue: 'Usuń' })}
+      >
+        <Trash2 className="size-4" />
+      </button>
+    </div>
   );
 }
 
