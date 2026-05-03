@@ -17,6 +17,7 @@ import { AttributeCreatePage } from '@/features/catalog/attributes/new';
 import { AttributeShowPage } from '@/features/catalog/attributes/show';
 import { AttributeValuesPage } from '@/features/catalog/attributes/values';
 import { CategoriesTreePage } from '@/features/catalog/categories/list';
+import { CategoryCreatePage } from '@/features/catalog/categories/new';
 import { CategoryShowPage } from '@/features/catalog/categories/show';
 import { ModelingLayout } from '@/features/catalog/modeling/layout';
 import { ObjectTypesListPage } from '@/features/catalog/object-types/list';
@@ -72,6 +73,7 @@ function App() {
           {
             name: 'categories',
             list: '/modeling/categories',
+            create: '/modeling/categories/new',
             show: '/modeling/categories/:id',
           },
           { name: 'assets', list: '/assets', show: '/assets/:id' },
@@ -123,6 +125,7 @@ function App() {
               <Route path="attribute-groups/new" element={<AttributeGroupCreatePage />} />
               <Route path="attribute-groups/:id" element={<AttributeGroupShowPage />} />
               <Route path="categories" element={<CategoriesTreePage />} />
+              <Route path="categories/new" element={<CategoryCreatePage />} />
               <Route path="categories/:id" element={<CategoryShowPage />} />
             </Route>
             <Route path="/attributes" element={<Navigate to="/modeling/attributes" replace />} />
