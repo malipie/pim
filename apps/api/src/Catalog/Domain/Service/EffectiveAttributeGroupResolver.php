@@ -179,6 +179,96 @@ final readonly class EffectiveAttributeGroupResolver
     }
 
     /**
+     * VIEW-04 (#408) — annotates each resolved AttributeGroup with the
+     * source that contributed it (ObjectType-global, declared on the
+     * preview anchor itself, or inherited from a specific ancestor).
+     *
+     * This is a thin reporting wrapper around the same layered walk
+     * {@see resolveForCategoryPreview} performs; it is split out so the
+     * categories detail endpoint (#UI-08.14 + VIEW-04) can render
+     * "↪ {ancestorName}" badges and the form-schema handler can keep
+     * its lightweight `list<AttributeGroup>` shape unchanged.
+     *
+     * The returned shape is keyed by AttributeGroup UUID. Each entry's
+     * `source` is one of:
+     *   - `'object_type'`      → globally declared on the ObjectType
+     *   - `'declared_here'`    → declared directly on the preview anchor
+     *   - `'inherited_from'`   → declared on a strict ancestor
+     * For `inherited_from`, `sourceCategory` carries the ancestor's
+     * id + path + display name (the {@see CatalogObject} itself is not
+     * exposed to keep the shape persistence-free).
+     *
+     * @return array<string, array{source: 'object_type'|'declared_here'|'inherited_from', sourceCategory: ?array{id: string, code: string, path: ?string}}>
+     */
+    public function buildSourceMap(ObjectType $type, ?CatalogObject $categoryAnchor): array
+    {
+        $sources = [];
+
+        foreach ($this->loadObjectTypeGroups($type) as $key => $_group) {
+            $sources[$key] = ['source' => 'object_type', 'sourceCategory' => null];
+        }
+
+        if (null === $categoryAnchor || ObjectKind::Category !== $categoryAnchor->getKind()) {
+            return $sources;
+        }
+
+        // Build a per-ancestor list ordered root → leaf (anchor last).
+        // We need each ancestor as the *full* CatalogObject to render
+        // its display name in the badge — the existing helper returns
+        // ids only, so we walk the parent chain again here keeping the
+        // entities. The chain is short in practice (<10) so the cost
+        // is negligible.
+        $ancestorChain = [];
+        $cursor = $categoryAnchor;
+        $depthGuard = 0;
+        while (null !== $cursor && ObjectKind::Category === $cursor->getKind()) {
+            array_unshift($ancestorChain, $cursor);
+            $cursor = $cursor->getParent();
+            if (++$depthGuard > 64) {
+                break;
+            }
+        }
+
+        foreach ($ancestorChain as $ancestor) {
+            /** @var list<CategoryAttributeGroup> $junctions */
+            $junctions = $this->em
+                ->createQuery(
+                    'SELECT j, g FROM '.CategoryAttributeGroup::class.' j'
+                    .' JOIN j.attributeGroup g'
+                    .' WHERE j.categoryObjectId = :categoryId'
+                    .' AND j.targetObjectType = :type'
+                    .' ORDER BY j.position ASC, g.code ASC'
+                )
+                ->setParameter('categoryId', $ancestor->getId(), 'uuid')
+                ->setParameter('type', $type)
+                ->getResult();
+
+            foreach ($junctions as $junction) {
+                $group = $junction->getAttributeGroup();
+                $key = $group->getId()->toRfc4122();
+                if (isset($sources[$key])) {
+                    // ObjectType-global wins on conflict — match the dedup
+                    // policy in {@see mergeCategoryGroups}. Same for an
+                    // inherited group declared on a deeper ancestor: the
+                    // first occurrence (root → leaf) keeps its source.
+                    continue;
+                }
+                $isAnchor = $ancestor === $categoryAnchor;
+                $sources[$key] = [
+                    'source' => $isAnchor ? 'declared_here' : 'inherited_from',
+                    'sourceCategory' => $isAnchor ? null : [
+                        'id' => $ancestor->getId()->toRfc4122(),
+                        'code' => $ancestor->getCode(),
+                        'path' => $ancestor->getPath(),
+                    ],
+                ];
+            }
+        }
+
+        return $sources;
+    }
+
+    /**
      * Eager-load the AttributeGroupAttribute junctions for a list of
      * groups in one query. Keeps the form-schema endpoint to two round
      * trips (groups + attributes) regardless of the number of groups.
