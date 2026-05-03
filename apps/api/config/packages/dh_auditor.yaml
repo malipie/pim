@@ -41,6 +41,16 @@ dh_auditor:
                     enabled: true
                 App\Catalog\Domain\Entity\AssociationType:
                     enabled: true
+                # VIEW-04 (#408) — CategoryAttributeGroup junction is a
+                # natural candidate for audit (mutations are admin-driven
+                # and low-volume), but DH-Auditor 4.x still raises
+                # "Composite primary keys are not supported" for the
+                # `(category_object_id, target_object_type_id,
+                # attribute_group_id)` PK shape. The category Show page's
+                # audit trail therefore renders a MOCK badge until either
+                # the bundle adds composite-PK support upstream or we
+                # introduce a synthetic surrogate id on the junction
+                # (separate hardening ticket).
                 # Channel — partner-publication wiring
                 App\Channel\Domain\Entity\Channel:
                     enabled: true

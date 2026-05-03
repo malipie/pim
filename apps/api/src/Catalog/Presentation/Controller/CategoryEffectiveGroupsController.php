@@ -85,6 +85,11 @@ final class CategoryEffectiveGroupsController
 
         $groups = $this->resolver->resolveForCategoryPreview($type, $category);
         $byGroup = $this->resolver->loadGroupAttributes($groups);
+        // VIEW-04 (#408) — annotate each group with its origin source so
+        // the modeling Detail panel can render "↪ <ancestor>" badges and
+        // distinguish "declared here" vs "inherited" without a second
+        // round trip.
+        $sourceMap = $this->resolver->buildSourceMap($type, $category);
 
         $effective = [];
         foreach ($groups as $position => $group) {
@@ -103,6 +108,7 @@ final class CategoryEffectiveGroupsController
                     'visible_when' => $j->getVisibleWhen(),
                 ];
             }
+            $sourceEntry = $sourceMap[$group->getId()->toRfc4122()] ?? ['source' => 'object_type', 'sourceCategory' => null];
             $effective[] = [
                 'id' => $group->getId()->toRfc4122(),
                 'code' => $group->getCode(),
@@ -113,6 +119,8 @@ final class CategoryEffectiveGroupsController
                 'is_system_group' => $group->isSystemGroup(),
                 'auto_attached' => $group->isAutoAttached(),
                 'position' => $position,
+                'source' => $sourceEntry['source'],
+                'source_category' => $sourceEntry['sourceCategory'],
                 'attributes' => $attributes,
             ];
         }
