@@ -11,6 +11,8 @@ use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\CategoryAttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
+use InvalidArgumentException;
+use JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,6 +23,8 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 use ValueError;
+
+use const JSON_THROW_ON_ERROR;
 
 /**
  * VIEW-04 (#408) — declare/undeclare/reorder/list AttributeGroup
@@ -122,7 +126,7 @@ final class CategoryAttributeGroupController
 
         try {
             $groupUuid = Uuid::fromString($groupId);
-        } catch (\InvalidArgumentException $e) {
+        } catch (InvalidArgumentException $e) {
             throw new UnprocessableEntityHttpException(\sprintf('Field "groupId" is not a valid UUID: %s.', $groupId), $e);
         }
 
@@ -265,8 +269,8 @@ final class CategoryAttributeGroupController
             return [];
         }
         try {
-            $decoded = json_decode($body, true, flags: \JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
+            $decoded = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
             throw new BadRequestHttpException('Request body is not valid JSON.', $e);
         }
         if (!\is_array($decoded)) {

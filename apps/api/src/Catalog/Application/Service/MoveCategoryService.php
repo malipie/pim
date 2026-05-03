@@ -15,6 +15,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Uid\Uuid;
+use Throwable;
 
 /**
  * VIEW-04 (#408) — atomic re-parenting of a category subtree on
@@ -152,7 +153,7 @@ final class MoveCategoryService
             );
 
             $this->connection->commit();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->connection->rollBack();
             if ($e instanceof HttpException) {
                 throw $e;

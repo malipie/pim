@@ -7,6 +7,8 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Application\Service\MoveCategoryService;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use InvalidArgumentException;
+use JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -15,6 +17,8 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
+
+use const JSON_THROW_ON_ERROR;
 
 /**
  * VIEW-04 (#408) — `PATCH /api/categories/{id}/move`
@@ -60,8 +64,8 @@ final class CategoryMoveController
 
         $body = $request->getContent();
         try {
-            $payload = '' === $body ? [] : json_decode($body, true, flags: \JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
+            $payload = '' === $body ? [] : json_decode($body, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
             throw new BadRequestHttpException('Request body is not valid JSON.', $e);
         }
         if (!\is_array($payload)) {
@@ -80,7 +84,7 @@ final class CategoryMoveController
             }
             try {
                 $newParentId = Uuid::fromString($rawParent);
-            } catch (\InvalidArgumentException $e) {
+            } catch (InvalidArgumentException $e) {
                 throw new UnprocessableEntityHttpException(\sprintf('Field "newParentId" is not a valid UUID: %s.', $rawParent), $e);
             }
         }
