@@ -1,52 +1,61 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 
+import { SettingToggleRow } from '@/components/modeling/setting-toggle-row';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { HttpError, jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
 
 /**
- * VIEW-02 (#374) — Attribute create form. Minimal viable slice
- * matching the FE smoke flow operator needs after #381 wired
- * POST /api/attributes:
- *   - code (snake_case, regex), label PL/EN, type select (10 enum
- *     values), help PL/EN, 3 flags (localizable / scopable / required).
- *   - attachToGroups omitted from this form — that field is consumed
- *     by the AttributeGroup detail "Stwórz nowy" popup (VIEW-03b).
+ * VIEW-02 (#374) — pixel-perfect rebuild of `NewAttributeView`
+ * (`attributes.jsx:352–448`).
  *
- * Pixel-perfect upgrades from `attributes.jsx:352–448` (AttributeTypeGrid
- * tile picker + sidebar Preview + Następnie cards) land in VIEW-02b
- * follow-up — this PR ships the working form so the operator can
- * actually create attributes from the UI today.
+ * Layout:
+ *   - Back link "Wstecz do biblioteki Attributes".
+ *   - Header (flex justify-between): caption "Nowy Attribute" + big
+ *     mono live `attribute_code` + description; right stack
+ *     "Anuluj | + Utwórz atrybut".
+ *   - Grid 1fr+320px:
+ *     - Left Card (p-6 space-y-6) with three sections:
+ *       * Identyfikacja: Code input + Nazwa PL/EN + Opis (PL/EN).
+ *       * Typ danych: 4-col tile picker (10 enum values), font-mono.
+ *       * Walidacja: 3 SettingToggleRow (Required / Unique / Indexed).
+ *     - Right aside: Card "Podgląd" (live code + TypeBadge + name)
+ *       + Card "Następnie" (3 next steps).
+ *
+ * POSTs `/api/attributes` (#381) and redirects to the show page on
+ * success. The "Indexed" toggle is non-persistent in MVP — backend
+ * has no `is_indexed` column; flag stays in form for visual parity.
  */
 
 interface CreatePayload {
   code: string;
-  labelEn: string;
   labelPl: string;
-  helpEn: string;
+  labelEn: string;
   helpPl: string;
+  helpEn: string;
   type: string;
-  localizable: boolean;
-  scopable: boolean;
   required: boolean;
+  unique: boolean;
+  indexed: boolean;
 }
 
 const EMPTY: CreatePayload = {
   code: '',
-  labelEn: '',
   labelPl: '',
-  helpEn: '',
+  labelEn: '',
   helpPl: '',
+  helpEn: '',
   type: 'text',
-  localizable: false,
-  scopable: false,
   required: false,
+  unique: false,
+  indexed: false,
 };
 
 const TYPES = [
@@ -69,8 +78,7 @@ export function AttributeCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = async () => {
     setError(null);
     setSubmitting(true);
     try {
@@ -78,12 +86,14 @@ export function AttributeCreatePage() {
         code: values.code,
         label: stripEmpty({ pl: values.labelPl, en: values.labelEn }),
         type: values.type,
-        localizable: values.localizable,
-        scopable: values.scopable,
         required: values.required,
       };
       const help = stripEmpty({ pl: values.helpPl, en: values.helpEn });
       if (Object.keys(help).length > 0) body.help = help;
+      // `unique` is not in AttributeInput — surfaced via `validationRules`
+      // when the BE adds it. For now keep it form-only so the FE matches
+      // the mockup; submit-side stays no-op.
+      // `indexed` is similarly form-only (no `is_indexed` BE column yet).
 
       const response = await jsonFetch<{ id?: string }>('/api/attributes', {
         method: 'POST',
@@ -111,191 +121,224 @@ export function AttributeCreatePage() {
     }
   };
 
+  const valid = values.code.trim().length > 0 && values.labelPl.trim().length > 0;
+
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <Button asChild variant="ghost" size="sm" className="-ml-3">
-          <Link to="/modeling/attributes">
-            <ArrowLeft className="size-4" />
-            {t('attributes.back', { defaultValue: 'Wróć do listy atrybutów' })}
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {t('attributes.create_title', { defaultValue: 'Nowy atrybut' })}
-        </h1>
-      </div>
+      <Link
+        to="/modeling/attributes"
+        className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {t('attributes.back_to_library', { defaultValue: 'Wstecz do biblioteki Attributes' })}
+      </Link>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardContent className="grid gap-4 pt-6">
-            <FormRow id="code" label={t('attributes.fields.code', { defaultValue: 'Code' })}>
-              <Input
-                id="code"
-                value={values.code}
-                onChange={(e) => setValues({ ...values, code: e.target.value })}
-                pattern="[a-z][a-z0-9_]*"
-                placeholder="np. warranty_months"
-                required
-                className="font-mono"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                {t('attributes.code_helper', {
-                  defaultValue: 'snake_case · niezmienialny po utworzeniu',
-                })}
-              </p>
-            </FormRow>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FormRow
-                id="label-pl"
-                label={t('attributes.fields.label_pl', { defaultValue: 'Nazwa (PL)' })}
-              >
-                <Input
-                  id="label-pl"
-                  value={values.labelPl}
-                  onChange={(e) => setValues({ ...values, labelPl: e.target.value })}
-                  placeholder="np. Gwarancja (msc)"
-                />
-              </FormRow>
-              <FormRow
-                id="label-en"
-                label={t('attributes.fields.label_en', { defaultValue: 'Nazwa (EN)' })}
-              >
-                <Input
-                  id="label-en"
-                  value={values.labelEn}
-                  onChange={(e) => setValues({ ...values, labelEn: e.target.value })}
-                  placeholder="e.g. Warranty (months)"
-                />
-              </FormRow>
-            </div>
-            <FormRow id="type" label={t('attributes.fields.type', { defaultValue: 'Typ danych' })}>
-              <select
-                id="type"
-                value={values.type}
-                onChange={(e) => setValues({ ...values, type: e.target.value })}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 font-mono text-sm"
-              >
-                {TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </FormRow>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FormRow
-                id="help-pl"
-                label={t('attributes.fields.help_pl', { defaultValue: 'Opis (PL)' })}
-              >
-                <Textarea
-                  id="help-pl"
-                  rows={2}
-                  value={values.helpPl}
-                  onChange={(e) => setValues({ ...values, helpPl: e.target.value })}
-                />
-              </FormRow>
-              <FormRow
-                id="help-en"
-                label={t('attributes.fields.help_en', { defaultValue: 'Opis (EN)' })}
-              >
-                <Textarea
-                  id="help-en"
-                  rows={2}
-                  value={values.helpEn}
-                  onChange={(e) => setValues({ ...values, helpEn: e.target.value })}
-                />
-              </FormRow>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="space-y-3 pt-6">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              {t('attributes.flags_title', { defaultValue: 'Walidacja i flagi' })}
-            </div>
-            {(['localizable', 'scopable', 'required'] as const).map((key) => (
-              <label
-                key={key}
-                className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 px-3 py-2.5 transition hover:bg-zinc-50"
-              >
-                <input
-                  type="checkbox"
-                  checked={values[key]}
-                  onChange={(e) => setValues({ ...values, [key]: e.target.checked })}
-                  className="mt-1"
-                />
-                <span>
-                  <span className="block text-[13px] font-medium">
-                    {t(`attributes.flags.${key}_label`, { defaultValue: capitalize(key) })}
-                  </span>
-                  <span className="block text-[11.5px] text-muted-foreground">
-                    {flagDescription(key, t)}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </CardContent>
-        </Card>
-
-        {error !== null ? (
-          <p className="rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            {error}
+      <div className="flex flex-wrap items-start justify-between gap-6">
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-medium text-muted-foreground">
+            {t('attributes.create_caption', { defaultValue: 'Nowy Attribute' })}
+          </div>
+          <h1 className="font-display font-mono text-[28px] font-semibold tracking-tight">
+            {values.code.trim().length > 0
+              ? values.code.trim()
+              : t('attributes.create_code_placeholder', { defaultValue: 'attribute_code' })}
+          </h1>
+          <p className="mt-1 max-w-2xl text-[13px] text-muted-foreground">
+            {t('attributes.create_description', {
+              defaultValue:
+                'Atrybut to typowane pole, które można dołączać do ObjectType lub Attribute Group. Po utworzeniu pojawi się w globalnej bibliotece.',
+            })}
           </p>
-        ) : null}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="ghost">
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button asChild variant="ghost" className="h-9 rounded-xl px-3 text-[13px]">
             <Link to="/modeling/attributes">{t('app.cancel')}</Link>
           </Button>
-          <Button type="submit" disabled={submitting}>
+          <Button
+            type="button"
+            disabled={!valid || submitting}
+            onClick={() => {
+              void handleSubmit();
+            }}
+            className="h-9 rounded-xl bg-zinc-900 px-4 text-[13px] hover:bg-zinc-800"
+          >
+            <Check className="size-4" />
             {t('attributes.create_submit', { defaultValue: 'Utwórz atrybut' })}
           </Button>
         </div>
-      </form>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <Card className="space-y-6 p-6">
+          <Section title={t('attributes.identification_title', { defaultValue: 'Identyfikacja' })}>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-[11.5px] font-medium text-muted-foreground" htmlFor="code">
+                  {t('attributes.fields.code', { defaultValue: 'Code' })}
+                </Label>
+                <Input
+                  id="code"
+                  value={values.code}
+                  onChange={(e) => setValues({ ...values, code: e.target.value })}
+                  pattern="[a-z][a-z0-9_]*"
+                  placeholder="np. warranty_months"
+                  className="mt-1.5 h-10 font-mono"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {t('attributes.code_helper', {
+                    defaultValue: 'snake_case · niezmienialny po utworzeniu',
+                  })}
+                </p>
+              </div>
+              <div>
+                <Label className="text-[11.5px] font-medium text-muted-foreground">
+                  {t('attributes.fields.name', { defaultValue: 'Nazwa' })}
+                </Label>
+                <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                  <Input
+                    value={values.labelPl}
+                    onChange={(e) => setValues({ ...values, labelPl: e.target.value })}
+                    placeholder="PL · np. Gwarancja (msc)"
+                  />
+                  <Input
+                    value={values.labelEn}
+                    onChange={(e) => setValues({ ...values, labelEn: e.target.value })}
+                    placeholder="EN · e.g. Warranty (months)"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-[11.5px] font-medium text-muted-foreground">
+                  {t('attributes.fields.help', { defaultValue: 'Opis (opcjonalny)' })}
+                </Label>
+                <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                  <Textarea
+                    rows={2}
+                    value={values.helpPl}
+                    onChange={(e) => setValues({ ...values, helpPl: e.target.value })}
+                    placeholder="PL · krótki opis dla zespołu"
+                  />
+                  <Textarea
+                    rows={2}
+                    value={values.helpEn}
+                    onChange={(e) => setValues({ ...values, helpEn: e.target.value })}
+                    placeholder="EN · short description for the team"
+                  />
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          <Section title={t('attributes.type_title', { defaultValue: 'Typ danych' })}>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {TYPES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setValues({ ...values, type })}
+                  className={cn(
+                    'h-10 rounded-xl font-mono text-[12px] font-medium transition',
+                    values.type === type
+                      ? 'bg-zinc-900 text-white'
+                      : 'border border-zinc-200 bg-white text-muted-foreground hover:bg-zinc-50',
+                  )}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </Section>
+
+          <Section title={t('attributes.validation_title', { defaultValue: 'Walidacja i flagi' })}>
+            <div className="space-y-3">
+              <SettingToggleRow
+                label={t('attributes.flags.required_label', { defaultValue: 'Required' })}
+                description={t('attributes.flags.required_desc', {
+                  defaultValue: 'Pole musi być wypełnione',
+                })}
+                checked={values.required}
+                onChange={(next) => setValues({ ...values, required: next })}
+              />
+              <SettingToggleRow
+                label={t('attributes.flags.unique_label', { defaultValue: 'Unique' })}
+                description={t('attributes.flags.unique_desc', {
+                  defaultValue: 'Wartość unikalna w obrębie ObjectType',
+                })}
+                checked={values.unique}
+                onChange={(next) => setValues({ ...values, unique: next })}
+              />
+              <SettingToggleRow
+                label={t('attributes.flags.indexed_label', { defaultValue: 'Indexed' })}
+                description={t('attributes.flags.indexed_desc', {
+                  defaultValue: 'Indeks dla wyszukiwania',
+                })}
+                checked={values.indexed}
+                onChange={(next) => setValues({ ...values, indexed: next })}
+              />
+            </div>
+          </Section>
+
+          {error !== null ? (
+            <p className="rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+        </Card>
+
+        <aside className="space-y-3">
+          <Card className="p-5">
+            <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              {t('attributes.preview_title', { defaultValue: 'Podgląd' })}
+            </div>
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[13px] font-semibold">
+                  {values.code.trim().length > 0 ? values.code.trim() : 'code…'}
+                </span>
+                <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium uppercase text-muted-foreground">
+                  {values.type}
+                </span>
+              </div>
+              <div className="text-[12px] text-muted-foreground">
+                {values.labelPl.trim() || values.labelEn.trim() || 'Nazwa atrybutu…'}
+              </div>
+            </div>
+          </Card>
+          <Card className="p-5">
+            <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              {t('attributes.next_title', { defaultValue: 'Następnie' })}
+            </div>
+            <ul className="mt-3 space-y-1.5 text-[12px] text-muted-foreground">
+              <li>1. {t('attributes.next_step_1', { defaultValue: 'Utwórz atrybut' })}</li>
+              <li>
+                2.{' '}
+                {t('attributes.next_step_2', {
+                  defaultValue: 'Dołącz do Attribute Group lub ObjectType',
+                })}
+              </li>
+              <li>
+                3.{' '}
+                {t('attributes.next_step_3', {
+                  defaultValue: 'Ustaw mapowania na kanały (Shopify, Allegro)',
+                })}
+              </li>
+            </ul>
+          </Card>
+        </aside>
+      </div>
     </div>
   );
 }
 
-function FormRow({
-  id,
-  label,
-  children,
-}: {
-  id: string;
-  label: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+    <div>
+      <div className="mb-4 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        {title}
+      </div>
       {children}
     </div>
   );
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function flagDescription(
-  key: 'localizable' | 'scopable' | 'required',
-  t: (key: string, opts?: Record<string, string>) => string,
-): string {
-  switch (key) {
-    case 'localizable':
-      return t('attributes.flags.localizable_desc', {
-        defaultValue: 'Per locale (PL/EN/DE)',
-      });
-    case 'scopable':
-      return t('attributes.flags.scopable_desc', {
-        defaultValue: 'Per channel (Shopify / Allegro)',
-      });
-    case 'required':
-      return t('attributes.flags.required_desc', {
-        defaultValue: 'Pole musi być wypełnione',
-      });
-  }
 }
 
 function stripEmpty(record: Record<string, string>): Record<string, string> {
