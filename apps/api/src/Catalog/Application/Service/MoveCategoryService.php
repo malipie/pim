@@ -7,7 +7,6 @@ namespace App\Catalog\Application\Service;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
-use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Response;
@@ -51,8 +50,19 @@ final class MoveCategoryService
     public function __construct(
         private readonly CatalogObjectRepositoryInterface $catalogObjects,
         private readonly EntityManagerInterface $em,
-        private readonly Connection $connection,
     ) {
+    }
+
+    private function connection(): \Doctrine\DBAL\Connection
+    {
+        // Use the EntityManager's own connection — under
+        // dama/doctrine-test-bundle this is the *same* shared connection
+        // wrapping the test transaction, so rows persisted earlier in the
+        // request via Doctrine flush() are visible to our DBAL queries.
+        // Injecting a separate Connection through DI sometimes resolves
+        // to a different wrapper (depending on bundle wiring) and reads
+        // miss the in-flight transaction.
+        return $this->em->getConnection();
     }
 
     public function move(CatalogObject $category, ?Uuid $newParentId): int
@@ -72,6 +82,7 @@ final class MoveCategoryService
         }
 
         $newParent = null;
+        $parentPath = null;
         if (null !== $newParentId) {
             $newParent = $this->catalogObjects->findById($newParentId);
             if (null === $newParent) {
@@ -89,8 +100,18 @@ final class MoveCategoryService
             if ($newParent->getId()->toRfc4122() === $category->getId()->toRfc4122()) {
                 throw new UnprocessableEntityHttpException('Category cannot be its own parent.');
             }
-            $parentPath = $newParent->getPath();
-            if (null === $parentPath || '' === $parentPath) {
+            // Read the parent path straight from the database rather than via
+            // the in-memory aggregate. The autobuild listener fires on
+            // INSERT, so a parent created earlier in the same request /
+            // test cycle has its DB path set even when the UoW-cached
+            // entity still carries `path = null` (Doctrine does not refresh
+            // post-listener writes back into the managed entity).
+            $rawParentPath = $this->connection()->fetchOne(
+                'SELECT path::text FROM objects WHERE id = CAST(:id AS uuid)',
+                ['id' => $newParent->getId()->toRfc4122()],
+            );
+            $parentPath = \is_string($rawParentPath) && '' !== $rawParentPath ? $rawParentPath : null;
+            if (null === $parentPath) {
                 throw new UnprocessableEntityHttpException(
                     'New parent category has no ltree path.',
                 );
@@ -99,7 +120,7 @@ final class MoveCategoryService
             // illegal because it would form an unreachable loop. Use the
             // `<@` ltree operator which returns true when the left side
             // is a descendant-or-equal of the right.
-            $isInsideSubtree = $this->connection->fetchOne(
+            $isInsideSubtree = $this->connection()->fetchOne(
                 'SELECT 1 WHERE CAST(:parentPath AS ltree) <@ CAST(:movingPath AS ltree)',
                 ['parentPath' => $parentPath, 'movingPath' => $oldPath],
             );
@@ -111,16 +132,16 @@ final class MoveCategoryService
             }
         }
 
-        $newPath = $this->computeNewPath($newParent, $category);
+        $newPath = $this->computeNewPath($parentPath, $category);
         if ($newPath === $oldPath) {
             // No-op — short-circuit before opening a transaction.
             return 0;
         }
 
-        $this->connection->beginTransaction();
+        $this->connection()->beginTransaction();
         try {
             // Rewrite the moving node first.
-            $this->connection->executeStatement(
+            $this->connection()->executeStatement(
                 'UPDATE objects SET path = CAST(:newPath AS ltree), parent_id = :parentId, updated_at = NOW() WHERE id = CAST(:id AS uuid)',
                 [
                     'newPath' => $newPath,
@@ -137,7 +158,7 @@ final class MoveCategoryService
             // the old prefix; concatenation with `newPath ||` re-anchors it
             // under the new parent path.
             $oldDepth = $this->ltreeDepth($oldPath);
-            $affected = $this->connection->executeStatement(
+            $affected = $this->connection()->executeStatement(
                 'UPDATE objects SET path = CAST(:newPath AS ltree) || subpath(path, :oldDepth), updated_at = NOW()'
                 .' WHERE kind = :kind AND path <@ CAST(:oldPath AS ltree) AND id <> CAST(:id AS uuid)',
                 [
@@ -152,9 +173,9 @@ final class MoveCategoryService
                 ],
             );
 
-            $this->connection->commit();
+            $this->connection()->commit();
         } catch (Throwable $e) {
-            $this->connection->rollBack();
+            $this->connection()->rollBack();
             if ($e instanceof HttpException) {
                 throw $e;
             }
@@ -173,12 +194,8 @@ final class MoveCategoryService
         return (int) $affected;
     }
 
-    private function computeNewPath(?CatalogObject $newParent, CatalogObject $category): string
+    private function computeNewPath(?string $parentPath, CatalogObject $category): string
     {
-        if (null === $newParent) {
-            return $category->getCode();
-        }
-        $parentPath = $newParent->getPath();
         if (null === $parentPath || '' === $parentPath) {
             return $category->getCode();
         }

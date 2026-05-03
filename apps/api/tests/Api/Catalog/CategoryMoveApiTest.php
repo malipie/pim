@@ -18,8 +18,8 @@ final class CategoryMoveApiTest extends CatalogApiTestCase
     public function moveRewritesSubtreePath(): void
     {
         $client = $this->authenticatedClient();
-        $rootA = $this->createCategory($client, 'rootA');
-        $rootB = $this->createCategory($client, 'rootB');
+        $rootA = $this->createCategory($client, 'root_a');
+        $rootB = $this->createCategory($client, 'root_b');
         $child = $this->createCategoryUnder($client, 'child', $rootA);
 
         $response = $client->request('PATCH', "/api/categories/{$child}/move", [
@@ -29,7 +29,7 @@ final class CategoryMoveApiTest extends CatalogApiTestCase
 
         self::assertResponseStatusCodeSame(200);
         $body = $response->toArray();
-        self::assertSame('rootB.child', $body['newPath'] ?? null);
+        self::assertSame('root_b.child', $body['newPath'] ?? null);
         self::assertSame(0, $body['affectedDescendants'] ?? null);
     }
 

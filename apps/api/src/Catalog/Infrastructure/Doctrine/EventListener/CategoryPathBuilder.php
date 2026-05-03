@@ -7,6 +7,7 @@ namespace App\Catalog\Infrastructure\Doctrine\EventListener;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
+use Doctrine\ORM\Event\PostPersistEventArgs;
 use Doctrine\ORM\Event\PrePersistEventArgs;
 use Doctrine\ORM\Events;
 
@@ -38,8 +39,47 @@ use Doctrine\ORM\Events;
  * "category-only" invariant.
  */
 #[AsDoctrineListener(event: Events::prePersist)]
+#[AsDoctrineListener(event: Events::postPersist)]
 final class CategoryPathBuilder
 {
+    /**
+     * `postPersist` partner to {@see prePersist}: Doctrine ORM 3 freezes
+     * the insert change-set *before* `prePersist` listeners fire, so a
+     * write to `path` from `attachToPath()` inside `prePersist` lands in
+     * the in-memory aggregate but never reaches the INSERT (the row
+     * persists with `path = NULL`).
+     *
+     * After the INSERT we sync the derived path to the database with a
+     * one-row UPDATE through DBAL. This keeps the public {@see CatalogObject}
+     * API setter-light (no public path setter for callers) while still
+     * delivering the kind=category invariant: every freshly persisted
+     * category row has its `path` materialised before the request
+     * returns.
+     */
+    public function postPersist(PostPersistEventArgs $event): void
+    {
+        $entity = $event->getObject();
+        if (!$entity instanceof CatalogObject) {
+            return;
+        }
+        if (ObjectKind::Category !== $entity->getKind()) {
+            return;
+        }
+        $path = $entity->getPath();
+        if (null === $path || '' === $path) {
+            return;
+        }
+
+        $em = $event->getObjectManager();
+        $em->getConnection()->executeStatement(
+            'UPDATE objects SET path = CAST(:path AS ltree) WHERE id = CAST(:id AS uuid) AND path IS NULL',
+            [
+                'path' => $path,
+                'id' => $entity->getId()->toRfc4122(),
+            ],
+        );
+    }
+
     /**
      * Subset of the {@see CategoryPathValidator::LTREE_LABEL} regex that
      * matches a *single* label. The full path regex chains labels with

@@ -6,6 +6,7 @@ namespace App\Catalog\Application\Command\CreateCatalogObject;
 
 use App\Catalog\Application\ObjectAttributesUpserter;
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -55,6 +56,7 @@ final readonly class CreateCatalogObjectHandler
         }
 
         $object = new CatalogObject($objectType, $command->code);
+        $parent = null;
 
         if (null !== $command->parentId) {
             $parent = $this->catalogObjects->findById($command->parentId);
@@ -65,6 +67,23 @@ final readonly class CreateCatalogObjectHandler
                 ));
             }
             $object->assignParent($parent);
+        }
+
+        // VIEW-04 (#408) — derive the ltree `path` here rather than in a
+        // Doctrine prePersist listener. ORM 3 freezes the insert
+        // change-set before listeners run, so a `prePersist` write to
+        // `path` does not reach the INSERT and the row lands with `path
+        // = NULL` despite the in-memory aggregate carrying the value.
+        // Setting it on the aggregate before `save()` keeps the change
+        // inside the natural change-set computation.
+        if (ObjectKind::Category === $command->expectedKind && null === $object->getPath()) {
+            $code = $object->getCode();
+            if (1 === preg_match('/^[a-z_][a-z0-9_]*$/', $code)) {
+                $parentPath = $parent?->getPath();
+                $object->attachToPath(
+                    null !== $parentPath && '' !== $parentPath ? $parentPath.'.'.$code : $code,
+                );
+            }
         }
 
         $this->catalogObjects->save($object);
