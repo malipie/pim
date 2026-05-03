@@ -874,8 +874,8 @@ function AttachedGroupsCard({ attribute, locale }: { attribute: AttributeDetail;
       <CreateGroupInlineDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onCreated={(code) => {
-          void attachByCodes([code]);
+        onCreated={(group) => {
+          void attachByCodes([group.code]);
         }}
       />
     </Card>
