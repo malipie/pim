@@ -330,7 +330,7 @@ final readonly class DemoCatalogSeeder
     }
 
     /**
-     * @return array<string, array{label: array<string, string>, type: AttributeType, required?: bool, localizable?: bool, rules?: array<string, mixed>, options?: list<array{0: string, 1: array<string, string>, 2?: string, 3?: bool, 4?: bool}>}>
+     * @return array<string, array{label: array<string, string>, type: AttributeType, required?: bool, localizable?: bool, rules?: array<string, mixed>, options?: list<array{0: string, 1: array<string, string>, 2?: string|null, 3?: bool, 4?: bool}>}>
      */
     private static function attributeDefinitions(): array
     {
@@ -454,6 +454,70 @@ final readonly class DemoCatalogSeeder
                 'type' => AttributeType::Text,
                 'localizable' => true,
                 'rules' => ['max_length' => 255],
+            ],
+            // VIEW-02 (#374) — pixel-perfect attribute fixtures matching the
+            // ATTRIBUTES list from `attributes.jsx` mockup: IP rating with 7
+            // hex colors, VAT rate with 5 options + Polish default, currency
+            // with 5 options, plus a few standalone numeric/date attributes
+            // operator can show off in smoke. Position is implicit by array
+            // order; the FE list reads it from the GET response.
+            'ip_rating' => [
+                'label' => ['pl' => 'Klasa szczelności (IP)', 'en' => 'IP rating'],
+                'type' => AttributeType::Select,
+                'options' => [
+                    ['IP20', ['pl' => 'IP20', 'en' => 'IP20'], '#94A3B8', false, false],
+                    ['IP44', ['pl' => 'IP44', 'en' => 'IP44'], '#0EA5E9', false, false],
+                    ['IP54', ['pl' => 'IP54', 'en' => 'IP54'], '#10B981', true, false],
+                    ['IP55', ['pl' => 'IP55', 'en' => 'IP55'], '#22C55E', false, false],
+                    ['IP65', ['pl' => 'IP65', 'en' => 'IP65'], '#F59E0B', false, false],
+                    ['IP67', ['pl' => 'IP67', 'en' => 'IP67'], '#EF4444', false, false],
+                    ['IP68', ['pl' => 'IP68', 'en' => 'IP68'], '#A855F7', false, false],
+                ],
+            ],
+            'vat_rate' => [
+                'label' => ['pl' => 'Stawka VAT', 'en' => 'VAT rate'],
+                'type' => AttributeType::Select,
+                'options' => [
+                    ['vat_23', ['pl' => '23%', 'en' => '23%'], null, true, false],
+                    ['vat_8', ['pl' => '8%', 'en' => '8%'], null, false, false],
+                    ['vat_5', ['pl' => '5%', 'en' => '5%'], null, false, false],
+                    ['vat_0', ['pl' => '0%', 'en' => '0%'], null, false, false],
+                    ['vat_zw', ['pl' => 'ZW (zwolnione)', 'en' => 'Exempt'], null, false, true],
+                ],
+            ],
+            'currency_code' => [
+                'label' => ['pl' => 'Waluta', 'en' => 'Currency'],
+                'type' => AttributeType::Select,
+                'options' => [
+                    ['PLN', ['pl' => 'PLN · złoty', 'en' => 'PLN · Polish złoty'], null, true, false],
+                    ['EUR', ['pl' => 'EUR · euro', 'en' => 'EUR · euro'], null, false, false],
+                    ['USD', ['pl' => 'USD · dolar', 'en' => 'USD · US dollar'], null, false, false],
+                    ['GBP', ['pl' => 'GBP · funt', 'en' => 'GBP · pound sterling'], null, false, false],
+                    ['CHF', ['pl' => 'CHF · frank', 'en' => 'CHF · Swiss franc'], null, false, false],
+                ],
+            ],
+            'warranty_months' => [
+                'label' => ['pl' => 'Gwarancja (msc)', 'en' => 'Warranty (months)'],
+                'type' => AttributeType::Number,
+                'rules' => ['min' => 0, 'max' => 120],
+            ],
+            'voltage' => [
+                'label' => ['pl' => 'Napięcie', 'en' => 'Voltage'],
+                'type' => AttributeType::Metric,
+                'rules' => ['units' => ['V'], 'min' => 0],
+            ],
+            'power_w' => [
+                'label' => ['pl' => 'Moc', 'en' => 'Power'],
+                'type' => AttributeType::Metric,
+                'rules' => ['units' => ['W'], 'min' => 0],
+            ],
+            'requires_referral' => [
+                'label' => ['pl' => 'Wymaga skierowania', 'en' => 'Requires referral'],
+                'type' => AttributeType::Boolean,
+            ],
+            'eol_date' => [
+                'label' => ['pl' => 'Koniec wsparcia', 'en' => 'End of life'],
+                'type' => AttributeType::Date,
             ],
         ];
     }
