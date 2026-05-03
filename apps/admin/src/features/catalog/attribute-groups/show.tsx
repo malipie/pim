@@ -1,26 +1,22 @@
 import { useOne } from '@refinedev/core';
-import { ArrowDown, ArrowLeft, ArrowUp, Save, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { GripVertical, Lock, Plus, Save, Trash2, X } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
+import { AddAttributesFromLibraryDialog } from '@/components/modeling/add-attributes-from-library-dialog';
 import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
-import { WhereUsedList } from '@/components/modeling/where-used-list';
+import { CreateAttributeInGroupDialog } from '@/components/modeling/create-attribute-in-group-dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { resolveLabel } from '@/features/catalog/attributes/list';
-import { jsonFetch } from '@/lib/http';
+import { HttpError, jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
 
 interface AttributeGroupDetail {
   id: string;
@@ -30,8 +26,6 @@ interface AttributeGroupDetail {
   icon?: string | null;
   color?: string | null;
   systemGroup?: boolean;
-  autoAttached?: boolean;
-  position?: number;
 }
 
 interface MemberRow {
@@ -52,8 +46,32 @@ interface MembersResponse {
   members: MemberRow[];
 }
 
+interface UsageResponse {
+  totalObjects?: number;
+  attributeGroups?: Array<{ id: string }>;
+  objectTypes?: Array<{ id: string }>;
+  categories?: Array<{ id: string }>;
+}
+
+/**
+ * VIEW-03 — pixel-perfect AttributeGroupDetail with edit-in-place + 2 popups
+ * (mockup `groups-categories.jsx:82–253`).
+ *
+ * Layout:
+ *   - Sticky header (X close, color icon, title + system badge, mono URL,
+ *     "Zapisz zmiany" save+exit on the right).
+ *   - Card "Identyfikacja": PL/EN locale tabs for Nazwa, locked Code, Color
+ *     swatch, Description textarea.
+ *   - Card "Attributes in this group": list with required checkbox + visible_when
+ *     chip + trash; "+ Z biblioteki" / "+ Stwórz nowy" buttons open popups.
+ *   - Card "Where used": 3 stat boxes (typesUsed / categoriesUsed / objectsAffected).
+ *
+ * Sticky bottom bar appears when the form is dirty (label/description edits).
+ */
 export function AttributeGroupShowPage() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const params = useParams<{ id: string }>();
   const id = params.id ?? '';
 
@@ -63,298 +81,586 @@ export function AttributeGroupShowPage() {
     queryOptions: { enabled: id.length > 0 },
   });
 
-  const [members, setMembers] = useState<MemberRow[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draftRule, setDraftRule] = useState<{ field: string; value: string }>({
-    field: '',
-    value: '',
-  });
-
-  const reload = useCallback(async () => {
-    if (id === '') return;
-    try {
-      const data = await jsonFetch<MembersResponse>(`/api/attribute_groups/${id}/attributes`, {
-        accept: 'application/json',
-      });
-      setMembers(data.members);
-    } catch {
-      setMembers([]);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    reload();
-  }, [reload]);
-
-  const patchJunction = useCallback(
-    async (attributeId: string, body: Record<string, unknown>) => {
-      await jsonFetch(`/api/attribute_groups/${id}/attributes/${attributeId}`, {
-        method: 'PATCH',
-        contentType: 'application/json',
-        accept: 'application/json',
-        body,
-      });
-      await reload();
-    },
-    [id, reload],
-  );
-
-  const reorder = useCallback(
-    async (idx: number, delta: -1 | 1) => {
-      const target = idx + delta;
-      if (target < 0 || target >= members.length) return;
-      const a = members[idx];
-      const b = members[target];
-      if (!a || !b) return;
-      // Swap positions in two PATCH calls. Sequence matters because
-      // UI-08.4 cache invalidator nukes per-ObjectType tag entries on
-      // each junction mutation; we accept the brief window where both
-      // rows could share the same position (no UNIQUE constraint).
-      await patchJunction(a.attribute.id, { position: b.position });
-      await patchJunction(b.attribute.id, { position: a.position });
-    },
-    [members, patchJunction],
-  );
-
   if (query.isLoading || !result) {
     return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
   }
 
-  const group = result;
-  const label = resolveLabel(group.label, i18n.language);
-  const description = resolveLabel(group.description, i18n.language);
+  return (
+    <Editor
+      key={result.id}
+      group={result}
+      locale={i18n.language}
+      onSaved={() => {
+        queryClient.invalidateQueries({ queryKey: ['attribute_groups', result.id] });
+        queryClient.invalidateQueries({ queryKey: ['attribute_groups'] });
+      }}
+      onClose={() => navigate('/modeling/attribute-groups')}
+    />
+  );
+}
+
+function Editor({
+  group,
+  locale,
+  onSaved,
+  onClose,
+}: {
+  group: AttributeGroupDetail;
+  locale: string;
+  onSaved: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+
+  const initialLabel = toLocaleMap(group.label);
+  const initialDescription = toLocaleMap(group.description);
+  const initialColor = group.color ?? '#71717a';
+
+  const [labelPl, setLabelPl] = useState(initialLabel.pl ?? '');
+  const [labelEn, setLabelEn] = useState(initialLabel.en ?? '');
+  const [descPl, setDescPl] = useState(initialDescription.pl ?? '');
+  const [color, setColor] = useState(initialColor);
+  const [activeLocale, setActiveLocale] = useState<'pl' | 'en'>('pl');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const isSystem = group.systemGroup === true;
+
+  const { data: members = [], refetch: refetchMembers } = useQuery<MemberRow[]>({
+    queryKey: ['attribute_groups', group.id, 'attributes'],
+    queryFn: async () => {
+      const data = await jsonFetch<MembersResponse>(
+        `/api/attribute_groups/${group.id}/attributes`,
+        { accept: 'application/json' },
+      );
+      return data.members ?? [];
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: usage } = useQuery<UsageResponse>({
+    queryKey: ['attribute_groups', group.id, 'usage'],
+    queryFn: () => jsonFetch<UsageResponse>(`/api/attribute_groups/${group.id}/usage`),
+    staleTime: 60_000,
+  });
+
+  const sortedMembers = [...members].sort((a, b) => a.position - b.position);
+  const existingCodes = new Set(sortedMembers.map((m) => m.attribute.code));
+
+  const dirtyFields = [
+    labelPl !== (initialLabel.pl ?? ''),
+    labelEn !== (initialLabel.en ?? ''),
+    descPl !== (initialDescription.pl ?? ''),
+    color !== initialColor,
+  ].filter(Boolean).length;
+  const dirty = dirtyFields > 0;
+
+  const cancel = () => {
+    setLabelPl(initialLabel.pl ?? '');
+    setLabelEn(initialLabel.en ?? '');
+    setDescPl(initialDescription.pl ?? '');
+    setColor(initialColor);
+    setError(null);
+  };
+
+  const save = useCallback(async (): Promise<boolean> => {
+    setSaving(true);
+    setError(null);
+    try {
+      const body: Record<string, unknown> = {};
+      const nextLabel = stripEmpty({ pl: labelPl, en: labelEn });
+      if (JSON.stringify(nextLabel) !== JSON.stringify(initialLabel)) body.label = nextLabel;
+      const nextDescription = stripEmpty({ pl: descPl });
+      if (JSON.stringify(nextDescription) !== JSON.stringify(initialDescription))
+        body.description = nextDescription;
+      if (!isSystem) {
+        if (color !== initialColor) body.color = color;
+      }
+      await jsonFetch(`/api/attribute_groups/${group.id}`, {
+        method: 'PATCH',
+        contentType: 'application/merge-patch+json',
+        body,
+      });
+      onSaved();
+      return true;
+    } catch (err) {
+      if (err instanceof HttpError) {
+        const detail =
+          err.body && typeof err.body === 'object' && 'detail' in err.body
+            ? String((err.body as Record<string, unknown>).detail)
+            : null;
+        setError(detail ?? `HTTP ${err.status}`);
+      } else {
+        setError(t('app.save_error', { defaultValue: 'Nie udało się zapisać' }));
+      }
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    color,
+    descPl,
+    group.id,
+    initialColor,
+    initialDescription,
+    initialLabel,
+    isSystem,
+    labelEn,
+    labelPl,
+    onSaved,
+    t,
+  ]);
+
+  const saveAndExit = useCallback(async () => {
+    if (dirty) {
+      const ok = await save();
+      if (!ok) return;
+    }
+    onClose();
+  }, [dirty, onClose, save]);
+
+  const reload = useCallback(async () => {
+    await Promise.all([
+      refetchMembers(),
+      queryClient.invalidateQueries({ queryKey: ['attribute_groups', group.id, 'usage'] }),
+    ]);
+  }, [group.id, queryClient, refetchMembers]);
+
+  const detach = async (attributeId: string) => {
+    try {
+      await jsonFetch(`/api/attribute_groups/${group.id}/attributes/${attributeId}`, {
+        method: 'DELETE',
+        accept: 'application/json',
+      });
+      await reload();
+    } catch {
+      // ignored — the next reload will resync
+    }
+  };
+
+  const toggleRequired = async (attributeId: string, next: boolean) => {
+    try {
+      await jsonFetch(`/api/attribute_groups/${group.id}/attributes/${attributeId}`, {
+        method: 'PATCH',
+        contentType: 'application/json',
+        accept: 'application/json',
+        body: { isRequiredInGroup: next },
+      });
+      await reload();
+    } catch {
+      // ignored
+    }
+  };
+
+  const groupName = resolveLabel(group.label, locale);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <Button asChild variant="ghost" size="sm" className="-ml-3">
-            <Link to="/modeling/attribute-groups">
-              <ArrowLeft className="size-4" />
-              {t('attribute_groups.back')}
-            </Link>
-          </Button>
+    <div className={cn('-m-6 space-y-0', dirty ? 'pb-24' : '')}>
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 flex items-start gap-4 border-b border-zinc-200 bg-zinc-50/95 px-7 py-5 backdrop-blur">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t('app.close', { defaultValue: 'Zamknij' })}
+          className="grid size-9 shrink-0 place-items-center rounded-xl text-muted-foreground hover:bg-zinc-200/60"
+        >
+          <X className="size-4" />
+        </button>
+        <div
+          className="grid size-12 shrink-0 place-items-center rounded-2xl text-[20px]"
+          style={{ background: `${color}18`, color }}
+        >
+          {group.icon ?? '📦'}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-display text-[22px] font-semibold tracking-tight">{groupName}</h1>
+            {isSystem ? <BuiltInLockBadge /> : null}
+          </div>
+          <div className="mt-0.5 font-mono text-[12px] text-muted-foreground">
+            /modeling/attribute-groups/{group.code}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <AuditLogIndicator />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {group.color ? (
-            <span
-              aria-hidden
-              className="inline-block size-4 rounded-full border"
-              style={{ backgroundColor: group.color }}
-            />
-          ) : null}
-          <h1 className="text-2xl font-semibold tracking-tight">{label}</h1>
-          {group.systemGroup ? <BuiltInLockBadge /> : null}
-          {group.autoAttached ? (
-            <span className="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-900">
-              {t('modeling.attribute_groups.auto_attached')}
-            </span>
+          {!isSystem ? (
+            <Button
+              size="sm"
+              disabled={saving}
+              onClick={() => {
+                void saveAndExit();
+              }}
+              className="h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800"
+            >
+              <Save className="size-4" />
+              {t('attribute_groups.save_changes', { defaultValue: 'Zapisz zmiany' })}
+            </Button>
           ) : null}
         </div>
-        <p className="font-mono text-xs text-muted-foreground">{group.code}</p>
-        {description !== '—' ? (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        ) : null}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <Card>
-          <CardContent className="space-y-3 pt-6">
-            <h2 className="text-sm font-semibold">
-              {t('modeling.attribute_groups.members_title')}
-            </h2>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[80px] text-center">
-                    {t('modeling.attribute_groups.fields.position')}
-                  </TableHead>
-                  <TableHead>{t('attributes.fields.code')}</TableHead>
-                  <TableHead className="w-[120px]">{t('attributes.fields.type')}</TableHead>
-                  <TableHead className="w-[100px]">{t('attributes.fields.required')}</TableHead>
-                  <TableHead>{t('modeling.visible_when.column')}</TableHead>
-                  <TableHead className="w-[100px] text-right">
-                    <span className="sr-only">{t('attributes.fields.actions')}</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
-                      {t('modeling.attribute_groups.members_empty')}
-                    </TableCell>
-                  </TableRow>
+      <div className="space-y-6 p-7">
+        {/* Identyfikacja */}
+        <Card className="p-6">
+          <SectionTitle>
+            {t('modeling.attributeGroups.definition_title', { defaultValue: 'Identyfikacja' })}
+          </SectionTitle>
+
+          <div className="mb-5">
+            <Label className="text-[11.5px] font-medium text-muted-foreground">
+              {t('modeling.attributeGroups.fields.name', { defaultValue: 'Nazwa' })}
+            </Label>
+            <div className="mt-1.5 flex items-center gap-1 border-b border-zinc-100">
+              {(['pl', 'en'] as const).map((lc) => {
+                const filled = (lc === 'pl' ? labelPl : labelEn).trim().length > 0;
+                return (
+                  <button
+                    key={lc}
+                    type="button"
+                    onClick={() => setActiveLocale(lc)}
+                    className={cn(
+                      '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[12.5px] font-medium uppercase tracking-wider transition',
+                      activeLocale === lc
+                        ? 'border-zinc-900 text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <span>{lc === 'pl' ? '🇵🇱' : '🇬🇧'}</span>
+                    <span>{lc}</span>
+                    {!filled ? (
+                      <span className="size-1.5 rounded-full bg-amber-400" aria-hidden />
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+            <Input
+              className="mt-2"
+              value={activeLocale === 'pl' ? labelPl : labelEn}
+              onChange={(e) =>
+                activeLocale === 'pl' ? setLabelPl(e.target.value) : setLabelEn(e.target.value)
+              }
+              disabled={isSystem}
+              placeholder={t('modeling.attributeGroups.fields.name_placeholder', {
+                defaultValue: 'Nazwa grupy',
+              })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+            <FieldRow
+              label={t('modeling.attributeGroups.fields.code', { defaultValue: 'Code' })}
+              lock
+            >
+              <span className="font-mono text-[13.5px]">{group.code}</span>
+            </FieldRow>
+            <FieldRow
+              label={t('modeling.attributeGroups.fields.color', { defaultValue: 'Color' })}
+              lock={isSystem}
+            >
+              <span className="inline-flex items-center gap-2">
+                <span className="size-4 rounded" style={{ background: color }} aria-hidden />
+                {isSystem ? (
+                  <span className="font-mono text-[12px]">{color}</span>
                 ) : (
-                  members.map((row, idx) => (
-                    <TableRow key={row.attribute.id}>
-                      <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
-                        {row.position}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        <span className="inline-flex items-center gap-1">
-                          {row.attribute.is_system ? <BuiltInLockBadge tone="quiet" /> : null}
+                  <Input
+                    type="text"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="h-7 w-[110px] font-mono text-[12px]"
+                  />
+                )}
+              </span>
+            </FieldRow>
+          </div>
+
+          <div className="mt-4">
+            <Label className="text-[11.5px] font-medium text-muted-foreground">
+              {t('modeling.attributeGroups.fields.description', { defaultValue: 'Description' })}
+            </Label>
+            <Textarea
+              rows={2}
+              value={descPl}
+              onChange={(e) => setDescPl(e.target.value)}
+              disabled={isSystem}
+              className="mt-1.5"
+              placeholder={t('modeling.attributeGroups.fields.description_placeholder', {
+                defaultValue: 'Krótki opis grupy — kiedy używać, jakie atrybuty zawiera.',
+              })}
+            />
+          </div>
+        </Card>
+
+        {/* Attributes in this group */}
+        <Card className="p-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <SectionTitle as="span">
+                {t('modeling.attributeGroups.members_title', {
+                  defaultValue: 'Attributes in this group',
+                })}
+              </SectionTitle>
+              <span className="text-[11px] text-muted-foreground">
+                {t('modeling.attributeGroups.members_drag_hint', {
+                  defaultValue: '— drag to reorder',
+                })}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setPickerOpen(true)}
+                className="h-8 rounded-lg px-2.5 text-[12px]"
+              >
+                <Plus className="size-3.5" />
+                {t('modeling.attributeGroups.members_from_library_action', {
+                  defaultValue: 'Z biblioteki',
+                })}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setCreateOpen(true)}
+                className="h-8 rounded-lg bg-violet-50 px-2.5 text-[12px] text-violet-700 hover:bg-violet-100"
+              >
+                <Plus className="size-3.5" />
+                {t('modeling.attributeGroups.members_create_new_action', {
+                  defaultValue: 'Stwórz nowy',
+                })}
+              </Button>
+            </div>
+          </div>
+
+          {sortedMembers.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-2.5 text-[12.5px] font-medium text-muted-foreground transition hover:border-violet-300 hover:bg-violet-50/40 hover:text-violet-700"
+            >
+              <Plus className="size-4" />
+              {t('modeling.attributeGroups.members_empty_action', {
+                defaultValue: 'Add attribute from library',
+              })}
+            </button>
+          ) : (
+            <div className="space-y-1.5">
+              {sortedMembers.map((row) => {
+                const labelStr = resolveLabel(row.attribute.label, locale);
+                return (
+                  <div
+                    key={row.attribute.id}
+                    className="grid grid-cols-[24px_1.5fr_120px_180px_100px_28px] items-center gap-3 rounded-xl border border-zinc-100 bg-white px-3 py-2.5 transition hover:border-zinc-200 hover:bg-zinc-50/60"
+                  >
+                    <GripVertical className="size-4 text-zinc-300" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-mono text-[13px] font-medium">
                           {row.attribute.code}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="rounded bg-muted px-2 py-0.5 text-xs uppercase tracking-wide">
-                          {row.attribute.type}
-                        </span>
-                      </TableCell>
-                      <TableCell>{row.is_required_in_group ? '✓' : '—'}</TableCell>
-                      <TableCell className="text-xs">
-                        {editingId === row.attribute.id ? (
-                          <VisibleWhenInlineEditor
-                            initial={row.visible_when}
-                            availableFields={members
-                              .filter((m) => m.attribute.id !== row.attribute.id)
-                              .map((m) => m.attribute.code)
-                              .concat(['created_at', 'updated_at', 'created_by', 'updated_by'])}
-                            draftField={draftRule.field}
-                            draftValue={draftRule.value}
-                            onChange={(field, value) => setDraftRule({ field, value })}
-                            onCancel={() => {
-                              setEditingId(null);
-                              setDraftRule({ field: '', value: '' });
-                            }}
-                            onSave={async () => {
-                              await patchJunction(row.attribute.id, {
-                                visibleWhen:
-                                  draftRule.field === ''
-                                    ? null
-                                    : {
-                                        field: draftRule.field,
-                                        operator: 'equals',
-                                        value: draftRule.value,
-                                      },
-                              });
-                              setEditingId(null);
-                              setDraftRule({ field: '', value: '' });
-                            }}
-                          />
-                        ) : row.visible_when ? (
-                          <button
-                            type="button"
-                            className="text-left font-mono text-xs underline-offset-2 hover:underline"
-                            onClick={() => {
-                              setEditingId(row.attribute.id);
-                              setDraftRule({
-                                field: row.visible_when?.field ?? '',
-                                value: String(row.visible_when?.value ?? ''),
-                              });
-                            }}
-                          >
-                            {row.visible_when.field} = {String(row.visible_when.value)}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="text-xs text-muted-foreground hover:text-foreground"
-                            onClick={() => {
-                              setEditingId(row.attribute.id);
-                              setDraftRule({ field: '', value: '' });
-                            }}
-                          >
-                            {t('modeling.visible_when.add')}
-                          </button>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          aria-label={t('modeling.attribute_groups.move_up')}
-                          disabled={idx === 0}
-                          onClick={() => reorder(idx, -1)}
-                        >
-                          <ArrowUp className="size-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          aria-label={t('modeling.attribute_groups.move_down')}
-                          disabled={idx === members.length - 1}
-                          onClick={() => reorder(idx, 1)}
-                        >
-                          <ArrowDown className="size-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
+                        {row.attribute.is_system ? <BuiltInLockBadge /> : null}
+                      </div>
+                      <div className="truncate text-[11.5px] text-muted-foreground">{labelStr}</div>
+                    </div>
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium uppercase text-muted-foreground">
+                      {row.attribute.type}
+                    </span>
+                    {row.visible_when ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2 py-1 font-mono text-[11px] text-violet-700">
+                        when {row.visible_when.field}={String(row.visible_when.value)}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-zinc-300">
+                        {t('modeling.attributeGroups.members_no_visibility_rule', {
+                          defaultValue: 'brak reguły widoczności',
+                        })}
+                      </span>
+                    )}
+                    <label className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        className="size-3.5 rounded"
+                        checked={row.is_required_in_group}
+                        onChange={(e) => {
+                          void toggleRequired(row.attribute.id, e.target.checked);
+                        }}
+                      />
+                      required
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void detach(row.attribute.id);
+                      }}
+                      className="grid size-7 place-items-center justify-self-end rounded text-zinc-300 hover:text-rose-600"
+                      aria-label={t('app.remove', { defaultValue: 'Usuń' })}
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </Card>
-        <WhereUsedList resource="attribute_groups" id={group.id} />
+
+        {/* Where used */}
+        <Card className="p-6">
+          <SectionTitle>
+            {t('modeling.attributeGroups.where_used_title', { defaultValue: 'Where used' })}
+          </SectionTitle>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <StatBox
+              value={usage?.objectTypes?.length ?? 0}
+              label={t('modeling.attributeGroups.where_used_object_types_label', {
+                defaultValue: 'ObjectTypes (globalnie)',
+              })}
+            />
+            <StatBox
+              value={usage?.categories?.length ?? 0}
+              label={t('modeling.attributeGroups.where_used_categories_label', {
+                defaultValue: 'Categories (deklarują)',
+              })}
+            />
+            <StatBox
+              value={(usage?.totalObjects ?? 0).toLocaleString('pl-PL')}
+              label={t('modeling.attributeGroups.where_used_instances_label', {
+                defaultValue: 'instancji dotkniętych',
+              })}
+            />
+          </div>
+        </Card>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        {t('modeling.attribute_groups.attach_deferred_note')}
-      </p>
+      {dirty ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white shadow-lg">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-6 py-4">
+            <span className="text-[13px] text-muted-foreground">
+              {t('attribute_groups.dirty_count', {
+                defaultValue: '{{count}} pól zmienionych',
+                count: dirtyFields,
+              })}
+            </span>
+            {error !== null ? <span className="text-[12px] text-destructive">{error}</span> : null}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={cancel}
+                disabled={saving}
+                className="h-9 rounded-xl"
+              >
+                {t('app.cancel', { defaultValue: 'Anuluj' })}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={saving}
+                onClick={() => {
+                  void save();
+                }}
+                className="h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800"
+              >
+                {t('attribute_groups.save_changes', { defaultValue: 'Zapisz zmiany' })}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <AddAttributesFromLibraryDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        groupId={group.id}
+        groupName={groupName}
+        existingCodes={existingCodes}
+        onAttached={() => {
+          void reload();
+        }}
+        locale={locale}
+      />
+      <CreateAttributeInGroupDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        groupId={group.id}
+        groupName={groupName}
+        onCreated={() => {
+          void reload();
+        }}
+      />
     </div>
   );
 }
 
-function VisibleWhenInlineEditor({
-  initial,
-  availableFields,
-  draftField,
-  draftValue,
-  onChange,
-  onCancel,
-  onSave,
+function FieldRow({
+  label,
+  lock,
+  children,
 }: {
-  initial: { field: string; operator: string; value: unknown } | null;
-  availableFields: string[];
-  draftField: string;
-  draftValue: string;
-  onChange: (field: string, value: string) => void;
-  onCancel: () => void;
-  onSave: () => Promise<void>;
+  label: string;
+  lock?: boolean;
+  children: React.ReactNode;
 }) {
-  const { t } = useTranslation();
-  const fieldOptions = Array.from(new Set(availableFields)).sort();
-  const isClearMode = initial !== null && draftField === '';
-
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Label className="sr-only" htmlFor="vw-field">
-        {t('modeling.visible_when.field')}
-      </Label>
-      <select
-        id="vw-field"
-        className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-        value={draftField}
-        onChange={(e) => onChange(e.target.value, draftValue)}
-      >
-        <option value="">{t('modeling.visible_when.none')}</option>
-        {fieldOptions.map((field) => (
-          <option key={field} value={field}>
-            {field}
-          </option>
-        ))}
-      </select>
-      <span className="text-xs text-muted-foreground">=</span>
-      <Input
-        aria-label={t('modeling.visible_when.value')}
-        className="h-8 w-[140px] text-xs"
-        value={draftValue}
-        onChange={(e) => onChange(draftField, e.target.value)}
-        placeholder={t('modeling.visible_when.value_placeholder')}
-      />
-      <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-        <X className="size-3.5" />
-        <span className="sr-only">{t('app.cancel')}</span>
-      </Button>
-      <Button type="button" variant="secondary" size="sm" onClick={onSave}>
-        <Save className="size-3.5" />
-        {isClearMode ? t('modeling.visible_when.clear') : t('app.save')}
-      </Button>
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11.5px] font-medium text-muted-foreground">{label}</span>
+        {lock ? <Lock className="size-3 text-muted-foreground" /> : null}
+      </div>
+      <div>{children}</div>
     </div>
   );
+}
+
+function SectionTitle({
+  as: Tag = 'div',
+  children,
+}: {
+  as?: 'div' | 'span';
+  children: React.ReactNode;
+}) {
+  return (
+    <Tag className="mb-4 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      {children}
+    </Tag>
+  );
+}
+
+function StatBox({ value, label }: { value: number | string; label: string }) {
+  return (
+    <div className="rounded-2xl border border-zinc-100 bg-zinc-50/40 px-4 py-4">
+      <div className="font-display text-[26px] font-semibold tracking-tight tabular-nums">
+        {value}
+      </div>
+      <div className="mt-0.5 text-[11.5px] text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function toLocaleMap(value: Record<string, string> | string | null | undefined): {
+  pl?: string;
+  en?: string;
+} {
+  if (typeof value === 'string') return { pl: value };
+  if (value && typeof value === 'object') {
+    const out: { pl?: string; en?: string } = {};
+    if (typeof value.pl === 'string') out.pl = value.pl;
+    if (typeof value.en === 'string') out.en = value.en;
+    return out;
+  }
+  return {};
+}
+
+function stripEmpty(record: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(record)) {
+    if (v.trim() !== '') out[k] = v;
+  }
+  return out;
 }
