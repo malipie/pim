@@ -1,53 +1,591 @@
-import { ArrowLeft, Layers } from 'lucide-react';
+import { useOne } from '@refinedev/core';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowDown, ArrowLeft, ArrowUp, Layers, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 
+import { ATTRIBUTE_OPTION_SWATCHES, ColorPicker } from '@/components/modeling/color-picker';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { HttpError, jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
 
 /**
- * UI-03.2 placeholder for AttributeValuesView (epik UI-03 #357).
+ * VIEW-02 (#374) — pixel-perfect AttributeOption editor mapped from
+ * `attribute-values.jsx` mockup. Backed by AttributeOptionsController
+ * endpoints (#387) and the schema additions from #378
+ * (color/isDefault/isDeprecated).
  *
- * The handoff design specifies a full-page editor for select/multi-select
- * attribute values: locale tabs, color swatches, default/deprecated
- * toggles, drag-reorder. None of that is implementable yet — there is no
- * backend (`GET/POST/PATCH/DELETE /api/attributes/{id}/values`) and the
- * `attribute_values` entity itself is in the backlog. This page renders
- * as a banner so the click flow from the list view (violet "Wartości"
- * badge → here) exists end-to-end.
- *
- * MOCK: full AttributeValuesView — wymaga endpointów /values + entity
- * attribute_values (patrz Project Plan/UI/Wdrozenie_grafiki/modelowanie-do-oprogramowania.md).
+ * MVP slice: drag-reorder is replaced by ↑↓ buttons hitting the
+ * per-option PATCH (position swap). LocaleTabsField + dnd-kit + Audit
+ * card land in VIEW-02b follow-up.
  */
+
+interface AttributeDetail {
+  id: string;
+  code: string;
+  label: Record<string, string>;
+  type: string;
+}
+
+interface OptionRow {
+  id: string;
+  code: string;
+  label: Record<string, string>;
+  position: number;
+  color: string | null;
+  default: boolean;
+  deprecated: boolean;
+}
+
+function pickLabel(label: Record<string, string>, locale: string): string {
+  return label[locale] ?? label.pl ?? label.en ?? Object.values(label)[0] ?? '';
+}
+
 export function AttributeValuesPage() {
+  const { t, i18n } = useTranslation();
+  const params = useParams<{ id: string }>();
+  const id = params.id ?? '';
+  const { result: attribute } = useOne<AttributeDetail>({
+    resource: 'attributes',
+    id,
+    queryOptions: { enabled: id.length > 0 },
+  });
+
+  if (!attribute) {
+    return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
+  }
+
+  const supportsOptions = ['select', 'multiselect'].includes(attribute.type);
+  if (!supportsOptions) {
+    return (
+      <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-10">
+        <BackLink id={id} />
+        <Card>
+          <CardContent className="space-y-2 py-10 text-center">
+            <Layers className="mx-auto size-8 text-muted-foreground" />
+            <h1 className="text-lg font-semibold">
+              {t('attribute_values.unsupported_type_title', {
+                defaultValue: 'Atrybut nie ma listy wartości',
+              })}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {t('attribute_values.unsupported_type_body', {
+                defaultValue: 'Edytor wartości jest dostępny tylko dla typów select / multiselect.',
+              })}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return <ValuesEditor attribute={attribute} locale={i18n.language} />;
+}
+
+function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; locale: string }) {
   const { t } = useTranslation();
-  const { id = '' } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  const queryKey: readonly string[] = ['attribute_options', attribute.code];
+
+  const { data: options = [] } = useQuery<OptionRow[]>({
+    queryKey,
+    queryFn: async () => {
+      const payload = await jsonFetch<{ member: OptionRow[] }>(
+        `/api/attributes/${attribute.code}/options`,
+        { method: 'GET' },
+      );
+      return payload.member ?? [];
+    },
+  });
+
+  const [activeId, setActiveId] = useState<string | null>(null);
+  useEffect(() => {
+    if (activeId === null && options.length > 0) {
+      setActiveId(options[0].id);
+    }
+  }, [activeId, options]);
+
+  const active = options.find((o) => o.id === activeId) ?? null;
+  const refresh = () => queryClient.invalidateQueries({ queryKey });
+
+  const addValue = async () => {
+    const code = window.prompt(
+      t('attribute_values.prompt_code', { defaultValue: 'Code nowej wartości (snake_case)' }),
+    );
+    if (!code || code.trim().length === 0) return;
+    try {
+      const created = await jsonFetch<OptionRow>(`/api/attributes/${attribute.code}/options`, {
+        method: 'POST',
+        contentType: 'application/json',
+        body: { code: code.trim(), label: { en: code.trim() } },
+      });
+      setActiveId(created.id);
+      refresh();
+    } catch (err) {
+      if (err instanceof HttpError) window.alert(`HTTP ${err.status}`);
+    }
+  };
 
   return (
     <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-10">
-      <div>
-        <Button asChild variant="ghost" size="sm">
-          <Link to={`/modeling/attributes/${id}`}>
-            <ArrowLeft className="size-4" />
-            {t('attribute_values.back', { defaultValue: 'Wróć do atrybutu' })}
-          </Link>
-        </Button>
+      <BackLink id={attribute.id} />
+      <div className="flex items-start gap-3">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-violet-50 text-violet-700">
+          <Layers className="size-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[12.5px] font-medium text-muted-foreground">
+            {t('attribute_values.page_caption', {
+              defaultValue: 'Allowed values · {{type}}',
+              type: attribute.type,
+            })}
+          </div>
+          <h1 className="font-display text-[26px] font-semibold tracking-tight">
+            <span className="font-mono">{attribute.code}</span>
+            <span className="mx-2 text-muted-foreground">·</span>
+            <span>{pickLabel(attribute.label, locale)}</span>
+          </h1>
+          <div className="text-[12.5px] text-muted-foreground">
+            {options.length} {t('attribute_values.values_word', { defaultValue: 'wartości' })}
+          </div>
+        </div>
       </div>
 
-      <div className="rounded-3xl border border-accent-violet/30 bg-accent-violet/5 p-8 soft-shadow">
-        <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-accent-violet/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-accent-violet">
-          <Layers className="size-3.5" />
-          {t('attribute_values.mock_badge', { defaultValue: 'Wymaga oprogramowania' })}
-        </div>
-        <h1 className="display text-[28px] font-semibold leading-tight text-ink">
-          {t('attribute_values.title', { defaultValue: 'Wartości atrybutu' })}
-        </h1>
-        <p className="mt-2 max-w-3xl text-[14px] text-ink-2">
-          {t('attribute_values.mock_body', {
-            defaultValue:
-              'Pełna edycja wartości select / multi-select (etykiety per locale, kolory, default, deprecated, kolejność) wymaga endpointów /api/attributes/{id}/values. Tracking w Project Plan/UI/Wdrozenie_grafiki/modelowanie-do-oprogramowania.md.',
-          })}
-        </p>
+      <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+        <Card className="self-start">
+          <CardContent className="p-3">
+            <div className="space-y-1">
+              {options.map((option) => (
+                <ValueRowItem
+                  key={option.id}
+                  option={option}
+                  isActive={option.id === activeId}
+                  locale={locale}
+                  onSelect={() => setActiveId(option.id)}
+                />
+              ))}
+              {options.length === 0 ? (
+                <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+                  {t('attribute_values.empty', { defaultValue: 'Brak zdefiniowanych wartości.' })}
+                </p>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-2 w-full border-dashed"
+              onClick={() => {
+                void addValue();
+              }}
+            >
+              <Plus className="size-4" />
+              {t('attribute_values.add_action', { defaultValue: 'Dodaj wartość' })}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {active ? (
+          <DefinitionCard
+            key={active.id}
+            attributeCode={attribute.code}
+            option={active}
+            options={options}
+            refresh={refresh}
+            onDeleted={() => setActiveId(null)}
+          />
+        ) : (
+          <Card>
+            <CardContent className="space-y-1 py-10 text-center">
+              <h2 className="text-base font-semibold">
+                {t('attribute_values.no_value_selected_title', {
+                  defaultValue: 'Brak wybranej wartości',
+                })}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {t('attribute_values.no_value_selected_desc', {
+                  defaultValue: 'Wybierz wartość z listy lub dodaj nową, aby edytować szczegóły.',
+                })}
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
+  );
+}
+
+function BackLink({ id }: { id: string }) {
+  const { t } = useTranslation();
+  return (
+    <Button asChild variant="ghost" size="sm" className="-ml-3">
+      <Link to={`/modeling/attributes/${id}`}>
+        <ArrowLeft className="size-4" />
+        {t('attribute_values.back', { defaultValue: 'Wróć do atrybutu' })}
+      </Link>
+    </Button>
+  );
+}
+
+function ValueRowItem({
+  option,
+  isActive,
+  locale,
+  onSelect,
+}: {
+  option: OptionRow;
+  isActive: boolean;
+  locale: string;
+  onSelect: () => void;
+}) {
+  const { t } = useTranslation();
+  const label = pickLabel(option.label, locale) || option.code;
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition',
+        isActive
+          ? 'bg-zinc-900 text-white'
+          : 'border border-zinc-100 bg-white hover:border-zinc-200 hover:bg-zinc-50/60',
+      )}
+    >
+      <span
+        className={cn(
+          'size-3 shrink-0 rounded-full',
+          option.color === null ? 'border border-zinc-200' : '',
+        )}
+        style={option.color !== null ? { background: option.color } : undefined}
+        aria-hidden
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              'truncate font-mono text-[12.5px] font-medium',
+              isActive ? 'text-white/90' : 'text-zinc-900',
+            )}
+          >
+            {option.code}
+          </span>
+          {option.default ? (
+            <span
+              className={cn(
+                'rounded px-1 text-[10px] font-semibold uppercase tracking-wider',
+                isActive ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700',
+              )}
+            >
+              {t('attribute_values.default_badge', { defaultValue: 'default' })}
+            </span>
+          ) : null}
+          {option.deprecated ? (
+            <span
+              className={cn(
+                'rounded px-1 text-[10px] font-semibold uppercase tracking-wider',
+                isActive ? 'bg-white/20 text-white' : 'bg-zinc-200 text-zinc-600',
+              )}
+            >
+              {t('attribute_values.deprecated_badge', { defaultValue: 'wycofana' })}
+            </span>
+          ) : null}
+        </div>
+        <div
+          className={cn(
+            'truncate text-[11.5px]',
+            isActive ? 'text-white/70' : 'text-muted-foreground',
+          )}
+        >
+          {label}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function DefinitionCard({
+  attributeCode,
+  option,
+  options,
+  refresh,
+  onDeleted,
+}: {
+  attributeCode: string;
+  option: OptionRow;
+  options: OptionRow[];
+  refresh: () => void;
+  onDeleted: () => void;
+}) {
+  const { t } = useTranslation();
+  const [labelPl, setLabelPl] = useState<string>(option.label.pl ?? '');
+  const [labelEn, setLabelEn] = useState<string>(option.label.en ?? '');
+  const [color, setColor] = useState<string | null>(option.color);
+  const [isDefault, setIsDefault] = useState(option.default);
+  const [isDeprecated, setIsDeprecated] = useState(option.deprecated);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const index = options.findIndex((o) => o.id === option.id);
+  const canMoveUp = index > 0;
+  const canMoveDown = index >= 0 && index < options.length - 1;
+
+  const dirty =
+    labelPl !== (option.label.pl ?? '') ||
+    labelEn !== (option.label.en ?? '') ||
+    color !== option.color ||
+    isDefault !== option.default ||
+    isDeprecated !== option.deprecated;
+
+  const buildLabel = (): Record<string, string> => {
+    const next: Record<string, string> = { ...option.label };
+    if (labelPl.length > 0) next.pl = labelPl;
+    else delete next.pl;
+    if (labelEn.length > 0) next.en = labelEn;
+    else delete next.en;
+    return next;
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await jsonFetch(`/api/attributes/${attributeCode}/options/${option.code}`, {
+        method: 'PATCH',
+        contentType: 'application/merge-patch+json',
+        body: { label: buildLabel(), color, default: isDefault, deprecated: isDeprecated },
+      });
+      refresh();
+    } catch (err) {
+      if (err instanceof HttpError) {
+        setError(`HTTP ${err.status}`);
+      } else {
+        setError(t('attribute_values.save_error', { defaultValue: 'Nie udało się zapisać' }));
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const swap = async (otherIndex: number) => {
+    const other = options[otherIndex];
+    if (!other) return;
+    await jsonFetch(`/api/attributes/${attributeCode}/options/${option.code}`, {
+      method: 'PATCH',
+      contentType: 'application/merge-patch+json',
+      body: { position: other.position },
+    });
+    await jsonFetch(`/api/attributes/${attributeCode}/options/${other.code}`, {
+      method: 'PATCH',
+      contentType: 'application/merge-patch+json',
+      body: { position: option.position },
+    });
+    refresh();
+  };
+
+  const remove = async () => {
+    if (
+      !window.confirm(t('attribute_values.delete_confirm', { defaultValue: 'Usunąć tę wartość?' }))
+    ) {
+      return;
+    }
+    try {
+      await jsonFetch(`/api/attributes/${attributeCode}/options/${option.code}`, {
+        method: 'DELETE',
+      });
+      onDeleted();
+      refresh();
+    } catch (err) {
+      if (err instanceof HttpError) setError(`HTTP ${err.status}`);
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="space-y-6 pt-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            {t('attribute_values.definition_title', { defaultValue: 'Definicja wartości' })}
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                void swap(index - 1);
+              }}
+              disabled={!canMoveUp}
+              aria-label={t('attribute_values.move_up_tooltip', { defaultValue: 'Wyżej' })}
+            >
+              <ArrowUp className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                void swap(index + 1);
+              }}
+              disabled={!canMoveDown}
+              aria-label={t('attribute_values.move_down_tooltip', { defaultValue: 'Niżej' })}
+            >
+              <ArrowDown className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                void remove();
+              }}
+              aria-label={t('attribute_values.delete_tooltip', { defaultValue: 'Usuń' })}
+            >
+              <Trash2 className="size-4 text-rose-500" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="value-code">
+              {t('attribute_values.code_label', { defaultValue: 'Code' })}
+            </Label>
+            <Input id="value-code" value={option.code} readOnly className="font-mono" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>
+              {t('attribute_values.color_label', { defaultValue: 'Kolor (opcjonalny)' })}
+            </Label>
+            <div className="flex items-center gap-3">
+              <ColorPicker
+                selected={color ?? ''}
+                onSelect={(hex) => setColor(hex)}
+                options={ATTRIBUTE_OPTION_SWATCHES}
+              />
+              {color !== null ? (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setColor(null)}>
+                  {t('app.clear', { defaultValue: 'Wyczyść' })}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="label-pl">
+              {t('attribute_values.label_pl', { defaultValue: 'Etykieta (PL)' })}
+            </Label>
+            <Input
+              id="label-pl"
+              value={labelPl}
+              onChange={(e) => setLabelPl(e.target.value)}
+              placeholder={t('attribute_values.labels_placeholder', {
+                defaultValue: 'Etykieta wartości',
+              })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="label-en">
+              {t('attribute_values.label_en', { defaultValue: 'Etykieta (EN)' })}
+            </Label>
+            <Input
+              id="label-en"
+              value={labelEn}
+              onChange={(e) => setLabelEn(e.target.value)}
+              placeholder={t('attribute_values.labels_placeholder', {
+                defaultValue: 'Etykieta wartości',
+              })}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label
+            className={cn(
+              'flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition',
+              isDefault
+                ? 'border-emerald-300 bg-emerald-50/50'
+                : 'border-zinc-200 hover:bg-zinc-50',
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={isDefault}
+              onChange={(e) => setIsDefault(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              <span className="block text-[13px] font-medium">
+                {t('attribute_values.default_label', { defaultValue: 'Wartość domyślna' })}
+              </span>
+              <span className="block text-[11.5px] text-muted-foreground">
+                {t('attribute_values.default_desc', {
+                  defaultValue: 'Wybierana automatycznie dla nowych obiektów',
+                })}
+              </span>
+            </span>
+          </label>
+          <label
+            className={cn(
+              'flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition',
+              isDeprecated ? 'border-zinc-300 bg-zinc-100' : 'border-zinc-200 hover:bg-zinc-50',
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={isDeprecated}
+              onChange={(e) => setIsDeprecated(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              <span className="block text-[13px] font-medium">
+                {t('attribute_values.deprecated_label', { defaultValue: 'Wycofana' })}
+              </span>
+              <span className="block text-[11.5px] text-muted-foreground">
+                {t('attribute_values.deprecated_desc', {
+                  defaultValue: 'Ukryj w nowych formularzach, zachowaj w istniejących',
+                })}
+              </span>
+            </span>
+          </label>
+        </div>
+
+        {error !== null ? (
+          <p className="rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!dirty || saving}
+            onClick={() => {
+              setLabelPl(option.label.pl ?? '');
+              setLabelEn(option.label.en ?? '');
+              setColor(option.color);
+              setIsDefault(option.default);
+              setIsDeprecated(option.deprecated);
+            }}
+          >
+            {t('app.cancel')}
+          </Button>
+          <Button
+            type="button"
+            disabled={!dirty || saving}
+            onClick={() => {
+              void save();
+            }}
+          >
+            {t('attribute_values.save_action', { defaultValue: 'Zapisz zmiany' })}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
