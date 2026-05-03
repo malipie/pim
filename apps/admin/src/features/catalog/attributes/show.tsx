@@ -1,12 +1,26 @@
 import { useOne } from '@refinedev/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Layers, Lock, Pencil, Save, Shield, TriangleAlert, Zap } from 'lucide-react';
+import {
+  ArrowLeft,
+  FolderPlus,
+  FolderTree,
+  Layers,
+  Lock,
+  Pencil,
+  Save,
+  Shield,
+  TriangleAlert,
+  X,
+  Zap,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
+import { CreateGroupInlineDialog } from '@/components/modeling/create-group-inline-dialog';
+import { PickGroupsForAttributeDialog } from '@/components/modeling/pick-groups-for-attribute-dialog';
 import { WhereUsedList } from '@/components/modeling/where-used-list';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -370,6 +384,8 @@ function Editor({
           </div>
         </Card>
 
+        <AttachedGroupsCard attribute={attribute} locale={locale} />
+
         <WhereUsedList resource="attributes" id={attribute.id} />
       </div>
 
@@ -631,6 +647,237 @@ function AllowedValuesCard({ attribute, locale }: { attribute: AttributeDetail; 
           ) : null}
         </div>
       )}
+    </Card>
+  );
+}
+
+interface GroupRow {
+  id: string;
+  code: string;
+  label?: Record<string, string> | string | null;
+  color?: string | null;
+  icon?: string | null;
+  systemGroup?: boolean;
+}
+
+/**
+ * Mirror of attribute new.tsx "Dołącz do grup" — same `+ Z grupy` /
+ * `+ Stwórz grupę` reverse buttons + chip list, but acting on an existing
+ * attribute. Picker confirms → bulk-attach for each newly-picked group;
+ * inline create → group is created and attached in the same flow; chip
+ * × → DELETE on the junction.
+ */
+function AttachedGroupsCard({ attribute, locale }: { attribute: AttributeDetail; locale: string }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch all groups, then filter to those the attribute belongs to.
+  // The list is bounded (paginationItemsPerPage=200 on /attribute_groups),
+  // so a single request avoids per-group N+1 fan-out for membership.
+  const { data: allGroups = [] } = useQuery<GroupRow[]>({
+    queryKey: ['attribute_groups', 'all'],
+    queryFn: async () => {
+      const data = await jsonFetch<{ member?: GroupRow[] }>(
+        '/api/attribute_groups?itemsPerPage=200',
+      );
+      return data.member ?? [];
+    },
+    staleTime: 30_000,
+  });
+
+  // Per-group membership probe — `/api/attribute_groups/{id}/attributes`
+  // returns the same `members[].attribute.id` shape used elsewhere, so
+  // this hits the same already-warm cache used by VIEW-03 detail.
+  const memberships = useQuery<Array<{ groupId: string; groupCode: string; row: GroupRow }>>({
+    queryKey: ['attribute', attribute.id, 'memberships'],
+    queryFn: async () => {
+      const out: Array<{ groupId: string; groupCode: string; row: GroupRow }> = [];
+      await Promise.all(
+        allGroups.map(async (group) => {
+          try {
+            const data = await jsonFetch<{
+              members?: Array<{ attribute: { id: string } }>;
+            }>(`/api/attribute_groups/${group.id}/attributes`, {
+              accept: 'application/json',
+            });
+            if ((data.members ?? []).some((m) => m.attribute.id === attribute.id)) {
+              out.push({ groupId: group.id, groupCode: group.code, row: group });
+            }
+          } catch {
+            // tolerate one-group failure; continue with the rest
+          }
+        }),
+      );
+      return out;
+    },
+    enabled: allGroups.length > 0,
+    staleTime: 30_000,
+  });
+
+  const attached = memberships.data ?? [];
+  const attachedCodes = new Set(attached.map((m) => m.groupCode));
+
+  const reload = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['attribute', attribute.id, 'memberships'] }),
+      queryClient.invalidateQueries({ queryKey: ['attribute_groups'] }),
+    ]);
+  };
+
+  const codeToId = new Map(allGroups.map((g) => [g.code, g.id] as const));
+
+  const attachByCodes = async (codes: string[]) => {
+    setError(null);
+    for (const code of codes) {
+      const groupId = codeToId.get(code);
+      if (groupId === undefined) continue;
+      try {
+        await jsonFetch(`/api/attribute_groups/${groupId}/attributes/bulk-attach`, {
+          method: 'POST',
+          contentType: 'application/json',
+          accept: 'application/json',
+          body: { attributeCodes: [attribute.code] },
+        });
+      } catch (err) {
+        if (err instanceof HttpError) {
+          const detail =
+            err.body && typeof err.body === 'object' && 'detail' in err.body
+              ? String((err.body as Record<string, unknown>).detail)
+              : null;
+          setError(detail ?? `HTTP ${err.status}`);
+        } else {
+          setError(t('app.save_error', { defaultValue: 'Nie udało się dołączyć' }));
+        }
+      }
+    }
+    await reload();
+  };
+
+  const detach = async (groupId: string) => {
+    setError(null);
+    try {
+      await jsonFetch(`/api/attribute_groups/${groupId}/attributes/${attribute.id}`, {
+        method: 'DELETE',
+        accept: 'application/json',
+      });
+      await reload();
+    } catch (err) {
+      if (err instanceof HttpError) {
+        const detail =
+          err.body && typeof err.body === 'object' && 'detail' in err.body
+            ? String((err.body as Record<string, unknown>).detail)
+            : null;
+        setError(detail ?? `HTTP ${err.status}`);
+      } else {
+        setError(t('app.delete_error', { defaultValue: 'Nie udało się usunąć' }));
+      }
+    }
+  };
+
+  return (
+    <Card className="p-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          {t('modeling.attributes.attach_groups_title', { defaultValue: 'Dołącz do grup' })}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setPickerOpen(true)}
+            className="h-8 rounded-lg px-2.5 text-[12px]"
+          >
+            <FolderTree className="size-3.5" />
+            {t('modeling.attributes.attach_from_groups_action', { defaultValue: 'Z grupy' })}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setCreateOpen(true)}
+            className="h-8 rounded-lg bg-violet-50 px-2.5 text-[12px] text-violet-700 hover:bg-violet-100"
+          >
+            <FolderPlus className="size-3.5" />
+            {t('modeling.attributes.attach_create_group_action', {
+              defaultValue: 'Stwórz grupę',
+            })}
+          </Button>
+        </div>
+      </div>
+
+      {attached.length === 0 ? (
+        <p className="text-[11.5px] text-muted-foreground">
+          {t('modeling.attributes.attach_groups_empty', {
+            defaultValue: 'Atrybut nie należy do żadnej grupy.',
+          })}
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {attached.map(({ groupId, row }) => {
+            const labelStr = resolveLabel(row.label, locale);
+            const color = row.color ?? '#71717a';
+            return (
+              <span
+                key={groupId}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-[12px] text-zinc-700"
+              >
+                <span
+                  className="grid size-5 place-items-center rounded-md text-[12px]"
+                  style={{ background: `${color}18`, color }}
+                  aria-hidden
+                >
+                  {row.icon ?? '📦'}
+                </span>
+                <span className="font-medium">{labelStr}</span>
+                <span className="font-mono text-[10.5px] text-muted-foreground">{row.code}</span>
+                {row.systemGroup ? (
+                  <BuiltInLockBadge />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void detach(groupId);
+                    }}
+                    aria-label={t('app.remove', { defaultValue: 'Usuń' })}
+                    className="grid size-3.5 place-items-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {error !== null ? <p className="mt-3 text-[12px] text-destructive">{error}</p> : null}
+
+      <PickGroupsForAttributeDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        initialPicked={attachedCodes}
+        onConfirm={(codes) => {
+          const newOnes = Array.from(codes).filter((c) => !attachedCodes.has(c));
+          if (newOnes.length > 0) void attachByCodes(newOnes);
+          // Codes that were unchecked: detach them.
+          const removed = Array.from(attachedCodes).filter((c) => !codes.has(c));
+          for (const code of removed) {
+            const m = attached.find((a) => a.groupCode === code);
+            if (m !== undefined && m.row.systemGroup !== true) void detach(m.groupId);
+          }
+        }}
+        locale={locale}
+      />
+      <CreateGroupInlineDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={(code) => {
+          void attachByCodes([code]);
+        }}
+      />
     </Card>
   );
 }
