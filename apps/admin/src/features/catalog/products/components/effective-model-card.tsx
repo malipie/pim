@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { Card } from '@/components/ui/card';
-
 import type { GroupMeta } from './types';
+import { SYNTHETIC_DEFAULT_GROUP_ID } from './types';
 
 export interface EffectiveModelCardProps {
   groups: GroupMeta[];
@@ -37,18 +37,20 @@ export function EffectiveModelCard({
         })}
       </p>
       <ul className="space-y-1.5 text-[12px]">
-        {groups.map((group) => {
-          const label = group.label[lang] ?? group.code;
-          const source = resolveSource(group, objectTypeName, categoryName);
-          const isSystem = group.code === 'audit' || group.code === 'identification';
-          return (
-            <li key={group.id} className="flex items-center gap-2 rounded-lg px-2 py-1">
-              {isSystem ? <Lock className="size-3 text-zinc-300" aria-hidden /> : null}
-              <span className="truncate font-medium text-zinc-800">{label}</span>
-              <span className="ml-auto truncate text-[10.5px] text-zinc-500">{source}</span>
-            </li>
-          );
-        })}
+        {groups
+          .filter((group) => group.id !== SYNTHETIC_DEFAULT_GROUP_ID)
+          .map((group) => {
+            const label = group.label[lang] ?? group.code;
+            const source = resolveSource(group, objectTypeName, categoryName);
+            const isSystem = group.code === 'audit' || group.code === 'identification';
+            return (
+              <li key={group.id} className="flex items-center gap-2 rounded-lg px-2 py-1">
+                {isSystem ? <Lock className="size-3 text-zinc-300" aria-hidden /> : null}
+                <span className="truncate font-medium text-zinc-800">{label}</span>
+                <span className="ml-auto truncate text-[10.5px] text-zinc-500">{source}</span>
+              </li>
+            );
+          })}
       </ul>
       <Link
         to="/modeling/object-types"
