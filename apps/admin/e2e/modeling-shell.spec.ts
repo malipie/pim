@@ -192,8 +192,11 @@ test('Modeling shell + Dashboard mock — full handoff smoke', async ({ page }) 
     name: /udostępnij do głównego menu|expose to main menu/i,
   });
   await expect(exposeToggle).toBeVisible();
-  await expect(exposeToggle).toHaveAttribute('aria-checked', 'false');
-  await exposeToggle.click();
+  // Test retries can leave Brand with expose=true from a prior run, so
+  // ensure the final state is true regardless of the starting position.
+  if ((await exposeToggle.getAttribute('aria-checked')) !== 'true') {
+    await exposeToggle.click();
+  }
   await expect(exposeToggle).toHaveAttribute('aria-checked', 'true');
 
   await page.goto('/settings/menu');
