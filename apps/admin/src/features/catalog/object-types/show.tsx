@@ -1,4 +1,4 @@
-import { useOne } from '@refinedev/core';
+import { useInvalidate, useOne } from '@refinedev/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check, Copy, Library, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -77,6 +77,7 @@ export function ObjectTypeShowPage() {
   const navigate = useNavigate();
   const id = params.id ?? '';
   const queryClient = useQueryClient();
+  const invalidate = useInvalidate();
 
   const { result, query } = useOne<ObjectTypeDetail>({
     resource: 'object_types',
@@ -136,6 +137,9 @@ export function ObjectTypeShowPage() {
 
   const refreshAll = async () => {
     await Promise.all([
+      // Refine's useOne uses its own cache key — invalidate via the SDK
+      // helper so the Settings toggles surface the new value immediately.
+      invalidate({ resource: 'object_types', id, invalidates: ['detail'] }),
       queryClient.invalidateQueries({ queryKey: ['object_types', id] }),
       queryClient.invalidateQueries({ queryKey: ['object_types', id, 'usage'] }),
       queryClient.invalidateQueries({ queryKey: ['object_types', id, 'attached_groups'] }),
