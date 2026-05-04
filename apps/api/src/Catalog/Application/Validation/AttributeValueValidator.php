@@ -74,6 +74,7 @@ final readonly class AttributeValueValidator
             AttributeType::Relation->value => new TypeValidator\RelationValidator(),
             AttributeType::Price->value => new TypeValidator\PriceValidator(),
             AttributeType::Metric->value => new TypeValidator\MetricValidator(),
+            AttributeType::Wysiwyg->value => new TypeValidator\WysiwygValidator(),
         ]);
     }
 }

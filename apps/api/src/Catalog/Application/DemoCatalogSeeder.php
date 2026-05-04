@@ -154,7 +154,7 @@ final readonly class DemoCatalogSeeder
      */
     private function seedJunctions(ObjectType $product, ObjectType $category, ObjectType $asset, array $attributes): void
     {
-        $productAttrs = ['name', 'sku', 'description', 'short_description', 'brand', 'color', 'size', 'tags', 'price', 'weight', 'height', 'in_stock', 'release_date', 'main_image', 'related_to'];
+        $productAttrs = ['name', 'sku', 'description', 'description_html', 'short_description', 'brand', 'color', 'size', 'tags', 'price', 'weight', 'height', 'in_stock', 'release_date', 'main_image', 'related_to'];
         $categoryAttrs = ['name', 'seo_title', 'seo_description', 'main_image'];
         $assetAttrs = ['name', 'alt_text', 'caption'];
 
@@ -352,6 +352,12 @@ final readonly class DemoCatalogSeeder
                 'label' => ['pl' => 'Opis', 'en' => 'Description'],
                 'type' => AttributeType::Text,
                 'localizable' => true,
+            ],
+            'description_html' => [
+                'label' => ['pl' => 'Opis (rich text)', 'en' => 'Description (rich text)'],
+                'type' => AttributeType::Wysiwyg,
+                'localizable' => true,
+                'rules' => ['max_length' => 50_000],
             ],
             'short_description' => [
                 'label' => ['pl' => 'Krótki opis', 'en' => 'Short description'],
