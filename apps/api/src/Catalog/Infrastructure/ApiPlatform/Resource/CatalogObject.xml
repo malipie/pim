@@ -67,6 +67,14 @@
             <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\CompletenessFilter</filter>
             <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\StatusFilter</filter>
             <!--
+                #429: parent_id exact match for variant listing
+                (`/api/products?parent_id={master_id}`) and category
+                children. Without it AP4 silently ignored the param and
+                VariantsListCard rendered the first 30 products as
+                bogus "variants" of the open master.
+            -->
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\ParentIdFilter</filter>
+            <!--
                 OrderFilter + RangeFilter pinned to `id` are mandatory for
                 cursor pagination (`paginationViaCursor` below) — lessons #0.0.3
                 docu the AP4 trio. Without RangeFilter the `?id[lt]=...`

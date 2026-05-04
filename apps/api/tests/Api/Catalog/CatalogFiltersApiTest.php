@@ -40,6 +40,62 @@ final class CatalogFiltersApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function parentIdFilterReturnsOnlyDirectChildren(): void
+    {
+        // 1 master + 3 variants of master + 2 unrelated products.
+        $em = $this->em();
+        $tenant = $this->tenant();
+        $context = self::getContainer()->get(TenantContext::class);
+        $context->set($tenant);
+
+        $type = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert(null !== $type);
+
+        $repo = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+        $master = new CatalogObject($type, 'PARENT-MASTER');
+        $repo->save($master);
+        foreach (['PARENT-VARIANT-A', 'PARENT-VARIANT-B', 'PARENT-VARIANT-C'] as $code) {
+            $variant = new CatalogObject($type, $code);
+            $variant->assignParent($master);
+            $repo->save($variant);
+        }
+        $unrelatedA = new CatalogObject($type, 'UNRELATED-A');
+        $repo->save($unrelatedA);
+        $unrelatedB = new CatalogObject($type, 'UNRELATED-B');
+        $repo->save($unrelatedB);
+        $em->flush();
+        $em->clear();
+
+        $client = $this->authenticatedClient();
+        $body = $client
+            ->request('GET', \sprintf('/api/products?parent_id=%s', $master->getId()->toRfc4122()))
+            ->toArray();
+
+        $codes = $this->codesFrom($body);
+        self::assertCount(3, $codes);
+        self::assertContains('PARENT-VARIANT-A', $codes);
+        self::assertContains('PARENT-VARIANT-B', $codes);
+        self::assertContains('PARENT-VARIANT-C', $codes);
+        self::assertNotContains('PARENT-MASTER', $codes);
+        self::assertNotContains('UNRELATED-A', $codes);
+    }
+
+    #[Test]
+    public function parentIdFilterIgnoresInvalidUuid(): void
+    {
+        $this->seedProducts(['INVALID-PARENT-A', 'INVALID-PARENT-B']);
+
+        $client = $this->authenticatedClient();
+        // Non-UUID — filter is a no-op so the unfiltered list still
+        // contains both seed rows. Keeps the FE robust against stale
+        // master ids in URL state.
+        $body = $client->request('GET', '/api/products?parent_id=not-a-uuid')->toArray();
+
+        self::assertGreaterThanOrEqual(2, $body['totalItems'] ?? 0);
+    }
+
+    #[Test]
     public function statusFilterRespectsEnumWhitelist(): void
     {
         $this->seedProducts(['SKU-A', 'SKU-B'], status: CatalogObject::STATUS_PUBLISHED);
