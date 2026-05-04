@@ -1,5 +1,15 @@
 # Current Status
 
+## 2026-05-04: VIEW-06 view-first marathon — Kanały CRUD + mapping editor
+
+Operator: po PR #416 (sidebar refactor + wizard #372 + VIEW-01b #413) zmergowanym, kontynuacja prac nad widokiem `/settings/channels`. Brak mockupu — design source = obecny list+show + reuse wzorców. Marathon mode aktywny, bypass permissions, „działaj aż do końca, nie pytaj o nic".
+
+Source of truth: [`Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-06-channels-settings-crud-mapping.md`](../Project%20Plan/UI/Wdrozenie_grafiki/ticket-VIEW-06-channels-settings-crud-mapping.md).
+
+Decyzje (4 pytania): rozszerzyć obecny list+show / inline edit z debounced PATCH 500ms / Locale+Currency jako nowe read-only ApiResource / jeden marathon PR.
+
+Issue #418, branch `feat/view-06-channels-settings-crud-mapping`. Estymacja: ~8-12h LLM-time. Sukces ogłaszamy po smoke teście logowania.
+
 ## 2026-05-03: VIEW-05 produkty-lista marathon — pixel-perfect delta-alignment
 
 Operator: dostarczył mockup `Zrodla/Front_Claude_Design/design_handoff_modelowanie/src/produkty/list-view.jsx` z literal scope „TYLKO lista, bez szczegółów produktu". Plan-mode → 4 pytania scope (delta-alignment / 1 ikona aggregate / SavedViewsRail zastępuje Dropdown / BulkBar 4 akcje jako toast placeholder) → ExitPlanMode → ticket VIEW-05 + Issue #411 + branch `feat/view-05-produkty-lista`.
