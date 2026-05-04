@@ -84,6 +84,7 @@ export function ObjectTypeWizard() {
   const [hierarchical, setHierarchical] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
   const [abstractFlag, setAbstractFlag] = useState(false);
+  const [exposeToMainMenu, setExposeToMainMenu] = useState(false);
   const [pickedGroupIds, setPickedGroupIds] = useState<Set<string>>(new Set());
   const [pickedAttributeIds, setPickedAttributeIds] = useState<Set<string>>(new Set());
   const [declareGroupOpen, setDeclareGroupOpen] = useState(false);
@@ -228,6 +229,22 @@ export function ObjectTypeWizard() {
         }
       }
 
+      // VIEW-08 follow-up — POST /api/object_types nie obsługuje
+      // exposeToMainMenu w body, więc gdy operator włączył toggle w
+      // step 3, dosyłamy PATCH zaraz po stworzeniu.
+      let exposeFailed = false;
+      if (exposeToMainMenu) {
+        try {
+          await jsonFetch(`/api/object_types/${created.id}`, {
+            method: 'PATCH',
+            contentType: 'application/merge-patch+json',
+            body: { exposeToMainMenu: true },
+          });
+        } catch {
+          exposeFailed = true;
+        }
+      }
+
       const issues: string[] = [];
       if (failedGroups.length > 0) {
         issues.push(
@@ -242,6 +259,14 @@ export function ObjectTypeWizard() {
           t('object_type_wizard.attach_attrs_partial_error', {
             defaultValue: '{{count}} atrybutów nie zostało dołączonych',
             count: failedAttrs,
+          }),
+        );
+      }
+      if (exposeFailed) {
+        issues.push(
+          t('object_type_wizard.expose_menu_failed', {
+            defaultValue:
+              'Nie udało się włączyć „Udostępnij do głównego menu" — ustaw ręcznie w detalu',
           }),
         );
       }
@@ -640,6 +665,38 @@ export function ObjectTypeWizard() {
                   checked={abstractFlag}
                   onChange={setAbstractFlag}
                 />
+                {/* VIEW-08 (#427) — main menu candidacy. Mirrors show.tsx
+                    so operator can promote the new ObjectType in the
+                    same step instead of doing a separate PATCH later. */}
+                <div className="border-t border-zinc-100 pt-5">
+                  <SettingToggleRow
+                    label={t('object_types.setting_expose_menu_label', {
+                      defaultValue: 'Udostępnij do głównego menu',
+                    })}
+                    description={t('object_types.setting_expose_menu_desc', {
+                      defaultValue:
+                        'Po włączeniu ten ObjectType pojawi się jako dostępna pozycja w Ustawieniach → Menu. Tam zdecydujesz, czy ostatecznie pojawi się w głównym menu i w jakiej kolejności.',
+                    })}
+                    checked={exposeToMainMenu}
+                    onChange={setExposeToMainMenu}
+                  />
+                  {exposeToMainMenu ? (
+                    <div className="mt-2 text-[11.5px] text-zinc-500">
+                      {t('object_types.setting_expose_menu_link_prefix', {
+                        defaultValue: 'Zarządzaj kolejnością i widocznością w',
+                      })}{' '}
+                      <Link
+                        to="/settings/menu"
+                        className="text-accent-violet underline underline-offset-2 hover:text-accent-violet/80"
+                      >
+                        {t('object_types.setting_expose_menu_link', {
+                          defaultValue: 'Ustawienia → Menu',
+                        })}
+                      </Link>
+                      .
+                    </div>
+                  ) : null}
+                </div>
               </>
             ) : null}
             {step === 4 ? (
