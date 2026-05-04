@@ -213,11 +213,17 @@ test('Modeling shell + Dashboard mock — full handoff smoke', async ({ page }) 
   // workflow, integrations, settings, modeling) = 8 rows.
   await expect(visibleList.locator('> div')).toHaveCount(8);
 
-  // Protected items render Lock icon, no EyeOff button.
-  const settingsRow = visibleList.locator('> div').filter({ hasText: /^(ustawienia|settings)$/i });
+  // Protected items render Lock icon, no EyeOff button. Each row's text
+  // is "<label> <SYS|OT> [Wkrótce]" so anchor to the `flex-1` label span
+  // rather than asserting exact row text.
+  const settingsRow = visibleList
+    .locator('> div')
+    .filter({ has: page.locator('span.flex-1', { hasText: /^(ustawienia|settings)$/i }) });
   await expect(settingsRow).toBeVisible();
   await expect(settingsRow.getByRole('button', { name: /ukryj|hide/i })).toHaveCount(0);
-  const dashboardRow = visibleList.locator('> div').filter({ hasText: /^(pulpit|dashboard)$/i });
+  const dashboardRow = visibleList
+    .locator('> div')
+    .filter({ has: page.locator('span.flex-1', { hasText: /^(pulpit|dashboard)$/i }) });
   await expect(dashboardRow.getByRole('button', { name: /ukryj|hide/i })).toBeVisible();
 
   // Asset toggle is locked on its detail page.
