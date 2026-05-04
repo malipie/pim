@@ -7,6 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
@@ -44,10 +45,23 @@ final class ProductReadEndpointsController
     private const int AUDIT_DEFAULT_LIMIT = 20;
     private const int AUDIT_MAX_LIMIT = 200;
 
+    /**
+     * Sentinel UUID returned for the synthetic "default" group that
+     * carries ObjectType-attached attributes which are not declared in
+     * any AttributeGroup. The all-zero UUID is recognised by the
+     * frontend (`EffectiveModelCard`) as the bucket for ungrouped
+     * fields and hidden from the "Effective model" sidebar listing —
+     * see VIEW-07.1 (#421+).
+     */
+    public const string SYNTHETIC_DEFAULT_GROUP_ID = '00000000-0000-0000-0000-000000000000';
+
+    public const string SYNTHETIC_DEFAULT_GROUP_CODE = 'default';
+
     public function __construct(
         private readonly CatalogObjectRepositoryInterface $objects,
         private readonly EffectiveAttributeGroupResolver $resolver,
         private readonly Connection $connection,
+        private readonly ObjectTypeAttributeRepositoryInterface $objectTypeAttributes,
     ) {
     }
 
@@ -137,12 +151,17 @@ final class ProductReadEndpointsController
         $groups = $this->resolver->resolve($product);
         $byGroup = $this->resolver->loadGroupAttributes($groups);
 
+        // Track every Attribute UUID already exposed via a real group so
+        // the synthetic "default" bucket below never duplicates them.
+        $seenAttributeIds = [];
+
         $effective = [];
         foreach ($groups as $position => $group) {
             $junctions = $byGroup[$group->getId()->toRfc4122()] ?? [];
             $attributes = [];
             foreach ($junctions as $j) {
                 $attribute = $j->getAttribute();
+                $seenAttributeIds[$attribute->getId()->toRfc4122()] = true;
                 $attributes[] = [
                     'id' => $attribute->getId()->toRfc4122(),
                     'code' => $attribute->getCode(),
@@ -163,6 +182,53 @@ final class ProductReadEndpointsController
                 'is_system_group' => $group->isSystemGroup(),
                 'position' => $position,
                 'attributes' => $attributes,
+            ];
+        }
+
+        // VIEW-07.1 (#421+) — surface ObjectType-attached attributes
+        // that are not declared in any AttributeGroup. Without this the
+        // detail page renders only the audit group whenever an
+        // ObjectType uses "loose" attributes (the default Klimas seed
+        // pattern). The synthetic group is appended last so curated
+        // grouping always wins the sort order; an all-zero UUID acts as
+        // a sentinel for the frontend to recognise + hide it from the
+        // "Effective model" sidebar listing.
+        $junctions = $this->objectTypeAttributes->findByObjectType($product->getObjectType());
+        usort(
+            $junctions,
+            static fn ($a, $b): int => $a->getSortOrder() <=> $b->getSortOrder(),
+        );
+        $defaultAttributes = [];
+        foreach ($junctions as $junction) {
+            $attribute = $junction->getAttribute();
+            $key = $attribute->getId()->toRfc4122();
+            if (isset($seenAttributeIds[$key])) {
+                continue;
+            }
+            $seenAttributeIds[$key] = true;
+            $defaultAttributes[] = [
+                'id' => $key,
+                'code' => $attribute->getCode(),
+                'type' => $attribute->getType()->value,
+                'label' => $attribute->getLabel(),
+                'is_system' => $attribute->isSystem(),
+                'position' => $junction->getSortOrder(),
+                'is_required_in_group' => $junction->isRequiredForCompleteness(),
+                'visible_when' => null,
+            ];
+        }
+
+        if ([] !== $defaultAttributes) {
+            $effective[] = [
+                'id' => self::SYNTHETIC_DEFAULT_GROUP_ID,
+                'code' => self::SYNTHETIC_DEFAULT_GROUP_CODE,
+                'label' => ['pl' => 'Atrybuty', 'en' => 'Attributes'],
+                'icon' => null,
+                'color' => null,
+                'is_system_group' => false,
+                'is_synthetic' => true,
+                'position' => \count($effective),
+                'attributes' => $defaultAttributes,
             ];
         }
 

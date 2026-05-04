@@ -57,3 +57,15 @@ export interface EffectiveAttributeGroups {
 }
 
 export type ProductDetailMode = 'edit' | 'create';
+
+/**
+ * Sentinel UUID returned by `GET /api/products/{id}/effective-attribute-groups`
+ * for the synthetic "default" bucket holding ObjectType-attached attributes
+ * that are not declared in any AttributeGroup. The frontend matches this id
+ * verbatim to (a) skip the bucket in the "Effective model" sidebar listing,
+ * (b) render its body the same way every other group renders.
+ *
+ * Backend constant lives in
+ * `App\Catalog\Presentation\Controller\ProductReadEndpointsController::SYNTHETIC_DEFAULT_GROUP_ID`.
+ */
+export const SYNTHETIC_DEFAULT_GROUP_ID = '00000000-0000-0000-0000-000000000000';
