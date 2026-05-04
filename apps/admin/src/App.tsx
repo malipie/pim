@@ -29,6 +29,8 @@ import { ProductEditPage } from '@/features/catalog/products/edit';
 import { ProductListPage } from '@/features/catalog/products/list';
 import { ProductShowPage } from '@/features/catalog/products/show';
 import { CatalogsPdfPage } from '@/features/catalogs-pdf';
+import { ChannelCreatePage } from '@/features/channel/channels/create';
+import { ChannelEditPage } from '@/features/channel/channels/edit';
 import { ChannelsListPage } from '@/features/channel/channels/list';
 import { ChannelShowPage } from '@/features/channel/channels/show';
 import { DashboardPage } from '@/features/dashboard/page';
@@ -91,8 +93,13 @@ function App() {
             {
               name: 'channels',
               list: '/settings/channels',
+              create: '/settings/channels/new',
+              edit: '/settings/channels/:id/edit',
               show: '/settings/channels/:id',
             },
+            { name: 'channel_object_type_mappings' },
+            { name: 'locales' },
+            { name: 'currencies' },
             {
               name: 'api_profiles',
               list: '/api-profiles',
@@ -173,7 +180,9 @@ function App() {
                 <Route path="menu" element={<MenuSettingsPage />} />
                 <Route path="locales" element={<LocalesSettingsPage />} />
                 <Route path="channels" element={<ChannelsListPage />} />
+                <Route path="channels/new" element={<ChannelCreatePage />} />
                 <Route path="channels/:id" element={<ChannelShowPage />} />
+                <Route path="channels/:id/edit" element={<ChannelEditPage />} />
                 <Route path="users" element={<UsersSettingsPage />} />
                 <Route path="roles" element={<RolesSettingsPage />} />
                 <Route path="security" element={<SecuritySettingsPage />} />

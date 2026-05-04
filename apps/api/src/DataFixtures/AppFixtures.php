@@ -11,6 +11,8 @@ use App\Catalog\Application\DemoCatalogSeeder;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Channel\Domain\Entity\Currency;
+use App\Channel\Domain\Entity\Locale;
 use App\Identity\Application\RbacSeeder;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
@@ -50,6 +52,24 @@ class AppFixtures extends Fixture
 
     public function load(ObjectManager $manager): void
     {
+        // Global infrastructure: locales + currencies. The seed migration
+        // (Version20260429064833) inserts these on fresh schema, but
+        // `doctrine:fixtures:load` purges the database first — re-seed
+        // here so post-fixtures DB has the same baseline.
+        foreach ([
+            ['pl_PL', 'Polski (Polska)'],
+            ['en_US', 'English (United States)'],
+        ] as [$code, $label]) {
+            $manager->persist(new Locale($code, $label));
+        }
+        foreach ([
+            ['PLN', 'zł', 'Polish złoty'],
+            ['EUR', '€', 'Euro'],
+            ['USD', '$', 'United States dollar'],
+        ] as [$code, $symbol, $label]) {
+            $manager->persist(new Currency($code, $symbol, $label));
+        }
+
         $tenants = [
             new Tenant('demo', 'Demo Tenant'),
             new Tenant('acme', 'Acme Industries'),

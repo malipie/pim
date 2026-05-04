@@ -54,6 +54,12 @@ dh_auditor:
                 # Channel — partner-publication wiring
                 App\Channel\Domain\Entity\Channel:
                     enabled: true
+                # VIEW-06 (#418) — per-channel × ObjectType × Attribute
+                # mapping rows. Operators edit `target_field` from the
+                # mapping editor; auditing keeps a "who set what target
+                # field on which mapping when" trail.
+                App\Channel\Domain\Entity\ChannelObjectTypeMapping:
+                    enabled: true
                 # Asset — DAM-side state
                 App\Asset\Domain\Entity\Asset:
                     enabled: true

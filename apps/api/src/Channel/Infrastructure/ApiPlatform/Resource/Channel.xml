@@ -24,6 +24,43 @@
             <operation class="ApiPlatform\Metadata\Get"
                        uriTemplate="/channels/{id}{._format}"
                        security="is_granted('READ', object)"/>
+
+            <operation class="ApiPlatform\Metadata\Post"
+                       uriTemplate="/channels{._format}"
+                       input="App\Channel\Infrastructure\ApiPlatform\Resource\ChannelInput"
+                       processor="App\Channel\Infrastructure\ApiPlatform\State\ChannelProcessor"
+                       security="is_granted('CREATE', 'App\\Channel\\Domain\\Entity\\Channel')">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>channel:create</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Patch"
+                       uriTemplate="/channels/{id}{._format}"
+                       input="App\Channel\Infrastructure\ApiPlatform\Resource\ChannelPatchInput"
+                       processor="App\Channel\Infrastructure\ApiPlatform\State\ChannelProcessor"
+                       security="is_granted('UPDATE', object)">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>channel:update</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Delete"
+                       uriTemplate="/channels/{id}{._format}"
+                       processor="App\Channel\Infrastructure\ApiPlatform\State\ChannelProcessor"
+                       security="is_granted('DELETE', object)"/>
         </operations>
     </resource>
 </resources>

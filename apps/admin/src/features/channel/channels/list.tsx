@@ -1,9 +1,16 @@
-import { useList } from '@refinedev/core';
-import { Eye, Radio } from 'lucide-react';
+import { useDelete, useList } from '@refinedev/core';
+import { Eye, MoreHorizontal, Pencil, Plus, Radio, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -12,14 +19,30 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useToast } from '@/components/ui/toast';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 
-interface ChannelRow {
+import { ChannelDeleteConfirmDialog } from './delete-confirm-dialog';
+
+interface LocaleRef {
+  id: string;
+  code: string;
+  label: string;
+}
+
+interface CurrencyRef {
+  id: string;
+  code: string;
+  symbol: string;
+  label: string;
+}
+
+export interface ChannelRow {
   id: string;
   code: string;
   label?: Record<string, string> | string | null;
-  locales?: string[];
-  currencies?: string[];
+  locales?: LocaleRef[];
+  currencies?: CurrencyRef[];
   categoryTreeRootId?: string | null;
 }
 
@@ -29,15 +52,42 @@ export function ChannelsListPage() {
     resource: 'channels',
     pagination: { mode: 'off' },
   });
+  const { mutate: doDelete } = useDelete();
+  const toast = useToast();
+
+  const [pendingDelete, setPendingDelete] = useState<ChannelRow | null>(null);
 
   const channels = result.data;
   const isLoading = query.isLoading;
 
+  const handleDelete = (channel: ChannelRow) => {
+    doDelete(
+      { resource: 'channels', id: channel.id },
+      {
+        onSuccess: () => {
+          toast.success(t('channels.delete.success'));
+          setPendingDelete(null);
+        },
+        onError: () => {
+          toast.error(t('channels.delete.error'));
+        },
+      },
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('channels.list_title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('channels.list_subtitle')}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('channels.list_title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('channels.list_subtitle')}</p>
+        </div>
+        <Button asChild>
+          <Link to="/settings/channels/new">
+            <Plus className="size-4" />
+            {t('channels.list.create_button')}
+          </Link>
+        </Button>
       </div>
 
       <div className="rounded-xl border bg-card">
@@ -48,7 +98,7 @@ export function ChannelsListPage() {
               <TableHead>{t('channels.fields.label')}</TableHead>
               <TableHead className="w-[200px]">{t('channels.fields.locales')}</TableHead>
               <TableHead className="w-[200px]">{t('channels.fields.currencies')}</TableHead>
-              <TableHead className="w-[80px] text-right">
+              <TableHead className="w-[120px] text-right">
                 <span className="sr-only">{t('channels.fields.actions')}</span>
               </TableHead>
             </TableRow>
@@ -63,7 +113,7 @@ export function ChannelsListPage() {
             ) : channels.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                  {t('channels.empty')}
+                  {t('channels.list.empty')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -78,21 +128,49 @@ export function ChannelsListPage() {
                   </TableCell>
                   <TableCell className="space-x-1 text-xs">
                     {(row.locales ?? []).map((loc) => (
-                      <Tag key={loc}>{loc}</Tag>
+                      <Tag key={loc.id ?? loc.code}>{loc.code}</Tag>
                     ))}
                   </TableCell>
                   <TableCell className="space-x-1 text-xs">
                     {(row.currencies ?? []).map((cur) => (
-                      <Tag key={cur}>{cur}</Tag>
+                      <Tag key={cur.id ?? cur.code}>{cur.code}</Tag>
                     ))}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button asChild variant="ghost" size="sm">
-                      <Link to={`/settings/channels/${row.id}`}>
-                        <Eye className="size-4" />
-                        <span className="sr-only">{t('channels.actions.view')}</span>
-                      </Link>
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button asChild variant="ghost" size="sm">
+                        <Link to={`/settings/channels/${row.id}`}>
+                          <Eye className="size-4" />
+                          <span className="sr-only">{t('channels.actions.view')}</span>
+                        </Link>
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="size-4" />
+                            <span className="sr-only">{t('channels.fields.actions')}</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link to={`/settings/channels/${row.id}/edit`}>
+                              <Pencil className="size-4" />
+                              {t('channels.list.actions.edit')}
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={(event) => {
+                              event.preventDefault();
+                              setPendingDelete(row);
+                            }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="size-4" />
+                            {t('channels.list.actions.delete')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -101,7 +179,14 @@ export function ChannelsListPage() {
         </Table>
       </div>
 
-      <p className="text-xs text-muted-foreground">{t('channels.write_deferred_note')}</p>
+      {pendingDelete ? (
+        <ChannelDeleteConfirmDialog
+          channelLabel={resolveLabel(pendingDelete.label, i18n.language) ?? pendingDelete.code}
+          open={true}
+          onClose={() => setPendingDelete(null)}
+          onConfirm={() => handleDelete(pendingDelete)}
+        />
+      ) : null}
     </div>
   );
 }
