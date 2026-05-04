@@ -26,8 +26,14 @@ const ICONS = ['📦', '📐', '🔧', '⚙️', '🛡️', '💧', '🌡️', '
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called with the created group's `code` after BE confirmed creation. */
-  onCreated: (code: string) => void;
+  /** Called with the created group `{ id, code }` after BE confirmed creation. */
+  onCreated: (group: { id: string; code: string }) => void;
+}
+
+interface CreatedAttributeGroupResponse {
+  id?: string;
+  '@id'?: string;
+  code?: string;
 }
 
 /**
@@ -70,13 +76,19 @@ export function CreateGroupInlineDialog({ open, onOpenChange, onCreated }: Props
         icon,
       };
       if (descPl.trim().length > 0) body.description = { pl: descPl.trim() };
-      await jsonFetch('/api/attribute_groups', {
+      const created = await jsonFetch<CreatedAttributeGroupResponse>('/api/attribute_groups', {
         method: 'POST',
         contentType: 'application/ld+json',
         accept: 'application/ld+json',
         body,
       });
-      onCreated(code.trim());
+      const newId =
+        typeof created.id === 'string' && created.id.length > 0
+          ? created.id
+          : typeof created['@id'] === 'string'
+            ? (created['@id'].split('/').pop() ?? '')
+            : '';
+      onCreated({ id: newId, code: code.trim() });
       onOpenChange(false);
     } catch (err) {
       if (err instanceof HttpError) {

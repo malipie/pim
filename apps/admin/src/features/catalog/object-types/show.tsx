@@ -1,15 +1,19 @@
 import { useOne } from '@refinedev/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Check, Copy, Pencil } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Library, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router';
 
+import { AddAttributesToObjectTypeDialog } from '@/components/modeling/add-attributes-to-object-type-dialog';
 import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { AuditTrailCompact } from '@/components/modeling/audit-trail-compact';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { ColorPicker } from '@/components/modeling/color-picker';
+import { CreateAttributeForObjectTypeDialog } from '@/components/modeling/create-attribute-for-object-type-dialog';
+import { CreateGroupInlineDialog } from '@/components/modeling/create-group-inline-dialog';
 import { DangerZoneCard } from '@/components/modeling/danger-zone-card';
+import { DeclareObjectTypeAttributeGroupDialog } from '@/components/modeling/declare-object-type-attribute-group-dialog';
 import { FieldDisplay } from '@/components/modeling/field-display';
 import { type AttachedGroup, GroupCard } from '@/components/modeling/group-card';
 import { IconPicker } from '@/components/modeling/icon-picker';
@@ -47,6 +51,17 @@ interface ObjectTypeUsage {
   attributeGroupsAttachedCount: number;
   referencedByApiProfileCount: number;
   referencedByCategoryAttachmentCount: number;
+}
+
+interface AttachedAttribute {
+  id: string;
+  code: string;
+  label: Record<string, string> | null;
+  type: string;
+  required: boolean;
+  sortOrder: number;
+  isSystem: boolean;
+  group: { id: string; code: string } | null;
 }
 
 /**
@@ -88,9 +103,23 @@ export function ObjectTypeShowPage() {
     staleTime: 30_000,
   });
 
+  const directAttributes = useQuery<AttachedAttribute[]>({
+    queryKey: ['object_types', id, 'attached_attributes'],
+    queryFn: () =>
+      jsonFetch<AttachedAttribute[]>(`/api/object_types/${id}/attached_attributes`, {
+        accept: 'application/json',
+      }),
+    enabled: id.length > 0,
+    staleTime: 30_000,
+  });
+
   const [editingField, setEditingField] = useState<'name' | 'icon' | 'color' | null>(null);
   const [draftLabel, setDraftLabel] = useState<Record<string, string> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [declareGroupOpen, setDeclareGroupOpen] = useState(false);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [addAttrOpen, setAddAttrOpen] = useState(false);
+  const [createAttrOpen, setCreateAttrOpen] = useState(false);
 
   if (query.isLoading || !result) {
     return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
@@ -109,8 +138,37 @@ export function ObjectTypeShowPage() {
       queryClient.invalidateQueries({ queryKey: ['object_types', id] }),
       queryClient.invalidateQueries({ queryKey: ['object_types', id, 'usage'] }),
       queryClient.invalidateQueries({ queryKey: ['object_types', id, 'attached_groups'] }),
+      queryClient.invalidateQueries({ queryKey: ['object_types', id, 'attached_attributes'] }),
       queryClient.invalidateQueries({ queryKey: ['object_types', id, 'audit_log'] }),
     ]);
+  };
+
+  const refreshGroups = () =>
+    queryClient.invalidateQueries({ queryKey: ['object_types', id, 'attached_groups'] });
+
+  const refreshAttributes = () =>
+    queryClient.invalidateQueries({ queryKey: ['object_types', id, 'attached_attributes'] });
+
+  const handleAttachGroupAfterCreate = async (group: { id: string; code: string }) => {
+    setError(null);
+    try {
+      if (group.id.length > 0) {
+        await jsonFetch(`/api/object_types/${id}/groups/${group.id}`, { method: 'POST' });
+      }
+      await refreshGroups();
+    } catch (e) {
+      setError(e instanceof HttpError ? `${e.status}` : e instanceof Error ? e.message : 'unknown');
+    }
+  };
+
+  const handleDetachAttribute = async (attributeId: string) => {
+    setError(null);
+    try {
+      await jsonFetch(`/api/object_types/${id}/attributes/${attributeId}`, { method: 'DELETE' });
+      await refreshAttributes();
+    } catch (e) {
+      setError(e instanceof HttpError ? `${e.status}` : e instanceof Error ? e.message : 'unknown');
+    }
   };
 
   const handlePatch = async (payload: Record<string, unknown>): Promise<boolean> => {
@@ -406,11 +464,27 @@ export function ObjectTypeShowPage() {
                 })}
               </span>
             </div>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/modeling/attribute-groups/new" className="gap-1.5 text-[12px] font-medium">
-                {t('object_types.add_attribute_group', { defaultValue: '+ Add attribute group' })}
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-[12px] font-medium"
+                onClick={() => setDeclareGroupOpen(true)}
+              >
+                <Library className="size-3.5" />
+                {t('object_types.attach_group_from_library_action', {
+                  defaultValue: 'Z biblioteki',
+                })}
+              </Button>
+              <Button
+                size="sm"
+                className="gap-1.5 text-[12px] font-medium"
+                onClick={() => setCreateGroupOpen(true)}
+              >
+                <Plus className="size-3.5" />
+                {t('object_types.create_new_group_action', { defaultValue: 'Stwórz nowy' })}
+              </Button>
+            </div>
           </div>
           {customGroups.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-8 text-center text-[12.5px] text-zinc-500">
@@ -428,6 +502,99 @@ export function ObjectTypeShowPage() {
                   language={i18n.language}
                   onEdit={() => navigate(`/modeling/attribute-groups/${g.id}`)}
                 />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                {t('object_types.custom_attributes_section', {
+                  defaultValue: 'Custom attribute',
+                })}
+              </span>
+              <span className="text-[11px] text-zinc-400">
+                —{' '}
+                {t('object_types.custom_attributes_tagline', {
+                  defaultValue: 'pojedyncze atrybuty dołączone bezpośrednio (poza grupami)',
+                })}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-[12px] font-medium"
+                onClick={() => setAddAttrOpen(true)}
+              >
+                <Library className="size-3.5" />
+                {t('object_types.attach_attribute_from_library_action', {
+                  defaultValue: 'Z biblioteki',
+                })}
+              </Button>
+              <Button
+                size="sm"
+                className="gap-1.5 text-[12px] font-medium"
+                onClick={() => setCreateAttrOpen(true)}
+              >
+                <Plus className="size-3.5" />
+                {t('object_types.create_new_attribute_action', { defaultValue: 'Stwórz nowy' })}
+              </Button>
+            </div>
+          </div>
+          {(directAttributes.data ?? []).length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-8 text-center text-[12.5px] text-zinc-500">
+              {t('object_types.custom_attributes_empty', {
+                defaultValue:
+                  'Brak pojedynczych atrybutów. Dodaj atrybut z biblioteki lub stwórz nowy.',
+              })}
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {(directAttributes.data ?? []).map((a) => (
+                <div
+                  key={a.id}
+                  className="grid grid-cols-[1fr_120px_120px_40px] items-center gap-3 rounded-xl border border-zinc-100 bg-white px-4 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-mono text-[13px] font-medium">{a.code}</span>
+                      {a.required ? (
+                        <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-rose-700">
+                          required
+                        </span>
+                      ) : null}
+                      {a.isSystem ? <BuiltInLockBadge /> : null}
+                    </div>
+                    <div className="truncate text-[11.5px] text-muted-foreground">
+                      {resolveLabel(a.label, i18n.language) || a.code}
+                    </div>
+                  </div>
+                  <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium uppercase text-zinc-700">
+                    {a.type}
+                  </span>
+                  <span className="truncate text-[11px] text-muted-foreground">
+                    {a.group ? (
+                      <span className="font-mono">{a.group.code}</span>
+                    ) : (
+                      <span className="italic">— bez grupy</span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={t('object_types.detach_attribute_action', {
+                      defaultValue: 'Odepnij atrybut',
+                    })}
+                    onClick={() => void handleDetachAttribute(a.id)}
+                    className="grid size-8 place-items-center rounded-lg text-zinc-400 transition hover:bg-rose-50 hover:text-rose-600"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -586,6 +753,40 @@ export function ObjectTypeShowPage() {
           })}
         </span>
       </footer>
+
+      <DeclareObjectTypeAttributeGroupDialog
+        open={declareGroupOpen}
+        onOpenChange={setDeclareGroupOpen}
+        objectTypeId={id}
+        objectTypeName={labelText}
+        attachedIds={new Set((groups.data ?? []).map((g) => g.id))}
+        onAttached={() => void refreshGroups()}
+        locale={i18n.language}
+      />
+
+      <CreateGroupInlineDialog
+        open={createGroupOpen}
+        onOpenChange={setCreateGroupOpen}
+        onCreated={(group) => void handleAttachGroupAfterCreate(group)}
+      />
+
+      <AddAttributesToObjectTypeDialog
+        open={addAttrOpen}
+        onOpenChange={setAddAttrOpen}
+        objectTypeId={id}
+        objectTypeName={labelText}
+        existingIds={new Set((directAttributes.data ?? []).map((a) => a.id))}
+        onAttached={() => void refreshAttributes()}
+        locale={i18n.language}
+      />
+
+      <CreateAttributeForObjectTypeDialog
+        open={createAttrOpen}
+        onOpenChange={setCreateAttrOpen}
+        objectTypeId={id}
+        objectTypeName={labelText}
+        onCreated={() => void refreshAttributes()}
+      />
     </div>
   );
 }

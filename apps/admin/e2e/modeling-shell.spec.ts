@@ -53,9 +53,10 @@ test('Modeling shell + Dashboard mock — full handoff smoke', async ({ page }) 
     /^dashboard$|^pulpit$/i,
     /^products$|^produkty$/i,
     /^services$|^usługi$/i,
-    /^publications$|^publikacje$/i,
+    /^pdf catalogs$|^katalogi pdf$/i,
     /^multimedia$/i,
     /^workflow$/i,
+    /^integrations$|^integracje$/i,
     /^settings$|^ustawienia$/i,
     /^modeling$|^modelowanie$/i,
   ]) {

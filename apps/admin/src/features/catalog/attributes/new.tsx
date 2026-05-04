@@ -447,10 +447,10 @@ export function AttributeCreatePage() {
       <CreateGroupInlineDialog
         open={createGroupOpen}
         onOpenChange={setCreateGroupOpen}
-        onCreated={(code) => {
+        onCreated={(group) => {
           setPickedGroupCodes((prev) => {
             const next = new Set(prev);
-            next.add(code);
+            next.add(group.code);
             return next;
           });
         }}
