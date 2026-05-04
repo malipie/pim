@@ -1,5 +1,17 @@
 # Current Status
 
+## 2026-05-04: VIEW-07 view-first marathon — Produkty edycja + tworzenie
+
+Operator: dostarczył screenshot widoku edycji produktu (Czujnik X-200) + plik `Zrodla/Front_Claude_Design/design_handoff_modelowanie/src/produkty/detail-view.jsx`. Screenshot ma priorytet (makieta była aktualizowana). Plan-mode → 3 pytania scope (relayout VariantsTab body / frontend trzyma stan przy create / 4 lokale UI dropdown bez i18n DE/CS w admin) → ExitPlanMode → ticket VIEW-07 + Issue #420 + branch `feat/view-07-produkty-edycja-relayout`.
+
+Source of truth: [`Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-07-produkty-edycja-relayout.md`](../Project%20Plan/UI/Wdrozenie_grafiki/ticket-VIEW-07-produkty-edycja-relayout.md).
+
+Cel: pixel-perfect relayout `/products/:id` + uproszczenie `/products/new` (zlikwidować 3-step CreateProductWizard, jedna formatka). Inline edit globalny (Edytuj↔Zapisz toggle), dropdowny PL/EN/DE/CS i Shopify/BaseLinker/Allegro, Duplikuj jednym klikiem (POST /api/products/{id}/duplicate z defaults), Podgląd jako mock toast. Multimedia/Powiązania/Historia zostają jako mocki.
+
+FE: nowe `ProductDetailPage`, `AttrGroupCard`, `AttrRow`, `LocaleChannelToolbar`, `SaveToggleButton`, `DuplicateButton`, `PreviewButton`, `SyncStatusCard`, `VariantsListCard`, `EffectiveModelCard`. Reuse: `CompletenessRing`, `ProvenanceBadge`. Usuwamy: `edit.tsx`, `form.tsx`, `create-product-wizard.tsx`, `detail-dynamic-form.tsx`, `detail-group-nav.tsx`, `detail-sidebar.tsx`. Routing `/products/:id/edit` → redirect. BE: zero nowych endpointów, dodać ApiTestCase dla `DuplicateProductController`.
+
+Estymacja: ~8-12h LLM-time. Sukces ogłaszamy po smoke teście logowania.
+
 ## 2026-05-04: VIEW-06 view-first marathon — Kanały CRUD + mapping editor
 
 Operator: po PR #416 (sidebar refactor + wizard #372 + VIEW-01b #413) zmergowanym, kontynuacja prac nad widokiem `/settings/channels`. Brak mockupu — design source = obecny list+show + reuse wzorców. Marathon mode aktywny, bypass permissions, „działaj aż do końca, nie pytaj o nic".
