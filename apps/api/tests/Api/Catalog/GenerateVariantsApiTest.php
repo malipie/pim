@@ -157,6 +157,63 @@ final class GenerateVariantsApiTest extends CatalogApiTestCase
         self::assertSame(1, $second['skipped_count'] ?? null);
     }
 
+    #[Test]
+    public function postGenerateVariantsTransliteratesPolishCharsInSku(): void
+    {
+        $this->seedAttribute('color', AttributeType::Text);
+        $client = $this->authenticatedClient();
+
+        $master = $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'VAR-PL-1',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+
+        $masterId = $master['id'] ?? null;
+        \assert(\is_string($masterId));
+
+        // Default template (no sku_template) — diacritics in axis values
+        // must collapse to ASCII so the SKU stays URL-safe.
+        $defaultTemplate = $client->request(
+            'POST',
+            '/api/products/'.$masterId.'/generate-variants',
+            [
+                'headers' => ['content-type' => 'application/json'],
+                'body' => json_encode([
+                    'axes' => ['color' => ['żółty', 'błękitny']],
+                ], JSON_THROW_ON_ERROR),
+            ],
+        )->toArray();
+
+        $defaultSkus = array_map(
+            static fn (array $row): string => (string) $row['sku'],
+            (array) $defaultTemplate['created'],
+        );
+        self::assertContains('VAR-PL-1-ZOLTY', $defaultSkus);
+        self::assertContains('VAR-PL-1-BLEKITNY', $defaultSkus);
+
+        // Custom template — same transliteration applies, case left intact.
+        $customTemplate = $client->request(
+            'POST',
+            '/api/products/'.$masterId.'/generate-variants',
+            [
+                'headers' => ['content-type' => 'application/json'],
+                'body' => json_encode([
+                    'axes' => ['color' => ['Łososiowy']],
+                    'sku_template' => '{master_sku}-{color}',
+                ], JSON_THROW_ON_ERROR),
+            ],
+        )->toArray();
+
+        $customSkus = array_map(
+            static fn (array $row): string => (string) $row['sku'],
+            (array) $customTemplate['created'],
+        );
+        self::assertContains('VAR-PL-1-Lososiowy', $customSkus);
+    }
+
     private function seedAttribute(string $code, AttributeType $type): void
     {
         $em = $this->em();

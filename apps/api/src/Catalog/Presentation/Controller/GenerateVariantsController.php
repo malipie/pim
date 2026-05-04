@@ -220,16 +220,45 @@ final class GenerateVariantsController
     private function renderSku(string $masterSku, array $combination, ?string $template): string
     {
         if (null === $template) {
-            $parts = array_map(static fn ($v): string => strtoupper((string) $v), array_values($combination));
+            $parts = array_map(
+                fn ($v): string => strtoupper($this->slugifyAxisValue((string) $v)),
+                array_values($combination),
+            );
 
             return $masterSku.'-'.implode('-', $parts);
         }
 
         $rendered = str_replace('{master_sku}', $masterSku, $template);
         foreach ($combination as $axis => $value) {
-            $rendered = str_replace('{'.$axis.'}', (string) $value, $rendered);
+            $rendered = str_replace('{'.$axis.'}', $this->slugifyAxisValue((string) $value), $rendered);
         }
 
         return $rendered;
+    }
+
+    /**
+     * Strip diacritics from an axis value before stamping it into a SKU.
+     * Polish characters are mapped 1:1; anything else falls back to iconv
+     * `ASCII//TRANSLIT` and a final regex purge of leftover non-ASCII to
+     * keep SKUs URL-safe and grep-friendly. Empty / unmappable values
+     * collapse to an empty string — the caller's `-` joiner still keeps
+     * the SKU shape parseable.
+     */
+    private function slugifyAxisValue(string $value): string
+    {
+        $polish = [
+            'ą' => 'a', 'ć' => 'c', 'ę' => 'e', 'ł' => 'l', 'ń' => 'n',
+            'ó' => 'o', 'ś' => 's', 'ź' => 'z', 'ż' => 'z',
+            'Ą' => 'A', 'Ć' => 'C', 'Ę' => 'E', 'Ł' => 'L', 'Ń' => 'N',
+            'Ó' => 'O', 'Ś' => 'S', 'Ź' => 'Z', 'Ż' => 'Z',
+        ];
+        $mapped = strtr($value, $polish);
+
+        $transliterated = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $mapped);
+        if (false === $transliterated) {
+            $transliterated = $mapped;
+        }
+
+        return (string) preg_replace('/[^A-Za-z0-9_-]/', '', $transliterated);
     }
 }
