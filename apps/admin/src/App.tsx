@@ -24,6 +24,7 @@ import { ModelingLayout } from '@/features/catalog/modeling/layout';
 import { ObjectTypesListPage } from '@/features/catalog/object-types/list';
 import { ObjectTypeWizardPage } from '@/features/catalog/object-types/new';
 import { ObjectTypeShowPage } from '@/features/catalog/object-types/show';
+import { ObjectListingPlaceholder } from '@/features/catalog/objects/placeholder';
 import { ProductCreatePage } from '@/features/catalog/products/create';
 import { ProductListPage } from '@/features/catalog/products/list';
 import { ProductShowPage } from '@/features/catalog/products/show';
@@ -176,6 +177,10 @@ function App() {
               />
               <Route path="/assets" element={<AssetsListPage />} />
               <Route path="/assets/:id" element={<AssetShowPage />} />
+              {/* VIEW-08 (#427): generic listing for custom ObjectTypes
+                  promoted to the main menu. Placeholder until B-2 ships
+                  the metadata-driven `<ObjectListingPage />`. */}
+              <Route path="/objects/:code" element={<ObjectListingPlaceholder />} />
               <Route path="/catalogs-pdf" element={<CatalogsPdfPage />} />
               <Route path="/settings" element={<SettingsLayout />}>
                 <Route index element={<SettingsIndex />} />
