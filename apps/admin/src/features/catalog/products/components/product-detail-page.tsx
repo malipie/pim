@@ -1,0 +1,770 @@
+import { useOne } from '@refinedev/core';
+import {
+  ArrowLeft,
+  Clock,
+  Image as ImageIcon,
+  Link2,
+  MoreHorizontal,
+  Pencil,
+  Save,
+  ShoppingBag,
+  Sparkles,
+  Upload,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link, useNavigate } from 'react-router';
+
+import type { Provenance } from '@/components/provenance-badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { MockBadge } from '@/components/ui/mock-badge';
+import { toast } from '@/components/ui/toast';
+import { jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
+
+import { useDefaultObjectType } from '../use-default-object-type';
+import { AgentSuggestionsCard } from './agent-suggestions-card';
+import { AttrGroupCard } from './attr-group-card';
+import { AttrRow } from './attr-row';
+import { CompletenessRing } from './completeness-ring';
+import { DuplicateButton } from './duplicate-button';
+import { EffectiveModelCard } from './effective-model-card';
+import { LocaleChannelToolbar } from './locale-channel-toolbar';
+import { PreviewButton } from './preview-button';
+import { SyncStatusCard } from './sync-status-card';
+import type {
+  AttributeMeta,
+  CatalogObjectDto,
+  GroupMeta,
+  ProductChannel,
+  ProductDetailMode,
+  ProductLocale,
+} from './types';
+import { VariantsListCard } from './variants-list-card';
+import { VariantsTabHost } from './variants-tab-host';
+
+const TABS = ['attributes', 'multimedia', 'relations', 'history', 'variants'] as const;
+type TabKey = (typeof TABS)[number];
+
+const GROUP_ICONS: Record<string, string> = {
+  identification: '🔑',
+  identyfikacja: '🔑',
+  marketing: '✨',
+  technical: '⚙',
+  technicals: '⚙',
+  specyfikacje: '⚙',
+  logistics: '📦',
+  logistyka: '📦',
+  pricing: '💰',
+  cennik: '💰',
+  audit: '🛡',
+  audyt: '🛡',
+};
+
+export interface ProductDetailPageProps {
+  mode: ProductDetailMode;
+  productId?: string;
+}
+
+/**
+ * VIEW-07 (#420) — single-component product detail / create page.
+ *
+ * Renders the full screen documented in
+ * `Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-07-...`. In edit mode
+ * loads the product + its effective attribute groups; in create mode
+ * starts with an empty draft and POSTs on save.
+ *
+ * Inline-edit toggle: a single "Edytuj" / "Zapisz zmiany" button
+ * controls the whole body. While editing, every non-locked attribute
+ * row renders an input. Save dispatches one PATCH with the diff.
+ */
+export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const lang = i18n.language === 'pl' ? 'pl' : 'en';
+  const isEditMode = mode === 'edit';
+  const id = productId ?? '';
+
+  const { result, query } = useOne<CatalogObjectDto>({
+    resource: 'products',
+    id,
+    queryOptions: { enabled: isEditMode && id !== '' },
+  });
+
+  const { objectTypeId } = useDefaultObjectType('product');
+
+  const [groups, setGroups] = useState<GroupMeta[]>([]);
+  const [activeTab, setActiveTab] = useState<TabKey>('attributes');
+  const [locale, setLocale] = useState<ProductLocale>('pl');
+  const [channel, setChannel] = useState<ProductChannel | null>(null);
+  const [isEditing, setIsEditing] = useState<boolean>(!isEditMode);
+  const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+
+  const product = isEditMode ? result : null;
+  const attrs = useMemo(
+    () => unwrapValues((product?.attributesIndexed ?? {}) as Record<string, unknown>),
+    [product?.attributesIndexed],
+  );
+
+  // Load effective groups (in create mode we still want the schema to
+  // know which attributes to render under which group).
+  useEffect(() => {
+    let cancelled = false;
+    const path =
+      isEditMode && id !== ''
+        ? `/api/products/${id}/effective-attribute-groups`
+        : objectTypeId !== null
+          ? `/api/object_types/${objectTypeId}/effective-attribute-groups`
+          : null;
+    if (path === null) return;
+    jsonFetch<{ groups: GroupMeta[] }>(path)
+      .then((body) => {
+        if (cancelled) return;
+        setGroups(body.groups);
+        // Default expand all groups (mockup screenshot shows every section open).
+        setExpandedGroups(new Set(body.groups.map((g) => g.id)));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isEditMode, objectTypeId]);
+
+  const toggleGroup = (groupId: string): void => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const setFieldValue = (code: string, value: unknown): void => {
+    setDirtyFields((prev) => ({ ...prev, [code]: value }));
+  };
+
+  const fieldValue = (code: string): unknown => {
+    if (Object.hasOwn(dirtyFields, code)) {
+      return dirtyFields[code];
+    }
+    return attrs[code];
+  };
+
+  const handleSave = async (): Promise<void> => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      if (mode === 'create') {
+        const skuRaw = dirtyFields.sku ?? dirtyFields.code ?? '';
+        const sku = typeof skuRaw === 'string' ? skuRaw.trim() : '';
+        if (sku === '') {
+          toast.error(
+            t('products.detail.validation.sku_required', { defaultValue: 'SKU jest wymagane' }),
+          );
+          setIsSaving(false);
+          return;
+        }
+        if (objectTypeId === null) {
+          toast.error(
+            t('products.detail.validation.object_type_missing', {
+              defaultValue: 'Brak built-in ObjectType — uruchom seeder katalogu',
+            }),
+          );
+          setIsSaving(false);
+          return;
+        }
+        const attributes = stripAttributes(dirtyFields);
+        const body: Record<string, unknown> = { code: sku, objectTypeId };
+        if (Object.keys(attributes).length > 0) body.attributes = attributes;
+        const created = await jsonFetch<{ id: string }>('/api/products', {
+          method: 'POST',
+          contentType: 'application/ld+json',
+          body,
+        });
+        toast.success(
+          t('products.detail.create.success', {
+            defaultValue: 'Utworzono produkt {{code}}',
+            code: sku,
+          }),
+        );
+        navigate(`/products/${created.id}`);
+      } else {
+        if (Object.keys(dirtyFields).length === 0) {
+          setIsEditing(false);
+          setIsSaving(false);
+          return;
+        }
+        const attributes = stripAttributes(dirtyFields);
+        await jsonFetch(`/api/products/${id}`, {
+          method: 'PATCH',
+          contentType: 'application/merge-patch+json',
+          body: { attributes },
+        });
+        await query.refetch();
+        setDirtyFields({});
+        setIsEditing(false);
+        toast.success(t('products.detail.save.success', { defaultValue: 'Zapisano zmiany' }));
+      }
+    } catch {
+      toast.error(t('products.detail.save.failed', { defaultValue: 'Nie udało się zapisać' }));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const cancelEdit = (): void => {
+    setDirtyFields({});
+    setIsEditing(false);
+  };
+
+  if (isEditMode && (query.isLoading || product === null || product === undefined)) {
+    return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
+  }
+
+  const skuValue =
+    mode === 'create'
+      ? typeof dirtyFields.sku === 'string'
+        ? dirtyFields.sku
+        : ''
+      : (product?.code ?? '');
+  const nameValue =
+    mode === 'create'
+      ? typeof dirtyFields.name === 'string'
+        ? dirtyFields.name
+        : ''
+      : typeof attrs.name === 'string'
+        ? attrs.name
+        : (product?.code ?? '');
+  const brandValue =
+    mode === 'create'
+      ? typeof dirtyFields.brand === 'string'
+        ? dirtyFields.brand
+        : ''
+      : typeof attrs.brand === 'string'
+        ? attrs.brand
+        : '';
+  const objectTypeName = product?.objectType?.name?.[lang] ?? null;
+  const completenessPct = product?.completenessPct ?? 0;
+  const breadcrumbCategory =
+    typeof attrs.category === 'string' && attrs.category !== ''
+      ? attrs.category
+      : (objectTypeName ?? '—');
+
+  const visibleTabs: readonly TabKey[] = mode === 'create' ? (['attributes'] as const) : TABS;
+
+  return (
+    <div className="bg-zinc-50 -mx-6 -mt-6 min-h-[calc(100vh-3rem)]">
+      {/* Header */}
+      <header className="sticky top-0 z-20 glass-strong border-b border-zinc-100">
+        <div className="px-7 pb-3 pt-5">
+          <div className="flex items-center gap-3">
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="size-9 rounded-xl bg-white soft-shadow"
+            >
+              <Link
+                to="/products"
+                aria-label={t('products.back', { defaultValue: 'Powrót do listy' })}
+              >
+                <ArrowLeft className="size-4" />
+              </Link>
+            </Button>
+            <div className="text-[12px] text-zinc-500">
+              <span>{t('products.title', { defaultValue: 'Produkty' })}</span>
+              <span className="mx-1.5 text-zinc-300">/</span>
+              <span>{breadcrumbCategory}</span>
+              {skuValue !== '' ? (
+                <>
+                  <span className="mx-1.5 text-zinc-300">/</span>
+                  <span className="font-medium text-zinc-900">{skuValue}</span>
+                </>
+              ) : null}
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <PreviewButton disabled={mode === 'create'} />
+              {mode === 'edit' && id !== '' ? <DuplicateButton productId={id} /> : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-9 rounded-xl bg-white soft-shadow"
+                aria-label={t('products.detail.actions.more', { defaultValue: 'Więcej' })}
+                disabled
+              >
+                <MoreHorizontal className="size-4" />
+              </Button>
+              <span className="mx-1 h-6 w-px bg-zinc-200" />
+              {isEditing ? (
+                <>
+                  {mode === 'edit' ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={cancelEdit}
+                      disabled={isSaving}
+                      className="h-9 rounded-xl px-3 text-[12.5px] text-zinc-600"
+                    >
+                      {t('products.detail.actions.cancel', { defaultValue: 'Anuluj' })}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    onClick={() => void handleSave()}
+                    disabled={isSaving || (mode === 'create' && objectTypeId === null)}
+                    className="h-9 rounded-xl bg-zinc-900 px-4 text-[12.5px] font-medium text-white hover:bg-zinc-800"
+                  >
+                    <Save className="size-4" />
+                    {mode === 'create'
+                      ? t('products.detail.actions.create', { defaultValue: 'Utwórz produkt' })
+                      : t('products.detail.actions.save', { defaultValue: 'Zapisz zmiany' })}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="h-9 rounded-xl bg-zinc-900 px-4 text-[12.5px] font-medium text-white hover:bg-zinc-800"
+                  aria-pressed={isEditing}
+                >
+                  <Pencil className="size-4" />
+                  {t('products.detail.actions.edit', { defaultValue: 'Edytuj' })}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-start gap-5">
+            <div
+              className="grid size-[72px] shrink-0 place-items-center rounded-2xl bg-white text-[34px] soft-shadow"
+              aria-hidden
+            >
+              ▣
+            </div>
+            <div className="min-w-0 flex-1">
+              {mode === 'create' ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2.5 text-[12px] text-zinc-500">
+                    <Input
+                      autoFocus
+                      placeholder={t('products.detail.create.placeholder.sku', {
+                        defaultValue: 'SKU',
+                      })}
+                      value={skuValue}
+                      onChange={(event) => setFieldValue('sku', event.target.value)}
+                      className="h-7 w-32 rounded-lg border-zinc-200 bg-white px-2 font-mono text-[12px]"
+                    />
+                  </div>
+                  <Input
+                    placeholder={t('products.detail.create.placeholder.name', {
+                      defaultValue: 'Nazwa produktu',
+                    })}
+                    value={nameValue}
+                    onChange={(event) => setFieldValue('name', event.target.value)}
+                    className="font-display h-10 rounded-lg border-zinc-200 bg-white text-[20px] font-semibold tracking-tight"
+                  />
+                  <Input
+                    placeholder={t('products.detail.create.placeholder.brand', {
+                      defaultValue: 'Marka',
+                    })}
+                    value={brandValue}
+                    onChange={(event) => setFieldValue('brand', event.target.value)}
+                    className="h-8 w-64 rounded-lg border-zinc-200 bg-white text-[12px]"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2.5 text-[12px] text-zinc-500">
+                    <span className="font-mono">{product?.code}</span>
+                    {brandValue !== '' ? (
+                      <>
+                        <span className="text-zinc-300">·</span>
+                        <span>{brandValue}</span>
+                      </>
+                    ) : null}
+                    <span className="text-zinc-300">·</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className={cn(
+                          'size-1.5 rounded-full',
+                          product?.enabled ? 'bg-emerald-500' : 'bg-zinc-300',
+                        )}
+                        aria-hidden
+                      />
+                      {product?.enabled
+                        ? t('products.detail.status.active', { defaultValue: 'Aktywny' })
+                        : t('products.detail.status.inactive', { defaultValue: 'Nieaktywny' })}
+                    </span>
+                  </div>
+                  <h1 className="font-display mt-1 text-[26px] font-semibold leading-tight tracking-tight">
+                    {nameValue}
+                  </h1>
+                  {objectTypeName !== null ? (
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-zinc-700 soft-shadow">
+                        {objectTypeName}
+                      </span>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+            {mode === 'edit' ? (
+              <div className="flex items-center">
+                <CompletenessRing pct={completenessPct} size={72} stroke={6} />
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Tabs + locale/channel toolbar */}
+        <div className="flex items-center gap-1 border-t border-zinc-100 px-7">
+          <div
+            className="flex flex-1 items-center gap-1"
+            role="tablist"
+            aria-label={t('products.detail.tabs.aria', { defaultValue: 'Zakładki produktu' })}
+          >
+            {visibleTabs.map((tab) => {
+              const isActive = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    'relative inline-flex h-[44px] items-center gap-2 px-3.5 text-[13px] font-medium tracking-tight',
+                    isActive ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-800',
+                  )}
+                >
+                  {t(`products.detail.tabs.${tab}`, {
+                    defaultValue: TAB_DEFAULT_LABELS[tab],
+                  })}
+                  {tabBadge(tab, groups, product) !== null ? (
+                    <span
+                      className={cn(
+                        'num rounded px-1.5 py-0.5 text-[10.5px]',
+                        isActive ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-500',
+                      )}
+                    >
+                      {tabBadge(tab, groups, product)}
+                    </span>
+                  ) : null}
+                  {isActive ? (
+                    <span
+                      className="absolute -bottom-px left-0 right-0 h-[2px] rounded-t bg-zinc-900"
+                      aria-hidden
+                    />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+          {mode === 'edit' ? (
+            <LocaleChannelToolbar
+              locale={locale}
+              channel={channel}
+              onLocaleChange={setLocale}
+              onChannelChange={setChannel}
+            />
+          ) : null}
+        </div>
+      </header>
+
+      {/* Body */}
+      <div className="grid grid-cols-1 gap-5 px-7 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-3">
+          {activeTab === 'attributes' ? (
+            <>
+              {groups.map((group) => (
+                <AttrGroupCard
+                  key={group.id}
+                  id={group.id}
+                  title={group.label[lang] ?? group.code}
+                  icon={GROUP_ICONS[group.code]}
+                  filledCount={countFilled(group, fieldValue)}
+                  totalCount={group.attributes.length}
+                  expanded={expandedGroups.has(group.id)}
+                  onToggle={() => toggleGroup(group.id)}
+                  isSystem={group.code === 'audit'}
+                >
+                  {group.attributes.map((attr) => (
+                    <AttrRow
+                      key={attr.id}
+                      attribute={attr}
+                      value={fieldValue(attr.code)}
+                      provenance={resolveProvenance(attr, product)}
+                      locale={locale}
+                      isEditing={isEditing}
+                      isLocked={attr.is_system}
+                      onChange={(next) => setFieldValue(attr.code, next)}
+                    />
+                  ))}
+                </AttrGroupCard>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  toast.info(
+                    t('products.detail.add_attribute_group.unavailable', {
+                      defaultValue: 'Custom grupy ad-hoc — follow-up',
+                    }),
+                  )
+                }
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 text-[13px] font-medium text-zinc-500 hover:bg-white hover:text-zinc-900"
+              >
+                +{' '}
+                {t('products.detail.add_attribute_group.label', {
+                  defaultValue: 'Dodaj grupę atrybutów ad-hoc',
+                })}
+              </button>
+            </>
+          ) : null}
+
+          {activeTab !== 'attributes' && mode === 'edit' ? (
+            <OtherTabs activeTab={activeTab} productId={id} />
+          ) : null}
+
+          {mode === 'create' ? (
+            <p className="px-1 text-[12px] text-muted-foreground">
+              {t('products.detail.create.hint', {
+                defaultValue:
+                  'Po utworzeniu produktu pojawią się pozostałe zakładki, sidebar oraz wskaźniki kompletności.',
+              })}
+            </p>
+          ) : null}
+        </div>
+
+        {mode === 'edit' && id !== '' ? (
+          <aside
+            className="space-y-3"
+            aria-label={t('products.detail.sidebar.aria', {
+              defaultValue: 'Panel boczny produktu',
+            })}
+          >
+            <SyncStatusCard productId={id} />
+            <VariantsListCard
+              masterProductId={id}
+              onSelectVariant={(variantId) => navigate(`/products/${variantId}`)}
+              onCreateVariant={() => setActiveTab('variants')}
+            />
+            <EffectiveModelCard groups={groups} objectTypeName={objectTypeName ?? 'Product'} />
+            <AgentSuggestionsCard />
+          </aside>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+const TAB_DEFAULT_LABELS: Record<TabKey, string> = {
+  attributes: 'Atrybuty',
+  multimedia: 'Multimedia',
+  relations: 'Powiązania',
+  history: 'Historia',
+  variants: 'Warianty',
+};
+
+function tabBadge(
+  tab: TabKey,
+  groups: GroupMeta[],
+  product: CatalogObjectDto | null | undefined,
+): number | null {
+  if (tab === 'attributes') return groups.length === 0 ? null : groups.length;
+  if (tab === 'multimedia') return null;
+  if (tab === 'relations') return null;
+  if (tab === 'history') return null;
+  if (tab === 'variants') {
+    const count = (product?.attributesIndexed as { variantsCount?: number } | undefined)
+      ?.variantsCount;
+    return typeof count === 'number' ? count : null;
+  }
+  return null;
+}
+
+function unwrapValues(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (v !== null && typeof v === 'object' && !Array.isArray(v) && 'value' in v) {
+      out[k] = (v as { value: unknown }).value;
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+function stripAttributes(dirty: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(dirty)) {
+    if (k === 'sku' || k === 'code') continue;
+    out[k] = v;
+  }
+  return out;
+}
+
+function countFilled(group: GroupMeta, fieldValue: (code: string) => unknown): number {
+  let filled = 0;
+  for (const attr of group.attributes) {
+    const value = fieldValue(attr.code);
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
+    filled += 1;
+  }
+  return filled;
+}
+
+function resolveProvenance(
+  attr: AttributeMeta,
+  product: CatalogObjectDto | null | undefined,
+): Provenance {
+  if (attr.is_system) return 'integration';
+  const indexed = product?.attributesIndexed as
+    | Record<string, { provenance?: Provenance }>
+    | undefined;
+  const meta = indexed?.[attr.code];
+  if (meta && typeof meta === 'object' && typeof meta.provenance === 'string') {
+    return meta.provenance;
+  }
+  return 'manual';
+}
+
+function OtherTabs({ activeTab, productId }: { activeTab: TabKey; productId: string }) {
+  if (activeTab === 'multimedia') return <MediaStub />;
+  if (activeTab === 'relations') return <RelationsStub />;
+  if (activeTab === 'history') return <HistoryStub />;
+  if (activeTab === 'variants') return <VariantsTabHost productId={productId} />;
+  return null;
+}
+
+function MediaStub() {
+  return (
+    <MockBadge
+      variant="overlay"
+      tooltip="MOCK · Multimedia tab wymaga DAM (S3/MinIO + image transformations)"
+    >
+      <div className="rounded-2xl border border-line bg-surface p-6 soft-shadow">
+        <header className="flex items-center justify-between">
+          <h3 className="text-[14px] font-semibold text-ink">Multimedia</h3>
+          <Button type="button" variant="outline" size="sm" disabled>
+            <Upload className="size-4" />
+            Upload zdjęć
+          </Button>
+        </header>
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          {Array.from({ length: 9 }, (_, i) => `mock-media-${i}`).map((slot) => (
+            <div
+              key={slot}
+              className="aspect-square rounded-xl bg-surface-2 ring-1 ring-inset ring-line"
+              aria-hidden
+            >
+              <div className="flex size-full items-center justify-center text-muted-foreground/60">
+                <ImageIcon className="size-6" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-[11px] text-muted-foreground">
+          Backlog:{' '}
+          <code className="font-mono text-[10px]">POST /api/products/&#123;id&#125;/media</code>
+        </p>
+      </div>
+    </MockBadge>
+  );
+}
+
+function RelationsStub() {
+  const types: Array<{ kind: string; label: string; count: number }> = [
+    { kind: 'cross-sell', label: 'Cross-sell', count: 4 },
+    { kind: 'up-sell', label: 'Up-sell', count: 2 },
+    { kind: 'related', label: 'Powiązane', count: 6 },
+  ];
+
+  return (
+    <MockBadge variant="overlay" tooltip="MOCK · Powiązania wymagają AssociationController (#TBD)">
+      <div className="space-y-3">
+        {types.map((rel) => (
+          <div
+            key={rel.kind}
+            className="flex items-center justify-between rounded-2xl border border-line bg-surface p-4 soft-shadow"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-accent-blue/10 text-accent-blue">
+                <ShoppingBag className="size-4" />
+              </span>
+              <div>
+                <p className="text-[13.5px] font-semibold text-ink">{rel.label}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {rel.count} produktów powiązanych
+                </p>
+              </div>
+            </div>
+            <Button type="button" variant="ghost" size="sm" disabled>
+              Edytuj
+            </Button>
+          </div>
+        ))}
+      </div>
+    </MockBadge>
+  );
+}
+
+function HistoryStub() {
+  const events = [
+    {
+      who: 'Marcin Lipiec',
+      when: '5 min temu',
+      what: 'Zmieniono description.pl',
+      tone: 'bg-accent-violet/10 text-accent-violet',
+    },
+    {
+      who: 'agent.sonnet',
+      when: '2 godz. temu',
+      what: 'Wzbogacono kod HS (taryfa UE 2026)',
+      tone: 'bg-accent-emerald/10 text-accent-emerald',
+    },
+    {
+      who: 'Anna Wiśniewska',
+      when: 'wczoraj',
+      what: 'Dodano 3 zdjęcia produktu',
+      tone: 'bg-accent-blue/10 text-accent-blue',
+    },
+  ];
+
+  return (
+    <MockBadge variant="overlay" tooltip="MOCK · Pełna timeline wymaga endpointu audit-log">
+      <div className="rounded-2xl border border-line bg-surface p-5 soft-shadow">
+        <header className="mb-4 flex items-center gap-2">
+          <Sparkles className="size-4 text-muted-foreground" />
+          <h3 className="text-[14px] font-semibold text-ink">Historia zmian</h3>
+        </header>
+        <ol className="relative space-y-4 border-l border-line pl-6">
+          {events.map((event) => (
+            <li key={`${event.who}-${event.when}`} className="relative">
+              <span
+                className={`absolute -left-[31px] flex size-5 items-center justify-center rounded-full ring-2 ring-background ${event.tone}`}
+              >
+                <Clock className="size-2.5" />
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] font-medium text-ink">{event.who}</span>
+                <span className="text-[11px] text-muted-foreground">{event.when}</span>
+              </div>
+              <p className="mt-0.5 text-[12.5px] text-ink-2">{event.what}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
+          <Link2 className="size-3" />
+          Sidebar pokazuje 5 ostatnich; pełna paginowana historia czeka na endpoint.
+        </div>
+      </div>
+    </MockBadge>
+  );
+}
