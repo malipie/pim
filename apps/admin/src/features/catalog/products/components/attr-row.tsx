@@ -1,4 +1,4 @@
-import { Lock } from 'lucide-react';
+import { Copy, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WysiwygEditor } from '@/components/catalog/wysiwyg-editor';
 import { type Provenance, ProvenanceBadge } from '@/components/provenance-badge';
@@ -16,6 +16,14 @@ export interface AttrRowProps {
   isEditing: boolean;
   isLocked: boolean;
   onChange: (next: unknown) => void;
+  /**
+   * VIEW-07.3 (#432) — when present, the RHS slot renders a Copy
+   * action instead of the ProvenanceBadge. Used by `VariantsTabHost`
+   * to let operators broadcast a single attribute value to every
+   * other variant. The provenance signal is preserved in the button's
+   * tooltip so we don't lose it for Faza 2 inheritance work.
+   */
+  onCopyToOthers?: () => void;
 }
 
 /**
@@ -33,6 +41,7 @@ export function AttrRow({
   isEditing,
   isLocked,
   onChange,
+  onCopyToOthers,
 }: AttrRowProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
@@ -138,7 +147,25 @@ export function AttrRow({
       </div>
 
       <div className="flex items-center gap-1 pt-1.5">
-        <ProvenanceBadge provenance={provenance} />
+        {onCopyToOthers !== undefined ? (
+          <button
+            type="button"
+            onClick={onCopyToOthers}
+            title={t('products.detail.variants.copy_to_others', {
+              defaultValue: 'Kopiuj do innych wariantów · Source: {{provenance}}',
+              provenance: t(`provenance.${provenance}`, { defaultValue: provenance }),
+            })}
+            aria-label={t('products.detail.variants.copy_to_others_aria', {
+              defaultValue: 'Kopiuj wartość {{label}} do innych wariantów',
+              label,
+            })}
+            className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+          >
+            <Copy className="size-3.5" aria-hidden />
+          </button>
+        ) : (
+          <ProvenanceBadge provenance={provenance} />
+        )}
       </div>
     </div>
   );

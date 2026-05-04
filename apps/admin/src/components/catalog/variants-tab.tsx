@@ -33,6 +33,7 @@ interface GenerateVariantsResponse {
 
 /**
  * UI-02.18 (#308) — Variants tab for the product detail page.
+ * VIEW-07.3 (#432) — dynamic SKU template default + onGenerated callback.
  *
  * Slice covers the axes editor + matrix generator, both wired to the
  * UI-02.6 backend (`POST /api/products/{master_id}/generate-variants`).
@@ -41,14 +42,25 @@ interface GenerateVariantsResponse {
  * - Per-axis add/remove + per-value chip removal.
  * - Generate button posts the cartesian product spec; the response
  *   reports created vs skipped (existing SKU collisions).
- * - SKU template (optional). Default `{master_sku}-{values_joined}`.
- *
- * Per-variant Excel-like grid lands once UI-02.12 is integrated into
- * the variant list view; the matrix generator output already returns
- * the new SKUs so a follow-up just needs to reuse `<ExcelLikeGrid>`
- * over the variants collection.
+ * - SKU template (optional). Default computed from current axes:
+ *   `{master_sku}-{axis_1}-...-{axis_n}`. Empty input falls back to
+ *   the computed default at submit time.
+ * - `onGenerated` fires after a successful POST so the host
+ *   (`VariantsTabHost`) can re-fetch the variants list.
  */
-export function VariantsTab({ masterProductId }: { masterProductId: string }) {
+function buildDefaultSkuTemplate(axes: AxisDraft[]): string {
+  const codes = axes.map((a) => a.code.trim()).filter((c) => c !== '');
+  if (codes.length === 0) return '{master_sku}';
+  return `{master_sku}-${codes.map((c) => `{${c}}`).join('-')}`;
+}
+
+export function VariantsTab({
+  masterProductId,
+  onGenerated,
+}: {
+  masterProductId: string;
+  onGenerated?: () => void;
+}) {
   const { t } = useTranslation();
   const [axes, setAxes] = useState<AxisDraft[]>([{ code: 'color', values: [] }]);
   const [attributes, setAttributes] = useState<SchemaAttribute[]>([]);
@@ -118,12 +130,15 @@ export function VariantsTab({ masterProductId }: { masterProductId: string }) {
         }
       }
       const body: Record<string, unknown> = { axes: axesPayload };
-      if (skuTemplate.trim() !== '') body.sku_template = skuTemplate.trim();
+      const template =
+        skuTemplate.trim() !== '' ? skuTemplate.trim() : buildDefaultSkuTemplate(axes);
+      body.sku_template = template;
       const result = await jsonFetch<GenerateVariantsResponse>(
         `/api/products/${masterProductId}/generate-variants`,
         { method: 'POST', body },
       );
       setResponse(result);
+      onGenerated?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'unknown');
     } finally {
@@ -174,7 +189,7 @@ export function VariantsTab({ masterProductId }: { masterProductId: string }) {
           id="variants-sku-template"
           value={skuTemplate}
           onChange={(e) => setSkuTemplate(e.target.value)}
-          placeholder="{master_sku}-{color}-{size}"
+          placeholder={buildDefaultSkuTemplate(axes)}
         />
       </div>
 
