@@ -28,11 +28,20 @@ import { ProductCreatePage } from '@/features/catalog/products/create';
 import { ProductEditPage } from '@/features/catalog/products/edit';
 import { ProductListPage } from '@/features/catalog/products/list';
 import { ProductShowPage } from '@/features/catalog/products/show';
+import { CatalogsPdfPage } from '@/features/catalogs-pdf';
 import { ChannelsListPage } from '@/features/channel/channels/list';
 import { ChannelShowPage } from '@/features/channel/channels/show';
 import { DashboardPage } from '@/features/dashboard/page';
 import { LoginPage } from '@/features/identity/auth/login';
+import { AiSettingsPage } from '@/features/settings/ai';
+import { LocalesSettingsPage } from '@/features/settings/locales';
+import { MenuSettingsPage } from '@/features/settings/menu';
+import { RolesSettingsPage } from '@/features/settings/roles';
+import { SettingsIndex } from '@/features/settings/SettingsIndex';
+import { SecuritySettingsPage } from '@/features/settings/security';
+import { UsersSettingsPage } from '@/features/settings/users';
 import { AppLayout } from '@/layout/AppLayout';
+import { SettingsLayout } from '@/layout/SettingsLayout';
 import { authProvider } from '@/lib/auth-provider';
 import { dataProvider } from '@/lib/data-provider';
 
@@ -79,7 +88,11 @@ function App() {
               show: '/modeling/categories/:id',
             },
             { name: 'assets', list: '/assets', show: '/assets/:id' },
-            { name: 'channels', list: '/channels', show: '/channels/:id' },
+            {
+              name: 'channels',
+              list: '/settings/channels',
+              show: '/settings/channels/:id',
+            },
             {
               name: 'api_profiles',
               list: '/api-profiles',
@@ -154,8 +167,18 @@ function App() {
               />
               <Route path="/assets" element={<AssetsListPage />} />
               <Route path="/assets/:id" element={<AssetShowPage />} />
-              <Route path="/channels" element={<ChannelsListPage />} />
-              <Route path="/channels/:id" element={<ChannelShowPage />} />
+              <Route path="/catalogs-pdf" element={<CatalogsPdfPage />} />
+              <Route path="/settings" element={<SettingsLayout />}>
+                <Route index element={<SettingsIndex />} />
+                <Route path="menu" element={<MenuSettingsPage />} />
+                <Route path="locales" element={<LocalesSettingsPage />} />
+                <Route path="channels" element={<ChannelsListPage />} />
+                <Route path="channels/:id" element={<ChannelShowPage />} />
+                <Route path="users" element={<UsersSettingsPage />} />
+                <Route path="roles" element={<RolesSettingsPage />} />
+                <Route path="security" element={<SecuritySettingsPage />} />
+                <Route path="ai" element={<AiSettingsPage />} />
+              </Route>
               <Route path="/api-profiles" element={<ApiProfilesListPage />} />
               <Route path="/api-profiles/create" element={<ApiProfileCreatePage />} />
               <Route path="/api-profiles/:id/edit" element={<ApiProfileEditPage />} />

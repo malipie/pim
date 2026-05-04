@@ -88,7 +88,7 @@ export function ChannelsListPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <Button asChild variant="ghost" size="sm">
-                      <Link to={`/channels/${row.id}`}>
+                      <Link to={`/settings/channels/${row.id}`}>
                         <Eye className="size-4" />
                         <span className="sr-only">{t('channels.actions.view')}</span>
                       </Link>

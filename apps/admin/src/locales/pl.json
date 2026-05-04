@@ -39,9 +39,10 @@
     "dashboard": "Pulpit",
     "products": "Produkty",
     "services": "Usługi",
-    "publications": "Publikacje",
+    "catalogsPdf": "Katalogi PDF",
     "multimedia": "Multimedia",
     "workflow": "Workflow",
+    "integrations": "Integracje",
     "settings": "Ustawienia",
     "modeling": "Modelowanie",
     "soon": "Wkrótce",
@@ -50,6 +51,29 @@
     "active_modules_count_few": "{{count}} moduły aktywne",
     "active_modules_count_many": "{{count}} modułów aktywnych",
     "active_modules_count_other": "{{count}} modułów aktywnych"
+  },
+  "settings": {
+    "page_title": "Ustawienia",
+    "subnav_aria": "Sekcje ustawień",
+    "nav": {
+      "menu": "Ustawienia Menu",
+      "locales": "Wersje językowe",
+      "channels": "Kanały",
+      "users": "Użytkownicy",
+      "roles": "Role",
+      "security": "Polityka Haseł, 2FA",
+      "ai": "Konfiguracja AI"
+    },
+    "placeholder": {
+      "title": "W przygotowaniu",
+      "description": "Ten widok jest planowany. Wrócimy do niego w kolejnym tickecie view-first.",
+      "back": "Wróć do pulpitu"
+    }
+  },
+  "catalogs_pdf": {
+    "page_title": "Katalogi PDF",
+    "placeholder_title": "W przygotowaniu",
+    "placeholder_description": "Generowanie katalogów PDF jest na liście backlogu. Scope ustalimy w osobnym tickecie."
   },
   "topbar": {
     "workspace": "Workspace",

@@ -39,15 +39,39 @@
     "dashboard": "Dashboard",
     "products": "Products",
     "services": "Services",
-    "publications": "Publications",
+    "catalogsPdf": "PDF Catalogs",
     "multimedia": "Multimedia",
     "workflow": "Workflow",
+    "integrations": "Integrations",
     "settings": "Settings",
     "modeling": "Modeling",
     "soon": "Soon",
     "workspace_label": "Workspace",
     "active_modules_count_one": "{{count}} active module",
     "active_modules_count_other": "{{count}} active modules"
+  },
+  "settings": {
+    "page_title": "Settings",
+    "subnav_aria": "Settings sections",
+    "nav": {
+      "menu": "Menu settings",
+      "locales": "Languages",
+      "channels": "Channels",
+      "users": "Users",
+      "roles": "Roles",
+      "security": "Password policy, 2FA",
+      "ai": "AI configuration"
+    },
+    "placeholder": {
+      "title": "Coming soon",
+      "description": "This view is planned. It will be implemented in a follow-up view-first ticket.",
+      "back": "Back to dashboard"
+    }
+  },
+  "catalogs_pdf": {
+    "page_title": "PDF Catalogs",
+    "placeholder_title": "Coming soon",
+    "placeholder_description": "PDF catalog generation is in the backlog. Scope will be defined in a separate ticket."
   },
   "topbar": {
     "workspace": "Workspace",

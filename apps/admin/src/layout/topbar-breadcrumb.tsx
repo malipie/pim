@@ -7,8 +7,9 @@ const ROUTE_LABEL_KEYS: Array<{ match: RegExp; key: string }> = [
   { match: /^\/products/, key: 'nav.products' },
   { match: /^\/modeling/, key: 'nav.modeling' },
   { match: /^\/assets/, key: 'nav.multimedia' },
-  { match: /^\/channels/, key: 'nav.publications' },
-  { match: /^\/api-profiles/, key: 'nav.settings' },
+  { match: /^\/catalogs-pdf/, key: 'nav.catalogsPdf' },
+  { match: /^\/api-profiles/, key: 'nav.integrations' },
+  { match: /^\/settings/, key: 'nav.settings' },
 ];
 
 export function TopbarBreadcrumb() {

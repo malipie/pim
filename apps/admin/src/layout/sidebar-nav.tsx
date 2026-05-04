@@ -1,12 +1,13 @@
 import {
   Boxes,
   Cog,
+  FileText,
   Image,
   LayoutDashboard,
   type LucideIcon,
   Package,
+  Plug2,
   Settings2,
-  Share2,
   Workflow,
   Wrench,
 } from 'lucide-react';
@@ -48,10 +49,11 @@ const NAV_SECTIONS: NavSection[] = [
         kindTag: 'CUSTOM',
         count: '84',
       },
-      { to: '/channels', icon: Share2, label: 'nav.publications' },
+      { to: '/catalogs-pdf', icon: FileText, label: 'nav.catalogsPdf' },
       { to: '/assets', icon: Image, label: 'nav.multimedia', count: '8 421' },
       { icon: Workflow, label: 'nav.workflow', comingSoon: true },
-      { to: '/api-profiles', icon: Cog, label: 'nav.settings' },
+      { to: '/api-profiles', icon: Plug2, label: 'nav.integrations' },
+      { to: '/settings', icon: Cog, label: 'nav.settings' },
     ],
   },
   {

@@ -44,7 +44,7 @@ export function ChannelShowPage() {
     <div className="space-y-6">
       <div className="space-y-1">
         <Button asChild variant="ghost" size="sm" className="-ml-3">
-          <Link to="/channels">
+          <Link to="/settings/channels">
             <ArrowLeft className="size-4" />
             {t('channels.back')}
           </Link>
