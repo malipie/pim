@@ -1,5 +1,5 @@
 import { Refine } from '@refinedev/core';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router';
 
 import { AuthedRoute } from '@/components/AuthedRoute';
 import { ToastProvider } from '@/components/ui/toast';
@@ -25,7 +25,6 @@ import { ObjectTypesListPage } from '@/features/catalog/object-types/list';
 import { ObjectTypeWizardPage } from '@/features/catalog/object-types/new';
 import { ObjectTypeShowPage } from '@/features/catalog/object-types/show';
 import { ProductCreatePage } from '@/features/catalog/products/create';
-import { ProductEditPage } from '@/features/catalog/products/edit';
 import { ProductListPage } from '@/features/catalog/products/list';
 import { ProductShowPage } from '@/features/catalog/products/show';
 import { CatalogsPdfPage } from '@/features/catalogs-pdf';
@@ -127,7 +126,10 @@ function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/products" element={<ProductListPage />} />
               <Route path="/products/new" element={<ProductCreatePage />} />
-              <Route path="/products/:id/edit" element={<ProductEditPage />} />
+              {/* VIEW-07 (#420): edit page is now inline-edit on /products/:id.
+                  Keep the legacy path as a back-compat redirect for bookmarks
+                  and Refine resource lookups that still ask for `edit`. */}
+              <Route path="/products/:id/edit" element={<RedirectToShow />} />
               <Route path="/products/:id" element={<ProductShowPage />} />
               {/* UI-08.9 (#264) — Modeling shell wraps the 4 sub-tabs under
                 a shared `/modeling/*` route tree. Old top-level paths
@@ -199,6 +201,12 @@ function App() {
       </ToastProvider>
     </BrowserRouter>
   );
+}
+
+/** VIEW-07 (#420) — back-compat redirect for `/products/:id/edit`. */
+function RedirectToShow() {
+  const params = useParams<{ id: string }>();
+  return <Navigate to={`/products/${params.id ?? ''}`} replace />;
 }
 
 export default App;

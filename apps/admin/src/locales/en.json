@@ -553,6 +553,108 @@
       "sku_max": "SKU can be at most 64 characters.",
       "name_required": "Name is required.",
       "name_max": "Name can be at most 255 characters."
+    },
+    "detail": {
+      "actions": {
+        "preview": "Preview",
+        "duplicate": "Duplicate",
+        "more": "More",
+        "edit": "Edit",
+        "save": "Save changes",
+        "create": "Create product",
+        "cancel": "Cancel"
+      },
+      "preview": {
+        "unavailable": "Product preview — feature in progress"
+      },
+      "duplicate": {
+        "pending": "Creating copy…",
+        "success": "Created copy {{code}}",
+        "failed": "Could not create copy"
+      },
+      "save": {
+        "success": "Changes saved",
+        "failed": "Save failed"
+      },
+      "tabs": {
+        "aria": "Product tabs",
+        "attributes": "Attributes",
+        "multimedia": "Media",
+        "relations": "Relations",
+        "history": "History",
+        "variants": "Variants"
+      },
+      "locale": {
+        "label": "Language",
+        "option": {
+          "pl": "Polish",
+          "en": "English",
+          "de": "German",
+          "cs": "Czech"
+        }
+      },
+      "channel": {
+        "label": "Channel",
+        "none": "All channels"
+      },
+      "completeness": {
+        "aria": "Completeness {{pct}}%"
+      },
+      "has_variants": "Variant · {{count}} variants",
+      "no_variants": "No variants",
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "field": {
+        "empty": "—",
+        "locale_aria": "Locale {{locale}}",
+        "locked": "Locked"
+      },
+      "group": {
+        "system": "system",
+        "filled": "{{filled}} / {{total}} filled · {{pct}}%"
+      },
+      "add_attribute_group": {
+        "unavailable": "Custom ad-hoc groups — follow-up",
+        "label": "Add ad-hoc attribute group"
+      },
+      "sidebar": {
+        "aria": "Product side panel",
+        "publication_status": "Publication status",
+        "no_channels": "No channels (sync ships in Phase 1)",
+        "force_sync": {
+          "unavailable": "Force sync — follow-up Phase 1",
+          "label": "Force sync"
+        },
+        "variants": {
+          "empty": "No variants — add one or generate from axes.",
+          "new": "New variant",
+          "title": "Variants"
+        },
+        "effective_model": {
+          "intro": "Object attributes come from:",
+          "see_in_modeling": "Open in Modeling →"
+        }
+      },
+      "create": {
+        "placeholder": {
+          "sku": "SKU",
+          "name": "Product name",
+          "brand": "Brand"
+        },
+        "success": "Created product {{code}}",
+        "hint": "Once the product is saved, the rest of the tabs, sidebar, and completeness indicators appear."
+      },
+      "validation": {
+        "sku_required": "SKU is required",
+        "object_type_missing": "No built-in ObjectType found — run the catalog seeder"
+      },
+      "variants": {
+        "list_title": "Variants list",
+        "count": "{{count}} variants",
+        "empty_body": "No variants. Generate from axes below or add manually."
+      }
     }
   },
   "api_profiles": {

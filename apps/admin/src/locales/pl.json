@@ -555,6 +555,108 @@
       "sku_max": "SKU może mieć maksymalnie 64 znaki.",
       "name_required": "Nazwa jest wymagana.",
       "name_max": "Nazwa może mieć maksymalnie 255 znaków."
+    },
+    "detail": {
+      "actions": {
+        "preview": "Podgląd",
+        "duplicate": "Duplikuj",
+        "more": "Więcej",
+        "edit": "Edytuj",
+        "save": "Zapisz zmiany",
+        "create": "Utwórz produkt",
+        "cancel": "Anuluj"
+      },
+      "preview": {
+        "unavailable": "Podgląd produktu — funkcja w przygotowaniu"
+      },
+      "duplicate": {
+        "pending": "Tworzę kopię…",
+        "success": "Utworzono kopię {{code}}",
+        "failed": "Nie udało się utworzyć kopii"
+      },
+      "save": {
+        "success": "Zapisano zmiany",
+        "failed": "Nie udało się zapisać"
+      },
+      "tabs": {
+        "aria": "Zakładki produktu",
+        "attributes": "Atrybuty",
+        "multimedia": "Multimedia",
+        "relations": "Powiązania",
+        "history": "Historia",
+        "variants": "Warianty"
+      },
+      "locale": {
+        "label": "Język",
+        "option": {
+          "pl": "Polski",
+          "en": "Angielski",
+          "de": "Niemiecki",
+          "cs": "Czeski"
+        }
+      },
+      "channel": {
+        "label": "Kanał",
+        "none": "Wszystkie kanały"
+      },
+      "completeness": {
+        "aria": "Kompletność {{pct}}%"
+      },
+      "has_variants": "Wariantowy · {{count}} wariantów",
+      "no_variants": "Bez wariantów",
+      "status": {
+        "active": "Aktywny",
+        "inactive": "Nieaktywny"
+      },
+      "field": {
+        "empty": "—",
+        "locale_aria": "Język {{locale}}",
+        "locked": "Zablokowane"
+      },
+      "group": {
+        "system": "system",
+        "filled": "{{filled}} / {{total}} wypełnione · {{pct}}%"
+      },
+      "add_attribute_group": {
+        "unavailable": "Custom grupy ad-hoc — follow-up",
+        "label": "Dodaj grupę atrybutów ad-hoc"
+      },
+      "sidebar": {
+        "aria": "Panel boczny produktu",
+        "publication_status": "Status publikacji",
+        "no_channels": "Brak kanałów (synchronizacja w Faza 1)",
+        "force_sync": {
+          "unavailable": "Wymuś synchronizację — follow-up Faza 1",
+          "label": "Wymuś synchronizację"
+        },
+        "variants": {
+          "empty": "Brak wariantów — dodaj nowy lub wygeneruj z osi.",
+          "new": "Nowy wariant",
+          "title": "Warianty"
+        },
+        "effective_model": {
+          "intro": "Atrybuty obiektu pochodzą z:",
+          "see_in_modeling": "Zobacz w Modelowanie →"
+        }
+      },
+      "create": {
+        "placeholder": {
+          "sku": "SKU",
+          "name": "Nazwa produktu",
+          "brand": "Marka"
+        },
+        "success": "Utworzono produkt {{code}}",
+        "hint": "Po utworzeniu produktu pojawią się pozostałe zakładki, sidebar oraz wskaźniki kompletności."
+      },
+      "validation": {
+        "sku_required": "SKU jest wymagane",
+        "object_type_missing": "Brak built-in ObjectType — uruchom seeder katalogu"
+      },
+      "variants": {
+        "list_title": "Lista wariantów",
+        "count": "{{count}} wariantów",
+        "empty_body": "Brak wariantów. Wygeneruj je z osi w sekcji poniżej lub dodaj ręcznie."
+      }
     }
   },
   "api_profiles": {
