@@ -5658,7 +5658,8 @@
                             "asset",
                             "relation",
                             "price",
-                            "metric"
+                            "metric",
+                            "wysiwyg"
                         ],
                         "default": "text",
                         "type": "string"
