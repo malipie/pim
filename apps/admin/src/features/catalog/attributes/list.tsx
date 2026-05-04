@@ -44,6 +44,7 @@ const TYPE_FILTERS = [
   'relation',
   'price',
   'metric',
+  'wysiwyg',
 ] as const;
 
 type TypeFilter = (typeof TYPE_FILTERS)[number];
