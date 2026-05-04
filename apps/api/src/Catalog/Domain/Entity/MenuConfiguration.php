@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Domain\Entity;
+namespace App\Catalog\Domain\Entity;
 
-use App\Identity\Domain\Value\MenuItemRecord;
+use App\Catalog\Domain\Value\MenuItemRecord;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;

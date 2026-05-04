@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Domain;
+namespace App\Catalog\Domain;
 
 /**
  * VIEW-08 (#427) — registry of built-in system menu items.

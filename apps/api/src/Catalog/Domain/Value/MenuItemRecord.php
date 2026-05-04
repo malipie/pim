@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Domain\Value;
+namespace App\Catalog\Domain\Value;
 
 use InvalidArgumentException;
 use Symfony\Component\Uid\Uuid;
@@ -11,7 +11,7 @@ use Symfony\Component\Uid\Uuid;
  * VIEW-08 (#427) — single entry of `MenuConfiguration.items` JSONB array.
  *
  * `kind`:
- *   - `system` → `ref` is a slug from {@see \App\Identity\Domain\SystemMenuItemRegistry}
+ *   - `system` → `ref` is a slug from {@see \App\Catalog\Domain\SystemMenuItemRegistry}
  *   - `object_type` → `ref` is the ObjectType UUID (string form)
  *
  * Stored as a plain map in JSONB to keep the per-tenant config atomic

@@ -4,9 +4,9 @@
                   xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
                                       https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
 
-    <entity name="App\Identity\Domain\Entity\MenuConfiguration"
+    <entity name="App\Catalog\Domain\Entity\MenuConfiguration"
             table="menu_configurations"
-            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineMenuConfigurationRepository">
+            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\DoctrineMenuConfigurationRepository">
 
         <unique-constraints>
             <unique-constraint name="uniq_menu_config_per_tenant" columns="tenant_id"/>

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Infrastructure\Doctrine\Repository;
+namespace App\Catalog\Infrastructure\Doctrine\Repository;
 
-use App\Identity\Domain\Entity\MenuConfiguration;
-use App\Identity\Domain\Repository\MenuConfigurationRepositoryInterface;
+use App\Catalog\Domain\Entity\MenuConfiguration;
+use App\Catalog\Domain\Repository\MenuConfigurationRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;

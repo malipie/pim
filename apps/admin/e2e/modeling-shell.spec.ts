@@ -52,7 +52,6 @@ test('Modeling shell + Dashboard mock — full handoff smoke', async ({ page }) 
   for (const label of [
     /^dashboard$|^pulpit$/i,
     /^products$|^produkty$/i,
-    /^services$|^usługi$/i,
     /^pdf catalogs$|^katalogi pdf$/i,
     /^multimedia$/i,
     /^workflow$/i,
@@ -63,7 +62,10 @@ test('Modeling shell + Dashboard mock — full handoff smoke', async ({ page }) 
     await expect(sidebar.getByText(label)).toBeVisible();
   }
 
-  for (const placeholder of [/^services$|^usługi$/i, /^workflow$/i]) {
+  // VIEW-08 (#427): Services removed from default sidebar seed (operator
+  // adds it as a custom ObjectType later). Workflow remains as the only
+  // coming-soon placeholder rendered by the dynamic sidebar.
+  for (const placeholder of [/^workflow$/i]) {
     const item = sidebar.getByText(placeholder).first().locator('..');
     await expect(item).toHaveAttribute('aria-disabled', 'true');
   }

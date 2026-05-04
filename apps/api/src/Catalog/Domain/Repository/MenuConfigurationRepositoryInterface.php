@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Domain\Repository;
+namespace App\Catalog\Domain\Repository;
 
-use App\Identity\Domain\Entity\MenuConfiguration;
+use App\Catalog\Domain\Entity\MenuConfiguration;
 use App\Shared\Domain\Tenant;
 
 interface MenuConfigurationRepositoryInterface

@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Presentation\Controller;
+namespace App\Catalog\Presentation\Controller;
 
+use App\Catalog\Application\MenuConfigurationService;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
-use App\Identity\Application\CurrentTenantProvider;
-use App\Identity\Application\MenuConfigurationService;
-use App\Identity\Domain\SystemMenuItemRegistry;
-use App\Identity\Domain\Value\MenuItemRecord;
+use App\Catalog\Domain\SystemMenuItemRegistry;
+use App\Catalog\Domain\Value\MenuItemRecord;
+use App\Shared\Application\TenantContext;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -46,7 +46,7 @@ final class MenuConfigurationController
 {
     public function __construct(
         private readonly MenuConfigurationService $service,
-        private readonly CurrentTenantProvider $tenantProvider,
+        private readonly TenantContext $tenantContext,
         private readonly ObjectTypeRepositoryInterface $objectTypes,
     ) {
     }
@@ -60,7 +60,7 @@ final class MenuConfigurationController
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function get(): JsonResponse
     {
-        $tenant = $this->tenantProvider->getCurrent();
+        $tenant = $this->tenantContext->get();
         if (null === $tenant) {
             throw new HttpException(Response::HTTP_FORBIDDEN, 'No tenant in current security context.');
         }
@@ -86,7 +86,7 @@ final class MenuConfigurationController
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function replace(Request $request): JsonResponse
     {
-        $tenant = $this->tenantProvider->getCurrent();
+        $tenant = $this->tenantContext->get();
         if (null === $tenant) {
             throw new HttpException(Response::HTTP_FORBIDDEN, 'No tenant in current security context.');
         }
@@ -102,9 +102,15 @@ final class MenuConfigurationController
             if (!\is_array($rawItem)) {
                 throw new BadRequestHttpException('Each item must be an object.');
             }
+            $normalized = [];
+            foreach ($rawItem as $key => $value) {
+                if (!\is_string($key)) {
+                    throw new BadRequestHttpException('Each item key must be a string.');
+                }
+                $normalized[$key] = $value;
+            }
             try {
-                /* @var array<string, mixed> $rawItem */
-                $items[] = MenuItemRecord::fromArray($rawItem);
+                $items[] = MenuItemRecord::fromArray($normalized);
             } catch (Throwable $e) {
                 throw new BadRequestHttpException($e->getMessage(), $e);
             }
@@ -135,7 +141,7 @@ final class MenuConfigurationController
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function effective(Request $request): JsonResponse
     {
-        $tenant = $this->tenantProvider->getCurrent();
+        $tenant = $this->tenantContext->get();
         if (null === $tenant) {
             throw new HttpException(Response::HTTP_FORBIDDEN, 'No tenant in current security context.');
         }

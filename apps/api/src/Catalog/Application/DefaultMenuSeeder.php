@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Application;
+namespace App\Catalog\Application;
 
+use App\Catalog\Domain\Entity\MenuConfiguration;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Repository\MenuConfigurationRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
-use App\Identity\Domain\Entity\MenuConfiguration;
-use App\Identity\Domain\Repository\MenuConfigurationRepositoryInterface;
-use App\Identity\Domain\SystemMenuItemRegistry;
-use App\Identity\Domain\Value\MenuItemRecord;
+use App\Catalog\Domain\SystemMenuItemRegistry;
+use App\Catalog\Domain\Value\MenuItemRecord;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
