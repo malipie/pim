@@ -212,7 +212,6 @@
     "list_subtitle": "Cele publikacji — locale, waluty i mapping atrybutów per kind.",
     "back": "Wróć do kanałów",
     "empty": "Brak kanałów dla aktualnego najemcy.",
-    "write_deferred_note": "Ręczne tworzenie / edycja + autoryzacja ChannelObjectTypeMapping (per-kind mapping atrybutów) odroczone do follow-up — read-only powierzchnia dostarcza ten PR. Integracje (#74 BaseLinker, #81 Shopify) konsumują ten resource bezpośrednio.",
     "fields": {
       "code": "Kod",
       "label": "Etykieta",
@@ -226,6 +225,72 @@
     "actions": {
       "view": "Podgląd"
     },
+    "list": {
+      "create_button": "Nowy kanał",
+      "empty": "Nie utworzono jeszcze kanałów.",
+      "actions": {
+        "edit": "Edytuj",
+        "delete": "Usuń"
+      }
+    },
+    "create": {
+      "title": "Nowy kanał",
+      "submit": "Utwórz kanał",
+      "submitting": "Tworzenie...",
+      "success": "Kanał utworzony.",
+      "error": "Nie udało się utworzyć kanału."
+    },
+    "edit": {
+      "title_prefix": "Edytuj kanał:",
+      "submit": "Zapisz zmiany",
+      "submitting": "Zapisywanie...",
+      "success": "Zmiany zapisane.",
+      "error": "Nie udało się zapisać zmian."
+    },
+    "delete": {
+      "confirm_title": "Usunąć kanał?",
+      "confirm_body": "Operacja nieodwracalna. Wszystkie mapowania pól dla kanału {{name}} zostaną usunięte.",
+      "confirm_submit": "Usuń kanał",
+      "success": "Kanał usunięty.",
+      "error": "Nie udało się usunąć kanału."
+    },
+    "form": {
+      "fields": {
+        "code": "Kod",
+        "code_help": "Lowercase, znaki: a-z, 0-9, _. Niezmienny po utworzeniu.",
+        "label_pl": "Etykieta (PL)",
+        "label_en": "Label (EN)",
+        "locales": "Wersje językowe",
+        "currencies": "Waluty",
+        "category_root": "Korzeń kategorii"
+      },
+      "validation": {
+        "required": "Pole wymagane.",
+        "code_format": "Tylko małe litery, cyfry i podkreślenia.",
+        "code_taken": "Kod jest już zajęty.",
+        "locales_min": "Wybierz co najmniej jedną wersję językową.",
+        "currencies_min": "Wybierz co najmniej jedną walutę."
+      },
+      "cancel": "Anuluj",
+      "remove_chip": "Usuń",
+      "locales_empty": "Brak wybranych wersji językowych.",
+      "locales_none_available": "Brak dostępnych wersji językowych.",
+      "currencies_empty": "Brak wybranych walut.",
+      "currencies_none_available": "Brak dostępnych walut.",
+      "category_root_empty": "Nie wybrano korzenia kategorii (opcjonalne).",
+      "category_root_none": "Brak dostępnych kategorii.",
+      "clear_category_root": "Wyczyść"
+    },
+    "mapping": {
+      "title": "Mapowanie atrybutów",
+      "subtitle": "Określ jak każdy atrybut mapuje się na pole w docelowym formacie integracji.",
+      "loading": "Ładowanie mapowań...",
+      "empty_object_type": "Brak atrybutów do zmapowania w tym typie. Przypisz atrybuty do typu w sekcji Modelowanie.",
+      "target_field_label": "Docelowe pole",
+      "target_field_placeholder": "np. metafield.custom.color",
+      "save_success": "Zapisano",
+      "save_error": "Nie udało się zapisać"
+    },
     "show": {
       "tabs_aria": "Karty szczegółów kanału",
       "no_locales": "Brak skonfigurowanych locale.",
@@ -238,7 +303,6 @@
         "preview": "Podgląd"
       },
       "placeholder": {
-        "mapping": "Per-kind ChannelObjectTypeMapping editor dochodzi w follow-up — wymagany przed integracjami #74/#81.",
         "preview": "Per-channel preview produktu dochodzi w 0.10.6 (API Configurator)."
       }
     }

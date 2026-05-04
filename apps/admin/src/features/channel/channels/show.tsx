@@ -1,5 +1,5 @@
 import { useOne } from '@refinedev/core';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
@@ -9,12 +9,27 @@ import { Card, CardContent } from '@/components/ui/card';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { cn } from '@/lib/utils';
 
+import { ChannelMappingEditor } from './mapping-editor';
+
+interface LocaleRef {
+  id: string;
+  code: string;
+  label?: string;
+}
+
+interface CurrencyRef {
+  id: string;
+  code: string;
+  symbol?: string;
+  label?: string;
+}
+
 interface ChannelDetail {
   id: string;
   code: string;
   label?: Record<string, string> | string | null;
-  locales?: string[];
-  currencies?: string[];
+  locales?: LocaleRef[];
+  currencies?: CurrencyRef[];
   categoryTreeRootId?: string | null;
 }
 
@@ -42,15 +57,23 @@ export function ChannelShowPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <Button asChild variant="ghost" size="sm" className="-ml-3">
-          <Link to="/settings/channels">
-            <ArrowLeft className="size-4" />
-            {t('channels.back')}
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <Button asChild variant="ghost" size="sm" className="-ml-3">
+            <Link to="/settings/channels">
+              <ArrowLeft className="size-4" />
+              {t('channels.back')}
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-semibold tracking-tight">{label}</h1>
+          <p className="font-mono text-xs text-muted-foreground">{channel.code}</p>
+        </div>
+        <Button asChild>
+          <Link to={`/settings/channels/${channel.id}/edit`}>
+            <Pencil className="size-4" />
+            {t('channels.list.actions.edit')}
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{label}</h1>
-        <p className="font-mono text-xs text-muted-foreground">{channel.code}</p>
       </div>
 
       <div className="border-b">
@@ -74,23 +97,29 @@ export function ChannelShowPage() {
         </nav>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          {activeTab === 'overview' ? (
-            <OverviewTab channel={channel} />
-          ) : activeTab === 'locales' ? (
-            <ListTab values={channel.locales ?? []} emptyKey="channels.show.no_locales" />
-          ) : activeTab === 'currencies' ? (
-            <ListTab values={channel.currencies ?? []} emptyKey="channels.show.no_currencies" />
-          ) : activeTab === 'mapping' ? (
-            <PlaceholderTab tab="mapping" />
-          ) : (
-            <PlaceholderTab tab="preview" />
-          )}
-        </CardContent>
-      </Card>
-
-      <p className="text-xs text-muted-foreground">{t('channels.write_deferred_note')}</p>
+      {activeTab === 'mapping' ? (
+        <ChannelMappingEditor channelId={channel.id} />
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
+            {activeTab === 'overview' ? (
+              <OverviewTab channel={channel} />
+            ) : activeTab === 'locales' ? (
+              <ListTab
+                values={(channel.locales ?? []).map((l) => l.code)}
+                emptyKey="channels.show.no_locales"
+              />
+            ) : activeTab === 'currencies' ? (
+              <ListTab
+                values={(channel.currencies ?? []).map((c) => c.code)}
+                emptyKey="channels.show.no_currencies"
+              />
+            ) : (
+              <PlaceholderTab tab="preview" />
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -132,7 +161,7 @@ function ListTab({ values, emptyKey }: { values: string[]; emptyKey: string }) {
   );
 }
 
-function PlaceholderTab({ tab }: { tab: 'mapping' | 'preview' }) {
+function PlaceholderTab({ tab }: { tab: 'preview' }) {
   const { t } = useTranslation();
   return <p className="text-sm text-muted-foreground">{t(`channels.show.placeholder.${tab}`)}</p>;
 }

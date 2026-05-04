@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <resource class="App\Channel\Domain\Entity\Currency"
+              shortName="Currency">
+
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>currency:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
+        <operations>
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/currencies{._format}"
+                       security="is_granted('IS_AUTHENTICATED_FULLY')"/>
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/currencies/{id}{._format}"
+                       security="is_granted('IS_AUTHENTICATED_FULLY')"/>
+        </operations>
+    </resource>
+</resources>

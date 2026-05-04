@@ -210,7 +210,6 @@
     "list_subtitle": "Publication targets — locales, currencies, and attribute mapping per kind.",
     "back": "Back to channels",
     "empty": "No channels for the current tenant.",
-    "write_deferred_note": "Manual create / edit + ChannelObjectTypeMapping authoring (per-kind attribute mapping) is deferred to a follow-up — read-only surface ships in this PR. The integration adapters (#74 BaseLinker, #81 Shopify) consume this resource directly.",
     "fields": {
       "code": "Code",
       "label": "Label",
@@ -224,6 +223,72 @@
     "actions": {
       "view": "View"
     },
+    "list": {
+      "create_button": "New channel",
+      "empty": "No channels yet.",
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete"
+      }
+    },
+    "create": {
+      "title": "New channel",
+      "submit": "Create channel",
+      "submitting": "Creating...",
+      "success": "Channel created.",
+      "error": "Failed to create channel."
+    },
+    "edit": {
+      "title_prefix": "Edit channel:",
+      "submit": "Save changes",
+      "submitting": "Saving...",
+      "success": "Changes saved.",
+      "error": "Failed to save changes."
+    },
+    "delete": {
+      "confirm_title": "Delete channel?",
+      "confirm_body": "This action cannot be undone. All field mappings for {{name}} will be removed.",
+      "confirm_submit": "Delete channel",
+      "success": "Channel deleted.",
+      "error": "Failed to delete channel."
+    },
+    "form": {
+      "fields": {
+        "code": "Code",
+        "code_help": "Lowercase, characters: a-z, 0-9, _. Immutable after creation.",
+        "label_pl": "Label (PL)",
+        "label_en": "Label (EN)",
+        "locales": "Locales",
+        "currencies": "Currencies",
+        "category_root": "Category tree root"
+      },
+      "validation": {
+        "required": "Field is required.",
+        "code_format": "Only lowercase letters, digits, and underscores.",
+        "code_taken": "Code is already taken.",
+        "locales_min": "Pick at least one locale.",
+        "currencies_min": "Pick at least one currency."
+      },
+      "cancel": "Cancel",
+      "remove_chip": "Remove",
+      "locales_empty": "No locales selected.",
+      "locales_none_available": "No locales available.",
+      "currencies_empty": "No currencies selected.",
+      "currencies_none_available": "No currencies available.",
+      "category_root_empty": "No category root selected (optional).",
+      "category_root_none": "No categories available.",
+      "clear_category_root": "Clear"
+    },
+    "mapping": {
+      "title": "Attribute mapping",
+      "subtitle": "Define how each attribute maps to a field in the target integration format.",
+      "loading": "Loading mappings...",
+      "empty_object_type": "No attributes to map for this object type. Attach attributes from the Modeling section first.",
+      "target_field_label": "Target field",
+      "target_field_placeholder": "e.g. metafield.custom.color",
+      "save_success": "Saved",
+      "save_error": "Could not save"
+    },
     "show": {
       "tabs_aria": "Channel detail tabs",
       "no_locales": "No locales configured.",
@@ -236,7 +301,6 @@
         "preview": "Preview"
       },
       "placeholder": {
-        "mapping": "Per-kind ChannelObjectTypeMapping editor lands in a follow-up — required before #74/#81 integration sync flips on.",
         "preview": "Per-channel product preview lands in 0.10.6 (API Configurator)."
       }
     }

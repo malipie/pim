@@ -3533,6 +3533,112 @@
                         "explode": true
                     }
                 ]
+            },
+            "post": {
+                "operationId": "api_channels_post",
+                "tags": [
+                    "Channel"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Channel resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Channel.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Channel-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a Channel resource.",
+                "description": "Creates a Channel resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new Channel resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Channel.ChannelInput-channel.create"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Channel.ChannelInput-channel.create"
+                            }
+                        }
+                    },
+                    "required": true
+                }
             }
         },
         "/api/channels/{id}": {
@@ -3607,6 +3713,852 @@
                         "name": "id",
                         "in": "path",
                         "description": "Channel identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "api_channels_id_delete",
+                "tags": [
+                    "Channel"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Channel resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the Channel resource.",
+                "description": "Removes the Channel resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Channel identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_channels_id_patch",
+                "tags": [
+                    "Channel"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Channel resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Channel.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Channel-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the Channel resource.",
+                "description": "Updates the Channel resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Channel identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated Channel resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Channel.ChannelPatchInput-channel.update.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/channel_object_type_mappings": {
+            "get": {
+                "operationId": "api_channel_object_type_mappings_get_collection",
+                "tags": [
+                    "ChannelObjectTypeMapping"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ChannelObjectTypeMapping collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "ChannelObjectTypeMapping.jsonld-channel_mapping.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ChannelObjectTypeMapping.jsonld-channel_mapping.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ChannelObjectTypeMapping-channel_mapping.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of ChannelObjectTypeMapping resources.",
+                "description": "Retrieves the collection of ChannelObjectTypeMapping resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            }
+        },
+        "/api/channel_object_type_mappings/{id}": {
+            "get": {
+                "operationId": "api_channel_object_type_mappings_id_get",
+                "tags": [
+                    "ChannelObjectTypeMapping"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ChannelObjectTypeMapping resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChannelObjectTypeMapping.jsonld-channel_mapping.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChannelObjectTypeMapping-channel_mapping.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a ChannelObjectTypeMapping resource.",
+                "description": "Retrieves a ChannelObjectTypeMapping resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ChannelObjectTypeMapping identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_channel_object_type_mappings_id_patch",
+                "tags": [
+                    "ChannelObjectTypeMapping"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ChannelObjectTypeMapping resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChannelObjectTypeMapping.jsonld-channel_mapping.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChannelObjectTypeMapping-channel_mapping.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the ChannelObjectTypeMapping resource.",
+                "description": "Updates the ChannelObjectTypeMapping resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ChannelObjectTypeMapping identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated ChannelObjectTypeMapping resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChannelObjectTypeMapping.ChannelObjectTypeMappingPatchInput-channel_mapping.patch.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/currencies": {
+            "get": {
+                "operationId": "api_currencies_get_collection",
+                "tags": [
+                    "Currency"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Currency collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "Currency.jsonld-currency.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Currency.jsonld-currency.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Currency-currency.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of Currency resources.",
+                "description": "Retrieves the collection of Currency resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            }
+        },
+        "/api/currencies/{id}": {
+            "get": {
+                "operationId": "api_currencies_id_get",
+                "tags": [
+                    "Currency"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Currency resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Currency.jsonld-currency.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Currency-currency.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a Currency resource.",
+                "description": "Retrieves a Currency resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Currency identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/locales": {
+            "get": {
+                "operationId": "api_locales_get_collection",
+                "tags": [
+                    "Locale"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Locale collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "Locale.jsonld-locale.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Locale.jsonld-locale.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Locale-locale.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of Locale resources.",
+                "description": "Retrieves the collection of Locale resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            }
+        },
+        "/api/locales/{id}": {
+            "get": {
+                "operationId": "api_locales_id_get",
+                "tags": [
+                    "Locale"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Locale resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Locale.jsonld-locale.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Locale-locale.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a Locale resource.",
+                "description": "Retrieves a Locale resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Locale identifier",
                         "required": true,
                         "deprecated": false,
                         "schema": {
@@ -5565,6 +6517,101 @@
                     "code"
                 ]
             },
+            "Channel.ChannelInput-channel.create": {
+                "type": "object",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
+                "required": [
+                    "code",
+                    "label",
+                    "locales",
+                    "currencies"
+                ],
+                "properties": {
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9_]+)$",
+                        "default": "",
+                        "type": "string"
+                    },
+                    "label": {
+                        "minItems": 1,
+                        "description": "Multi-language label keyed by locale code. At least one entry required.",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "locales": {
+                        "minItems": 1,
+                        "description": "Locale codes (BCP-47 shape, e.g. `pl_PL`).",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "currencies": {
+                        "minItems": 1,
+                        "description": "Currency codes (ISO 4217, e.g. `PLN`).",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "categoryTreeRootId": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "Channel.ChannelPatchInput-channel.update.jsonMergePatch": {
+                "type": "object",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
+                "properties": {
+                    "label": {
+                        "minItems": 1,
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "locales": {
+                        "minItems": 1,
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "currencies": {
+                        "minItems": 1,
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "categoryTreeRootId": {
+                        "description": "Pass empty string `\"\"` to clear; null = no change.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
             "Channel.jsonld-admin.read": {
                 "allOf": [
                     {
@@ -5618,6 +6665,104 @@
                     }
                 ],
                 "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports."
+            },
+            "ChannelObjectTypeMapping-channel_mapping.read": {
+                "type": "object",
+                "description": "Per-channel \u00d7 per-ObjectType \u00d7 per-Attribute target field mapping.\n\nReplaces the pre-ADR-009 `ChannelAttributeMapping` \u2014 by adding\n`object_type_id` we get one row per (Channel, ObjectType, Attribute)\ntriple, so a single Channel can publish products with different field\nshapes than categories or assets. Example:\n\n  Channel \"shopify_pl\"\n    \u00d7 ObjectType=product \u00d7 Attribute=color \u2192 \"metafield.custom.color\"\n    \u00d7 ObjectType=product \u00d7 Attribute=name  \u2192 \"title\"\n    \u00d7 ObjectType=category \u00d7 Attribute=name \u2192 \"title\"\n\n`target_field` is a free-form string \u2014 every integration adapter\n(Shopify, BaseLinker, \u2026) interprets it; the schema does not enforce\nany shape. `is_published` lets admins disable a mapping without\ndeleting it (audit trail, A/B configurations).\n\nTenant scope is inherited via the parent Channel \u2014 no own `tenant_id`.\nThe table joins `INFRA_TABLES` allowlist in `pim:tenant:audit`.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "channel": {
+                        "type": "string",
+                        "format": "iri-reference",
+                        "example": "https://example.com/"
+                    },
+                    "objectType": {
+                        "type": "string",
+                        "format": "iri-reference",
+                        "example": "https://example.com/"
+                    },
+                    "attribute": {
+                        "type": "string",
+                        "format": "iri-reference",
+                        "example": "https://example.com/"
+                    },
+                    "targetField": {
+                        "maxLength": 255,
+                        "type": "string"
+                    },
+                    "published": {
+                        "readOnly": true,
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "targetField"
+                ]
+            },
+            "ChannelObjectTypeMapping.ChannelObjectTypeMappingPatchInput-channel_mapping.patch.jsonMergePatch": {
+                "type": "object",
+                "description": "Per-channel \u00d7 per-ObjectType \u00d7 per-Attribute target field mapping.\n\nReplaces the pre-ADR-009 `ChannelAttributeMapping` \u2014 by adding\n`object_type_id` we get one row per (Channel, ObjectType, Attribute)\ntriple, so a single Channel can publish products with different field\nshapes than categories or assets. Example:\n\n  Channel \"shopify_pl\"\n    \u00d7 ObjectType=product \u00d7 Attribute=color \u2192 \"metafield.custom.color\"\n    \u00d7 ObjectType=product \u00d7 Attribute=name  \u2192 \"title\"\n    \u00d7 ObjectType=category \u00d7 Attribute=name \u2192 \"title\"\n\n`target_field` is a free-form string \u2014 every integration adapter\n(Shopify, BaseLinker, \u2026) interprets it; the schema does not enforce\nany shape. `is_published` lets admins disable a mapping without\ndeleting it (audit trail, A/B configurations).\n\nTenant scope is inherited via the parent Channel \u2014 no own `tenant_id`.\nThe table joins `INFRA_TABLES` allowlist in `pim:tenant:audit`.",
+                "properties": {
+                    "targetField": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ChannelObjectTypeMapping.jsonld-channel_mapping.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "channel": {
+                                "type": "string",
+                                "format": "iri-reference",
+                                "example": "https://example.com/"
+                            },
+                            "objectType": {
+                                "type": "string",
+                                "format": "iri-reference",
+                                "example": "https://example.com/"
+                            },
+                            "attribute": {
+                                "type": "string",
+                                "format": "iri-reference",
+                                "example": "https://example.com/"
+                            },
+                            "targetField": {
+                                "maxLength": 255,
+                                "type": "string"
+                            },
+                            "published": {
+                                "readOnly": true,
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "targetField"
+                        ]
+                    }
+                ],
+                "description": "Per-channel \u00d7 per-ObjectType \u00d7 per-Attribute target field mapping.\n\nReplaces the pre-ADR-009 `ChannelAttributeMapping` \u2014 by adding\n`object_type_id` we get one row per (Channel, ObjectType, Attribute)\ntriple, so a single Channel can publish products with different field\nshapes than categories or assets. Example:\n\n  Channel \"shopify_pl\"\n    \u00d7 ObjectType=product \u00d7 Attribute=color \u2192 \"metafield.custom.color\"\n    \u00d7 ObjectType=product \u00d7 Attribute=name  \u2192 \"title\"\n    \u00d7 ObjectType=category \u00d7 Attribute=name \u2192 \"title\"\n\n`target_field` is a free-form string \u2014 every integration adapter\n(Shopify, BaseLinker, \u2026) interprets it; the schema does not enforce\nany shape. `is_published` lets admins disable a mapping without\ndeleting it (audit trail, A/B configurations).\n\nTenant scope is inherited via the parent Channel \u2014 no own `tenant_id`.\nThe table joins `INFRA_TABLES` allowlist in `pim:tenant:audit`."
             },
             "ConstraintViolation": {
                 "type": "object",
@@ -5761,10 +6906,121 @@
                 "description": "Unprocessable entity"
             },
             "Currency-admin.read": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "code": {
+                        "maxLength": 8,
+                        "type": "string"
+                    },
+                    "symbol": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "code"
+                ]
+            },
+            "Currency-currency.read": {
+                "type": "object",
+                "description": "ISO 4217 currency code (`PLN`, `EUR`, `USD`, \u2026) shared across tenants.\n\nMirrors {@see Locale}: global, opt-in via the Channel \u2194 Currency M2M.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "code": {
+                        "maxLength": 8,
+                        "type": "string"
+                    },
+                    "symbol": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "code"
+                ]
             },
             "Currency.jsonld-admin.read": {
-                "type": "object"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "code": {
+                                "maxLength": 8,
+                                "type": "string"
+                            },
+                            "symbol": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "code"
+                        ]
+                    }
+                ],
+                "description": "ISO 4217 currency code (`PLN`, `EUR`, `USD`, \u2026) shared across tenants.\n\nMirrors {@see Locale}: global, opt-in via the Channel \u2194 Currency M2M."
+            },
+            "Currency.jsonld-currency.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "code": {
+                                "maxLength": 8,
+                                "type": "string"
+                            },
+                            "symbol": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "code"
+                        ]
+                    }
+                ],
+                "description": "ISO 4217 currency code (`PLN`, `EUR`, `USD`, \u2026) shared across tenants.\n\nMirrors {@see Locale}: global, opt-in via the Channel \u2194 Currency M2M."
             },
             "Error": {
                 "type": "object",
@@ -6006,10 +7262,109 @@
                 ]
             },
             "Locale-admin.read": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "code": {
+                        "maxLength": 16,
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "code"
+                ]
+            },
+            "Locale-locale.read": {
+                "type": "object",
+                "description": "BCP-47-shaped locale code (`pl_PL`, `en_US`, \u2026) shared across tenants.\n\nLocales are global infrastructure rows \u2014 every tenant references the\nsame `pl_PL` row rather than carrying its own copy. The seeded set in\nthe migration covers the MVP-supported locales; tenants opt-in to a\nsubset via the Channel \u2194 Locale M2M.\n\nNo TenantScoped: the table sits on the audit allowlist as global\ninfrastructure, like `permissions` and the global RBAC roles.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "code": {
+                        "maxLength": 16,
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "code"
+                ]
             },
             "Locale.jsonld-admin.read": {
-                "type": "object"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "code": {
+                                "maxLength": 16,
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "code"
+                        ]
+                    }
+                ],
+                "description": "BCP-47-shaped locale code (`pl_PL`, `en_US`, \u2026) shared across tenants.\n\nLocales are global infrastructure rows \u2014 every tenant references the\nsame `pl_PL` row rather than carrying its own copy. The seeded set in\nthe migration covers the MVP-supported locales; tenants opt-in to a\nsubset via the Channel \u2194 Locale M2M.\n\nNo TenantScoped: the table sits on the audit allowlist as global\ninfrastructure, like `permissions` and the global RBAC roles."
+            },
+            "Locale.jsonld-locale.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "code": {
+                                "maxLength": 16,
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "code"
+                        ]
+                    }
+                ],
+                "description": "BCP-47-shaped locale code (`pl_PL`, `en_US`, \u2026) shared across tenants.\n\nLocales are global infrastructure rows \u2014 every tenant references the\nsame `pl_PL` row rather than carrying its own copy. The seeded set in\nthe migration covers the MVP-supported locales; tenants opt-in to a\nsubset via the Channel \u2194 Locale M2M.\n\nNo TenantScoped: the table sits on the audit allowlist as global\ninfrastructure, like `permissions` and the global RBAC roles."
             },
             "ObjectType-admin.read": {
                 "type": "object",
@@ -6333,6 +7688,18 @@
         {
             "name": "Channel",
             "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports."
+        },
+        {
+            "name": "ChannelObjectTypeMapping",
+            "description": "Per-channel \u00d7 per-ObjectType \u00d7 per-Attribute target field mapping.\n\nReplaces the pre-ADR-009 `ChannelAttributeMapping` \u2014 by adding\n`object_type_id` we get one row per (Channel, ObjectType, Attribute)\ntriple, so a single Channel can publish products with different field\nshapes than categories or assets. Example:\n\n  Channel \"shopify_pl\"\n    \u00d7 ObjectType=product \u00d7 Attribute=color \u2192 \"metafield.custom.color\"\n    \u00d7 ObjectType=product \u00d7 Attribute=name  \u2192 \"title\"\n    \u00d7 ObjectType=category \u00d7 Attribute=name \u2192 \"title\"\n\n`target_field` is a free-form string \u2014 every integration adapter\n(Shopify, BaseLinker, \u2026) interprets it; the schema does not enforce\nany shape. `is_published` lets admins disable a mapping without\ndeleting it (audit trail, A/B configurations).\n\nTenant scope is inherited via the parent Channel \u2014 no own `tenant_id`.\nThe table joins `INFRA_TABLES` allowlist in `pim:tenant:audit`."
+        },
+        {
+            "name": "Currency",
+            "description": "ISO 4217 currency code (`PLN`, `EUR`, `USD`, \u2026) shared across tenants.\n\nMirrors {@see Locale}: global, opt-in via the Channel \u2194 Currency M2M."
+        },
+        {
+            "name": "Locale",
+            "description": "BCP-47-shaped locale code (`pl_PL`, `en_US`, \u2026) shared across tenants.\n\nLocales are global infrastructure rows \u2014 every tenant references the\nsame `pl_PL` row rather than carrying its own copy. The seeded set in\nthe migration covers the MVP-supported locales; tenants opt-in to a\nsubset via the Channel \u2194 Locale M2M.\n\nNo TenantScoped: the table sits on the audit allowlist as global\ninfrastructure, like `permissions` and the global RBAC roles."
         },
         {
             "name": "AssetStorage",
