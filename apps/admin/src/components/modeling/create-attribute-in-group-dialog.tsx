@@ -24,6 +24,7 @@ const TYPES = [
   'relation',
   'price',
   'metric',
+  'wysiwyg',
 ] as const;
 
 interface Props {
