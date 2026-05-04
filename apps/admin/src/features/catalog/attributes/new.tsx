@@ -73,6 +73,7 @@ const TYPES = [
   'relation',
   'price',
   'metric',
+  'wysiwyg',
 ] as const;
 
 export function AttributeCreatePage() {
