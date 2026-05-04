@@ -16,6 +16,7 @@ use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use LogicException;
 
 /**
  * Application service that owns ObjectType lifecycle invariants.
@@ -124,6 +125,7 @@ final readonly class ObjectTypeService
         ?bool $abstract = null,
         ?array $allowedParentTypeIds = null,
         ?array $completenessRules = null,
+        ?bool $exposeToMainMenu = null,
     ): ObjectType {
         $isBuiltIn = $objectType->isBuiltIn();
 
@@ -166,6 +168,18 @@ final readonly class ObjectTypeService
                 throw BuiltInObjectTypeException::fieldLocked($objectType, 'completenessRules');
             }
             $objectType->updateCompletenessRules($completenessRules);
+        }
+        if (null !== $exposeToMainMenu) {
+            // VIEW-08 (#427): Asset has its own /assets DAM page. Exposing it
+            // as a generic menu candidate would route to /objects/asset which
+            // 404s in MVP (B-2 ships the generic listing). Block at write
+            // time so the FE toggle and the backend agree on the rule.
+            if ($exposeToMainMenu && ObjectKind::Asset === $objectType->getKind()) {
+                throw new LogicException(
+                    'Asset ObjectType cannot be exposed to main menu — use the dedicated /assets DAM page instead.',
+                );
+            }
+            $objectType->setExposeToMainMenu($exposeToMainMenu);
         }
 
         $this->em->flush();

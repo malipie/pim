@@ -45,6 +45,9 @@
     "integrations": "Integracje",
     "settings": "Ustawienia",
     "modeling": "Modelowanie",
+    "categories": "Kategorie",
+    "brands": "Marki",
+    "custom_tag": "CUSTOM",
     "soon": "Wkrótce",
     "workspace_label": "Workspace",
     "active_modules_count_one": "{{count}} moduł aktywny",
@@ -68,6 +71,19 @@
       "title": "W przygotowaniu",
       "description": "Ten widok jest planowany. Wrócimy do niego w kolejnym tickecie view-first.",
       "back": "Wróć do pulpitu"
+    },
+    "menu": {
+      "title": "Menu główne",
+      "intro": "Przeciągnij pozycje, żeby zmienić ich kolejność. Ukryte pozycje pojawiają się poniżej i można je dodać z powrotem do menu.",
+      "section_visible": "Widoczne w menu",
+      "section_available": "Dostępne (ukryte)",
+      "empty_available_prefix": "Aby dodać ObjectType do menu, włącz „Udostępnij do głównego menu\" w",
+      "empty_available_link": "Modelowanie → ObjectType",
+      "action_hide": "Ukryj",
+      "action_add": "Dodaj",
+      "protected_tooltip": "Ta pozycja jest wymagana i nie może być ukryta",
+      "toast_error": "Nie udało się zapisać zmian",
+      "error_loading": "Nie udało się załadować konfiguracji menu."
     }
   },
   "catalogs_pdf": {

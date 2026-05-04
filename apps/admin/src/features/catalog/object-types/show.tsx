@@ -43,6 +43,7 @@ interface ObjectTypeDetail {
   abstract?: boolean;
   allowedParentTypeIds?: string[];
   completenessRules?: Record<string, unknown> | null;
+  exposeToMainMenu?: boolean;
 }
 
 interface ObjectTypeUsage {
@@ -635,6 +636,47 @@ export function ObjectTypeShowPage() {
             locked={isBuiltIn}
             onChange={(next) => void handlePatch({ abstract: next })}
           />
+          {/* VIEW-08 (#427) — main menu candidacy. Asset is locked because
+              /assets has its own DAM page; the generic listing route would
+              404 in MVP (ships in B-2). */}
+          <div className="border-t border-zinc-100 pt-5">
+            <SettingToggleRow
+              label={t('object_types.setting_expose_menu_label', {
+                defaultValue: 'Udostępnij do głównego menu',
+              })}
+              description={t('object_types.setting_expose_menu_desc', {
+                defaultValue:
+                  'Po włączeniu ten ObjectType pojawi się jako dostępna pozycja w Ustawieniach → Menu. Tam zdecydujesz, czy ostatecznie pojawi się w głównym menu i w jakiej kolejności.',
+              })}
+              checked={Boolean(objectType.exposeToMainMenu)}
+              locked={objectType.kind === 'asset'}
+              onChange={(next) => void handlePatch({ exposeToMainMenu: next })}
+            />
+            {objectType.exposeToMainMenu ? (
+              <div className="mt-2 text-[11.5px] text-zinc-500">
+                {t('object_types.setting_expose_menu_link_prefix', {
+                  defaultValue: 'Zarządzaj kolejnością i widocznością w',
+                })}{' '}
+                <Link
+                  to="/settings/menu"
+                  className="text-accent-violet underline underline-offset-2 hover:text-accent-violet/80"
+                >
+                  {t('object_types.setting_expose_menu_link', {
+                    defaultValue: 'Ustawienia → Menu',
+                  })}
+                </Link>
+                .
+              </div>
+            ) : null}
+            {objectType.kind === 'asset' ? (
+              <div className="mt-2 text-[11.5px] text-zinc-500">
+                {t('object_types.setting_expose_menu_asset_locked', {
+                  defaultValue:
+                    'Asset używa dedykowanego widoku /assets — zarządzaj kolejnością przez system item Multimedia.',
+                })}
+              </div>
+            ) : null}
+          </div>
           <div className="border-t border-zinc-100 pt-5">
             <div className="mb-2 text-[11.5px] font-medium text-zinc-500">
               {t('object_types.allowed_parent_types_label', {

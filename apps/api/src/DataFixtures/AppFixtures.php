@@ -13,6 +13,7 @@ use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Channel\Domain\Entity\Currency;
 use App\Channel\Domain\Entity\Locale;
+use App\Identity\Application\DefaultMenuSeeder;
 use App\Identity\Application\RbacSeeder;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
@@ -47,6 +48,7 @@ class AppFixtures extends Fixture
         private readonly BuiltInSystemAttributesSeeder $systemAttributesSeeder,
         private readonly ObjectTypeRepositoryInterface $objectTypeRepository,
         private readonly DemoCatalogSeeder $demoCatalogSeeder,
+        private readonly DefaultMenuSeeder $defaultMenuSeeder,
     ) {
     }
 
@@ -100,6 +102,9 @@ class AppFixtures extends Fixture
             // wire any future ObjectType to the existing audit group.
             // Existing ObjectTypes are back-filled by the migration.
             $this->systemAttributesSeeder->seed($tenant);
+            // VIEW-08 (#427): seed the default sidebar layout (8 items
+            // matching the legacy hard-coded sidebar minus Services).
+            $this->defaultMenuSeeder->seed($tenant);
         }
 
         $admins = [
