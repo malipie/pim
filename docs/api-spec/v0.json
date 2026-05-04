@@ -2130,6 +2130,18 @@
                         "explode": false
                     },
                     {
+                        "name": "parent_id",
+                        "in": "query",
+                        "description": "Exact match on parent_id \u2014 returns rows whose parent points at the given UUID (variants of a master product, children of a category).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
                         "name": "order[id]",
                         "in": "query",
                         "description": "",
@@ -2416,6 +2428,18 @@
                         "deprecated": false,
                         "schema": {
                             "type": "boolean"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "parent_id",
+                        "in": "query",
+                        "description": "Exact match on parent_id \u2014 returns rows whose parent points at the given UUID (variants of a master product, children of a category).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
                         },
                         "style": "form",
                         "explode": false
@@ -3017,6 +3041,18 @@
                         "deprecated": false,
                         "schema": {
                             "type": "boolean"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "parent_id",
+                        "in": "query",
+                        "description": "Exact match on parent_id \u2014 returns rows whose parent points at the given UUID (variants of a master product, children of a category).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
                         },
                         "style": "form",
                         "explode": false
