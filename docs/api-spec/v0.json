@@ -5571,6 +5571,7 @@
                             "relation",
                             "price",
                             "metric",
+                            "wysiwyg",
                             "datetime",
                             "reference"
                         ]
@@ -5817,6 +5818,7 @@
                                     "relation",
                                     "price",
                                     "metric",
+                                    "wysiwyg",
                                     "datetime",
                                     "reference"
                                 ]

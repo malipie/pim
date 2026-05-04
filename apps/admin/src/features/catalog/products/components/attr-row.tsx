@@ -1,6 +1,6 @@
 import { Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
+import { WysiwygEditor } from '@/components/catalog/wysiwyg-editor';
 import { type Provenance, ProvenanceBadge } from '@/components/provenance-badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -75,7 +75,13 @@ export function AttrRow({
 
       <div className="min-w-0">
         {editable ? (
-          attribute.type === 'richtext' || attribute.type === 'textarea' ? (
+          attribute.type === 'wysiwyg' ? (
+            <WysiwygEditor
+              value={stringValue}
+              onChange={(next) => onChange(next)}
+              ariaLabel={label}
+            />
+          ) : attribute.type === 'richtext' || attribute.type === 'textarea' ? (
             <Textarea
               id={`attr-${attribute.code}`}
               rows={3}
@@ -111,6 +117,8 @@ export function AttrRow({
               className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 text-[13.5px]"
             />
           )
+        ) : attribute.type === 'wysiwyg' ? (
+          <WysiwygEditor value={stringValue} onChange={() => undefined} readOnly />
         ) : (
           <div
             className={cn(

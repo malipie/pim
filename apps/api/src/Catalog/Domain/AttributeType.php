@@ -38,6 +38,19 @@ enum AttributeType: string
     case Metric = 'metric';
 
     /**
+     * VIEW-07.2 (#423) — rich-text content stored as HTML.
+     *
+     * The frontend renders this with `@udecode/plate` (Slate-based
+     * editor) so editors can format paragraphs, headings, lists, and
+     * links without leaving the catalog form. Storage stays as a
+     * single `string` value in `object_values.value->>'value'`; the
+     * backend validator only checks length + string type — the Plate
+     * AI extension (`@udecode/plate-ai`) is a Faza 2 follow-up tied to
+     * the agent layer.
+     */
+    case Wysiwyg = 'wysiwyg';
+
+    /**
      * UI-08.3 (#258) — system attribute types. Used by `created_at`/
      * `updated_at` (Datetime) and `created_by`/`updated_by` (Reference, with
      * `validation_rules.target_entity = 'user'` per epik plan §12.2).
