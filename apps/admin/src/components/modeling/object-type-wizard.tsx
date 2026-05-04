@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 
 import { AddAttributesToObjectTypeDialog } from '@/components/modeling/add-attributes-to-object-type-dialog';
+import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { ColorPicker, DEFAULT_WIZARD_COLORS } from '@/components/modeling/color-picker';
 import { CreateAttributeForObjectTypeDialog } from '@/components/modeling/create-attribute-for-object-type-dialog';
 import { CreateGroupInlineDialog } from '@/components/modeling/create-group-inline-dialog';
@@ -274,17 +275,20 @@ export function ObjectTypeWizard() {
 
   return (
     <div>
-      <Button
-        asChild
-        variant="ghost"
-        size="sm"
-        className="-ml-3 mb-4 gap-1.5 text-[12.5px] font-medium text-zinc-500 hover:text-zinc-900"
-      >
-        <Link to="/modeling/object-types">
-          <ArrowLeft className="size-3.5" />
-          {t('object_types.back_to_list', { defaultValue: 'Wstecz do listy Object Types' })}
-        </Link>
-      </Button>
+      <div className="mb-4 flex items-center justify-between">
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="-ml-3 gap-1.5 text-[12.5px] font-medium text-zinc-500 hover:text-zinc-900"
+        >
+          <Link to="/modeling/object-types">
+            <ArrowLeft className="size-3.5" />
+            {t('object_types.back_to_list', { defaultValue: 'Wstecz do listy Object Types' })}
+          </Link>
+        </Button>
+        <AuditLogIndicator />
+      </div>
 
       <header className="mb-6 flex items-start justify-between gap-6">
         <div className="flex-1">
