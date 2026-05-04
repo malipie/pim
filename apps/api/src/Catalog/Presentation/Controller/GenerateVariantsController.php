@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace App\Catalog\Presentation\Controller;
 
+use App\Catalog\Application\ObjectAttributesUpserter;
+use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Provenance;
+use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -39,10 +45,17 @@ use Symfony\Component\Uid\Uuid;
  * collisions are skipped (counted but not persisted) — re-running the
  * endpoint after a partial failure is idempotent.
  *
- * Out of MVP slice (Faza 1+): variant-level value seeding (price /
- * stock), axes editor PATCH, master-with-variants delete protection,
- * `Attribute.level=master|variant` enum, `VariantValueResolver`
- * inheritance service.
+ * Each generated variant inherits master attribute values 1:1 with
+ * `Provenance::Manual` (via direct copy of `ObjectValue` rows that
+ * preserves `channel_id` + `locale` scope) and stamps the axis values
+ * (e.g. `color=red`, `size=S`) on top through `ObjectAttributesUpserter`.
+ * The axes editor (#308) ensures axis codes resolve to registered
+ * `Attribute`s — unknown codes return 400 to fail fast.
+ *
+ * Out of MVP slice (Faza 1+): axes editor PATCH, master-with-variants
+ * delete protection, `Attribute.level=master|variant` enum,
+ * `VariantValueResolver` inheritance service (replaces direct copy with
+ * reactive `inherited` provenance — schema change required).
  */
 final class GenerateVariantsController
 {
@@ -50,6 +63,9 @@ final class GenerateVariantsController
 
     public function __construct(
         private readonly CatalogObjectRepositoryInterface $objects,
+        private readonly ObjectValueRepositoryInterface $values,
+        private readonly AttributeRepositoryInterface $attributes,
+        private readonly ObjectAttributesUpserter $upserter,
         private readonly TenantContext $tenantContext,
     ) {
     }
@@ -104,6 +120,19 @@ final class GenerateVariantsController
 
         $skuTemplate = $body['sku_template'] ?? null;
 
+        // Fail fast: every axis code must resolve to a registered Attribute on
+        // this tenant's schema, otherwise the generated variants would silently
+        // miss their axis ObjectValue stamp on save below.
+        foreach (array_keys($axes) as $axisCode) {
+            $axisAttribute = $this->attributes->findByCode($axisCode, $tenant);
+            if (!$axisAttribute instanceof Attribute) {
+                throw new BadRequestHttpException(\sprintf(
+                    'Axis code "%s" is not a registered attribute on this object type.',
+                    $axisCode,
+                ));
+            }
+        }
+
         $combinations = $this->cartesianProduct($axes);
 
         $created = [];
@@ -118,6 +147,28 @@ final class GenerateVariantsController
             $variant = new CatalogObject($master->getObjectType(), $sku);
             $variant->assignParent($master);
             $this->objects->save($variant);
+
+            // 1. Direct-copy each ObjectValue from master so the variant inherits
+            //    name/brand/description/etc. with the same channel + locale scope.
+            //    Provenance resets to Manual — variant is a fresh canonical write,
+            //    not an inherited import/agent value (mirrors DuplicateProductController).
+            foreach ($this->values->findByObject($master) as $masterValue) {
+                $cloned = new ObjectValue(
+                    object: $variant,
+                    attribute: $masterValue->getAttribute(),
+                    value: $masterValue->getValue(),
+                    provenance: Provenance::Manual,
+                );
+                $cloned->changeChannelId($masterValue->getChannelId());
+                $cloned->changeLocale($masterValue->getLocale());
+                $this->values->save($cloned);
+            }
+
+            // 2. Stamp axis values (color=red, size=S) — overrides whatever the
+            //    master had on those axis attributes. Order matters: copy first,
+            //    upsert axes second so axes win.
+            $this->upserter->upsert($variant, $combination, Provenance::Manual);
+
             $created[] = ['sku' => $sku, 'axis_values' => $combination];
         }
 

@@ -669,7 +669,17 @@
       "variants": {
         "list_title": "Variants list",
         "count": "{{count}} variants",
-        "empty_body": "No variants. Generate from axes below or add manually."
+        "empty_body": "No variants. Generate from axes above or add manually.",
+        "expand_all": "Expand all",
+        "collapse_all": "Collapse all",
+        "edit": "Edit variants",
+        "save": "Save",
+        "cancel": "Cancel",
+        "save.success": "Variants saved",
+        "save.partial": "Saved {{ok}}/{{total}}. Errors: {{skus}}",
+        "copy_to_others": "Copy to other variants · Source: {{provenance}}",
+        "copy_to_others_aria": "Copy {{label}} to other variants",
+        "copy_to_others.success": "Copied to {{count}} variants"
       }
     }
   },

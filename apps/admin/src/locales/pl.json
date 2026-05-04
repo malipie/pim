@@ -671,7 +671,17 @@
       "variants": {
         "list_title": "Lista wariantów",
         "count": "{{count}} wariantów",
-        "empty_body": "Brak wariantów. Wygeneruj je z osi w sekcji poniżej lub dodaj ręcznie."
+        "empty_body": "Brak wariantów. Wygeneruj je z osi w sekcji powyżej lub dodaj ręcznie.",
+        "expand_all": "Rozwiń wszystkie",
+        "collapse_all": "Zwiń wszystkie",
+        "edit": "Edytuj warianty",
+        "save": "Zapisz",
+        "cancel": "Anuluj",
+        "save.success": "Zapisano warianty",
+        "save.partial": "Zapisano {{ok}}/{{total}}. Błędy: {{skus}}",
+        "copy_to_others": "Kopiuj do innych wariantów · Source: {{provenance}}",
+        "copy_to_others_aria": "Kopiuj wartość {{label}} do innych wariantów",
+        "copy_to_others.success": "Skopiowano do {{count}} wariantów"
       }
     }
   },

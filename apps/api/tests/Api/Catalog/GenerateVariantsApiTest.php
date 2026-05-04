@@ -1,0 +1,190 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Api\Catalog;
+
+use App\Catalog\Domain\AttributeType;
+use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Provenance;
+use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
+use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
+use App\Shared\Application\TenantContext;
+use App\Shared\Domain\Tenant;
+use PHPUnit\Framework\Attributes\Test;
+
+use const JSON_THROW_ON_ERROR;
+
+/**
+ * VIEW-07.3 (#432) — coverage for `POST /api/products/{id}/generate-variants`
+ * after master attribute inheritance + axis stamping landed on top of the
+ * UI-02.6 (#296) endpoint shape.
+ *
+ * Asserts:
+ *   - Variant created with master's attribute values cloned as ObjectValue
+ *     rows (Provenance::Manual) plus axis values stamped on top.
+ *   - Unknown axis code (no Attribute on the schema) returns 400 fail-fast.
+ *   - SKU collisions on a re-run are reported via skipped_existing without
+ *     duplicating ObjectValue rows.
+ */
+final class GenerateVariantsApiTest extends CatalogApiTestCase
+{
+    #[Test]
+    public function postGenerateVariantsInheritsMasterAttributesAndStampsAxisValues(): void
+    {
+        $this->seedAttribute('brand', AttributeType::Text);
+        $this->seedAttribute('color', AttributeType::Text);
+        $this->seedAttribute('size', AttributeType::Text);
+
+        $client = $this->authenticatedClient();
+
+        $master = $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'VAR-MASTER-1',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
+                'attributes' => ['brand' => 'Acme'],
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+
+        $masterId = $master['id'] ?? null;
+        \assert(\is_string($masterId));
+
+        $response = $client->request('POST', '/api/products/'.$masterId.'/generate-variants', [
+            'headers' => ['content-type' => 'application/json'],
+            'body' => json_encode([
+                'axes' => [
+                    'color' => ['red', 'blue'],
+                    'size' => ['S'],
+                ],
+                'sku_template' => '{master_sku}-{color}-{size}',
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        self::assertResponseStatusCodeSame(201);
+        $body = $response->toArray();
+        self::assertSame(2, $body['created_count'] ?? null);
+        self::assertSame(0, $body['skipped_count'] ?? null);
+
+        $createdSkus = array_map(static fn (array $row): string => (string) $row['sku'], (array) $body['created']);
+        self::assertContains('VAR-MASTER-1-red-S', $createdSkus);
+        self::assertContains('VAR-MASTER-1-blue-S', $createdSkus);
+
+        // Inspect one variant: brand inherited + color/size stamped, all manual.
+        $variant = $this->reloadObject('VAR-MASTER-1-red-S');
+        $values = self::getContainer()->get(ObjectValueRepositoryInterface::class)
+            ->findByObject($variant);
+
+        $byCode = [];
+        foreach ($values as $value) {
+            $byCode[$value->getAttribute()->getCode()] = $value;
+        }
+
+        self::assertArrayHasKey('brand', $byCode, 'Brand must be inherited from master.');
+        self::assertSame(['value' => 'Acme'], $byCode['brand']->getValue());
+        self::assertSame(Provenance::Manual, $byCode['brand']->getProvenance());
+
+        self::assertArrayHasKey('color', $byCode, 'Color axis must be stamped on the variant.');
+        self::assertSame(['value' => 'red'], $byCode['color']->getValue());
+        self::assertSame(Provenance::Manual, $byCode['color']->getProvenance());
+
+        self::assertArrayHasKey('size', $byCode);
+        self::assertSame(['value' => 'S'], $byCode['size']->getValue());
+    }
+
+    #[Test]
+    public function postGenerateVariantsRejectsUnknownAxisCode(): void
+    {
+        // No `mystery` Attribute seeded — must fail fast before any variants exist.
+        $client = $this->authenticatedClient();
+
+        $master = $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'VAR-MASTER-2',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+
+        $masterId = $master['id'] ?? null;
+        \assert(\is_string($masterId));
+
+        $response = $client->request('POST', '/api/products/'.$masterId.'/generate-variants', [
+            'headers' => ['content-type' => 'application/json'],
+            'body' => json_encode([
+                'axes' => ['mystery' => ['foo']],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    #[Test]
+    public function postGenerateVariantsSkipsExistingSkusOnRerun(): void
+    {
+        $this->seedAttribute('color', AttributeType::Text);
+        $client = $this->authenticatedClient();
+
+        $master = $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'VAR-MASTER-3',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+
+        $masterId = $master['id'] ?? null;
+        \assert(\is_string($masterId));
+
+        $payload = json_encode([
+            'axes' => ['color' => ['red']],
+            'sku_template' => '{master_sku}-{color}',
+        ], JSON_THROW_ON_ERROR);
+
+        $first = $client->request('POST', '/api/products/'.$masterId.'/generate-variants', [
+            'headers' => ['content-type' => 'application/json'],
+            'body' => $payload,
+        ])->toArray();
+        self::assertSame(1, $first['created_count'] ?? null);
+
+        $second = $client->request('POST', '/api/products/'.$masterId.'/generate-variants', [
+            'headers' => ['content-type' => 'application/json'],
+            'body' => $payload,
+        ])->toArray();
+        self::assertSame(0, $second['created_count'] ?? null);
+        self::assertSame(1, $second['skipped_count'] ?? null);
+    }
+
+    private function seedAttribute(string $code, AttributeType $type): void
+    {
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+
+        $context = self::getContainer()->get(TenantContext::class);
+        $context->set($tenant);
+
+        $attribute = new Attribute($code, ['en' => ucfirst($code)], $type);
+        self::getContainer()->get(AttributeRepositoryInterface::class)->save($attribute);
+    }
+
+    private function reloadObject(string $code): \App\Catalog\Domain\Entity\CatalogObject
+    {
+        $em = $this->em();
+        $em->clear();
+
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+
+        $context = self::getContainer()->get(TenantContext::class);
+        $context->set($tenant);
+
+        $object = self::getContainer()->get(CatalogObjectRepositoryInterface::class)
+            ->findByCode($code, ObjectKind::Product, $tenant);
+        \assert(null !== $object);
+
+        return $object;
+    }
+}
