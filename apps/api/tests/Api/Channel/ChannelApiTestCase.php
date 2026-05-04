@@ -88,7 +88,7 @@ abstract class ChannelApiTestCase extends ApiTestCase
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param array<array-key, mixed> $payload
      */
     protected static function extractId(array $payload): string
     {

@@ -30,8 +30,12 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $payload = $response->toArray();
         self::assertSame('shopify_pl', $payload['code']);
         self::assertSame(['pl' => 'Shopify PL', 'en' => 'Shopify PL'], $payload['label']);
-        self::assertCount(2, $payload['locales']);
-        self::assertCount(2, $payload['currencies']);
+        $locales = $payload['locales'];
+        \assert(\is_array($locales));
+        self::assertCount(2, $locales);
+        $currencies = $payload['currencies'];
+        \assert(\is_array($currencies));
+        self::assertCount(2, $currencies);
     }
 
     #[Test]
@@ -213,6 +217,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         // resolution belongs to other suites.
         $list = $client->request('GET', "/api/channel_object_type_mappings?channel={$channelId}");
         $member = $list->toArray()['member'] ?? [];
+        \assert(\is_array($member));
         if (0 === \count($member)) {
             self::markTestSkipped('No mapping rows seeded in test fixture.');
         }
