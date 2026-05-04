@@ -36,6 +36,7 @@ const TYPE_OPTIONS = [
   'relation',
   'price',
   'metric',
+  'wysiwyg',
 ] as const;
 
 interface Props {
