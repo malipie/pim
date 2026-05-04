@@ -45,6 +45,9 @@
     "integrations": "Integrations",
     "settings": "Settings",
     "modeling": "Modeling",
+    "categories": "Categories",
+    "brands": "Brands",
+    "custom_tag": "CUSTOM",
     "soon": "Soon",
     "workspace_label": "Workspace",
     "active_modules_count_one": "{{count}} active module",
@@ -66,6 +69,19 @@
       "title": "Coming soon",
       "description": "This view is planned. It will be implemented in a follow-up view-first ticket.",
       "back": "Back to dashboard"
+    },
+    "menu": {
+      "title": "Main menu",
+      "intro": "Drag items to reorder. Hidden items appear below — click Add to put them back in the menu.",
+      "section_visible": "Visible in menu",
+      "section_available": "Available (hidden)",
+      "empty_available_prefix": "To add an ObjectType to the menu, enable “Expose to main menu” in",
+      "empty_available_link": "Modeling → ObjectType",
+      "action_hide": "Hide",
+      "action_add": "Add",
+      "protected_tooltip": "This item is required and cannot be hidden",
+      "toast_error": "Failed to save changes",
+      "error_loading": "Could not load menu configuration."
     }
   },
   "catalogs_pdf": {

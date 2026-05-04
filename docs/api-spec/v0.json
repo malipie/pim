@@ -7469,6 +7469,11 @@
                         "default": false,
                         "type": "boolean"
                     },
+                    "exposeToMainMenu": {
+                        "description": "VIEW-08 (#427) \u2014 gating flag for main menu candidacy. When TRUE, the\nObjectType appears as a candidate in `/settings/menu` (Available\nsection) and can be promoted to Visible via `MenuConfiguration`. The\nactual ordering and per-tenant visible flag lives in\n`menu_configurations.items`, not here.",
+                        "default": false,
+                        "type": "boolean"
+                    },
                     "allowedParentTypeIds": {
                         "description": "UUID list of ObjectTypes allowed as parent. Plain JSONB list (not a\njunction) \u2014 N stays small (\u2264 5 typical), and the only consumer is the\ndetail view's Allowed parent types chip strip. A junction would cost\nus a roundtrip per detail page load for no gain at this cardinality.",
                         "type": "array",
@@ -7602,6 +7607,11 @@
                                 "type": "boolean"
                             },
                             "abstract": {
+                                "default": false,
+                                "type": "boolean"
+                            },
+                            "exposeToMainMenu": {
+                                "description": "VIEW-08 (#427) \u2014 gating flag for main menu candidacy. When TRUE, the\nObjectType appears as a candidate in `/settings/menu` (Available\nsection) and can be promoted to Visible via `MenuConfiguration`. The\nactual ordering and per-tenant visible flag lives in\n`menu_configurations.items`, not here.",
                                 "default": false,
                                 "type": "boolean"
                             },

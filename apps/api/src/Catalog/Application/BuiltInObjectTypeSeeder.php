@@ -75,6 +75,9 @@ final readonly class BuiltInObjectTypeSeeder
                 // badges in the list view remain accurate after the migration.
                 if (ObjectKind::Product === $kind) {
                     $type->setHasVariants(true);
+                    // VIEW-08 (#427): seed Product as exposed-to-menu so the
+                    // default sidebar reproduces the legacy "Produkty" entry.
+                    $type->setExposeToMainMenu(true);
                 } elseif (ObjectKind::Category === $kind) {
                     $type->setHierarchical(true);
                 }

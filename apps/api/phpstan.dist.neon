@@ -93,3 +93,4 @@ parameters:
               - src/ApiConfigurator/Domain/Entity/ApiProfile.php
               - src/ApiConfigurator/Domain/Entity/ApiKey.php
               - src/Identity/Domain/Entity/TenantAgentConfig.php
+              - src/Catalog/Domain/Entity/MenuConfiguration.php

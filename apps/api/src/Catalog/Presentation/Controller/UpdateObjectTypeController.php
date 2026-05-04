@@ -70,6 +70,7 @@ final class UpdateObjectTypeController
                 abstract: $this->boolOrNull($body['abstract'] ?? null),
                 allowedParentTypeIds: $this->idListOrNull($body['allowedParentTypeIds'] ?? null),
                 completenessRules: $this->mapOrNull($body['completenessRules'] ?? null),
+                exposeToMainMenu: $this->boolOrNull($body['exposeToMainMenu'] ?? null),
             );
         } catch (BuiltInObjectTypeException $e) {
             throw new HttpException(Response::HTTP_FORBIDDEN, $e->getMessage(), $e);
@@ -90,6 +91,7 @@ final class UpdateObjectTypeController
             'abstract' => $objectType->isAbstract(),
             'allowedParentTypeIds' => $objectType->getAllowedParentTypeIds(),
             'completenessRules' => $objectType->getCompletenessRules(),
+            'exposeToMainMenu' => $objectType->isExposedToMainMenu(),
             'schemaVersion' => $objectType->getSchemaVersion(),
         ]);
     }

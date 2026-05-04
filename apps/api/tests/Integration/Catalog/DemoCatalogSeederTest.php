@@ -49,18 +49,20 @@ final class DemoCatalogSeederTest extends KernelTestCase
         $seeder->seed($this->tenant);
 
         $em = $this->em();
-        // 27 attributes (19 base + 8 VIEW-02 mockup additions: ip_rating,
+        // 28 attributes (19 base + 8 VIEW-02 mockup additions: ip_rating,
         // vat_rate, currency_code, warranty_months, voltage, power_w,
-        // requires_referral, eol_date) spanning all 10 AttributeType cases.
-        self::assertSame(27, (int) $em->createQuery('SELECT COUNT(a) FROM '.Attribute::class.' a')->getSingleScalarResult());
+        // requires_referral, eol_date + 1 VIEW-07.2 `description_rich`
+        // wysiwyg) spanning the 11 user-facing AttributeType cases.
+        self::assertSame(28, (int) $em->createQuery('SELECT COUNT(a) FROM '.Attribute::class.' a')->getSingleScalarResult());
         // 100 products + 5 categories + 10 assets.
         self::assertSame(100, $this->countObjects(ObjectKind::Product));
         self::assertSame(5, $this->countObjects(ObjectKind::Category));
         self::assertSame(10, $this->countObjects(ObjectKind::Asset));
-        // 15 product junctions + 4 category junctions + 3 asset junctions.
+        // 16 product junctions (incl. VIEW-07.2 `description_rich`) +
+        // 4 category junctions + 3 asset junctions.
         // Composite PK on ObjectTypeAttribute prevents DQL COUNT — drop to DBAL.
         $junctions = $em->getConnection()->fetchOne('SELECT COUNT(*) FROM object_type_attributes');
-        self::assertSame(22, (int) (\is_scalar($junctions) ? $junctions : 0));
+        self::assertSame(23, (int) (\is_scalar($junctions) ? $junctions : 0));
         // 100 × 15 + 5 × 3 + 10 × 2 = 1535 ObjectValue rows.
         self::assertSame(1535, (int) $em->createQuery('SELECT COUNT(v) FROM '.ObjectValue::class.' v')->getSingleScalarResult());
     }

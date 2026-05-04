@@ -79,6 +79,20 @@ class ObjectType implements TenantScoped
     private bool $abstract = false;
 
     /**
+     * VIEW-08 (#427) — gating flag for main menu candidacy. When TRUE, the
+     * ObjectType appears as a candidate in `/settings/menu` (Available
+     * section) and can be promoted to Visible via `MenuConfiguration`. The
+     * actual ordering and per-tenant visible flag lives in
+     * `menu_configurations.items`, not here.
+     *
+     * Built-in `product` is seeded with `exposeToMainMenu=true` so the
+     * default sidebar reproduces the legacy hard-coded "Produkty" entry.
+     * `kind=Asset` is rejected at the service level (`/assets` DAM has its
+     * own dedicated page; the generic listing route would 404 in MVP).
+     */
+    private bool $exposeToMainMenu = false;
+
+    /**
      * UUID list of ObjectTypes allowed as parent. Plain JSONB list (not a
      * junction) — N stays small (≤ 5 typical), and the only consumer is the
      * detail view's Allowed parent types chip strip. A junction would cost
@@ -306,6 +320,27 @@ class ObjectType implements TenantScoped
     public function setAbstract(bool $value): void
     {
         $this->abstract = $value;
+        $this->touch();
+    }
+
+    public function isExposedToMainMenu(): bool
+    {
+        return $this->exposeToMainMenu;
+    }
+
+    /**
+     * Symfony PropertyAccess accessor — `isExposedToMainMenu()` reads naturally
+     * in domain code, but the serializer expects `getExposeToMainMenu()` to
+     * surface the property as `exposeToMainMenu` in the JSON output.
+     */
+    public function getExposeToMainMenu(): bool
+    {
+        return $this->exposeToMainMenu;
+    }
+
+    public function setExposeToMainMenu(bool $value): void
+    {
+        $this->exposeToMainMenu = $value;
         $this->touch();
     }
 

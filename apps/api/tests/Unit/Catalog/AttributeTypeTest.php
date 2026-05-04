@@ -12,12 +12,12 @@ use PHPUnit\Framework\TestCase;
 final class AttributeTypeTest extends TestCase
 {
     #[Test]
-    public function twelveCasesAreDefinedExactly(): void
+    public function thirteenCasesAreDefinedExactly(): void
     {
         // 10 user-facing types from ADR-006 + 2 system types added by UI-08.3
-        // (#258): `datetime` and `reference`. Guard against accidental
-        // case removal/addition.
-        self::assertCount(12, AttributeType::cases());
+        // (#258): `datetime` and `reference` + 1 user-facing `wysiwyg` from
+        // VIEW-07.2 (#423). Guard against accidental case removal/addition.
+        self::assertCount(13, AttributeType::cases());
         self::assertCount(2, array_filter(AttributeType::cases(), static fn (AttributeType $t) => $t->isSystemType()));
     }
 

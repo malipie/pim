@@ -70,6 +70,11 @@
                 <option name="default">false</option>
             </options>
         </field>
+        <field name="exposeToMainMenu" type="boolean" column="expose_to_main_menu">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
         <field name="allowedParentTypeIds" type="json" column="allowed_parent_type_ids">
             <options>
                 <option name="jsonb">true</option>

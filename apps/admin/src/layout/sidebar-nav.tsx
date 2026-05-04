@@ -8,63 +8,126 @@ import {
   Package,
   Plug2,
   Settings2,
+  Tag,
   Workflow,
   Wrench,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
 
+import { type EffectiveMenuItem, useEffectiveMenu } from '@/lib/use-effective-menu';
 import { cn } from '@/lib/utils';
 
 import { UserMenu } from './user-menu';
 
-interface NavLeaf {
-  to?: string;
-  icon: LucideIcon;
-  label: string;
-  comingSoon?: boolean;
-  /** MOCK count badge shown after the label (e.g. "12 847"). */
-  count?: string;
-  /** MOCK kind tag shown next to count (e.g. "CUSTOM"). */
-  kindTag?: string;
-}
-
-interface NavSection {
-  id: string;
-  items: NavLeaf[];
-}
-
-// MOCK counts per UI-03c handoff — replace with live `useList(pageSize=1)`
-// queries when a backend `GET /api/sidebar/counts` endpoint ships.
-const NAV_SECTIONS: NavSection[] = [
-  {
-    id: 'main',
-    items: [
-      { to: '/dashboard', icon: LayoutDashboard, label: 'nav.dashboard' },
-      { to: '/products', icon: Package, label: 'nav.products', count: '12 847' },
-      {
-        icon: Wrench,
-        label: 'nav.services',
-        comingSoon: true,
-        kindTag: 'CUSTOM',
-        count: '84',
-      },
-      { to: '/catalogs-pdf', icon: FileText, label: 'nav.catalogsPdf' },
-      { to: '/assets', icon: Image, label: 'nav.multimedia', count: '8 421' },
-      { icon: Workflow, label: 'nav.workflow', comingSoon: true },
-      { to: '/api-profiles', icon: Plug2, label: 'nav.integrations' },
-      { to: '/settings', icon: Cog, label: 'nav.settings' },
-    ],
-  },
-  {
-    id: 'modeling',
-    items: [{ to: '/modeling', icon: Settings2, label: 'nav.modeling' }],
-  },
-];
-
 interface SidebarNavProps {
   onNavigate?: () => void;
 }
+
+/**
+ * VIEW-08 (#427) — string→LucideIcon lookup. The backend ships icon names
+ * (`SystemMenuItemRegistry` for `system` items, `ObjectType.icon` for
+ * `object_type` items). Add new icons here as new ObjectTypes/system items
+ * arrive — fallback is `Boxes`.
+ */
+const ICON_MAP: Record<string, LucideIcon> = {
+  Boxes,
+  Cog,
+  FileText,
+  Image,
+  LayoutDashboard,
+  Package,
+  Plug2,
+  Settings2,
+  Tag,
+  Workflow,
+  Wrench,
+};
+
+/**
+ * VIEW-08 (#427) fallback — used while the effective-menu query is still
+ * loading on a hard reload, and as a graceful degrade if the backend is
+ * unreachable. Mirrors the legacy hard-coded sidebar minus Services.
+ */
+const FALLBACK_ITEMS: EffectiveMenuItem[] = [
+  {
+    id: 'system:dashboard',
+    kind: 'system',
+    ref: 'dashboard',
+    label: null,
+    labelKey: 'nav.dashboard',
+    icon: 'LayoutDashboard',
+    route: '/dashboard',
+    comingSoon: false,
+    protected: false,
+  },
+  {
+    id: 'system:catalogs_pdf',
+    kind: 'system',
+    ref: 'catalogs_pdf',
+    label: null,
+    labelKey: 'nav.catalogsPdf',
+    icon: 'FileText',
+    route: '/catalogs-pdf',
+    comingSoon: false,
+    protected: false,
+  },
+  {
+    id: 'system:multimedia',
+    kind: 'system',
+    ref: 'multimedia',
+    label: null,
+    labelKey: 'nav.multimedia',
+    icon: 'Image',
+    route: '/assets',
+    comingSoon: false,
+    protected: false,
+  },
+  {
+    id: 'system:workflow',
+    kind: 'system',
+    ref: 'workflow',
+    label: null,
+    labelKey: 'nav.workflow',
+    icon: 'Workflow',
+    route: null,
+    comingSoon: true,
+    protected: false,
+  },
+  {
+    id: 'system:integrations',
+    kind: 'system',
+    ref: 'integrations',
+    label: null,
+    labelKey: 'nav.integrations',
+    icon: 'Plug2',
+    route: '/api-profiles',
+    comingSoon: false,
+    protected: false,
+  },
+  {
+    id: 'system:settings',
+    kind: 'system',
+    ref: 'settings',
+    label: null,
+    labelKey: 'nav.settings',
+    icon: 'Cog',
+    route: '/settings',
+    comingSoon: false,
+    protected: true,
+  },
+  {
+    id: 'system:modeling',
+    kind: 'system',
+    ref: 'modeling',
+    label: null,
+    labelKey: 'nav.modeling',
+    icon: 'Settings2',
+    route: '/modeling',
+    comingSoon: false,
+    protected: true,
+  },
+];
 
 const leafLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -83,31 +146,34 @@ const disabledLeafClass = cn(
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const { t } = useTranslation();
 
-  // Liczba aktywnych modułów = wszystkie wired nav items (wszystkie sekcje, bez comingSoon).
-  const activeModulesCount = NAV_SECTIONS.flatMap((section) => section.items).filter(
-    (item) => !item.comingSoon,
-  ).length;
+  const { data, isError } = useEffectiveMenu();
 
-  const renderTrailing = (item: NavLeaf) => (
-    <>
-      {item.kindTag ? (
-        <span className="rounded bg-accent-violet/10 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-accent-violet">
-          {item.kindTag}
-        </span>
-      ) : null}
-      {item.count ? (
-        <span className="num text-[11px] text-muted-foreground tabular-nums">{item.count}</span>
-      ) : null}
-    </>
-  );
+  // While loading on a fresh reload, show the fallback list — without it
+  // the sidebar flashes empty for ~50-200ms on every hard navigation.
+  // On error, the fallback also kicks in (graceful degradation).
+  const items: EffectiveMenuItem[] = data && !isError ? data.visible : FALLBACK_ITEMS;
 
-  const renderLeaf = (item: NavLeaf, key: string) => {
-    if (item.comingSoon || !item.to) {
+  const activeModulesCount = items.filter((item) => !item.comingSoon).length;
+
+  const renderLabel = (item: EffectiveMenuItem) => {
+    if (item.label !== null) {
+      return item.label;
+    }
+    if (item.labelKey) {
+      return t(item.labelKey);
+    }
+    return item.ref;
+  };
+
+  const renderLeaf = (item: EffectiveMenuItem) => {
+    const Icon = ICON_MAP[item.icon] ?? Boxes;
+    const labelText = renderLabel(item);
+
+    if (item.comingSoon || item.route === null) {
       return (
-        <span key={key} className={disabledLeafClass} aria-disabled="true">
-          <item.icon className="size-4" />
-          <span className="flex-1">{t(item.label)}</span>
-          {renderTrailing(item)}
+        <span key={item.id} className={disabledLeafClass} aria-disabled="true">
+          <Icon className="size-4" />
+          <span className="flex-1">{labelText}</span>
           <span className="rounded bg-muted px-1.5 py-0.5 text-xs uppercase text-muted-foreground">
             {t('nav.soon')}
           </span>
@@ -116,10 +182,14 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
     }
 
     return (
-      <NavLink key={key} to={item.to} onClick={onNavigate} className={leafLinkClass}>
-        <item.icon className="size-4" />
-        <span className="flex-1">{t(item.label)}</span>
-        {renderTrailing(item)}
+      <NavLink key={item.id} to={item.route} onClick={onNavigate} className={leafLinkClass}>
+        <Icon className="size-4" />
+        <span className="flex-1">{labelText}</span>
+        {item.kind === 'object_type' && item.objectTypeKind === 'custom' ? (
+          <span className="rounded bg-accent-violet/10 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-accent-violet">
+            {t('nav.custom_tag', { defaultValue: 'CUSTOM' })}
+          </span>
+        ) : null}
       </NavLink>
     );
   };
@@ -135,17 +205,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         <div className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {t('nav.workspace_label', { defaultValue: 'Workspace' })}
         </div>
-        {NAV_SECTIONS.map((section, sectionIndex) => (
-          <div
-            key={section.id}
-            className={cn(
-              'flex flex-col gap-1',
-              sectionIndex > 0 && 'mt-2 border-t border-border pt-2',
-            )}
-          >
-            {section.items.map((item) => renderLeaf(item, item.to ?? item.label))}
-          </div>
-        ))}
+        <div className="flex flex-col gap-1">{items.map(renderLeaf)}</div>
       </nav>
       <div className="border-t p-3">
         <div className="mb-2 px-1 text-[11px] text-muted-foreground">
