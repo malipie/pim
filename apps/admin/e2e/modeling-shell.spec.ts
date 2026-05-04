@@ -171,4 +171,63 @@ test('Modeling shell + Dashboard mock — full handoff smoke', async ({ page }) 
     await bulkBar.getByRole('button', { name: /^(Wyczyść|Clear)$/ }).click();
     await expect(bulkBar).not.toBeVisible();
   }
+
+  // 5. VIEW-08 (#427) — Settings · Menu drag-drop + ObjectType.exposeToMainMenu
+  //    + dynamic sidebar smoke. Consolidated here (lessons.md §10) so the
+  //    single login budget covers it.
+  //
+  //    Steps: enable expose toggle on built-in Brand → /settings/menu shows
+  //    Brand in Available → Visible list still has 8 rows → protected
+  //    Settings/Modeling rows have Lock instead of EyeOff button → Asset
+  //    detail page shows the toggle as locked (kind=asset uses /assets DAM).
+  await page.goto('/modeling/object-types');
+  const brandLink = page
+    .locator('a[href^="/modeling/object-types/"]')
+    .filter({ hasText: /marki|brand/i })
+    .first();
+  await brandLink.click();
+  await expect(page).toHaveURL(/\/modeling\/object-types\/[0-9a-f-]{36}/);
+
+  const exposeToggle = page.getByRole('switch', {
+    name: /udostępnij do głównego menu|expose to main menu/i,
+  });
+  await expect(exposeToggle).toBeVisible();
+  await expect(exposeToggle).toHaveAttribute('aria-checked', 'false');
+  await exposeToggle.click();
+  await expect(exposeToggle).toHaveAttribute('aria-checked', 'true');
+
+  await page.goto('/settings/menu');
+  await expect(
+    page.getByRole('heading', { name: /menu główne|main menu/i, level: 1 }),
+  ).toBeVisible();
+
+  const availableList = page.getByTestId('menu-available-list');
+  await expect(availableList).toBeVisible();
+  await expect(availableList.getByText(/marki|brand/i)).toBeVisible();
+
+  const visibleList = page.getByTestId('menu-visible-list');
+  // 1 dashboard + 1 product + 6 system items (catalogs_pdf, multimedia,
+  // workflow, integrations, settings, modeling) = 8 rows.
+  await expect(visibleList.locator('> div')).toHaveCount(8);
+
+  // Protected items render Lock icon, no EyeOff button.
+  const settingsRow = visibleList.locator('> div').filter({ hasText: /^(ustawienia|settings)$/i });
+  await expect(settingsRow).toBeVisible();
+  await expect(settingsRow.getByRole('button', { name: /ukryj|hide/i })).toHaveCount(0);
+  const dashboardRow = visibleList.locator('> div').filter({ hasText: /^(pulpit|dashboard)$/i });
+  await expect(dashboardRow.getByRole('button', { name: /ukryj|hide/i })).toBeVisible();
+
+  // Asset toggle is locked on its detail page.
+  await page.goto('/modeling/object-types');
+  const assetLink = page
+    .locator('a[href^="/modeling/object-types/"]')
+    .filter({ hasText: /^zasób|^asset/i })
+    .first();
+  await assetLink.click();
+  await expect(page).toHaveURL(/\/modeling\/object-types\/[0-9a-f-]{36}/);
+  const assetExposeToggle = page.getByRole('switch', {
+    name: /udostępnij do głównego menu|expose to main menu/i,
+  });
+  await expect(assetExposeToggle).toBeVisible();
+  await expect(assetExposeToggle).toHaveAttribute('aria-disabled', 'true');
 });
