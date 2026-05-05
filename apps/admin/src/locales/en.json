@@ -578,7 +578,16 @@
         "edit": "Edit",
         "save": "Save changes",
         "create": "Create product",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "delete": "Delete product"
+      },
+      "delete": {
+        "confirm_title": "Delete product?",
+        "confirm_body": "Are you sure you want to delete product {{code}}? This action cannot be undone.",
+        "confirm_submit": "Delete product",
+        "deleting": "Deleting…",
+        "success": "Deleted product {{code}}",
+        "failed": "Could not delete product"
       },
       "preview": {
         "unavailable": "Product preview — feature in progress"

@@ -9,6 +9,7 @@ import {
   Save,
   ShoppingBag,
   Sparkles,
+  Trash2,
   Upload,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -17,6 +18,13 @@ import { Link, useNavigate } from 'react-router';
 
 import type { Provenance } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { MockBadge } from '@/components/ui/mock-badge';
 import { toast } from '@/components/ui/toast';
@@ -102,6 +110,8 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const product = isEditMode ? result : null;
   const attrs = useMemo(
@@ -220,6 +230,27 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     setIsEditing(false);
   };
 
+  const handleDelete = async (): Promise<void> => {
+    if (mode !== 'edit' || id === '' || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await jsonFetch(`/api/products/${id}`, { method: 'DELETE' });
+      toast.success(
+        t('products.detail.delete.success', {
+          defaultValue: 'Usunięto produkt {{code}}',
+          code: product?.code ?? id,
+        }),
+      );
+      navigate('/products');
+    } catch {
+      toast.error(
+        t('products.detail.delete.failed', { defaultValue: 'Nie udało się usunąć produktu' }),
+      );
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   if (isEditMode && (query.isLoading || product === null || product === undefined)) {
     return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
   }
@@ -288,16 +319,41 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
             <div className="ml-auto flex items-center gap-2">
               <PreviewButton disabled={mode === 'create'} />
               {mode === 'edit' && id !== '' ? <DuplicateButton productId={id} /> : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-9 rounded-xl bg-white soft-shadow"
-                aria-label={t('products.detail.actions.more', { defaultValue: 'Więcej' })}
-                disabled
-              >
-                <MoreHorizontal className="size-4" />
-              </Button>
+              {mode === 'edit' && id !== '' ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-9 rounded-xl bg-white soft-shadow"
+                      aria-label={t('products.detail.actions.more', { defaultValue: 'Więcej' })}
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
+                      onSelect={() => setShowDeleteConfirm(true)}
+                      className="text-rose-600 focus:bg-rose-50 focus:text-rose-700"
+                    >
+                      <Trash2 className="mr-2 size-4" />
+                      {t('products.detail.actions.delete', { defaultValue: 'Usuń produkt' })}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 rounded-xl bg-white soft-shadow"
+                  aria-label={t('products.detail.actions.more', { defaultValue: 'Więcej' })}
+                  disabled
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              )}
               <span className="mx-1 h-6 w-px bg-zinc-200" />
               {isEditing ? (
                 <>
@@ -559,6 +615,42 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
           </aside>
         ) : null}
       </div>
+
+      <Dialog
+        open={showDeleteConfirm}
+        onOpenChange={(next) => {
+          if (!next && !isDeleting) setShowDeleteConfirm(false);
+        }}
+      >
+        <DialogContent>
+          <div className="space-y-2">
+            <DialogTitle>
+              {t('products.detail.delete.confirm_title', { defaultValue: 'Usunąć produkt?' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('products.detail.delete.confirm_body', {
+                defaultValue:
+                  'Czy na pewno chcesz usunąć produkt {{code}}? Tej operacji nie da się cofnąć.',
+                code: product?.code ?? '',
+              })}
+            </DialogDescription>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeleting}
+            >
+              {t('app.cancel', { defaultValue: 'Anuluj' })}
+            </Button>
+            <Button variant="destructive" onClick={() => void handleDelete()} disabled={isDeleting}>
+              {isDeleting
+                ? t('products.detail.delete.deleting', { defaultValue: 'Usuwanie…' })
+                : t('products.detail.delete.confirm_submit', { defaultValue: 'Usuń produkt' })}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

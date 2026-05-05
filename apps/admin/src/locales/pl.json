@@ -580,7 +580,16 @@
         "edit": "Edytuj",
         "save": "Zapisz zmiany",
         "create": "Utwórz produkt",
-        "cancel": "Anuluj"
+        "cancel": "Anuluj",
+        "delete": "Usuń produkt"
+      },
+      "delete": {
+        "confirm_title": "Usunąć produkt?",
+        "confirm_body": "Czy na pewno chcesz usunąć produkt {{code}}? Tej operacji nie da się cofnąć.",
+        "confirm_submit": "Usuń produkt",
+        "deleting": "Usuwanie…",
+        "success": "Usunięto produkt {{code}}",
+        "failed": "Nie udało się usunąć produktu"
       },
       "preview": {
         "unavailable": "Podgląd produktu — funkcja w przygotowaniu"
