@@ -5351,7 +5351,7 @@
             },
             "AssetStorage-admin.read": {
                 "type": "object",
-                "description": "Stored binary file (image, PDF, video, \u2026) with tenant scope.\n\nPer ADR-009 Asset is split between two homes: this dedicated table\ncarries storage details (path on object storage, mime type, size,\nEXIF / dimensions JSONB), while user-defined metadata flows through\nthe catalog model \u2014 every Asset row optionally points at a\n`CatalogObject` of `kind=asset` (`object_id` UNIQUE) so admins can\nattach localised attributes (`alt_pl`, `caption_en`, \u2026) the same way\nthey do for products. Tightly-coupled storage details stay here so\nwe are not forcing them through the EAV layer.\n\n`storage_path` is relative to the Flysystem bucket (e.g. `<tenant>/\n<asset-id>/original.jpg`) \u2014 application-layer convention,\nFlysystem-agnostic.\n\nVariants (thumbnails, transcodes, alternative formats) live in\n{@see AssetVariant} and are derived in phase 1 (transformations are\nout of MVP scope \u2014 #37 only handles the original upload).",
+                "description": "Stored binary file (image, PDF, \u2026) with tenant scope.\n\nPer ADR-009 Asset is split between two homes: this dedicated table\ncarries storage details (path on object storage, mime type, size,\ndimensions, content hash) while user-defined metadata flows through\nthe catalog model \u2014 every Asset row optionally points at a\n`CatalogObject` of `kind=asset` so admins can attach localised\nattributes (`alt_pl`, `caption_en`, \u2026).\n\n`storage_path` is relative to the Flysystem bucket \u2014 application-layer\nconvention, Flysystem-agnostic.\n\nVariants (thumbnails 200/800) live in {@see AssetVariant}; the worker\npipeline transitions {@see ThumbnailsStatus} from `pending` to\n`ready`/`failed`.",
                 "properties": {
                     "id": {
                         "type": [
@@ -5383,7 +5383,6 @@
                         "type": "integer"
                     },
                     "metadata": {
-                        "readOnly": true,
                         "type": "object",
                         "additionalProperties": {
                             "type": [
@@ -5451,7 +5450,6 @@
                                 "type": "integer"
                             },
                             "metadata": {
-                                "readOnly": true,
                                 "type": "object",
                                 "additionalProperties": {
                                     "type": [
@@ -5482,7 +5480,7 @@
                         ]
                     }
                 ],
-                "description": "Stored binary file (image, PDF, video, \u2026) with tenant scope.\n\nPer ADR-009 Asset is split between two homes: this dedicated table\ncarries storage details (path on object storage, mime type, size,\nEXIF / dimensions JSONB), while user-defined metadata flows through\nthe catalog model \u2014 every Asset row optionally points at a\n`CatalogObject` of `kind=asset` (`object_id` UNIQUE) so admins can\nattach localised attributes (`alt_pl`, `caption_en`, \u2026) the same way\nthey do for products. Tightly-coupled storage details stay here so\nwe are not forcing them through the EAV layer.\n\n`storage_path` is relative to the Flysystem bucket (e.g. `<tenant>/\n<asset-id>/original.jpg`) \u2014 application-layer convention,\nFlysystem-agnostic.\n\nVariants (thumbnails, transcodes, alternative formats) live in\n{@see AssetVariant} and are derived in phase 1 (transformations are\nout of MVP scope \u2014 #37 only handles the original upload)."
+                "description": "Stored binary file (image, PDF, \u2026) with tenant scope.\n\nPer ADR-009 Asset is split between two homes: this dedicated table\ncarries storage details (path on object storage, mime type, size,\ndimensions, content hash) while user-defined metadata flows through\nthe catalog model \u2014 every Asset row optionally points at a\n`CatalogObject` of `kind=asset` so admins can attach localised\nattributes (`alt_pl`, `caption_en`, \u2026).\n\n`storage_path` is relative to the Flysystem bucket \u2014 application-layer\nconvention, Flysystem-agnostic.\n\nVariants (thumbnails 200/800) live in {@see AssetVariant}; the worker\npipeline transitions {@see ThumbnailsStatus} from `pending` to\n`ready`/`failed`."
             },
             "AssetVariant-admin.read": {
                 "type": "object"
@@ -7752,7 +7750,7 @@
         },
         {
             "name": "AssetStorage",
-            "description": "Stored binary file (image, PDF, video, \u2026) with tenant scope.\n\nPer ADR-009 Asset is split between two homes: this dedicated table\ncarries storage details (path on object storage, mime type, size,\nEXIF / dimensions JSONB), while user-defined metadata flows through\nthe catalog model \u2014 every Asset row optionally points at a\n`CatalogObject` of `kind=asset` (`object_id` UNIQUE) so admins can\nattach localised attributes (`alt_pl`, `caption_en`, \u2026) the same way\nthey do for products. Tightly-coupled storage details stay here so\nwe are not forcing them through the EAV layer.\n\n`storage_path` is relative to the Flysystem bucket (e.g. `<tenant>/\n<asset-id>/original.jpg`) \u2014 application-layer convention,\nFlysystem-agnostic.\n\nVariants (thumbnails, transcodes, alternative formats) live in\n{@see AssetVariant} and are derived in phase 1 (transformations are\nout of MVP scope \u2014 #37 only handles the original upload)."
+            "description": "Stored binary file (image, PDF, \u2026) with tenant scope.\n\nPer ADR-009 Asset is split between two homes: this dedicated table\ncarries storage details (path on object storage, mime type, size,\ndimensions, content hash) while user-defined metadata flows through\nthe catalog model \u2014 every Asset row optionally points at a\n`CatalogObject` of `kind=asset` so admins can attach localised\nattributes (`alt_pl`, `caption_en`, \u2026).\n\n`storage_path` is relative to the Flysystem bucket \u2014 application-layer\nconvention, Flysystem-agnostic.\n\nVariants (thumbnails 200/800) live in {@see AssetVariant}; the worker\npipeline transitions {@see ThumbnailsStatus} from `pending` to\n`ready`/`failed`."
         },
         {
             "name": "ApiKey",

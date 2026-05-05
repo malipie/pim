@@ -7,7 +7,6 @@ namespace App\Asset\Infrastructure\ApiPlatform;
 use ApiPlatform\Doctrine\Orm\Extension\QueryCollectionExtensionInterface;
 use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use ApiPlatform\Metadata\Operation;
-use App\Catalog\Domain\Entity\CatalogObject;
 use DateTimeImmutable;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -51,7 +50,11 @@ final readonly class AssetCollectionFilterExtension implements QueryCollectionEx
         ?Operation $operation = null,
         array $context = [],
     ): void {
-        if (CatalogObject::class !== $resourceClass) {
+        // CatalogObject FQCN as a literal string keeps Asset_Internals from
+        // depending on Catalog_Internals (Deptrac ADR-0013). The mapping is
+        // discovered through the AP4 resource class string at runtime, so
+        // there is no compile-time benefit to importing the class.
+        if ('App\\Catalog\\Domain\\Entity\\CatalogObject' !== $resourceClass) {
             return;
         }
         if ('asset' !== ($operation?->getExtraProperties()['kind'] ?? null)) {
