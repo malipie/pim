@@ -217,10 +217,70 @@
     "list_subtitle": "Zasoby cyfrowe — obrazy, wideo, dokumenty — wskazywane z produktów i kategorii.",
     "back": "Wróć do zasobów",
     "empty": "Brak wgranych zasobów.",
-    "write_deferred_note": "Drag-and-drop upload, dialog edycji metadanych, preview modal i bulk delete dochodzą w follow-up — read-only grid + show dostarcza ten PR.",
     "fields": {
       "alt": "Tekst alt",
-      "mime": "Typ MIME"
+      "mime": "Typ MIME",
+      "code": "Kod",
+      "tags": "Tagi",
+      "size": "Rozmiar",
+      "dimensions": "Wymiary",
+      "page_count": "Liczba stron",
+      "filename": "Nazwa pliku"
+    },
+    "upload": {
+      "drop_here": "Upuść pliki tutaj",
+      "click_to_select": "lub kliknij, aby wybrać",
+      "browse": "Wybierz pliki",
+      "allowed_formats": "Akceptowane: JPEG, PNG, WebP, GIF, SVG, AVIF, PDF",
+      "max_size_image": "Obrazy do 25 MB",
+      "max_size_pdf": "PDF do 50 MB",
+      "uploading": "Wysyłanie…",
+      "queued": "W kolejce",
+      "succeeded": "Wysłano",
+      "failed_size": "Plik za duży ({{limit}} MB max).",
+      "failed_mime": "Nieobsługiwany format ({{mime}}).",
+      "failed_duplicate": "Plik już istnieje w bibliotece.",
+      "failed_generic": "Nie udało się wysłać pliku.",
+      "use_existing": "Użyj istniejącego",
+      "cancel": "Anuluj",
+      "duplicate_dialog_title": "Plik już istnieje",
+      "duplicate_dialog_body": "W bibliotece jest już zasób z taką samą zawartością ({{code}}). Możesz otworzyć istniejący wpis lub anulować."
+    },
+    "filters": {
+      "search_placeholder": "Szukaj po nazwie pliku…",
+      "mime_all": "Wszystkie",
+      "mime_images": "Obrazy",
+      "mime_pdf": "PDF",
+      "mime_label": "Typ"
+    },
+    "thumbnails": {
+      "pending": "Generowanie miniatur…",
+      "failed": "Generowanie miniatur nie powiodło się."
+    },
+    "detail": {
+      "edit": "Edytuj",
+      "download": "Pobierz oryginał",
+      "delete": "Usuń",
+      "delete_confirm_title": "Usunąć zasób?",
+      "delete_confirm_body": "Plik {{filename}} zniknie z biblioteki. Powiązane produkty stracą referencję. Tej operacji nie można cofnąć.",
+      "delete_confirm_button": "Usuń",
+      "save": "Zapisz",
+      "saving": "Zapisywanie…",
+      "saved": "Zapisano zmiany.",
+      "save_error": "Nie udało się zapisać zmian.",
+      "delete_error": "Nie udało się usunąć.",
+      "edit_dialog_title": "Edytuj metadane zasobu",
+      "code_help": "Unikalny kod zasobu (slug). Zmiana kodu zmienia adres /assets/&lt;kod&gt;.",
+      "tags_help": "Oddziel tagi przecinkami lub Enter.",
+      "tags_placeholder": "np. footwear, autumn"
+    },
+    "bulk": {
+      "selected_one": "Zaznaczono 1 zasób",
+      "selected_other": "Zaznaczono {{count}} zasobów",
+      "delete": "Usuń zaznaczone",
+      "delete_confirm_title": "Usunąć zaznaczone zasoby?",
+      "delete_confirm_body": "Usuniętych zostanie {{count}} zasobów. Tej operacji nie można cofnąć.",
+      "delete_error": "Nie udało się usunąć części zasobów."
     }
   },
   "channels": {

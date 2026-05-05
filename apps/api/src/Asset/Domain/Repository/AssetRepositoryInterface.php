@@ -10,6 +10,8 @@ interface AssetRepositoryInterface
 
     public function findByCode(string $code, \App\Shared\Domain\Tenant $tenant): ?\App\Asset\Domain\Entity\Asset;
 
+    public function findByContentHash(string $contentHash, \App\Shared\Domain\Tenant $tenant): ?\App\Asset\Domain\Entity\Asset;
+
     public function save(\App\Asset\Domain\Entity\Asset $entity): void;
 
     public function remove(\App\Asset\Domain\Entity\Asset $entity): void;

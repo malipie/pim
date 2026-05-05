@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Asset\Domain\Entity;
 
+use App\Asset\Contracts\Event\AssetDeleted;
+use App\Asset\Contracts\Event\AssetMetadataUpdated;
+use App\Asset\Contracts\Event\AssetThumbnailsReady;
 use App\Asset\Contracts\Event\AssetUploaded;
+use App\Asset\Domain\ThumbnailsStatus;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\AggregateRoot;
 use App\Shared\Domain\Tenant;
@@ -16,24 +20,21 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
- * Stored binary file (image, PDF, video, …) with tenant scope.
+ * Stored binary file (image, PDF, …) with tenant scope.
  *
  * Per ADR-009 Asset is split between two homes: this dedicated table
  * carries storage details (path on object storage, mime type, size,
- * EXIF / dimensions JSONB), while user-defined metadata flows through
+ * dimensions, content hash) while user-defined metadata flows through
  * the catalog model — every Asset row optionally points at a
- * `CatalogObject` of `kind=asset` (`object_id` UNIQUE) so admins can
- * attach localised attributes (`alt_pl`, `caption_en`, …) the same way
- * they do for products. Tightly-coupled storage details stay here so
- * we are not forcing them through the EAV layer.
+ * `CatalogObject` of `kind=asset` so admins can attach localised
+ * attributes (`alt_pl`, `caption_en`, …).
  *
- * `storage_path` is relative to the Flysystem bucket (e.g. `<tenant>/
- * <asset-id>/original.jpg`) — application-layer convention,
- * Flysystem-agnostic.
+ * `storage_path` is relative to the Flysystem bucket — application-layer
+ * convention, Flysystem-agnostic.
  *
- * Variants (thumbnails, transcodes, alternative formats) live in
- * {@see AssetVariant} and are derived in phase 1 (transformations are
- * out of MVP scope — #37 only handles the original upload).
+ * Variants (thumbnails 200/800) live in {@see AssetVariant}; the worker
+ * pipeline transitions {@see ThumbnailsStatus} from `pending` to
+ * `ready`/`failed`.
  */
 class Asset extends AggregateRoot implements TenantScoped
 {
@@ -60,6 +61,25 @@ class Asset extends AggregateRoot implements TenantScoped
     private int $size;
 
     /**
+     * SHA-256 hex digest of the original bytes — UNIQUE per tenant for
+     * dedupe on POST.
+     */
+    private ?string $contentHash = null;
+
+    private ?int $width = null;
+
+    private ?int $height = null;
+
+    private ?int $pageCount = null;
+
+    /**
+     * @var array<int, string>
+     */
+    private array $tags = [];
+
+    private string $thumbnailsStatus = ThumbnailsStatus::Pending->value;
+
+    /**
      * @var array<string, mixed>
      */
     private array $metadata = [];
@@ -74,6 +94,10 @@ class Asset extends AggregateRoot implements TenantScoped
      */
     private Collection $variants;
 
+    /**
+     * @param array<int, string>   $tags
+     * @param array<string, mixed> $metadata
+     */
     public function __construct(
         string $code,
         string $originalFilename,
@@ -81,6 +105,12 @@ class Asset extends AggregateRoot implements TenantScoped
         int $size,
         string $storagePath,
         ?Uuid $id = null,
+        ?string $contentHash = null,
+        ?int $width = null,
+        ?int $height = null,
+        ?int $pageCount = null,
+        array $tags = [],
+        array $metadata = [],
     ) {
         $this->id = $id ?? Uuid::v7();
         $this->code = $code;
@@ -88,6 +118,12 @@ class Asset extends AggregateRoot implements TenantScoped
         $this->mimeType = $mimeType;
         $this->size = $size;
         $this->storagePath = $storagePath;
+        $this->contentHash = $contentHash;
+        $this->width = $width;
+        $this->height = $height;
+        $this->pageCount = $pageCount;
+        $this->tags = array_values(array_unique($tags));
+        $this->metadata = $metadata;
         $this->createdAt = new DateTimeImmutable();
         $this->variants = new ArrayCollection();
     }
@@ -126,6 +162,11 @@ class Asset extends AggregateRoot implements TenantScoped
         return $this->code;
     }
 
+    public function rename(string $code): void
+    {
+        $this->code = $code;
+    }
+
     public function getObjectId(): ?Uuid
     {
         return $this->objectId;
@@ -151,6 +192,79 @@ class Asset extends AggregateRoot implements TenantScoped
         return $this->size;
     }
 
+    public function getContentHash(): ?string
+    {
+        return $this->contentHash;
+    }
+
+    public function getWidth(): ?int
+    {
+        return $this->width;
+    }
+
+    public function getHeight(): ?int
+    {
+        return $this->height;
+    }
+
+    public function getPageCount(): ?int
+    {
+        return $this->pageCount;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getTags(): array
+    {
+        return $this->tags;
+    }
+
+    /**
+     * @param array<int, string> $tags
+     */
+    public function setTags(array $tags): void
+    {
+        $this->tags = array_values(array_unique(array_filter(
+            array_map('trim', $tags),
+            static fn (string $tag): bool => '' !== $tag,
+        )));
+    }
+
+    public function getThumbnailsStatus(): ThumbnailsStatus
+    {
+        return ThumbnailsStatus::from($this->thumbnailsStatus);
+    }
+
+    public function markThumbnailsReady(?int $width, ?int $height, ?int $pageCount): void
+    {
+        $this->thumbnailsStatus = ThumbnailsStatus::Ready->value;
+        if (null !== $width) {
+            $this->width = $width;
+        }
+        if (null !== $height) {
+            $this->height = $height;
+        }
+        if (null !== $pageCount) {
+            $this->pageCount = $pageCount;
+        }
+
+        if (null !== $this->tenant) {
+            $this->recordThat(new AssetThumbnailsReady(
+                assetId: $this->id,
+                tenantId: $this->tenant->getId(),
+                width: $this->width,
+                height: $this->height,
+                pageCount: $this->pageCount,
+            ));
+        }
+    }
+
+    public function markThumbnailsFailed(): void
+    {
+        $this->thumbnailsStatus = ThumbnailsStatus::Failed->value;
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -165,6 +279,47 @@ class Asset extends AggregateRoot implements TenantScoped
     public function updateMetadata(array $metadata): void
     {
         $this->metadata = $metadata;
+    }
+
+    /**
+     * Record a metadata update event — payload mirrors the changed
+     * fields (caller passes only what changed).
+     *
+     * @param array<string, string> $alt
+     * @param array<int, string>    $tags
+     */
+    public function trackMetadataUpdated(?string $code, ?array $alt, ?array $tags): void
+    {
+        if (null === $this->tenant) {
+            return;
+        }
+
+        $this->recordThat(new AssetMetadataUpdated(
+            assetId: $this->id,
+            tenantId: $this->tenant->getId(),
+            code: $code,
+            alt: $alt,
+            tags: $tags,
+        ));
+    }
+
+    public function trackDeleted(): void
+    {
+        if (null === $this->tenant) {
+            return;
+        }
+
+        $variantPaths = [];
+        foreach ($this->variants as $variant) {
+            $variantPaths[] = $variant->getStoragePath();
+        }
+
+        $this->recordThat(new AssetDeleted(
+            assetId: $this->id,
+            tenantId: $this->tenant->getId(),
+            originalStoragePath: $this->storagePath,
+            variantStoragePaths: $variantPaths,
+        ));
     }
 
     public function getStoragePath(): string

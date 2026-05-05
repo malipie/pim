@@ -215,10 +215,70 @@
     "list_subtitle": "Digital assets — images, video, documents — referenced from products and categories.",
     "back": "Back to assets",
     "empty": "No assets uploaded yet.",
-    "write_deferred_note": "Drag-and-drop upload, edit metadata dialog, preview modal, and bulk delete land in a follow-up — read-only grid + show ships now.",
     "fields": {
       "alt": "Alt text",
-      "mime": "MIME type"
+      "mime": "MIME type",
+      "code": "Code",
+      "tags": "Tags",
+      "size": "Size",
+      "dimensions": "Dimensions",
+      "page_count": "Page count",
+      "filename": "Filename"
+    },
+    "upload": {
+      "drop_here": "Drop files here",
+      "click_to_select": "or click to select",
+      "browse": "Browse files",
+      "allowed_formats": "Accepted: JPEG, PNG, WebP, GIF, SVG, AVIF, PDF",
+      "max_size_image": "Images up to 25 MB",
+      "max_size_pdf": "PDFs up to 50 MB",
+      "uploading": "Uploading…",
+      "queued": "Queued",
+      "succeeded": "Uploaded",
+      "failed_size": "File too large ({{limit}} MB max).",
+      "failed_mime": "Unsupported format ({{mime}}).",
+      "failed_duplicate": "File is already in the library.",
+      "failed_generic": "Upload failed.",
+      "use_existing": "Use existing",
+      "cancel": "Cancel",
+      "duplicate_dialog_title": "File already exists",
+      "duplicate_dialog_body": "An asset with the same content already exists ({{code}}). Open the existing entry or cancel."
+    },
+    "filters": {
+      "search_placeholder": "Search by filename…",
+      "mime_all": "All",
+      "mime_images": "Images",
+      "mime_pdf": "PDF",
+      "mime_label": "Type"
+    },
+    "thumbnails": {
+      "pending": "Generating thumbnails…",
+      "failed": "Thumbnail generation failed."
+    },
+    "detail": {
+      "edit": "Edit",
+      "download": "Download original",
+      "delete": "Delete",
+      "delete_confirm_title": "Delete asset?",
+      "delete_confirm_body": "{{filename}} will disappear from the library. Linked products will lose the reference. This cannot be undone.",
+      "delete_confirm_button": "Delete",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Changes saved.",
+      "save_error": "Failed to save changes.",
+      "delete_error": "Failed to delete.",
+      "edit_dialog_title": "Edit asset metadata",
+      "code_help": "Unique asset code (slug). Changing the code changes the /assets/<code> address.",
+      "tags_help": "Separate tags with comma or Enter.",
+      "tags_placeholder": "e.g. footwear, autumn"
+    },
+    "bulk": {
+      "selected_one": "1 asset selected",
+      "selected_other": "{{count}} assets selected",
+      "delete": "Delete selected",
+      "delete_confirm_title": "Delete selected assets?",
+      "delete_confirm_body": "{{count}} assets will be deleted. This cannot be undone.",
+      "delete_error": "Some assets could not be deleted."
     }
   },
   "channels": {

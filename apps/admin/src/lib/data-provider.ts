@@ -29,10 +29,25 @@ const API_BASE = '/api';
 export const dataProvider: DataProvider = {
   getApiUrl: () => API_BASE,
 
-  async getList({ resource, pagination }) {
+  async getList({ resource, pagination, filters }) {
     const query: Record<string, string | number | undefined> = {};
     if (pagination?.currentPage) {
       query.page = pagination.currentPage;
+    }
+    // Forward simple `eq` field filters as query params. The custom
+    // collection extensions per resource read these directly (the
+    // Asset DAM pipeline relies on `?search=` + `?mimeGroup=`).
+    if (filters) {
+      for (const filter of filters) {
+        if (
+          'field' in filter &&
+          filter.operator === 'eq' &&
+          filter.value !== undefined &&
+          filter.value !== ''
+        ) {
+          query[filter.field] = String(filter.value);
+        }
+      }
     }
     const data = await jsonFetch<HydraCollection<HydraResource>>(`${API_BASE}/${resource}`, {
       query,
