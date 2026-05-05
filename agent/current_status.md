@@ -1,5 +1,25 @@
 # Current Status
 
+## 2026-05-05: #438 DAM MVP — `/assets` upload, miniatury, edycja, dedupe, search, bulk
+
+Operator: „rozbuduj widok multimedia o możliwość dodawania multimediów + must have funkcjonalności jakie powinien mieć DAM w wersji MVP". Plan-mode → 4 pytania (scope: pełen DAM MVP / thumbnails: async via Messenger / formaty: obrazy + PDF / dedupe: SHA-256 z 409). ExitPlanMode → operator zatwierdził → bypass permissions („działaj bez zatrzymywania").
+
+Issue #438, branch `feat/assets-dam-mvp`, draft PR #439.
+
+**Stan na PR opening (commit dc07789):**
+- Backend wszystkie warstwy gotowe: migracja Doctrine `Version20260505192941` (content_hash, width/height/page_count, tags JSONB, thumbnails_status + 4 indeksy + CHECK), domain (Asset extended, 4 nowe eventy, ThumbnailsStatus enum), application (AssetUploader z dedupe + dispatch, AssetMetadataUpdater, AssetDeleter, AssetThumbnailHandler, ImagickImageProcessor, MimeTypeWhitelist, DuplicateAssetException), HTTP (`POST /api/assets/upload`, `PATCH /api/assets/{id}`, `DELETE /api/assets/{id}`, `POST /api/assets/bulk-delete`, AssetCollectionFilterExtension dla GET filterów), konfiguracja (services.yaml params, messenger transport, Dockerfile imagick + ghostscript + ext-imagick — wymaga `pnpm stack:rebuild`).
+- Frontend wszystkie komponenty gotowe: `lib/asset-upload.ts` (XHR + progress + 401 retry), `AssetUploadDropzone` (HTML5 drag-and-drop), grid w list.tsx (multi-select + polling), `AssetFilterBar` (debounced search + MIME group), `AssetEditDialog` (code + tags), `AssetBulkActionsBar`, `AssetDuplicateDialog`, show.tsx z Edit/Download/Delete + chip list tagów, i18n PL/EN pełne drzewo, dataProvider forwarduje `eq` filtry.
+- Quality: PHPStan max zielony dla `src/Asset/`. Frontend typecheck + lint zielone. 6 pre-existing PHPStan errors w `GenerateVariantsApiTest.php` istnieją na main (zweryfikowane git stash + lint) — nie z mojego ticketu.
+- Świadome odejścia (PR description): alt edit deferred (Deptrac blokuje cross-context, potrzebny Catalog_Contracts writer), date/size/tag filter UI (backend gotowy), video MP4 (Faza 1), tests (#438a follow-up po smoke), Mercure SSE (polling wystarczy w MVP).
+- Endpoint poza planem: `POST /api/assets` zmieniony na `POST /api/assets/upload` (AP4 GET ma już `/api/assets`, Symfony route conflict).
+
+**Następne kroki (PR DRAFT):**
+1. `pnpm stack:rebuild` (imagick + ghostscript install) — w toku w tle.
+2. `doctrine:migrations:migrate --no-interaction` na świeżym kontenerze.
+3. `messenger:consume async` worker dla thumbnails.
+4. Manual smoke wg PR description (login → drag-drop 5 plików → edit → bulk delete → filters).
+5. Po smoke OK: tests follow-up (#438a) i mark PR ready-for-review.
+
 ## 2026-05-04: VIEW-07 view-first marathon — Produkty edycja + tworzenie
 
 Operator: dostarczył screenshot widoku edycji produktu (Czujnik X-200) + plik `Zrodla/Front_Claude_Design/design_handoff_modelowanie/src/produkty/detail-view.jsx`. Screenshot ma priorytet (makieta była aktualizowana). Plan-mode → 3 pytania scope (relayout VariantsTab body / frontend trzyma stan przy create / 4 lokale UI dropdown bez i18n DE/CS w admin) → ExitPlanMode → ticket VIEW-07 + Issue #420 + branch `feat/view-07-produkty-edycja-relayout`.
