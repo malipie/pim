@@ -13,11 +13,12 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\UnsupportedMediaTypeHttpException;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 
 /**
  * `POST /api/assets/upload` (multipart) — DAM MVP entry point (#438).
@@ -44,15 +45,19 @@ final class UploadAssetController
 {
     public function __construct(
         private readonly AssetUploader $uploader,
+        private readonly AuthorizationCheckerInterface $authorisation,
         private readonly int $maxImageBytes,
         private readonly int $maxPdfBytes,
     ) {
     }
 
     #[Route(path: '/api/assets/upload', name: 'pim_assets_upload', methods: ['POST'], format: 'json')]
-    #[IsGranted('CREATE', 'App\\Asset\\Domain\\Entity\\Asset')]
     public function __invoke(Request $request): JsonResponse
     {
+        if (!$this->authorisation->isGranted('CREATE', Asset::class)) {
+            throw new AccessDeniedHttpException();
+        }
+
         $file = $request->files->get('file');
         if (!$file instanceof UploadedFile) {
             throw new BadRequestHttpException('Multipart field "file" is required.');
