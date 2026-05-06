@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <resource class="App\Import\Domain\Entity\ImportProfile"
+              shortName="ImportProfile">
+
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>import_profile:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
+        <operations>
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/import-profiles{._format}"
+                       security="is_granted('READ', 'App\\Import\\Domain\\Entity\\ImportProfile')"/>
+
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/import-profiles/{id}{._format}"
+                       security="is_granted('READ', object)"/>
+
+            <operation class="ApiPlatform\Metadata\Post"
+                       uriTemplate="/import-profiles{._format}"
+                       input="App\Import\Infrastructure\ApiPlatform\Resource\ImportProfileInput"
+                       processor="App\Import\Infrastructure\ApiPlatform\State\ImportProfileProcessor"
+                       security="is_granted('CREATE', 'App\\Import\\Domain\\Entity\\ImportProfile')"/>
+
+            <operation class="ApiPlatform\Metadata\Patch"
+                       uriTemplate="/import-profiles/{id}{._format}"
+                       input="App\Import\Infrastructure\ApiPlatform\Resource\ImportProfilePatchInput"
+                       processor="App\Import\Infrastructure\ApiPlatform\State\ImportProfileProcessor"
+                       security="is_granted('UPDATE', object)"/>
+
+            <operation class="ApiPlatform\Metadata\Delete"
+                       uriTemplate="/import-profiles/{id}{._format}"
+                       processor="App\Import\Infrastructure\ApiPlatform\State\ImportProfileProcessor"
+                       security="is_granted('DELETE', object)"/>
+        </operations>
+    </resource>
+</resources>

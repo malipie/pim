@@ -4437,6 +4437,485 @@
                 ]
             }
         },
+        "/api/import-profiles": {
+            "get": {
+                "operationId": "api_import-profiles_get_collection",
+                "tags": [
+                    "ImportProfile"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ImportProfile collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "ImportProfile.jsonld-import_profile.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ImportProfile.jsonld-import_profile.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ImportProfile-import_profile.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of ImportProfile resources.",
+                "description": "Retrieves the collection of ImportProfile resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "api_import-profiles_post",
+                "tags": [
+                    "ImportProfile"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "ImportProfile resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportProfile.jsonld-import_profile.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportProfile-import_profile.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a ImportProfile resource.",
+                "description": "Creates a ImportProfile resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new ImportProfile resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportProfile.ImportProfileInput"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportProfile.ImportProfileInput"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/import-profiles/{id}": {
+            "get": {
+                "operationId": "api_import-profiles_id_get",
+                "tags": [
+                    "ImportProfile"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ImportProfile resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportProfile.jsonld-import_profile.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportProfile-import_profile.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a ImportProfile resource.",
+                "description": "Retrieves a ImportProfile resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ImportProfile identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "api_import-profiles_id_delete",
+                "tags": [
+                    "ImportProfile"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "ImportProfile resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the ImportProfile resource.",
+                "description": "Removes the ImportProfile resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ImportProfile identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_import-profiles_id_patch",
+                "tags": [
+                    "ImportProfile"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ImportProfile resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportProfile.jsonld-import_profile.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportProfile-import_profile.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the ImportProfile resource.",
+                "description": "Updates the ImportProfile resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ImportProfile identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated ImportProfile resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportProfile.ImportProfilePatchInput.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
         "/api/locales": {
             "get": {
                 "operationId": "api_locales_get_collection",
@@ -7298,6 +7777,279 @@
                     "@type"
                 ]
             },
+            "ImportProfile-import_profile.read": {
+                "type": "object",
+                "description": "Per-user saved configuration for the import wizard (\"smart memory\").\n\nEditing a profile only affects future imports; historical\n{@see ImportSession} rows do not pull mapping changes from their\nprofile retroactively (decision: spec \u00a75.8).",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "userId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "maxLength": 255,
+                        "type": "string"
+                    },
+                    "targetObjectType": {
+                        "type": "string",
+                        "format": "iri-reference",
+                        "example": "https://example.com/"
+                    },
+                    "columnMapping": {
+                        "description": "Map of source column header \u2192 target attribute id (or \"skip\").",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "locale": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "encoding": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "delimiter": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "imageSource": {
+                        "default": "none",
+                        "type": "string"
+                    },
+                    "imageZipNamingConvention": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "lastUsedAt": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
+            "ImportProfile.ImportProfileInput": {
+                "type": "object",
+                "description": "Per-user saved configuration for the import wizard (\"smart memory\").\n\nEditing a profile only affects future imports; historical\n{@see ImportSession} rows do not pull mapping changes from their\nprofile retroactively (decision: spec \u00a75.8).",
+                "required": [
+                    "name",
+                    "targetObjectTypeId"
+                ],
+                "properties": {
+                    "name": {
+                        "maxLength": 255,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "targetObjectTypeId": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "default": "",
+                        "type": "string"
+                    },
+                    "columnMapping": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "locale": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "encoding": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "delimiter": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "imageSource": {
+                        "description": "One of: `http`, `zip`, `none`.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "imageZipNamingConvention": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ImportProfile.ImportProfilePatchInput.jsonMergePatch": {
+                "type": "object",
+                "description": "Per-user saved configuration for the import wizard (\"smart memory\").\n\nEditing a profile only affects future imports; historical\n{@see ImportSession} rows do not pull mapping changes from their\nprofile retroactively (decision: spec \u00a75.8).",
+                "properties": {
+                    "name": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "columnMapping": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "locale": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "encoding": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "delimiter": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "imageSource": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "imageZipNamingConvention": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ImportProfile.jsonld-import_profile.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "userId": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "name": {
+                                "maxLength": 255,
+                                "type": "string"
+                            },
+                            "targetObjectType": {
+                                "type": "string",
+                                "format": "iri-reference",
+                                "example": "https://example.com/"
+                            },
+                            "columnMapping": {
+                                "description": "Map of source column header \u2192 target attribute id (or \"skip\").",
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            },
+                            "locale": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "encoding": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "delimiter": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "imageSource": {
+                                "default": "none",
+                                "type": "string"
+                            },
+                            "imageZipNamingConvention": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "lastUsedAt": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        },
+                        "required": [
+                            "name"
+                        ]
+                    }
+                ],
+                "description": "Per-user saved configuration for the import wizard (\"smart memory\").\n\nEditing a profile only affects future imports; historical\n{@see ImportSession} rows do not pull mapping changes from their\nprofile retroactively (decision: spec \u00a75.8)."
+            },
             "Locale-admin.read": {
                 "type": "object",
                 "properties": {
@@ -7759,6 +8511,10 @@
         {
             "name": "ApiProfile",
             "description": "A named projection over the public API for a class of integrators.\n\nPer ADR-009 the profile filter is parameterised on `objectTypeIds`\n(UUID list of `ObjectType` rows visible through this profile) plus\n`includedAttributes` (attribute codes to publish) plus `filters`\n(JSONB dict of canonical filter parameters, e.g. `status=enabled`).\nOne canonical request \u2014 `GET /api/products` keyed by an `ApiKey`\nscoped to a profile \u2014 narrows to a per-profile view by the\nserializer context built from this row (#94).\n\nWebhook fields (`webhookUrl` + `webhookEvents`) are configuration\nonly at this point. Delivery + retry policy lands in #93."
+        },
+        {
+            "name": "ImportProfile",
+            "description": "Per-user saved configuration for the import wizard (\"smart memory\").\n\nEditing a profile only affects future imports; historical\n{@see ImportSession} rows do not pull mapping changes from their\nprofile retroactively (decision: spec \u00a75.8)."
         }
     ],
     "webhooks": {}
