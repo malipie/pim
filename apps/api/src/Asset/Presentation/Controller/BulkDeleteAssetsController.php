@@ -61,7 +61,7 @@ final readonly class BulkDeleteAssetsController
                 continue;
             }
 
-            $asset = $this->assets->findById($assetId);
+            $asset = $this->assets->findById($assetId) ?? $this->assets->findByObjectId($assetId);
             if (null === $asset) {
                 $results[] = ['id' => $rawId, 'status' => 'not_found'];
                 continue;

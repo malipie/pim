@@ -31,7 +31,7 @@ final readonly class DeleteAssetController
     public function __invoke(string $id): JsonResponse
     {
         $assetId = Uuid::fromString($id);
-        $asset = $this->assets->findById($assetId);
+        $asset = $this->assets->findById($assetId) ?? $this->assets->findByObjectId($assetId);
         if (null === $asset) {
             throw new NotFoundHttpException(\sprintf('Asset "%s" was not found.', $id));
         }

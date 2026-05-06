@@ -7,6 +7,7 @@ namespace App\Asset\Presentation\Controller;
 use App\Asset\Application\AssetMetadataUpdater;
 use App\Asset\Domain\Entity\Asset;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
+use App\Catalog\Contracts\Service\CatalogAssetSync;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -35,6 +36,7 @@ final readonly class PatchAssetController
         private AssetRepositoryInterface $assets,
         private AssetMetadataUpdater $metadataUpdater,
         private AuthorizationCheckerInterface $authorisation,
+        private CatalogAssetSync $catalogAssetSync,
     ) {
     }
 
@@ -42,7 +44,12 @@ final readonly class PatchAssetController
     public function __invoke(Request $request, string $id): JsonResponse
     {
         $assetId = Uuid::fromString($id);
-        $asset = $this->assets->findById($assetId);
+        // The grid lists CatalogObject rows of `kind=asset`, so the URL
+        // segment can be either the Asset.id or the CatalogObject.id
+        // (the latter is what `/api/assets` GET hands the frontend).
+        // Try the natural lookup first, then fall back to the object_id
+        // FK so both forms hit the same row.
+        $asset = $this->assets->findById($assetId) ?? $this->assets->findByObjectId($assetId);
         if (null === $asset) {
             throw new NotFoundHttpException(\sprintf('Asset "%s" was not found.', $id));
         }
@@ -61,8 +68,27 @@ final readonly class PatchAssetController
 
         $this->metadataUpdater->update($asset, code: $code, tags: $tags);
 
-        $refreshed = $this->assets->findById($assetId);
+        $refreshed = $this->assets->findById($asset->getId());
         \assert($refreshed instanceof Asset);
+
+        // Mirror the new metadata into the linked CatalogObject so the
+        // grid (which reads `attributes_indexed`) reflects the change
+        // without waiting for a list-side query to recompute.
+        $this->catalogAssetSync->syncFromUploadedAsset(
+            assetId: $refreshed->getId(),
+            code: $refreshed->getCode(),
+            indexedAttributes: [
+                'mime' => $refreshed->getMimeType(),
+                'filename' => $refreshed->getOriginalFilename(),
+                'previewUrl' => \sprintf('/api/assets/%s/preview', $refreshed->getId()->toRfc4122()),
+                'thumbnailsStatus' => $refreshed->getThumbnailsStatus()->value,
+                'tags' => $refreshed->getTags(),
+                'size' => $refreshed->getSize(),
+                'width' => $refreshed->getWidth(),
+                'height' => $refreshed->getHeight(),
+                'pageCount' => $refreshed->getPageCount(),
+            ],
+        );
 
         return new JsonResponse($this->present($refreshed), Response::HTTP_OK);
     }

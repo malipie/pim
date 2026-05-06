@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Asset\Application;
 
 use App\Asset\Domain\Entity\Asset;
+use App\Catalog\Contracts\Service\CatalogAssetSync;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
@@ -25,6 +26,7 @@ final readonly class AssetDeleter
         private EntityManagerInterface $em,
         private FilesystemOperator $assetsStorage,
         private LoggerInterface $logger,
+        private CatalogAssetSync $catalogAssetSync,
     ) {
     }
 
@@ -40,8 +42,14 @@ final readonly class AssetDeleter
             }
         }
 
+        $code = $asset->getCode();
+
         $this->em->remove($asset);
         $this->em->flush();
+
+        // Drop the linked CatalogObject so `/api/assets` listing stops
+        // returning a row that no longer has storage behind it.
+        $this->catalogAssetSync->removeForAsset($code);
 
         foreach ($paths as $path) {
             try {

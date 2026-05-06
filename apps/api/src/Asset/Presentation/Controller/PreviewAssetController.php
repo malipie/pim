@@ -59,7 +59,7 @@ final readonly class PreviewAssetController
             $filters->disable('tenant');
         }
         try {
-            $asset = $this->assets->findById($assetId);
+            $asset = $this->assets->findById($assetId) ?? $this->assets->findByObjectId($assetId);
         } finally {
             if ($tenantFilterWasEnabled) {
                 $filters->enable('tenant');

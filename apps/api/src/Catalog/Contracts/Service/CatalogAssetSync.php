@@ -46,4 +46,11 @@ interface CatalogAssetSync
         string $code,
         array $indexedAttributes,
     ): Uuid;
+
+    /**
+     * Remove the CatalogObject linked to the given asset code (if any).
+     * Called by `AssetDeleter` so the grid no longer sees a row that
+     * points at a deleted Asset / missing storage blob.
+     */
+    public function removeForAsset(string $code): void;
 }

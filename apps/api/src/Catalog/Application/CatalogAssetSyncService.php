@@ -74,4 +74,20 @@ final readonly class CatalogAssetSyncService implements CatalogAssetSync
 
         return $catalogObject->getId();
     }
+
+    public function removeForAsset(string $code): void
+    {
+        $tenant = $this->tenantContext->get();
+        if (null === $tenant) {
+            return;
+        }
+
+        $existing = $this->catalogObjects->findByCode($code, ObjectKind::Asset, $tenant);
+        if (null === $existing) {
+            return;
+        }
+
+        $this->em->remove($existing);
+        $this->em->flush();
+    }
 }
