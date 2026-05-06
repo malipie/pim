@@ -77,4 +77,14 @@ dh_auditor:
                     enabled: true
                 App\ApiConfigurator\Domain\Entity\ApiKey:
                     enabled: true
+                # Imports MVP (epik UI-09 / 0.13) — operator-facing
+                # ingestion surface. ImportLog rows are write-once and
+                # already preserve full per-row context, so we leave
+                # them out of the audit trail.
+                App\Import\Domain\Entity\ImportSession:
+                    enabled: true
+                App\Import\Domain\Entity\ImportProfile:
+                    enabled: true
+                App\Backup\Domain\Entity\Backup:
+                    enabled: true
 

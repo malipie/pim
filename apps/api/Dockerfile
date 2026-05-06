@@ -39,6 +39,7 @@ RUN apk add --no-cache \
         unzip \
     && install-php-extensions \
         @composer-${COMPOSER_VERSION} \
+        gd \
         imagick \
         intl \
         opcache \

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Backup\Domain\Entity\Backup"
+            table="backups"
+            repository-class="App\Backup\Infrastructure\Doctrine\Repository\DoctrineBackupRepository">
+
+        <indexes>
+            <index name="backups_tenant_idx" columns="tenant_id"/>
+            <index name="backups_tenant_status_idx" columns="tenant_id,status"/>
+            <index name="backups_tenant_started_idx" columns="tenant_id,started_at"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="triggeredByUserId" type="uuid" column="triggered_by_user_id"/>
+
+        <field name="triggeredByAction" type="string" length="32" column="triggered_by_action"/>
+
+        <field name="pgbackrestLabel" type="string" length="255" column="pgbackrest_label" nullable="true"/>
+
+        <field name="status" type="string" length="32">
+            <options>
+                <option name="default">pending</option>
+            </options>
+        </field>
+
+        <field name="sizeBytes" type="bigint" column="size_bytes" nullable="true"/>
+        <field name="startedAt" type="datetime_immutable" column="started_at"/>
+        <field name="completedAt" type="datetime_immutable" column="completed_at" nullable="true"/>
+        <field name="errorMessage" type="text" column="error_message" nullable="true"/>
+
+    </entity>
+
+</doctrine-mapping>
