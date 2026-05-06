@@ -67,8 +67,11 @@ final class AesGcmEncryptionServiceTest extends TestCase
         $service = new AesGcmEncryptionService([1 => self::KEY_V1]);
         $secret = $service->encrypt('important-secret');
 
+        // Tampering one byte hits the original char ~1% of the time
+        // and the assertion blinks (CI run 25459015357); corrupting
+        // three makes the rejection deterministic (~95^-3 collision).
         $tampered = new EncryptedSecret(
-            ciphertext: substr_replace($secret->ciphertext, 'X', -3, 1),
+            ciphertext: substr_replace($secret->ciphertext, 'XXX', -3, 3),
             version: 1,
         );
 

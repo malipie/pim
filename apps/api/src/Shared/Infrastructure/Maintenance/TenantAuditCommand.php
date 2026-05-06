@@ -88,6 +88,11 @@ final class TenantAuditCommand extends Command
         // UI-08.6 (#261) — pre-migration JSONB backup snapshots. Tenant
         // scope inherited via the parent attribute.
         'attribute_migration_backups',
+        // IMP-01 (#442) — per-row import trace. Tenant scope inherited
+        // via the parent ImportSession (FK CASCADE on delete); no own
+        // tenant_id column to keep writes lean (5k rows × 5 errors =
+        // 25k log inserts per realistic import).
+        'import_logs',
     ];
 
     /**
