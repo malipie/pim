@@ -247,7 +247,7 @@
       "duplicate_dialog_body": "W bibliotece jest już zasób z taką samą zawartością ({{code}}). Możesz otworzyć istniejący wpis lub anulować."
     },
     "filters": {
-      "search_placeholder": "Szukaj po nazwie pliku…",
+      "search_placeholder": "Szukaj po nazwie pliku lub tagu…",
       "mime_all": "Wszystkie",
       "mime_images": "Obrazy",
       "mime_pdf": "PDF",

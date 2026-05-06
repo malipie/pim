@@ -95,10 +95,22 @@ final readonly class AssetCollectionFilterExtension implements QueryCollectionEx
 
         $search = $request->query->get('search');
         if (\is_string($search) && '' !== trim($search)) {
-            $param = $queryNameGenerator->generateParameterName('search');
+            $needle = trim($search);
+            $likeParam = $queryNameGenerator->generateParameterName('search');
+            $tagParam = $queryNameGenerator->generateParameterName('searchTag');
+            // Match either a substring of the filename OR an exact tag.
+            // Tags are JSONB arrays of strings; `JSONB_CONTAINS` uses
+            // the `@>` operator which expects an array literal on the
+            // right-hand side. Substring search inside tags is a Faza 1
+            // follow-up — for MVP, an exact-tag match plus filename
+            // substring covers the common "find by category" workflow.
             $queryBuilder
-                ->andWhere(\sprintf('LOWER(%s.originalFilename) LIKE :%s', $assetAlias, $param))
-                ->setParameter($param, '%'.strtolower(trim($search)).'%');
+                ->andWhere($queryBuilder->expr()->orX(
+                    \sprintf('LOWER(%s.originalFilename) LIKE :%s', $assetAlias, $likeParam),
+                    \sprintf('JSONB_CONTAINS(%s.tags, :%s) = TRUE', $assetAlias, $tagParam),
+                ))
+                ->setParameter($likeParam, '%'.strtolower($needle).'%')
+                ->setParameter($tagParam, json_encode([$needle], JSON_THROW_ON_ERROR));
         }
 
         $tag = $request->query->get('tag');

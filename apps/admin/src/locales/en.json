@@ -245,7 +245,7 @@
       "duplicate_dialog_body": "An asset with the same content already exists ({{code}}). Open the existing entry or cancel."
     },
     "filters": {
-      "search_placeholder": "Search by filename…",
+      "search_placeholder": "Search by filename or tag…",
       "mime_all": "All",
       "mime_images": "Images",
       "mime_pdf": "PDF",
