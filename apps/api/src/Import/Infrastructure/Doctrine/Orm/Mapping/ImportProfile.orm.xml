@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Import\Domain\Entity\ImportProfile"
+            table="import_profiles"
+            repository-class="App\Import\Infrastructure\Doctrine\Repository\DoctrineImportProfileRepository">
+
+        <unique-constraints>
+            <unique-constraint name="import_profiles_tenant_user_name_uniq" columns="tenant_id,user_id,name"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="import_profiles_tenant_user_idx" columns="tenant_id,user_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="userId" type="uuid" column="user_id"/>
+
+        <field name="name" type="string" length="255"/>
+
+        <many-to-one field="targetObjectType" target-entity="App\Catalog\Domain\Entity\ObjectType">
+            <join-column name="target_object_type_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="columnMapping" type="json" column="column_mapping">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">{}</option>
+            </options>
+        </field>
+
+        <field name="locale" type="string" length="8" nullable="true"/>
+        <field name="encoding" type="string" length="32" nullable="true"/>
+        <field name="delimiter" type="string" length="4" nullable="true"/>
+
+        <field name="imageSource" type="string" length="16" column="image_source">
+            <options>
+                <option name="default">none</option>
+            </options>
+        </field>
+
+        <field name="imageZipNamingConvention" type="string" length="64" column="image_zip_naming_convention" nullable="true"/>
+
+        <field name="customValidationRules" type="json" column="custom_validation_rules" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+
+        <field name="lastUsedAt" type="datetime_immutable" column="last_used_at" nullable="true"/>
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+
+    </entity>
+
+</doctrine-mapping>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Import\Domain\Entity\ImportSession"
+            table="import_sessions"
+            repository-class="App\Import\Infrastructure\Doctrine\Repository\DoctrineImportSessionRepository">
+
+        <indexes>
+            <index name="import_sessions_tenant_idx" columns="tenant_id"/>
+            <index name="import_sessions_tenant_user_created_idx" columns="tenant_id,user_id,created_at"/>
+            <index name="import_sessions_tenant_status_idx" columns="tenant_id,status"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="userId" type="uuid" column="user_id"/>
+
+        <many-to-one field="profile" target-entity="App\Import\Domain\Entity\ImportProfile">
+            <join-column name="profile_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <field name="fileName" type="string" length="255" column="file_name"/>
+        <field name="fileSizeBytes" type="bigint" column="file_size_bytes"/>
+        <field name="zipFileName" type="string" length="255" column="zip_file_name" nullable="true"/>
+        <field name="zipFileSizeBytes" type="bigint" column="zip_file_size_bytes" nullable="true"/>
+
+        <many-to-one field="targetObjectType" target-entity="App\Catalog\Domain\Entity\ObjectType">
+            <join-column name="target_object_type_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="status" type="string" length="32">
+            <options>
+                <option name="default">pending</option>
+            </options>
+        </field>
+
+        <field name="totalRows" type="integer" column="total_rows" nullable="true"/>
+        <field name="successCount" type="integer" column="success_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="errorCount" type="integer" column="error_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="imagesDownloaded" type="integer" column="images_downloaded">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="imagesFailed" type="integer" column="images_failed">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+
+        <field name="startedAt" type="datetime_immutable" column="started_at" nullable="true"/>
+        <field name="completedAt" type="datetime_immutable" column="completed_at" nullable="true"/>
+        <field name="rollbackUntil" type="datetime_immutable" column="rollback_until" nullable="true"/>
+        <field name="rolledBackAt" type="datetime_immutable" column="rolled_back_at" nullable="true"/>
+
+        <many-to-one field="backupSnapshot" target-entity="App\Backup\Domain\Entity\Backup">
+            <join-column name="backup_snapshot_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <field name="errorMessage" type="text" column="error_message" nullable="true"/>
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+
+    </entity>
+
+</doctrine-mapping>

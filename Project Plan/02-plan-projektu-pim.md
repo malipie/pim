@@ -407,6 +407,7 @@ Tydzień 9-11: Epik 0.7 (agent layer)
 Tydzień 11-13: Epik 0.8, 0.9 (integracje BaseLinker + Shopify)
 Tydzień 13-14: Epik 0.10, 0.11 (API config + hardening)
 Tydzień 14-16: Epik 0.12 / UI-08 (Modelowanie — patrz §3.6)
+Tydzień 16-19: Epik 0.13 / UI-09 (Imports MVP — patrz §3.7)
 ```
 
 Założenie: 10h pracy człowieka tygodniowo (część etatu). Przy pełnym etacie (40h/tydzień) → MVP w 4-5 tygodni.
@@ -445,6 +446,42 @@ Pierwszy epik napędzany **planem UI** (`Project Plan/UI/`) zamiast backend road
 **Persona główna:** Adam (NEW) — Architekt informacji, 35-45 lat, używa raz na 1-2 tygodnie. W mniejszych firmach Marcin/Kasia są w roli Adama. **MVP: brak role gating** (każdy zalogowany user ma full access do Modelowania), permissions deferred do Fazy 1 (kandydat ADR-013).
 
 **Zaktualizowana wycena (sekcja 7):** total Faza 0 + Faza 1 + Faza 2 dochodzi 60-80h (epik 0.12 / UI-08 dodatkowo do baseline).
+
+### 3.7 Epik 0.13 / UI-09 — Imports MVP (post-Modelowanie, pre-Faza 1) — DODANY 2026-05-06
+
+Self-service import produktów z plików **Excel/CSV** + opcjonalnie zdjęcia (linki HTTP lub ZIP). 4-step wizard (upload → mapping → walidacja → confirm) z rules-based dictionary PL/EN auto-mapping (~30 atrybutów × 5-10 synonimów), async via Symfony Messenger z progress przez Mercure SSE, opcjonalny manual pgBackRest snapshot, soft rollback w 24h window, profile importu (smart memory) per user. **Out of scope MVP:** UPDATE istniejących produktów, recurring imports, AI auto-mapping, multi-locale w jednym pliku, variants z wide format.
+
+**Tracking:** GitHub label `epik-UI-09` + cross-cutting tag `UI`. Plan szczegółowy: [`Project Plan/UI/feature-imports.md`](UI/feature-imports.md) (~780 linii).
+
+**Sequencing:** wchodzi **po Modelowaniu (epik 0.12 / UI-08)**, **przed Fazą 1**. Spec szacuje +78-111h, plan rozkłada na **15 atomowych ticketów / ~124-167h** (bufor na shadcn primitives Stepper/Combobox/DataTable, pgBackRest CLI integration, dogfooding 2k SKU IdoSell, deep-link preserved-state do Modelowania). **Bez nowego ADR** — ADR-006 (AbstractBatchHandler) + ADR-009 (ObjectType `kind=product`) wystarczają.
+
+**Persona główna:** Kasia (Catalog Manager, 32) — uruchamia importy 1-3× w tygodniu (nowy dostawca / nowa kolekcja). Secondary: Magda (Marketing) — opisy SEO. **Dogfooding US-IMP-005:** Marcin migruje katalog IdoSell (~2k SKU) jako pierwszy real-world test (gate przed deklaracją "imports gotowe").
+
+**Backlog (15 issues):**
+
+| # | Ticket | Tagi | Estymacja |
+|---|---|---|---|
+| **#442** | IMP-01 — Schema + dependencies + entities (Imports MVP) | UI, backend, blocker, must-have | 10-14h |
+| **#443** | IMP-02 — File parsing + dictionary auto-mapping service | UI, backend, must-have | 12-16h |
+| **#444** | IMP-03 — Validate-dry-run + sync small import (<50 rows) | UI, backend, testing, must-have | 10-14h |
+| **#445** | IMP-04 — Async ImportRunHandler + image download + ZIP extract | UI, backend, must-have | 14-18h |
+| **#446** | IMP-05 — Rollback + report CSV download | UI, backend, must-have | 6-8h |
+| **#447** | IMP-06 — pgBackRest manual snapshot integration | UI, backend, infra, must-have | 6-8h |
+| **#448** | IMP-07 — Import profiles CRUD | UI, backend, must-have | 4-6h |
+| **#449** | IMP-08 — Frontend foundation: Refine resources + i18n + shadcn primitives | UI, frontend, must-have | 8-10h |
+| **#450** | IMP-09 — Imports list view (5.1) + sub-tab Publikacje | UI, frontend, a11y, must-have | 8-10h |
+| **#451** | IMP-10 — Step 1 (Upload) + Step 2 (Mapping) | UI, frontend, a11y, must-have | 14-18h |
+| **#452** | IMP-11 — Step 3 (Validation) + Step 4 (Confirm) + Backup | UI, frontend, a11y, must-have | 10-12h |
+| **#453** | IMP-12 — Import in progress + results + rollback UI | UI, frontend, a11y, must-have | 8-12h |
+| **#454** | IMP-13 — Profile manager modal | UI, frontend, a11y, must-have | 4-6h |
+| **#455** | IMP-14 — E2E suite + smoke + dogfooding (US-IMP-005 IdoSell) | UI, testing, must-have | 8-12h |
+| **#456** | IMP-15 — Plan/PRD updates + R-30 ryzyko + epik 04 link | UI, docs | 2-3h |
+
+**Dependency graph:** IMP-01 (#442) blokuje wszystko. IMP-02..03 (#443-#444) blokują IMP-04 (#445). IMP-04 + IMP-07 (#445, #448) blokują frontend foundation IMP-08 (#449). IMP-09..13 (#450-#454) idą po IMP-08 (#449) — można w 2-3 równoległych workstreamach. IMP-14 (#455) wymaga IMP-12 (#453) zamknięte. IMP-15 (#456) idzie ostatnia (reflectuje dogfooding findings).
+
+**Acceptance gate epiku:** smoke test pełnego flow na żywym backendzie (login → /publications/imports → upload festo-q2-2026.xlsx → mapping → validation → confirm + backup → progress live → results → rollback w window → 0 produktów). Console clean + Network 200/201 + axe-core green na każdym z 8 ekranów. Performance: import 5000 rows fixture → `frankenphp_worker_memory_bytes` peak < 256 MB w Prometheus. Bez tego epik **nie jest done** w sensie CLAUDE.md SMOKE TEST RULE.
+
+**Wpływ na wycenę (sekcja 7):** total Faza 0 dochodzi **+124-167h** (epik 0.13 / UI-09 dodatkowo do baseline 60-80h epiku 0.12). Operator akceptuje wzrost scope (PRD §12.1 dopuszcza +50-80h nadwyżki) — ale realna nadwyżka nad budżetem MVP-Final to ~20-50h, blisko limitu. Mitigacja: rozważyć przesunięcie advanced features (recurring imports, AI auto-mapping, custom validation cross-attribute) na Fazę 1 — patrz **R-30**.
 
 ## 4. Faza 1 — Integracje (BaseLinker + Shopify) + production-ready
 
@@ -616,6 +653,7 @@ Estymacja godzinowa, jako orientacyjny budżet — nie zobowiązanie. Po rewizji
 | R-27 | **Agent cost runaway** — kompromitacja klucza API Anthropic, agent w pętli, abuse usera → faktura $1000-10000 | Niskie | **Krytyczny** | (a) Twarde limity sekcja 8.5 architektury (tool calls/godz, tokens/run, $/dzień, $/miesiąc). (b) BYOK opcja dla enterprise (ticket 0.11.12) — klient płaci za swoje LLM. (c) Org-level monthly cap w Anthropic Console ($1000 dla MVP-prod) — niezależny hardstop. (d) Klucz w Vault z rotacją 90 dni. (e) Anomaly detection (5× wzrost tool calls/h vs średnia tygodniowa → flag). (f) Compromise response runbook. |
 | R-28 | **Symfony 7.4 LTS upgrade** — wsparcie do listopada 2028/2029, wymuszony upgrade na kolejny LTS (8.x lub 9.x) | Pewne (w 2-3 lata) | Średni | (a) Already factored — przewidziane w roadmapie fazy 3. (b) API Platform jest stabilny i zwykle podąża za Symfony LTS w 1-2 release. (c) Test upgrade na branch w Q3 2028, full migration ~40-60h. (d) FrankenPHP 2.x worker API śledzimy w Sprintach maintenance. |
 | R-29 | **Over-engineering generic ObjectType w MVP** — generalizacja ADR-009 wprowadza pojęcie `kind='custom'` na poziomie modelu, kuszące do rozbudowy w MVP zanim realny pilot tego potrzebuje. Ryzyko: przepalenie 20-40h na UI builder dla custom kindów, schema editor, agent tool `create_object_type` zanim ktoś tego zażąda | Średnie | Średni | (a) **Predefined fixed UX dla Product/Category/Asset w MVP** — sidebar admin pokazuje te trzy jako pierwszej klasy, sekcja "Custom" jest disabled z badge "Faza 2". (b) **Feature flag `enable_custom_object_types`** wyłączony w MVP — service `ObjectTypeService::create()` rzuca `DisabledFeatureException` dla `kind='custom'`. (c) **Tool agenta `create_object_type` zarejestrowany ale wyłączony** w SDK do Fazy 2. (d) **Benchmark `attributes_indexed`** w MVP-Alpha na 10k obiektów × 200 atrybutów × 3 kindach (proof że generic model nie zwalnia query path). (e) **Dyscyplina:** w MVP nie używamy `kind='custom'` nawet gdy silnik to wspiera. (f) **Custom kindy odblokowane w Fazie 2** dopiero gdy realny pilot zażąda (`Customer`, `Supplier`, `PriceList`). |
+| R-30 | **Imports MVP scope creep** — feature self-service import (epik 0.13 / UI-09, `Project Plan/UI/feature-imports.md`) szacowany na +78-111h w spec'u, rozłożony na 15 atomowych ticketów ~124-167h. Realna nadwyżka nad budżetem MVP-Final ~20-50h, blisko limitu PRD §12.1 (+50-80h). Ryzyko: rozszerzanie zakresu w trakcie implementacji (recurring imports, AI auto-mapping, custom cross-attribute validation, multi-locale w jednym pliku) zanim Kasia/Marcin użyją MVP wersji w realnym scenariuszu | Średnie | Średni | (a) **Atomowe tickety IMP-01..IMP-15** z explicit DoD per ticket — żaden nie idzie do main bez smoke test'u 5 min na żywym backendzie + axe-core green. (b) **Dogfooding US-IMP-005 jako gate**: Marcin migruje katalog IdoSell (~2k SKU) w ramach IMP-14 (#455) — bez tego dogfooding'u epik nie jest done; bugi z dogfooding'u idą jako follow-up sub-issues, nie w-trakcie expansion. (c) **Out of scope listą explicit w `feature-imports.md` §1**: UPDATE istniejących produktów, recurring imports, AI auto-mapping, multi-locale w jednym pliku, variants z wide format — wszystkie kandydaci do Fazy 1 z planu, zarezerwowane jako *„advanced features"*. (d) **Rules-based dictionary** zamiast AI auto-mapping (decyzja brainstorming 2026-05-03) — deterministic, free, fast, kandydat na hybrid AI w Fazie 2. (e) **Rolewane scope reviews** po IMP-04 (#445 — backend async core gotowy) i IMP-12 (#453 — frontend full flow gotowy): operator decyduje czy odsuwamy IMP-13 profile manager / IMP-06 pgBackRest UI do Fazy 1 jeśli budżet się kończy. (f) **Sub-tickety z `optional` label** dla advanced features — nie blokują merge'u epiku, idą do Fazy 1 backlog'a (kandydaci: webhook integration, per-tenant dictionary extension, recurring cron). |
 
 ### 8.2 Ryzyka biznesowe (faza 2+)
 
