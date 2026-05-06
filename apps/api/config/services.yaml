@@ -202,6 +202,12 @@ services:
         arguments:
             $importsStorage: '@imports.storage'
 
+    # IMP-06 (#447) — production runs against the local pgBackRest
+    # binary; tests + CI use a stub via `when@test` (see services
+    # block at the bottom of this file in test environment).
+    App\Backup\Application\Service\BackupRunnerInterface:
+        alias: App\Backup\Infrastructure\Service\PgBackRestRunner
+
     # API Configurator (#90 / 0.10.1). Argon2id hasher + key generator
     # — see ADR-0016 for the format and algorithm choice. The generator
     # reads `kernel.environment` to embed the four-letter forensic
@@ -285,4 +291,17 @@ when@test:
         # mercure.yaml continue to be "used").
         Symfony\Component\Mercure\HubInterface:
             alias: App\Tests\Support\InMemoryMercureHub
+            public: true
+
+        # IMP-06 (#447) — keep the pgbackrest CLI off the test box.
+        # The stub honours the same contract so the handler flow
+        # (mark running → run → mark completed/failed) is exercised
+        # end-to-end through the messenger bus.
+        App\Tests\Support\InMemoryBackupRunner:
+            public: true
+            autowire: false
+            autoconfigure: false
+
+        App\Backup\Application\Service\BackupRunnerInterface:
+            alias: App\Tests\Support\InMemoryBackupRunner
             public: true

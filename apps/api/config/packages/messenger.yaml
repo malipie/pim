@@ -82,3 +82,9 @@ framework:
             # rows) imports bypass dispatch by calling `run()` directly
             # on the same handler from the controller.
             App\Import\Domain\Message\ImportRunMessage: async
+
+            # Imports MVP (#447). pgBackRest snapshot can take 5-30
+            # minutes — handler runs out-of-band so `POST /api/backups`
+            # returns 202 immediately and the wizard polls
+            # `GET /api/backups/{id}` for status.
+            App\Backup\Domain\Message\BackupSnapshotMessage: async
