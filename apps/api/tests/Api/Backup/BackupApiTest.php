@@ -9,6 +9,9 @@ use App\Backup\Domain\Repository\BackupRepositoryInterface;
 use App\Tests\Api\Catalog\CatalogApiTestCase;
 use App\Tests\Support\InMemoryBackupRunner;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\ReceivedStamp;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 
 use const JSON_THROW_ON_ERROR;
@@ -40,8 +43,8 @@ final class BackupApiTest extends CatalogApiTestCase
         self::assertIsArray($body);
         self::assertArrayHasKey('id', $body);
 
-        // sync:// transport runs the handler in-band, so by the time
-        // we read it back the status is already terminal.
+        $this->consumeAsyncQueue();
+
         $id = $body['id'] ?? null;
         self::assertIsString($id);
         $repo = self::getContainer()->get(BackupRepositoryInterface::class);
@@ -73,6 +76,8 @@ final class BackupApiTest extends CatalogApiTestCase
         $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
         self::assertIsArray($body);
 
+        $this->consumeAsyncQueue();
+
         $id = $body['id'] ?? null;
         self::assertIsString($id);
         $repo = self::getContainer()->get(BackupRepositoryInterface::class);
@@ -95,6 +100,8 @@ final class BackupApiTest extends CatalogApiTestCase
         $createdId = $created['id'] ?? null;
         self::assertIsString($createdId);
 
+        $this->consumeAsyncQueue();
+
         $client->request('GET', \sprintf('/api/backups/%s', $createdId));
         self::assertResponseIsSuccessful();
         $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
@@ -102,5 +109,27 @@ final class BackupApiTest extends CatalogApiTestCase
         self::assertSame('completed', $body['status']);
         self::assertSame('manual', $body['triggered_by_action']);
         self::assertNotNull($body['completed_at']);
+    }
+
+    /**
+     * Drains the in-memory async transport so the snapshot handler
+     * runs synchronously inside the test. Local dev sets the messenger
+     * DSN to `sync://` and the dispatch is in-band; CI overrides to
+     * `in-memory://` and the messages would otherwise sit in the
+     * queue.
+     */
+    private function consumeAsyncQueue(): void
+    {
+        $transport = self::getContainer()->get('messenger.transport.async');
+        // sync:// transport processes inline so `get()` is a no-op there.
+        if (!$transport instanceof InMemoryTransport) {
+            return;
+        }
+        $bus = self::getContainer()->get(MessageBusInterface::class);
+
+        foreach ($transport->get() as $envelope) {
+            $bus->dispatch($envelope->with(new ReceivedStamp('async')));
+            $transport->ack($envelope);
+        }
     }
 }
