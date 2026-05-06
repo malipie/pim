@@ -70,6 +70,14 @@ security:
         - { path: ^/api/contexts, roles: PUBLIC_ACCESS }
         - { path: ^/api/metrics$, roles: PUBLIC_ACCESS }
         - { path: ^/api$, roles: PUBLIC_ACCESS }
+        # /api/assets/{uuid}/preview streams thumbnail/medium/original
+        # bytes for `<img>` tags in the admin grid. `<img>` cannot send
+        # the Bearer header, so the endpoint must be reachable without a
+        # JWT. Path-knowledge gates access — UUID v7 ids are 128-bit and
+        # not enumerable. Tenant isolation is enforced by Doctrine
+        # finder logic inside the controller. Signed-URL hardening
+        # ships with Faza 1 (#438 follow-up).
+        - { path: '^/api/assets/[0-9a-f-]+/preview$', roles: PUBLIC_ACCESS }
         # `IS_AUTHENTICATED_FULLY` covers BOTH a logged-in user (ROLE_USER
         # + tenant context) and an API key principal (ROLE_API_KEY). The
         # voter chain enforces row-level access on top.

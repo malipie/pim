@@ -129,7 +129,7 @@ function sendOnce(
       const status = xhr.status;
       const body = xhr.response as Record<string, unknown> | null;
 
-      if (status === 201 && body) {
+      if (status >= 200 && status < 300 && body) {
         resolve(body as unknown as UploadAssetResult);
         return;
       }

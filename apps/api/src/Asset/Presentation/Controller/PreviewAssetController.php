@@ -7,13 +7,12 @@ namespace App\Asset\Presentation\Controller;
 use App\Asset\Domain\Entity\AssetVariant;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
 use App\Asset\Domain\ThumbnailsStatus;
+use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -29,13 +28,23 @@ use Symfony\Component\Uid\Uuid;
  * PDF does not balloon the worker memory. `Cache-Control: private,
  * max-age=...` lets the browser cache previews across navigations
  * inside the same session.
+ *
+ * Auth model: the endpoint is registered under `PUBLIC_ACCESS` in
+ * `security.yaml` because `<img>` tags cannot send the Bearer token
+ * in their request. Path-knowledge gates access — UUID v7 ids are
+ * 128-bit and not enumerable, so cross-tenant leakage requires
+ * guessing the exact id (effectively impossible without DB access).
+ * Doctrine `tenant_filter` is disabled for the lookup so the
+ * un-authenticated request reaches the row at all; tenant isolation
+ * is therefore by-id rather than by-context here. Faza 1 swaps this
+ * for short-lived signed URLs minted by the catalog read API.
  */
 final readonly class PreviewAssetController
 {
     public function __construct(
         private AssetRepositoryInterface $assets,
         private FilesystemOperator $assetsStorage,
-        private AuthorizationCheckerInterface $authorisation,
+        private EntityManagerInterface $em,
     ) {
     }
 
@@ -43,13 +52,22 @@ final readonly class PreviewAssetController
     public function __invoke(string $id, ?string $variant = null): StreamedResponse
     {
         $assetId = Uuid::fromString($id);
-        $asset = $this->assets->findById($assetId);
-        if (null === $asset) {
-            throw new NotFoundHttpException(\sprintf('Asset "%s" was not found.', $id));
+
+        $filters = $this->em->getFilters();
+        $tenantFilterWasEnabled = $filters->isEnabled('tenant');
+        if ($tenantFilterWasEnabled) {
+            $filters->disable('tenant');
+        }
+        try {
+            $asset = $this->assets->findById($assetId);
+        } finally {
+            if ($tenantFilterWasEnabled) {
+                $filters->enable('tenant');
+            }
         }
 
-        if (!$this->authorisation->isGranted('READ', $asset)) {
-            throw new AccessDeniedHttpException();
+        if (null === $asset) {
+            throw new NotFoundHttpException(\sprintf('Asset "%s" was not found.', $id));
         }
 
         [$path, $mime] = $this->resolveVariant($asset, $variant);
