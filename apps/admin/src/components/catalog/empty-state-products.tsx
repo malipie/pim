@@ -41,15 +41,11 @@ export function EmptyStateProducts({ onCloneFrom }: { onCloneFrom?: () => void }
             {t('products.empty.clone_from', { defaultValue: 'Clone from existing' })}
           </Button>
         ) : null}
-        <Button
-          variant="outline"
-          disabled
-          title={t('products.empty.import_coming', {
-            defaultValue: 'Coming with epik UI-04 (Publikacje).',
-          })}
-        >
-          <Upload className="size-4" />
-          {t('products.empty.import_csv', { defaultValue: 'Import from Excel/CSV' })}
+        <Button asChild variant="outline">
+          <Link to="/publications/imports/new">
+            <Upload className="size-4" />
+            {t('products.empty.import_csv', { defaultValue: 'Import from Excel/CSV' })}
+          </Link>
         </Button>
       </div>
 

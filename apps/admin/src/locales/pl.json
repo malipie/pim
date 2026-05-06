@@ -987,6 +987,18 @@
       "not_found": "Nie znaleziono kategorii lub typu obiektu."
     }
   },
+  "publications": {
+    "title": "Publikacje",
+    "description": "Imports, exports i integracje katalogu",
+    "tabs": {
+      "imports": "Imports",
+      "exports": "Exports",
+      "integrations": "Integracje",
+      "api_configurator": "API Configurator"
+    },
+    "tabs_aria": "Sub-tabs Publikacje",
+    "coming_soon": "Coming with epik UI-04 (Publikacje)"
+  },
   "imports": {
     "list": {
       "title": "Importy",

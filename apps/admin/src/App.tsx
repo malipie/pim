@@ -35,6 +35,8 @@ import { ChannelsListPage } from '@/features/channel/channels/list';
 import { ChannelShowPage } from '@/features/channel/channels/show';
 import { DashboardPage } from '@/features/dashboard/page';
 import { LoginPage } from '@/features/identity/auth/login';
+import { ImportsListView } from '@/features/imports/list/ImportsListView';
+import { PublicationsLayout } from '@/features/publications/PublicationsLayout';
 import { AiSettingsPage } from '@/features/settings/ai';
 import { LocalesSettingsPage } from '@/features/settings/locales';
 import { MenuSettingsPage } from '@/features/settings/menu';
@@ -106,6 +108,16 @@ function App() {
               create: '/api-profiles/create',
               edit: '/api-profiles/:id/edit',
               show: '/api-profiles/:id',
+            },
+            {
+              name: 'import-sessions',
+              list: '/publications/imports',
+              show: '/publications/imports/:id',
+              create: '/publications/imports/new',
+            },
+            {
+              name: 'import-profiles',
+              list: '/publications/imports',
             },
           ]}
           options={{
@@ -199,6 +211,10 @@ function App() {
               <Route path="/api-profiles/create" element={<ApiProfileCreatePage />} />
               <Route path="/api-profiles/:id/edit" element={<ApiProfileEditPage />} />
               <Route path="/api-profiles/:id" element={<ApiProfileShowPage />} />
+              <Route path="/publications" element={<PublicationsLayout />}>
+                <Route index element={<Navigate to="/publications/imports" replace />} />
+                <Route path="imports" element={<ImportsListView />} />
+              </Route>
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

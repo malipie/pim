@@ -983,6 +983,18 @@
       "not_found": "Category or ObjectType not found."
     }
   },
+  "publications": {
+    "title": "Publications",
+    "description": "Imports, exports and catalog integrations",
+    "tabs": {
+      "imports": "Imports",
+      "exports": "Exports",
+      "integrations": "Integrations",
+      "api_configurator": "API Configurator"
+    },
+    "tabs_aria": "Publications sub-tabs",
+    "coming_soon": "Coming with epik UI-04 (Publications)"
+  },
   "imports": {
     "list": {
       "title": "Imports",
