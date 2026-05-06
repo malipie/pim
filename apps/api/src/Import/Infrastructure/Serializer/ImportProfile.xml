@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <class name="App\Import\Domain\Entity\ImportProfile">
+        <attribute name="id">
+            <group>import_profile:read</group>
+        </attribute>
+        <attribute name="name">
+            <group>import_profile:read</group>
+            <group>import_profile:write</group>
+        </attribute>
+        <attribute name="userId">
+            <group>import_profile:read</group>
+        </attribute>
+        <attribute name="targetObjectType">
+            <group>import_profile:read</group>
+        </attribute>
+        <attribute name="columnMapping">
+            <group>import_profile:read</group>
+            <group>import_profile:write</group>
+        </attribute>
+        <attribute name="locale">
+            <group>import_profile:read</group>
+            <group>import_profile:write</group>
+        </attribute>
+        <attribute name="encoding">
+            <group>import_profile:read</group>
+            <group>import_profile:write</group>
+        </attribute>
+        <attribute name="delimiter">
+            <group>import_profile:read</group>
+            <group>import_profile:write</group>
+        </attribute>
+        <attribute name="imageSource">
+            <group>import_profile:read</group>
+            <group>import_profile:write</group>
+        </attribute>
+        <attribute name="imageZipNamingConvention">
+            <group>import_profile:read</group>
+            <group>import_profile:write</group>
+        </attribute>
+        <attribute name="lastUsedAt">
+            <group>import_profile:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>import_profile:read</group>
+        </attribute>
+    </class>
+</serializer>
