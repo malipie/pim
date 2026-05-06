@@ -982,5 +982,163 @@
       "error": "Could not load effective groups.",
       "not_found": "Category or ObjectType not found."
     }
+  },
+  "imports": {
+    "list": {
+      "title": "Imports",
+      "new": "New import",
+      "profiles": "Profiles",
+      "filters": {
+        "status": "Status",
+        "date": "Date range",
+        "user": "User"
+      },
+      "columns": {
+        "date": "Date",
+        "file": "File",
+        "status": "Status",
+        "stats": "Stats",
+        "actions": "Actions"
+      },
+      "status": {
+        "pending": "Pending",
+        "running": "Running",
+        "paused": "Paused",
+        "success": "OK",
+        "partial": "Partial",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "rolled_back": "Rolled back"
+      },
+      "actions": {
+        "view_report": "View report",
+        "rollback": "Rollback",
+        "rerun": "Re-run with profile",
+        "delete": "Delete"
+      },
+      "empty": "No imports yet. Start your first import."
+    },
+    "wizard": {
+      "steps": {
+        "upload": "Upload",
+        "mapping": "Mapping",
+        "validation": "Validation",
+        "confirm": "Confirm"
+      },
+      "next": "Next",
+      "back": "Back",
+      "cancel": "Cancel",
+      "run": "Run import",
+      "create_attribute": "Create new attribute"
+    },
+    "upload": {
+      "drop_csv": "Drop CSV / Excel file or pick one",
+      "drop_csv_hint": "Accepted: .xlsx, .csv (max 50 MB)",
+      "drop_zip": "Drop ZIP archive with images",
+      "drop_zip_hint": "max 500 MB",
+      "locale": "File locale",
+      "encoding": "Encoding",
+      "delimiter": "Delimiter (CSV)",
+      "image_source": {
+        "label": "Image source",
+        "http": "HTTP links in the file (image_1, image_2…)",
+        "zip": "ZIP archive with local images",
+        "none": "No images for this import"
+      },
+      "profile": {
+        "label": "Import profile",
+        "new": "New profile (configure below)",
+        "use_saved": "Use saved",
+        "save_as": "Save as profile"
+      }
+    },
+    "mapping": {
+      "header": "Auto-mapping done: {{auto}}/{{total}} columns matched. Map {{manual}} manually.",
+      "columns": {
+        "source": "Source column",
+        "sample": "Sample value",
+        "mapping": "Mapping",
+        "required": "Required"
+      },
+      "confidence": {
+        "auto": "auto",
+        "fuzzy": "suggested",
+        "manual": "manual",
+        "skip": "skip"
+      },
+      "skip": "Skip column"
+    },
+    "validation": {
+      "ok": "{{count}} products OK",
+      "errors": "{{count}} errors / warnings",
+      "show_all": "Show all {{count}} errors",
+      "decide": {
+        "label": "What next?",
+        "import_ok": "Import OK rows, skip errors",
+        "back_to_mapping": "Back to mapping, fix errors"
+      },
+      "errors_table": {
+        "row": "Row",
+        "sku": "SKU",
+        "type": "Error type",
+        "message": "Message"
+      },
+      "error_types": {
+        "missing_required": "Missing required field",
+        "duplicate_sku_in_file": "Duplicate SKU in file",
+        "duplicate_sku_in_db": "SKU already in catalog",
+        "invalid_type": "Invalid type",
+        "invalid_value": "Invalid value",
+        "image_not_found": "Image file missing"
+      }
+    },
+    "confirm": {
+      "summary": "Summary",
+      "backup": {
+        "label": "Create full database backup (pgBackRest)",
+        "hint_recommended": "Recommended for imports > 1000 products",
+        "hint_duration": "Backup takes 5–30 minutes",
+        "hint_rollback": "Without backup: 24h soft rollback is still available"
+      },
+      "email": "Email me when done (> 5 min runtime)",
+      "warning": "Action is final. You can rollback within 24h."
+    },
+    "progress": {
+      "title": "Import running",
+      "elapsed": "Elapsed",
+      "remaining": "Remaining",
+      "current_sku": "Now: {{sku}}",
+      "close_hint": "You can close this tab. We will send an email when the run finishes.",
+      "pause": "Pause",
+      "resume": "Resume",
+      "cancel": "Cancel"
+    },
+    "results": {
+      "imported": "{{count}} products imported",
+      "skipped": "{{count}} skipped",
+      "duration": "Duration: {{value}}",
+      "download_report": "Download CSV report",
+      "view_products": "View imported products",
+      "rollback": "Rollback",
+      "rollback_window": "Available until {{date}}",
+      "rollback_expired": "Rollback window expired"
+    },
+    "profiles": {
+      "title": "My import profiles",
+      "columns": {
+        "name": "Profile",
+        "last_used": "Last used",
+        "uses": "# imports",
+        "actions": "Actions"
+      },
+      "edit": "Edit",
+      "delete": "Delete",
+      "disclaimer": "Editing a profile only affects future imports. It does not touch past sessions."
+    },
+    "errors": {
+      "load_failed": "Could not load import session.",
+      "rollback_failed": "Rollback failed.",
+      "upload_failed": "File upload failed."
+    }
   }
 }
