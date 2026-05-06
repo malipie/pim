@@ -75,6 +75,15 @@ class ImportSession extends AggregateRoot implements TenantScoped
 
     private ?string $errorMessage = null;
 
+    /**
+     * IMP-04 (#445) — header → attribute_code mapping captured at start
+     * time. Lives on the session (not just the optional profile) so
+     * profile-less ad-hoc imports keep their mapping after dispatch.
+     *
+     * @var array<string, string>
+     */
+    private array $columnMapping = [];
+
     private DateTimeImmutable $createdAt;
 
     public function __construct(
@@ -242,6 +251,22 @@ class ImportSession extends AggregateRoot implements TenantScoped
     public function getErrorMessage(): ?string
     {
         return $this->errorMessage;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getColumnMapping(): array
+    {
+        return $this->columnMapping;
+    }
+
+    /**
+     * @param array<string, string> $columnMapping
+     */
+    public function setColumnMapping(array $columnMapping): void
+    {
+        $this->columnMapping = $columnMapping;
     }
 
     public function getCreatedAt(): DateTimeImmutable

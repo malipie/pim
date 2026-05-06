@@ -111,6 +111,17 @@ class CatalogObject extends AggregateRoot implements TenantScoped
      * @var list<array<string, mixed>>|null
      */
     private ?array $variantAxes = null;
+
+    /**
+     * IMP-01 (#442) — links every imported object back to the
+     * {@see \App\Import\Domain\Entity\ImportSession} that created it.
+     * Bare uuid to keep Catalog domain free of an Import-context import.
+     * The DB-level FK with `ON DELETE SET NULL` (see migration
+     * Version20260506191124) keeps orphan rows readable after the
+     * session is hard-deleted.
+     */
+    private ?Uuid $importSessionId = null;
+
     private DateTimeImmutable $createdAt;
     private DateTimeImmutable $updatedAt;
 
@@ -358,6 +369,16 @@ class CatalogObject extends AggregateRoot implements TenantScoped
     public function getUpdatedAt(): DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function getImportSessionId(): ?Uuid
+    {
+        return $this->importSessionId;
+    }
+
+    public function assignImportSession(?Uuid $sessionId): void
+    {
+        $this->importSessionId = $sessionId;
     }
 
     private function touch(): void

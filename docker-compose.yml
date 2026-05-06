@@ -241,7 +241,9 @@ services:
       mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
       mc mb -p local/pim-assets || true;
       mc mb -p local/pim-backups || true;
+      mc mb -p local/pim-imports || true;
       mc anonymous set download local/pim-assets || true;
+      mc ilm rule add --expire-days 7 local/pim-imports || true;
       "
     restart: "no"
 

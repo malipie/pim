@@ -13,17 +13,11 @@ use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Import\Domain\Enum\FileEncoding;
 use App\Import\Domain\Enum\ImportErrorType;
 use App\Import\Domain\Enum\ImportLogLevel;
-use App\Import\Domain\Exception\InvalidImportFileException;
 use App\Import\Domain\ValueObject\ValidationError;
 use App\Import\Domain\ValueObject\ValidationResult;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
-use Generator;
-use League\Csv\Reader;
 use LogicException;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-
-use const PATHINFO_EXTENSION;
 
 /**
  * Iterates the uploaded file row-by-row and produces per-row validation
@@ -49,8 +43,7 @@ final readonly class ImportValidationService
         private AttributeRepositoryInterface $attributes,
         private CatalogObjectRepositoryInterface $catalogObjects,
         private TenantContext $tenantContext,
-        private EncodingDetector $encodingDetector,
-        private DelimiterDetector $delimiterDetector,
+        private ImportRowReader $rowReader,
     ) {
     }
 
@@ -69,11 +62,6 @@ final readonly class ImportValidationService
             throw new LogicException('Tenant context must be set for import validation.');
         }
 
-        $extension = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
-        if (!\in_array($extension, ['xlsx', 'csv'], true)) {
-            throw InvalidImportFileException::unsupportedExtension($extension);
-        }
-
         $attributesByCode = $this->loadAttributesByCode($tenant, $columnMapping);
         $errors = [];
         $successCount = 0;
@@ -81,18 +69,13 @@ final readonly class ImportValidationService
         $totalRows = 0;
         $skuSeenInFile = [];
 
-        $rows = 'xlsx' === $extension
-            ? $this->iterateXlsx($absolutePath)
-            : $this->iterateCsv($absolutePath, $encodingOverride, $delimiterOverride);
-
-        foreach ($rows as $rowNumber => $cells) {
+        foreach ($this->rowReader->read($absolutePath, $encodingOverride, $delimiterOverride) as $rowNumber => $cells) {
             ++$totalRows;
             $rowErrors = $this->validateRow(
                 rowNumber: $rowNumber,
                 cells: $cells,
                 columnMapping: $columnMapping,
                 attributesByCode: $attributesByCode,
-                target: $target,
                 tenant: $tenant,
                 skuSeenInFile: $skuSeenInFile,
             );
@@ -118,6 +101,10 @@ final readonly class ImportValidationService
     }
 
     /**
+     * Public wrapper used by the async run handler — same per-row checks
+     * the dry-run service performs, but the caller drives iteration and
+     * decides what to do with the findings.
+     *
      * @param array<string, string|null> $cells            column_header → value
      * @param array<string, string>      $columnMapping
      * @param array<string, Attribute>   $attributesByCode
@@ -125,18 +112,16 @@ final readonly class ImportValidationService
      *
      * @return list<ValidationError>
      */
-    private function validateRow(
+    public function validateRow(
         int $rowNumber,
         array $cells,
         array $columnMapping,
         array $attributesByCode,
-        ObjectType $target,
         Tenant $tenant,
         array &$skuSeenInFile,
     ): array {
         $errors = [];
 
-        // Materialise attribute_code → value for the current row.
         $valueByAttribute = [];
         foreach ($columnMapping as $columnHeader => $attributeCode) {
             if ('skip' === $attributeCode || '' === $attributeCode) {
@@ -214,28 +199,15 @@ final readonly class ImportValidationService
         return $errors;
     }
 
-    private function validateScalarType(Attribute $attribute, string $value): ?string
-    {
-        return match ($attribute->getType()) {
-            AttributeType::Number, AttributeType::Price, AttributeType::Metric => is_numeric(str_replace(',', '.', $value))
-                    ? null
-                    : \sprintf('"%s" is not a valid number for "%s".', $value, $attribute->getCode()),
-            AttributeType::Date => false === strtotime($value)
-                ? \sprintf('"%s" is not a valid date for "%s".', $value, $attribute->getCode())
-                : null,
-            AttributeType::Boolean => \in_array(strtolower($value), ['0', '1', 'true', 'false', 'yes', 'no', 'tak', 'nie'], true)
-                ? null
-                : \sprintf('"%s" is not a valid boolean for "%s".', $value, $attribute->getCode()),
-            default => null,
-        };
-    }
-
     /**
+     * Resolves attribute_code → Attribute lookups once for the whole
+     * import — IMP-04 reuses this to feed the persistence service.
+     *
      * @param array<string, string> $columnMapping
      *
      * @return array<string, Attribute>
      */
-    private function loadAttributesByCode(Tenant $tenant, array $columnMapping): array
+    public function loadAttributesByCode(Tenant $tenant, array $columnMapping): array
     {
         $codes = [];
         foreach ($columnMapping as $attributeCode) {
@@ -258,74 +230,19 @@ final readonly class ImportValidationService
         return $attributes;
     }
 
-    /**
-     * @return Generator<int, array<string, string|null>>
-     */
-    private function iterateXlsx(string $absolutePath): Generator
+    private function validateScalarType(Attribute $attribute, string $value): ?string
     {
-        $reader = IOFactory::createReaderForFile($absolutePath);
-        $reader->setReadDataOnly(true);
-        $spreadsheet = $reader->load($absolutePath);
-        $sheet = $spreadsheet->getSheet(0);
-
-        $headers = [];
-        $rowNumber = 0;
-        foreach ($sheet->getRowIterator() as $row) {
-            ++$rowNumber;
-            $cells = [];
-            foreach ($row->getCellIterator() as $cell) {
-                $value = $cell->getValue();
-                $cells[] = null === $value ? null : (string) (\is_scalar($value) ? $value : '');
-            }
-            if (1 === $rowNumber) {
-                $headers = array_map(static fn (?string $v): string => $v ?? '', $cells);
-                continue;
-            }
-            $assoc = [];
-            foreach ($headers as $index => $header) {
-                $assoc[$header] = $cells[$index] ?? null;
-            }
-            yield $rowNumber - 1 => $assoc;
-        }
-    }
-
-    /**
-     * @return Generator<int, array<string, string|null>>
-     */
-    private function iterateCsv(string $absolutePath, ?FileEncoding $encodingOverride, ?string $delimiterOverride): Generator
-    {
-        $bytes = file_get_contents($absolutePath);
-        if (false === $bytes) {
-            throw InvalidImportFileException::unreadable($absolutePath);
-        }
-
-        $encoding = $encodingOverride ?? $this->encodingDetector->detect($bytes);
-        $body = $this->encodingDetector->stripBom($bytes);
-        if (FileEncoding::Utf8 !== $encoding && FileEncoding::Utf8Bom !== $encoding) {
-            $converted = @iconv($encoding->iconvName(), 'UTF-8//TRANSLIT', $body);
-            if (false === $converted) {
-                throw InvalidImportFileException::corruptedEncoding($encoding->value);
-            }
-            $body = $converted;
-        }
-
-        $delimiter = $delimiterOverride ?? $this->delimiterDetector->detect(substr($body, 0, 4096));
-        $reader = Reader::fromString($body);
-        $reader->setDelimiter($delimiter);
-        $reader->setHeaderOffset(0);
-
-        $rowNumber = 1;
-        foreach ($reader->getRecords() as $record) {
-            ++$rowNumber;
-            $assoc = [];
-            foreach ($record as $key => $value) {
-                if (null === $value || '' === $value) {
-                    $assoc[(string) $key] = null;
-                } else {
-                    $assoc[(string) $key] = \is_scalar($value) ? (string) $value : '';
-                }
-            }
-            yield $rowNumber - 1 => $assoc;
-        }
+        return match ($attribute->getType()) {
+            AttributeType::Number, AttributeType::Price, AttributeType::Metric => is_numeric(str_replace(',', '.', $value))
+                    ? null
+                    : \sprintf('"%s" is not a valid number for "%s".', $value, $attribute->getCode()),
+            AttributeType::Date => false === strtotime($value)
+                ? \sprintf('"%s" is not a valid date for "%s".', $value, $attribute->getCode())
+                : null,
+            AttributeType::Boolean => \in_array(strtolower($value), ['0', '1', 'true', 'false', 'yes', 'no', 'tak', 'nie'], true)
+                ? null
+                : \sprintf('"%s" is not a valid boolean for "%s".', $value, $attribute->getCode()),
+            default => null,
+        };
     }
 }

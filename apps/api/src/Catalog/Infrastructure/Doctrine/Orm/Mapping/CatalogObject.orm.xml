@@ -75,6 +75,8 @@
                 <option name="jsonb">true</option>
             </options>
         </field>
+        <field name="importSessionId" type="uuid" column="import_session_id" nullable="true"/>
+
         <field name="createdAt" type="datetime_immutable" column="created_at"/>
         <field name="updatedAt" type="datetime_immutable" column="updated_at"/>
 

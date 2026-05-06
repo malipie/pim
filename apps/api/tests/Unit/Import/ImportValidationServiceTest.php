@@ -13,6 +13,7 @@ use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Import\Application\Service\DelimiterDetector;
 use App\Import\Application\Service\EncodingDetector;
+use App\Import\Application\Service\ImportRowReader;
 use App\Import\Application\Service\ImportValidationService;
 use App\Import\Domain\Enum\ImportErrorType;
 use App\Shared\Application\TenantContext;
@@ -50,8 +51,7 @@ final class ImportValidationServiceTest extends TestCase
             attributes: $attributeRepo,
             catalogObjects: $catalogRepo,
             tenantContext: $tenantContext,
-            encodingDetector: new EncodingDetector(),
-            delimiterDetector: new DelimiterDetector(),
+            rowReader: new ImportRowReader(new EncodingDetector(), new DelimiterDetector()),
         );
 
         $csv = "sku;name;price\nOK-1;Foo;9.99\nEXISTING-1;Bar;14.99\n;Anon;5\nDUP-1;Dup;1\nDUP-1;Dup again;2\nBAD-1;Has bad price;not-a-number\n";

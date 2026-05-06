@@ -30,6 +30,14 @@ flysystem:
             options:
                 client: 'pim.assets.s3_client'
                 bucket: '%env(AWS_ASSETS_BUCKET)%'
+        # IMP-04 (#445) — wizard-uploaded source files (CSV / xlsx + ZIP).
+        # Same MinIO instance as assets, dedicated bucket so a TTL policy
+        # (7 days, spec §8.6) can purge stale uploads without touching DAM.
+        imports.storage:
+            adapter: 'aws'
+            options:
+                client: 'pim.assets.s3_client'
+                bucket: '%env(default::AWS_IMPORTS_BUCKET)%'
 
 # CI does not run a MinIO service; the functional `AssetUploaderTest`
 # still wants to write through the real Flysystem operator (it proves the
@@ -42,3 +50,7 @@ when@test:
                 adapter: 'local'
                 options:
                     directory: '%kernel.project_dir%/var/test/assets'
+            imports.storage:
+                adapter: 'local'
+                options:
+                    directory: '%kernel.project_dir%/var/test/imports'

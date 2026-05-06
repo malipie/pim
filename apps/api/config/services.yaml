@@ -190,6 +190,18 @@ services:
             $dictionaryPath: '%pim.imports.dictionary_path%'
             $cache: '@cache.app'
 
+    # IMP-04 (#445) — async import worker. Bind named storage so the
+    # handler can pull the uploaded source file without autowire
+    # confusion (multiple FilesystemOperator services, one per named
+    # storage).
+    App\Import\Application\Handler\ImportRunHandler:
+        arguments:
+            $importsStorage: '@imports.storage'
+
+    App\Import\Presentation\Controller\StartImportController:
+        arguments:
+            $importsStorage: '@imports.storage'
+
     # API Configurator (#90 / 0.10.1). Argon2id hasher + key generator
     # — see ADR-0016 for the format and algorithm choice. The generator
     # reads `kernel.environment` to embed the four-letter forensic
