@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\String\Slugger\SluggerInterface;
 use Symfony\Component\Uid\Uuid;
+use Throwable;
 
 use const PATHINFO_FILENAME;
 
@@ -55,6 +56,7 @@ final readonly class AssetUploader
         private MessageBusInterface $bus,
         private SluggerInterface $slugger,
         private CatalogAssetSync $catalogAssetSync,
+        private \Psr\Log\LoggerInterface $logger,
     ) {
     }
 
@@ -143,13 +145,26 @@ final readonly class AssetUploader
         // upload. Storage-side fields go straight into
         // `attributes_indexed` (denormalised cache; no EAV rows needed
         // — same shape the demo seeder writes).
-        $catalogObjectId = $this->catalogAssetSync->syncFromUploadedAsset(
-            assetId: $asset->getId(),
-            code: $resolvedCode,
-            indexedAttributes: $this->buildIndexedAttributes($asset),
-        );
-        $asset->linkToObject($catalogObjectId);
-        $this->em->flush();
+        //
+        // Sync is best-effort: a tenant created on the fly (e.g. by an
+        // integration test that bypasses the full migrations) may not
+        // have the built-in Asset ObjectType yet. The Asset row stays
+        // valid even without a CatalogObject — it just won't appear in
+        // `/api/assets` until the missing ObjectType is seeded.
+        try {
+            $catalogObjectId = $this->catalogAssetSync->syncFromUploadedAsset(
+                assetId: $asset->getId(),
+                code: $resolvedCode,
+                indexedAttributes: $this->buildIndexedAttributes($asset),
+            );
+            $asset->linkToObject($catalogObjectId);
+            $this->em->flush();
+        } catch (Throwable $e) {
+            $this->logger->warning(
+                'CatalogAssetSync failed; Asset row stored without CatalogObject link.',
+                ['asset_id' => $asset->getId()->toRfc4122(), 'exception' => $e],
+            );
+        }
 
         $this->bus->dispatch(new AssetThumbnailsRequested(
             assetId: $asset->getId(),
