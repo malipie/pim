@@ -6,8 +6,10 @@ namespace App\Asset\Application;
 
 use App\Asset\Application\Thumbnail\ImageProcessorInterface;
 use App\Asset\Contracts\Event\AssetThumbnailsRequested;
+use App\Asset\Domain\Entity\Asset;
 use App\Asset\Domain\Entity\AssetVariant;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
+use App\Catalog\Contracts\Service\CatalogAssetSync;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
@@ -40,6 +42,7 @@ final readonly class AssetThumbnailHandler
         private ImageProcessorInterface $imageProcessor,
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
+        private CatalogAssetSync $catalogAssetSync,
     ) {
     }
 
@@ -57,6 +60,7 @@ final readonly class AssetThumbnailHandler
         if ('image/svg+xml' === $message->mimeType) {
             $asset->markThumbnailsReady(width: $asset->getWidth(), height: $asset->getHeight(), pageCount: null);
             $this->em->flush();
+            $this->syncCatalogObject($asset);
             $this->em->clear();
 
             return;
@@ -134,7 +138,33 @@ final readonly class AssetThumbnailHandler
         );
 
         $this->em->flush();
+        $this->syncCatalogObject($asset);
         $this->em->clear();
+    }
+
+    /**
+     * Re-write the linked CatalogObject's `attributes_indexed` so the
+     * grid sees the freshly resolved `thumbnailsStatus` (and width /
+     * height / pageCount captured by the processor) without waiting
+     * for a list-side query to recompute the cache.
+     */
+    private function syncCatalogObject(Asset $asset): void
+    {
+        $this->catalogAssetSync->syncFromUploadedAsset(
+            assetId: $asset->getId(),
+            code: $asset->getCode(),
+            indexedAttributes: [
+                'mime' => $asset->getMimeType(),
+                'filename' => $asset->getOriginalFilename(),
+                'previewUrl' => \sprintf('/api/assets/%s/preview', $asset->getId()->toRfc4122()),
+                'thumbnailsStatus' => $asset->getThumbnailsStatus()->value,
+                'tags' => $asset->getTags(),
+                'size' => $asset->getSize(),
+                'width' => $asset->getWidth(),
+                'height' => $asset->getHeight(),
+                'pageCount' => $asset->getPageCount(),
+            ],
+        );
     }
 
     private function stageOriginal(string $storagePath, string $mimeType): ?string

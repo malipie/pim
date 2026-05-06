@@ -79,10 +79,10 @@ export function AssetsListPage() {
     });
   };
 
-  const toggleSelect = (id: string, additive: boolean) => {
+  const toggleSelect = (id: string) => {
     setSelected((prev) => {
-      const next = new Set(additive ? prev : []);
-      if (prev.has(id)) {
+      const next = new Set(prev);
+      if (next.has(id)) {
         next.delete(id);
       } else {
         next.add(id);
@@ -132,7 +132,7 @@ export function AssetsListPage() {
               asset={asset}
               locale={i18n.language}
               isSelected={selected.has(asset.id)}
-              onToggle={(additive) => toggleSelect(asset.id, additive)}
+              onToggle={() => toggleSelect(asset.id)}
             />
           ))}
         </ul>
@@ -154,7 +154,7 @@ interface AssetTileProps {
   asset: AssetEntry;
   locale: string;
   isSelected: boolean;
-  onToggle: (additive: boolean) => void;
+  onToggle: () => void;
 }
 
 function AssetTile({ asset, locale, isSelected, onToggle }: AssetTileProps) {
@@ -177,13 +177,8 @@ function AssetTile({ asset, locale, isSelected, onToggle }: AssetTileProps) {
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={() => onToggle(false)}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (event.shiftKey || event.metaKey || event.ctrlKey) {
-              onToggle(true);
-            }
-          }}
+          onChange={() => onToggle()}
+          onClick={(event) => event.stopPropagation()}
           className="absolute left-2 top-2 z-10 size-4 cursor-pointer rounded border-muted-foreground/40"
           aria-label={t('assets.fields.code')}
         />

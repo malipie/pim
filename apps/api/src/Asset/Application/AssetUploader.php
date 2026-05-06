@@ -9,6 +9,7 @@ use App\Asset\Contracts\Event\AssetThumbnailsRequested;
 use App\Asset\Domain\Entity\Asset;
 use App\Asset\Domain\Entity\AssetVariant;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
+use App\Catalog\Contracts\Service\CatalogAssetSync;
 use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemOperator;
@@ -53,6 +54,7 @@ final readonly class AssetUploader
         private AssetRepositoryInterface $assets,
         private MessageBusInterface $bus,
         private SluggerInterface $slugger,
+        private CatalogAssetSync $catalogAssetSync,
     ) {
     }
 
@@ -135,6 +137,19 @@ final readonly class AssetUploader
         $this->em->persist($original);
         $this->em->flush();
 
+        // Mirror the new Asset into a CatalogObject(kind=asset) so the
+        // `/api/assets` grid (which lists CatalogObject rows) shows the
+        // upload. Storage-side fields go straight into
+        // `attributes_indexed` (denormalised cache; no EAV rows needed
+        // — same shape the demo seeder writes).
+        $catalogObjectId = $this->catalogAssetSync->syncFromUploadedAsset(
+            assetId: $asset->getId(),
+            code: $resolvedCode,
+            indexedAttributes: $this->buildIndexedAttributes($asset),
+        );
+        $asset->linkToObject($catalogObjectId);
+        $this->em->flush();
+
         $this->bus->dispatch(new AssetThumbnailsRequested(
             assetId: $asset->getId(),
             tenantId: $tenant->getId(),
@@ -143,6 +158,24 @@ final readonly class AssetUploader
         ));
 
         return $asset;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildIndexedAttributes(Asset $asset): array
+    {
+        return [
+            'mime' => $asset->getMimeType(),
+            'filename' => $asset->getOriginalFilename(),
+            'previewUrl' => \sprintf('/api/assets/%s/preview', $asset->getId()->toRfc4122()),
+            'thumbnailsStatus' => $asset->getThumbnailsStatus()->value,
+            'tags' => $asset->getTags(),
+            'size' => $asset->getSize(),
+            'width' => $asset->getWidth(),
+            'height' => $asset->getHeight(),
+            'pageCount' => $asset->getPageCount(),
+        ];
     }
 
     /**
