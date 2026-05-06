@@ -36,6 +36,7 @@ import { ChannelShowPage } from '@/features/channel/channels/show';
 import { DashboardPage } from '@/features/dashboard/page';
 import { LoginPage } from '@/features/identity/auth/login';
 import { ImportsListView } from '@/features/imports/list/ImportsListView';
+import { ImportWizardPage } from '@/features/imports/wizard/ImportWizardPage';
 import { PublicationsLayout } from '@/features/publications/PublicationsLayout';
 import { AiSettingsPage } from '@/features/settings/ai';
 import { LocalesSettingsPage } from '@/features/settings/locales';
@@ -214,6 +215,7 @@ function App() {
               <Route path="/publications" element={<PublicationsLayout />}>
                 <Route index element={<Navigate to="/publications/imports" replace />} />
                 <Route path="imports" element={<ImportsListView />} />
+                <Route path="imports/new" element={<ImportWizardPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

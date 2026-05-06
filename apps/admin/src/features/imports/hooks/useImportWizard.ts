@@ -3,11 +3,11 @@ import * as React from 'react';
 export type WizardStepIndex = 0 | 1 | 2 | 3;
 
 export interface ColumnSuggestion {
-  columnIndex: number;
-  columnHeader: string;
-  suggestedAttributeCode: string | null;
+  column_index: number;
+  column_header: string;
+  suggested_attribute_code: string | null;
   confidence: 'auto' | 'fuzzy' | 'manual' | 'skip';
-  sampleValues: Array<string | null>;
+  sample_values: Array<string | null>;
 }
 
 export interface ValidationFinding {
