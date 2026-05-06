@@ -1,0 +1,4 @@
+Kod produktu;Nazwa;Cena netto;Producent;Kategoria;EAN;Description;image_1;image_2;image_3;IP_class;Numer Festo;Srednica zewn.;Stara cena;Notatki wewn.
+FESTO-1;Czujnik X-200;245.50;Festo;Pneumatyka;5901234567890;Czujnik cisnienia precyzyjny;img1.jpg;img1_2.jpg;img1_3.jpg;IP67;FESTO-ABC-987;12.5 mm;299.00;Promo Q2
+FESTO-2;Zawor dwudrogowy;520.00;Festo;Pneumatyka;5901234567891;Zawor wysokoprzeplywowy;img2.jpg;img2_2.jpg;img2_3.jpg;IP65;FESTO-DEF-123;25.0 mm;560.00;
+FESTO-3;Cylinder kompaktowy;780.00;Festo;Pneumatyka;5901234567892;Cylinder dwustronnego dzialania;img3.jpg;;;IP54;FESTO-GHI-456;32.0 mm;850.00;Wyprzedaz

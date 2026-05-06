@@ -1,0 +1,235 @@
+# Imports MVP — rules-based auto-mapping dictionary (PL/EN).
+#
+# Maps human column headers to canonical product attribute codes.
+# Aliases are matched after lower-casing the header and stripping
+# non-alphanumeric characters (see App\Import\Application\Service\AutoMapper).
+# Aliases below are stored in the same normalised form, so YAML changes
+# travel through the matcher without extra processing.
+#
+# Per spec §5.3: top ~30 product attributes × 5-10 aliases each.
+# Decision (brainstorm 2026-05-03): rules-only in MVP. Hybrid AI mapping
+# is a Phase 2 candidate ("Spytaj AI o mapping" button), not a hot path
+# we plan around right now.
+#
+# Adding a new attribute? Pick aliases that operators *actually* type:
+# the IdoSell/Festo dogfooding (US-IMP-005) is the source of truth for
+# what wins 12/15 auto-recognition on real data.
+
+attributes:
+  sku:
+    aliases:
+      - sku
+      - kod
+      - kodproduktu
+      - kodprod
+      - id
+      - indeks
+      - index
+      - artnr
+      - articlenumber
+      - manufacturerpart
+      - mpn
+
+  name:
+    aliases:
+      - name
+      - nazwa
+      - tytul
+      - title
+      - productname
+      - nazwaproduktu
+
+  price:
+    aliases:
+      - price
+      - cena
+      - cenanetto
+      - cenabrutto
+      - netprice
+      - grossprice
+      - koszt
+
+  brand:
+    aliases:
+      - brand
+      - marka
+      - producent
+      - manufacturer
+      - maker
+      - vendor
+      - dostawca
+
+  ean:
+    aliases:
+      - ean
+      - ean13
+      - gtin
+      - kodkreskowy
+      - barcode
+
+  description:
+    aliases:
+      - description
+      - opis
+      - opisproduktu
+      - longdescription
+      - fulldescription
+
+  short_description:
+    aliases:
+      - shortdescription
+      - krotkiopis
+      - lead
+      - intro
+      - summary
+      - opisskrocony
+
+  category:
+    aliases:
+      - category
+      - kategoria
+      - kategorie
+      - kat
+      - group
+      - grupa
+
+  main_image:
+    aliases:
+      - mainimage
+      - image1
+      - zdjecieglowne
+      - foto
+      - fotoglowne
+      - image
+      - zdjecie
+
+  gallery_2:
+    aliases: [image2, zdjecie2, foto2, galleryimage2]
+  gallery_3:
+    aliases: [image3, zdjecie3, foto3, galleryimage3]
+  gallery_4:
+    aliases: [image4, zdjecie4, foto4, galleryimage4]
+  gallery_5:
+    aliases: [image5, zdjecie5, foto5, galleryimage5]
+  gallery_6:
+    aliases: [image6, zdjecie6, foto6, galleryimage6]
+  gallery_7:
+    aliases: [image7, zdjecie7, foto7, galleryimage7]
+  gallery_8:
+    aliases: [image8, zdjecie8, foto8, galleryimage8]
+  gallery_9:
+    aliases: [image9, zdjecie9, foto9, galleryimage9]
+  gallery_10:
+    aliases: [image10, zdjecie10, foto10, galleryimage10]
+
+  weight:
+    aliases:
+      - weight
+      - waga
+      - wagaproduktu
+      - mass
+      - kg
+
+  height:
+    aliases:
+      - height
+      - wysokosc
+      - h
+
+  width:
+    aliases:
+      - width
+      - szerokosc
+      - w
+
+  depth:
+    aliases:
+      - depth
+      - glebokosc
+      - d
+      - length
+      - dlugosc
+
+  diameter:
+    aliases:
+      - diameter
+      - srednica
+      - srednicazewn
+      - srednicawewn
+
+  color:
+    aliases:
+      - color
+      - colour
+      - kolor
+      - barwa
+
+  material:
+    aliases:
+      - material
+      - materialy
+      - tworzywo
+
+  ip_class:
+    aliases:
+      - ipclass
+      - ip
+      - ochronaip
+      - ipprotection
+
+  voltage:
+    aliases:
+      - voltage
+      - napiecie
+      - volt
+      - v
+
+  power:
+    aliases:
+      - power
+      - moc
+      - watt
+      - kw
+
+  stock:
+    aliases:
+      - stock
+      - stan
+      - stanmagazynowy
+      - magazyn
+      - quantity
+      - ilosc
+
+  vat_rate:
+    aliases:
+      - vat
+      - vatrate
+      - stawkavat
+      - tax
+      - podatek
+
+  unit:
+    aliases:
+      - unit
+      - jednostka
+      - jm
+      - measureunit
+
+  tags:
+    aliases:
+      - tags
+      - tagi
+      - keywords
+      - slowakluczowe
+
+  meta_title:
+    aliases:
+      - metatitle
+      - tytulseo
+      - seotitle
+
+  meta_description:
+    aliases:
+      - metadescription
+      - opisseo
+      - seodescription

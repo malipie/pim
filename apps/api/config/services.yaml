@@ -43,6 +43,12 @@ parameters:
     pim.asset.upload.max_image_bytes: 26214400   # 25 MB
     pim.asset.upload.max_pdf_bytes: 52428800     # 50 MB
 
+    # IMP-02 (#443) — rules-based mapping dictionary path. Loaded once
+    # per container build, then served from `cache.app` for 5 min so
+    # the wizard's auto-map step does not re-parse the YAML on every
+    # column header.
+    pim.imports.dictionary_path: '%kernel.project_dir%/config/imports/mapping_dictionary.yaml'
+
 services:
     _defaults:
         autowire: true
@@ -174,6 +180,15 @@ services:
     App\Asset\Application\AssetUploader:
         arguments:
             $assetsStorage: '@assets.storage'
+
+    # IMP-02 (#443) — rules-based mapping dictionary loader. Cached for
+    # 5 min in `cache.app` (see MappingDictionaryService). The dictionary
+    # path lives under config/ so it ships with the container and never
+    # needs to be writeable at runtime.
+    App\Import\Application\Service\MappingDictionaryService:
+        arguments:
+            $dictionaryPath: '%pim.imports.dictionary_path%'
+            $cache: '@cache.app'
 
     # API Configurator (#90 / 0.10.1). Argon2id hasher + key generator
     # — see ADR-0016 for the format and algorithm choice. The generator
