@@ -19,17 +19,27 @@ ENV MAX_REQUESTS=1000
 
 WORKDIR /app
 
-# System packages required by Symfony + Doctrine + Postgres + tooling
+# System packages required by Symfony + Doctrine + Postgres + tooling.
+#
+# DAM MVP (#438) adds Imagick + Ghostscript for the thumbnail pipeline:
+#   - imagemagick / imagemagick-dev → Imagick PHP ext build
+#   - ghostscript → PDF rasterisation (first-page poster) via `pdf[0]`
+# `install-php-extensions imagick` compiles the PECL extension against
+# imagemagick-dev, then the runtime needs imagemagick + ghostscript at
+# exec time.
 RUN apk add --no-cache \
         bash \
         curl \
+        ghostscript \
         git \
         icu-data-full \
         icu-libs \
+        imagemagick \
         oniguruma \
         unzip \
     && install-php-extensions \
         @composer-${COMPOSER_VERSION} \
+        imagick \
         intl \
         opcache \
         pcntl \

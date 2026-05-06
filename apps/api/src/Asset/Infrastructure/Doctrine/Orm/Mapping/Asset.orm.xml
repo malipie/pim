@@ -11,10 +11,17 @@
         <unique-constraints>
             <unique-constraint name="assets_tenant_code_uniq" columns="tenant_id,code"/>
             <unique-constraint name="assets_object_id_uniq" columns="object_id"/>
+            <!-- Partial UNIQUE on (tenant_id, content_hash) is created in
+                 the migration with `WHERE content_hash IS NOT NULL` — Doctrine
+                 ORM XML cannot express partial indexes so we mirror the
+                 plain composite for ORM-side reference; the migration is
+                 authoritative on the actual schema. -->
         </unique-constraints>
 
         <indexes>
             <index name="assets_tenant_idx" columns="tenant_id"/>
+            <index name="assets_tenant_mime_idx" columns="tenant_id,mime_type"/>
+            <index name="assets_tenant_created_idx" columns="tenant_id,created_at"/>
         </indexes>
 
         <id name="id" type="uuid" column="id">
@@ -32,6 +39,27 @@
         <field name="originalFilename" type="string" length="255" column="original_filename"/>
         <field name="mimeType" type="string" length="128" column="mime_type"/>
         <field name="size" type="bigint"/>
+
+        <field name="contentHash" type="string" length="64" column="content_hash" nullable="true"/>
+        <field name="width" type="integer" nullable="true"/>
+        <field name="height" type="integer" nullable="true"/>
+        <field name="pageCount" type="integer" column="page_count" nullable="true"/>
+
+        <field name="tags" type="json" column="tags">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">[]</option>
+            </options>
+        </field>
+
+        <field name="thumbnailsStatus" type="string" length="16" column="thumbnails_status">
+            <options>
+                <option name="default">pending</option>
+            </options>
+        </field>
+
+        <field name="folderCode" type="string" length="128" column="folder_code" nullable="true"/>
+
         <field name="metadata" type="json">
             <options>
                 <option name="jsonb">true</option>

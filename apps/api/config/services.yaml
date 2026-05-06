@@ -33,6 +33,16 @@ parameters:
     # ADR-013.
     pim.catalog.enable_custom_object_types: '%env(bool:CATALOG_ENABLE_CUSTOM_OBJECT_TYPES)%'
 
+    # Asset upload limits (#438 — DAM MVP). Per-MIME caps decoupled
+    # because PDFs are realistically larger than product imagery yet
+    # still bounded; raster images stop at 25 MB so a power-user dump
+    # of 50 hi-res JPEGs cannot saturate a worker. Validation lives in
+    # `UploadAssetController`; the matching frontend constant in
+    # `apps/admin/src/lib/asset-upload.ts` mirrors these so the
+    # dropzone rejects oversize files before the bytes hit the wire.
+    pim.asset.upload.max_image_bytes: 26214400   # 25 MB
+    pim.asset.upload.max_pdf_bytes: 52428800     # 50 MB
+
 services:
     _defaults:
         autowire: true
@@ -68,6 +78,21 @@ services:
     App\Catalog\Application\ObjectTypeService:
         arguments:
             $enableCustomObjectTypes: '%pim.catalog.enable_custom_object_types%'
+
+    # DAM MVP upload entry point (#438). The size caps are wired through
+    # parameters so deployment-specific overrides land in env vars
+    # (e.g. enterprise tier raises the PDF cap).
+    App\Asset\Presentation\Controller\UploadAssetController:
+        arguments:
+            $maxImageBytes: '%pim.asset.upload.max_image_bytes%'
+            $maxPdfBytes: '%pim.asset.upload.max_pdf_bytes%'
+
+    # Bind the assets storage operator to the Imagick processor so the
+    # async thumbnail handler picks the right Flysystem instance from
+    # the Flysystem bundle (the bundle exposes one operator per
+    # filesystem name).
+    App\Asset\Application\Thumbnail\ImageProcessorInterface:
+        alias: App\Asset\Infrastructure\Thumbnail\ImagickImageProcessor
 
     # Per-AttributeType validator dispatcher (#39). The factory wires up
     # one validator per AttributeType so the rest of the app can ask

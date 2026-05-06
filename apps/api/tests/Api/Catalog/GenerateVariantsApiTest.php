@@ -68,7 +68,16 @@ final class GenerateVariantsApiTest extends CatalogApiTestCase
         self::assertSame(2, $body['created_count'] ?? null);
         self::assertSame(0, $body['skipped_count'] ?? null);
 
-        $createdSkus = array_map(static fn (array $row): string => (string) $row['sku'], (array) $body['created']);
+        /** @var array<int, array<string, mixed>> $createdRows */
+        $createdRows = (array) $body['created'];
+        $createdSkus = array_map(
+            static function (array $row): string {
+                $sku = $row['sku'] ?? null;
+
+                return \is_string($sku) ? $sku : '';
+            },
+            $createdRows,
+        );
         self::assertContains('VAR-MASTER-1-red-S', $createdSkus);
         self::assertContains('VAR-MASTER-1-blue-S', $createdSkus);
 
@@ -187,9 +196,15 @@ final class GenerateVariantsApiTest extends CatalogApiTestCase
             ],
         )->toArray();
 
+        /** @var array<int, array<string, mixed>> $defaultRows */
+        $defaultRows = (array) $defaultTemplate['created'];
         $defaultSkus = array_map(
-            static fn (array $row): string => (string) $row['sku'],
-            (array) $defaultTemplate['created'],
+            static function (array $row): string {
+                $sku = $row['sku'] ?? null;
+
+                return \is_string($sku) ? $sku : '';
+            },
+            $defaultRows,
         );
         self::assertContains('VAR-PL-1-ZOLTY', $defaultSkus);
         self::assertContains('VAR-PL-1-BLEKITNY', $defaultSkus);
@@ -207,9 +222,15 @@ final class GenerateVariantsApiTest extends CatalogApiTestCase
             ],
         )->toArray();
 
+        /** @var array<int, array<string, mixed>> $customRows */
+        $customRows = (array) $customTemplate['created'];
         $customSkus = array_map(
-            static fn (array $row): string => (string) $row['sku'],
-            (array) $customTemplate['created'],
+            static function (array $row): string {
+                $sku = $row['sku'] ?? null;
+
+                return \is_string($sku) ? $sku : '';
+            },
+            $customRows,
         );
         self::assertContains('VAR-PL-1-Lososiowy', $customSkus);
     }

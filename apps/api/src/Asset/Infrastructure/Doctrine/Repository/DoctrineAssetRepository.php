@@ -25,6 +25,16 @@ class DoctrineAssetRepository extends ServiceEntityRepository implements AssetRe
         return $this->findOneBy(['code' => $code, 'tenant' => $tenant]);
     }
 
+    public function findByContentHash(string $contentHash, Tenant $tenant): ?Asset
+    {
+        return $this->findOneBy(['contentHash' => $contentHash, 'tenant' => $tenant]);
+    }
+
+    public function findByObjectId(\Symfony\Component\Uid\Uuid $objectId): ?Asset
+    {
+        return $this->findOneBy(['objectId' => $objectId->toRfc4122()]);
+    }
+
     public function findById(\Symfony\Component\Uid\Uuid $id): ?Asset
     {
         return parent::find($id->toRfc4122());

@@ -68,3 +68,10 @@ framework:
             # dev / test the async transport is a `sync://` alias so
             # behavior stays in-band without a worker.
             App\Catalog\Application\Message\ObjectValuesChangedMessage: async
+
+            # DAM thumbnail pipeline (#438). The upload request returns
+            # 201 immediately and the worker generates the 200×200 +
+            # 800×800 WebP variants out-of-band. In dev / test the
+            # async transport is `sync://`, so behaviour stays in-band
+            # without spinning a worker.
+            App\Asset\Contracts\Event\AssetThumbnailsRequested: async
