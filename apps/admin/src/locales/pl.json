@@ -257,6 +257,13 @@
       "pending": "Generowanie miniatur…",
       "failed": "Generowanie miniatur nie powiodło się."
     },
+    "folder": {
+      "all": "Wszystkie",
+      "count_one": "{{count}} plik",
+      "count_few": "{{count}} pliki",
+      "count_many": "{{count}} plików",
+      "count_other": "{{count}} plików"
+    },
     "detail": {
       "edit": "Edytuj",
       "download": "Pobierz oryginał",
@@ -472,6 +479,23 @@
     "reset_filters": "Wyczyść filtry"
   },
   "products": {
+    "multimedia": {
+      "title": "Multimedia",
+      "empty": "Brak powiązanych plików. Wgraj pliki lub wybierz z biblioteki.",
+      "upload": "Wgraj pliki",
+      "upload_dialog_title": "Wgraj pliki do produktu",
+      "upload_dialog_body": "Wgrane pliki zostaną zapisane w katalogu produktu i automatycznie powiązane.",
+      "pick_from_library": "Wybierz z biblioteki",
+      "picker_title": "Wybierz pliki z biblioteki",
+      "picker_body": "Pliki dodane tutaj zostaną powiązane z produktem (m2m). Plik zostaje w swoim oryginalnym folderze.",
+      "picker_empty": "Brak plików do wyboru w tym folderze.",
+      "pick_confirm_one": "Dodaj 1 plik",
+      "pick_confirm_other": "Dodaj {{count}} plików",
+      "pick_confirm": "Dodaj wybrane",
+      "pick_error": "Nie udało się powiązać plików.",
+      "unlink": "Odepnij od produktu",
+      "unlink_error": "Nie udało się odpiąć pliku."
+    },
     "list_title": "Produkty",
     "list_subtitle": "Katalog produktów w obrębie aktualnego najemcy.",
     "filter_provenance": "Pochodzenie",

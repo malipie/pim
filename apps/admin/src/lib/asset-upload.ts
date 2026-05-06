@@ -71,6 +71,11 @@ export interface UploadAssetOptions {
   file: File;
   code?: string;
   tags?: string[];
+  /**
+   * Logical folder for the upload. `product-<UUID>` is recognised by
+   * the backend, which auto-links the new Asset to the product.
+   */
+  folderCode?: string;
   onProgress?: (loadedPercent: number) => void;
   signal?: AbortSignal;
 }
@@ -172,6 +177,9 @@ function sendOnce(
       for (const tag of options.tags) {
         form.append('tags[]', tag);
       }
+    }
+    if (options.folderCode) {
+      form.append('folderCode', options.folderCode);
     }
 
     xhr.send(form);

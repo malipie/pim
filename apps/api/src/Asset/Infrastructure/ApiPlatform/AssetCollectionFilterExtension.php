@@ -79,6 +79,22 @@ final readonly class AssetCollectionFilterExtension implements QueryCollectionEx
             \sprintf('%s.objectId = %s.id', $assetAlias, $alias),
         );
 
+        // Folder navigation (#440). `folder=root` narrows to files without
+        // a logical folder; any other value matches the literal folder
+        // code (e.g. `product-<UUID>`). When the param is absent the
+        // listing stays global — pickers and search keep using that.
+        $folder = $request->query->get('folder');
+        if (\is_string($folder) && '' !== $folder) {
+            if ('root' === $folder) {
+                $queryBuilder->andWhere(\sprintf('%s.folderCode IS NULL', $assetAlias));
+            } else {
+                $param = $queryNameGenerator->generateParameterName('folder');
+                $queryBuilder
+                    ->andWhere(\sprintf('%s.folderCode = :%s', $assetAlias, $param))
+                    ->setParameter($param, $folder);
+            }
+        }
+
         $mimeGroup = $request->query->get('mimeGroup');
         if (\is_string($mimeGroup) && '' !== $mimeGroup) {
             $param = $queryNameGenerator->generateParameterName('mimeGroup');

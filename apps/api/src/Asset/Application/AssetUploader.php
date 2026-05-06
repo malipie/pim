@@ -63,7 +63,7 @@ final readonly class AssetUploader
     /**
      * @param array<int, string> $tags
      */
-    public function upload(File $file, ?string $code = null, array $tags = []): Asset
+    public function upload(File $file, ?string $code = null, array $tags = [], ?string $folderCode = null): Asset
     {
         $tenant = $this->tenantContext->get();
         if (null === $tenant) {
@@ -124,6 +124,7 @@ final readonly class AssetUploader
             width: $width,
             height: $height,
             tags: $tags,
+            folderCode: $folderCode,
         );
 
         $original = new AssetVariant(
@@ -190,6 +191,7 @@ final readonly class AssetUploader
             'width' => $asset->getWidth(),
             'height' => $asset->getHeight(),
             'pageCount' => $asset->getPageCount(),
+            'folderCode' => $asset->getFolderCode(),
         ];
     }
 
