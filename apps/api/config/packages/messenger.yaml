@@ -75,3 +75,10 @@ framework:
             # async transport is `sync://`, so behaviour stays in-band
             # without spinning a worker.
             App\Asset\Contracts\Event\AssetThumbnailsRequested: async
+
+            # Imports MVP (#445). Wizard `POST /api/import-sessions`
+            # returns 201 immediately and the worker streams the file
+            # row-by-row via {@see ImportRunHandler}. Sync small (<50
+            # rows) imports bypass dispatch by calling `run()` directly
+            # on the same handler from the controller.
+            App\Import\Domain\Message\ImportRunMessage: async

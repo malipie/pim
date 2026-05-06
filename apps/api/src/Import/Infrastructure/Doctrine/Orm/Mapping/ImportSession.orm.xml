@@ -75,6 +75,14 @@
         </many-to-one>
 
         <field name="errorMessage" type="text" column="error_message" nullable="true"/>
+
+        <field name="columnMapping" type="json" column="column_mapping">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">{}</option>
+            </options>
+        </field>
+
         <field name="createdAt" type="datetime_immutable" column="created_at"/>
 
     </entity>
