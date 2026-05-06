@@ -39,9 +39,12 @@ final class RbacMatrix
         'association',
         'attribute',
         'attribute_group',
+        'backup',
         'brand',
         'category',
         'channel',
+        'import_profile',
+        'import_session',
         'integration',
         'object',
         'object_type',
@@ -86,10 +89,25 @@ final class RbacMatrix
             new RoleDefinition(
                 code: self::ROLE_CATALOG_MANAGER,
                 name: 'Catalog Manager',
-                permissionCodes: self::permissionsFor(
-                    resources: ['object', 'object_type', 'attribute', 'attribute_group', 'association', 'category', 'asset', 'brand'],
-                    actions: [self::ACTION_READ, self::ACTION_WRITE, self::ACTION_DELETE],
-                ),
+                permissionCodes: [
+                    ...self::permissionsFor(
+                        resources: ['object', 'object_type', 'attribute', 'attribute_group', 'association', 'category', 'asset', 'brand'],
+                        actions: [self::ACTION_READ, self::ACTION_WRITE, self::ACTION_DELETE],
+                    ),
+                    // IMP-01/02 — Catalog Manager is the primary persona for
+                    // self-service imports (Kasia, spec §2). Backup write is
+                    // intentionally OUT — a cluster-wide pgBackRest snapshot
+                    // is admin-territory (spec §7.8). Read on backup keeps
+                    // the wizard's status polling working.
+                    ...self::permissionsFor(
+                        resources: ['import_session', 'import_profile'],
+                        actions: [self::ACTION_READ, self::ACTION_WRITE, self::ACTION_DELETE],
+                    ),
+                    ...self::permissionsFor(
+                        resources: ['backup'],
+                        actions: [self::ACTION_READ],
+                    ),
+                ],
             ),
             new RoleDefinition(
                 code: self::ROLE_INTEGRATION_MANAGER,
