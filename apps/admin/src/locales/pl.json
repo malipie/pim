@@ -986,5 +986,163 @@
       "error": "Nie udało się pobrać efektywnych grup.",
       "not_found": "Nie znaleziono kategorii lub typu obiektu."
     }
+  },
+  "imports": {
+    "list": {
+      "title": "Importy",
+      "new": "Nowy import",
+      "profiles": "Profile",
+      "filters": {
+        "status": "Status",
+        "date": "Zakres dat",
+        "user": "Użytkownik"
+      },
+      "columns": {
+        "date": "Data",
+        "file": "Plik",
+        "status": "Status",
+        "stats": "Statystyki",
+        "actions": "Akcje"
+      },
+      "status": {
+        "pending": "Oczekuje",
+        "running": "W toku",
+        "paused": "Pauza",
+        "success": "OK",
+        "partial": "Częściowy",
+        "failed": "Niepowodzenie",
+        "cancelled": "Anulowany",
+        "rolled_back": "Wycofany"
+      },
+      "actions": {
+        "view_report": "Zobacz raport",
+        "rollback": "Wycofaj import",
+        "rerun": "Uruchom ponownie z profilem",
+        "delete": "Usuń"
+      },
+      "empty": "Brak importów. Utwórz pierwszy import."
+    },
+    "wizard": {
+      "steps": {
+        "upload": "Upload",
+        "mapping": "Mapping",
+        "validation": "Walidacja",
+        "confirm": "Potwierdzenie"
+      },
+      "next": "Dalej",
+      "back": "Wstecz",
+      "cancel": "Anuluj",
+      "run": "Uruchom import",
+      "create_attribute": "Stwórz nowy atrybut"
+    },
+    "upload": {
+      "drop_csv": "Przeciągnij plik CSV/Excel lub wybierz",
+      "drop_csv_hint": "Akceptowane: .xlsx, .csv (max 50 MB)",
+      "drop_zip": "Przeciągnij plik ZIP ze zdjęciami",
+      "drop_zip_hint": "max 500 MB",
+      "locale": "Locale pliku",
+      "encoding": "Kodowanie",
+      "delimiter": "Separator (CSV)",
+      "image_source": {
+        "label": "Źródło zdjęć",
+        "http": "Linki HTTP w pliku (image_1, image_2…)",
+        "zip": "Plik ZIP z lokalnymi zdjęciami",
+        "none": "Brak zdjęć w tym imporcie"
+      },
+      "profile": {
+        "label": "Profil importu",
+        "new": "Nowy profil (skonfiguruj poniżej)",
+        "use_saved": "Użyj zapisanego",
+        "save_as": "Zapisz jako profil"
+      }
+    },
+    "mapping": {
+      "header": "Auto-mapping zakończony: {{auto}}/{{total}} kolumn dopasowanych. Zmapuj {{manual}} ręcznie.",
+      "columns": {
+        "source": "Kolumna źródła",
+        "sample": "Sample value",
+        "mapping": "Mapping",
+        "required": "Wymagane"
+      },
+      "confidence": {
+        "auto": "auto",
+        "fuzzy": "podpowiedź",
+        "manual": "ręczne",
+        "skip": "pomiń"
+      },
+      "skip": "Pomiń kolumnę"
+    },
+    "validation": {
+      "ok": "{{count}} produktów OK",
+      "errors": "{{count}} błędów / ostrzeżeń",
+      "show_all": "Pokaż wszystkie {{count}} błędy",
+      "decide": {
+        "label": "Co dalej?",
+        "import_ok": "Zaimportuj OK, pomiń błędne",
+        "back_to_mapping": "Wróć do mappingu, popraw błędy"
+      },
+      "errors_table": {
+        "row": "Wiersz",
+        "sku": "SKU",
+        "type": "Typ błędu",
+        "message": "Komunikat"
+      },
+      "error_types": {
+        "missing_required": "Brak wymaganego pola",
+        "duplicate_sku_in_file": "Duplikat SKU w pliku",
+        "duplicate_sku_in_db": "SKU już w bazie",
+        "invalid_type": "Nieprawidłowy typ",
+        "invalid_value": "Nieprawidłowa wartość",
+        "image_not_found": "Brak pliku zdjęcia"
+      }
+    },
+    "confirm": {
+      "summary": "Podsumowanie",
+      "backup": {
+        "label": "Utwórz pełen backup bazy danych (pgBackRest)",
+        "hint_recommended": "Zalecane dla importów >1000 produktów",
+        "hint_duration": "Backup zajmie 5–30 minut",
+        "hint_rollback": "Bez backupu: dostępny soft rollback przez 24h"
+      },
+      "email": "Wyślij email po zakończeniu (>5 min runtime)",
+      "warning": "Akcja jest finalna. Możesz wycofać import w 24h."
+    },
+    "progress": {
+      "title": "Import w toku",
+      "elapsed": "Czas wykonania",
+      "remaining": "Pozostały czas",
+      "current_sku": "Aktualnie: {{sku}}",
+      "close_hint": "Możesz zamknąć tę kartę. System wyśle email po zakończeniu.",
+      "pause": "Pauza",
+      "resume": "Wznów",
+      "cancel": "Anuluj"
+    },
+    "results": {
+      "imported": "{{count}} produktów zaimportowano",
+      "skipped": "{{count}} pominiętych",
+      "duration": "Czas wykonania: {{value}}",
+      "download_report": "Pobierz raport CSV",
+      "view_products": "Zobacz zaimportowane produkty",
+      "rollback": "Wycofaj import",
+      "rollback_window": "Dostępne do {{date}}",
+      "rollback_expired": "Okno wycofania wygasło"
+    },
+    "profiles": {
+      "title": "Moje profile importu",
+      "columns": {
+        "name": "Profil",
+        "last_used": "Ostatnio użyty",
+        "uses": "# importów",
+        "actions": "Akcje"
+      },
+      "edit": "Edytuj",
+      "delete": "Usuń",
+      "disclaimer": "Edycja profilu modyfikuje tylko przyszłe importy. Nie wpływa na poprzednie."
+    },
+    "errors": {
+      "load_failed": "Nie udało się wczytać sesji importu.",
+      "rollback_failed": "Wycofanie importu nie powiodło się.",
+      "upload_failed": "Wgranie pliku nie powiodło się."
+    }
   }
 }
