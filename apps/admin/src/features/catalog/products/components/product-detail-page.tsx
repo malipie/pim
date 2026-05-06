@@ -2,7 +2,6 @@ import { useOne } from '@refinedev/core';
 import {
   ArrowLeft,
   Clock,
-  Image as ImageIcon,
   Link2,
   MoreHorizontal,
   Pencil,
@@ -10,7 +9,6 @@ import {
   ShoppingBag,
   Sparkles,
   Trash2,
-  Upload,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -40,6 +38,7 @@ import { DuplicateButton } from './duplicate-button';
 import { EffectiveModelCard } from './effective-model-card';
 import { LocaleChannelToolbar } from './locale-channel-toolbar';
 import { PreviewButton } from './preview-button';
+import { ProductMultimediaTab } from './product-multimedia-tab';
 import { SyncStatusCard } from './sync-status-card';
 import type {
   AttributeMeta,
@@ -728,47 +727,11 @@ function resolveProvenance(
 }
 
 function OtherTabs({ activeTab, productId }: { activeTab: TabKey; productId: string }) {
-  if (activeTab === 'multimedia') return <MediaStub />;
+  if (activeTab === 'multimedia') return <ProductMultimediaTab productId={productId} />;
   if (activeTab === 'relations') return <RelationsStub />;
   if (activeTab === 'history') return <HistoryStub />;
   if (activeTab === 'variants') return <VariantsTabHost productId={productId} />;
   return null;
-}
-
-function MediaStub() {
-  return (
-    <MockBadge
-      variant="overlay"
-      tooltip="MOCK · Multimedia tab wymaga DAM (S3/MinIO + image transformations)"
-    >
-      <div className="rounded-2xl border border-line bg-surface p-6 soft-shadow">
-        <header className="flex items-center justify-between">
-          <h3 className="text-[14px] font-semibold text-ink">Multimedia</h3>
-          <Button type="button" variant="outline" size="sm" disabled>
-            <Upload className="size-4" />
-            Upload zdjęć
-          </Button>
-        </header>
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          {Array.from({ length: 9 }, (_, i) => `mock-media-${i}`).map((slot) => (
-            <div
-              key={slot}
-              className="aspect-square rounded-xl bg-surface-2 ring-1 ring-inset ring-line"
-              aria-hidden
-            >
-              <div className="flex size-full items-center justify-center text-muted-foreground/60">
-                <ImageIcon className="size-6" />
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-[11px] text-muted-foreground">
-          Backlog:{' '}
-          <code className="font-mono text-[10px]">POST /api/products/&#123;id&#125;/media</code>
-        </p>
-      </div>
-    </MockBadge>
-  );
 }
 
 function RelationsStub() {

@@ -31,9 +31,20 @@ interface UploadEntry {
 export interface AssetUploadDropzoneProps {
   onCompleted: (results: UploadAssetResult[]) => void;
   onDuplicate?: (duplicate: DuplicateAssetError, file: File) => void;
+  /**
+   * Logical folder every upload from this dropzone lands in. Forwards
+   * to `uploadAsset({ folderCode })`. `product-<UUID>` triggers
+   * auto-link on the backend so the multimedia tab shows the file
+   * immediately.
+   */
+  folderCode?: string;
 }
 
-export function AssetUploadDropzone({ onCompleted, onDuplicate }: AssetUploadDropzoneProps) {
+export function AssetUploadDropzone({
+  onCompleted,
+  onDuplicate,
+  folderCode,
+}: AssetUploadDropzoneProps) {
   const { t } = useTranslation();
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -88,6 +99,7 @@ export function AssetUploadDropzone({ onCompleted, onDuplicate }: AssetUploadDro
         try {
           const result = await uploadAsset({
             file: entry.file,
+            folderCode,
             onProgress: (percent) => {
               setEntries((prev) =>
                 prev.map((existing) =>
@@ -150,7 +162,7 @@ export function AssetUploadDropzone({ onCompleted, onDuplicate }: AssetUploadDro
         onCompleted(completed);
       }
     },
-    [onCompleted, onDuplicate, t],
+    [onCompleted, onDuplicate, folderCode, t],
   );
 
   const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {

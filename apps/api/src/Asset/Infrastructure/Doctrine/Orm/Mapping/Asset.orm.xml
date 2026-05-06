@@ -58,6 +58,8 @@
             </options>
         </field>
 
+        <field name="folderCode" type="string" length="128" column="folder_code" nullable="true"/>
+
         <field name="metadata" type="json">
             <options>
                 <option name="jsonb">true</option>

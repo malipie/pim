@@ -8,6 +8,8 @@ use App\Asset\Application\AssetUploader;
 use App\Asset\Application\Exception\DuplicateAssetException;
 use App\Asset\Application\MimeTypeWhitelist;
 use App\Asset\Domain\Entity\Asset;
+use App\Catalog\Contracts\Service\ProductAssetLinker;
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -19,6 +21,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\UnsupportedMediaTypeHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * `POST /api/assets/upload` (multipart) — DAM MVP entry point (#438).
@@ -46,6 +49,7 @@ final class UploadAssetController
     public function __construct(
         private readonly AssetUploader $uploader,
         private readonly AuthorizationCheckerInterface $authorisation,
+        private readonly ProductAssetLinker $productAssetLinker,
         private readonly int $maxImageBytes,
         private readonly int $maxPdfBytes,
     ) {
@@ -87,9 +91,15 @@ final class UploadAssetController
 
         $code = $request->request->get('code');
         $tags = $this->normaliseTags($request);
+        $folderCode = $this->normaliseFolderCode($request);
 
         try {
-            $asset = $this->uploader->upload($file, \is_string($code) && '' !== trim($code) ? trim($code) : null, $tags);
+            $asset = $this->uploader->upload(
+                $file,
+                \is_string($code) && '' !== trim($code) ? trim($code) : null,
+                $tags,
+                $folderCode,
+            );
         } catch (DuplicateAssetException $e) {
             return new JsonResponse([
                 'type' => 'urn:pim:asset:duplicate',
@@ -102,7 +112,41 @@ final class UploadAssetController
             throw new BadRequestHttpException($e->getMessage(), $e);
         }
 
+        // Auto-link to product when uploaded inside a product card —
+        // the frontend builds `folderCode = "product-<UUID>"` so the
+        // backend can resolve the parent without a second request.
+        if (null !== $folderCode) {
+            $productId = $this->extractProductIdFromFolder($folderCode);
+            if (null !== $productId) {
+                $this->productAssetLinker->linkAssetsToProduct($productId, [$asset->getId()]);
+            }
+        }
+
         return new JsonResponse($this->present($asset), Response::HTTP_CREATED);
+    }
+
+    private function normaliseFolderCode(Request $request): ?string
+    {
+        $raw = $request->request->get('folderCode');
+        if (!\is_string($raw)) {
+            return null;
+        }
+        $trimmed = trim($raw);
+
+        return '' === $trimmed ? null : $trimmed;
+    }
+
+    private function extractProductIdFromFolder(string $folderCode): ?Uuid
+    {
+        if (!str_starts_with($folderCode, 'product-')) {
+            return null;
+        }
+        $candidate = substr($folderCode, \strlen('product-'));
+        try {
+            return Uuid::fromString($candidate);
+        } catch (InvalidArgumentException) {
+            return null;
+        }
     }
 
     /**

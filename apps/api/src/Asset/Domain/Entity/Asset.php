@@ -80,6 +80,13 @@ class Asset extends AggregateRoot implements TenantScoped
     private string $thumbnailsStatus = ThumbnailsStatus::Pending->value;
 
     /**
+     * Logical folder the file lives in. NULL = library root.
+     * `product-<UUID>` indicates a file uploaded inside a product card
+     * — the picker uses this to display the folder in the /assets grid.
+     */
+    private ?string $folderCode = null;
+
+    /**
      * @var array<string, mixed>
      */
     private array $metadata = [];
@@ -111,6 +118,7 @@ class Asset extends AggregateRoot implements TenantScoped
         ?int $pageCount = null,
         array $tags = [],
         array $metadata = [],
+        ?string $folderCode = null,
     ) {
         $this->id = $id ?? Uuid::v7();
         $this->code = $code;
@@ -124,6 +132,7 @@ class Asset extends AggregateRoot implements TenantScoped
         $this->pageCount = $pageCount;
         $this->tags = array_values(array_unique($tags));
         $this->metadata = $metadata;
+        $this->folderCode = $folderCode;
         $this->createdAt = new DateTimeImmutable();
         $this->variants = new ArrayCollection();
     }
@@ -263,6 +272,16 @@ class Asset extends AggregateRoot implements TenantScoped
     public function markThumbnailsFailed(): void
     {
         $this->thumbnailsStatus = ThumbnailsStatus::Failed->value;
+    }
+
+    public function getFolderCode(): ?string
+    {
+        return $this->folderCode;
+    }
+
+    public function moveToFolder(?string $folderCode): void
+    {
+        $this->folderCode = $folderCode;
     }
 
     /**
