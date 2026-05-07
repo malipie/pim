@@ -55,6 +55,7 @@ test('Modeling shell + Dashboard mock — full handoff smoke', async ({ page }) 
     /^pdf catalogs$|^katalogi pdf$/i,
     /^multimedia$/i,
     /^workflow$/i,
+    /^publications$|^publikacje$/i,
     /^integrations$|^integracje$/i,
     /^settings$|^ustawienia$/i,
     /^modeling$|^modelowanie$/i,
@@ -209,9 +210,10 @@ test('Modeling shell + Dashboard mock — full handoff smoke', async ({ page }) 
   await expect(availableList.getByText(/marki|brand/i)).toBeVisible();
 
   const visibleList = page.getByTestId('menu-visible-list');
-  // 1 dashboard + 1 product + 6 system items (catalogs_pdf, multimedia,
-  // workflow, integrations, settings, modeling) = 8 rows.
-  await expect(visibleList.locator('> div')).toHaveCount(8);
+  // 1 dashboard + 1 product + 7 system items (catalogs_pdf, multimedia,
+  // workflow, publications, integrations, settings, modeling) = 9 rows.
+  // `publications` dorzucone przez epik 0.13 / UI-09 (Imports MVP).
+  await expect(visibleList.locator('> div')).toHaveCount(9);
 
   // Protected items render Lock icon, no EyeOff button. Each row's text
   // is "<label> <SYS|OT> [Wkrótce]" so anchor to the `flex-1` label span
