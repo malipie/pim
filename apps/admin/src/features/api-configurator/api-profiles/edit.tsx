@@ -71,7 +71,7 @@ export function ApiProfileEditPage() {
                 webhookEvents: values.webhookEvents,
               },
             });
-            navigate(`/api-profiles/${profile.id}`);
+            navigate(`/integrations/api-configurator/${profile.id}`);
           } catch {
             setApiError(t('api_profiles.errors.update_failed'));
           }

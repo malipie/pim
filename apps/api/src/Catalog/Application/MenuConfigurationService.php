@@ -56,24 +56,40 @@ final readonly class MenuConfigurationService
     {
         $existing = $this->repository->findByTenant($tenant);
         if (null !== $existing) {
-            return $this->backfillMissingSystemItems($existing);
+            return $this->reconcileSystemItems($existing);
         }
 
         return $this->defaultSeeder->seed($tenant);
     }
 
     /**
-     * Self-heal: gdy SystemMenuItemRegistry rośnie (np. nowy `publications`
-     * dorzucany przez epik 0.13 / UI-09), tenanty z config'iem zasiedzonym
-     * pod starszą wersję rejestru go nie zobaczą — dopisujemy brakujące
-     * system items na końcu listy. Idempotent: jeśli wszystkie są obecne,
-     * funkcja zwraca config bez `flush`.
+     * Self-heal: utrzymuje listę system items w config'ie w synchroni z
+     * `SystemMenuItemRegistry`:
+     *   - Append: gdy registry rośnie (epik dorzuca nowy item), dodajemy
+     *     brakujące refs na końcu listy z visible=true.
+     *   - Prune: gdy registry kurczy się (epik usuwa item, np.
+     *     `publications` po konsolidacji w „Integracje"), wyrzucamy
+     *     martwe refs — bez tego `validate()` na PUT rzuci 422 z powodu
+     *     `SystemMenuItemRegistry::exists() === false`.
+     * Idempotent: gdy lista jest spójna, zwraca config bez `flush`.
      */
-    private function backfillMissingSystemItems(MenuConfiguration $config): MenuConfiguration
+    private function reconcileSystemItems(MenuConfiguration $config): MenuConfiguration
     {
+        $registryKeys = SystemMenuItemRegistry::defaultOrder();
+        $kept = [];
         $existingSystemRefs = [];
         $maxPosition = -1;
+        $pruned = false;
+
         foreach ($config->getItems() as $item) {
+            if (
+                MenuItemRecord::KIND_SYSTEM === $item->kind
+                && !\in_array($item->ref, $registryKeys, true)
+            ) {
+                $pruned = true;
+                continue;
+            }
+            $kept[] = $item;
             if ($item->position > $maxPosition) {
                 $maxPosition = $item->position;
             }
@@ -83,12 +99,11 @@ final readonly class MenuConfigurationService
         }
 
         $appended = false;
-        $items = $config->getItems();
-        foreach (SystemMenuItemRegistry::defaultOrder() as $systemKey) {
+        foreach ($registryKeys as $systemKey) {
             if (\in_array($systemKey, $existingSystemRefs, true)) {
                 continue;
             }
-            $items[] = new MenuItemRecord(
+            $kept[] = new MenuItemRecord(
                 MenuItemRecord::KIND_SYSTEM,
                 $systemKey,
                 ++$maxPosition,
@@ -97,11 +112,11 @@ final readonly class MenuConfigurationService
             $appended = true;
         }
 
-        if (!$appended) {
+        if (!$pruned && !$appended) {
             return $config;
         }
 
-        $config->replaceItems($items);
+        $config->replaceItems($kept);
         $this->em->flush();
 
         return $config;

@@ -42,7 +42,6 @@
     "catalogsPdf": "Katalogi PDF",
     "multimedia": "Multimedia",
     "workflow": "Workflow",
-    "publications": "Publikacje",
     "integrations": "Integracje",
     "settings": "Ustawienia",
     "modeling": "Modelowanie",
@@ -988,17 +987,17 @@
       "not_found": "Nie znaleziono kategorii lub typu obiektu."
     }
   },
-  "publications": {
-    "title": "Publikacje",
-    "description": "Imports, exports i integracje katalogu",
+  "integrations": {
+    "title": "Integracje",
+    "description": "Imports, exports, konektory i API Configurator",
     "tabs": {
       "imports": "Imports",
       "exports": "Exports",
-      "integrations": "Integracje",
+      "connectors": "Konektory",
       "api_configurator": "API Configurator"
     },
-    "tabs_aria": "Sub-tabs Publikacje",
-    "coming_soon": "Coming with epik UI-04 (Publikacje)"
+    "tabs_aria": "Sub-tabs Integracje",
+    "coming_soon": "Coming with epik 0.10 / UI-04"
   },
   "imports": {
     "list": {

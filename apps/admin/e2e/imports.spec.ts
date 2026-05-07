@@ -14,11 +14,11 @@ test.describe('Imports MVP', () => {
   test('list renders and the wizard route is reachable', async ({ page }) => {
     await loginAsAdmin(page);
 
-    await page.goto('/publications/imports');
-    await expect(page.getByRole('heading', { name: /publikacje|publications/i })).toBeVisible();
+    await page.goto('/integrations/imports');
+    await expect(page.getByRole('heading', { name: /integracje|integrations/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: /importy|imports/i })).toBeVisible();
 
     await page.getByRole('link', { name: /nowy import|new import/i }).click();
-    await expect(page).toHaveURL(/\/publications\/imports\/new$/);
+    await expect(page).toHaveURL(/\/integrations\/imports\/new$/);
   });
 });

@@ -42,7 +42,7 @@ export function EmptyStateProducts({ onCloneFrom }: { onCloneFrom?: () => void }
           </Button>
         ) : null}
         <Button asChild variant="outline">
-          <Link to="/publications/imports/new">
+          <Link to="/integrations/imports/new">
             <Upload className="size-4" />
             {t('products.empty.import_csv', { defaultValue: 'Import from Excel/CSV' })}
           </Link>

@@ -60,7 +60,7 @@ export function ApiProfileShowPage() {
     <div className="space-y-6">
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
-          <Link to="/api-profiles">
+          <Link to="/integrations/api-configurator">
             <ChevronLeft className="size-4" />
             {t('api_profiles.actions.back_to_list')}
           </Link>
@@ -71,7 +71,7 @@ export function ApiProfileShowPage() {
             <p className="font-mono text-xs text-muted-foreground">{profile.code}</p>
           </div>
           <Button asChild variant="outline">
-            <Link to={`/api-profiles/${profile.id}/edit`}>
+            <Link to={`/integrations/api-configurator/${profile.id}/edit`}>
               <Pencil className="mr-1 size-4" />
               {t('api_profiles.actions.edit')}
             </Link>

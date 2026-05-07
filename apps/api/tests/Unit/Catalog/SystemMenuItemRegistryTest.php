@@ -14,23 +14,31 @@ use PHPUnit\Framework\TestCase;
 final class SystemMenuItemRegistryTest extends TestCase
 {
     #[Test]
-    public function registryHasEightSystemItems(): void
+    public function registryHasSevenSystemItems(): void
     {
-        // dashboard, catalogs_pdf, multimedia, workflow, publications,
-        // integrations, settings, modeling. `publications` dorzucone przez
-        // epik 0.13 / UI-09 (Imports MVP).
-        self::assertCount(8, SystemMenuItemRegistry::items());
+        // dashboard, catalogs_pdf, multimedia, workflow, integrations,
+        // settings, modeling. Po konsolidacji „Publikacje" + „Integracje"
+        // (PR follow-up po #472) — top-level „Integracje" pełni rolę huba
+        // dla Imports MVP + sub-tab API Configurator.
+        self::assertCount(7, SystemMenuItemRegistry::items());
     }
 
     #[Test]
-    public function publicationsRoutesToTheImportsLayout(): void
+    public function integrationsRoutesToTheIntegrationsHub(): void
     {
-        $publications = SystemMenuItemRegistry::get('publications');
-        self::assertNotNull($publications);
-        self::assertSame('/publications', $publications['route']);
-        self::assertSame('Send', $publications['icon']);
-        self::assertFalse($publications['comingSoon']);
-        self::assertFalse($publications['protected']);
+        $integrations = SystemMenuItemRegistry::get('integrations');
+        self::assertNotNull($integrations);
+        self::assertSame('/integrations', $integrations['route']);
+        self::assertSame('Plug2', $integrations['icon']);
+        self::assertFalse($integrations['comingSoon']);
+        self::assertFalse($integrations['protected']);
+    }
+
+    #[Test]
+    public function publicationsKeyIsRetiredAfterConsolidation(): void
+    {
+        self::assertFalse(SystemMenuItemRegistry::exists('publications'));
+        self::assertNotContains('publications', SystemMenuItemRegistry::defaultOrder());
     }
 
     #[Test]

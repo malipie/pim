@@ -81,7 +81,7 @@ export function ImportShowPage(): React.ReactElement {
           </p>
         </div>
         <Button asChild variant="ghost">
-          <Link to="/publications/imports">
+          <Link to="/integrations/imports">
             ← {t('imports.list.title', { defaultValue: 'Importy' })}
           </Link>
         </Button>

@@ -12,53 +12,62 @@ interface TabDef {
 }
 
 const TABS: readonly TabDef[] = [
-  { to: '/publications/imports', labelKey: 'publications.tabs.imports', enabled: true },
+  { to: '/integrations/imports', labelKey: 'integrations.tabs.imports', enabled: true },
   {
-    to: '/publications/exports',
-    labelKey: 'publications.tabs.exports',
+    to: '/integrations/exports',
+    labelKey: 'integrations.tabs.exports',
     enabled: false,
-    comingSoonKey: 'publications.coming_soon',
+    comingSoonKey: 'integrations.coming_soon',
   },
   {
-    to: '/publications/integrations',
-    labelKey: 'publications.tabs.integrations',
+    to: '/integrations/connectors',
+    labelKey: 'integrations.tabs.connectors',
     enabled: false,
-    comingSoonKey: 'publications.coming_soon',
+    comingSoonKey: 'integrations.coming_soon',
   },
   {
-    to: '/publications/api-configurator',
-    labelKey: 'publications.tabs.api_configurator',
-    enabled: false,
-    comingSoonKey: 'publications.coming_soon',
+    to: '/integrations/api-configurator',
+    labelKey: 'integrations.tabs.api_configurator',
+    enabled: true,
   },
 ] as const;
 
 /**
- * IMP-09 (#450) — top-level "Publikacje" shell. Imports is the only
- * sub-tab implemented in this slice; the other three sit behind a
- * disabled state with a tooltip until epik UI-04 fills them in.
+ * IMP-09 (#450) + Publications/Integrations consolidation (PR follow-up #472).
+ *
+ * Top-level "Integracje" hub łączy 4 powierzchnie syndykacji danych:
+ *   - Imports (zaimplementowane w epiku 0.13 / UI-09 — Imports MVP),
+ *   - Exports (placeholder, epik 0.10 API Configurator),
+ *   - Connectors (placeholder, BaseLinker/Shopify w Fazie 1 — epiki 0.8/0.9),
+ *   - API Configurator (Profile API z VIEW-08 — drugi USP, epik 0.10).
+ *
+ * Wcześniej: top-level "Publikacje" (route /publications) + osobny
+ * top-level "Integracje" (route /api-profiles dla Profile API). Operator
+ * wskazał konfuzję — Profile API zostało zmigrowane do sub-tab
+ * `api-configurator`, top-level "Publikacje" usunięty.
  */
-export function PublicationsLayout(): React.ReactElement {
+export function IntegrationsLayout(): React.ReactElement {
   const { t } = useTranslation();
 
   return (
     <div className="space-y-6">
       <header className="space-y-1">
         <h1 className="display text-[28px] font-semibold tracking-tight">
-          {t('publications.title', { defaultValue: 'Publikacje' })}
+          {t('integrations.title', { defaultValue: 'Integracje' })}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {t('publications.description', {
-            defaultValue: 'Imports, exports i integracje katalogu',
+          {t('integrations.description', {
+            defaultValue: 'Imports, exports, konektory i API Configurator',
           })}
         </p>
       </header>
       <div
         className="flex gap-1 border-b"
         role="tablist"
-        aria-label={t('publications.tabs_aria', { defaultValue: 'Sub-tabs Publikacje' })}
+        aria-label={t('integrations.tabs_aria', { defaultValue: 'Sub-tabs Integracje' })}
       >
         {TABS.map((tab) => {
+          const fallbackLabel = tab.to.replace('/integrations/', '');
           if (!tab.enabled) {
             return (
               <button
@@ -75,7 +84,7 @@ export function PublicationsLayout(): React.ReactElement {
                 }
                 className="-mb-px flex cursor-not-allowed items-center border-b-2 border-transparent px-4 py-2 text-sm text-muted-foreground/60"
               >
-                {t(tab.labelKey, { defaultValue: tab.to.replace('/publications/', '') })}
+                {t(tab.labelKey, { defaultValue: fallbackLabel })}
               </button>
             );
           }
@@ -93,7 +102,7 @@ export function PublicationsLayout(): React.ReactElement {
                 )
               }
             >
-              {t(tab.labelKey, { defaultValue: tab.to.replace('/publications/', '') })}
+              {t(tab.labelKey, { defaultValue: fallbackLabel })}
             </NavLink>
           );
         })}

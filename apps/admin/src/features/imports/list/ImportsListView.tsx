@@ -68,7 +68,7 @@ export function ImportsListView(): React.ReactElement {
       header: t('imports.list.columns.actions', { defaultValue: 'Akcje' }),
       cell: (row) => (
         <Button asChild variant="ghost" size="sm">
-          <Link to={`/publications/imports/${row.id}`}>
+          <Link to={`/integrations/imports/${row.id}`}>
             {t('imports.list.actions.view_report', { defaultValue: 'Zobacz' })}
           </Link>
         </Button>
@@ -90,7 +90,7 @@ export function ImportsListView(): React.ReactElement {
             ⋮ {t('imports.list.profiles', { defaultValue: 'Profile' })}
           </Button>
           <Button asChild>
-            <Link to="/publications/imports/new">
+            <Link to="/integrations/imports/new">
               <Plus className="size-4" />
               {t('imports.list.new', { defaultValue: 'Nowy import' })}
             </Link>
