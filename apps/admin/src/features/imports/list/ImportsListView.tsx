@@ -1,10 +1,12 @@
 import { useList } from '@refinedev/core';
 import { Plus } from 'lucide-react';
+import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
+import { ImportProfileManager } from '@/features/imports/profiles/ImportProfileManager';
 
 import { type ImportStatus, StatusBadge } from './StatusBadge';
 
@@ -75,6 +77,8 @@ export function ImportsListView(): React.ReactElement {
     },
   ];
 
+  const [profilesOpen, setProfilesOpen] = React.useState(false);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -82,6 +86,9 @@ export function ImportsListView(): React.ReactElement {
           {t('imports.list.title', { defaultValue: 'Importy' })}
         </h2>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setProfilesOpen(true)}>
+            ⋮ {t('imports.list.profiles', { defaultValue: 'Profile' })}
+          </Button>
           <Button asChild>
             <Link to="/publications/imports/new">
               <Plus className="size-4" />
@@ -90,6 +97,8 @@ export function ImportsListView(): React.ReactElement {
           </Button>
         </div>
       </div>
+
+      <ImportProfileManager open={profilesOpen} onOpenChange={setProfilesOpen} />
       {isLoading ? (
         <div className="text-sm text-muted-foreground" aria-busy="true">
           {t('app.loading', { defaultValue: 'Ładowanie…' })}
