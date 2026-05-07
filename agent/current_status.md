@@ -1,5 +1,36 @@
 # Current Status
 
+## 2026-05-07: Epik UI-09 / 0.13 — Imports MVP (IMP-01 do IMP-13 merged)
+
+Operator: „zacznij prace, po kolei w tym epiku, wykonaj wszystko" — EPIK MARATHON RULE aktywny. Każdy ticket = własny branch + PR + CI + merge. 13 z 15 ticketów done na main:
+
+- **Backend** (IMP-01..07, merge'd):
+  - #442 → `69a2b71` schema + entities (4 tabele + ALTER objects + 4 entities + 5 enums + voters)
+  - #443 → `ec300e1` file parsing + dictionary auto-mapping (PhpSpreadsheet + league/csv + YAML PL/EN ~30 atrybutów)
+  - #444 → `d04df1f` validate-dry-run endpoint (5 typów błędów + ApiTestCase 247/33)
+  - #445 → `02d7b90` async ImportRunHandler (chunked + Mercure progress + StartImportController)
+  - #446 → `f91f909` rollback + report CSV (24h window guard + DBAL bulk delete)
+  - #447 → `63be689` pgBackRest manual snapshot (Symfony\Process + state machine + rate limit 1/h/tenant)
+  - #448 → `ea10825` import profiles CRUD (AP4 + state processor + voter per-user own)
+- **Frontend** (IMP-08..13, merge'd):
+  - #449 → `74d5348` foundation primitives (Stepper, Progress, Combobox, DataTable, FileDropzone, useImportWizard)
+  - #450 → `4539ef1` list view + Publikacje sub-tab (StatusBadge, EmptyStateProducts CTA enabled)
+  - #451 → `495dcb5` wizard Step 1 (Upload) + Step 2 (Mapping) — auto-map + persist/restore deep-link
+  - #452 → `c16ec37` wizard Step 3 (Validation) + Step 4 (Confirm) — KPI + BackupTriggerCheckbox
+  - #453 → `424e498` progress + results + RollbackButton (Mercure SSE useImportProgress)
+  - #454 → `3bc6ea5` profile manager modal (Sheet + edit/delete dialogs)
+
+Pozostałe na epiku:
+- **IMP-14** (#455) — E2E smoke (Playwright) + dogfooding US-IMP-005 (Marcin uploads 2k SKU IdoSell). W toku w branch `feat/imp-14-e2e-smoke`.
+- **IMP-15** (#456) — Plan/PRD updates (R-30 ryzyko już w plan-projektu z setup; lessons.md zaktualizowany w IMP-14; epik 04 link + status flip).
+
+Kluczowe decyzje świadome (per epik marathon "minimum viable slice if pełen scope wykonalny"):
+- **Image download HTTP + ZIP extract** (spec §5.6 §7.3-7.4) odsunięte do follow-up po IMP-04 — handler ma row hook gotowy, ale fetch concurrent + ZIP unpacking dochodzi przed dogfooding'iem.
+- **Worker-side pause/cancel mid-run** — endpointy działają (status flip), runtime control trafia z IMP-14 5k-row testem.
+- **RBAC permissions** dla CatalogManager: dodane `import_session`/`import_profile` RWD + `backup` R, write na backup tylko super_admin (spec §7.8).
+
+Lessons spisane w `agent/lessons.md` § "Lessons z 0.13 / UI-09 (Imports MVP)" — m.in.: in-memory transport CI override w testach, AP4 IsGranted subject param requirement, Synology Drive dataless flag remediation patterns dla vendor + node_modules.
+
 ## 2026-05-05: #438 DAM MVP — `/assets` upload, miniatury, edycja, dedupe, search, bulk
 
 Operator: „rozbuduj widok multimedia o możliwość dodawania multimediów + must have funkcjonalności jakie powinien mieć DAM w wersji MVP". Plan-mode → 4 pytania (scope: pełen DAM MVP / thumbnails: async via Messenger / formaty: obrazy + PDF / dedupe: SHA-256 z 409). ExitPlanMode → operator zatwierdził → bypass permissions („działaj bez zatrzymywania").
