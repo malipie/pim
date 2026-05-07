@@ -624,6 +624,29 @@ Wow factor: [co robi to "wow" dla Kasi]
 
 W większości używa tych samych workflow co Catalog Manager (US-006, US-007). MVP nie dodaje osobnych stories dla Marketingu — pełen flow w fazie 1+ (analytics dashboard, bulk SEO opisy z agentem).
 
+### 5.2a Imports MVP — szczegółowy backlog user stories (epik 0.13 / UI-09)
+
+US-001 traktuje import jako jeden monolityczny ticket (16-22h). Real implementacja epiku 0.13 / UI-09 (`Project Plan/UI/feature-imports.md`) rozłożyła ten zakres na **15 atomowych ticketów** (IMP-01..IMP-15) z explicit DoD per ticket. Poniżej user stories US-IMP-001..014 mapują flow użytkownika na tę implementację — pełne acceptance criteria + brainstorming decisions w `feature-imports.md`.
+
+| ID | Persona | Story (skrót) | Mapowanie ticket |
+|---|---|---|---|
+| **US-IMP-001** | Kasia | Wybieram plik xlsx/csv + locale + (opcjonalnie) ZIP zdjęć w Step 1 wizard'a, system pokazuje preview headerów. | IMP-08 #449 + IMP-10 #451 |
+| **US-IMP-002** | Kasia | Auto-mapping kolumn przez rules-based dictionary PL/EN (top ~30 atrybutów × 5-10 synonimów) — Step 2 pokazuje 12/15 dopasowanych + ręcznie domapuję 3. | IMP-02 #443 + IMP-10 #451 |
+| **US-IMP-003** | Kasia | W trakcie mapping'u brakuje atrybutu — klikam *„+ Stwórz nowy atrybut"*, deep-link do `/modeling/attributes/new` z preserved state, wracam i mapping zachowany. | IMP-10 #451 |
+| **US-IMP-004** | Kasia | Step 3 walidacja: KPI *„247 OK / 33 błędy"* + top-10 errors + dialog *„Pokaż wszystkie 33"* + radiogroup *„Co dalej"* + download CSV raportu. | IMP-03 #444 + IMP-11 #452 |
+| **US-IMP-005** | Marcin (founder) | **Dogfooding** — migracja katalogu IdoSell ~2k SKU jako pierwszy real-world test. Findings → `agent/lessons.md`. **Status:** odsunięte poza marathon (brak realnego export'u w czasie epiku); gate przed *„imports gotowe"*. | IMP-14 #455 (deferred) |
+| **US-IMP-006** | Kasia | Step 4 confirm + opcjonalny *„Utwórz pgBackRest backup"* checkbox (status polling co 5s, blokuje *„Uruchom"* do completed). | IMP-06 #447 + IMP-11 #452 |
+| **US-IMP-007** | Kasia | Klikam *„▶ Uruchom import"* (sync <50 rows / async 50+) → Mercure SSE pokazuje live progress: bar + counters + ETA + current SKU. | IMP-04 #445 + IMP-12 #453 |
+| **US-IMP-008** | Kasia | Po imporcie: results screen z KPI (✅ N OK / ⚠️ M pominięte / czas) + download CSV + deep-link *„Zobacz zaimportowane produkty"* (filter `import_session_id`). | IMP-05 #446 + IMP-12 #453 |
+| **US-IMP-009** | Kasia | *„Wycofaj import"* w 24h window → confirm dialog + cascade warning jeśli published do channels → soft delete obiektów z `import_session_id`. | IMP-05 #446 + IMP-12 #453 |
+| **US-IMP-010** | Kasia | Email notification po zakończeniu importu jeśli runtime > 5 min (klient zamknął kartę). | IMP-04 #445 |
+| **US-IMP-011** | Kasia | Profil importu z smart memory (mapping + locale + encoding + delimiter) — *„Use saved profile"* w Step 1, *„Save as profile"* checkbox w Step 4. | IMP-07 #448 + IMP-10 #451 |
+| **US-IMP-012** | Kasia | Profile manager modal (Sheet) — lista profili usera z Last used / # imports / edit / delete + disclaimer *„Edycja modyfikuje TYLKO przyszłe importy"*. | IMP-13 #454 |
+| **US-IMP-013** | Kasia | Lista wszystkich importów (Step 0) z filtrami (Status, Date range), badges status, 3-dot menu (View report / Rollback / Re-run / Delete). | IMP-09 #450 |
+| **US-IMP-014** | Kasia | Smoke test E2E na żywym backendzie: upload festo-q2-2026.xlsx → mapping → validation → confirm → progress → results → rollback. | IMP-14 #455 |
+
+**Mapowanie do epiku 6.X:** wszystkie US-IMP-001..014 idą do **epiku 0.13 / UI-09** (sub-tab Imports w epiku 04 Publikacje, `Project Plan/02-plan-projektu-pim.md` §3.7). US-001 z sekcji §4 traktuję jako legacy entry point — szczegół w `feature-imports.md` + tabeli powyżej.
+
 ### 5.3 IT/Integration Specialist (Piotr)
 
 **US-014 (Integration panel):** Lista wszystkich integracji + status + last sync + live error log.
@@ -639,7 +662,7 @@ W większości używa tych samych workflow co Catalog Manager (US-006, US-007). 
 
 | User Story | Epik | Priorytet sub-fazy |
 |---|---|---|
-| US-001 Import | 0.6 + 0.3 + nowy 0.6.X | MVP-Final |
+| US-001 Import (legacy entry) | **0.13 / UI-09 (zaimplementowane)** — szczegół w US-IMP-001..014 (§5.2a) i `Project Plan/UI/feature-imports.md` | MVP-Final + 0.13 |
 | US-002 Edycja produktu | 0.6.2 + 0.3.4 | MVP-Alpha |
 | US-003 Completeness | 0.3.8 + 0.6.2 | MVP-Alpha |
 | US-004 Bulk edit | 0.6.2 (extension) | MVP-Final |

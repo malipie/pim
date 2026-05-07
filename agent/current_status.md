@@ -1,5 +1,15 @@
 # Current Status
 
+## 2026-05-07: Epik UI-09 / 0.13 — Imports MVP **DOMKNIĘTY** (IMP-01 do IMP-15 merged)
+
+Marathon zakończony — wszystkie 15 ticketów IMP-01..IMP-15 na `main`. IMP-14 (#455 → `d4ef77e`) i IMP-15 (#456 → ten commit) zamknęły epik. **Świadome odejścia** zostają jako follow-up'y:
+- **Image download / ZIP extract** (IMP-04 plan §IMP-04) — handler dispatchuje proces, ale realnego download'u + ZIP unpack nie wykonuje. Wymaga: kolejka `imports.images`, `ImageDownloadHandler` (concurrent max 10, timeout 30s), `ZipExtractHandler` (case-insensitive filename match → MinIO via `AssetUploader`). Wycena: 6-8h.
+- **Dogfooding US-IMP-005** (IMP-14) — Marcin uploads ~2k SKU IdoSell. Gate przed *„imports gotowe na pierwszy real-world"* nadal otwarty; wymaga realnego export'u IdoSell.
+- **Playwright E2E suite expansion** (IMP-14 plan: 6 spec'ów: 100 rows / 500+ZIP / rollback / async 5000 / duplicate SKU) — w marathonie zostawione jako 1 smoke spec; rozbudowa razem z dogfooding'iem (gdy fixture'y realne).
+- **Performance benchmark 5k rows < 256 MB** (IMP-14) — pomijane bez 5k fixture; follow-up razem z dogfooding'iem.
+
+Followup-y → kandydaci do **maintenance ticket co 2 epiki** (per `CLAUDE.md` "Zarządzanie zależnościami") — patrz §3.7 plan-projektu.
+
 ## 2026-05-07: Epik UI-09 / 0.13 — Imports MVP (IMP-01 do IMP-13 merged)
 
 Operator: „zacznij prace, po kolei w tym epiku, wykonaj wszystko" — EPIK MARATHON RULE aktywny. Każdy ticket = własny branch + PR + CI + merge. 13 z 15 ticketów done na main:

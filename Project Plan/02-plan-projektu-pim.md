@@ -483,6 +483,14 @@ Self-service import produktów z plików **Excel/CSV** + opcjonalnie zdjęcia (l
 
 **Wpływ na wycenę (sekcja 7):** total Faza 0 dochodzi **+124-167h** (epik 0.13 / UI-09 dodatkowo do baseline 60-80h epiku 0.12). Operator akceptuje wzrost scope (PRD §12.1 dopuszcza +50-80h nadwyżki) — ale realna nadwyżka nad budżetem MVP-Final to ~20-50h, blisko limitu. Mitigacja: rozważyć przesunięcie advanced features (recurring imports, AI auto-mapping, custom validation cross-attribute) na Fazę 1 — patrz **R-30**.
 
+**Status epiku — 2026-05-07: ZAMKNIĘTY.** 15 ticketów IMP-01..IMP-15 (#442-#456) zmergowanych do `main` w marathon mode 2026-05-06/07. Pełen delivery snapshot: [`Project Plan/UI/feature-imports.md`](UI/feature-imports.md) §13. **Świadome odejścia** (follow-up'y, nie blokują zamknięcia epiku):
+- **IMP-04** — image download + ZIP extract handler dispatchowane, ale realnego download'u nie wykonują (6-8h follow-up).
+- **IMP-14** — dogfooding US-IMP-005 (~2k SKU IdoSell) odsunięte; gate przed *„imports gotowe na pierwszy real-world"* otwarty.
+- **IMP-14** — Playwright suite trzymana jako 1 smoke spec; rozbudowa do 6 spec'ów (z planu) razem z dogfooding'iem.
+- **IMP-14** — performance benchmark 5k rows < 256 MB pomijany bez 5k fixture.
+
+**Maintenance ticket due** (per `CLAUDE.md` "Zarządzanie zależnościami" — co 2 epiki): epik 0.12 / UI-08 (Modelowanie) → epik 0.13 / UI-09 (Imports) zamknięte → następny `composer outdated` + `pnpm outdated` patch run zalecany przed startem kolejnego epiku.
+
 ## 4. Faza 1 — Integracje (BaseLinker + Shopify) + production-ready
 
 > **Rewizja 2026-04-27:** w nowej kolejności (post-#5) Faza 1 zaczyna się od **integracji BaseLinker (epik 0.8) i Shopify (epik 0.9)** — przeniesionych z MVP. Pełen hardening / RLS / monitoring zostaje w Fazie 1 jako równoległy track. Magento i IdoSell przesunięte do Fazy 2 razem z agentem.
