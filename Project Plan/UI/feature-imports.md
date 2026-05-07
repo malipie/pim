@@ -1,9 +1,10 @@
 # Feature — Import produktów (CSV / Excel + zdjęcia)
 
-## Status: 🟢 szczegół
+## Status: 🟢 zaimplementowane (epik 0.13 / UI-09 — IMP-01..IMP-15 merged 2026-05-07)
 
 > **Część epiku 04 Publikacje** — sub-tab "Imports". Standalone dokument, bo feature jest na tyle obszerny, że zasługuje na własną iterację designu.
 > **Decyzje brainstormingowe** zamknięte 2026-05-03 w sesji Senior PM. Plik rozszerza placeholder z `Project Plan/UI/epik-04-publikacje.md`.
+> **Implementacja:** epik 0.13 / UI-09 — 15 atomowych ticketów (IMP-01..IMP-15, #442–#456) zmergowanych do `main` 2026-05-06/07. Dogfooding US-IMP-005 (katalog IdoSell ~2k SKU) **odsunięte** poza ten epik — wymaga realnego export'u IdoSell, który nie był dostępny w czasie marathon'u; gate przed deklaracją *„imports gotowe na pierwszy real-world"* nadal aktywny. Followup-y w `agent/lessons.md` § 2026-05-07.
 
 ---
 
@@ -776,4 +777,32 @@ To jest *znaczący* dodatek. Marcin akceptuje +50-80h scope (PRD § 12.1) — pr
 
 ---
 
-*Plik wersjonowany w `Project Plan/UI/`. Status: szczegół. Następna iteracja: walidacja z Marcinem + Figma wireframes + POC słownika auto-mappingu.*
+## 13. Delivery snapshot — 2026-05-07
+
+| Ticket | PR | Scope (highlights) |
+|---|---|---|
+| **IMP-01** | #457 | Schema (`import_sessions`, `import_profiles`, `import_logs`, `backups` + `objects.import_session_id`), entities + voters + audit + composer deps (PhpSpreadsheet 5.7, league/csv 9.28). |
+| **IMP-02** | #458 | `FileParserService` (xlsx + csv, encoding/delimiter detection), `MappingDictionaryService` (PL/EN YAML), `AutoMapper` (exact + Levenshtein), `POST /api/import-sessions/auto-map`. |
+| **IMP-03** | #459 | `ImportValidationService` (5 typy błędów per spec §5.4), `POST /api/import-sessions/validate-dry-run`, sync small-import (<50 rows) reuse. |
+| **IMP-04** | #460 | `ImportRunHandler extends AbstractBatchHandler` (chunk=200), `POST /api/import-sessions` async via Symfony Messenger, Mercure progress (`imports.{user_id}` + `imports.{session_id}`). **Image download / ZIP extract odsunięte** do follow-up'u (poza chunked happy path scope). |
+| **IMP-05** | #461 | `ImportRollbackService` (24h window soft delete) + `POST /api/import-sessions/{id}/rollback` + `GET /api/import-sessions/{id}/report.csv`. |
+| **IMP-06** | #462 | `BackupSnapshotHandler` async wraps `pgbackrest` CLI via `Symfony\Process`. `POST /api/backups` + state machine + rate limiter (1/h/tenant). |
+| **IMP-07** | #463 | `ImportProfile` ApiPlatform CRUD + per-user voter + cross-user isolation tests. |
+| **IMP-08** | #464 | Frontend foundation: shadcn primitives (Stepper, Progress, Combobox, DataTable), `FileDropzone`, Refine resources, i18n keyspace. |
+| **IMP-09** | #465 | Imports list view + Publikacje sub-tab + enable "Importuj z Excel/CSV" CTA na empty-state-products. |
+| **IMP-10** | #466 | Wizard Step 1 (Upload) + Step 2 (Mapping) + deep-link "+ Stwórz nowy atrybut" do `/modeling/attributes` z preserved state. |
+| **IMP-11** | #467 | Wizard Step 3 (Validation) + Step 4 (Confirm) + `BackupTriggerCheckbox` z polling. |
+| **IMP-12** | #468 | `useImportProgress` (Mercure SSE) + combined progress/results screen + `RollbackButton` z 24h window check. |
+| **IMP-13** | #469 | Profile manager modal (Sheet) z DataTable + inline edit. |
+| **IMP-14** | #470 | E2E smoke (`apps/admin/e2e/imports.spec.ts`) + `agent/lessons.md` § 2026-05-07 (11 lekcji). **Dogfooding US-IMP-005 odsunięte** — wymaga realnego export'u IdoSell, niedostępne w marathon. |
+| **IMP-15** | #(this) | Plan/PRD update (status flip), `epik-04-publikacje.md` link, `03-funkcjonalnosci-mvp.md` US-IMP-001..014. |
+
+**Świadome odejścia od planu** (do follow-up'u):
+- **Image download** + **ZIP extract** (IMP-04 plan §IMP-04) — handler dispatchuje proces ale realnego download'u nie wykonuje. Wymaga: kolejka `imports.images`, `ImageDownloadHandler`, `ZipExtractHandler`. Wycena follow-up: 6-8h.
+- **Dogfooding US-IMP-005** (IMP-14) — gate przed *„działa na realnych danych"* nadal otwarty.
+- **6 dodatkowych Playwright spec'ów** (z planu IMP-14: 100 rows happy path, 500 rows + ZIP, rollback, async 5000, duplicate SKU) — zachowane jako 1 smoke spec; follow-up: rozbudowa do 6 spec'ów po dogfooding'u (kiedy fixture'y realne).
+- **Performance benchmark 5k rows < 256 MB** (IMP-14) — pomijany w marathonie (brak fixture 5k); follow-up razem z dogfooding'iem.
+
+---
+
+*Plik wersjonowany w `Project Plan/UI/`. Status: zaimplementowane. Następna iteracja: dogfooding katalogu IdoSell (Marcin) + image download/ZIP follow-up + rozbudowa E2E suite.*

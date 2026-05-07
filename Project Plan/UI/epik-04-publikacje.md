@@ -1,6 +1,8 @@
 # Epik 04 — Publikacje
 
-## Status: 🔵 placeholder
+## Status: 🟡 częściowy szczegół (sub-tab Imports gotowy, reszta placeholder)
+
+> Sub-tab **Imports** ma własny pełny dokument: [`feature-imports.md`](feature-imports.md) — zaimplementowany w epiku 0.13 / UI-09 (IMP-01..IMP-15, merged 2026-05-06/07). Reszta sub-tabów (Sync Jobs, Integracje, API Configurator, Webhooks) wciąż w placeholder — szczegół powstanie wraz z epikami 0.8 (BaseLinker), 0.9 (Shopify), 0.10 (API Configurator) — patrz `Project Plan/02-plan-projektu-pim.md` §3.4-§3.6.
 
 ## 1. Cel epiku
 
@@ -13,6 +15,10 @@ Zarządzanie syndykacją danych do kanałów zewnętrznych — *„co się dziej
 - **Tomasz** — read-only check status (z Dashboard'u również).
 
 ## 3. Kluczowe widoki
+
+### 3.0 Imports (zaimplementowane w epiku 0.13 / UI-09)
+
+Self-service import CSV/Excel + zdjęcia, 4-step wizard (upload → mapping → walidacja → confirm), async via Symfony Messenger z progress przez Mercure SSE, rules-based dictionary PL/EN auto-mapping, opcjonalny manual pgBackRest snapshot, soft rollback w 24h window, profile importu per user. **Pełen szczegół: [`feature-imports.md`](feature-imports.md)**. Status: zaimplementowane (15 ticketów IMP-01..IMP-15 merged do `main` 2026-05-06/07). Out of scope MVP: image download/ZIP extract (follow-up), UPDATE istniejących produktów (Faza 1), recurring imports (Faza 1+).
 
 ### 3.1 Sync Jobs panel
 - Lista wszystkich sync'ów (running / success / failed / partial) z filtrami (status, integration, date range).
@@ -87,4 +93,4 @@ Zarządzanie syndykacją danych do kanałów zewnętrznych — *„co się dziej
 
 ---
 
-*Plik wersjonowany w `Zrodla/UI/`. Status: placeholder — drugi USP (API Configurator) musi być wow demo'em w pitch'u Enterprise.*
+*Plik wersjonowany w `Project Plan/UI/`. Status: częściowy szczegół — sub-tab Imports zamknięty (epik 0.13 / UI-09), drugi USP (API Configurator) wciąż musi być wow demo'em w pitch'u Enterprise.*
