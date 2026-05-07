@@ -56,10 +56,55 @@ final readonly class MenuConfigurationService
     {
         $existing = $this->repository->findByTenant($tenant);
         if (null !== $existing) {
-            return $existing;
+            return $this->backfillMissingSystemItems($existing);
         }
 
         return $this->defaultSeeder->seed($tenant);
+    }
+
+    /**
+     * Self-heal: gdy SystemMenuItemRegistry rośnie (np. nowy `publications`
+     * dorzucany przez epik 0.13 / UI-09), tenanty z config'iem zasiedzonym
+     * pod starszą wersję rejestru go nie zobaczą — dopisujemy brakujące
+     * system items na końcu listy. Idempotent: jeśli wszystkie są obecne,
+     * funkcja zwraca config bez `flush`.
+     */
+    private function backfillMissingSystemItems(MenuConfiguration $config): MenuConfiguration
+    {
+        $existingSystemRefs = [];
+        $maxPosition = -1;
+        foreach ($config->getItems() as $item) {
+            if ($item->position > $maxPosition) {
+                $maxPosition = $item->position;
+            }
+            if (MenuItemRecord::KIND_SYSTEM === $item->kind) {
+                $existingSystemRefs[] = $item->ref;
+            }
+        }
+
+        $appended = false;
+        $items = $config->getItems();
+        foreach (SystemMenuItemRegistry::defaultOrder() as $systemKey) {
+            if (\in_array($systemKey, $existingSystemRefs, true)) {
+                continue;
+            }
+            $items[] = new MenuItemRecord(
+                MenuItemRecord::KIND_SYSTEM,
+                $systemKey,
+                ++$maxPosition,
+                true,
+            );
+            $appended = true;
+        }
+
+        if (!$appended) {
+            return $config;
+        }
+
+        $config->replaceItems($items);
+        $this->em->flush();
+
+        return $config;
     }
 
     /**

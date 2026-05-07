@@ -14,9 +14,23 @@ use PHPUnit\Framework\TestCase;
 final class SystemMenuItemRegistryTest extends TestCase
 {
     #[Test]
-    public function registryHasSevenSystemItems(): void
+    public function registryHasEightSystemItems(): void
     {
-        self::assertCount(7, SystemMenuItemRegistry::items());
+        // dashboard, catalogs_pdf, multimedia, workflow, publications,
+        // integrations, settings, modeling. `publications` dorzucone przez
+        // epik 0.13 / UI-09 (Imports MVP).
+        self::assertCount(8, SystemMenuItemRegistry::items());
+    }
+
+    #[Test]
+    public function publicationsRoutesToTheImportsLayout(): void
+    {
+        $publications = SystemMenuItemRegistry::get('publications');
+        self::assertNotNull($publications);
+        self::assertSame('/publications', $publications['route']);
+        self::assertSame('Send', $publications['icon']);
+        self::assertFalse($publications['comingSoon']);
+        self::assertFalse($publications['protected']);
     }
 
     #[Test]

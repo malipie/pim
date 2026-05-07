@@ -94,7 +94,12 @@
         "phpstan": "phpstan analyse --memory-limit=512M --no-progress",
         "deptrac": "deptrac analyse --no-progress --no-cache",
         "cs-check": "php-cs-fixer fix --dry-run --diff --using-cache=no",
-        "cs-fix": "php-cs-fixer fix --using-cache=no"
+        "cs-fix": "php-cs-fixer fix --using-cache=no",
+        "test": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php bin/console cache:clear --env=test --quiet",
+            "@php vendor/bin/phpunit"
+        ]
     },
     "conflict": {
         "symfony/symfony": "*"
