@@ -38,7 +38,7 @@ import { LoginPage } from '@/features/identity/auth/login';
 import { ImportsListView } from '@/features/imports/list/ImportsListView';
 import { ImportShowPage } from '@/features/imports/show/ImportShowPage';
 import { ImportWizardPage } from '@/features/imports/wizard/ImportWizardPage';
-import { PublicationsLayout } from '@/features/publications/PublicationsLayout';
+import { IntegrationsLayout } from '@/features/integration-hub/IntegrationsLayout';
 import { AiSettingsPage } from '@/features/settings/ai';
 import { LocalesSettingsPage } from '@/features/settings/locales';
 import { MenuSettingsPage } from '@/features/settings/menu';
@@ -106,20 +106,20 @@ function App() {
             { name: 'currencies' },
             {
               name: 'api_profiles',
-              list: '/api-profiles',
-              create: '/api-profiles/create',
-              edit: '/api-profiles/:id/edit',
-              show: '/api-profiles/:id',
+              list: '/integrations/api-configurator',
+              create: '/integrations/api-configurator/create',
+              edit: '/integrations/api-configurator/:id/edit',
+              show: '/integrations/api-configurator/:id',
             },
             {
               name: 'import-sessions',
-              list: '/publications/imports',
-              show: '/publications/imports/:id',
-              create: '/publications/imports/new',
+              list: '/integrations/imports',
+              show: '/integrations/imports/:id',
+              create: '/integrations/imports/new',
             },
             {
               name: 'import-profiles',
-              list: '/publications/imports',
+              list: '/integrations/imports',
             },
           ]}
           options={{
@@ -209,16 +209,45 @@ function App() {
                 <Route path="security" element={<SecuritySettingsPage />} />
                 <Route path="ai" element={<AiSettingsPage />} />
               </Route>
-              <Route path="/api-profiles" element={<ApiProfilesListPage />} />
-              <Route path="/api-profiles/create" element={<ApiProfileCreatePage />} />
-              <Route path="/api-profiles/:id/edit" element={<ApiProfileEditPage />} />
-              <Route path="/api-profiles/:id" element={<ApiProfileShowPage />} />
-              <Route path="/publications" element={<PublicationsLayout />}>
-                <Route index element={<Navigate to="/publications/imports" replace />} />
+              {/* Top-level Integracje hub — łączy Imports MVP (epik 0.13)
+                  + Profile API z VIEW-08 (sub-tab API Configurator). Stare
+                  ścieżki /publications/* i /api-profiles/* redirectują niżej. */}
+              <Route path="/integrations" element={<IntegrationsLayout />}>
+                <Route index element={<Navigate to="/integrations/imports" replace />} />
                 <Route path="imports" element={<ImportsListView />} />
                 <Route path="imports/new" element={<ImportWizardPage />} />
                 <Route path="imports/:id" element={<ImportShowPage />} />
+                <Route path="api-configurator" element={<ApiProfilesListPage />} />
+                <Route path="api-configurator/create" element={<ApiProfileCreatePage />} />
+                <Route path="api-configurator/:id/edit" element={<ApiProfileEditPage />} />
+                <Route path="api-configurator/:id" element={<ApiProfileShowPage />} />
               </Route>
+              {/* Back-compat redirects for bookmarks + Refine resource lookups
+                  before the consolidation landed. Drop in next epik gdy
+                  telemetria pokaże 0 trafień. */}
+              <Route
+                path="/publications"
+                element={<Navigate to="/integrations/imports" replace />}
+              />
+              <Route
+                path="/publications/imports"
+                element={<Navigate to="/integrations/imports" replace />}
+              />
+              <Route
+                path="/publications/imports/new"
+                element={<Navigate to="/integrations/imports/new" replace />}
+              />
+              <Route path="/publications/imports/:id" element={<RedirectImportShow />} />
+              <Route
+                path="/api-profiles"
+                element={<Navigate to="/integrations/api-configurator" replace />}
+              />
+              <Route
+                path="/api-profiles/create"
+                element={<Navigate to="/integrations/api-configurator/create" replace />}
+              />
+              <Route path="/api-profiles/:id" element={<RedirectApiProfileShow />} />
+              <Route path="/api-profiles/:id/edit" element={<RedirectApiProfileEdit />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
@@ -232,6 +261,24 @@ function App() {
 function RedirectToShow() {
   const params = useParams<{ id: string }>();
   return <Navigate to={`/products/${params.id ?? ''}`} replace />;
+}
+
+/** Publications/Integrations consolidation — back-compat for the old
+ *  /publications/imports/:id, /api-profiles/:id, and /api-profiles/:id/edit
+ *  bookmarks. */
+function RedirectImportShow() {
+  const params = useParams<{ id: string }>();
+  return <Navigate to={`/integrations/imports/${params.id ?? ''}`} replace />;
+}
+
+function RedirectApiProfileShow() {
+  const params = useParams<{ id: string }>();
+  return <Navigate to={`/integrations/api-configurator/${params.id ?? ''}`} replace />;
+}
+
+function RedirectApiProfileEdit() {
+  const params = useParams<{ id: string }>();
+  return <Navigate to={`/integrations/api-configurator/${params.id ?? ''}/edit`} replace />;
 }
 
 export default App;

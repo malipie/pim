@@ -71,20 +71,14 @@ final class SystemMenuItemRegistry
                 'comingSoon' => true,
                 'protected' => false,
             ],
-            // Epik 04 Publikacje (UI-09 / 0.13). Dziś prowadzi prosto do
-            // sub-tab Imports — Exports / API Configurator / Webhooks dochodzą
-            // wraz z epikami 0.8-0.10. Osobno od `integrations` dlatego, że
-            // ten ostatni nadal kieruje na samodzielny moduł Profile API
-            // (pozostałość po VIEW-08); konsolidacja w późniejszym ticket'cie.
-            'publications' => [
-                'route' => '/publications',
-                'icon' => 'Send',
-                'labelKey' => 'nav.publications',
-                'comingSoon' => false,
-                'protected' => false,
-            ],
+            // Top-level „Integracje" hub — Imports MVP (0.13/UI-09) + sub-tab
+            // API Configurator (Profile API, VIEW-08) + placeholdery Exports /
+            // Connectors. Kiedyś (krótkofalowo po IMP-09) `publications` i
+            // `integrations` były osobnymi top-level itemami; konsolidacja
+            // została zrobiona po smoke teście operatora który wskazał
+            // duplikację (PR follow-up po #472).
             'integrations' => [
-                'route' => '/api-profiles',
+                'route' => '/integrations',
                 'icon' => 'Plug2',
                 'labelKey' => 'nav.integrations',
                 'comingSoon' => false,
@@ -144,7 +138,6 @@ final class SystemMenuItemRegistry
             'catalogs_pdf',
             'multimedia',
             'workflow',
-            'publications',
             'integrations',
             'settings',
             'modeling',

@@ -28,19 +28,19 @@ final class MenuConfigurationApiTest extends CatalogApiTestCase
         self::assertArrayHasKey('items', $payload);
         /** @var list<array{kind: string, ref: string, position: int, visible: bool}> $items */
         $items = $payload['items'];
-        // 1 (dashboard) + 1 (object_type:product) + 7 (rest of system items
-        // — system list ma 8 keys, minus dashboard interleaved separately).
-        self::assertCount(9, $items);
+        // 1 (dashboard) + 1 (object_type:product) + 6 (rest of system items
+        // — system list ma 7 keys, minus dashboard interleaved separately).
+        self::assertCount(8, $items);
 
         // Order matches DefaultMenuSeeder — Pulpit, Produkty, Katalogi PDF,
-        // Multimedia, Workflow, Publikacje, Integracje, Ustawienia, Modelowanie.
+        // Multimedia, Workflow, Integracje, Ustawienia, Modelowanie.
         self::assertSame('system', $items[0]['kind']);
         self::assertSame('dashboard', $items[0]['ref']);
         self::assertSame('object_type', $items[1]['kind']);
         self::assertSame('system', $items[2]['kind']);
         self::assertSame('catalogs_pdf', $items[2]['ref']);
-        self::assertSame('publications', $items[5]['ref']);
-        self::assertSame('modeling', $items[8]['ref']);
+        self::assertSame('integrations', $items[5]['ref']);
+        self::assertSame('modeling', $items[7]['ref']);
 
         // Services intentionally absent.
         $refs = array_column($items, 'ref');

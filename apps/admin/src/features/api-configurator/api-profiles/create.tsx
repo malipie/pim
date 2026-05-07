@@ -41,7 +41,7 @@ export function ApiProfileCreatePage() {
                 rateLimitPerHour: values.rateLimitPerHour,
               },
             });
-            navigate('/api-profiles');
+            navigate('/integrations/api-configurator');
           } catch {
             setApiError(t('api_profiles.errors.create_failed'));
           }

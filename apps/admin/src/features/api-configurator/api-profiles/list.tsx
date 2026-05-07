@@ -47,7 +47,7 @@ export function ApiProfilesListPage() {
           <p className="text-sm text-muted-foreground">{t('api_profiles.list_subtitle')}</p>
         </div>
         <Button asChild>
-          <Link to="/api-profiles/create">
+          <Link to="/integrations/api-configurator/create">
             <Plus className="mr-1 size-4" />
             {t('api_profiles.actions.create')}
           </Link>
@@ -102,7 +102,7 @@ export function ApiProfilesListPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <Button asChild variant="ghost" size="sm">
-                      <Link to={`/api-profiles/${row.id}`}>
+                      <Link to={`/integrations/api-configurator/${row.id}`}>
                         <Eye className="size-4" />
                         <span className="sr-only">{t('api_profiles.actions.view')}</span>
                       </Link>

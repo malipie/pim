@@ -8,7 +8,7 @@ const ROUTE_LABEL_KEYS: Array<{ match: RegExp; key: string }> = [
   { match: /^\/modeling/, key: 'nav.modeling' },
   { match: /^\/assets/, key: 'nav.multimedia' },
   { match: /^\/catalogs-pdf/, key: 'nav.catalogsPdf' },
-  { match: /^\/api-profiles/, key: 'nav.integrations' },
+  { match: /^\/integrations/, key: 'nav.integrations' },
   { match: /^\/settings/, key: 'nav.settings' },
 ];
 

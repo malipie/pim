@@ -65,7 +65,7 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
       })
       .then((data) => {
         wizard.reset();
-        navigate(`/publications/imports/${data.id}`);
+        navigate(`/integrations/imports/${data.id}`);
       })
       .catch((err: unknown) => {
         setSubmitError(err instanceof Error ? err.message : 'unknown');
