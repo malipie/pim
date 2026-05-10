@@ -85,6 +85,9 @@ final class TenantAuditCommand extends Command
         'attribute_group_attributes',
         'object_type_attribute_groups',
         'category_attribute_groups',
+        // PCAT-01 (#474) / UI-10 — product↔category assignments. Tenant
+        // scope inherited via FK to objects(tenant_id).
+        'object_categories',
         // UI-08.6 (#261) — pre-migration JSONB backup snapshots. Tenant
         // scope inherited via the parent attribute.
         'attribute_migration_backups',
