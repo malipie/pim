@@ -6,6 +6,45 @@ versioning per epic milestones (`0.X.Y` matches ticket numbering in
 
 ## [Unreleased]
 
+### Added — epik UI-10 (Product Categories Assignment)
+
+- **PCAT-01..07** Product↔category assignment end-to-end (1-day burst,
+  2026-05-10):
+  - DB junction `object_categories` (composite PK, partial unique
+    index `WHERE is_primary = true`, ON DELETE CASCADE on both FKs).
+    (#474 / PR #482)
+  - HTTP layer `ProductCategoryAssignmentController` — GET / PUT
+    (atomic replace) / POST (idempotent add) / DELETE (auto-promote
+    next primary). 50-cap, kind validation, tenant isolation.
+    (#475 / PR #483)
+  - `EffectiveAttributeGroupResolver` activates the `kind=Product`
+    branch — products inherit attribute groups from each assigned
+    category's full ancestor chain. Killer-feature "Effective preview"
+    in the modeling categories panel finally has empirical validation.
+    `PrimaryCategoryRepairListener` promotes the next-oldest assignment
+    when a category is cascade-removed. (#476 / PR #485)
+  - `ObjectFormSchemaCacheInvalidator` bursts the per-ObjectType cache
+    when an `ObjectCategory` row mutates. (#477 / PR #486)
+  - Frontend tab "Kategorie" on the product detail page (between
+    Multimedia and Powiązania) with chip-list + multi-select tree
+    picker dialog supporting primary swap. (#478 / PR #487)
+  - "Produkty (N)" card in the modeling category detail panel —
+    paginated reverse listing of the products assigned to a category.
+    (#479 / PR #488)
+  - Activated the previously-MOCK "+ Create test object" button —
+    one-click product creation pre-populated with the selected
+    category as primary. (#480 / PR #489)
+  - OpenAPI snapshot regenerated, epik documentation in
+    `Project Plan/UI/epik-10-product-categories.md`. (#481 / this PR)
+
+### Added — chore (deps maintenance)
+
+- **chore/deps** Force `fast-uri >= 3.1.2` via `pnpm.overrides` to
+  clear two HIGH advisories transitively pulled in via
+  `@commitlint/cli > ajv > fast-uri` (GHSA-q3j6-qgpj-74h6 path
+  traversal + GHSA-v39h-62p7-jpjc host confusion). Workaround until
+  upstream commitlint bumps ajv. (PR #484)
+
 ### Added — epic 0.11 hardening
 
 - **0.11.4** Audit log MVP via DH Auditor for catalog schema (ObjectType /

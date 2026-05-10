@@ -1,5 +1,38 @@
 # Current Status
 
+## 2026-05-10: Epik UI-10 — Product Categories Assignment **DOMKNIĘTY** (PCAT-01..07 + PCAT-06b merged)
+
+Marathon zakończony — wszystkie 8 ticketów PCAT-01..07 + PCAT-06b shipped w jednym dniu (Marathon Rule). Killer feature „Effective preview" w panelu kategorii dostała empirical validation: produkt można wpiąć w kategorię, jego forma realnie pokazuje dziedziczone grupy atrybutów.
+
+**Backend (4 PR-y):**
+- #482 (`9e69868`) PCAT-01 — DB junction `object_categories` (composite PK + partial unique `WHERE is_primary=true` + cascade FK + entity + repo + atomic replace)
+- #483 (`89f7b88`) PCAT-02 — `ProductCategoryAssignmentController` (GET / PUT atomic replace / POST idempotent / DELETE auto-promote-next; 50-cap; tenant isolation)
+- #485 (`412d9c6`) PCAT-03 — `EffectiveAttributeGroupResolver` branch dla `kind=Product` + `PrimaryCategoryRepairListener` (cascade safety)
+- #486 (`aeb4cb8`) PCAT-04 — `ObjectFormSchemaCacheInvalidator` hook na `ObjectCategory` (per-ObjectType, follow-up per-object Faza 1.1)
+
+**Frontend (3 PR-y):**
+- #487 (`be427e4`) PCAT-05 — tab „Kategorie" w karcie produktu (między Multimedia a Powiązania) + `CategoryPickerDialog` (multi-select tree z primary radio) + chip-list assignments z reactive POST/DELETE
+- #488 PCAT-06 — `CategoryProductsCard` w panelu kategorii (paginowana lista produktów + ★ primary + link do `/products/{id}`) + backend `GET /api/categories/{id}/products`
+- #489 PCAT-06b — aktywacja MOCK „+ Create test object" → `<Link>` do `/products/new?categories=<id>&primary=<id>` + post-POST PUT na junction
+
+**Maintenance:**
+- #484 (`26d3cac`) chore(deps) — `pnpm.overrides` na `fast-uri >= 3.1.2` (transitive vuln w `@commitlint/cli > ajv > fast-uri`)
+
+**Dokumentacja:**
+- `Project Plan/UI/epik-10-product-categories.md` — pełny opis epiku (problem / outcome / decyzje / architektura / lessons / next steps)
+- `Zrodla/PRD/MDM-rozszerzenia-pomysly.md` — brainstorm 5 use-case'ów rozszerzeń MDM (bazy kompatybilności, salony, lookbooki, recipe, sales reps) z mapowaniem na ADR-009 — Faza 2/3 scope
+- `agent/lessons.md` — 10 patterns z PCAT (junction inheritance, partial unique, atomic replace, DBAL listener, cache trade-off, OpenAPI custom controllers, pnpm overrides, subroute pattern, tab semantics, killer-feature validation)
+- `CHANGELOG.md` — sekcja Added — epik UI-10
+- Snapshot `packages/shared-types/src/api.d.ts` (4927 linii, AP4 routes; custom controllery jak w `CategoryAttributeGroupController` precedensem nie wpisane do OpenAPI — follow-up ticket „API documentation completeness")
+
+**Świadome odejścia (kandydaci na follow-up):**
+- **PCAT-FOLLOWUP-01 — per-object cache key** (Faza 1.1, 4-6h)
+- **PCAT-FOLLOWUP-02 — bulk reassignment z grida produktów** (Faza 1)
+- **PCAT-FOLLOWUP-03 — E2E spec dla picker-a** (mały)
+- **API documentation completeness** — OpenAPI annotations dla wszystkich custom controllers (osobny epik)
+
+---
+
 ## 2026-05-07: Epik UI-09 / 0.13 — Imports MVP **DOMKNIĘTY** (IMP-01 do IMP-15 merged)
 
 Marathon zakończony — wszystkie 15 ticketów IMP-01..IMP-15 na `main`. IMP-14 (#455 → `d4ef77e`) i IMP-15 (#456 → ten commit) zamknęły epik. **Świadome odejścia** zostają jako follow-up'y:

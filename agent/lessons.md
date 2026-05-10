@@ -2,6 +2,43 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z epiku UI-10 (PCAT — Product Categories Assignment, 2026-05-10)
+
+1. **Junction bez `tenant_id` dziedziczy izolację przez FK** do TenantScoped głównej encji (`objects.tenant_id`). Wzór: `category_attribute_groups`. Działa dla `object_categories` bez własnej kolumny tenant. Wymóg: dodać do `TenantAuditCommand::INFRA_TABLES` allowlist, inaczej audit command rzuci alert. Ekonomia: o jedną kolumnę i jeden indeks mniej × N junction tables. Defence in depth: gdy CASCADE na FK się rozjedzie, audit komenda szybko wykryje rozspójnienie.
+
+2. **Partial unique index dla `1-of-N constraint`** (np. `WHERE is_primary = true`). ORM XML nie wspiera `where` na unique-constraint — migracja jest autorytatywna, ORM mirror plain (lub none jeśli plain unique zablokowałby multi-row case). W moim PCAT-01: nie da się dać plain unique na `(object_id)` bo to zablokowałoby wszystkie multi-assignments. Skutek: w testach Foundry (`ResetDatabase` rebuilds schema z mapping bypassing migrations) partial unique nie istnieje. Walidacja `1-of-N` musi być testowana na app-level (controller wraps DELETE+INSERT w transakcji), nie DB-level. DB partial unique to safety-net na app-level bug → testowany w manual smoke (cURL bezpośrednio do realnej bazy).
+
+3. **Atomic replace** (DELETE all + INSERT new w jednej transakcji): używać **ORM `remove`** (foreach + persist), nie DQL `DELETE`. DQL DELETE nie czyści Identity Map — kolejny `persist` z tymi samymi composite PKs rzuca `EntityIdentityCollisionException`. Pattern z `DoctrineObjectCategoryRepository::replaceForProduct`:
+   ```php
+   $em->wrapInTransaction(function () use ($em, $product, $categoryIds, $primaryId): void {
+       foreach ($this->findByProduct($product) as $existing) {
+           $em->remove($existing);
+       }
+       $em->flush();
+       // …potem persist nowych
+       $em->flush();
+   });
+   ```
+
+4. **Listener który mutuje przez DBAL po cascade delete** — managed entities są już detached w `postFlush`, ORM-side mutations either miss the rows or fight Doctrine change tracking. Pattern z `PrimaryCategoryRepairListener`:
+   - `preRemove`: SELECT z DBAL przed cascade, buforuj affected ids w field state
+   - `postFlush`: dla każdego buforowanego id raw DBAL UPDATE; partial unique już bezpieczny bo poprzedni primary row został cascade-removed
+   - W testach Foundry: `$em->clear()` po `$em->flush()` żeby Identity Map odświeżył encje (DBAL UPDATE nie powiadamia ORM)
+
+5. **Per-ObjectType cache invalidation jako MVP trade-off** — `ObjectFormSchemaCacheInvalidator` używa per-type tag (`pim_form_schema.object_type.<id>`) bo per-object key wymaga rozszerzenia `GetObjectFormSchemaHandler` o trzecią warstwę tagów (4-6h). Trade-off zaakceptowany w MVP: zmiana 1 produktu burst-uje cache wszystkich produktów tego typu. Przy admin-pacede operacjach (nie bulk import) i krótkim TTL modeling cache pool — niezauważalne. Per-object → Faza 1.1.
+
+6. **Custom controllers nie w OpenAPI docs** — zgodnie z istniejącym wzorcem `CategoryAttributeGroupController`. Frontend używa `jsonFetch` bezpośrednio (lokalne typy w komponencie). Generowane `packages/shared-types/src/api.d.ts` zawiera tylko API Platform routes (`/api/products`, `/api/categories` etc.). Pełna OpenAPI completeness dla custom routes = osobny epik; nie blocker dla zewnętrznych klientów którzy po katalogu chodzą przez API Platform routes.
+
+7. **`pnpm.overrides` na transitive vuln** ([#484](https://github.com/malipie/PIM/pull/484)) — gdy advisory dotyczy transitive dep (`@commitlint/cli > ajv > fast-uri ≤ 3.1.1`), upstream nie ma jeszcze patched release, ale fix jest w nowszej wersji transitive — `pnpm.overrides.<package>` zmusza wszystkie chains na patched. Workaround do czasu aż upstream commitlint bumpnie ajv. Ważne: `pnpm install` po zmianie `package.json` regeneruje lockfile (sprawdź `pnpm audit` → "No known vulnerabilities found").
+
+8. **Custom controller subroute na `/api/products/{id}/{subresource}`** (np. `/api/products/{id}/categories`) NIE konfliktuje z API Platform routes na `/api/products` ani `/api/products/{id}`. Symfony pierwszy match wygrywa, ale path-parametry z różną liczbą segmentów to różne routes — bezpieczne. Wzór działa dla `CategoryAttributeGroupController` (#408) i `ProductCategoryAssignmentController` (PCAT-02). Anti-pattern: subroute na *tym samym* path co AP4 read endpoint — patrz Asset MVP lesson #5.
+
+9. **Tab order semantics — kategorie ≠ powiązania** (decyzja UX, 2026-05-10). Pierwotny plan PCAT-05 wpinał picker kategorii w tab `Powiązania` jako sekcję. Operator zmienił scope: `Powiązania` semantycznie znaczy produkt↔produkt (cross-sell, up-sell), `Kategorie` to driver dziedziczenia atrybutów + nawigacja storefront — **dwa różne pojęcia, dwa taby**. Reguła: gdy nowa relacja domenowa wchodzi do karty obiektu, zastanów się czy semantycznie pasuje do istniejącego tabu czy zasługuje na własny.
+
+10. **Killer feature wymaga empirical validation** — „Effective preview" w panelu kategorii pokazywał *jakie grupy obiekt zobaczyłby* od dawna, ale przed PCAT-03 nie było żadnego sposobu żeby zweryfikować że preview działa zgodnie z prawdą (żaden produkt nie mógł być w kategorii). Po epiku: operator może otworzyć tab Atrybuty produktu wpiętego w kategorię i porównać wynik z Effective preview tej samej kategorii — powinny się zgadzać. Reguła: feature zaprojektowany w izolacji *bez weryfikatora* jest fragile; jak najszybciej dorabiamy ścieżkę żeby empirycznie potwierdzić poprawność.
+
+---
+
 ## Lessons z #438 (DAM MVP — `/assets` upload, dedupe, thumbnails, edit, bulk)
 
 1. **`#[IsGranted('ATTR', 'App\\FQCN')]` zwraca 500** — Symfony 7 traktuje drugi argument jako Expression Language, nie literalny string. „Could not find the subject 'X' for the #[IsGranted] attribute". Workaround: inject `AuthorizationCheckerInterface` w konstruktorze + manualny `->isGranted('ATTR', \App\FQCN::class)` w `__invoke`. Wzorzec już używany w pozostałych Asset controllerach (PatchAssetController, DeleteAssetController, BulkDeleteAssetsController). Nie używaj `#[IsGranted]` z subject jako string.
