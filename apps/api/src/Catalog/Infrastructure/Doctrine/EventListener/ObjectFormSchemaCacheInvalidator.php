@@ -8,6 +8,7 @@ use App\Catalog\Application\Query\GetObjectFormSchema\GetObjectFormSchemaHandler
 use App\Catalog\Application\Query\Usage\UsageQueryService;
 use App\Catalog\Domain\Entity\AttributeGroupAttribute;
 use App\Catalog\Domain\Entity\CategoryAttributeGroup;
+use App\Catalog\Domain\Entity\ObjectCategory;
 use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\PostFlushEventArgs;
@@ -37,6 +38,13 @@ use Symfony\Contracts\Cache\TagAwareCacheInterface;
  *   - AttributeGroupAttribute change → invalidate the global tag (a
  *     change to a group's member set ripples to every schema that
  *     includes that group; the per-type tags are insufficient).
+ *   - ObjectCategory change (PCAT-04) → invalidate the per-type tag
+ *     for the affected product's ObjectType. PCAT-03 made products
+ *     inherit category-declared groups, so toggling an assignment
+ *     changes the resolved schema for every product of that type.
+ *     Trade-off accepted: we burst the cache for *all* products of
+ *     the type, not just the one that changed (per-object cache key
+ *     is a Faza 1.1 follow-up).
  *
  * Defers actual invalidation to `postFlush` so a single transaction
  * touching N rows triggers one cache invalidation per affected tag set.
@@ -120,6 +128,18 @@ final class ObjectFormSchemaCacheInvalidator
             // this group must rebuild. Global flush is the simplest
             // correct invalidation in MVP.
             $this->globalInvalidate = true;
+
+            return;
+        }
+
+        if ($entity instanceof ObjectCategory) {
+            // PCAT-04: assigning/detaching a category from a product
+            // shifts the resolved group set for that product (PCAT-03
+            // resolver branch). Invalidate the per-type tag — bursts
+            // cache for all products of the type, but per-object
+            // granularity is a Faza 1.1 follow-up.
+            $product = $entity->getProduct();
+            $this->perTypeTags[$product->getObjectType()->getId()->toRfc4122()] = true;
         }
     }
 }
