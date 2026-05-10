@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 
 import type { Provenance } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
@@ -97,9 +97,29 @@ export interface ProductDetailPageProps {
 export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
   const isEditMode = mode === 'edit';
   const id = productId ?? '';
+
+  // PCAT-06b (#480): when entering create mode from a category panel
+  // ("+ Create test object"), the URL carries `?categories=<id>&primary=<id>`.
+  // After the product is POSTed we run a single PUT against
+  // /api/products/{newId}/categories so the fresh row lands with the
+  // assignment already in place.
+  const prePopulatedCategoryIds = useMemo<string[]>(() => {
+    if (mode !== 'create') return [];
+    const raw = searchParams.get('categories');
+    if (raw === null || raw === '') return [];
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s !== '');
+  }, [mode, searchParams]);
+  const prePopulatedPrimaryId = useMemo<string | null>(() => {
+    if (mode !== 'create') return null;
+    return searchParams.get('primary');
+  }, [mode, searchParams]);
 
   const { result, query } = useOne<CatalogObjectDto>({
     resource: 'products',
@@ -201,6 +221,35 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
           contentType: 'application/ld+json',
           body,
         });
+        // PCAT-06b: apply pre-populated category assignment if "+ Create
+        // test object" navigated us in with categories/primary in the URL.
+        if (prePopulatedCategoryIds.length > 0) {
+          try {
+            const validPrimary =
+              prePopulatedPrimaryId !== null &&
+              prePopulatedCategoryIds.includes(prePopulatedPrimaryId)
+                ? prePopulatedPrimaryId
+                : prePopulatedCategoryIds[0];
+            await jsonFetch(`/api/products/${created.id}/categories`, {
+              method: 'PUT',
+              contentType: 'application/json',
+              accept: 'application/json',
+              body: {
+                primaryCategoryId: validPrimary,
+                categoryIds: prePopulatedCategoryIds,
+              },
+            });
+          } catch {
+            // Non-fatal: product is created; operator can re-assign in the
+            // Kategorie tab. Toast surfaces the partial success.
+            toast.error(
+              t('products.detail.create.category_apply_failed', {
+                defaultValue:
+                  'Produkt utworzony, ale nie udało się przypisać kategorii — przypisz ręcznie w zakładce Kategorie.',
+              }),
+            );
+          }
+        }
         toast.success(
           t('products.detail.create.success', {
             defaultValue: 'Utworzono produkt {{code}}',

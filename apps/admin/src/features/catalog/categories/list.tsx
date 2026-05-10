@@ -407,25 +407,42 @@ function CategoryDetailPanel({
             </span>
           </div>
           <span className="inline-flex items-center gap-1.5">
-            <button
-              type="button"
-              disabled
-              aria-disabled
-              className="inline-flex cursor-not-allowed items-center gap-1.5 text-[11.5px] font-medium text-violet-500"
-              title={t('categories.preview.create_test_object_mock_tooltip', {
-                defaultValue: 'Wymaga wizard tworzenia obiektu (Faza 1)',
-              })}
-            >
-              +{' '}
-              {t('categories.preview.create_test_object', {
-                defaultValue: 'Create test object',
-              })}
-            </button>
-            <MockBadge
-              tooltip={t('categories.preview.create_test_object_mock_tooltip', {
-                defaultValue: 'Wymaga wizard tworzenia obiektu (Faza 1)',
-              })}
-            />
+            {targetType === 'product' ? (
+              <Link
+                to={`/products/new?categories=${categoryId}&primary=${categoryId}`}
+                className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-violet-700 hover:text-violet-800 hover:underline"
+                title={t('categories.preview.create_test_object_active_tooltip', {
+                  defaultValue: 'Utwórz produkt pre-przypisany do tej kategorii',
+                })}
+              >
+                +{' '}
+                {t('categories.preview.create_test_object', {
+                  defaultValue: 'Create test object',
+                })}
+              </Link>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled
+                  aria-disabled
+                  className="inline-flex cursor-not-allowed items-center gap-1.5 text-[11.5px] font-medium text-violet-500"
+                  title={t('categories.preview.create_test_object_mock_tooltip', {
+                    defaultValue: 'Wymaga wizard tworzenia obiektu (Faza 1)',
+                  })}
+                >
+                  +{' '}
+                  {t('categories.preview.create_test_object', {
+                    defaultValue: 'Create test object',
+                  })}
+                </button>
+                <MockBadge
+                  tooltip={t('categories.preview.create_test_object_mock_tooltip', {
+                    defaultValue: 'Wymaga wizard tworzenia obiektu (Faza 1)',
+                  })}
+                />
+              </>
+            )}
           </span>
         </div>
         <p className="mb-3 text-[12.5px] text-zinc-700">
