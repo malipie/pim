@@ -33,6 +33,7 @@ import { useDefaultObjectType } from '../use-default-object-type';
 import { AgentSuggestionsCard } from './agent-suggestions-card';
 import { AttrGroupCard } from './attr-group-card';
 import { AttrRow } from './attr-row';
+import { CategoriesTab } from './categories-tab';
 import { CompletenessRing } from './completeness-ring';
 import { DuplicateButton } from './duplicate-button';
 import { EffectiveModelCard } from './effective-model-card';
@@ -51,7 +52,14 @@ import type {
 import { VariantsListCard } from './variants-list-card';
 import { VariantsTabHost } from './variants-tab-host';
 
-const TABS = ['attributes', 'multimedia', 'relations', 'history', 'variants'] as const;
+const TABS = [
+  'attributes',
+  'multimedia',
+  'categories',
+  'relations',
+  'history',
+  'variants',
+] as const;
 type TabKey = (typeof TABS)[number];
 
 const GROUP_ICONS: Record<string, string> = {
@@ -657,6 +665,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
 const TAB_DEFAULT_LABELS: Record<TabKey, string> = {
   attributes: 'Atrybuty',
   multimedia: 'Multimedia',
+  categories: 'Kategorie',
   relations: 'Powiązania',
   history: 'Historia',
   variants: 'Warianty',
@@ -669,6 +678,7 @@ function tabBadge(
 ): number | null {
   if (tab === 'attributes') return groups.length === 0 ? null : groups.length;
   if (tab === 'multimedia') return null;
+  if (tab === 'categories') return null;
   if (tab === 'relations') return null;
   if (tab === 'history') return null;
   if (tab === 'variants') {
@@ -728,6 +738,7 @@ function resolveProvenance(
 
 function OtherTabs({ activeTab, productId }: { activeTab: TabKey; productId: string }) {
   if (activeTab === 'multimedia') return <ProductMultimediaTab productId={productId} />;
+  if (activeTab === 'categories') return <CategoriesTab productId={productId} />;
   if (activeTab === 'relations') return <RelationsStub />;
   if (activeTab === 'history') return <HistoryStub />;
   if (activeTab === 'variants') return <VariantsTabHost productId={productId} />;
