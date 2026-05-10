@@ -21,6 +21,8 @@ import { MockBadge } from '@/components/ui/mock-badge';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
+import { CategoryProductsCard } from './category-products-card';
+
 interface CategoryEntry {
   id: string;
   code: string;
@@ -472,6 +474,8 @@ function CategoryDetailPanel({
           })}
         </p>
       </Card>
+
+      <CategoryProductsCard categoryId={categoryId} />
 
       <p className="text-xs text-muted-foreground">
         <Link to={`/modeling/categories/${categoryId}`} className="underline">

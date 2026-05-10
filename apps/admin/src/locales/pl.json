@@ -418,6 +418,15 @@
       "selected_count": "Wybrano: {{count}}",
       "no_primary_warning": "Zaznacz kategorię główną (⭐) żeby zapisać.",
       "error_generic": "Nie udało się zapisać"
+    },
+    "products_card": {
+      "title": "Produkty w tej kategorii",
+      "empty": "Brak produktów w tej kategorii.",
+      "empty_hint": "Otwórz kartę produktu i przypisz go do kategorii w zakładce „Kategorie\".",
+      "is_primary": "Kategoria główna",
+      "enabled": "aktywny",
+      "disabled": "nieaktywny",
+      "page_indicator": "Strona {{page}} z {{total}}"
     }
   },
   "object_types": {
