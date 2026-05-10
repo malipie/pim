@@ -11,6 +11,7 @@ use App\Catalog\Domain\Entity\CategoryAttributeGroup;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -32,10 +33,15 @@ use Symfony\Component\Uid\Uuid;
  *
  * **Out of scope (Faza 1+ kandydat):**
  *   - Per-object ad-hoc groups (no `object_attribute_groups` table yet).
- *   - Product → category linkage via Association rows. Products in MVP
- *     surface only their ObjectType groups; category-driven inheritance
- *     for products lands when {@see Association} is used as the canonical
- *     product↔category edge (see plan §14 open questions).
+ *
+ * **Product↔category inheritance (PCAT-03 / epic UI-10):** when the
+ * resolved object is `kind=Product`, the resolver fetches the product's
+ * assignments via {@see ObjectCategoryRepositoryInterface}, walks each
+ * assigned category's ancestor chain (root→leaf via `parent_id` self-FK),
+ * deduplicates the union, and merges declared groups exactly the same way
+ * the category branch does. A product with zero assignments still works
+ * — the category merge is a no-op so the result is just the ObjectType
+ * groups (backward compatible with the pre-PCAT behaviour).
  *
  * **Deduplication:** outputs are unique by `AttributeGroup.id`. When the
  * same group is declared at multiple levels, the higher-priority source
@@ -52,6 +58,7 @@ final readonly class EffectiveAttributeGroupResolver
 {
     public function __construct(
         private EntityManagerInterface $em,
+        private ObjectCategoryRepositoryInterface $productCategories,
     ) {
     }
 
@@ -72,6 +79,25 @@ final readonly class EffectiveAttributeGroupResolver
             // when editing a category sitting on this branch").
             $ancestorIds = $this->collectCategoryAncestorIds($object);
             $this->mergeCategoryGroups($groups, $ancestorIds, $type);
+        } elseif (ObjectKind::Product === $object->getKind()) {
+            // PCAT-03: for each assigned category, gather its ancestor
+            // chain (including the category itself) and merge declared
+            // groups targeting this product's ObjectType. Deduplication
+            // by UUID happens inside mergeCategoryGroups so multi-category
+            // products don't double-count shared ancestors (e.g. two
+            // assignments under the same root category).
+            $assignments = $this->productCategories->findByProduct($object);
+            if ([] !== $assignments) {
+                $ancestorMap = [];
+                foreach ($assignments as $assignment) {
+                    foreach ($this->collectCategoryAncestorIds($assignment->getCategory(), includeSelf: true) as $id) {
+                        $ancestorMap[$id->toRfc4122()] = $id;
+                    }
+                }
+                if ([] !== $ancestorMap) {
+                    $this->mergeCategoryGroups($groups, array_values($ancestorMap), $type);
+                }
+            }
         }
 
         return array_values($groups);
