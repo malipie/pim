@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Catalog\Domain\Entity\ObjectCategory"
+            table="object_categories"
+            repository-class="App\Catalog\Infrastructure\Doctrine\Repository\DoctrineObjectCategoryRepository">
+
+        <indexes>
+            <index name="object_categories_object_idx" columns="object_id"/>
+            <index name="object_categories_category_idx" columns="category_id"/>
+        </indexes>
+
+        <id name="product" association-key="true"/>
+        <id name="category" association-key="true"/>
+
+        <many-to-one field="product" target-entity="App\Catalog\Domain\Entity\CatalogObject">
+            <join-column name="object_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <many-to-one field="category" target-entity="App\Catalog\Domain\Entity\CatalogObject">
+            <join-column name="category_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="isPrimary" type="boolean" column="is_primary">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+
+        <field name="position" type="integer">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+
+        <field name="createdAt" type="datetimetz_immutable" column="created_at"/>
+
+    </entity>
+
+</doctrine-mapping>
