@@ -71,11 +71,14 @@ export function DeclareAttributeGroupDialog({
   const { data: groups = [] } = useQuery<AttributeGroupRow[]>({
     queryKey: ['attribute_groups', 'picker'],
     queryFn: async () => {
-      const data = await jsonFetch<{ 'hydra:member'?: AttributeGroupRow[] }>(
-        '/api/attribute_groups?itemsPerPage=200',
-        { accept: 'application/ld+json' },
-      );
-      return data['hydra:member'] ?? [];
+      // AP4 hydra collection: newer responses use the unprefixed `member`
+      // field, older surface still ships `hydra:member`. Read both so the
+      // dialog stays correct across the upgrade window.
+      const data = await jsonFetch<{
+        'hydra:member'?: AttributeGroupRow[];
+        member?: AttributeGroupRow[];
+      }>('/api/attribute_groups?itemsPerPage=200', { accept: 'application/ld+json' });
+      return data.member ?? data['hydra:member'] ?? [];
     },
     enabled: open,
     staleTime: 30_000,
