@@ -408,6 +408,16 @@
     },
     "actions": {
       "view": "Podgląd"
+    },
+    "picker": {
+      "title": "Wybierz kategorie",
+      "search_placeholder": "Szukaj kategorii…",
+      "empty": "Brak wyników.",
+      "save": "Zapisz",
+      "saving": "Zapisywanie…",
+      "selected_count": "Wybrano: {{count}}",
+      "no_primary_warning": "Zaznacz kategorię główną (⭐) żeby zapisać.",
+      "error_generic": "Nie udało się zapisać"
     }
   },
   "object_types": {
@@ -691,9 +701,21 @@
         "aria": "Zakładki produktu",
         "attributes": "Atrybuty",
         "multimedia": "Multimedia",
+        "categories": "Kategorie",
         "relations": "Powiązania",
         "history": "Historia",
         "variants": "Warianty"
+      },
+      "categories": {
+        "title": "Kategorie",
+        "subtitle": "Przypisanie do kategorii decyduje o dziedziczonych polach formularza.",
+        "add_button": "+ Przypisz kategorie",
+        "edit_button": "+ Edytuj kategorie",
+        "empty": "Brak przypisanych kategorii",
+        "empty_hint": "Dodaj kategorię aby aktywować dziedziczenie dodatkowych pól formularza.",
+        "is_primary": "Kategoria główna",
+        "set_primary": "Ustaw jako główną",
+        "detach": "Odepnij kategorię"
       },
       "locale": {
         "label": "Język",

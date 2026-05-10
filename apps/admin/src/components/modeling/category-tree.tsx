@@ -1,4 +1,4 @@
-import { ChevronRight, FolderTree } from 'lucide-react';
+import { ChevronRight, FolderTree, Star } from 'lucide-react';
 import { useState } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -15,6 +15,8 @@ export interface CategoryTreeNode {
   children: CategoryTreeNode[];
 }
 
+type CategoryTreeMode = 'select' | 'multi-select';
+
 interface Props {
   nodes: CategoryTreeNode[];
   selectedId?: string;
@@ -23,6 +25,21 @@ interface Props {
   disabledIds?: Set<string>;
   /** Pre-expanded node ids — derived from URL search param in the list page. */
   initialExpanded?: Set<string>;
+  /**
+   * PCAT-05 (#478) — switches the tree to multi-select mode for the
+   * category picker on the product form. In `'multi-select'`:
+   *   - `selectedIds` controls the checkbox state (toggle via `onToggle`)
+   *   - `primaryId` highlights one row with a ⭐ radio (toggle via
+   *     `onPrimaryChange`); only enabled when the row is selected
+   *   - `onSelect` is still called on row click but consumers typically
+   *     wire it to `onToggle`
+   * Default `'select'` keeps the modeling/Move usage unchanged.
+   */
+  mode?: CategoryTreeMode;
+  selectedIds?: Set<string>;
+  onToggle?: (id: string) => void;
+  primaryId?: string | null;
+  onPrimaryChange?: (id: string) => void;
 }
 
 /**
@@ -37,10 +54,21 @@ interface Props {
  *   - Optional emoji glyph + bold name + tabular instance count.
  *   - Up to 3 group color dots as a per-row indicator + "+N" overflow.
  */
-export function CategoryTree({ nodes, selectedId, onSelect, disabledIds, initialExpanded }: Props) {
+export function CategoryTree({
+  nodes,
+  selectedId,
+  onSelect,
+  disabledIds,
+  initialExpanded,
+  mode = 'select',
+  selectedIds,
+  onToggle: onToggleSelection,
+  primaryId,
+  onPrimaryChange,
+}: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(() => initialExpanded ?? new Set());
 
-  const toggle = (id: string) => {
+  const toggleExpand = (id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -59,7 +87,12 @@ export function CategoryTree({ nodes, selectedId, onSelect, disabledIds, initial
           onSelect={onSelect}
           disabledIds={disabledIds}
           expanded={expanded}
-          onToggle={toggle}
+          onToggleExpand={toggleExpand}
+          mode={mode}
+          selectedIds={selectedIds}
+          onToggleSelection={onToggleSelection}
+          primaryId={primaryId ?? null}
+          onPrimaryChange={onPrimaryChange}
         />
       ))}
     </ul>
@@ -72,84 +105,167 @@ function CategoryTreeRow({
   onSelect,
   disabledIds,
   expanded,
-  onToggle,
+  onToggleExpand,
+  mode,
+  selectedIds,
+  onToggleSelection,
+  primaryId,
+  onPrimaryChange,
 }: {
   node: CategoryTreeNode;
   selectedId?: string;
   onSelect: (id: string) => void;
   disabledIds?: Set<string>;
   expanded: Set<string>;
-  onToggle: (id: string) => void;
+  onToggleExpand: (id: string) => void;
+  mode: CategoryTreeMode;
+  selectedIds?: Set<string>;
+  onToggleSelection?: (id: string) => void;
+  primaryId: string | null;
+  onPrimaryChange?: (id: string) => void;
 }) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expanded.has(node.id);
-  const isSelected = selectedId === node.id;
+  const isMulti = mode === 'multi-select';
+  const isChecked = isMulti ? (selectedIds?.has(node.id) ?? false) : false;
+  const isPrimary = isMulti ? primaryId === node.id : false;
+  const isSelected = isMulti ? isChecked : selectedId === node.id;
   const isDisabled = disabledIds?.has(node.id) ?? false;
   const groupColors = node.groupColors ?? [];
 
+  const handleRowClick = () => {
+    if (isDisabled) return;
+    if (isMulti) {
+      onToggleSelection?.(node.id);
+      return;
+    }
+    onSelect(node.id);
+  };
+
+  const rowVisualClass = isMulti
+    ? isChecked
+      ? 'bg-violet-50/60 hover:bg-violet-50'
+      : 'hover:bg-zinc-100/70'
+    : isSelected
+      ? 'bg-zinc-900 text-white'
+      : 'hover:bg-zinc-100/70';
+
   return (
     <li>
-      <button
-        type="button"
-        disabled={isDisabled}
-        onClick={() => onSelect(node.id)}
+      <div
         className={cn(
           'flex w-full items-center gap-1.5 rounded-xl px-2 py-1.5 text-left transition-colors',
-          isSelected ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-100/70',
+          rowVisualClass,
           isDisabled && 'cursor-not-allowed opacity-50',
         )}
         style={{ paddingLeft: `${8 + node.depth * 16}px` }}
       >
+        {isMulti ? (
+          <input
+            type="checkbox"
+            checked={isChecked}
+            disabled={isDisabled}
+            onChange={() => onToggleSelection?.(node.id)}
+            className="size-3.5 cursor-pointer accent-violet-600"
+            aria-label={`Wybierz kategorię ${node.label}`}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : null}
         {hasChildren ? (
-          <ChevronRight
-            className={cn(
-              'size-3.5 transition-transform',
-              isSelected ? 'text-white/70' : 'text-zinc-400',
-            )}
-            style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
-            aria-hidden
+          <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onToggle(node.id);
+              onToggleExpand(node.id);
             }}
-          />
+            className="grid size-5 place-items-center"
+            aria-label={isExpanded ? 'Zwiń' : 'Rozwiń'}
+          >
+            <ChevronRight
+              className={cn(
+                'size-3.5 transition-transform',
+                isSelected && !isMulti ? 'text-white/70' : 'text-zinc-400',
+              )}
+              style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+              aria-hidden
+            />
+          </button>
         ) : (
           <span className="grid size-5 place-items-center text-zinc-300">
             <FolderTree className="size-3" />
           </span>
         )}
-        <span className="text-[14px]">{node.icon ?? '📁'}</span>
-        <span className="text-[13px] font-medium">{node.label}</span>
-        {node.instanceCount !== undefined ? (
-          <span
+        <button
+          type="button"
+          disabled={isDisabled}
+          onClick={handleRowClick}
+          className="flex flex-1 items-center gap-1.5 text-left"
+        >
+          <span className="text-[14px]">{node.icon ?? '📁'}</span>
+          <span className="text-[13px] font-medium">{node.label}</span>
+          {node.instanceCount !== undefined ? (
+            <span
+              className={cn(
+                'ml-1 font-mono text-[10.5px] tabular-nums',
+                isSelected && !isMulti ? 'text-white/50' : 'text-zinc-400',
+              )}
+            >
+              {node.instanceCount}
+            </span>
+          ) : null}
+          {groupColors.length > 0 && !isMulti ? (
+            <span className="ml-auto inline-flex items-center gap-0.5">
+              {groupColors.slice(0, 3).map((color) => (
+                <span
+                  key={color}
+                  className="size-2 rounded-full"
+                  style={{ background: color }}
+                  aria-hidden
+                />
+              ))}
+              {groupColors.length > 3 ? (
+                <span
+                  className={cn(
+                    'ml-0.5 text-[10px]',
+                    isSelected ? 'text-white/50' : 'text-zinc-400',
+                  )}
+                >
+                  +{groupColors.length - 3}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
+        </button>
+        {isMulti ? (
+          <button
+            type="button"
+            disabled={!isChecked}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isChecked) onPrimaryChange?.(node.id);
+            }}
             className={cn(
-              'ml-1 font-mono text-[10.5px] tabular-nums',
-              isSelected ? 'text-white/50' : 'text-zinc-400',
+              'ml-auto grid size-6 place-items-center rounded-lg transition-colors',
+              isPrimary
+                ? 'bg-amber-100 text-amber-700'
+                : isChecked
+                  ? 'text-zinc-400 hover:bg-amber-50 hover:text-amber-600'
+                  : 'cursor-not-allowed text-zinc-200',
             )}
+            aria-label={isPrimary ? 'Kategoria główna' : 'Ustaw jako główną'}
+            aria-pressed={isPrimary}
+            title={
+              !isChecked
+                ? 'Najpierw zaznacz kategorię'
+                : isPrimary
+                  ? 'Kategoria główna'
+                  : 'Ustaw jako główną'
+            }
           >
-            {node.instanceCount}
-          </span>
+            <Star className={cn('size-3.5', isPrimary ? 'fill-amber-500' : '')} />
+          </button>
         ) : null}
-        {groupColors.length > 0 ? (
-          <span className="ml-auto inline-flex items-center gap-0.5">
-            {groupColors.slice(0, 3).map((color) => (
-              <span
-                key={color}
-                className="size-2 rounded-full"
-                style={{ background: color }}
-                aria-hidden
-              />
-            ))}
-            {groupColors.length > 3 ? (
-              <span
-                className={cn('ml-0.5 text-[10px]', isSelected ? 'text-white/50' : 'text-zinc-400')}
-              >
-                +{groupColors.length - 3}
-              </span>
-            ) : null}
-          </span>
-        ) : null}
-      </button>
+      </div>
       {hasChildren && isExpanded ? (
         <ul className="space-y-1">
           {node.children.map((child) => (
@@ -160,7 +276,12 @@ function CategoryTreeRow({
               onSelect={onSelect}
               disabledIds={disabledIds}
               expanded={expanded}
-              onToggle={onToggle}
+              onToggleExpand={onToggleExpand}
+              mode={mode}
+              selectedIds={selectedIds}
+              onToggleSelection={onToggleSelection}
+              primaryId={primaryId}
+              onPrimaryChange={onPrimaryChange}
             />
           ))}
         </ul>
