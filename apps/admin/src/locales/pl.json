@@ -1052,6 +1052,74 @@
       "profiles_subtitle": "Biblioteka profili mapowań — zakładka aktywowana w VIEW-IMP-02",
       "profiles_open_manager": "Otwórz menedżera profili"
     },
+    "sources": {
+      "title": "Źródła danych",
+      "subtitle_eyebrow": "Połączenia przychodzące",
+      "description": "Skąd PIM pobiera pliki. Każde źródło ma własny health-check i opcjonalny profil mapowań. Polling daemon (auto-pickup plików) ląduje w follow-up.",
+      "add_source": "Dodaj źródło",
+      "types": {
+        "sftp": "SFTP · pull",
+        "ftp": "FTP · pull",
+        "http": "HTTP",
+        "folder": "Watch folder",
+        "webhook": "Webhook · push",
+        "api": "REST API",
+        "upload": "Web upload"
+      },
+      "health": {
+        "ok": "OK",
+        "warn": "Ostrzeżenie",
+        "error": "Błąd",
+        "off": "Wyłączone"
+      },
+      "card": {
+        "more_actions": "Więcej akcji",
+        "test_connection": "Test połączenia",
+        "edit": "Edytuj",
+        "delete": "Usuń",
+        "autotrigger": "auto-trigger",
+        "path": "Ścieżka",
+        "pattern": "filePattern",
+        "polling": "Polling",
+        "poll_every": "co {{sec}}s",
+        "profile": "Profil",
+        "no_profile": "(brak)",
+        "files24h": "Pliki 24h:",
+        "last_pickup": "ostatnio: {{date}}",
+        "never_pickup": "nigdy nie pobierane"
+      },
+      "test": {
+        "result": "{{health}}: {{note}} ({{latency}} ms)"
+      },
+      "empty": {
+        "title": "Brak skonfigurowanych źródeł",
+        "subtitle": "Dodaj pierwsze SFTP / Watch folder / Webhook żeby zacząć centralizować pliki przychodzące."
+      },
+      "dialog": {
+        "title_create": "Nowe źródło",
+        "title_edit": "Edytuj źródło",
+        "name": "Nazwa",
+        "code": "Kod",
+        "type": "Typ transportu",
+        "host": "Host",
+        "path": "Ścieżka",
+        "file_pattern": "filePattern",
+        "auth_ref": "Auth ref",
+        "auth_hint": "Klucz Symfony Secrets Vault — credential plaintext nigdy nie wchodzi do bazy.",
+        "poll": "Polling co (sekundy)",
+        "autotrigger": "Auto-trigger (gdy plik zmatchuje pattern)",
+        "create": "Dodaj",
+        "errors": {
+          "name_required": "Nazwa źródła jest wymagana.",
+          "poll_range": "Polling musi być pomiędzy 30 a 86400 sekund."
+        }
+      },
+      "delete": {
+        "title": "Usuń źródło",
+        "confirm": "Czy na pewno usunąć źródło „{{name}}”? Tej operacji nie da się cofnąć.",
+        "confirm_button": "Usuń źródło"
+      }
+    },
     "profiles": {
       "title": "Profile mapowań",
       "subtitle_eyebrow": "Re-usable konfiguracje mapowania",

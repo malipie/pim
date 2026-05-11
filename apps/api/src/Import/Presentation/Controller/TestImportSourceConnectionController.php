@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Import\Presentation\Controller;
+
+use App\Identity\Domain\Entity\User;
+use App\Import\Application\Service\HealthCheckService;
+use App\Import\Domain\Entity\ImportSource;
+use App\Import\Domain\Repository\ImportSourceRepositoryInterface;
+use DateTimeInterface;
+use InvalidArgumentException;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Uid\Uuid;
+
+/**
+ * VIEW-IMP-03 (#500) — runs a health-check probe against the source
+ * and returns the freshly recorded state. The probe itself is owned
+ * by {@see HealthCheckService}; this controller is the HTTP edge.
+ */
+final class TestImportSourceConnectionController
+{
+    public function __construct(
+        private readonly ImportSourceRepositoryInterface $sources,
+        private readonly HealthCheckService $healthCheck,
+        private readonly Security $security,
+    ) {
+    }
+
+    #[Route(
+        path: '/api/import-sources/{id}/test-connection',
+        name: 'imports_source_test_connection',
+        requirements: ['id' => '[0-9a-fA-F-]{36}'],
+        methods: ['POST'],
+    )]
+    public function __invoke(string $id): JsonResponse
+    {
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            throw new UnauthorizedHttpException('JWT', 'Authenticated user required.');
+        }
+
+        try {
+            $sourceId = Uuid::fromString($id);
+        } catch (InvalidArgumentException) {
+            throw new NotFoundHttpException(\sprintf('Import source "%s" was not found.', $id));
+        }
+
+        $source = $this->sources->findById($sourceId);
+        if (!$source instanceof ImportSource) {
+            throw new NotFoundHttpException(\sprintf('Import source "%s" was not found.', $id));
+        }
+        if ($source->getUserId()->toRfc4122() !== $user->getId()->toRfc4122()) {
+            throw new NotFoundHttpException(\sprintf('Import source "%s" was not found.', $id));
+        }
+
+        $result = $this->healthCheck->check($source);
+
+        return new JsonResponse([
+            'health' => $result->health->value,
+            'note' => $result->note,
+            'latency_ms' => $result->latencyMs,
+            'checked_at' => $source->getHealthCheckedAt()?->format(DateTimeInterface::RFC3339_EXTENDED),
+        ], Response::HTTP_OK);
+    }
+}

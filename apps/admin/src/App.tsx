@@ -40,7 +40,7 @@ import { ImportProfilesView } from '@/features/imports/profiles/ImportProfilesVi
 import { ImportSchedulePlaceholder } from '@/features/imports/schedule/ImportSchedulePlaceholder';
 import { ImportSessionsView } from '@/features/imports/sessions/ImportSessionsView';
 import { ImportShowPage } from '@/features/imports/show/ImportShowPage';
-import { ImportSourcesPlaceholder } from '@/features/imports/sources/ImportSourcesPlaceholder';
+import { ImportSourcesView } from '@/features/imports/sources/ImportSourcesView';
 import { ImportWizardPage } from '@/features/imports/wizard/ImportWizardPage';
 import { IntegrationsLayout } from '@/features/integration-hub/IntegrationsLayout';
 import { AiSettingsPage } from '@/features/settings/ai';
@@ -124,6 +124,10 @@ function App() {
             {
               name: 'import-profiles',
               list: '/integrations/imports/profiles',
+            },
+            {
+              name: 'import-sources',
+              list: '/integrations/imports/sources',
             },
           ]}
           options={{
@@ -226,7 +230,7 @@ function App() {
                   <Route index element={<Navigate to="sessions" replace />} />
                   <Route path="sessions" element={<ImportSessionsView />} />
                   <Route path="profiles" element={<ImportProfilesView />} />
-                  <Route path="sources" element={<ImportSourcesPlaceholder />} />
+                  <Route path="sources" element={<ImportSourcesView />} />
                   <Route path="schedule" element={<ImportSchedulePlaceholder />} />
                 </Route>
                 <Route path="imports/new" element={<ImportWizardPage />} />

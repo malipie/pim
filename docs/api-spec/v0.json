@@ -4916,6 +4916,485 @@
                 }
             }
         },
+        "/api/import-sources": {
+            "get": {
+                "operationId": "api_import-sources_get_collection",
+                "tags": [
+                    "ImportSource"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ImportSource collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "ImportSource.jsonld-import_source.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ImportSource.jsonld-import_source.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ImportSource-import_source.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of ImportSource resources.",
+                "description": "Retrieves the collection of ImportSource resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "api_import-sources_post",
+                "tags": [
+                    "ImportSource"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "ImportSource resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSource.jsonld-import_source.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSource-import_source.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a ImportSource resource.",
+                "description": "Creates a ImportSource resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new ImportSource resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportSource.ImportSourceInput"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportSource.ImportSourceInput"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/import-sources/{id}": {
+            "get": {
+                "operationId": "api_import-sources_id_get",
+                "tags": [
+                    "ImportSource"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ImportSource resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSource.jsonld-import_source.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSource-import_source.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a ImportSource resource.",
+                "description": "Retrieves a ImportSource resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ImportSource identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "api_import-sources_id_delete",
+                "tags": [
+                    "ImportSource"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "ImportSource resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the ImportSource resource.",
+                "description": "Removes the ImportSource resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ImportSource identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_import-sources_id_patch",
+                "tags": [
+                    "ImportSource"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ImportSource resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSource.jsonld-import_source.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSource-import_source.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the ImportSource resource.",
+                "description": "Updates the ImportSource resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ImportSource identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated ImportSource resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportSource.ImportSourcePatchInput.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
         "/api/locales": {
             "get": {
                 "operationId": "api_locales_get_collection",
@@ -8140,6 +8619,430 @@
                 ],
                 "description": "Per-user saved configuration for the import wizard (\"smart memory\").\n\nEditing a profile only affects future imports; historical\n{@see ImportSession} rows do not pull mapping changes from their\nprofile retroactively (decision: spec \u00a75.8)."
             },
+            "ImportSource-import_source.read": {
+                "type": "object",
+                "description": "VIEW-IMP-03 (#500) \u2014 connection config for incoming file feeds.\n\nLives alongside the profiles + sessions tables in the Import bundle.\nTenant-scoped + owner-scoped; the operator only sees the sources\nthey registered. `authRef` is a pointer to the Symfony Secrets Vault\n\u2014 credential plaintext never lands in the DB.\n\nPolling daemon is not part of V03 \u2014 only the schema, CRUD endpoints,\nand a manual `test-connection` probe land here. Auto-pickup of files\nmatching `filePattern` is scoped to the polling follow-up.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "profile": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "iri-reference",
+                        "example": "https://example.com/"
+                    },
+                    "name": {
+                        "maxLength": 255,
+                        "type": "string"
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9-]+)$",
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "sftp",
+                            "ftp",
+                            "http",
+                            "folder",
+                            "webhook",
+                            "api",
+                            "upload"
+                        ]
+                    },
+                    "host": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "path": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "filePattern": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "authRef": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "pollIntervalSec": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "autotrigger": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "health": {
+                        "readOnly": true,
+                        "default": "off",
+                        "type": "string"
+                    },
+                    "healthCheckedAt": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "healthNote": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "lastPickupAt": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "files24h": {
+                        "readOnly": true,
+                        "default": 0,
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "name",
+                    "code"
+                ]
+            },
+            "ImportSource.ImportSourceInput": {
+                "type": "object",
+                "description": "VIEW-IMP-03 (#500) \u2014 connection config for incoming file feeds.\n\nLives alongside the profiles + sessions tables in the Import bundle.\nTenant-scoped + owner-scoped; the operator only sees the sources\nthey registered. `authRef` is a pointer to the Symfony Secrets Vault\n\u2014 credential plaintext never lands in the DB.\n\nPolling daemon is not part of V03 \u2014 only the schema, CRUD endpoints,\nand a manual `test-connection` probe land here. Auto-pickup of files\nmatching `filePattern` is scoped to the polling follow-up.",
+                "required": [
+                    "name",
+                    "code",
+                    "type"
+                ],
+                "properties": {
+                    "name": {
+                        "maxLength": 255,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9-]+)$",
+                        "default": "",
+                        "type": "string"
+                    },
+                    "type": {
+                        "enum": [
+                            "sftp",
+                            "ftp",
+                            "http",
+                            "folder",
+                            "webhook",
+                            "api",
+                            "upload"
+                        ],
+                        "description": "One of: `sftp`, `ftp`, `http`, `folder`, `webhook`, `api`, `upload`.",
+                        "default": "",
+                        "type": "string"
+                    },
+                    "host": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "path": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "filePattern": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "authRef": {
+                        "maxLength": 128,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "pollIntervalSec": {
+                        "minimum": 30,
+                        "maximum": 86400,
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "autotrigger": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "profileId": {
+                        "format": "uuid",
+                        "description": "Optional \u2014 UUID of an existing {@see \\App\\Import\\Domain\\Entity\\ImportProfile}\nthe operator wants to attach to incoming files.",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ImportSource.ImportSourcePatchInput.jsonMergePatch": {
+                "type": "object",
+                "description": "VIEW-IMP-03 (#500) \u2014 connection config for incoming file feeds.\n\nLives alongside the profiles + sessions tables in the Import bundle.\nTenant-scoped + owner-scoped; the operator only sees the sources\nthey registered. `authRef` is a pointer to the Symfony Secrets Vault\n\u2014 credential plaintext never lands in the DB.\n\nPolling daemon is not part of V03 \u2014 only the schema, CRUD endpoints,\nand a manual `test-connection` probe land here. Auto-pickup of files\nmatching `filePattern` is scoped to the polling follow-up.",
+                "properties": {
+                    "name": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9-]+)$",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "type": {
+                        "enum": [
+                            "sftp",
+                            "ftp",
+                            "http",
+                            "folder",
+                            "webhook",
+                            "api",
+                            "upload"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "host": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "path": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "filePattern": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "authRef": {
+                        "maxLength": 128,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "pollIntervalSec": {
+                        "minimum": 30,
+                        "maximum": 86400,
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "autotrigger": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "profileId": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ImportSource.jsonld-import_source.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "profile": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "iri-reference",
+                                "example": "https://example.com/"
+                            },
+                            "name": {
+                                "maxLength": 255,
+                                "type": "string"
+                            },
+                            "code": {
+                                "maxLength": 64,
+                                "pattern": "^([a-z0-9-]+)$",
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "sftp",
+                                    "ftp",
+                                    "http",
+                                    "folder",
+                                    "webhook",
+                                    "api",
+                                    "upload"
+                                ]
+                            },
+                            "host": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "path": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "filePattern": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "authRef": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "pollIntervalSec": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "autotrigger": {
+                                "default": false,
+                                "type": "boolean"
+                            },
+                            "health": {
+                                "readOnly": true,
+                                "default": "off",
+                                "type": "string"
+                            },
+                            "healthCheckedAt": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "healthNote": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "lastPickupAt": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "files24h": {
+                                "readOnly": true,
+                                "default": 0,
+                                "type": "integer"
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "updatedAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "code"
+                        ]
+                    }
+                ],
+                "description": "VIEW-IMP-03 (#500) \u2014 connection config for incoming file feeds.\n\nLives alongside the profiles + sessions tables in the Import bundle.\nTenant-scoped + owner-scoped; the operator only sees the sources\nthey registered. `authRef` is a pointer to the Symfony Secrets Vault\n\u2014 credential plaintext never lands in the DB.\n\nPolling daemon is not part of V03 \u2014 only the schema, CRUD endpoints,\nand a manual `test-connection` probe land here. Auto-pickup of files\nmatching `filePattern` is scoped to the polling follow-up."
+            },
             "Locale-admin.read": {
                 "type": "object",
                 "properties": {
@@ -8605,6 +9508,10 @@
         {
             "name": "ImportProfile",
             "description": "Per-user saved configuration for the import wizard (\"smart memory\").\n\nEditing a profile only affects future imports; historical\n{@see ImportSession} rows do not pull mapping changes from their\nprofile retroactively (decision: spec \u00a75.8)."
+        },
+        {
+            "name": "ImportSource",
+            "description": "VIEW-IMP-03 (#500) \u2014 connection config for incoming file feeds.\n\nLives alongside the profiles + sessions tables in the Import bundle.\nTenant-scoped + owner-scoped; the operator only sees the sources\nthey registered. `authRef` is a pointer to the Symfony Secrets Vault\n\u2014 credential plaintext never lands in the DB.\n\nPolling daemon is not part of V03 \u2014 only the schema, CRUD endpoints,\nand a manual `test-connection` probe land here. Auto-pickup of files\nmatching `filePattern` is scoped to the polling follow-up."
         }
     ],
     "webhooks": {}

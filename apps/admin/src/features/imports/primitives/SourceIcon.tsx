@@ -1,13 +1,14 @@
 import type { LucideIcon } from 'lucide-react';
-import { Box, Layers, Plug, Shield, Upload, Zap } from 'lucide-react';
+import { Box, Globe, Layers, Plug, Shield, Upload, Zap } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
-export type SourceType = 'sftp' | 'ftp' | 'webhook' | 'folder' | 'upload' | 'api';
+export type SourceType = 'sftp' | 'ftp' | 'http' | 'webhook' | 'folder' | 'upload' | 'api';
 
 const SOURCE_STYLES: Record<SourceType, { icon: LucideIcon; color: string }> = {
   sftp: { icon: Shield, color: 'text-emerald-600 bg-emerald-50' },
   ftp: { icon: Layers, color: 'text-amber-700 bg-amber-50' },
+  http: { icon: Globe, color: 'text-sky-700 bg-sky-50' },
   webhook: { icon: Zap, color: 'text-violet-700 bg-violet-50' },
   folder: { icon: Box, color: 'text-sky-700 bg-sky-50' },
   upload: { icon: Upload, color: 'text-zinc-700 bg-zinc-100' },

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <class name="App\Import\Domain\Entity\ImportSource">
+        <attribute name="id">
+            <group>import_source:read</group>
+        </attribute>
+        <attribute name="name">
+            <group>import_source:read</group>
+            <group>import_source:write</group>
+        </attribute>
+        <attribute name="code">
+            <group>import_source:read</group>
+            <group>import_source:write</group>
+        </attribute>
+        <attribute name="type">
+            <group>import_source:read</group>
+            <group>import_source:write</group>
+        </attribute>
+        <attribute name="host">
+            <group>import_source:read</group>
+            <group>import_source:write</group>
+        </attribute>
+        <attribute name="path">
+            <group>import_source:read</group>
+            <group>import_source:write</group>
+        </attribute>
+        <attribute name="filePattern">
+            <group>import_source:read</group>
+            <group>import_source:write</group>
+        </attribute>
+        <attribute name="authRef">
+            <group>import_source:read</group>
+            <group>import_source:write</group>
+        </attribute>
+        <attribute name="pollIntervalSec">
+            <group>import_source:read</group>
+            <group>import_source:write</group>
+        </attribute>
+        <attribute name="autotrigger">
+            <group>import_source:read</group>
+            <group>import_source:write</group>
+        </attribute>
+        <attribute name="health">
+            <group>import_source:read</group>
+        </attribute>
+        <attribute name="healthCheckedAt">
+            <group>import_source:read</group>
+        </attribute>
+        <attribute name="healthNote">
+            <group>import_source:read</group>
+        </attribute>
+        <attribute name="lastPickupAt">
+            <group>import_source:read</group>
+        </attribute>
+        <attribute name="files24h">
+            <group>import_source:read</group>
+        </attribute>
+        <attribute name="profile">
+            <group>import_source:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>import_source:read</group>
+        </attribute>
+        <attribute name="updatedAt">
+            <group>import_source:read</group>
+        </attribute>
+    </class>
+</serializer>

@@ -1012,6 +1012,74 @@
       "profiles_subtitle": "Mapping profiles library — activated in VIEW-IMP-02",
       "profiles_open_manager": "Open profile manager"
     },
+    "sources": {
+      "title": "Data sources",
+      "subtitle_eyebrow": "Inbound connections",
+      "description": "Where PIM picks up files. Each source has its own health-check and optional mapping profile. The polling daemon (auto-pickup) ships in a follow-up.",
+      "add_source": "Add source",
+      "types": {
+        "sftp": "SFTP · pull",
+        "ftp": "FTP · pull",
+        "http": "HTTP",
+        "folder": "Watch folder",
+        "webhook": "Webhook · push",
+        "api": "REST API",
+        "upload": "Web upload"
+      },
+      "health": {
+        "ok": "OK",
+        "warn": "Warning",
+        "error": "Error",
+        "off": "Off"
+      },
+      "card": {
+        "more_actions": "More actions",
+        "test_connection": "Test connection",
+        "edit": "Edit",
+        "delete": "Delete",
+        "autotrigger": "auto-trigger",
+        "path": "Path",
+        "pattern": "filePattern",
+        "polling": "Polling",
+        "poll_every": "every {{sec}}s",
+        "profile": "Profile",
+        "no_profile": "(none)",
+        "files24h": "Files 24h:",
+        "last_pickup": "last: {{date}}",
+        "never_pickup": "never picked up"
+      },
+      "test": {
+        "result": "{{health}}: {{note}} ({{latency}} ms)"
+      },
+      "empty": {
+        "title": "No sources yet",
+        "subtitle": "Add your first SFTP / watch folder / webhook to start centralising inbound files."
+      },
+      "dialog": {
+        "title_create": "New source",
+        "title_edit": "Edit source",
+        "name": "Name",
+        "code": "Code",
+        "type": "Transport type",
+        "host": "Host",
+        "path": "Path",
+        "file_pattern": "filePattern",
+        "auth_ref": "Auth ref",
+        "auth_hint": "Symfony Secrets Vault key — credential plaintext never lands in the database.",
+        "poll": "Polling interval (seconds)",
+        "autotrigger": "Auto-trigger (when file matches pattern)",
+        "create": "Add",
+        "errors": {
+          "name_required": "Source name is required.",
+          "poll_range": "Polling must be between 30 and 86400 seconds."
+        }
+      },
+      "delete": {
+        "title": "Delete source",
+        "confirm": "Delete source \"{{name}}\"? This action cannot be undone.",
+        "confirm_button": "Delete source"
+      }
+    },
     "profiles": {
       "title": "Mapping profiles",
       "subtitle_eyebrow": "Reusable mapping configurations",
