@@ -43,6 +43,7 @@ final class AutoMapperTest extends TestCase
         self::assertSame('name', $byHeader['Nazwa']);
         self::assertSame('price', $byHeader['Cena netto']);
         self::assertSame('brand', $byHeader['Producent']);
+        self::assertSame('__category__', $byHeader['Kategoria'], '"Kategoria" resolves to the reserved category-assignment target, not a regular Attribute.');
         self::assertSame('ean', $byHeader['EAN']);
         self::assertSame('main_image', $byHeader['image_1']);
         self::assertSame('gallery_3', $byHeader['image_3']);
@@ -138,8 +139,11 @@ final class AutoMapperTest extends TestCase
      */
     private function festoAvailableAttributeCodes(): array
     {
+        // __category__ is the reserved target injected by AutoMapController
+        // for product imports — the dictionary maps `Kategoria` and friends
+        // to it, the matcher treats it like any other available code.
         return [
-            'sku', 'name', 'price', 'brand', 'category', 'ean', 'description',
+            'sku', 'name', 'price', 'brand', '__category__', 'ean', 'description',
             'main_image', 'gallery_2', 'gallery_3', 'ip_class', 'diameter',
             'short_description', 'weight', 'color',
         ];

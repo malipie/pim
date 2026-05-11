@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import type { ColumnSuggestion, useImportWizard } from '@/features/imports/hooks/useImportWizard';
+import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 interface StepMappingProps {
@@ -16,6 +17,16 @@ interface ParsedFileSnapshot {
   headers: string[];
   sampleRows: Array<Array<string | null>>;
   totalRows: number;
+}
+
+interface ParsePreviewResponse {
+  headers: string[];
+  sample_rows: Array<Array<string | null>>;
+  total_rows: number;
+  encoding: string;
+  delimiter: string | null;
+  sheet_name: string | null;
+  had_multiple_sheets: boolean;
 }
 
 interface AutoMapResponse {
@@ -35,6 +46,7 @@ interface AttributeOption {
 }
 
 const SKIP_VALUE = '__skip__';
+const CATEGORY_VALUE = '__category__';
 
 /**
  * Spec §5.3 — column mapping. Streams the uploaded headers + first
@@ -52,11 +64,17 @@ export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
   const file = state.file;
   const targetId = state.targetObjectTypeId;
 
-  // Parse the uploaded file in the browser to surface headers + a
-  // sample row to the auto-map endpoint. Real CSV parsing is good
-  // enough for picking column names; xlsx falls back to a single
-  // header line stripped from the raw bytes.
-  const parsed = useParsedSnapshot(file, state.delimiter);
+  // Upload the file to /parse-preview so the backend's PhpSpreadsheet
+  // (xlsx) + league-csv (CSV) pipeline produces authoritative headers +
+  // sample rows. Doing this in the browser used to work for CSV but the
+  // xlsx path sent a single "__xlsx__" sentinel and left Mapping with
+  // one fake column — solved by routing both formats through the same
+  // server-side parser used by the validate / start-import flows.
+  const {
+    snapshot: parsed,
+    isLoading: isParsing,
+    error: parseError,
+  } = useParsedSnapshot(file, state.encoding, state.delimiter);
 
   const { result: autoMapResult, query: autoMapQuery } = useCustom<AutoMapResponse>({
     url: `${apiUrl}/import-sessions/auto-map`,
@@ -72,7 +90,8 @@ export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
       enabled: parsed !== null && targetId !== null,
     },
   });
-  const isLoading = autoMapQuery.isLoading;
+  const isLoading = isParsing || autoMapQuery.isLoading;
+  const queryError = autoMapQuery.error;
   const suggestions = autoMapResult.data?.mappings ?? [];
   // Cache fetched suggestions on the wizard so re-renders skip the
   // heavy network round-trip.
@@ -93,8 +112,21 @@ export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
     label: pickLabel(attribute.label) ?? attribute.code,
     description: attribute.code,
   }));
+  // The reserved "Kategoria" target lands in object_categories junction
+  // table — surfaced at the top of the dropdown so operators can map a
+  // CSV column to category assignment without it being one of the
+  // tenant's regular Attributes.
   const optionsWithSkip: ComboboxOption[] = [
     { value: SKIP_VALUE, label: t('imports.mapping.skip', { defaultValue: 'Pomiń' }) },
+    {
+      value: CATEGORY_VALUE,
+      label: t('imports.mapping.category', {
+        defaultValue: 'Kategoria (przypisanie po kodzie)',
+      }),
+      description: t('imports.mapping.category_hint', {
+        defaultValue: 'Linkuje produkt do kategorii o pasującym code',
+      }),
+    },
     ...attributeOptions,
   ];
 
@@ -120,7 +152,7 @@ export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
         )}
       </header>
 
-      {parsed === null && (
+      {file === null && (
         <p className="text-sm text-muted-foreground">
           {t('imports.errors.upload_failed', {
             defaultValue: 'Nie udało się wczytać pliku — wróć do Step 1.',
@@ -128,9 +160,27 @@ export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
         </p>
       )}
 
+      {parseError !== null && (
+        <p role="alert" className="text-sm text-destructive">
+          {t('imports.errors.parse_failed', {
+            defaultValue: 'Nie udało się sparsować pliku: {{message}}',
+            message: parseError.message,
+          })}
+        </p>
+      )}
+
       {isLoading && (
         <p className="text-sm text-muted-foreground" aria-busy="true">
           {t('app.loading', { defaultValue: 'Ładowanie…' })}
+        </p>
+      )}
+
+      {!isLoading && queryError !== null && queryError !== undefined && (
+        <p role="alert" className="text-sm text-destructive">
+          {t('imports.mapping.auto_map_failed', {
+            defaultValue:
+              'Auto-mapowanie nie powiodło się — sprawdź konsolę DevTools i spróbuj ponownie.',
+          })}
         </p>
       )}
 
@@ -226,53 +276,65 @@ export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
   );
 }
 
-function useParsedSnapshot(file: File | null, delimiterChoice: string): ParsedFileSnapshot | null {
+interface ParsedSnapshotResult {
+  snapshot: ParsedFileSnapshot | null;
+  isLoading: boolean;
+  error: Error | null;
+}
+
+function useParsedSnapshot(
+  file: File | null,
+  encoding: string,
+  delimiter: string,
+): ParsedSnapshotResult {
   const [snapshot, setSnapshot] = React.useState<ParsedFileSnapshot | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<Error | null>(null);
 
   React.useEffect(() => {
     if (file === null) {
       setSnapshot(null);
+      setError(null);
+      setIsLoading(false);
       return;
     }
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      // xlsx — no in-browser parser; backend handles real headers.
-      // Provide a sentinel single header so auto-map call is sent.
-      setSnapshot({
-        headers: ['__xlsx__'],
-        sampleRows: [[null]],
-        totalRows: 0,
-      });
-      return;
-    }
-    const reader = new FileReader();
-    reader.addEventListener('load', () => {
-      const text = String(reader.result ?? '');
-      const rows = text.split(/\r\n|\n|\r/).filter((line) => line.length > 0);
-      if (rows.length === 0) {
+
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('encoding', encoding);
+    form.append('delimiter', delimiter);
+
+    jsonFetch<ParsePreviewResponse>('/api/import-sessions/parse-preview', {
+      method: 'POST',
+      body: form,
+    })
+      .then((data) => {
+        if (cancelled) return;
+        setSnapshot({
+          headers: data.headers,
+          sampleRows: data.sample_rows,
+          totalRows: data.total_rows,
+        });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
         setSnapshot(null);
-        return;
-      }
-      const delim = delimiterChoice === 'auto' ? guessDelimiter(rows[0]) : delimiterChoice;
-      const splitter = delim === 'tab' ? '\t' : delim;
-      const headers = rows[0].split(splitter).map((value) => value.trim());
-      const sample = rows
-        .slice(1, 4)
-        .map((row) => row.split(splitter).map((value) => (value === '' ? null : value)));
-      setSnapshot({ headers, sampleRows: sample, totalRows: rows.length - 1 });
-    });
-    reader.readAsText(file, 'utf-8');
-  }, [file, delimiterChoice]);
+        setError(err instanceof Error ? err : new Error('parse-preview failed'));
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
 
-  return snapshot;
-}
+    return () => {
+      cancelled = true;
+    };
+  }, [file, encoding, delimiter]);
 
-function guessDelimiter(sample: string): string {
-  for (const candidate of [';', ',', '\t', '|']) {
-    if (sample.includes(candidate)) {
-      return candidate === '\t' ? 'tab' : candidate;
-    }
-  }
-  return ';';
+  return { snapshot, isLoading, error };
 }
 
 function useTargetAttributes(objectTypeId: string | null): AttributeOption[] {

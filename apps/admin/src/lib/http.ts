@@ -78,8 +78,15 @@ async function fetchInternal<T>(path: string, init: InternalJsonRequestInit): Pr
 
   let body: BodyInit | undefined;
   if (init.body !== undefined) {
-    headers.set('content-type', init.contentType ?? 'application/ld+json');
-    body = JSON.stringify(init.body);
+    if (init.body instanceof FormData) {
+      // Multipart upload — let the browser set Content-Type with the
+      // boundary. Used by the import wizard's parse-preview call (file
+      // bytes + encoding/delimiter hints).
+      body = init.body;
+    } else {
+      headers.set('content-type', init.contentType ?? 'application/ld+json');
+      body = JSON.stringify(init.body);
+    }
   }
 
   const response = await fetch(url, {

@@ -1118,7 +1118,9 @@
         "manual": "ręczne",
         "skip": "pomiń"
       },
-      "skip": "Pomiń kolumnę"
+      "skip": "Pomiń kolumnę",
+      "category": "Kategoria (przypisanie po kodzie)",
+      "category_hint": "Linkuje produkt do kategorii o pasującym code"
     },
     "validation": {
       "ok": "{{count}} produktów OK",
@@ -1141,7 +1143,8 @@
         "duplicate_sku_in_db": "SKU już w bazie",
         "invalid_type": "Nieprawidłowy typ",
         "invalid_value": "Nieprawidłowa wartość",
-        "image_not_found": "Brak pliku zdjęcia"
+        "image_not_found": "Brak pliku zdjęcia",
+        "category_not_found": "Brak kategorii (produkt zaimportowany bez przypisania)"
       }
     },
     "confirm": {

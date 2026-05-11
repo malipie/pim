@@ -23,4 +23,15 @@ final readonly class ValidationError
         public ?string $columnValue = null,
     ) {
     }
+
+    /**
+     * Returns false for findings that the operator wants surfaced in
+     * the report but should NOT skip the row (e.g. a category that the
+     * lookup did not resolve — the product still imports, just without
+     * the assignment).
+     */
+    public function isRowBlocking(): bool
+    {
+        return ImportErrorType::CategoryNotFound !== $this->errorType;
+    }
 }

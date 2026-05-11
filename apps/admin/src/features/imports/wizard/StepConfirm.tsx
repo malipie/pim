@@ -1,4 +1,3 @@
-import { useApiUrl } from '@refinedev/core';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { BackupTriggerCheckbox } from '@/features/imports/components/BackupTriggerCheckbox';
 import type { useImportWizard } from '@/features/imports/hooks/useImportWizard';
+import { HttpError, jsonFetch } from '@/lib/http';
 
 interface StepConfirmProps {
   wizard: ReturnType<typeof useImportWizard>;
@@ -21,7 +21,6 @@ interface StepConfirmProps {
  */
 export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.ReactElement {
   const { t } = useTranslation();
-  const apiUrl = useApiUrl();
   const navigate = useNavigate();
   const { state, setField } = wizard;
 
@@ -52,23 +51,20 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
     formData.set('delimiter', state.delimiter);
     formData.set('do_backup', state.doBackup ? '1' : '0');
 
-    fetch(`${apiUrl}/import-sessions`, {
+    jsonFetch<{ id: string }>('/api/import-sessions', {
       method: 'POST',
-      credentials: 'include',
       body: formData,
     })
-      .then(async (res) => {
-        if (!res.ok && res.status !== 202) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        return (await res.json()) as { id: string };
-      })
       .then((data) => {
         wizard.reset();
         navigate(`/integrations/imports/${data.id}`);
       })
       .catch((err: unknown) => {
-        setSubmitError(err instanceof Error ? err.message : 'unknown');
+        if (err instanceof HttpError) {
+          setSubmitError(`HTTP ${err.status}`);
+        } else {
+          setSubmitError(err instanceof Error ? err.message : 'unknown');
+        }
         setSubmitting(false);
       });
   };

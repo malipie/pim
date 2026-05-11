@@ -1078,7 +1078,9 @@
         "manual": "manual",
         "skip": "skip"
       },
-      "skip": "Skip column"
+      "skip": "Skip column",
+      "category": "Category (assign by code)",
+      "category_hint": "Links the product to the category whose code matches the cell"
     },
     "validation": {
       "ok": "{{count}} products OK",
@@ -1101,7 +1103,8 @@
         "duplicate_sku_in_db": "SKU already in catalog",
         "invalid_type": "Invalid type",
         "invalid_value": "Invalid value",
-        "image_not_found": "Image file missing"
+        "image_not_found": "Image file missing",
+        "category_not_found": "Category not found (product imported without assignment)"
       }
     },
     "confirm": {
