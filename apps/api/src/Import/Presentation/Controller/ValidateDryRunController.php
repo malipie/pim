@@ -81,9 +81,33 @@ final class ValidateDryRunController
         $encoding = $this->parseEncoding($request->request->get('encoding'));
         $delimiter = $this->parseDelimiter($request->request->get('delimiter'));
 
+        // ImportRowReader dispatches by extension via pathinfo(), but
+        // FrankenPHP / PHP-FPM write multipart uploads to /tmp/phpXXXX
+        // with no extension. Copy to a temp path that preserves the
+        // client's original extension before validating (same dance as
+        // ParsePreviewController) — without this the wizard's Step 3
+        // browser path 400s with "Unsupported import file extension".
+        $extension = strtolower($file->getClientOriginalExtension());
+        if ('' === $extension) {
+            throw new BadRequestHttpException('Uploaded file must have an extension (.csv or .xlsx).');
+        }
+        $tempPath = tempnam(sys_get_temp_dir(), 'pim_dry_run_');
+        if (false === $tempPath) {
+            throw new BadRequestHttpException('Failed to allocate a temp file for validation.');
+        }
+        $finalPath = $tempPath.'.'.$extension;
+        if (!@rename($tempPath, $finalPath)) {
+            @unlink($tempPath);
+            throw new BadRequestHttpException('Failed to prepare a temp file for validation.');
+        }
+        if (!@copy($file->getPathname(), $finalPath)) {
+            @unlink($finalPath);
+            throw new BadRequestHttpException('Failed to copy uploaded file for validation.');
+        }
+
         try {
             $result = $this->validator->validate(
-                absolutePath: $file->getPathname(),
+                absolutePath: $finalPath,
                 columnMapping: $columnMapping,
                 target: $objectType,
                 encodingOverride: $encoding,
@@ -91,6 +115,8 @@ final class ValidateDryRunController
             );
         } catch (InvalidImportFileException $exception) {
             throw new BadRequestHttpException($exception->getMessage(), $exception);
+        } finally {
+            @unlink($finalPath);
         }
 
         return new JsonResponse($this->serialise($result), Response::HTTP_OK);

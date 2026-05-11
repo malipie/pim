@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Import\Presentation\Controller;
 
 use App\Catalog\Domain\Entity\ObjectType;
+use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Import\Application\Service\AutoMapper;
+use App\Import\Domain\ReservedMappingTarget;
 use App\Import\Domain\ValueObject\ColumnMappingSuggestion;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -73,6 +75,12 @@ final class AutoMapController
         $availableCodes = [];
         foreach ($this->objectTypeAttributes->findByObjectType($objectType) as $junction) {
             $availableCodes[] = $junction->getAttribute()->getCode();
+        }
+        // Category assignment is supported only for product imports —
+        // expose the reserved __category__ target so the dictionary's
+        // category aliases (kategoria, group, …) resolve to it.
+        if (ObjectKind::Product === $objectType->getKind()) {
+            $availableCodes[] = ReservedMappingTarget::CATEGORY;
         }
 
         $normalisedHeaders = [];

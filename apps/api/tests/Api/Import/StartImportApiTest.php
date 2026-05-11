@@ -10,6 +10,8 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
@@ -98,6 +100,74 @@ final class StartImportApiTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function importAssignsRowsToTheirCategoriesAndWarnsOnMissingOnes(): void
+    {
+        $this->seedAttributes();
+        $this->seedCategories(['pneumatyka', 'elektronika']);
+
+        $csvPath = $this->writeCategoryCsv();
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode([
+                            'sku' => 'sku',
+                            'name' => 'name',
+                            'kategoria' => '__category__',
+                        ], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => [
+                        'file' => new UploadedFile($csvPath, 'category-import.csv', 'text/csv', null, true),
+                    ],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $response = $client->getResponse();
+            self::assertNotNull($response);
+            $body = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+
+            self::assertSame('success', $body['status'], 'Rows with missing categories still import — only the assignment is dropped.');
+            self::assertSame(3, $body['success_count']);
+            self::assertSame(0, $body['error_count']);
+
+            $em = $this->em();
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+
+            $catalogObjects = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+            $categories = self::getContainer()->get(ObjectCategoryRepositoryInterface::class);
+
+            $sku1 = $catalogObjects->findByCode('CAT-1', ObjectKind::Product, $tenant);
+            $sku2 = $catalogObjects->findByCode('CAT-2', ObjectKind::Product, $tenant);
+            $sku3 = $catalogObjects->findByCode('CAT-3', ObjectKind::Product, $tenant);
+            self::assertNotNull($sku1);
+            self::assertNotNull($sku2);
+            self::assertNotNull($sku3, 'CAT-3 has an unknown category code but still imports the product.');
+
+            self::assertCount(1, $categories->findByProduct($sku1));
+            $primary1 = $categories->findPrimary($sku1);
+            self::assertNotNull($primary1);
+            self::assertSame('pneumatyka', $primary1->getCategory()->getCode());
+
+            self::assertCount(1, $categories->findByProduct($sku2));
+            $primary2 = $categories->findPrimary($sku2);
+            self::assertNotNull($primary2);
+            self::assertSame('elektronika', $primary2->getCategory()->getCode());
+
+            self::assertCount(0, $categories->findByProduct($sku3), 'Unknown category yields no assignment for CAT-3.');
+            self::assertNull($categories->findPrimary($sku3));
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
     private function seedAttributes(): void
     {
         $em = $this->em();
@@ -134,5 +204,44 @@ final class StartImportApiTest extends CatalogApiTestCase
         file_put_contents($renamed, $contents);
 
         return $renamed;
+    }
+
+    private function writeCategoryCsv(): string
+    {
+        $contents = "sku;name;kategoria\n"
+            ."CAT-1;Czujnik;pneumatyka\n"
+            ."CAT-2;Sterownik;elektronika\n"
+            ."CAT-3;Bez kategorii;nonexistent-code\n";
+
+        $path = tempnam(sys_get_temp_dir(), 'pim-start-import-cat-');
+        \assert(false !== $path);
+        $renamed = $path.'.csv';
+        rename($path, $renamed);
+        file_put_contents($renamed, $contents);
+
+        return $renamed;
+    }
+
+    /**
+     * @param list<string> $codes
+     */
+    private function seedCategories(array $codes): void
+    {
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+
+        $categoryType = self::getContainer()
+            ->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Category, $tenant);
+        \assert($categoryType instanceof ObjectType);
+
+        foreach ($codes as $code) {
+            $category = new CatalogObject($categoryType, $code);
+            $category->attachToPath($code);
+            $em->persist($category);
+        }
+        $em->flush();
     }
 }

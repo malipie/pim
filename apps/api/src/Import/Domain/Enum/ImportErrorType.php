@@ -18,4 +18,5 @@ enum ImportErrorType: string
     case InvalidValue = 'invalid_value';
     case ImageNotFound = 'image_not_found';
     case ImageFormatUnsupported = 'image_format_unsupported';
+    case CategoryNotFound = 'category_not_found';
 }

@@ -1,4 +1,3 @@
-import { useApiUrl } from '@refinedev/core';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -10,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { HttpError, jsonFetch } from '@/lib/http';
 
 interface RollbackButtonProps {
   sessionId: string;
@@ -29,7 +29,6 @@ export function RollbackButton({
   onRolledBack,
 }: RollbackButtonProps): React.ReactElement {
   const { t } = useTranslation();
-  const apiUrl = useApiUrl();
   const [open, setOpen] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -39,19 +38,17 @@ export function RollbackButton({
   const handleConfirm = (): void => {
     setSubmitting(true);
     setError(null);
-    fetch(`${apiUrl}/import-sessions/${sessionId}/rollback`, {
-      method: 'POST',
-      credentials: 'include',
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
+    jsonFetch(`/api/import-sessions/${sessionId}/rollback`, { method: 'POST' })
+      .then(() => {
         setOpen(false);
         onRolledBack();
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'unknown');
+        if (err instanceof HttpError) {
+          setError(`HTTP ${err.status}`);
+        } else {
+          setError(err instanceof Error ? err.message : 'unknown');
+        }
       })
       .finally(() => setSubmitting(false));
   };

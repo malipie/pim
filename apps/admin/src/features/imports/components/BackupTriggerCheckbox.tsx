@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Progress } from '@/components/ui/progress';
+import { HttpError, jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 interface BackupTriggerCheckboxProps {
@@ -59,21 +60,18 @@ export function BackupTriggerCheckbox({
       setError(null);
       return;
     }
-    fetch(`${apiUrl}/backups`, {
+    jsonFetch<{ id: string }>('/api/backups', {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ triggered_by_action: 'pre_import' }),
+      body: { triggered_by_action: 'pre_import' },
+      contentType: 'application/json',
     })
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        return (await res.json()) as { id: string };
-      })
       .then((data) => setBackupId(data.id))
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'unknown');
+        if (err instanceof HttpError) {
+          setError(`HTTP ${err.status}`);
+        } else {
+          setError(err instanceof Error ? err.message : 'unknown');
+        }
         onChange(false);
       });
   };

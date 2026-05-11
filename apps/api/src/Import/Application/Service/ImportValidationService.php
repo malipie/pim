@@ -13,6 +13,7 @@ use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Import\Domain\Enum\FileEncoding;
 use App\Import\Domain\Enum\ImportErrorType;
 use App\Import\Domain\Enum\ImportLogLevel;
+use App\Import\Domain\ReservedMappingTarget;
 use App\Import\Domain\ValueObject\ValidationError;
 use App\Import\Domain\ValueObject\ValidationResult;
 use App\Shared\Application\TenantContext;
@@ -80,14 +81,21 @@ final readonly class ImportValidationService
                 skuSeenInFile: $skuSeenInFile,
             );
 
-            if ([] === $rowErrors) {
+            $blockingErrors = array_values(array_filter(
+                $rowErrors,
+                static fn (ValidationError $error): bool => $error->isRowBlocking(),
+            ));
+            if ([] === $blockingErrors) {
                 ++$successCount;
             } else {
                 ++$errorCount;
-                foreach ($rowErrors as $error) {
-                    if (\count($errors) < self::SAMPLE_LIMIT) {
-                        $errors[] = $error;
-                    }
+            }
+            // Surface every finding in the report — including non-blocking
+            // warnings (e.g. CategoryNotFound) — so the operator sees
+            // the assignment gap even when the row imported cleanly.
+            foreach ($rowErrors as $error) {
+                if (\count($errors) < self::SAMPLE_LIMIT) {
+                    $errors[] = $error;
                 }
             }
         }
@@ -123,8 +131,22 @@ final readonly class ImportValidationService
         $errors = [];
 
         $valueByAttribute = [];
+        $categoryCellValue = null;
+        $categoryColumnName = null;
         foreach ($columnMapping as $columnHeader => $attributeCode) {
-            if ('skip' === $attributeCode || '' === $attributeCode) {
+            if (ReservedMappingTarget::SKIP === $attributeCode || '' === $attributeCode) {
+                continue;
+            }
+            if (ReservedMappingTarget::CATEGORY === $attributeCode) {
+                // Take the first non-empty category cell. Multiple
+                // category columns are not expected in MVP (single
+                // category per row); follow-ups can extend this to a
+                // list when multi-value support lands.
+                $cell = $cells[$columnHeader] ?? null;
+                if (null !== $cell && '' !== $cell && null === $categoryCellValue) {
+                    $categoryCellValue = $cell;
+                    $categoryColumnName = $columnHeader;
+                }
                 continue;
             }
             $valueByAttribute[$attributeCode] = $cells[$columnHeader] ?? null;
@@ -192,6 +214,25 @@ final readonly class ImportValidationService
                     message: $typeError,
                     columnName: $attributeCode,
                     columnValue: $value,
+                );
+            }
+        }
+
+        if (null !== $categoryCellValue) {
+            $category = $this->catalogObjects->findByCode($categoryCellValue, ObjectKind::Category, $tenant);
+            if (null === $category) {
+                // Missing category does not fail the row — the product
+                // imports without the assignment and the operator gets
+                // a warning to fix the category catalogue or the source
+                // file.
+                $errors[] = new ValidationError(
+                    rowNumber: $rowNumber,
+                    sku: $sku,
+                    errorType: ImportErrorType::CategoryNotFound,
+                    level: ImportLogLevel::Warning,
+                    message: \sprintf('Category "%s" was not found — product imported without assignment.', $categoryCellValue),
+                    columnName: $categoryColumnName,
+                    columnValue: $categoryCellValue,
                 );
             }
         }

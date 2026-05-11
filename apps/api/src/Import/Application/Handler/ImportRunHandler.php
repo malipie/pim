@@ -12,6 +12,8 @@ use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Message\ImportRunMessage;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
+use App\Import\Domain\ReservedMappingTarget;
+use App\Import\Domain\ValueObject\ValidationError;
 use App\Shared\Application\AbstractBatchHandler;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
@@ -122,7 +124,11 @@ final class ImportRunHandler extends AbstractBatchHandler
                 );
 
                 $sku = $cells[$this->skuColumnHeader($columnMapping)] ?? null;
-                $rowOk = [] === $errors;
+                $blockingErrors = array_values(array_filter(
+                    $errors,
+                    static fn (ValidationError $error): bool => $error->isRowBlocking(),
+                ));
+                $rowOk = [] === $blockingErrors;
 
                 if ($rowOk) {
                     $valueByAttributeCode = $this->materialiseValues($cells, $columnMapping);
@@ -132,22 +138,28 @@ final class ImportRunHandler extends AbstractBatchHandler
                         valueByAttributeCode: $valueByAttributeCode,
                         attributesByCode: $attributesByCode,
                         importSessionId: $session->getId(),
+                        categoryCode: $this->extractCategoryCode($cells, $columnMapping),
+                        tenant: $tenant,
                     );
                     $session->incrementSuccess();
                 } else {
-                    foreach ($errors as $error) {
-                        $this->entityManager->persist(new ImportLog(
-                            importSession: $session,
-                            rowNumber: $error->rowNumber,
-                            level: $error->level,
-                            message: $error->message,
-                            sku: $error->sku,
-                            errorType: $error->errorType->value,
-                            columnName: $error->columnName,
-                            columnValue: $error->columnValue,
-                        ));
-                    }
                     $session->incrementError();
+                }
+
+                // Persist every finding so the post-import report (IMP-05)
+                // surfaces both row-blocking errors and non-blocking
+                // warnings (e.g. CategoryNotFound on an otherwise OK row).
+                foreach ($errors as $error) {
+                    $this->entityManager->persist(new ImportLog(
+                        importSession: $session,
+                        rowNumber: $error->rowNumber,
+                        level: $error->level,
+                        message: $error->message,
+                        sku: $error->sku,
+                        errorType: $error->errorType->value,
+                        columnName: $error->columnName,
+                        columnValue: $error->columnValue,
+                    ));
                 }
 
                 $this->progressPublisher->rowProcessed($session, $rowNumber, $sku, $rowOk);
@@ -207,7 +219,7 @@ final class ImportRunHandler extends AbstractBatchHandler
     {
         $out = [];
         foreach ($columnMapping as $columnHeader => $attributeCode) {
-            if ('skip' === $attributeCode || '' === $attributeCode) {
+            if ('' === $attributeCode || ReservedMappingTarget::isReserved($attributeCode)) {
                 continue;
             }
             $out[$attributeCode] = $cells[$columnHeader] ?? null;
@@ -228,6 +240,31 @@ final class ImportRunHandler extends AbstractBatchHandler
         }
 
         return 'sku';
+    }
+
+    /**
+     * Finds the first non-empty cell whose mapping targets the reserved
+     * __category__ marker. The validator already emitted a warning when
+     * the lookup did not resolve, so we only need to surface the raw
+     * code here — the creator drops the assignment silently if the row
+     * imports without a category match.
+     *
+     * @param array<string, string|null> $cells
+     * @param array<string, string>      $columnMapping
+     */
+    private function extractCategoryCode(array $cells, array $columnMapping): ?string
+    {
+        foreach ($columnMapping as $columnHeader => $target) {
+            if (ReservedMappingTarget::CATEGORY !== $target) {
+                continue;
+            }
+            $cell = $cells[$columnHeader] ?? null;
+            if (null !== $cell && '' !== $cell) {
+                return $cell;
+            }
+        }
+
+        return null;
     }
 
     /**

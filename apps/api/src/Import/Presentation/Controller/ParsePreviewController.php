@@ -1,0 +1,129 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Import\Presentation\Controller;
+
+use App\Identity\Domain\Entity\User;
+use App\Import\Application\Service\FileParserService;
+use App\Import\Domain\Enum\FileEncoding;
+use App\Import\Domain\Exception\InvalidImportFileException;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\Routing\Attribute\Route;
+
+/**
+ * Wizard Step 1 → Step 2 transition: parses the just-uploaded source
+ * file with the same {@see FileParserService} the start/validate
+ * pipeline uses, returning headers + sample rows so the mapping table
+ * stays authoritative for both CSV and xlsx. Without this, the admin
+ * had a CSV-only in-browser parser and an xlsx sentinel that left the
+ * Mapping step with a single "__xlsx__" row.
+ *
+ * The endpoint is read-only — it does not persist an ImportSession or
+ * stage the file on Flysystem. The start-import flow re-uploads the
+ * file inside its own multipart request.
+ */
+final class ParsePreviewController
+{
+    public function __construct(
+        private readonly FileParserService $parser,
+        private readonly Security $security,
+    ) {
+    }
+
+    #[Route(
+        path: '/api/import-sessions/parse-preview',
+        name: 'imports_parse_preview',
+        methods: ['POST'],
+    )]
+    public function __invoke(Request $request): JsonResponse
+    {
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            throw new UnauthorizedHttpException('JWT', 'Authenticated user required.');
+        }
+
+        $file = $request->files->get('file');
+        if (!$file instanceof UploadedFile) {
+            throw new BadRequestHttpException('"file" multipart field is required.');
+        }
+
+        $encodingOverride = $this->parseEncoding($request->request->get('encoding'));
+        $delimiterOverride = $this->parseDelimiter($request->request->get('delimiter'));
+
+        // FileParserService keys off the extension via pathinfo() — the
+        // PHP temp upload has a synthetic name (php2A.tmp), so copy to a
+        // temp path that preserves the client's original extension before
+        // delegating.
+        $extension = strtolower($file->getClientOriginalExtension());
+        if ('' === $extension) {
+            throw new BadRequestHttpException('Uploaded file must have an extension (.csv or .xlsx).');
+        }
+        $tempPath = tempnam(sys_get_temp_dir(), 'pim_parse_');
+        if (false === $tempPath) {
+            throw new BadRequestHttpException('Failed to allocate a temp file for parsing.');
+        }
+        $finalPath = $tempPath.'.'.$extension;
+        if (!@rename($tempPath, $finalPath)) {
+            @unlink($tempPath);
+            throw new BadRequestHttpException('Failed to prepare a temp file for parsing.');
+        }
+        if (!@copy($file->getPathname(), $finalPath)) {
+            @unlink($finalPath);
+            throw new BadRequestHttpException('Failed to copy uploaded file for parsing.');
+        }
+
+        try {
+            $parsed = $this->parser->parse($finalPath, $encodingOverride, $delimiterOverride);
+        } catch (InvalidImportFileException $exception) {
+            throw new BadRequestHttpException($exception->getMessage(), $exception);
+        } finally {
+            @unlink($finalPath);
+        }
+
+        return new JsonResponse(
+            [
+                'headers' => $parsed->headers,
+                'sample_rows' => $parsed->sampleRows,
+                'total_rows' => $parsed->totalRows,
+                'encoding' => $parsed->encoding->value,
+                'delimiter' => $parsed->delimiter,
+                'sheet_name' => $parsed->sheetName,
+                'had_multiple_sheets' => $parsed->hadMultipleSheets,
+            ],
+            Response::HTTP_OK,
+        );
+    }
+
+    private function parseEncoding(mixed $raw): ?FileEncoding
+    {
+        if (!\is_string($raw) || '' === $raw || 'auto' === $raw) {
+            return null;
+        }
+
+        return FileEncoding::tryFrom($raw)
+            ?? throw new BadRequestHttpException(\sprintf('Unsupported encoding "%s".', $raw));
+    }
+
+    private function parseDelimiter(mixed $raw): ?string
+    {
+        if (!\is_string($raw) || '' === $raw || 'auto' === $raw) {
+            return null;
+        }
+        if ('tab' === $raw) {
+            return "\t";
+        }
+        // Single-character delimiters only — CSV reader rejects multi-char.
+        if (1 !== \strlen($raw)) {
+            throw new BadRequestHttpException(\sprintf('Delimiter must be a single character or "tab", got "%s".', $raw));
+        }
+
+        return $raw;
+    }
+}

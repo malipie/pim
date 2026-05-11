@@ -1,4 +1,3 @@
-import { useApiUrl } from '@refinedev/core';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { useImportWizard, ValidationFinding } from '@/features/imports/hooks/useImportWizard';
+import { HttpError, jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 interface StepValidationProps {
@@ -40,7 +40,6 @@ interface ApiError {
  */
 export function StepValidationPlaceholder({ wizard }: StepValidationProps): React.ReactElement {
   const { t } = useTranslation();
-  const apiUrl = useApiUrl();
   const [showAll, setShowAll] = React.useState(false);
   const [response, setResponse] = React.useState<DryRunResponse | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -68,17 +67,10 @@ export function StepValidationPlaceholder({ wizard }: StepValidationProps): Reac
 
     setLoading(true);
     setError(null);
-    fetch(`${apiUrl}/import-sessions/validate-dry-run`, {
+    jsonFetch<DryRunResponse>('/api/import-sessions/validate-dry-run', {
       method: 'POST',
-      credentials: 'include',
       body: formData,
     })
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        return (await res.json()) as DryRunResponse;
-      })
       .then((data) => {
         if (cancelled) {
           return;
@@ -95,7 +87,11 @@ export function StepValidationPlaceholder({ wizard }: StepValidationProps): Reac
         if (cancelled) {
           return;
         }
-        setError(err instanceof Error ? err.message : 'unknown');
+        if (err instanceof HttpError) {
+          setError(`HTTP ${err.status}`);
+        } else {
+          setError(err instanceof Error ? err.message : 'unknown');
+        }
       })
       .finally(() => {
         if (!cancelled) {
@@ -106,7 +102,7 @@ export function StepValidationPlaceholder({ wizard }: StepValidationProps): Reac
     return () => {
       cancelled = true;
     };
-  }, [apiUrl, file, targetId, mapping, encoding, delimiter, setValidation]);
+  }, [file, targetId, mapping, encoding, delimiter, setValidation]);
 
   const handleNext = (): void => {
     if (decision === 'back_to_mapping') {

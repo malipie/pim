@@ -84,7 +84,11 @@ attributes:
       - summary
       - opisskrocony
 
-  category:
+  # Category assignment is NOT a regular Attribute — it lands in the
+  # object_categories junction table. The wizard surfaces this entry as
+  # a special "Kategoria" option in the mapping Combobox.
+  # ReservedMappingTarget::CATEGORY mirrors this key.
+  __category__:
     aliases:
       - category
       - kategoria

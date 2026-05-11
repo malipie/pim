@@ -7,9 +7,13 @@ namespace App\Import\Application\Service;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectCategory;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectValue;
+use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Provenance;
+use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -31,12 +35,18 @@ final class ImportObjectCreator
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly CatalogObjectRepositoryInterface $catalogObjects,
     ) {
     }
 
     /**
      * @param array<string, string|null> $valueByAttributeCode
      * @param array<string, Attribute>   $attributesByCode
+     * @param ?string                    $categoryCode         `code` of the category to assign the new
+     *                                                         product to. Single category per row
+     *                                                         (becomes primary). Silently skipped when
+     *                                                         the lookup fails — the validator emitted
+     *                                                         the CategoryNotFound warning earlier.
      */
     public function create(
         ObjectType $objectType,
@@ -44,6 +54,8 @@ final class ImportObjectCreator
         array $valueByAttributeCode,
         array $attributesByCode,
         Uuid $importSessionId,
+        ?string $categoryCode = null,
+        ?Tenant $tenant = null,
     ): CatalogObject {
         $object = new CatalogObject($objectType, $sku);
         $object->assignImportSession($importSessionId);
@@ -69,6 +81,18 @@ final class ImportObjectCreator
                 value: $valuePayload,
                 provenance: Provenance::Import,
             ));
+        }
+
+        if (null !== $categoryCode && '' !== $categoryCode && $tenant instanceof Tenant) {
+            $category = $this->catalogObjects->findByCode($categoryCode, ObjectKind::Category, $tenant);
+            if (null !== $category) {
+                $this->em->persist(new ObjectCategory(
+                    product: $object,
+                    category: $category,
+                    isPrimary: true,
+                    position: 0,
+                ));
+            }
         }
 
         return $object;

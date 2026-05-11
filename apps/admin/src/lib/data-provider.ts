@@ -92,7 +92,30 @@ export const dataProvider: DataProvider = {
     return { data: fetched as never[] };
   },
 
-  async custom() {
-    throw new Error('dataProvider.custom is not implemented in the Sprint-0 slice.');
+  // Forwards Refine's `useCustom` / `useCustomMutation` to `jsonFetch` so
+  // non-Hydra endpoints (auto-map, backup status, profile test-connection,
+  // token rotation, …) flow through the same auth pipeline as the rest of
+  // the admin. Without this, hooks fail silently and the UI looks blank —
+  // exactly the symptom that surfaced on the Mapping step of the import
+  // wizard before IMP-10 follow-up.
+  async custom({ url, method, payload, query }) {
+    const upper = method.toUpperCase();
+    if (
+      upper !== 'GET' &&
+      upper !== 'POST' &&
+      upper !== 'PATCH' &&
+      upper !== 'PUT' &&
+      upper !== 'DELETE'
+    ) {
+      throw new Error(`dataProvider.custom: unsupported method "${method}"`);
+    }
+    const data = await jsonFetch(url, {
+      method: upper,
+      body: payload,
+      query: query as Record<string, string | number | undefined> | undefined,
+      contentType: 'application/json',
+      accept: 'application/json',
+    });
+    return { data: data as never };
   },
 };
