@@ -45,6 +45,11 @@ class DoctrineImportProfileRepository extends ServiceEntityRepository implements
         return $this->findOneBy(['tenant' => $tenant, 'userId' => $userId, 'name' => $name]);
     }
 
+    public function findByCode(Tenant $tenant, Uuid $userId, string $code): ?ImportProfile
+    {
+        return $this->findOneBy(['tenant' => $tenant, 'userId' => $userId, 'code' => $code]);
+    }
+
     /**
      * @return list<ImportProfile>
      */

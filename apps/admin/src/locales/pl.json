@@ -1052,6 +1052,73 @@
       "profiles_subtitle": "Biblioteka profili mapowań — zakładka aktywowana w VIEW-IMP-02",
       "profiles_open_manager": "Otwórz menedżera profili"
     },
+    "profiles": {
+      "title": "Profile mapowań",
+      "subtitle_eyebrow": "Re-usable konfiguracje mapowania",
+      "description": "Profil = zestaw zasad „jak czytać ten typ pliku”: kolumny → atrybuty, tryb importu, kodowanie i delimiter. Wersjonowane, eksport/import jako JSON.",
+      "new_profile": "Nowy profil",
+      "search_placeholder": "Szukaj profilu lub code…",
+      "search_aria": "Wyszukaj profil",
+      "view": {
+        "aria_label": "Tryb wyświetlania",
+        "grid": "Siatka",
+        "list": "Lista"
+      },
+      "card": {
+        "more_actions": "Więcej akcji",
+        "edit": "Edytuj",
+        "duplicate": "Duplikuj",
+        "export": "Eksport JSON",
+        "delete": "Usuń",
+        "target": "Target",
+        "encoding": "Kodowanie",
+        "columns": "Kolumny",
+        "columns_count": "{{count}} kolumn",
+        "columns_count_one": "{{count}} kolumna",
+        "columns_count_few": "{{count}} kolumny",
+        "columns_count_many": "{{count}} kolumn",
+        "locale": "Locale",
+        "last_used": "ostatnio użyty: {{date}}",
+        "never_used": "jeszcze nie używany"
+      },
+      "list": {
+        "col_name": "Nazwa · code",
+        "col_target": "Target",
+        "col_format": "Format",
+        "col_mode": "Tryb",
+        "col_columns": "Kolumny",
+        "col_locale": "Locale",
+        "col_last_used": "Ostatnio",
+        "empty_filtered": "Brak profili pasujących do filtra."
+      },
+      "new_profile_card": {
+        "title": "Nowy profil mapowań",
+        "subtitle": "Stwórz profil od zera albo zaimportuj JSON z innego środowiska."
+      },
+      "dialog": {
+        "title_create": "Nowy profil mapowań",
+        "title_edit": "Edytuj profil",
+        "name": "Nazwa",
+        "code": "Kod",
+        "code_hint": "Tylko małe litery, cyfry i myślniki. Jeśli puste — slug nazwy.",
+        "mode": "Tryb importu",
+        "target": "Target obiektu",
+        "target_placeholder": "Wybierz typ obiektu",
+        "encoding": "Kodowanie",
+        "delimiter": "Delimiter",
+        "locale": "Locale",
+        "create": "Utwórz",
+        "errors": {
+          "name_required": "Nazwa profilu jest wymagana.",
+          "target_required": "Target obiektu jest wymagany."
+        }
+      },
+      "delete": {
+        "title": "Usuń profil mapowań",
+        "confirm": "Czy na pewno usunąć profil „{{name}}”? Tej operacji nie da się cofnąć.",
+        "confirm_button": "Usuń profil"
+      }
+    },
     "sessions": {
       "title": "Sesje importów",
       "subtitle_eyebrow": "Synchronizacja danych przychodzących",
@@ -1259,7 +1326,7 @@
       "rollback_window": "Dostępne do {{date}}",
       "rollback_expired": "Okno wycofania wygasło"
     },
-    "profiles": {
+    "profile_manager": {
       "title": "Moje profile importu",
       "columns": {
         "name": "Profil",

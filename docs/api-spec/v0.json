@@ -7796,6 +7796,27 @@
                         "maxLength": 255,
                         "type": "string"
                     },
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9-]+)$",
+                        "default": "",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "mode": {
+                        "default": "UPDATE",
+                        "type": "string",
+                        "enum": [
+                            "ADD",
+                            "UPDATE",
+                            "UPSERT",
+                            "MERGE",
+                            "INCREMENT",
+                            "DELETE"
+                        ]
+                    },
                     "targetObjectType": {
                         "type": "string",
                         "format": "iri-reference",
@@ -7851,7 +7872,8 @@
                     }
                 },
                 "required": [
-                    "name"
+                    "name",
+                    "code"
                 ]
             },
             "ImportProfile.ImportProfileInput": {
@@ -7866,6 +7888,30 @@
                         "maxLength": 255,
                         "default": "",
                         "type": "string"
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9-]+)$",
+                        "description": "Optional \u2014 if omitted, the processor slugifies the name.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "mode": {
+                        "enum": [
+                            "ADD",
+                            "UPDATE",
+                            "UPSERT",
+                            "MERGE",
+                            "INCREMENT",
+                            "DELETE"
+                        ],
+                        "description": "One of: `ADD`, `UPDATE`, `UPSERT`, `MERGE`, `INCREMENT`, `DELETE`.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "targetObjectTypeId": {
                         "format": "uuid",
@@ -7920,6 +7966,28 @@
                 "properties": {
                     "name": {
                         "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9-]+)$",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "mode": {
+                        "enum": [
+                            "ADD",
+                            "UPDATE",
+                            "UPSERT",
+                            "MERGE",
+                            "INCREMENT",
+                            "DELETE"
+                        ],
                         "type": [
                             "string",
                             "null"
@@ -7989,6 +8057,27 @@
                                 "maxLength": 255,
                                 "type": "string"
                             },
+                            "code": {
+                                "maxLength": 64,
+                                "pattern": "^([a-z0-9-]+)$",
+                                "default": "",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "mode": {
+                                "default": "UPDATE",
+                                "type": "string",
+                                "enum": [
+                                    "ADD",
+                                    "UPDATE",
+                                    "UPSERT",
+                                    "MERGE",
+                                    "INCREMENT",
+                                    "DELETE"
+                                ]
+                            },
                             "targetObjectType": {
                                 "type": "string",
                                 "format": "iri-reference",
@@ -8044,7 +8133,8 @@
                             }
                         },
                         "required": [
-                            "name"
+                            "name",
+                            "code"
                         ]
                     }
                 ],

@@ -14,6 +14,7 @@ use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Identity\Domain\Entity\User;
 use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Enum\ImportImageSource;
+use App\Import\Domain\Enum\ImportMode;
 use App\Import\Domain\Repository\ImportProfileRepositoryInterface;
 use App\Import\Infrastructure\ApiPlatform\Resource\ImportProfileInput;
 use App\Import\Infrastructure\ApiPlatform\Resource\ImportProfilePatchInput;
@@ -88,10 +89,15 @@ final readonly class ImportProfileProcessor implements ProcessorInterface
             ));
         }
 
+        $mode = null !== $data->mode ? ImportMode::from($data->mode) : ImportMode::Update;
+        $code = $data->code ?? ImportProfile::slugify($data->name);
+
         $profile = new ImportProfile(
             userId: $user->getId(),
             name: $data->name,
             targetObjectType: $type,
+            code: $code,
+            mode: $mode,
         );
         $profile->setColumnMapping($data->columnMapping);
         $profile->setLocale($data->locale);
@@ -129,6 +135,12 @@ final readonly class ImportProfileProcessor implements ProcessorInterface
                 ));
             }
             $profile->rename($data->name);
+        }
+        if (null !== $data->code) {
+            $profile->setCode($data->code);
+        }
+        if (null !== $data->mode) {
+            $profile->setMode(ImportMode::from($data->mode));
         }
         if (null !== $data->columnMapping) {
             $profile->setColumnMapping($data->columnMapping);

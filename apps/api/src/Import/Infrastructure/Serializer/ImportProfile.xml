@@ -12,6 +12,14 @@
             <group>import_profile:read</group>
             <group>import_profile:write</group>
         </attribute>
+        <attribute name="code">
+            <group>import_profile:read</group>
+            <group>import_profile:write</group>
+        </attribute>
+        <attribute name="mode">
+            <group>import_profile:read</group>
+            <group>import_profile:write</group>
+        </attribute>
         <attribute name="userId">
             <group>import_profile:read</group>
         </attribute>

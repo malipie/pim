@@ -18,6 +18,8 @@ interface ImportProfileRepositoryInterface
 
     public function findByName(Tenant $tenant, Uuid $userId, string $name): ?ImportProfile;
 
+    public function findByCode(Tenant $tenant, Uuid $userId, string $code): ?ImportProfile;
+
     /**
      * @return list<ImportProfile>
      */

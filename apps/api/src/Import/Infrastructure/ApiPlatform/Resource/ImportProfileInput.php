@@ -20,6 +20,20 @@ final class ImportProfileInput
     #[Assert\Length(max: 255)]
     public string $name = '';
 
+    /**
+     * Optional — if omitted, the processor slugifies the name.
+     * Must be unique per (tenant, user).
+     */
+    #[Assert\Length(max: 64)]
+    #[Assert\Regex(pattern: '/^[a-z0-9-]+$/', message: 'Code must contain only lowercase letters, digits, and dashes.')]
+    public ?string $code = null;
+
+    /**
+     * One of: `ADD`, `UPDATE`, `UPSERT`, `MERGE`, `INCREMENT`, `DELETE`.
+     */
+    #[Assert\Choice(choices: ['ADD', 'UPDATE', 'UPSERT', 'MERGE', 'INCREMENT', 'DELETE'])]
+    public ?string $mode = null;
+
     #[Assert\NotBlank]
     #[Assert\Uuid]
     public string $targetObjectTypeId = '';

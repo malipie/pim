@@ -6,6 +6,7 @@ namespace App\Import\Domain\Entity;
 
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Import\Domain\Enum\ImportImageSource;
+use App\Import\Domain\Enum\ImportMode;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\AggregateRoot;
 use App\Shared\Domain\Tenant;
@@ -32,6 +33,13 @@ class ImportProfile extends AggregateRoot implements TenantScoped
     #[Assert\NotBlank]
     #[Assert\Length(max: 255)]
     private string $name;
+
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 64)]
+    #[Assert\Regex(pattern: '/^[a-z0-9-]+$/', message: 'Code must contain only lowercase letters, digits, and dashes.')]
+    private string $code = '';
+
+    private string $mode = ImportMode::Update->value;
 
     private ObjectType $targetObjectType;
 
@@ -70,12 +78,30 @@ class ImportProfile extends AggregateRoot implements TenantScoped
         string $name,
         ObjectType $targetObjectType,
         ?Uuid $id = null,
+        ?string $code = null,
+        ImportMode $mode = ImportMode::Update,
     ) {
         $this->id = $id ?? Uuid::v7();
         $this->userId = $userId;
         $this->name = $name;
+        $this->code = $code ?? self::slugify($name);
+        $this->mode = $mode->value;
         $this->targetObjectType = $targetObjectType;
         $this->createdAt = new DateTimeImmutable();
+    }
+
+    /**
+     * Stable lower-case slug derived from a free-form name.
+     * Public so the API input layer can pre-compute the same value
+     * before persistence (lets the FE preview the final `code`).
+     */
+    public static function slugify(string $value): string
+    {
+        $lower = mb_strtolower($value);
+        $stripped = preg_replace('/[^a-z0-9]+/', '-', $lower) ?? $lower;
+        $collapsed = preg_replace('/-+/', '-', $stripped) ?? $stripped;
+
+        return trim($collapsed, '-');
     }
 
     public function getId(): Uuid
@@ -112,6 +138,26 @@ class ImportProfile extends AggregateRoot implements TenantScoped
     public function rename(string $name): void
     {
         $this->name = $name;
+    }
+
+    public function getCode(): string
+    {
+        return $this->code;
+    }
+
+    public function setCode(string $code): void
+    {
+        $this->code = $code;
+    }
+
+    public function getMode(): ImportMode
+    {
+        return ImportMode::from($this->mode);
+    }
+
+    public function setMode(ImportMode $mode): void
+    {
+        $this->mode = $mode->value;
     }
 
     public function getTargetObjectType(): ObjectType
