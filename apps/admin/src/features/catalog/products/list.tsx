@@ -7,6 +7,7 @@ import { Link } from 'react-router';
 import { AdvancedFilterBuilder } from '@/components/catalog/advanced-filter-builder';
 import { BulkBar } from '@/components/catalog/bulk-bar';
 import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
+import { type ExcelColumn, ExcelLikeGrid } from '@/components/catalog/excel-like-grid';
 import { FilterPill } from '@/components/catalog/filter-pill';
 import type { FilterValue } from '@/components/catalog/product-filter-chips';
 import { ProductsGrid, type ProductsGridRow } from '@/components/catalog/products-grid';
@@ -14,6 +15,7 @@ import { SaveViewModal } from '@/components/catalog/save-view-modal';
 import { SavedViewsRail } from '@/components/catalog/saved-views-rail';
 import type { SyncAggregate } from '@/components/catalog/sync-aggregate-icon';
 import { type VariantsMode, VariantsToggle } from '@/components/catalog/variants-toggle';
+import { type ProductsViewMode, ViewModeToggle } from '@/components/catalog/view-mode-toggle';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import {
@@ -39,6 +41,30 @@ interface CatalogObjectListEntry {
 
 const PRODUCT_FACETS = ['enabled', 'status', 'brand', 'family'];
 
+/**
+ * Column set for Excel view (UI-02.12 restored). SKU + status + variant
+ * axis are read-only (system / derived). Name + brand commit through
+ * the attributes payload; enabled commits at the product root. Other
+ * columns are read-only because the value renderer flattens nested
+ * structures (categories, price, sync) that the inline editor cannot
+ * round-trip into a single PATCH.
+ *
+ * The intersection with `Record<string, unknown>` satisfies the
+ * `ExcelLikeGrid` generic constraint without modifying the shared
+ * `ProductsGridRow` interface (which has narrow per-key types).
+ */
+type ExcelProductRow = ProductsGridRow & Record<string, unknown>;
+
+const EXCEL_COLUMNS: ExcelColumn<ExcelProductRow>[] = [
+  { key: 'sku', label: 'SKU', type: 'text', width: 160, readOnly: true },
+  { key: 'name', label: 'Nazwa', type: 'text', width: 280 },
+  { key: 'brand', label: 'Marka', type: 'text', width: 160 },
+  { key: 'enabled', label: 'Aktywny', type: 'boolean', width: 100 },
+  { key: 'status', label: 'Status', type: 'text', width: 100, readOnly: true },
+  { key: 'completenessPct', label: 'Kompletność', type: 'number', width: 110, readOnly: true },
+  { key: 'variantAxis', label: 'Wariant', type: 'text', width: 120, readOnly: true },
+];
+
 const STATUS_VALUES: ReadonlyArray<{ value: string; label: string; sync: SyncAggregate }> = [
   { value: 'green', label: 'OK', sync: 'green' },
   { value: 'yellow', label: 'Niepełne', sync: 'yellow' },
@@ -55,6 +81,17 @@ export function ProductListPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   const [variantsMode, setVariantsMode] = useState<VariantsMode>('tree');
+  const [viewMode, setViewMode] = useState<ProductsViewMode>(() => {
+    if (typeof window === 'undefined') return 'grid';
+    const stored = window.localStorage.getItem('pim.products.viewMode');
+    return stored === 'excel' ? 'excel' : 'grid';
+  });
+  const handleViewModeChange = (next: ProductsViewMode): void => {
+    setViewMode(next);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('pim.products.viewMode', next);
+    }
+  };
   const [activeViewSlug, setActiveViewSlug] = useState<string | null>(null);
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   const [expandedMasters, setExpandedMasters] = useState<Set<string>>(new Set());
@@ -239,6 +276,39 @@ export function ProductListPage() {
       });
   };
 
+  const handleExcelCommit = async (
+    row: ProductsGridRow,
+    colKey: string,
+    value: unknown,
+  ): Promise<void> => {
+    // Two writeable surfaces in Excel mode:
+    //   - `enabled` is a top-level column on the product → PATCH at root
+    //   - everything else is an attribute → wrap in `attributes`
+    // Anything outside this set should not be reachable because
+    // EXCEL_COLUMNS marks unsupported keys as readOnly, but we guard
+    // defensively in case the column set changes.
+    try {
+      if (colKey === 'enabled') {
+        await jsonFetch(`/api/products/${row.id}`, {
+          method: 'PATCH',
+          body: { enabled: Boolean(value) },
+          contentType: 'application/merge-patch+json',
+        });
+      } else if (colKey === 'name' || colKey === 'brand') {
+        await jsonFetch(`/api/products/${row.id}`, {
+          method: 'PATCH',
+          body: { attributes: { [colKey]: value } },
+          contentType: 'application/merge-patch+json',
+        });
+      } else {
+        return;
+      }
+      await refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'unknown');
+    }
+  };
+
   const onBulkApplied = (): void => {
     setSelected(new Set());
     setShowSelectedOnly(false);
@@ -346,6 +416,8 @@ export function ProductListPage() {
 
         <VariantsToggle mode={variantsMode} onChange={setVariantsMode} />
 
+        <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
+
         <Button
           type="button"
           variant="outline"
@@ -431,6 +503,16 @@ export function ProductListPage() {
 
       {showEmptyState ? (
         <EmptyStateProducts />
+      ) : viewMode === 'excel' ? (
+        <ExcelLikeGrid<ExcelProductRow>
+          rows={visible as ExcelProductRow[]}
+          columns={EXCEL_COLUMNS}
+          onCommit={(rowIdx, colKey, value) => {
+            const row = visible[rowIdx];
+            if (row === undefined) return;
+            void handleExcelCommit(row, colKey, value);
+          }}
+        />
       ) : (
         <ProductsGrid
           rows={visible}
