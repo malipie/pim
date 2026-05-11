@@ -179,4 +179,45 @@
     outline: none;
     box-shadow: 0 0 0 4px rgba(24, 24, 27, 0.08);
   }
+
+  /* Imports primitives — shimmer + pulse for live indicators (VIEW-IMP-00). */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.18) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: -100% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  .pulse-dot {
+    animation: pulse-dot 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(0.85);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+  }
+  .font-display {
+    font-family: var(--font-sans);
+    letter-spacing: -0.035em;
+    font-feature-settings:
+      "tnum" 1,
+      "ss01" 1;
+  }
 }

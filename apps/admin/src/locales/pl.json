@@ -1036,6 +1036,22 @@
     "coming_soon": "Coming with epik 0.10 / UI-04"
   },
   "imports": {
+    "tabs": {
+      "section_title": "Importy",
+      "section_subtitle": "Sesje, profile mapowań, źródła i harmonogram",
+      "aria_label": "Zakładki Importy",
+      "sessions": "Sesje",
+      "profiles": "Profile mapowań",
+      "sources": "Źródła",
+      "schedule": "Harmonogram"
+    },
+    "placeholder": {
+      "coming_soon": "Wkrótce",
+      "sources_subtitle": "Konfiguracja źródeł SFTP/FTP/HTTP — zakładka aktywowana w VIEW-IMP-03",
+      "schedule_subtitle": "Harmonogram cyklicznych importów — zakładka aktywowana w VIEW-IMP-04",
+      "profiles_subtitle": "Biblioteka profili mapowań — zakładka aktywowana w VIEW-IMP-02",
+      "profiles_open_manager": "Otwórz menedżera profili"
+    },
     "list": {
       "title": "Importy",
       "new": "Nowy import",

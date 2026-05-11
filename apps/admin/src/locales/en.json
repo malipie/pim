@@ -996,6 +996,22 @@
     "coming_soon": "Coming with epik 0.10 / UI-04"
   },
   "imports": {
+    "tabs": {
+      "section_title": "Imports",
+      "section_subtitle": "Sessions, mapping profiles, sources, schedule",
+      "aria_label": "Imports tabs",
+      "sessions": "Sessions",
+      "profiles": "Mapping profiles",
+      "sources": "Sources",
+      "schedule": "Schedule"
+    },
+    "placeholder": {
+      "coming_soon": "Coming soon",
+      "sources_subtitle": "SFTP/FTP/HTTP source configuration — activated in VIEW-IMP-03",
+      "schedule_subtitle": "Recurring import schedule — activated in VIEW-IMP-04",
+      "profiles_subtitle": "Mapping profiles library — activated in VIEW-IMP-02",
+      "profiles_open_manager": "Open profile manager"
+    },
     "list": {
       "title": "Imports",
       "new": "New import",
