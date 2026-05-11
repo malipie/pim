@@ -1012,6 +1012,71 @@
       "profiles_subtitle": "Mapping profiles library — activated in VIEW-IMP-02",
       "profiles_open_manager": "Open profile manager"
     },
+    "sessions": {
+      "title": "Import sessions",
+      "subtitle_eyebrow": "Inbound data synchronization",
+      "description": "Every file entering PIM goes through the same pipeline: parsing → mapping → validation → write. Below is the last 30 days history.",
+      "new_import": "New import",
+      "kpi": {
+        "active": "In progress",
+        "active_unit": "active sessions",
+        "throughput": "throughput",
+        "rows_per_sec": "rows/s",
+        "today": "Today · {{date}}",
+        "rate30": "Success · 30 days",
+        "top_errors": "Top errors · 30 days",
+        "no_errors": "No failed sessions in the last 30 days."
+      },
+      "live": {
+        "heading": "In progress",
+        "in_progress": "{{stage}} · running",
+        "profile": "Profile:",
+        "started_at": "Started:",
+        "of_rows": "of {{total}} rows",
+        "rate": "rate",
+        "elapsed": "elapsed",
+        "progress_aria": "Import progress: {{pct}}%",
+        "warnings": "Warnings",
+        "errors": "Errors",
+        "open": "Open",
+        "empty": "No active imports. Start with \"New import\" to launch a new session."
+      },
+      "history": {
+        "heading": "History",
+        "eyebrow": "last 30 days · {{total}} sessions",
+        "search_placeholder": "file, profile…",
+        "search_aria": "Search session",
+        "col_file": "File · source",
+        "col_profile": "Profile",
+        "col_mode": "Mode",
+        "col_rows": "Rows",
+        "col_breakdown": "OK / warn / err",
+        "col_started": "Started · duration",
+        "col_status": "Status",
+        "source_upload": "upload",
+        "no_profile": "—",
+        "empty_filtered": "No sessions match the current filter.",
+        "shown_count": "Showing {{count}} of {{total}} sessions"
+      },
+      "filter": {
+        "aria_label": "Filter sessions by status",
+        "all": "all",
+        "success": "success",
+        "warning": "warnings",
+        "error": "errors",
+        "cancelled": "cancelled"
+      },
+      "status": {
+        "pending": "pending",
+        "running": "running",
+        "paused": "paused",
+        "success": "success",
+        "partial": "partial",
+        "failed": "error",
+        "cancelled": "cancelled",
+        "rolled_back": "rolled back"
+      }
+    },
     "list": {
       "title": "Imports",
       "new": "New import",

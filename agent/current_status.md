@@ -1,6 +1,6 @@
 # Current Status
 
-## 2026-05-11: Epik UI-11 — Importy redesign **START** (VIEW-IMP-00 do VIEW-IMP-AUDIT)
+## 2026-05-11: Epik UI-11 — Importy redesign **IN PROGRESS** (VIEW-IMP-00..AUDIT)
 
 Operator wrzucił design do `Zrodla/Front_Claude_Design/PIM-nowoczesny/integracje/` (6 plików JSX + 4 HTML-e) → przeprojektowanie zakładki Importu w sekcji Integracje na **tabbed hub z 4 zakładkami**: Sesje, Profile, Źródła, Harmonogram.
 
@@ -14,7 +14,12 @@ Operator wrzucił design do `Zrodla/Front_Claude_Design/PIM-nowoczesny/integracj
 
 **Plan epiku**: `~/.claude/plans/nifty-exploring-dolphin.md` (referencja) — pliki ticketów w `Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-IMP-NN-*.md`.
 
-**Aktualny ticket**: VIEW-IMP-00 (foundation: tab container + 10 primitives).
+**Blokery zamknięte przed startem:**
+- **IMP-16** ([#494](https://github.com/malipie/PIM/pull/494) → `2a4b99c`) — category assignment from import (`__category__` mapping target). Operator pracował lokalnie, paczka zamknięta jako osobny PR przed epikiem żeby working tree było clean.
+
+**Postęp epiku:**
+- ✅ **VIEW-IMP-00** ([#495](https://github.com/malipie/PIM/pull/495) → `b63e1f3`) — foundation: `<ImportsLayout>` + `<ImportsTabNav>` + 10 reusable prymitywów + i18n + Playwright spec. CI 6/6 zielone.
+- 🟡 **VIEW-IMP-01** ([#496](https://github.com/malipie/PIM/issues/496)) — Sesje overhaul (PR pending) — BE: `ListImportSessionsController` + `ImportThroughputController` + `ImportThroughputCalculator` + 9 ApiTestCase + 6 unit tests. FE: `ImportSessionsView` (zastępuje `ImportsListView`) + `KpiStrip` + `LiveSessionCard` + `HistoryTable` + `HistoryRow` + `SessionsFilterPills` + Playwright spec.
 
 ---
 

@@ -1052,6 +1052,71 @@
       "profiles_subtitle": "Biblioteka profili mapowań — zakładka aktywowana w VIEW-IMP-02",
       "profiles_open_manager": "Otwórz menedżera profili"
     },
+    "sessions": {
+      "title": "Sesje importów",
+      "subtitle_eyebrow": "Synchronizacja danych przychodzących",
+      "description": "Każdy plik wchodzący do PIM przechodzi przez ten sam pipeline: parsing → mapowanie → walidacja → zapis. Niżej historia ostatnich 30 dni.",
+      "new_import": "Nowy import",
+      "kpi": {
+        "active": "W toku",
+        "active_unit": "aktywnych sesji",
+        "throughput": "throughput",
+        "rows_per_sec": "wier/s",
+        "today": "Dziś · {{date}}",
+        "rate30": "Sukces · 30 dni",
+        "top_errors": "Top błędy · 30 dni",
+        "no_errors": "Brak błędnych sesji w ostatnich 30 dniach."
+      },
+      "live": {
+        "heading": "W toku",
+        "in_progress": "{{stage}} · w toku",
+        "profile": "Profil:",
+        "started_at": "Start:",
+        "of_rows": "z {{total}} wierszy",
+        "rate": "tempo",
+        "elapsed": "czas",
+        "progress_aria": "Postęp importu: {{pct}}%",
+        "warnings": "Ostrzeżenia",
+        "errors": "Błędy",
+        "open": "Otwórz",
+        "empty": "Brak aktywnych importów. Zacznij od „Nowy import”, aby uruchomić nową sesję."
+      },
+      "history": {
+        "heading": "Historia",
+        "eyebrow": "ostatnie 30 dni · {{total}} sesji",
+        "search_placeholder": "plik, profil…",
+        "search_aria": "Wyszukaj sesję",
+        "col_file": "Plik · źródło",
+        "col_profile": "Profil",
+        "col_mode": "Tryb",
+        "col_rows": "Wiersze",
+        "col_breakdown": "Rozkład OK / warn / err",
+        "col_started": "Start · czas",
+        "col_status": "Status",
+        "source_upload": "upload",
+        "no_profile": "—",
+        "empty_filtered": "Brak sesji pasujących do filtra.",
+        "shown_count": "Pokazano {{count}} z {{total}} sesji"
+      },
+      "filter": {
+        "aria_label": "Filtruj sesje po statusie",
+        "all": "wszystkie",
+        "success": "sukces",
+        "warning": "ostrzeżenia",
+        "error": "błędy",
+        "cancelled": "anulowane"
+      },
+      "status": {
+        "pending": "oczekuje",
+        "running": "w toku",
+        "paused": "wstrzymano",
+        "success": "sukces",
+        "partial": "częściowy",
+        "failed": "błąd",
+        "cancelled": "anulowano",
+        "rolled_back": "wycofano"
+      }
+    },
     "list": {
       "title": "Importy",
       "new": "Nowy import",
