@@ -1,5 +1,23 @@
 # Current Status
 
+## 2026-05-11: Epik UI-11 — Importy redesign **START** (VIEW-IMP-00 do VIEW-IMP-AUDIT)
+
+Operator wrzucił design do `Zrodla/Front_Claude_Design/PIM-nowoczesny/integracje/` (6 plików JSX + 4 HTML-e) → przeprojektowanie zakładki Importu w sekcji Integracje na **tabbed hub z 4 zakładkami**: Sesje, Profile, Źródła, Harmonogram.
+
+**Scope** (zatwierdzony plan-mode): 5 widoków + foundation + audit = 7 ticketów. Sources + Schedule to NOWA funkcjonalność BE (encje, cron worker, polling, notifications). Sesje + Profile = overhaul UI istniejących pages. Wizard refactor = osobny ticket.
+
+**Routing**: zagnieżdżone `/integrations/imports/sessions|profiles|sources|schedule`, default redirect `/integrations/imports` → `/sessions`.
+
+**Tryb**: marathon mode (CLAUDE.md → EPIK MARATHON RULE), każdy ticket = własny branch + PR + CI + merge.
+
+**Estymacja**: ~84h (low) / ~118h (mid) / ~156h (high).
+
+**Plan epiku**: `~/.claude/plans/nifty-exploring-dolphin.md` (referencja) — pliki ticketów w `Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-IMP-NN-*.md`.
+
+**Aktualny ticket**: VIEW-IMP-00 (foundation: tab container + 10 primitives).
+
+---
+
 ## 2026-05-10: Epik UI-10 — Product Categories Assignment **DOMKNIĘTY** (PCAT-01..07 + PCAT-06b merged)
 
 Marathon zakończony — wszystkie 8 ticketów PCAT-01..07 + PCAT-06b shipped w jednym dniu (Marathon Rule). Killer feature „Effective preview" w panelu kategorii dostała empirical validation: produkt można wpiąć w kategorię, jego forma realnie pokazuje dziedziczone grupy atrybutów.

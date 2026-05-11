@@ -35,8 +35,12 @@ import { ChannelsListPage } from '@/features/channel/channels/list';
 import { ChannelShowPage } from '@/features/channel/channels/show';
 import { DashboardPage } from '@/features/dashboard/page';
 import { LoginPage } from '@/features/identity/auth/login';
+import { ImportsLayout } from '@/features/imports/layout/ImportsLayout';
 import { ImportsListView } from '@/features/imports/list/ImportsListView';
+import { ImportProfilesPlaceholder } from '@/features/imports/profiles/ImportProfilesPlaceholder';
+import { ImportSchedulePlaceholder } from '@/features/imports/schedule/ImportSchedulePlaceholder';
 import { ImportShowPage } from '@/features/imports/show/ImportShowPage';
+import { ImportSourcesPlaceholder } from '@/features/imports/sources/ImportSourcesPlaceholder';
 import { ImportWizardPage } from '@/features/imports/wizard/ImportWizardPage';
 import { IntegrationsLayout } from '@/features/integration-hub/IntegrationsLayout';
 import { AiSettingsPage } from '@/features/settings/ai';
@@ -113,13 +117,13 @@ function App() {
             },
             {
               name: 'import-sessions',
-              list: '/integrations/imports',
+              list: '/integrations/imports/sessions',
               show: '/integrations/imports/:id',
               create: '/integrations/imports/new',
             },
             {
               name: 'import-profiles',
-              list: '/integrations/imports',
+              list: '/integrations/imports/profiles',
             },
           ]}
           options={{
@@ -214,7 +218,17 @@ function App() {
                   ścieżki /publications/* i /api-profiles/* redirectują niżej. */}
               <Route path="/integrations" element={<IntegrationsLayout />}>
                 <Route index element={<Navigate to="/integrations/imports" replace />} />
-                <Route path="imports" element={<ImportsListView />} />
+                {/* VIEW-IMP-00 (#493) — Importy hub with 4 tabs. Old flat
+                    /integrations/imports keeps working via redirect to the
+                    Sessions tab (default). Wizard + show pages live at the
+                    same depth so deep-links from emails/reports survive. */}
+                <Route path="imports" element={<ImportsLayout />}>
+                  <Route index element={<Navigate to="sessions" replace />} />
+                  <Route path="sessions" element={<ImportsListView />} />
+                  <Route path="profiles" element={<ImportProfilesPlaceholder />} />
+                  <Route path="sources" element={<ImportSourcesPlaceholder />} />
+                  <Route path="schedule" element={<ImportSchedulePlaceholder />} />
+                </Route>
                 <Route path="imports/new" element={<ImportWizardPage />} />
                 <Route path="imports/:id" element={<ImportShowPage />} />
                 <Route path="api-configurator" element={<ApiProfilesListPage />} />
@@ -227,11 +241,11 @@ function App() {
                   telemetria pokaże 0 trafień. */}
               <Route
                 path="/publications"
-                element={<Navigate to="/integrations/imports" replace />}
+                element={<Navigate to="/integrations/imports/sessions" replace />}
               />
               <Route
                 path="/publications/imports"
-                element={<Navigate to="/integrations/imports" replace />}
+                element={<Navigate to="/integrations/imports/sessions" replace />}
               />
               <Route
                 path="/publications/imports/new"
