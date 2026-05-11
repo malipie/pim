@@ -47,11 +47,10 @@ test.describe('Imports hub — tabs', () => {
     ).toBeVisible();
   });
 
-  test('placeholder tabs render the coming-soon banner', async ({ page }) => {
+  test('schedule placeholder still renders the coming-soon banner', async ({ page }) => {
+    // Sources got the full view in VIEW-IMP-03 — only the schedule tab
+    // remains a placeholder until VIEW-IMP-04 ships the dedicated UI.
     await loginAsAdmin(page);
-
-    await page.goto('/integrations/imports/sources');
-    await expect(page.getByRole('heading', { name: /wkrótce|coming soon/i })).toBeVisible();
 
     await page.goto('/integrations/imports/schedule');
     await expect(page.getByRole('heading', { name: /wkrótce|coming soon/i })).toBeVisible();

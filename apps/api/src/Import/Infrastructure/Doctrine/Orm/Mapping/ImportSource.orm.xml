@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Import\Domain\Entity\ImportSource"
+            table="import_sources"
+            repository-class="App\Import\Infrastructure\Doctrine\Repository\DoctrineImportSourceRepository">
+
+        <unique-constraints>
+            <unique-constraint name="import_sources_tenant_code_uniq" columns="tenant_id,code"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="import_sources_tenant_user_idx" columns="tenant_id,user_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="userId" type="uuid" column="user_id"/>
+
+        <many-to-one field="profile" target-entity="App\Import\Domain\Entity\ImportProfile">
+            <join-column name="profile_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <field name="name" type="string" length="255"/>
+        <field name="code" type="string" length="64"/>
+        <field name="type" type="string" length="16"/>
+        <field name="host" type="text" nullable="true"/>
+        <field name="path" type="text" nullable="true"/>
+        <field name="filePattern" type="string" length="255" column="file_pattern" nullable="true"/>
+        <field name="authRef" type="string" length="128" column="auth_ref" nullable="true"/>
+        <field name="pollIntervalSec" type="integer" column="poll_interval_sec" nullable="true"/>
+        <field name="autotrigger" type="boolean">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+        <field name="health" type="string" length="8">
+            <options>
+                <option name="default">off</option>
+            </options>
+        </field>
+        <field name="healthCheckedAt" type="datetimetz_immutable" column="health_checked_at" nullable="true"/>
+        <field name="healthNote" type="text" column="health_note" nullable="true"/>
+        <field name="lastPickupAt" type="datetimetz_immutable" column="last_pickup_at" nullable="true"/>
+        <field name="files24h" type="integer">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="createdAt" type="datetimetz_immutable" column="created_at"/>
+        <field name="updatedAt" type="datetimetz_immutable" column="updated_at"/>
+
+    </entity>
+
+</doctrine-mapping>
