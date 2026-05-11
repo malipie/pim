@@ -1012,6 +1012,71 @@
       "profiles_subtitle": "Mapping profiles library — activated in VIEW-IMP-02",
       "profiles_open_manager": "Open profile manager"
     },
+    "profiles": {
+      "title": "Mapping profiles",
+      "subtitle_eyebrow": "Reusable mapping configurations",
+      "description": "A profile is a saved rule set for reading a file format: columns to attributes, import mode, encoding, delimiter. Versioned, exportable as JSON.",
+      "new_profile": "New profile",
+      "search_placeholder": "Search by name or code…",
+      "search_aria": "Search profile",
+      "view": {
+        "aria_label": "Layout mode",
+        "grid": "Grid",
+        "list": "List"
+      },
+      "card": {
+        "more_actions": "More actions",
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "export": "Export JSON",
+        "delete": "Delete",
+        "target": "Target",
+        "encoding": "Encoding",
+        "columns": "Columns",
+        "columns_count": "{{count}} columns",
+        "columns_count_one": "{{count}} column",
+        "locale": "Locale",
+        "last_used": "last used: {{date}}",
+        "never_used": "never used"
+      },
+      "list": {
+        "col_name": "Name · code",
+        "col_target": "Target",
+        "col_format": "Format",
+        "col_mode": "Mode",
+        "col_columns": "Columns",
+        "col_locale": "Locale",
+        "col_last_used": "Last used",
+        "empty_filtered": "No profiles match the current filter."
+      },
+      "new_profile_card": {
+        "title": "New mapping profile",
+        "subtitle": "Start from scratch or import a JSON envelope from another environment."
+      },
+      "dialog": {
+        "title_create": "New mapping profile",
+        "title_edit": "Edit profile",
+        "name": "Name",
+        "code": "Code",
+        "code_hint": "Lowercase letters, digits, and dashes only. Defaults to a slug of the name.",
+        "mode": "Import mode",
+        "target": "Target object type",
+        "target_placeholder": "Pick an object type",
+        "encoding": "Encoding",
+        "delimiter": "Delimiter",
+        "locale": "Locale",
+        "create": "Create",
+        "errors": {
+          "name_required": "Profile name is required.",
+          "target_required": "Target object type is required."
+        }
+      },
+      "delete": {
+        "title": "Delete mapping profile",
+        "confirm": "Delete profile \"{{name}}\"? This action cannot be undone.",
+        "confirm_button": "Delete profile"
+      }
+    },
     "sessions": {
       "title": "Import sessions",
       "subtitle_eyebrow": "Inbound data synchronization",
@@ -1219,7 +1284,7 @@
       "rollback_window": "Available until {{date}}",
       "rollback_expired": "Rollback window expired"
     },
-    "profiles": {
+    "profile_manager": {
       "title": "My import profiles",
       "columns": {
         "name": "Profile",

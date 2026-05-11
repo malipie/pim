@@ -19,7 +19,8 @@ Operator wrzucił design do `Zrodla/Front_Claude_Design/PIM-nowoczesny/integracj
 
 **Postęp epiku:**
 - ✅ **VIEW-IMP-00** ([#495](https://github.com/malipie/PIM/pull/495) → `b63e1f3`) — foundation: `<ImportsLayout>` + `<ImportsTabNav>` + 10 reusable prymitywów + i18n + Playwright spec. CI 6/6 zielone.
-- 🟡 **VIEW-IMP-01** ([#496](https://github.com/malipie/PIM/issues/496)) — Sesje overhaul (PR pending) — BE: `ListImportSessionsController` + `ImportThroughputController` + `ImportThroughputCalculator` + 9 ApiTestCase + 6 unit tests. FE: `ImportSessionsView` (zastępuje `ImportsListView`) + `KpiStrip` + `LiveSessionCard` + `HistoryTable` + `HistoryRow` + `SessionsFilterPills` + Playwright spec.
+- ✅ **VIEW-IMP-01** ([#497](https://github.com/malipie/PIM/pull/497) → `07fa5a5`) — Sesje overhaul. BE: `ListImportSessionsController` + `ImportThroughputController` + `ImportThroughputCalculator`. FE: `ImportSessionsView` (zastępuje `ImportsListView`) + KpiStrip + LiveSessionCard + HistoryTable. Test: 9 ApiTestCase + 6 unit + 1 Playwright (skonsolidowane). Lekcja: nowe spec'y MUSZĄ mieć 1 test/1 login (rate-limiter 5/IP/15min).
+- 🟡 **VIEW-IMP-02** ([#498](https://github.com/malipie/PIM/issues/498)) — Profile overhaul. BE: migracja `import_profiles.code` + `mode` + UNIQUE (tenant_id, user_id, code), `ImportMode` enum, 3 custom controllery (Duplicate/Export/Import), Input + PatchInput rozszerzone. FE: `ImportProfilesView` (zastępuje placeholder), `ProfileCard`/`ProfileRow`/`NewProfileCard`/`ProfileEditDialog`, grid/list toggle, search, delete dialog. 7 ApiTestCase + Playwright (1 test/1 login).
 
 ---
 

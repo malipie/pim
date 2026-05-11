@@ -10,6 +10,7 @@
 
         <unique-constraints>
             <unique-constraint name="import_profiles_tenant_user_name_uniq" columns="tenant_id,user_id,name"/>
+            <unique-constraint name="import_profiles_tenant_user_code_uniq" columns="tenant_id,user_id,code"/>
         </unique-constraints>
 
         <indexes>
@@ -27,6 +28,12 @@
         <field name="userId" type="uuid" column="user_id"/>
 
         <field name="name" type="string" length="255"/>
+        <field name="code" type="string" length="64"/>
+        <field name="mode" type="string" length="16">
+            <options>
+                <option name="default">UPDATE</option>
+            </options>
+        </field>
 
         <many-to-one field="targetObjectType" target-entity="App\Catalog\Domain\Entity\ObjectType">
             <join-column name="target_object_type_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>

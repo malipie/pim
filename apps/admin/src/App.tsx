@@ -36,7 +36,7 @@ import { ChannelShowPage } from '@/features/channel/channels/show';
 import { DashboardPage } from '@/features/dashboard/page';
 import { LoginPage } from '@/features/identity/auth/login';
 import { ImportsLayout } from '@/features/imports/layout/ImportsLayout';
-import { ImportProfilesPlaceholder } from '@/features/imports/profiles/ImportProfilesPlaceholder';
+import { ImportProfilesView } from '@/features/imports/profiles/ImportProfilesView';
 import { ImportSchedulePlaceholder } from '@/features/imports/schedule/ImportSchedulePlaceholder';
 import { ImportSessionsView } from '@/features/imports/sessions/ImportSessionsView';
 import { ImportShowPage } from '@/features/imports/show/ImportShowPage';
@@ -225,7 +225,7 @@ function App() {
                 <Route path="imports" element={<ImportsLayout />}>
                   <Route index element={<Navigate to="sessions" replace />} />
                   <Route path="sessions" element={<ImportSessionsView />} />
-                  <Route path="profiles" element={<ImportProfilesPlaceholder />} />
+                  <Route path="profiles" element={<ImportProfilesView />} />
                   <Route path="sources" element={<ImportSourcesPlaceholder />} />
                   <Route path="schedule" element={<ImportSchedulePlaceholder />} />
                 </Route>

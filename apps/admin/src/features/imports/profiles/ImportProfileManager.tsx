@@ -56,18 +56,18 @@ export function ImportProfileManager({
   const columns: ReadonlyArray<DataTableColumn<ImportProfileRow>> = [
     {
       id: 'name',
-      header: t('imports.profiles.columns.name', { defaultValue: 'Profil' }),
+      header: t('imports.profile_manager.columns.name', { defaultValue: 'Profil' }),
       cell: (row) => <span className="font-medium">{row.name}</span>,
     },
     {
       id: 'last_used',
-      header: t('imports.profiles.columns.last_used', { defaultValue: 'Ostatnio użyty' }),
+      header: t('imports.profile_manager.columns.last_used', { defaultValue: 'Ostatnio użyty' }),
       cell: (row) => formatRelative(row.lastUsedAt),
       className: 'whitespace-nowrap text-xs text-muted-foreground',
     },
     {
       id: 'actions',
-      header: t('imports.profiles.columns.actions', { defaultValue: 'Akcje' }),
+      header: t('imports.profile_manager.columns.actions', { defaultValue: 'Akcje' }),
       align: 'right',
       cell: (row) => (
         <div className="flex justify-end gap-1">
@@ -78,7 +78,7 @@ export function ImportProfileManager({
             variant="ghost"
             size="sm"
             onClick={() => setDeleting(row)}
-            aria-label={t('imports.profiles.delete', { defaultValue: 'Usuń' })}
+            aria-label={t('imports.profile_manager.delete', { defaultValue: 'Usuń' })}
           >
             🗑
           </Button>
@@ -92,10 +92,10 @@ export function ImportProfileManager({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="w-full max-w-2xl">
           <SheetTitle>
-            {t('imports.profiles.title', { defaultValue: 'Moje profile importu' })}
+            {t('imports.profile_manager.title', { defaultValue: 'Moje profile importu' })}
           </SheetTitle>
           <p className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
-            {t('imports.profiles.disclaimer', {
+            {t('imports.profile_manager.disclaimer', {
               defaultValue:
                 'Edycja profilu modyfikuje tylko przyszłe importy. Nie wpływa na poprzednie.',
             })}
@@ -175,7 +175,9 @@ function EditProfileDialog({
     <Dialog open onOpenChange={(next) => !next && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('imports.profiles.edit', { defaultValue: 'Edytuj profil' })}</DialogTitle>
+          <DialogTitle>
+            {t('imports.profile_manager.edit', { defaultValue: 'Edytuj profil' })}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
@@ -222,7 +224,9 @@ function DeleteProfileDialog({
     <Dialog open onOpenChange={(next) => !next && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('imports.profiles.delete', { defaultValue: 'Usuń profil' })}</DialogTitle>
+          <DialogTitle>
+            {t('imports.profile_manager.delete', { defaultValue: 'Usuń profil' })}
+          </DialogTitle>
         </DialogHeader>
         <p className="text-sm">
           Usunąć profil <span className="font-mono">{profile.name}</span>? Zostanie usunięty na
@@ -233,7 +237,7 @@ function DeleteProfileDialog({
             {t('imports.wizard.cancel', { defaultValue: 'Anuluj' })}
           </Button>
           <Button variant="destructive" onClick={confirm} disabled={mutation.isPending}>
-            {t('imports.profiles.delete', { defaultValue: 'Usuń' })}
+            {t('imports.profile_manager.delete', { defaultValue: 'Usuń' })}
           </Button>
         </DialogFooter>
       </DialogContent>
