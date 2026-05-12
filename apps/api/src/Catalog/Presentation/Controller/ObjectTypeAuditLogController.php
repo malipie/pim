@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Shared\Infrastructure\Audit\CursorCodec;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use Stringable;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -57,17 +59,29 @@ final class ObjectTypeAuditLogController
             throw new BadRequestHttpException(\sprintf('limit must be between 1 and %d.', self::MAX_LIMIT));
         }
 
-        // Inline LIMIT: dh_auditor's audit table is per-tenant via the
-        // app's TenantFilter on read paths; the LIMIT is a sanitized int
-        // (validated above) so concatenation is safe.
-        $rows = $this->connection->fetchAllAssociative(
-            'SELECT id, type, source, target, blame, diffs, created_at'
+        // HARD-05 — opaque cursor over (created_at, id). Default
+        // limit=10 was sufficient for the compact widget, but the
+        // detail-page "Show all" link had nothing to call into;
+        // operators chasing an older incident were stuck.
+        $cursor = CursorCodec::decode($request->query->get('cursor'));
+
+        $sql = 'SELECT id, type, source, target, blame, diffs, created_at'
             .' FROM object_types_audit'
-            .' WHERE object_id = ?'
-            .' ORDER BY created_at DESC'
-            .' LIMIT '.$limit,
-            [$id],
-        );
+            .' WHERE object_id = :objectId';
+        $params = ['objectId' => $id];
+        $types = ['limit' => ParameterType::INTEGER];
+
+        if (null !== $cursor) {
+            $sql .= ' AND (created_at, id) < (:cursorT, :cursorI)';
+            $params['cursorT'] = $cursor['t'];
+            $params['cursorI'] = (string) $cursor['i'];
+            $types['cursorI'] = ParameterType::INTEGER;
+        }
+
+        $sql .= ' ORDER BY created_at DESC, id DESC LIMIT :limit';
+        $params['limit'] = (string) $limit;
+
+        $rows = $this->connection->fetchAllAssociative($sql, $params, $types);
 
         $entries = [];
         foreach ($rows as $row) {
@@ -86,7 +100,20 @@ final class ObjectTypeAuditLogController
             ];
         }
 
-        return new JsonResponse(['entries' => $entries]);
+        $nextCursor = null;
+        if (\count($rows) === $limit) {
+            $last = $rows[\count($rows) - 1];
+            $lastCreatedAt = $last['created_at'] ?? null;
+            $lastId = $last['id'] ?? null;
+            if (\is_string($lastCreatedAt) && (\is_int($lastId) || (\is_string($lastId) && ctype_digit($lastId)))) {
+                $nextCursor = CursorCodec::encode($lastCreatedAt, (int) $lastId);
+            }
+        }
+
+        return new JsonResponse([
+            'entries' => $entries,
+            'next_cursor' => $nextCursor,
+        ]);
     }
 
     private static function stringify(mixed $value): string
