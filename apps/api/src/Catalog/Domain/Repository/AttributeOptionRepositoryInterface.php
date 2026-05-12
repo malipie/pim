@@ -17,6 +17,18 @@ interface AttributeOptionRepositoryInterface
      */
     public function findByAttribute(Attribute $attribute): array;
 
+    /**
+     * Bulk variant of {@see findByAttribute}. Returns every option whose
+     * parent Attribute is in `$attributes`, sorted by attribute then by
+     * position. Used by the product detail / variants tab eager loader so
+     * select-like attributes ship their options in one round-trip.
+     *
+     * @param list<Attribute> $attributes
+     *
+     * @return list<AttributeOption>
+     */
+    public function findByAttributes(array $attributes): array;
+
     public function save(AttributeOption $attributeOption): void;
 
     public function remove(AttributeOption $attributeOption): void;

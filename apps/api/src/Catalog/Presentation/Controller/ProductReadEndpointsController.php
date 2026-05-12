@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Catalog\Presentation\Controller;
 
+use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Entity\AttributeOption;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
@@ -62,6 +65,7 @@ final class ProductReadEndpointsController
         private readonly EffectiveAttributeGroupResolver $resolver,
         private readonly Connection $connection,
         private readonly ObjectTypeAttributeRepositoryInterface $objectTypeAttributes,
+        private readonly AttributeOptionRepositoryInterface $attributeOptions,
     ) {
     }
 
@@ -151,6 +155,29 @@ final class ProductReadEndpointsController
         $groups = $this->resolver->resolve($product);
         $byGroup = $this->resolver->loadGroupAttributes($groups);
 
+        // Pre-pass: collect every select / multiselect Attribute reachable
+        // from this product so we can ship its `AttributeOption` list in the
+        // same response. Without this the detail page renders a free-text
+        // input for predefined-value attributes and operators have to type
+        // option codes by hand instead of picking them.
+        /** @var array<string, Attribute> $optionsAttrs */
+        $optionsAttrs = [];
+        foreach ($groups as $group) {
+            foreach ($byGroup[$group->getId()->toRfc4122()] ?? [] as $j) {
+                $a = $j->getAttribute();
+                if ($a->getType()->usesOptions()) {
+                    $optionsAttrs[$a->getId()->toRfc4122()] = $a;
+                }
+            }
+        }
+        foreach ($this->objectTypeAttributes->findByObjectType($product->getObjectType()) as $junction) {
+            $a = $junction->getAttribute();
+            if ($a->getType()->usesOptions()) {
+                $optionsAttrs[$a->getId()->toRfc4122()] = $a;
+            }
+        }
+        $optionsByAttributeId = $this->loadOptionsByAttributeId(array_values($optionsAttrs));
+
         // Track every Attribute UUID already exposed via a real group so
         // the synthetic "default" bucket below never duplicates them.
         $seenAttributeIds = [];
@@ -162,16 +189,13 @@ final class ProductReadEndpointsController
             foreach ($junctions as $j) {
                 $attribute = $j->getAttribute();
                 $seenAttributeIds[$attribute->getId()->toRfc4122()] = true;
-                $attributes[] = [
-                    'id' => $attribute->getId()->toRfc4122(),
-                    'code' => $attribute->getCode(),
-                    'type' => $attribute->getType()->value,
-                    'label' => $attribute->getLabel(),
-                    'is_system' => $attribute->isSystem(),
-                    'position' => $j->getPosition(),
-                    'is_required_in_group' => $j->isRequiredInGroup(),
-                    'visible_when' => $j->getVisibleWhen(),
-                ];
+                $attributes[] = $this->serializeAttribute(
+                    $attribute,
+                    $j->getPosition(),
+                    $j->isRequiredInGroup(),
+                    $j->getVisibleWhen(),
+                    $optionsByAttributeId,
+                );
             }
             $effective[] = [
                 'id' => $group->getId()->toRfc4122(),
@@ -206,16 +230,13 @@ final class ProductReadEndpointsController
                 continue;
             }
             $seenAttributeIds[$key] = true;
-            $defaultAttributes[] = [
-                'id' => $key,
-                'code' => $attribute->getCode(),
-                'type' => $attribute->getType()->value,
-                'label' => $attribute->getLabel(),
-                'is_system' => $attribute->isSystem(),
-                'position' => $junction->getSortOrder(),
-                'is_required_in_group' => $junction->isRequiredForCompleteness(),
-                'visible_when' => null,
-            ];
+            $defaultAttributes[] = $this->serializeAttribute(
+                $attribute,
+                $junction->getSortOrder(),
+                $junction->isRequiredForCompleteness(),
+                null,
+                $optionsByAttributeId,
+            );
         }
 
         if ([] !== $defaultAttributes) {
@@ -246,5 +267,58 @@ final class ProductReadEndpointsController
         }
 
         return $product;
+    }
+
+    /**
+     * @param list<Attribute> $attributes
+     *
+     * @return array<string, list<array{code: string, label: array<string, string>, color: ?string, is_default: bool, is_deprecated: bool}>>
+     */
+    private function loadOptionsByAttributeId(array $attributes): array
+    {
+        $byId = [];
+        foreach ($this->attributeOptions->findByAttributes($attributes) as $option) {
+            $byId[$option->getAttribute()->getId()->toRfc4122()][] = [
+                'code' => $option->getCode(),
+                'label' => $option->getLabel(),
+                'color' => $option->getColor(),
+                'is_default' => $option->isDefault(),
+                'is_deprecated' => $option->isDeprecated(),
+            ];
+        }
+
+        return $byId;
+    }
+
+    /**
+     * @param array<string, list<array{code: string, label: array<string, string>, color: ?string, is_default: bool, is_deprecated: bool}>> $optionsByAttributeId
+     *
+     * @return array<string, mixed>
+     */
+    private function serializeAttribute(
+        Attribute $attribute,
+        int $position,
+        bool $isRequiredInGroup,
+        mixed $visibleWhen,
+        array $optionsByAttributeId,
+    ): array {
+        $payload = [
+            'id' => $attribute->getId()->toRfc4122(),
+            'code' => $attribute->getCode(),
+            'type' => $attribute->getType()->value,
+            'label' => $attribute->getLabel(),
+            'is_system' => $attribute->isSystem(),
+            'position' => $position,
+            'is_required_in_group' => $isRequiredInGroup,
+            'visible_when' => $visibleWhen,
+        ];
+
+        // Only ship `options` for select-like types — other types ignore
+        // the field, and we want the payload to stay tight.
+        if ($attribute->getType()->usesOptions()) {
+            $payload['options'] = $optionsByAttributeId[$attribute->getId()->toRfc4122()] ?? [];
+        }
+
+        return $payload;
     }
 }

@@ -36,6 +36,28 @@ class DoctrineAttributeOptionRepository extends ServiceEntityRepository implemen
         return $rows;
     }
 
+    /**
+     * @param list<Attribute> $attributes
+     *
+     * @return list<AttributeOption>
+     */
+    public function findByAttributes(array $attributes): array
+    {
+        if ([] === $attributes) {
+            return [];
+        }
+        /** @var list<AttributeOption> $rows */
+        $rows = $this->createQueryBuilder('o')
+            ->andWhere('o.attribute IN (:attributes)')
+            ->setParameter('attributes', $attributes)
+            ->orderBy('IDENTITY(o.attribute)', 'ASC')
+            ->addOrderBy('o.position', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function findById(\Symfony\Component\Uid\Uuid $id): ?AttributeOption
     {
         return parent::find($id->toRfc4122());

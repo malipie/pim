@@ -33,6 +33,20 @@ export interface CatalogObjectDto {
   objectType?: { id?: string; code?: string; name?: { pl?: string; en?: string } } | null;
 }
 
+/**
+ * One choice for a `select` / `multiselect` Attribute. Backend ships this
+ * shape via `effective-attribute-groups` so the detail page can render a
+ * proper picker instead of a free-text input — see
+ * `App\Catalog\Presentation\Controller\ProductReadEndpointsController::serializeAttribute`.
+ */
+export interface AttributeOptionMeta {
+  code: string;
+  label: { pl?: string; en?: string };
+  color?: string | null;
+  is_default?: boolean;
+  is_deprecated?: boolean;
+}
+
 export interface AttributeMeta {
   id: string;
   code: string;
@@ -42,6 +56,13 @@ export interface AttributeMeta {
   position: number;
   is_required_in_group: boolean;
   visible_when?: unknown;
+  /**
+   * Populated by the backend only for `select` / `multiselect` types
+   * (`AttributeType::usesOptions()`). Other types omit the field
+   * entirely; treat `undefined` as "no predefined values, use a free
+   * input".
+   */
+  options?: AttributeOptionMeta[];
 }
 
 export interface GroupMeta {
