@@ -15,6 +15,8 @@ use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
 use App\Import\Domain\ReservedMappingTarget;
 use App\Import\Domain\ValueObject\ValidationError;
 use App\Shared\Application\AbstractBatchHandler;
+use App\Shared\Application\BulkOperationInProgressException;
+use App\Shared\Application\BulkOperationLock;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,6 +25,7 @@ use League\Flysystem\FilesystemOperator;
 use LogicException;
 use RuntimeException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\Exception\RecoverableMessageHandlingException;
 use Throwable;
 
 use const PATHINFO_EXTENSION;
@@ -54,6 +57,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ImportProgressPublisher $progressPublisher,
         private readonly TenantContext $tenantContext,
         private readonly FilesystemOperator $importsStorage,
+        private readonly BulkOperationLock $bulkLock,
         int $batchSize = 200,
     ) {
         parent::__construct($entityManager, $batchSize);
@@ -75,7 +79,19 @@ final class ImportRunHandler extends AbstractBatchHandler
         }
 
         $this->tenantContext->set($tenant);
-        $this->run($session);
+
+        try {
+            $this->run($session);
+        } catch (BulkOperationInProgressException $exception) {
+            // PROD-05 — Messenger entry point: re-throw as recoverable so
+            // the queue retries with backoff instead of dead-lettering.
+            // The synchronous controller path in StartImportController
+            // catches the same domain exception and returns HTTP 409.
+            throw new RecoverableMessageHandlingException(
+                $exception->getMessage().' Will retry.',
+                previous: $exception,
+            );
+        }
     }
 
     /**
@@ -93,11 +109,23 @@ final class ImportRunHandler extends AbstractBatchHandler
             return;
         }
 
+        // PROD-05 — at-most-one bulk job per tenant. Non-blocking acquire;
+        // on collision raise a domain exception so the caller decides
+        // (controller -> 409 Conflict, async handler -> recoverable
+        // retry). ImportSession status stays `pending` so the operator
+        // sees the job is waiting, not dropped.
+        $lock = $this->bulkLock->acquire($tenant);
+        if (null === $lock) {
+            throw new BulkOperationInProgressException($tenant);
+        }
+
         try {
             $session->markRunning();
             $this->sessions->save($session);
         } catch (LogicException $exception) {
             // Already running / paused / failed — bail without state churn.
+            $lock->release();
+
             return;
         }
 
@@ -206,6 +234,7 @@ final class ImportRunHandler extends AbstractBatchHandler
             if (null !== $sourcePath && file_exists($sourcePath)) {
                 @unlink($sourcePath);
             }
+            $lock->release();
         }
     }
 

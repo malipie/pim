@@ -13,6 +13,7 @@ use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Message\ImportRunMessage;
 use App\Import\Domain\Repository\ImportProfileRepositoryInterface;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
+use App\Shared\Application\BulkOperationInProgressException;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use DateTimeInterface;
@@ -26,6 +27,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -137,7 +139,15 @@ final class StartImportController
         if ($session->getFileSizeBytes() <= self::SYNC_THRESHOLD_ROWS * 1024) {
             $reload = $this->sessions->findById($session->getId());
             if ($reload instanceof ImportSession) {
-                $this->runHandler->run($reload);
+                try {
+                    $this->runHandler->run($reload);
+                } catch (BulkOperationInProgressException $exception) {
+                    // PROD-05 — translate the domain collision into a 409
+                    // so the operator sees a clear conflict response. The
+                    // ImportSession row stays `pending`; user can retry
+                    // once the in-flight bulk job releases the lock.
+                    throw new ConflictHttpException($exception->getMessage(), $exception);
+                }
                 $reload = $this->sessions->findById($session->getId()) ?? $reload;
 
                 return new JsonResponse(
