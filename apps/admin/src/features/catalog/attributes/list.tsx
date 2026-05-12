@@ -310,6 +310,7 @@ function useAttributeUsage(
   const map: Record<string, { typesUsed: number; groupsUsed: number; instancesWith: number }> = {};
   for (let i = 0; i < rows.length; i += 1) {
     const row = rows[i];
+    if (row === undefined) continue;
     const data = queries[i]?.data;
     map[row.id] = {
       typesUsed: data?.objectTypes?.length ?? 0,
@@ -336,7 +337,8 @@ function useOptionCounts(rows: AttributeRow[]): Record<string, number> {
   const counts: Record<string, number> = {};
   for (let i = 0; i < selectRows.length; i += 1) {
     const data = queries[i]?.data;
-    if (typeof data === 'number') counts[selectRows[i].code] = data;
+    const row = selectRows[i];
+    if (typeof data === 'number' && row !== undefined) counts[row.code] = data;
   }
   return counts;
 }

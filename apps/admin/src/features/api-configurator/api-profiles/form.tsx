@@ -605,9 +605,9 @@ function resolveLabel(
 ): string {
   if (label === null || label === undefined) return '';
   if (typeof label === 'string') return label;
-  if (locale in label) return label[locale];
-  if ('en' in label) return label.en;
-  if ('pl' in label) return label.pl;
+  if (locale in label) return label[locale] ?? '';
+  if ('en' in label) return label.en ?? '';
+  if ('pl' in label) return label.pl ?? '';
   const first = Object.values(label)[0];
   return first ?? '';
 }

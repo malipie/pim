@@ -276,7 +276,8 @@ function useGroupsUsage(rows: AttributeGroupRow[]): Record<string, UsageResp> {
   const map: Record<string, UsageResp> = {};
   for (let i = 0; i < rows.length; i += 1) {
     const data = queries[i]?.data;
-    if (data !== undefined) map[rows[i].id] = data;
+    const row = rows[i];
+    if (data !== undefined && row !== undefined) map[row.id] = data;
   }
   return map;
 }
