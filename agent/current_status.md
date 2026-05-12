@@ -1,6 +1,20 @@
 # Current Status
 
-## 2026-05-11: Epik UI-11 — Importy redesign **IN PROGRESS** (VIEW-IMP-00..AUDIT)
+## 2026-05-12: Epik UI-11 — Importy redesign **DOMKNIĘTY** (VIEW-IMP-00..05 + AUDIT)
+
+Marathon zakończony w ~24h faktycznych (vs ~118h estymata mid). 8 PR-ów merged do main (IMP-16 bloker + 6 view-first ticketów + audit). Operator dał mandate `merge --admin` dla 4/6 PR-ów z powodu znanego flaky `modeling-shell.spec.ts` (dashboard heading + menu główne, niezwiązane z V01..V05). Wszystkie 4 zakładki Importu zaaplikowane: Sesje (KpiStrip + LiveSessionCard + HistoryTable), Profile (grid/list + duplicate/export/import), Źródła (SourceCard + health-check), Harmonogram (NextRunsTimeline + ScheduleCard + manual run-now). Plus wizard refactor (WizardStepper z 4 pills).
+
+**Świadome odejścia → follow-up VIEW-IMP-03.1 + VIEW-IMP-04.1**:
+- Polling daemon dla `ImportSource` (Symfony Scheduler + Messenger).
+- Cron worker daemon dla `ImportSchedule` (60s tick).
+- Real notification transport (Slack/Email/Webhook).
+- Real SFTP/FTP/HTTP probes (stub driver w MVP).
+- Webhook receiver endpoint dla `type=webhook`.
+- modeling-shell.spec.ts flaky root cause (kandydat na separate maintenance ticket).
+
+---
+
+## 2026-05-11: Epik UI-11 — Importy redesign **W TOKU** (legacy log)
 
 Operator wrzucił design do `Zrodla/Front_Claude_Design/PIM-nowoczesny/integracje/` (6 plików JSX + 4 HTML-e) → przeprojektowanie zakładki Importu w sekcji Integracje na **tabbed hub z 4 zakładkami**: Sesje, Profile, Źródła, Harmonogram.
 

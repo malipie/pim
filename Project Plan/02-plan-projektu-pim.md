@@ -491,6 +491,35 @@ Self-service import produktów z plików **Excel/CSV** + opcjonalnie zdjęcia (l
 
 **Maintenance ticket due** (per `CLAUDE.md` "Zarządzanie zależnościami" — co 2 epiki): epik 0.12 / UI-08 (Modelowanie) → epik 0.13 / UI-09 (Imports) zamknięte → następny `composer outdated` + `pnpm outdated` patch run zalecany przed startem kolejnego epiku.
 
+### 3.8 Epik UI-11 — Importy redesign (post-MVP UX hardening) — DOMKNIĘTY 2026-05-12
+
+**Tracking:** GitHub label `epik-UI-11` + cross-cutting tag `UI`, `view-first`. Plan szczegółowy: [`~/.claude/plans/nifty-exploring-dolphin.md`](../.claude/plans/nifty-exploring-dolphin.md) (plan-mode artifact) + pliki ticketów `Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-IMP-NN-*.md`.
+
+**Cel:** Przeprojektowanie zakładki Importu w sekcji Integracje na **tabbed hub z 4 zakładkami** (Sesje, Profile, Źródła, Harmonogram) wg designu `Zrodla/Front_Claude_Design/PIM-nowoczesny/integracje/` + refactor wizardu `Nowy import`. Dodatkowo: nowa funkcjonalność BE — ImportSource (manual + folder probe) + ImportSchedule (cron parsing + manual run-now).
+
+**Bloker (osobny PR):**
+- [x] **IMP-16** ([#494](https://github.com/malipie/PIM/pull/494) → `2a4b99c`) — category assignment from import (`__category__` mapping target).
+
+**Zakres:**
+- [x] **VIEW-IMP-00** ([#495](https://github.com/malipie/PIM/pull/495) → `b63e1f3`) — foundation: tab container + 10 reusable prymitywów (ModeBadge, StatusPill, SourceIcon, Sparkline, ResultBar, ProgressBar, StagePipeline, HealthDot, FormatPill, TinyKpi).
+- [x] **VIEW-IMP-01** ([#497](https://github.com/malipie/PIM/pull/497) → `07fa5a5`) — Sesje overhaul: KpiStrip + LiveSessionCard + HistoryTable. BE: `GET /api/import-sessions` (Hydra) + `/throughput`.
+- [x] **VIEW-IMP-02** ([#499](https://github.com/malipie/PIM/pull/499) → `f2865f0`) — Profile overhaul: grid/list toggle + CRUD + duplicate/export/import JSON. BE: migracja `code`+`mode` + 3 custom controllers.
+- [x] **VIEW-IMP-03** ([#501](https://github.com/malipie/PIM/pull/501) → `16261e9`) — Źródła: nowa encja `ImportSource` + 7 transports + Folder real probe + Stub dla pozostałych.
+- [x] **VIEW-IMP-04** ([#503](https://github.com/malipie/PIM/pull/503) → `54daaae`) — Harmonogram: nowa encja `ImportSchedule` + cron parser (dragonmantank) + manual run-now + NextRunsTimeline UI.
+- [x] **VIEW-IMP-05** ([#505](https://github.com/malipie/PIM/pull/505) → `67eeccf`) — Wizard refactor: WizardStepper z 4 pills + header eyebrow.
+- [x] **VIEW-IMP-AUDIT** (#506) — lessons.md update + plan checkboxy + PR summary.
+
+**Świadome odejścia (kandydaci na follow-up):**
+- **VIEW-IMP-03.1** — polling daemon dla `ImportSource` (Symfony Scheduler + Messenger handler auto-pickup plików match'ujących `filePattern`) + real SFTP/FTP/HTTP/webhook probes.
+- **VIEW-IMP-04.1** — cron worker daemon dla `ImportSchedule` (Symfony Scheduler tick co 60s) + real notification transport (Slack webhook + Email via Mailer + generic webhook).
+- **Webhook receiver endpoint** dla `type=webhook` w `ImportSource`.
+- **Webhook HMAC signing** dla notification webhooks.
+- **modeling-shell.spec.ts flaky root cause** (osobny maintenance ticket) — failowało w 4/6 PR-ach epiku, niezwiązane z V01..V05.
+
+**Wpływ na harmonogram:** ~24h faktyczne marathon vs ~118h estymata mid → 5x szybsze niż plan. Spore polerowanie UX bez wpływu na MVP-Final scope. Follow-up V03.1/V04.1 mogą wejść do Fazy 1 razem z pierwszymi integracjami real-world.
+
+**Maintenance ticket due** (per `CLAUDE.md` "Zarządzanie zależnościami" — co 2 epiki): epik 0.13 / UI-09 (Imports MVP) + 0.14 / UI-10 (PCAT) + UI-11 (Importy redesign) zamknięte → następny `composer outdated` + `pnpm outdated` patch run **należny** przed startem Fazy 1.
+
 ## 4. Faza 1 — Integracje (BaseLinker + Shopify) + production-ready
 
 > **Rewizja 2026-04-27:** w nowej kolejności (post-#5) Faza 1 zaczyna się od **integracji BaseLinker (epik 0.8) i Shopify (epik 0.9)** — przeniesionych z MVP. Pełen hardening / RLS / monitoring zostaje w Fazie 1 jako równoległy track. Magento i IdoSell przesunięte do Fazy 2 razem z agentem.
