@@ -103,17 +103,28 @@ final readonly class CatalogObjectIndexer
             return;
         }
 
-        $client = $this->clientFactory->create();
+        try {
+            $client = $this->clientFactory->create();
+        } catch (Throwable $e) {
+            // Fail-soft when Meilisearch is unreachable / unconfigured —
+            // search is a notification surface (lessons #50). The factory
+            // throws when MEILI_URL is missing (test envs) or when the
+            // hub is down; either way the next single-row event or the
+            // scheduled reindex will recover document state.
+            $this->logger->warning('Index batch push skipped — client unavailable: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
         foreach ($byKind as $kindValue => $documents) {
             $kind = ObjectKind::from($kindValue);
             foreach (array_chunk($documents, self::BATCH_SIZE) as $chunk) {
                 try {
                     $client->index(IndexSettingsTemplate::indexName($kind))->addDocuments($chunk);
                 } catch (Throwable $e) {
-                    // Fail-soft per chunk — search is a notification surface
-                    // (lessons #50). One Meili outage should not crash the
-                    // request; the next single-row event or scheduled
-                    // reindex will recover the document state.
+                    // Fail-soft per chunk — same rationale as above.
                     $this->logger->warning('Index batch push failed: {message}', [
                         'message' => $e->getMessage(),
                         'kind' => $kind->value,
@@ -166,7 +177,16 @@ final readonly class CatalogObjectIndexer
             return;
         }
 
-        $client = $this->clientFactory->create();
+        try {
+            $client = $this->clientFactory->create();
+        } catch (Throwable $e) {
+            $this->logger->warning('Index batch delete skipped — client unavailable: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
         foreach ($idsByKind as $kindValue => $ids) {
             $kind = ObjectKind::from($kindValue);
             try {
