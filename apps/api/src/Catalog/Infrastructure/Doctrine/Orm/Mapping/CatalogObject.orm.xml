@@ -15,6 +15,15 @@
         <indexes>
             <index name="objects_tenant_type_idx" columns="tenant_id,object_type_id"/>
             <index name="objects_tenant_kind_idx" columns="tenant_id,kind"/>
+            <!--
+                HARD-01: composite index for tree-mode product list (PR #514)
+                and category-children listing. Lets the planner satisfy
+                `tenant_id = :t AND parent_id [IS NULL | = :p]` from a single
+                scan instead of indexing parent_id alone and filtering per
+                tenant. Keep both this declaration and Version20260512210000
+                in sync.
+            -->
+            <index name="objects_tenant_parent_idx" columns="tenant_id,parent_id"/>
         </indexes>
 
         <id name="id" type="uuid" column="id">
