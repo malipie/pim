@@ -1,0 +1,40 @@
+# Alertmanager routing config for the prod stack.
+#
+# PROD-04 — minimal config that groups + dedupes alerts and routes to
+# a single webhook receiver. The webhook URL is read from environment
+# (set via Compose secrets / .env on the prod host) so this file can
+# stay in version control without leaking the destination.
+#
+# Add real receivers (PagerDuty, Slack, Opsgenie) by extending the
+# `receivers:` block — Alertmanager docs:
+# https://prometheus.io/docs/alerting/latest/configuration/
+
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default-webhook
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity = critical
+      receiver: default-webhook
+      repeat_interval: 1h
+
+receivers:
+  - name: default-webhook
+    webhook_configs:
+      - url: ${ALERTMANAGER_WEBHOOK_URL:-http://example.invalid/}
+        send_resolved: true
+
+inhibit_rules:
+  # Suppress the warning lane while the matching critical is firing —
+  # avoids paging twice for the same condition.
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity = warning
+    equal: ["alertname"]

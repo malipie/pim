@@ -1,0 +1,42 @@
+# Prometheus scrape + alert config for the prod stack.
+#
+# PROD-04 — surfaces the FrankenPHP worker-memory ceiling that
+# CLAUDE.md §3.10 flags as the highest-risk class of regression
+# (Doctrine Identity Map drift inside a long-running worker → OOM).
+# Companion alert rules live in alerts.yml.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    stack: pim
+    env: prod
+
+rule_files:
+  - "/etc/prometheus/alerts.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "alertmanager:9093"
+
+scrape_configs:
+  - job_name: "pim-api"
+    metrics_path: /api/metrics
+    # Scraping the public Caddy hostname produces a fresh worker pick per
+    # scrape (random LB across the worker pool). The rolling-max alert
+    # rule in alerts.yml makes that randomness acceptable.
+    scheme: http
+    static_configs:
+      - targets: ["api:80"]
+        labels:
+          service: api
+          # The MetricsController also exposes db_query_duration_seconds —
+          # the same job covers both. Per-target relabeling is overkill at
+          # the single-API-service scale.
+          tier: web
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

@@ -1,0 +1,66 @@
+# Prometheus alert rules for the prod stack.
+#
+# PROD-04 — covers the architectural guard-rails CLAUDE.md §3.10 calls
+# out as MUST-have monitoring before bulk operations ship to prod.
+groups:
+  - name: pim-frankenphp-memory
+    interval: 30s
+    rules:
+      # Hard guard-rail per CLAUDE.md §3.10. Any worker crossing 256 MiB
+      # is a near-certain Doctrine Identity Map leak (or a missing
+      # EntityManager::clear() inside a long-running handler). Five
+      # consecutive minutes above threshold = real leak, not a noisy
+      # one-off scrape.
+      - alert: FrankenphpWorkerMemoryHigh
+        expr: max_over_time(frankenphp_worker_memory_bytes[5m]) > (256 * 1024 * 1024)
+        for: 5m
+        labels:
+          severity: critical
+          runbook: docs/runbook/disaster-recovery.md
+        annotations:
+          summary: "FrankenPHP worker memory above 256 MiB"
+          description: |
+            One or more FrankenPHP workers crossed the 256 MiB memory
+            ceiling for at least 5 minutes (current rolling max:
+            {{ $value | humanize1024 }}).
+
+            CLAUDE.md §3.10 flags this as a Doctrine Identity Map leak
+            indicator — Messenger handler is missing EntityManager::clear()
+            after flush() in a batch loop, or AbstractBatchHandler is not
+            being inherited.
+
+      # Early-warning lane. 192 MiB = 75% of the hard ceiling. Lower
+      # severity, longer window — gives an oncall heads-up before the
+      # critical alert fires.
+      - alert: FrankenphpWorkerMemoryRising
+        expr: max_over_time(frankenphp_worker_memory_bytes[15m]) > (192 * 1024 * 1024)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "FrankenPHP worker memory trending toward the 256 MiB ceiling"
+          description: |
+            Rolling 15m max of frankenphp_worker_memory_bytes is above
+            75% of the hard ceiling for at least 15 minutes (current:
+            {{ $value | humanize1024 }}). Investigate before the
+            critical FrankenphpWorkerMemoryHigh alert fires.
+
+  - name: pim-db-latency
+    interval: 30s
+    rules:
+      # Slow-query smoke alarm. Backed by db_query_duration_seconds
+      # histogram emitted from QueryTimingMiddleware (audit MEDIUM-003).
+      # 0.5s p99 is generous for read paths; tighter thresholds belong
+      # in tier-specific alerts once we have per-route labels.
+      - alert: DbQueryP99Slow
+        expr: histogram_quantile(0.99, sum by (le) (rate(db_query_duration_seconds_bucket[5m]))) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Doctrine DBAL p99 query latency above 500 ms"
+          description: |
+            p99 of db_query_duration_seconds is above 500 ms over the
+            past 10 minutes. Check pg_stat_statements for the offender
+            and the PgBouncer admin console (port 6432) for connection
+            pool saturation.
