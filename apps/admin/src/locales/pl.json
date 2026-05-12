@@ -1357,6 +1357,15 @@
       "empty": "Brak importów. Utwórz pierwszy import."
     },
     "wizard": {
+      "eyebrow": "Self-service import — 4 kroki",
+      "title": "Nowy import",
+      "subtitle": "Każdy plik przechodzi przez 4 kroki: upload, mapowanie kolumn na atrybuty, walidacja dry-run, commit do bazy. Po commicie sesja trafia do zakładki „Sesje” — możesz ją wycofać w oknie 24h.",
+      "descriptions": {
+        "upload": "CSV / XLSX + opcjonalny ZIP ze zdjęciami",
+        "mapping": "Kolumny → atrybuty + kategorie",
+        "validation": "Dry-run, błędy walidacji",
+        "confirm": "Backup + commit do bazy"
+      },
       "steps": {
         "upload": "Upload",
         "mapping": "Mapping",
