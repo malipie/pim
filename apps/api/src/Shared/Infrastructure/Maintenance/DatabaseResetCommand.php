@@ -74,6 +74,14 @@ final class DatabaseResetCommand extends Command
             ['doctrine:database:drop', ['--force' => true, '--if-exists' => true]],
             ['doctrine:database:create', ['--if-not-exists' => true]],
             ['doctrine:migrations:migrate', ['--no-interaction' => true, '--allow-no-migration' => true]],
+            // dh_auditor creates *_audit tables outside the regular Doctrine
+            // migrations pipeline. Without this step, INSERTs into audited
+            // entities (ImportSession, ImportProfile, Channel, Asset, …)
+            // trip a "relation does not exist" inside the auditor listener,
+            // rollback the surrounding transaction, and the operator sees a
+            // bare 500 with a foreign-key violation when the parent rows
+            // were never actually committed.
+            ['audit:schema:update', ['--force' => true]],
         ];
 
         if ($loadFixtures) {
