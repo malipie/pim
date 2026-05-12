@@ -48,9 +48,14 @@ export function SavedViewsRail({
 
   useEffect(() => {
     let cancelled = false;
-    jsonFetch<{ views: SavedView[] }>(`/api/saved-views?resource=${encodeURIComponent(resource)}`)
+    jsonFetch<{ views?: SavedView[] }>(`/api/saved-views?resource=${encodeURIComponent(resource)}`)
       .then((body) => {
-        if (!cancelled) setViews(body.views);
+        // Defensive: jsonFetch's generic is a runtime hint, not a guarantee.
+        // If the backend ever omits `views` (auth race during refresh, future
+        // pagination shape change) the older `setViews(body.views)` left the
+        // hook with `views = undefined` and the next `views.map(...)` blew up
+        // the whole tree (white screen on /products, 2026-05-12).
+        if (!cancelled) setViews(body.views ?? []);
       })
       .catch((err: unknown) => {
         if (cancelled) return;

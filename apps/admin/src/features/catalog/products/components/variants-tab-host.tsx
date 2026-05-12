@@ -57,10 +57,12 @@ export function VariantsTabHost({ productId }: VariantsTabHostProps) {
         const arr = Array.isArray(list) ? list : [];
         setVariants(arr);
       }),
-      jsonFetch<{ groups: GroupMeta[] }>(
+      jsonFetch<{ groups?: GroupMeta[] }>(
         `/api/products/${productId}/effective-attribute-groups`,
       ).then((body) => {
-        if (!cancelled) setGroups(body.groups);
+        // Defensive — see saved-views-rail comment. Empty groups is a
+        // valid state (product whose ObjectType has no attached groups).
+        if (!cancelled) setGroups(body.groups ?? []);
       }),
     ]).catch(() => undefined);
     return () => {
