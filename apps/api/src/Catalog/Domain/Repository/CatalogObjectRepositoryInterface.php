@@ -13,6 +13,17 @@ interface CatalogObjectRepositoryInterface
 {
     public function findById(Uuid $id): ?CatalogObject;
 
+    /**
+     * Batch fetch by RFC4122 id strings. Used by the search batch indexer
+     * (PROD-03) to materialise a request-scoped queue of pending upserts
+     * in one query instead of N round-trips. Tenant filter still applies.
+     *
+     * @param list<string> $idsRfc4122
+     *
+     * @return list<CatalogObject>
+     */
+    public function findByIds(array $idsRfc4122): array;
+
     public function findByCode(string $code, ObjectKind $kind, Tenant $tenant): ?CatalogObject;
 
     /**

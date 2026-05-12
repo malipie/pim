@@ -42,6 +42,27 @@ class DoctrineCatalogObjectRepository extends ServiceEntityRepository implements
         return parent::find($id->toRfc4122());
     }
 
+    /**
+     * @param list<string> $idsRfc4122
+     *
+     * @return list<CatalogObject>
+     */
+    public function findByIds(array $idsRfc4122): array
+    {
+        if ([] === $idsRfc4122) {
+            return [];
+        }
+
+        /** @var list<CatalogObject> $rows */
+        $rows = $this->createQueryBuilder('o')
+            ->where('o.id IN (:ids)')
+            ->setParameter('ids', $idsRfc4122)
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function save(CatalogObject $entity): void
     {
         $em = $this->getEntityManager();
