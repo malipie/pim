@@ -1,0 +1,120 @@
+# PIM stack — production overlay.
+#
+# Apply on top of docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Scope of this file:
+#   - Switches the API container to `APP_ENV=prod` and re-points the Symfony
+#     Messenger DSN at the Doctrine queue so async-routed messages
+#     (ObjectValuesChangedMessage, AssetThumbnailsRequested, ImportRunMessage,
+#     BackupSnapshotMessage) drain via the worker pool below instead of
+#     blocking the HTTP request thread.
+#   - Adds a dedicated `worker` service that runs `messenger:consume async`
+#     with a per-process memory cap. Replicas scale the pool horizontally
+#     without touching the web container.
+#
+# PROD-01: This overlay is the prerequisite for shipping bulk operations to
+# production — without it any handler routed to the `async` transport
+# executes inline (sync://) on the request thread, which means a 50k SKU
+# import or 10k bulk price update keeps the HTTP connection open for the
+# entire job duration.
+#
+# Subsequent overlays (kept in this same file for a single-source prod
+# topology):
+#   - PROD-02: PgBouncer in transaction mode in front of Postgres.
+#   - PROD-04: Prometheus scrape target + worker-memory alert rules.
+
+name: pim
+
+services:
+  api:
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: "0"
+      # Async transport via Doctrine — handlers routed `async` enqueue here
+      # and the `worker` service below drains them. Keeps HTTP request
+      # threads free of long-running work.
+      MESSENGER_TRANSPORT_DSN: doctrine://default?queue_name=async&auto_setup=0
+
+  # ─── Symfony Messenger worker pool ────────────────────────────────────────
+  #
+  # One container per worker process. `replicas: 2` is the default — bump via
+  # `docker compose -f ... -f docker-compose.prod.yml up -d --scale worker=N`
+  # when bulk job throughput needs more headroom.
+  #
+  # Memory + time limits guard against:
+  #   - Doctrine Identity Map accumulation (CLAUDE.md §3.10) — `--memory-limit
+  #     256M` exits the worker before the FrankenPHP-style leak escalates.
+  #   - long-running PHP processes drifting from the latest deploy — `--time-
+  #     limit 3600` recycles every hour so a redeploy plus container restart
+  #     guarantees the new code is in the next message handler within ≤1h
+  #     even if no SIGTERM reaches the container.
+  #
+  # supervisor-on-exit pattern: `restart: unless-stopped` plus the worker's
+  # own `--memory-limit` / `--time-limit` produces a clean PID 1 exit + Docker
+  # restart cycle. No supervisor / runit needed — Docker is the supervisor.
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: "0"
+      APP_SECRET: ${APP_SECRET:-ChangeMeBeforeDeploy}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      MESSENGER_TRANSPORT_DSN: doctrine://default?queue_name=async&auto_setup=0
+      MERCURE_URL: http://mercure/.well-known/mercure
+      MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:-https://pim.localhost/.well-known/mercure}
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
+      MEILI_URL: http://meilisearch:7700
+      MEILI_KEY: ${MEILI_MASTER_KEY:-masterKeyPleaseChangeMe}
+    # Worker entrypoint: drain `async` then exit cleanly. Docker restarts the
+    # container, the loop continues. Two distinct exit triggers:
+    #   --memory-limit 256M : PHP self-checks RSS after each handle, exits 0
+    #                         when crossed (Symfony Messenger built-in).
+    #   --time-limit 3600   : exits 0 after 1h regardless — guarantees fresh
+    #                         code picks up within an hour of a deploy.
+    # `--failure-limit 5` stops a poison message from looping forever; failed
+    # envelopes route to the `failed` transport configured in messenger.yaml.
+    command:
+      - "php"
+      - "bin/console"
+      - "messenger:consume"
+      - "async"
+      - "--memory-limit=256M"
+      - "--time-limit=3600"
+      - "--failure-limit=5"
+      - "-vv"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    volumes:
+      - api_var:/app/var
+
+  # In production the frontend is a built artifact (apps/admin/dist) served by
+  # Caddy as static files, not the Vite dev server. We park `admin` under a
+  # `dev-only` profile so the prod overlay does not start it. Caddy's base
+  # depends_on references `admin` though, so we re-declare caddy's depends_on
+  # with `!override` to drop the dev dependency without re-stating the rest
+  # of the caddy block. The Caddyfile that ships with the release image
+  # handles `file_server` for the SPA bundle (separate prod deploy ticket
+  # tracks the Caddyfile + image build pipeline).
+  admin:
+    profiles: ["dev-only"]
+
+  caddy:
+    depends_on: !override
+      api:
+        condition: service_healthy
+      mercure:
+        condition: service_started
