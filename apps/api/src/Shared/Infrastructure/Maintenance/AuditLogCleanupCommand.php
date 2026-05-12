@@ -20,6 +20,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * itself. Per-table DELETE keeps locks scoped — one slow table does
  * not stall the others. Dry-run reports row counts without touching
  * data so the cron can stay loud.
+ *
+ * tenant-safe: infrastructure (cron-driven retention policy across
+ * every `*_audit` table). The audit tables are deliberately
+ * cross-tenant — the retention horizon applies platform-wide and
+ * tenant_id is not even present on the bundle's audit schema.
  */
 #[AsCommand(
     name: 'pim:audit:cleanup',

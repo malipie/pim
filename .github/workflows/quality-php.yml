@@ -8,12 +8,14 @@ on:
     paths:
       - "apps/api/**"
       - "docs/api-spec/**"
+      - "scripts/lint-raw-sql.sh"
       - ".github/workflows/quality-php.yml"
   push:
     branches: [main]
     paths:
       - "apps/api/**"
       - "docs/api-spec/**"
+      - "scripts/lint-raw-sql.sh"
       - ".github/workflows/quality-php.yml"
 
 concurrency:
@@ -103,6 +105,21 @@ jobs:
 
       - name: Deptrac analyse
         run: vendor/bin/deptrac analyse --no-progress --no-cache
+
+  raw-sql-lint:
+    # HARD-07 — guard-rail for raw SQL bypassing TenantFilter.
+    # Cheap shell job; runs before composer install so failures
+    # surface in seconds without burning CI minutes.
+    name: Raw SQL tenant-safe lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Lint raw SQL escape hatches
+        run: bash scripts/lint-raw-sql.sh
 
   php-cs-fixer:
     name: PHP-CS-Fixer (dry-run)

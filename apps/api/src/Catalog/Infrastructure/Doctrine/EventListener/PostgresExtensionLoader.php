@@ -41,6 +41,9 @@ final class PostgresExtensionLoader
         // and the only correct answer once we cannot trust the DB to be
         // the same between two boots in the same process.
         try {
+            // tenant-safe: infrastructure DDL — CREATE EXTENSION
+            // operates on the database cluster, no row data is read
+            // or written.
             $this->connection->executeStatement('CREATE EXTENSION IF NOT EXISTS ltree');
         } catch (Throwable) {
             // Best-effort: if the extension cannot be created (no

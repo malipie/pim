@@ -62,6 +62,12 @@ final readonly class DeleteAttributeGroupHandler
             ));
         }
 
+        // tenant-safe: junction inherits tenant via FK chain (the
+        // attribute_group_id is tenant-scoped via the parent group
+        // entity loaded through TenantFilter on line 25).
+        // The two COUNT queries above (lines 45-52) read the same
+        // junctions and are tenant-safe for the same reason.
+        //
         // Cascade-clear the AttributeGroupAttribute junction rows. ON
         // DELETE CASCADE is set on the FK, but Doctrine's UoW does not
         // know about M:N junction rows that aren't mapped as a

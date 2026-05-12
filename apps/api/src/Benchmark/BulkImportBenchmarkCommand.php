@@ -204,6 +204,11 @@ final class BulkImportBenchmarkCommand extends Command
         $output->writeln(\sprintf('pim_benchmark_peak_memory_bytes %d', $peakMemory));
 
         if (!$keep) {
+            // tenant-safe: infrastructure (admin-only benchmark CLI).
+            // The command runs cross-tenant by design — it cleans up
+            // its own seeded rows by code prefix and is gated behind
+            // direct shell access; the deleted set never includes
+            // operator data because $skuPrefix is generated per-run.
             $deleted = (int) $this->entityManager->getConnection()->executeStatement(
                 "DELETE FROM objects WHERE kind = 'product' AND code LIKE :prefix",
                 ['prefix' => $skuPrefix.'%'],

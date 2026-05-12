@@ -93,6 +93,11 @@ final class AttachObjectTypeAttributeGroupController
             );
         }
 
+        // tenant-safe: junction table inherits tenant via FK chain.
+        // Both $id (ObjectType) and $groupId (AttributeGroup) were
+        // resolved through TenantFilter-aware repositories above
+        // (lines 50, 87) — they cannot reference rows from other
+        // tenants by the time we reach the DELETE.
         $this->connection->executeStatement(
             'DELETE FROM object_type_attribute_groups WHERE object_type_id = ? AND attribute_group_id = ?',
             [$id, $groupId],

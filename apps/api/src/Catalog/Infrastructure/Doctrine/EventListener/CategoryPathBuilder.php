@@ -70,6 +70,11 @@ final class CategoryPathBuilder
             return;
         }
 
+        // tenant-safe: per-row UPDATE keyed by primary key. The id
+        // belongs to an entity Doctrine just persisted under the
+        // current TenantContext (TenantAssignmentListener stamped
+        // tenant_id on prePersist), so it is necessarily the
+        // current tenant's row.
         $em = $event->getObjectManager();
         $em->getConnection()->executeStatement(
             'UPDATE objects SET path = CAST(:path AS ltree) WHERE id = CAST(:id AS uuid) AND path IS NULL',
