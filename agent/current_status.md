@@ -1,8 +1,18 @@
 # Current Status
 
-## 2026-05-12: Epik UI-11 — Importy redesign **DOMKNIĘTY** (VIEW-IMP-00..05 + AUDIT)
+## 2026-05-12: Epik UI-11 — Importy redesign **DOMKNIĘTY** (8 PR-ów merged, marathon ~24h)
 
-Marathon zakończony w ~24h faktycznych (vs ~118h estymata mid). 8 PR-ów merged do main (IMP-16 bloker + 6 view-first ticketów + audit). Operator dał mandate `merge --admin` dla 4/6 PR-ów z powodu znanego flaky `modeling-shell.spec.ts` (dashboard heading + menu główne, niezwiązane z V01..V05). Wszystkie 4 zakładki Importu zaaplikowane: Sesje (KpiStrip + LiveSessionCard + HistoryTable), Profile (grid/list + duplicate/export/import), Źródła (SourceCard + health-check), Harmonogram (NextRunsTimeline + ScheduleCard + manual run-now). Plus wizard refactor (WizardStepper z 4 pills).
+**Merged commits w kolejności:**
+1. `2a4b99c` ([#494](https://github.com/malipie/PIM/pull/494)) IMP-16 — bloker: kategoria assignment z importu
+2. `b63e1f3` ([#495](https://github.com/malipie/PIM/pull/495)) VIEW-IMP-00 — foundation: tab container + 10 primitives
+3. `07fa5a5` ([#497](https://github.com/malipie/PIM/pull/497)) VIEW-IMP-01 — Sesje: KpiStrip + LiveSessionCard + HistoryTable
+4. `f2865f0` ([#499](https://github.com/malipie/PIM/pull/499)) VIEW-IMP-02 — Profile: grid/list + duplicate/export/import
+5. `16261e9` ([#501](https://github.com/malipie/PIM/pull/501)) VIEW-IMP-03 — Źródła: ImportSource + health-check
+6. `54daaae` ([#503](https://github.com/malipie/PIM/pull/503)) VIEW-IMP-04 — Harmonogram: ImportSchedule + cron parsing
+7. `67eeccf` ([#505](https://github.com/malipie/PIM/pull/505)) VIEW-IMP-05 — Wizard: WizardStepper + header eyebrow
+8. `77d880a` ([#507](https://github.com/malipie/PIM/pull/507)) VIEW-IMP-AUDIT — lessons + plan + status
+
+Marathon zakończony w ~24h faktycznych (vs ~118h estymata mid → 5x faster). Operator dał mandate `merge --admin` dla 4/6 PR-ów z powodu znanego flaky `modeling-shell.spec.ts` (dashboard heading + menu główne, niezwiązane z V01..V05). Wszystkie 4 zakładki Importu zaaplikowane + wizard refactor.
 
 **Świadome odejścia → follow-up VIEW-IMP-03.1 + VIEW-IMP-04.1**:
 - Polling daemon dla `ImportSource` (Symfony Scheduler + Messenger).
