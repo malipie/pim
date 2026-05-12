@@ -84,6 +84,13 @@ Epik: 7 ticketów (VIEW-IMP-00..05 + AUDIT) + bloker IMP-16 (kategoria assignmen
 
 ## Patterns to Follow
 
+### `attributes_indexed` ma envelope `{value: ...}` — admin readers MUSZĄ unwrapować (2026-05-12, PR #511)
+
+- **Backend**: `AttributesIndexedRebuilder::rebuild()` zapisuje `$indexed[$code] = $value->getValue()`, a `ObjectValue::getValue()` zwraca tablicę typu `{value: ..., locale?, channel?, provenance?}`. To kanoniczna postać — envelope zostaje pod nadchodzące locale/channel overlays.
+- **Skutek bez fixu**: każdy frontendowy reader który robi `typeof attrs.name === 'string'` matchuje na false (bo `attrs.name === {value: ...}`) i fallbackuje do `entry.code` (SKU). PATCH-e dochodzą do bazy poprawnie, ale grid pokazuje znowu SKU → operator widzi jakby się "nie zapisało".
+- **Reguła**: nigdy nie czytaj `attrs[key]` bezpośrednio w admin-ie. Zawsze przepuść przez `unwrapAttributesIndexed(...)` z `apps/admin/src/lib/attributes-indexed.ts` PRZED `typeof attrs.name === 'string'` lub innymi sprawdzeniami typu. Helper jest passthrough dla wpisów bez envelope, więc bezpieczny dla wszystkich danych.
+- **Diagnoza follow-up**: gdy operator zgłasza "nie zapisuje się", zawsze najpierw curl-em sprawdź czy backend persistuje (PATCH + GET + diff). Jeśli backend trzyma — szukaj root cause w read path admin-a, nie w PATCH wrapperze.
+
 ### Epik UI-03 marathon — bypass mode, post-mortem (2026-05-02)
 
 - **Marathon zamknięty: #356 (PR #359), #357 (PR #360), #358 (PR #361) wszystkie zmergowane do main w jednej sesji.** 3 squash merge'y, każdy ticket osobny branch + PR + CI + merge. Świadome odejścia per ticket spisane w opisach PR-ów.
