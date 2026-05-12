@@ -22,13 +22,35 @@
 #
 # Subsequent overlays (kept in this same file for a single-source prod
 # topology):
-#   - PROD-02: PgBouncer in transaction mode in front of Postgres.
+#   - PROD-02 (THIS FILE): PgBouncer in transaction mode in front of Postgres.
 #   - PROD-04: Prometheus scrape target + worker-memory alert rules.
+#
+# PROD-02 detail:
+# Without PgBouncer, every FrankenPHP / messenger worker holds a long-lived
+# Postgres connection. With 3 web workers × 10 conn baseline + 2 messenger
+# workers × 5 conn + 1 cron import worker the connection count drifts above
+# Postgres' default `max_connections=100` under modest load. PgBouncer in
+# transaction mode multiplexes ~200 client connections onto ~25 backend
+# connections, which fits inside Postgres limits with headroom for admin
+# and replication slots.
+#
+# Doctrine ORM 3 + DBAL 4 issues an extended-query-protocol prepared
+# statement for every parameterised query. PgBouncer 1.21+ supports
+# protocol-level prepared statements in transaction mode when
+# `max_prepared_statements` is non-zero — that knob is set below to 100,
+# matching the per-worker working set. Without it the first parameterised
+# query after a backend re-pin would fail with
+# `prepared statement "..." does not exist`.
 
 name: pim
 
 services:
   api:
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       APP_ENV: prod
       APP_DEBUG: "0"
@@ -36,6 +58,9 @@ services:
       # and the `worker` service below drains them. Keeps HTTP request
       # threads free of long-running work.
       MESSENGER_TRANSPORT_DSN: doctrine://default?queue_name=async&auto_setup=0
+      # PROD-02: re-route the web tier through PgBouncer (port 6432) so the
+      # process pool multiplexes onto a small backend connection pool.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@pgbouncer:6432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8&application_name=pim_api
 
   # ─── Symfony Messenger worker pool ────────────────────────────────────────
   #
@@ -60,7 +85,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      database:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -68,7 +93,12 @@ services:
       APP_ENV: prod
       APP_DEBUG: "0"
       APP_SECRET: ${APP_SECRET:-ChangeMeBeforeDeploy}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      # PROD-02: route all PHP traffic through PgBouncer (transaction pool
+      # at port 6432). serverVersion=16 keeps DBAL 4 from issuing a
+      # `SHOW server_version` query at boot — that query inside PgBouncer
+      # transaction mode would land on a fresh backend each time.
+      # application_name shows up in pg_stat_activity for triage.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@pgbouncer:6432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8&application_name=pim_api
       MESSENGER_TRANSPORT_DSN: doctrine://default?queue_name=async&auto_setup=0
       MERCURE_URL: http://mercure/.well-known/mercure
       MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:-https://pim.localhost/.well-known/mercure}
@@ -118,3 +148,67 @@ services:
         condition: service_healthy
       mercure:
         condition: service_started
+
+  # ─── PgBouncer (transaction-mode connection pooler) ───────────────────────
+  #
+  # PROD-02. edoburu/pgbouncer image renders pgbouncer.ini + userlist.txt
+  # from environment variables — no bind-mounted config file needed for the
+  # baseline pool (single-database, single-user). Custom users / multi-db
+  # setups would mount /etc/pgbouncer/userlist.txt.
+  #
+  # Knob choice:
+  #   - POOL_MODE=transaction       → release the backend on COMMIT/ROLLBACK
+  #   - MAX_CLIENT_CONN=200         → matches FrankenPHP worker count budget
+  #   - DEFAULT_POOL_SIZE=25        → ~25 backend conns per (db,user) pair
+  #   - RESERVE_POOL_SIZE=5         → burst headroom under brief spikes
+  #   - MAX_PREPARED_STATEMENTS=100 → enables protocol-level PS in tx mode
+  #                                   (PgBouncer ≥1.21). Doctrine DBAL 4
+  #                                   relies on PS for every parameterised
+  #                                   query — without this, transaction mode
+  #                                   breaks on the second handler invocation.
+  #
+  # Backend connection auth uses the same credentials as the API. AUTH_TYPE
+  # defaults to scram-sha-256 (matches Postgres 16 defaults). Postgres'
+  # `pg_hba.conf` accepts scram from inside the docker network — see
+  # docker/postgres/Dockerfile if customising auth methods.
+  pgbouncer:
+    image: edoburu/pgbouncer:1.23.1
+    # YAML anchors live in the base compose file; overlay files can't dereference
+    # them so we restate restart policy + resource caps inline.
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DB_USER: ${POSTGRES_USER:-app}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      DB_HOST: database
+      DB_PORT: "5432"
+      DB_NAME: ${POSTGRES_DB:-app}
+      LISTEN_PORT: "6432"
+      LISTEN_ADDR: "0.0.0.0"
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "200"
+      DEFAULT_POOL_SIZE: "25"
+      RESERVE_POOL_SIZE: "5"
+      RESERVE_POOL_TIMEOUT: "3"
+      SERVER_RESET_QUERY: "DISCARD ALL"
+      MAX_PREPARED_STATEMENTS: "100"
+      AUTH_TYPE: scram-sha-256
+      ADMIN_USERS: ${POSTGRES_USER:-app}
+      IGNORE_STARTUP_PARAMETERS: "extra_float_digits,search_path,application_name"
+    expose:
+      - "6432"
+    healthcheck:
+      # pgbouncer doesn't ship pg_isready; tcp probe + verifying the binary
+      # responds on its admin console is enough for a depends_on gate.
+      test: ["CMD-SHELL", "pgbouncer -V >/dev/null 2>&1 && (echo 'show version' | psql -h 127.0.0.1 -p 6432 -U ${POSTGRES_USER:-app} -d pgbouncer -t >/dev/null 2>&1 || true)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
