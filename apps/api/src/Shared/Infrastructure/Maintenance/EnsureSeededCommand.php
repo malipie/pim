@@ -67,7 +67,8 @@ final class EnsureSeededCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $envRaw = $_SERVER['APP_ENV'] ?? $_ENV['APP_ENV'] ?? 'dev';
         $env = \is_string($envRaw) ? $envRaw : 'dev';
-        $quiet = (bool) $input->getOption('quiet-when-noop');
+        // VALUE_NONE options are typed as bool by phpstan-symfony — no cast needed.
+        $quiet = $input->getOption('quiet-when-noop');
 
         if ('dev' !== $env && 'test' !== $env) {
             if (!$quiet) {
@@ -140,10 +141,12 @@ final class EnsureSeededCommand extends Command
     private function userCount(): int
     {
         try {
-            return (int) $this->connection->fetchOne('SELECT COUNT(*) FROM users');
+            $count = $this->connection->fetchOne('SELECT COUNT(*) FROM users');
         } catch (DbalException) {
             return 0;
         }
+
+        return \is_numeric($count) ? (int) $count : 0;
     }
 
     private function tableExists(string $name): bool
@@ -162,10 +165,10 @@ final class EnsureSeededCommand extends Command
                 'SELECT COUNT(*) FROM users WHERE email = :email',
                 ['email' => self::ADMIN_EMAIL],
             );
-
-            return (int) $count > 0;
         } catch (DbalException) {
             return false;
         }
+
+        return \is_numeric($count) && (int) $count > 0;
     }
 }
