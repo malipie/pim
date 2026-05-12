@@ -20,7 +20,17 @@ doctrine:
         # either here or in the DATABASE_URL env var (see .env file)
         #server_version: '16'
 
-        profiling_collect_backtrace: '%kernel.debug%'
+        # Backtrace collection is the dev default but is incompatible with
+        # FrankenPHP worker mode + long-running handlers: every executed
+        # query holds a full stack trace in BacktraceDebugDataHolder for
+        # the lifetime of the worker. A 60-row XLSX import dispatched
+        # through the in-band sync transport fires ~10 queries per row
+        # (ObjectType / Category / attribute lookups, object + value
+        # inserts, audit log writes) and pushes a single worker past the
+        # 256 MiB ceiling. Symfony's web profiler still records query
+        # counts and SQL strings through the regular data collector — we
+        # only drop the per-query backtrace.
+        profiling_collect_backtrace: false
         use_savepoints: true
 
         # Disable query logging globally — sekcja 3.10 architektury and ticket
