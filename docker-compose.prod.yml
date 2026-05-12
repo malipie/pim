@@ -23,7 +23,9 @@
 # Subsequent overlays (kept in this same file for a single-source prod
 # topology):
 #   - PROD-02 (THIS FILE): PgBouncer in transaction mode in front of Postgres.
-#   - PROD-04: Prometheus scrape target + worker-memory alert rules.
+#   - PROD-04 (THIS FILE): Prometheus + Alertmanager scraping the existing
+#     /api/metrics endpoint with the FrankenPHP worker-memory alert
+#     CLAUDE.md §3.10 demands.
 #
 # PROD-02 detail:
 # Without PgBouncer, every FrankenPHP / messenger worker holds a long-lived
@@ -212,3 +214,81 @@ services:
       timeout: 3s
       retries: 5
       start_period: 15s
+
+  # ─── Prometheus (metrics scrape + alerting) ───────────────────────────────
+  #
+  # PROD-04. The Symfony API already exposes Prometheus-format metrics on
+  # /api/metrics (frankenphp_worker_memory_bytes, db_query_duration_seconds
+  # histogram). Prometheus scrapes through the edge Caddy → api routing,
+  # evaluates the alert rules in alerts.yml, and pushes firing groups to
+  # alertmanager below.
+  #
+  # The 256 MiB worker-memory ceiling lives in alerts.yml as
+  # FrankenphpWorkerMemoryHigh — CLAUDE.md §3.10 calls this out as the
+  # MUST-have monitoring before bulk operations ship to prod.
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    expose:
+      - "9090"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:9090/-/healthy"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  # ─── Alertmanager (routes Prometheus alerts to receivers) ─────────────────
+  #
+  # PROD-04. Minimal config that groups + dedupes alerts. ALERTMANAGER_WEBHOOK_URL
+  # in env points at the operator's choice of receiver (PagerDuty / Slack /
+  # Opsgenie / generic webhook). Default is example.invalid so an unconfigured
+  # deploy fails loudly during smoke instead of silently swallowing alerts.
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    environment:
+      ALERTMANAGER_WEBHOOK_URL: ${ALERTMANAGER_WEBHOOK_URL:-http://example.invalid/}
+    volumes:
+      - ./docker/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    expose:
+      - "9093"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:9093/-/healthy"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+# Named volumes for monitoring state. Add to the prod overlay only — base
+# compose stays free of monitoring infrastructure (devs use Symfony's web
+# profiler instead of Prometheus locally).
+volumes:
+  prometheus_data:
+  alertmanager_data:
