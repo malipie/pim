@@ -84,6 +84,13 @@ Epik: 7 ticketów (VIEW-IMP-00..05 + AUDIT) + bloker IMP-16 (kategoria assignmen
 
 ## Patterns to Follow
 
+### Predefined-value attrs (`select` / `multiselect`) — controller MUSI eager-loadować options (2026-05-12, PR #512)
+
+- **Backend**: `effective-attribute-groups` musi w preprocessing przejść przez wszystkie attrybuty grupy + ObjectType-loose, sfiltrować `AttributeType::usesOptions()` i jednym bulk `IN` query (`AttributeOptionRepository::findByAttributes`) załadować opcje. Per-attr loop = N+1 (50 atrybutów = 50 round-tripów). Helper `serializeAttribute(...)` warunkowo dorzuca `options` tylko dla typów z opcjami — payload tight.
+- **Frontend**: `AttributeMeta` ma `options?: AttributeOptionMeta[]`. `AttrRow` switch na `attribute.type` MUSI mieć branch dla `select` (Combobox) i `multiselect` (MultiSelect chips). Bez tego AttrRow fallbackuje do `<Input type="text">` i operator wpisuje kody opcji z palca.
+- **Read-only display**: nigdy nie pokazuj raw code (`red`, `new`) — zawsze mapuj na `option.label[lang]`. Tag chips, badges, tooltips też.
+- **Reguła dla nowych attribute types**: dodanie nowego typu (np. `country` z predefined ISO codes) wymaga: (a) `AttributeType::usesOptions(): bool` aktualizacji, (b) AttrRow branch z odpowiednim controlem, (c) ApiTestCase pokrywający `options` w response, (d) Playwright spec z full round-trip.
+
 ### `attributes_indexed` ma envelope `{value: ...}` — admin readers MUSZĄ unwrapować (2026-05-12, PR #511)
 
 - **Backend**: `AttributesIndexedRebuilder::rebuild()` zapisuje `$indexed[$code] = $value->getValue()`, a `ObjectValue::getValue()` zwraca tablicę typu `{value: ..., locale?, channel?, provenance?}`. To kanoniczna postać — envelope zostaje pod nadchodzące locale/channel overlays.
