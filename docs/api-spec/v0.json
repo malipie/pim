@@ -2132,7 +2132,7 @@
                     {
                         "name": "parent_id",
                         "in": "query",
-                        "description": "Exact match on parent_id \u2014 returns rows whose parent points at the given UUID (variants of a master product, children of a category).",
+                        "description": "Exact match on parent_id \u2014 returns rows whose parent points at the given UUID (variants of a master product, children of a category). Pass the literal string `null` to return masters only (rows whose parent IS NULL).",
                         "required": false,
                         "deprecated": false,
                         "schema": {
@@ -2435,7 +2435,7 @@
                     {
                         "name": "parent_id",
                         "in": "query",
-                        "description": "Exact match on parent_id \u2014 returns rows whose parent points at the given UUID (variants of a master product, children of a category).",
+                        "description": "Exact match on parent_id \u2014 returns rows whose parent points at the given UUID (variants of a master product, children of a category). Pass the literal string `null` to return masters only (rows whose parent IS NULL).",
                         "required": false,
                         "deprecated": false,
                         "schema": {
@@ -3048,7 +3048,7 @@
                     {
                         "name": "parent_id",
                         "in": "query",
-                        "description": "Exact match on parent_id \u2014 returns rows whose parent points at the given UUID (variants of a master product, children of a category).",
+                        "description": "Exact match on parent_id \u2014 returns rows whose parent points at the given UUID (variants of a master product, children of a category). Pass the literal string `null` to return masters only (rows whose parent IS NULL).",
                         "required": false,
                         "deprecated": false,
                         "schema": {
