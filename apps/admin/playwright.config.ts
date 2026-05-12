@@ -17,6 +17,15 @@ const ciMode = !!process.env.CI;
  * before `pnpm e2e`.
  */
 export default defineConfig({
+  // HARD-09 — clear `auth_login` + `auth_refresh` rate-limiter
+  // buckets before the suite. modeling-shell.spec.ts hit 429s
+  // accumulated across dev sessions; without the reset the JWT
+  // refresh path fails mid-spec and the user redirects to /login.
+  // The setup script is best-effort — if docker is unreachable
+  // (operator running specs against a remote stack) the
+  // `loginAsAdmin` retry-on-429 in helpers/auth.ts handles the
+  // residual cases.
+  globalSetup: './e2e/global-setup.ts',
   testDir: './e2e',
   fullyParallel: false,
   forbidOnly: ciMode,
