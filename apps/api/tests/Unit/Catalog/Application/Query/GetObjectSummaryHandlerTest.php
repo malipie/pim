@@ -96,6 +96,11 @@ final class InMemoryCatalogObjectRepo implements CatalogObjectRepositoryInterfac
         return $this->objects[$id->toRfc4122()] ?? null;
     }
 
+    public function findByIds(array $idsRfc4122): array
+    {
+        throw new LogicException('not used in this test');
+    }
+
     public function findByCode(string $code, ObjectKind $kind, Tenant $tenant): ?CatalogObject
     {
         throw new LogicException('not used in this test');

@@ -35,6 +35,13 @@ use Throwable;
  */
 final readonly class CatalogObjectIndexer
 {
+    /**
+     * Hard cap per Meili HTTP call. The per-request collector
+     * (PROD-03) chunks large drains into multiple `addDocuments`
+     * calls so we never push more than this in one round-trip.
+     */
+    private const int BATCH_SIZE = 1000;
+
     private LoggerInterface $logger;
 
     public function __construct(
@@ -62,6 +69,61 @@ final readonly class CatalogObjectIndexer
         $this->push($object);
     }
 
+    /**
+     * PROD-03 — batch path used by {@see CatalogIndexFlushSubscriber}
+     * after a request finishes. Loads all objects in one query, groups
+     * by kind, then issues one `addDocuments` per kind (chunked at
+     * {@see self::BATCH_SIZE}). Single-object requests still go through
+     * {@see self::index()} so the existing call sites don't change.
+     *
+     * @param list<string> $idsRfc4122
+     */
+    public function indexBatch(array $idsRfc4122): void
+    {
+        if ([] === $idsRfc4122) {
+            return;
+        }
+
+        $objects = $this->catalogObjects->findByIds($idsRfc4122);
+        if ([] === $objects) {
+            return;
+        }
+
+        /** @var array<string, list<array<string, mixed>>> $byKind */
+        $byKind = [];
+        foreach ($objects as $object) {
+            $kind = $object->getKind();
+            if (ObjectKind::Custom === $kind) {
+                continue;
+            }
+            $byKind[$kind->value][] = $this->toDocument($object);
+        }
+
+        if ([] === $byKind) {
+            return;
+        }
+
+        $client = $this->clientFactory->create();
+        foreach ($byKind as $kindValue => $documents) {
+            $kind = ObjectKind::from($kindValue);
+            foreach (array_chunk($documents, self::BATCH_SIZE) as $chunk) {
+                try {
+                    $client->index(IndexSettingsTemplate::indexName($kind))->addDocuments($chunk);
+                } catch (Throwable $e) {
+                    // Fail-soft per chunk — search is a notification surface
+                    // (lessons #50). One Meili outage should not crash the
+                    // request; the next single-row event or scheduled
+                    // reindex will recover the document state.
+                    $this->logger->warning('Index batch push failed: {message}', [
+                        'message' => $e->getMessage(),
+                        'kind' => $kind->value,
+                        'count' => \count($chunk),
+                    ]);
+                }
+            }
+        }
+    }
+
     public function remove(Uuid $objectId, ObjectKind $kind): void
     {
         if (ObjectKind::Custom === $kind) {
@@ -77,6 +139,45 @@ final readonly class CatalogObjectIndexer
                 'id' => $objectId->toRfc4122(),
                 'kind' => $kind->value,
             ]);
+        }
+    }
+
+    /**
+     * PROD-03 — batch delete companion to {@see self::indexBatch()}.
+     *
+     * @param array<string, ObjectKind> $kindByIdRfc4122
+     */
+    public function removeBatch(array $kindByIdRfc4122): void
+    {
+        if ([] === $kindByIdRfc4122) {
+            return;
+        }
+
+        /** @var array<string, list<string>> $idsByKind */
+        $idsByKind = [];
+        foreach ($kindByIdRfc4122 as $id => $kind) {
+            if (ObjectKind::Custom === $kind) {
+                continue;
+            }
+            $idsByKind[$kind->value][] = $id;
+        }
+
+        if ([] === $idsByKind) {
+            return;
+        }
+
+        $client = $this->clientFactory->create();
+        foreach ($idsByKind as $kindValue => $ids) {
+            $kind = ObjectKind::from($kindValue);
+            try {
+                $client->index(IndexSettingsTemplate::indexName($kind))->deleteDocuments($ids);
+            } catch (Throwable $e) {
+                $this->logger->warning('Index batch delete failed: {message}', [
+                    'message' => $e->getMessage(),
+                    'kind' => $kind->value,
+                    'count' => \count($ids),
+                ]);
+            }
         }
     }
 

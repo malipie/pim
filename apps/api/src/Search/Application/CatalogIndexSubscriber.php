@@ -13,29 +13,30 @@ use App\Catalog\Contracts\Event\ObjectPublished;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
- * Catalog → Search bridge (#50 / 0.5.2).
+ * Catalog → Search bridge (#50 / 0.5.2, batch-extended in PROD-03).
  *
- * Each domain event maps to one indexer call:
- *   - `ObjectCreated`/`ObjectAttributesChanged`/`ObjectEnabledChanged`/
- *     `ObjectPublished` → `CatalogObjectIndexer::index()` re-pushes the
- *     full document (Meilisearch upserts by primary key, so a single
- *     `addDocuments` covers create + partial update).
- *   - `ObjectArchived` → `CatalogObjectIndexer::remove()` drops the row
- *     so archived items never surface in search results.
+ * Each domain event used to call the indexer directly which translated
+ * into one Meilisearch HTTP request per affected row. Variant generation
+ * (16 axes) and category cascades (descendant moves) blew that up to
+ * N×Meili requests per HTTP call. PROD-03 routes events through a
+ * request-scoped {@see CatalogIndexCollector}; the matching
+ * {@see CatalogIndexFlushSubscriber} drains the buffer on
+ * `kernel.terminate` so Meili sees one batched call per kind per
+ * request, after the response is on the wire.
  *
- * Bulk path (CSV import, agent batch, demo seeder) skips indexing —
- * `BulkContext::isBulk()` flag set by the orchestrator. The bulk
- * handler dispatches `pim:search:reindex` (#51) once at the end of
- * its flush cycle.
+ * Bulk path (CSV import, agent batch, demo seeder) still skips entirely
+ * via {@see BulkContext::isBulk()} — the bulk handler dispatches
+ * `pim:search:reindex` (#51) once at the end of its flush cycle, so
+ * routing those events through the collector would just buffer ids that
+ * the bulk reindex covers anyway.
  *
- * Sync dispatch via `messenger.bus.default` keeps the indexer simple
- * for MVP. Async transport in Faza 1 (when sync 50k SKU benchmarks
- * show indexing latency dominates the write path).
+ * Sync dispatch via `messenger.bus.default` keeps the subscriber
+ * simple; the only async hop is the deferred Meili push on terminate.
  */
 final readonly class CatalogIndexSubscriber
 {
     public function __construct(
-        private CatalogObjectIndexer $indexer,
+        private CatalogIndexCollector $collector,
         private BulkContext $bulkContext,
     ) {
     }
@@ -46,7 +47,7 @@ final readonly class CatalogIndexSubscriber
         if ($this->bulkContext->isBulk()) {
             return;
         }
-        $this->indexer->index($event->objectId);
+        $this->collector->queueUpsert($event->objectId);
     }
 
     #[AsMessageHandler]
@@ -55,7 +56,7 @@ final readonly class CatalogIndexSubscriber
         if ($this->bulkContext->isBulk()) {
             return;
         }
-        $this->indexer->index($event->objectId);
+        $this->collector->queueUpsert($event->objectId);
     }
 
     #[AsMessageHandler]
@@ -64,7 +65,7 @@ final readonly class CatalogIndexSubscriber
         if ($this->bulkContext->isBulk()) {
             return;
         }
-        $this->indexer->index($event->objectId);
+        $this->collector->queueUpsert($event->objectId);
     }
 
     #[AsMessageHandler]
@@ -73,7 +74,7 @@ final readonly class CatalogIndexSubscriber
         if ($this->bulkContext->isBulk()) {
             return;
         }
-        $this->indexer->index($event->objectId);
+        $this->collector->queueUpsert($event->objectId);
     }
 
     #[AsMessageHandler]
@@ -82,11 +83,10 @@ final readonly class CatalogIndexSubscriber
         if ($this->bulkContext->isBulk()) {
             return;
         }
-        // Archive should hide the row from search; events carry no kind,
-        // so we re-fetch via the indexer's repository to read it.
-        // Fast path: just push the latest doc — Meili will surface it
-        // with `enabled=false` / `status=archived` and the read-side
-        // filters in #52 strip archived rows from results.
-        $this->indexer->index($event->objectId);
+        // Archive should hide the row from search. The event carries no
+        // kind, so we re-push the latest doc — Meili will surface it with
+        // `enabled=false` / `status=archived` and the read-side filters in
+        // #52 strip archived rows from results.
+        $this->collector->queueUpsert($event->objectId);
     }
 }

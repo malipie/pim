@@ -151,6 +151,11 @@ final class InMemoryCatalogObjectRepository implements CatalogObjectRepositoryIn
         return null;
     }
 
+    public function findByIds(array $idsRfc4122): array
+    {
+        return [];
+    }
+
     public function findByKind(ObjectKind $kind, Tenant $tenant): array
     {
         return [];
