@@ -2,6 +2,32 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z marathonu PROD-01..05 (production-readiness, 2026-05-12)
+
+Marathon: 5 PR-ów (#526 PROD-01 async Messenger overlay, #531 PROD-02 PgBouncer tx-mode, #528 PROD-03 Meili batch indexing collector, #529 PROD-04 Prometheus + worker-memory alert, #530 PROD-05 per-tenant bulk concurrency lock). Wszystkie merged tego samego dnia.
+
+1. **Stack PR-y muszą mieć base na branchu poprzednika TYLKO dopóki ten branch żyje** — `--delete-branch` na merge automatycznie zamyka wszystkie PR-y które miały zamykany branch jako base. PR #527 (PROD-02 stacked on PROD-01) został auto-zamknięty gdy mergowałem #526 z `--delete-branch`. **Workaround**: zanim merge bottom-of-stack, wyedituj `gh pr edit <child> --base main`. Albo przygotuj się do re-create PR (jak w przypadku #531). **Reguła dla przyszłych marathon stack-ów**: każdy stack PR otwieraj z `--base main` i pisaną zawartość rebase przed merge — łatwiej niż chasing zamknięte PR-y.
+
+2. **YAML anchors z bazowego compose nie są widoczne w overlay file** — `<<: [*default_restart, *resource_limits_tiny]` w `docker-compose.prod.yml` rzuca `unknown anchor 'default_restart' referenced` mimo że anchor jest w `docker-compose.yml`. Compose parsuje każdy plik niezależnie przed merge. Workaround: restate inline w overlay (`restart: unless-stopped` + explicit `deploy.resources.limits`). Lekcja w PROD-02 (pgbouncer service).
+
+3. **`!override` tag dla compose `depends_on` żeby drop dev-only dependency** (PROD-01 caddy → admin). Base file ma `caddy.depends_on: { admin: ... }`. Overlay parkuje `admin` pod profilem `dev-only` → caddy odwołuje się do niezdefiniowanej usługi. Bez `!override` semantyki overlay merge dodaje (additive). `caddy.depends_on: !override { api: ..., mercure: ... }` zastępuje cały blok. Compose Spec 2.20+ supportuje `!override` i `!reset` — działa w Docker Compose v2.
+
+4. **Subscriber który dispatchuje na `kernel.terminate` MUSI mieć fail-soft try/catch wokół całej inicjalizacji** — nie tylko wokół happy-path call. PROD-03 batch indexer wołał `MeilisearchClientFactory::create()` POZA try/catch, polegając na try/catch tylko wokół `addDocuments()`. W test envs (gdzie `MEILI_URL` nie jest configured) `clientFactory->create()` rzucał `LogicException` z `kernel.terminate`, crashując 64 testy. Fix: try/catch wokół `clientFactory->create()` z fail-soft logging (a428b90). **Reguła**: `kernel.terminate` listenery są post-response; throw → leaks do worker logs bez recourse, response operatora już wysłana. Zawsze fail-soft tutaj.
+
+5. **Kompozycyjne testy CI: PR z tylko-compose changes pomija PHP CI jobs** — `Quality (PHP)` workflow ma path filter na `apps/api/**` i `composer.{json,lock}`. PR #526/#531/#529 (tylko `docker-compose.prod.yml` + `docker/prometheus/**`) trigger-ują tylko admin checks (Biome, TS, Vite, Playwright) + audit. Nie ma PHPUnit ani PHPStan. To przyspiesza compose-only PR-y ALE: jeśli compose change *implicitly* psuje config który PHPUnit by złapał (np. `LOCK_DSN=invalid://`), CI tego nie wykryje. **Mitigacja**: lokalna walidacja `docker compose -f ... -f ... config --quiet` na każdy push compose-only PR-a + smoke test po deploy.
+
+6. **PgBouncer transaction mode + Doctrine ORM 3 → MUSI mieć `MAX_PREPARED_STATEMENTS > 0`** (PROD-02). DBAL 4 wystawia extended-query-protocol prepared statement dla każdego parameterised query. Bez `MAX_PREPARED_STATEMENTS` na PgBouncer 1.21+, drugi handler invocation rzuca `prepared statement "..." does not exist` (re-pin do innego backendu nie ma znajomości PS-a). Wartość 100 = per-worker working set; bumpuj jeśli pojawiają się logs `out of prepared statements`. **Wzór**: ustaw też `IGNORE_STARTUP_PARAMETERS: extra_float_digits,search_path,application_name` żeby URL `?application_name=pim_api` nie rzucał unknown-parameter errora (kosztem braku visibility w pg_stat_activity).
+
+7. **Symfony Lock w prod = redis (cross-container), nie flock (single-container)** (PROD-05). Base `LOCK_DSN=flock` działa w dev jednym kontenerze. Z replikami worker-ów + osobnym api kontenerem, każdy ma własny `/tmp/sf.<key>.lock` → lock acquired przez api nie jest widziany przez worker. Fix: prod overlay `LOCK_DSN: redis://redis:6379` + `install-php-extensions redis` w Dockerfile. **Alternative**: `dbal+pgsql://...` (DoctrineDbalStore z `INSERT ON CONFLICT`) działa przez PgBouncer transaction mode, ale wymaga osobnej migracji `lock_keys` table. Redis prostszy.
+
+8. **Per-tenant bulk lock = domain exception > messenger-specific exception**, żeby ten sam path obsłużyć w sync HTTP (controller → 409) i async (handler → recoverable retry). Wzór z PROD-05: `BulkOperationInProgressException extends RuntimeException` rzucane z `run()`; controller catch → `ConflictHttpException`; handler `__invoke` catch → `RecoverableMessageHandlingException`. Lock-acquire i lock-release MUSZĄ być w `try { ... } finally { $lock->release() }` żeby crash w środku nie pozostawił stale lock-a (TTL 1h auto-cleanup).
+
+9. **`merge --admin` mandate dla modeling-shell flake nadal aktywny** — pre-existing flake w `e2e/modeling-shell.spec.ts:17` failuje na PR-ach które nie dotykają admin/. PROD-03 (PHP code only) i PROD-05 (PHP + compose) failowały Playwright na tej samej spec. Per CLAUDE.md SMOKE TEST RULE: merge --admin akceptowalne gdy (a) wszystkie inne checki zielone, (b) failujący test jest niezwiązany z PR, (c) operator wcześniej dał mandate. **Follow-up nadal otwarty**: znaleźć root cause modeling-shell flake (suspekcja: Dashboard mock-data race condition pod obciążeniem CI).
+
+10. **In-memory test repos MUSZĄ implementować pełny interfejs** (lekcja sekundarna z PROD-03). Dodanie `findByIds(array $idsRfc4122): array` do `CatalogObjectRepositoryInterface` złamało 3 stub-y (`InMemoryCatalogObjectRepo`, `InMemoryCatalogObjectRepoForValidator`, `InMemoryCatalogObjectRepository`) z fatal `contains 1 abstract method`. Wzór: gdy dodajesz metodę do repository interface, grep `implements .*RepositoryInterface` w `tests/` i dodaj implementację (najprościej `throw new LogicException('not used')` z odpowiednią diagnostiką). PHPStan max NIE wykrywa tego — fatal error na PHPUnit boot.
+
+---
+
 ## Lessons z epiku UI-11 (Importy redesign, 2026-05-11..2026-05-12)
 
 Epik: 7 ticketów (VIEW-IMP-00..05 + AUDIT) + bloker IMP-16 (kategoria assignment) = 8 PR-ów total, ~118h estymata, ~24h faktyczne marathon. Wszystkie merged.
