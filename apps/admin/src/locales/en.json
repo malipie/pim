@@ -1315,6 +1315,15 @@
       "empty": "No imports yet. Start your first import."
     },
     "wizard": {
+      "eyebrow": "Self-service import — 4 steps",
+      "title": "New import",
+      "subtitle": "Every file goes through 4 steps: upload, map columns to attributes, validate with a dry-run, commit to the database. After commit the session shows up under \"Sessions\" — you can roll it back within 24h.",
+      "descriptions": {
+        "upload": "CSV / XLSX + optional ZIP with images",
+        "mapping": "Columns → attributes + categories",
+        "validation": "Dry-run, validation errors",
+        "confirm": "Backup + commit"
+      },
       "steps": {
         "upload": "Upload",
         "mapping": "Mapping",
