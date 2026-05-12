@@ -82,6 +82,42 @@ final class CatalogFiltersApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function parentIdFilterNullReturnsMastersOnly(): void
+    {
+        // 1 master + 2 variants — the masters-only filter must hide
+        // the variants and surface the master so the products list
+        // tree mode (#514) can paginate masters without losing them
+        // to a variant-heavy page.
+        $em = $this->em();
+        $tenant = $this->tenant();
+        $context = self::getContainer()->get(TenantContext::class);
+        $context->set($tenant);
+
+        $type = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert(null !== $type);
+
+        $repo = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+        $master = new CatalogObject($type, 'MASTERS-ONLY-MASTER');
+        $repo->save($master);
+        foreach (['MASTERS-ONLY-V1', 'MASTERS-ONLY-V2'] as $code) {
+            $variant = new CatalogObject($type, $code);
+            $variant->assignParent($master);
+            $repo->save($variant);
+        }
+        $em->flush();
+        $em->clear();
+
+        $client = $this->authenticatedClient();
+        $body = $client->request('GET', '/api/products?parent_id=null')->toArray();
+
+        $codes = $this->codesFrom($body);
+        self::assertContains('MASTERS-ONLY-MASTER', $codes);
+        self::assertNotContains('MASTERS-ONLY-V1', $codes);
+        self::assertNotContains('MASTERS-ONLY-V2', $codes);
+    }
+
+    #[Test]
     public function parentIdFilterIgnoresInvalidUuid(): void
     {
         $this->seedProducts(['INVALID-PARENT-A', 'INVALID-PARENT-B']);

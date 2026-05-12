@@ -35,6 +35,14 @@ interface ProductsGridProps {
   onToggleEnabled: (id: string, next: boolean) => void;
   onChangedRow: () => void;
   isLoading: boolean;
+  /**
+   * When true the chevron is rendered on every master row even when
+   * the inline `variantsByMasterCount` does not know whether the row
+   * has variants yet — the parent list lazy-loads variants on click
+   * (#514). Without this the chevron only shows in flat mode where
+   * variants live in the same Refine page as the master.
+   */
+  alwaysShowChevronOnMasters?: boolean;
 }
 
 const GRID_TPL =
@@ -84,6 +92,7 @@ export function ProductsGrid({
   onToggleEnabled,
   onChangedRow,
   isLoading,
+  alwaysShowChevronOnMasters = false,
 }: ProductsGridProps) {
   const { t } = useTranslation();
   const masterIds = rows.filter((r) => r.parentId === null).map((r) => r.id);
@@ -139,6 +148,7 @@ export function ProductsGrid({
               isExpanded={expandedMasters.has(row.id)}
               onToggleExpand={onToggleExpand}
               variantsCount={variantsByMasterCount.get(row.id) ?? 0}
+              forceExpandable={alwaysShowChevronOnMasters && row.parentId === null}
               onToggleEnabled={onToggleEnabled}
               onChangedRow={onChangedRow}
             />
@@ -187,6 +197,7 @@ interface RowViewProps {
   isExpanded: boolean;
   onToggleExpand: (id: string) => void;
   variantsCount: number;
+  forceExpandable?: boolean;
   onToggleEnabled: (id: string, next: boolean) => void;
   onChangedRow: () => void;
 }
@@ -198,12 +209,13 @@ function ProductsGridRowView({
   isExpanded,
   onToggleExpand,
   variantsCount,
+  forceExpandable = false,
   onToggleEnabled,
   onChangedRow,
 }: RowViewProps) {
   const { t } = useTranslation();
   const variant = isVariant(row);
-  const hasVariants = !variant && variantsCount > 0;
+  const hasVariants = !variant && (variantsCount > 0 || forceExpandable);
   const style: CSSProperties = { gridTemplateColumns: GRID_TPL };
 
   return (

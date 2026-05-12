@@ -12,6 +12,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * `?parent_id=<uuid>` — exact match on `CatalogObject.parent_id`.
+ * `?parent_id=null` — masters-only (rows whose parent IS NULL).
  *
  * Drives the `<VariantsListCard />` (VIEW-07 #420) which lists variants
  * of a master product (`/api/products?parent_id={master_id}`). Without
@@ -19,14 +20,22 @@ use Symfony\Component\Uid\Uuid;
  * cursor page — UI naïvely rendered DEMO-099/DEMO-098/... as „variants
  * of DEMO-100", which is a lie. Issue #429.
  *
- * Empty / non-UUID values are skipped — the filter is a no-op when the
- * param is absent or malformed (returning an unfiltered list is a less
- * surprising fallback than a 500). Tenant scoping still applies via
- * `TenantFilter` so cross-tenant lookups are impossible.
+ * The literal-string `null` value supports the products list tree mode
+ * (#514): with many variants of one master a single page of /api/products
+ * fills entirely with variants and pushes other masters off-screen.
+ * Sending `?parent_id=null` returns only masters and the UI lazy-loads
+ * variants on chevron expand.
+ *
+ * Empty / non-UUID values (other than `null`) are skipped — the filter
+ * is a no-op when the param is absent or malformed (returning an
+ * unfiltered list is a less surprising fallback than a 500). Tenant
+ * scoping still applies via `TenantFilter` so cross-tenant lookups are
+ * impossible.
  */
 final class ParentIdFilter implements FilterInterface
 {
     private const string PARAMETER = 'parent_id';
+    private const string NULL_TOKEN = 'null';
 
     public function apply(
         QueryBuilder $queryBuilder,
@@ -41,12 +50,22 @@ final class ParentIdFilter implements FilterInterface
         }
 
         $value = $filters[self::PARAMETER] ?? null;
-        if (!\is_string($value) || !Uuid::isValid($value)) {
+        if (!\is_string($value)) {
             return;
         }
 
         $alias = $queryBuilder->getRootAliases()[0] ?? null;
         if (null === $alias) {
+            return;
+        }
+
+        if (self::NULL_TOKEN === $value) {
+            $queryBuilder->andWhere(\sprintf('%s.parent IS NULL', $alias));
+
+            return;
+        }
+
+        if (!Uuid::isValid($value)) {
             return;
         }
 
@@ -68,7 +87,7 @@ final class ParentIdFilter implements FilterInterface
                 'property' => 'parent',
                 'type' => 'string',
                 'required' => false,
-                'description' => 'Exact match on parent_id — returns rows whose parent points at the given UUID (variants of a master product, children of a category).',
+                'description' => 'Exact match on parent_id — returns rows whose parent points at the given UUID (variants of a master product, children of a category). Pass the literal string `null` to return masters only (rows whose parent IS NULL).',
                 'strategy' => 'exact',
             ],
         ];
