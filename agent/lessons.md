@@ -84,6 +84,22 @@ Epik: 7 ticketów (VIEW-IMP-00..05 + AUDIT) + bloker IMP-16 (kategoria assignmen
 
 ## Patterns to Follow
 
+### `jsonFetch<T>` runtime hint nie jest type-safe — defensywne `?? []` na list-shape (2026-05-12, PR #525)
+
+Operator zgłosił "biały ekran na /products + zniknęły produkty" zaraz po marathonie HARD-01..10. Stack: `Cannot read properties of undefined (reading 'map')` w SavedViewsRail.
+
+**Root cause**: `jsonFetch<{ views: SavedView[] }>(...).then(body => setViews(body.views))` — generic type assertion to RUNTIME HINT. Backend zwraca `{}` lub omija klucz `views` (auth race, empty result, future shape change) → `body.views = undefined` → `setViews(undefined)` → następny render `views.map(...)` crashuje cały React tree → biały ekran.
+
+**Reguła**: każdy `setState(body.field)` po jsonFetch MUSI mieć `?? []` (dla list-shape) lub explicit null check (dla object-shape). Pattern:
+```ts
+jsonFetch<{ views?: SavedView[] }>(...)  // optional w generic
+  .then(body => setViews(body.views ?? []));  // defensive default
+```
+
+**Dlaczego HARD-04 strict TS tego nie złapał**: `jsonFetch` parameter to `T = unknown`, narrowing tylko via call-site assertion. TypeScript ufa adnotacji — runtime nie re-validuje. `noUncheckedIndexedAccess` chroni `arr[i]` ale nie property access na typed object.
+
+**Dlaczego nie był wykryty wcześniej**: backend ZAWSZE zwracał `{views: []}` w developmencie. Dopiero specyficzny race (auth refresh w trakcie save-views fetch) lub edge case spowodował null. **Każdy `jsonFetch<{ list: Foo[] }>` to potencjalny biały ekran** — defensive `?? []` is ZAWSZE wymagane.
+
 ### Audit-driven hardening marathon — 10 ticketów / 10 PR-ów (2026-05-12, PR #515-#524)
 
 Po pełnym audycie kodu (raport: `agent/audit-2026-05-12.md`) operator zlecił marathon "robimy to wszystko". Dziesięć ticketów dostarczone w jednej sesji, każdy = osobny branch + PR + CI + merge per epik marathon rule.
