@@ -84,6 +84,18 @@ Epik: 7 ticketów (VIEW-IMP-00..05 + AUDIT) + bloker IMP-16 (kategoria assignmen
 
 ## Patterns to Follow
 
+### Native HTML5 date picker > custom — używaj `<input type="date">` dla typu `date` (2026-05-12, PR #513)
+
+- **AttrRow** musi mieć branch dla `attribute.type === 'date'` z `<input type="date">` (i `'datetime'` z `datetime-local`). Bez tego operator dostaje text input bez kalendarza i bez walidacji.
+- **Backend zapisuje ISO `YYYY-MM-DD`** jako string (nie obiekt `{value, locale}` jak select — sam string). Read path: `value.slice(0, 10)` jeśli backend kiedyś dorzuci czas.
+- **Brak custom DatePickera w MVP** — natywny HTML5 daje kalendarz, walidację, a11y i ICU za darmo. Refactor pojawi się jeśli potrzebny będzie range picker albo locale-aware format.
+
+### Variants axis Combobox + filtr po `usesOptions()` (2026-05-12, PR #513)
+
+- **Axis attrybutu wariantu** wymaga predefined values (generator iteruje opcje per axis), więc Combobox z attr listą MUSI być filtrowany do `select`/`multiselect` only. Pokazywanie `created_at`/`name`/`brand` jako możliwych axes to noise i mylące UX.
+- **Nigdy nie używaj `<input + datalist>`** dla pickera z 5+ opcjami — UX wymaga czyszczenia inputu żeby zobaczyć sugestie. Combobox otwiera listę na klik.
+- **Suggestion chips poniżej pickera**: NIE chowaj ich po pierwszym wyborze — operator chce widzieć całą pulę i wybierać po kolei. Filtruj tylko już wybrany code (`!axis.values.includes(opt.code)`).
+
 ### Predefined-value attrs (`select` / `multiselect`) — controller MUSI eager-loadować options (2026-05-12, PR #512)
 
 - **Backend**: `effective-attribute-groups` musi w preprocessing przejść przez wszystkie attrybuty grupy + ObjectType-loose, sfiltrować `AttributeType::usesOptions()` i jednym bulk `IN` query (`AttributeOptionRepository::findByAttributes`) załadować opcje. Per-attr loop = N+1 (50 atrybutów = 50 round-tripów). Helper `serializeAttribute(...)` warunkowo dorzuca `options` tylko dla typów z opcjami — payload tight.
