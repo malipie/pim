@@ -1,0 +1,63 @@
+name: Branch cleanup
+
+# HARD-03 — auto-delete branch when its PR is merged or closed.
+#
+# Background: as of 2026-05-12 the repo carried 248 stale remote branches
+# (audit finding). Most were post-merge leftovers — once a PR lands the
+# branch has no consumers but never gets pruned, polluting `git branch -r`,
+# IDE autocompletes and `gh pr` views.
+#
+# `gh pr merge --delete-branch` covers the happy path when the PR author
+# uses the CLI flag, but it is opt-in and easy to forget on web merges or
+# scripted automation. This workflow enforces the cleanup at the GitHub
+# event level so the choice is no longer per-merge.
+#
+# The workflow only deletes the head branch when:
+#   - the PR was merged OR was closed without merging,
+#   - AND the branch is in the same repo (no fork PRs — those use ephemeral
+#     refs we never own anyway),
+#   - AND the branch is not `main` (defensive — GitHub refuses to delete
+#     the default branch but emit a no-op explicitly).
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  delete-branch:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip protected branches
+        id: guard
+        run: |
+          REF="${{ github.event.pull_request.head.ref }}"
+          if [ "$REF" = "main" ] || [ "$REF" = "master" ]; then
+            echo "Refusing to delete protected branch $REF"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Delete head branch
+        if: steps.guard.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF: ${{ github.event.pull_request.head.ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          # `gh api` returns 404 if the branch is already gone (e.g. the
+          # PR was merged with `--delete-branch`). Treat that as success.
+          if gh api -X DELETE "repos/$REPO/git/refs/heads/$REF" 2>err.log; then
+            echo "Deleted $REF"
+          else
+            if grep -q "Reference does not exist" err.log; then
+              echo "$REF already deleted — no-op"
+            else
+              cat err.log
+              exit 1
+            fi
+          fi
