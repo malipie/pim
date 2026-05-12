@@ -177,7 +177,10 @@ export function StepUpload({ wizard }: StepUploadProps): React.ReactElement {
               type="radio"
               name="profile-mode"
               checked={state.profileId !== null}
-              onChange={() => setField('profileId', profiles[0].id)}
+              onChange={() => {
+                const first = profiles[0];
+                if (first !== undefined) setField('profileId', first.id);
+              }}
             />
             <span>
               {t('imports.upload.profile.use_saved', { defaultValue: 'Użyj zapisanego' })}

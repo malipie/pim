@@ -65,7 +65,7 @@ export function ChannelMappingEditor({ channelId }: ChannelMappingEditorProps) {
 
       <div className="space-y-3">
         {groupKeys.map((otCode) => {
-          const groupRows = grouped[otCode];
+          const groupRows = grouped[otCode] ?? [];
           const sample = groupRows[0]?.objectType;
           const objectTypeLabel = sample
             ? (resolveLabel(sample.label ?? null, i18n.language) ?? otCode)
@@ -175,15 +175,14 @@ function groupByObjectType(rows: MappingRow[]): Record<string, MappingRow[]> {
   const grouped: Record<string, MappingRow[]> = {};
   for (const row of rows) {
     const otCode = row.objectType?.code ?? 'unknown';
-    if (!grouped[otCode]) {
-      grouped[otCode] = [];
-    }
-    grouped[otCode].push(row);
+    const bucket = grouped[otCode] ?? [];
+    bucket.push(row);
+    grouped[otCode] = bucket;
   }
 
   // Stable sort within group by attribute code
   for (const key of Object.keys(grouped)) {
-    grouped[key].sort((a, b) => (a.attribute?.code ?? '').localeCompare(b.attribute?.code ?? ''));
+    grouped[key]?.sort((a, b) => (a.attribute?.code ?? '').localeCompare(b.attribute?.code ?? ''));
   }
   return grouped;
 }

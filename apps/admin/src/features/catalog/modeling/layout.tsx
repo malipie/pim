@@ -88,7 +88,7 @@ export function ModelingLayout() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
 
-  const activeTab = TABS.find((tab) => pathname.startsWith(tab.to))?.value ?? TABS[0].value;
+  const activeTab = TABS.find((tab) => pathname.startsWith(tab.to))?.value ?? TABS[0]?.value ?? '';
 
   return (
     <div className="space-y-6">

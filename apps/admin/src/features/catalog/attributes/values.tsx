@@ -121,8 +121,9 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
 
   const [activeId, setActiveId] = useState<string | null>(null);
   useEffect(() => {
-    if (activeId === null && options.length > 0) {
-      setActiveId(options[0].id);
+    const first = options[0];
+    if (activeId === null && first !== undefined) {
+      setActiveId(first.id);
     }
   }, [activeId, options]);
 
