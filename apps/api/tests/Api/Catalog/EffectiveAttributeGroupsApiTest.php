@@ -8,6 +8,7 @@ use App\Catalog\Application\BuiltInSystemAttributesSeeder;
 use App\Catalog\Application\ObjectTypeService;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Entity\AttributeOption;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
@@ -202,5 +203,108 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
         }
 
         self::assertSame(1, $occurrences, 'Attribute exposed in a real group must not also appear in the synthetic default group.');
+    }
+
+    #[Test]
+    public function shipsAttributeOptionsForSelectAndMultiselectAttributes(): void
+    {
+        $client = $this->authenticatedClient();
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+
+        $productType = self::getContainer()
+            ->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert(null !== $productType);
+
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenantContext->set($tenant);
+
+        $colorAttr = new Attribute('color_view07', ['pl' => 'Kolor', 'en' => 'Color'], AttributeType::Select);
+        $tagsAttr = new Attribute('tags_view07', ['pl' => 'Tagi', 'en' => 'Tags'], AttributeType::Multiselect);
+        $textAttr = new Attribute('notes_view07', ['pl' => 'Notatki', 'en' => 'Notes'], AttributeType::Text);
+        $em = $this->em();
+        $em->persist($colorAttr);
+        $em->persist($tagsAttr);
+        $em->persist($textAttr);
+        $em->flush();
+
+        $em->persist(new AttributeOption(
+            attribute: $colorAttr,
+            code: 'red',
+            label: ['pl' => 'Czerwony', 'en' => 'Red'],
+            position: 0,
+            color: '#EF4444',
+            isDefault: true,
+        ));
+        $em->persist(new AttributeOption(
+            attribute: $colorAttr,
+            code: 'blue',
+            label: ['pl' => 'Niebieski', 'en' => 'Blue'],
+            position: 1,
+            color: '#3B82F6',
+        ));
+        $em->persist(new AttributeOption(
+            attribute: $tagsAttr,
+            code: 'new',
+            label: ['pl' => 'Nowość', 'en' => 'New'],
+            position: 0,
+        ));
+        $em->flush();
+
+        $service = self::getContainer()->get(ObjectTypeService::class);
+        $service->assignAttribute($productType, $colorAttr, required: false, sortOrder: 0);
+        $service->assignAttribute($productType, $tagsAttr, required: false, sortOrder: 1);
+        $service->assignAttribute($productType, $textAttr, required: false, sortOrder: 2);
+
+        $tenantContext->clear();
+
+        $created = $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'V071-OPTIONS',
+                'objectTypeId' => $productType->getId()->toRfc4122(),
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+        $id = $created['id'] ?? null;
+        \assert(\is_string($id));
+
+        $response = $client->request('GET', '/api/products/'.$id.'/effective-attribute-groups');
+        self::assertResponseIsSuccessful();
+        $body = $response->toArray();
+
+        $byCode = [];
+        foreach (($body['groups'] ?? []) as $group) {
+            \assert(\is_array($group));
+            foreach (($group['attributes'] ?? []) as $attr) {
+                \assert(\is_array($attr));
+                $code = $attr['code'] ?? null;
+                if (\is_string($code)) {
+                    $byCode[$code] = $attr;
+                }
+            }
+        }
+
+        self::assertArrayHasKey('color_view07', $byCode);
+        self::assertArrayHasKey('options', $byCode['color_view07']);
+        $colorOptions = $byCode['color_view07']['options'];
+        \assert(\is_array($colorOptions));
+        self::assertCount(2, $colorOptions);
+        self::assertSame('red', $colorOptions[0]['code']);
+        self::assertSame('Czerwony', $colorOptions[0]['label']['pl'] ?? null);
+        self::assertSame('Red', $colorOptions[0]['label']['en'] ?? null);
+        self::assertSame('#EF4444', $colorOptions[0]['color']);
+        self::assertTrue($colorOptions[0]['is_default']);
+        self::assertFalse($colorOptions[0]['is_deprecated']);
+        self::assertSame('blue', $colorOptions[1]['code']);
+
+        self::assertArrayHasKey('tags_view07', $byCode);
+        self::assertArrayHasKey('options', $byCode['tags_view07']);
+        self::assertCount(1, $byCode['tags_view07']['options']);
+
+        // text attribute MUST NOT carry an `options` key — option-less
+        // types ignore the field and we want the payload tight.
+        self::assertArrayHasKey('notes_view07', $byCode);
+        self::assertArrayNotHasKey('options', $byCode['notes_view07']);
     }
 }

@@ -2,11 +2,13 @@ import { Copy, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WysiwygEditor } from '@/components/catalog/wysiwyg-editor';
 import { type Provenance, ProvenanceBadge } from '@/components/provenance-badge';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
+import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-select';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
-import type { AttributeMeta, ProductLocale } from './types';
+import type { AttributeMeta, AttributeOptionMeta, ProductLocale } from './types';
 
 export interface AttrRowProps {
   attribute: AttributeMeta;
@@ -49,6 +51,8 @@ export function AttrRow({
   const editable = isEditing && !isLocked;
   const stringValue = typeof value === 'string' ? value : value == null ? '' : String(value);
   const localeChip = isLocaleScoped(attribute) ? locale : null;
+  const isSelectLike = attribute.type === 'select' || attribute.type === 'multiselect';
+  const selectOptions = isSelectLike ? (attribute.options ?? []) : [];
 
   return (
     <div
@@ -117,6 +121,26 @@ export function AttrRow({
               onChange={(event) => onChange(event.target.checked)}
               className="size-4 rounded"
             />
+          ) : attribute.type === 'select' ? (
+            <Combobox
+              options={toComboboxOptions(selectOptions, lang)}
+              value={typeof value === 'string' && value !== '' ? value : null}
+              onChange={(next) => onChange(next)}
+              placeholder={t('products.detail.field.select_placeholder', {
+                defaultValue: 'Wybierz…',
+              })}
+              className="rounded-xl text-[13.5px]"
+            />
+          ) : attribute.type === 'multiselect' ? (
+            <MultiSelect
+              options={toMultiSelectOptions(selectOptions, lang)}
+              value={readMultiselectValue(value)}
+              onChange={(next) => onChange(next)}
+              placeholder={t('products.detail.field.multiselect_placeholder', {
+                defaultValue: 'Wybierz…',
+              })}
+              className="rounded-xl text-[13.5px]"
+            />
           ) : (
             <Input
               id={`attr-${attribute.code}`}
@@ -135,12 +159,10 @@ export function AttrRow({
               isLocked ? 'cursor-default text-zinc-700' : 'text-ink',
             )}
           >
-            {stringValue === '' ? (
+            {renderReadOnlyValue(attribute, value, selectOptions, lang) ?? (
               <span className="italic text-zinc-400">
                 {t('products.detail.field.empty', { defaultValue: '—' })}
               </span>
-            ) : (
-              stringValue
             )}
           </div>
         )}
@@ -178,4 +200,61 @@ function isLocaleScoped(attribute: AttributeMeta): boolean {
   // benefit from a locale chip in the row label.
   if (/_pl$|_en$|_de$|_cs$/i.test(attribute.code)) return true;
   return attribute.type === 'richtext' || attribute.type === 'textarea';
+}
+
+function optionLabel(option: AttributeOptionMeta, lang: 'pl' | 'en'): string {
+  return option.label[lang] ?? option.label.en ?? option.label.pl ?? option.code;
+}
+
+function toComboboxOptions(options: AttributeOptionMeta[], lang: 'pl' | 'en'): ComboboxOption[] {
+  return options.map((o) => ({
+    value: o.code,
+    label: optionLabel(o, lang),
+  }));
+}
+
+function toMultiSelectOptions(
+  options: AttributeOptionMeta[],
+  lang: 'pl' | 'en',
+): MultiSelectOption[] {
+  return options.map((o) => ({
+    value: o.code,
+    label: optionLabel(o, lang),
+    color: o.color ?? null,
+    deprecated: o.is_deprecated === true,
+  }));
+}
+
+function readMultiselectValue(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
+/**
+ * Read-only display: map option codes to their localized labels so the
+ * detail page never shows raw codes (`red`, `new`) when an option label
+ * exists. Falls back to the raw value for non-select-like types.
+ */
+function renderReadOnlyValue(
+  attribute: AttributeMeta,
+  value: unknown,
+  options: AttributeOptionMeta[],
+  lang: 'pl' | 'en',
+): string | null {
+  if (attribute.type === 'select') {
+    if (typeof value !== 'string' || value === '') return null;
+    const match = options.find((o) => o.code === value);
+    return match ? optionLabel(match, lang) : value;
+  }
+  if (attribute.type === 'multiselect') {
+    const codes = readMultiselectValue(value);
+    if (codes.length === 0) return null;
+    const labels = codes.map((code) => {
+      const match = options.find((o) => o.code === code);
+      return match ? optionLabel(match, lang) : code;
+    });
+    return labels.join(', ');
+  }
+  if (value === null || value === undefined || value === '') return null;
+  return typeof value === 'string' ? value : String(value);
 }
