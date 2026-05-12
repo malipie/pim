@@ -19,6 +19,33 @@ export default defineConfig({
       '@': path.resolve(here, './src'),
     },
   },
+  build: {
+    // HARD-08 — bump the warning ceiling so the auto-named vendor
+    // bucket (Refine + Radix + React) below 700 KB stops emitting
+    // warnings every build. Per-route chunks (lazy-loaded) and the
+    // explicit manualChunks below stay well under it.
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        // Pin a few vendor families into named chunks so they live in
+        // dedicated files and stay cached across deploys when the
+        // application code changes. The lazy() splits in App.tsx
+        // handle per-page chunks automatically; manualChunks here is
+        // only for libraries that load on every request.
+        manualChunks: (id) => {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('react-router')) return 'router';
+          if (id.includes('@refinedev')) return 'refine';
+          if (id.includes('@tanstack/react-query')) return 'react-query';
+          if (id.includes('lucide-react')) return 'icons';
+          if (id.includes('@radix-ui')) return 'radix';
+          if (id.includes('react-i18next') || id.includes('i18next')) return 'i18n';
+          // Everything else stays in the auto-named vendor bucket.
+          return undefined;
+        },
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,
