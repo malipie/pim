@@ -273,10 +273,15 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
         self::assertResponseIsSuccessful();
         $body = $response->toArray();
 
+        $groups = $body['groups'] ?? [];
+        \assert(\is_array($groups));
+        /** @var array<string, array<string, mixed>> $byCode */
         $byCode = [];
-        foreach (($body['groups'] ?? []) as $group) {
+        foreach ($groups as $group) {
             \assert(\is_array($group));
-            foreach (($group['attributes'] ?? []) as $attr) {
+            $attributes = $group['attributes'] ?? [];
+            \assert(\is_array($attributes));
+            foreach ($attributes as $attr) {
                 \assert(\is_array($attr));
                 $code = $attr['code'] ?? null;
                 if (\is_string($code)) {
@@ -290,17 +295,25 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
         $colorOptions = $byCode['color_view07']['options'];
         \assert(\is_array($colorOptions));
         self::assertCount(2, $colorOptions);
-        self::assertSame('red', $colorOptions[0]['code']);
-        self::assertSame('Czerwony', $colorOptions[0]['label']['pl'] ?? null);
-        self::assertSame('Red', $colorOptions[0]['label']['en'] ?? null);
-        self::assertSame('#EF4444', $colorOptions[0]['color']);
-        self::assertTrue($colorOptions[0]['is_default']);
-        self::assertFalse($colorOptions[0]['is_deprecated']);
-        self::assertSame('blue', $colorOptions[1]['code']);
+        $firstColor = $colorOptions[0];
+        \assert(\is_array($firstColor));
+        self::assertSame('red', $firstColor['code']);
+        $firstLabel = $firstColor['label'] ?? null;
+        \assert(\is_array($firstLabel));
+        self::assertSame('Czerwony', $firstLabel['pl'] ?? null);
+        self::assertSame('Red', $firstLabel['en'] ?? null);
+        self::assertSame('#EF4444', $firstColor['color']);
+        self::assertTrue($firstColor['is_default']);
+        self::assertFalse($firstColor['is_deprecated']);
+        $secondColor = $colorOptions[1];
+        \assert(\is_array($secondColor));
+        self::assertSame('blue', $secondColor['code']);
 
         self::assertArrayHasKey('tags_view07', $byCode);
         self::assertArrayHasKey('options', $byCode['tags_view07']);
-        self::assertCount(1, $byCode['tags_view07']['options']);
+        $tagsOptions = $byCode['tags_view07']['options'];
+        \assert(\is_array($tagsOptions));
+        self::assertCount(1, $tagsOptions);
 
         // text attribute MUST NOT carry an `options` key — option-less
         // types ignore the field and we want the payload tight.
