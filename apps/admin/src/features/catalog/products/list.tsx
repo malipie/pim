@@ -128,13 +128,51 @@ export function ProductListPage() {
     perPage: 30,
   });
 
+  // Tree mode (#514): only fetch master products. Without this filter
+  // a single page (default 30) can fill up entirely with variants of
+  // one freshly generated master, pushing every other product —
+  // including the master itself — off the visible page. Variants
+  // load lazily on chevron expand below. Flat mode keeps the full
+  // mixed-row listing.
+  const masterFilter = useMemo(
+    () =>
+      variantsMode === 'tree'
+        ? [{ field: 'parent_id', operator: 'eq' as const, value: 'null' }]
+        : [],
+    [variantsMode],
+  );
+
   const { result, query: listQuery } = useList<CatalogObjectListEntry>({
     resource: 'products',
+    filters: masterFilter,
     queryOptions: { enabled: !isSearchActive },
   });
   const refetch = listQuery.refetch;
   const products = result.data;
   const isListLoading = listQuery.isLoading;
+
+  // Lazy-loaded variants per expanded master. Populated on toggleExpand
+  // by a single call to /api/products?parent_id={masterId}.
+  const [variantsByMasterId, setVariantsByMasterId] = useState<Record<string, ProductsGridRow[]>>(
+    {},
+  );
+
+  const fetchVariantsForMaster = async (masterId: string): Promise<void> => {
+    if (variantsByMasterId[masterId] !== undefined) return;
+    try {
+      const body = await jsonFetch<{
+        member?: CatalogObjectListEntry[];
+        'hydra:member'?: CatalogObjectListEntry[];
+      }>(`/api/products?parent_id=${masterId}&itemsPerPage=200`);
+      const list = body.member ?? body['hydra:member'] ?? [];
+      setVariantsByMasterId((prev) => ({
+        ...prev,
+        [masterId]: list.map(catalogObjectToRow),
+      }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'unknown');
+    }
+  };
 
   const baseRows = useMemo<ProductsGridRow[]>(() => {
     if (isSearchActive) {
@@ -161,33 +199,20 @@ export function ProductListPage() {
 
   const visible = useMemo<ProductsGridRow[]>(() => {
     if (variantsMode === 'flat') return filteredRows;
-    const byId = new Map(filteredRows.map((r) => [r.id, r]));
-    const masters: ProductsGridRow[] = [];
-    const variantsByMaster = new Map<string, ProductsGridRow[]>();
-    const orphans: ProductsGridRow[] = [];
-    for (const row of filteredRows) {
-      if (row.parentId === null) {
-        masters.push(row);
-        continue;
-      }
-      if (byId.has(row.parentId)) {
-        const list = variantsByMaster.get(row.parentId) ?? [];
-        list.push(row);
-        variantsByMaster.set(row.parentId, list);
-      } else {
-        orphans.push(row);
-      }
-    }
+    // In tree mode `filteredRows` only contains masters (the API
+    // filter takes care of that). Variants come from the lazy-loaded
+    // `variantsByMasterId` map and are spliced in below each expanded
+    // master.
     const out: ProductsGridRow[] = [];
-    for (const master of masters) {
-      out.push(master);
-      if (expandedMasters.has(master.id)) {
-        out.push(...(variantsByMaster.get(master.id) ?? []));
+    for (const row of filteredRows) {
+      if (row.parentId !== null) continue;
+      out.push(row);
+      if (expandedMasters.has(row.id)) {
+        out.push(...(variantsByMasterId[row.id] ?? []));
       }
     }
-    out.push(...orphans);
     return out;
-  }, [filteredRows, variantsMode, expandedMasters]);
+  }, [filteredRows, variantsMode, expandedMasters, variantsByMasterId]);
 
   const toggleExpand = (masterId: string): void => {
     setExpandedMasters((prev) => {
@@ -196,6 +221,9 @@ export function ProductListPage() {
       else next.add(masterId);
       return next;
     });
+    if (variantsMode === 'tree' && !expandedMasters.has(masterId)) {
+      void fetchVariantsForMaster(masterId);
+    }
   };
 
   const isLoading = isSearchActive ? isSearchLoading : isListLoading;
@@ -528,6 +556,7 @@ export function ProductListPage() {
             void refetch();
           }}
           isLoading={isLoading}
+          alwaysShowChevronOnMasters={variantsMode === 'tree' && !isSearchActive}
         />
       )}
 
