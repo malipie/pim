@@ -140,7 +140,10 @@ final class MoveCategoryService
 
         $this->connection()->beginTransaction();
         try {
-            // Rewrite the moving node first.
+            // tenant-safe: WHERE id = :id is selective enough — id is a
+            // tenant-scoped UUID we just resolved through
+            // CatalogObjectRepositoryInterface (TenantFilter applied), so
+            // it can only match a row in the current tenant.
             $this->connection()->executeStatement(
                 'UPDATE objects SET path = CAST(:newPath AS ltree), parent_id = :parentId, updated_at = NOW() WHERE id = CAST(:id AS uuid)',
                 [
@@ -153,17 +156,31 @@ final class MoveCategoryService
                 ],
             );
 
+            // tenant-safe: explicit tenant_id filter. Without it the
+            // ltree subtree match (`path <@ :oldPath`) would touch rows
+            // in other tenants that happen to share the same ltree
+            // namespace — every tenant has its own root nodes and ltree
+            // labels are not unique across tenants. The category's
+            // tenant_id is read from the aggregate we already loaded
+            // through TenantFilter.
+            //
             // Rewrite descendants — strict descendants only (excluding self,
             // which we just rewrote). LTREE `subpath(path, oldDepth)` strips
             // the old prefix; concatenation with `newPath ||` re-anchors it
             // under the new parent path.
             $oldDepth = $this->ltreeDepth($oldPath);
+            $tenant = $category->getTenant();
+            \assert(null !== $tenant);
             $affected = $this->connection()->executeStatement(
                 'UPDATE objects SET path = CAST(:newPath AS ltree) || subpath(path, :oldDepth), updated_at = NOW()'
-                .' WHERE kind = :kind AND path <@ CAST(:oldPath AS ltree) AND id <> CAST(:id AS uuid)',
+                .' WHERE tenant_id = CAST(:tenantId AS uuid)'
+                .'   AND kind = :kind'
+                .'   AND path <@ CAST(:oldPath AS ltree)'
+                .'   AND id <> CAST(:id AS uuid)',
                 [
                     'newPath' => $newPath,
                     'oldDepth' => $oldDepth,
+                    'tenantId' => $tenant->getId()->toRfc4122(),
                     'kind' => ObjectKind::Category->value,
                     'oldPath' => $oldPath,
                     'id' => $category->getId()->toRfc4122(),

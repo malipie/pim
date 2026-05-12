@@ -34,6 +34,12 @@ use Throwable;
  * Tenant scope: queries narrow by `attribute_id`, which is already
  * tenant-scoped via the attribute row. Cross-tenant access is blocked
  * upstream (controller resolves attribute through TenantFilter).
+ *
+ * tenant-safe: every executeStatement below filters by id (per-row PK
+ * lookups for attributes / object_values) or by attribute_id (joined
+ * with the attribute row that came through TenantFilter). The
+ * INSERT into attribute_migration_backups carries attribute_id as
+ * the natural tenant anchor.
  */
 final readonly class AttributeMigrationExecutor
 {

@@ -36,6 +36,14 @@ use Doctrine\ORM\Events;
  * miss them or trigger spurious change-tracking. The single SQL also
  * sidesteps the partial-unique-index window (the CASCADE removed the
  * primary row first, so promoting another to `is_primary=true` is safe).
+ *
+ * tenant-safe: object_categories is a junction table whose tenant
+ * isolation comes from the FK chain (object_id + category_id are both
+ * tenant-scoped CatalogObject ids). The buffered productIds collected
+ * in onFlush originate from a CatalogObject that already passed
+ * TenantFilter on its own load; the `category_id` queried in
+ * onFlush is the deletion target which Doctrine resolved through
+ * the same filter.
  */
 #[AsDoctrineListener(event: Events::onFlush)]
 #[AsDoctrineListener(event: Events::postFlush)]

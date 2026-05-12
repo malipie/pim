@@ -40,6 +40,9 @@ final readonly class ProductAssetLinkerService implements ProductAssetLinker
         $nextPosition = is_numeric($rawPosition) ? (int) $rawPosition : 0;
 
         foreach ($assetIds as $assetId) {
+            // tenant-safe: junction table inherits tenant via FK chain
+            // — both asset_id and product_id are tenant-scoped UUIDs
+            // resolved by callers through TenantFilter-aware repositories.
             $this->connection->executeStatement(
                 <<<'SQL'
                     INSERT INTO product_assets (asset_id, product_id, position, created_at)
@@ -57,6 +60,8 @@ final readonly class ProductAssetLinkerService implements ProductAssetLinker
 
     public function unlinkAssetFromProduct(Uuid $productId, Uuid $assetId): void
     {
+        // tenant-safe: junction table inherits tenant via FK chain
+        // (product_id + asset_id are tenant-scoped UUIDs).
         $this->connection->executeStatement(
             'DELETE FROM product_assets WHERE product_id = :productId AND asset_id = :assetId',
             [

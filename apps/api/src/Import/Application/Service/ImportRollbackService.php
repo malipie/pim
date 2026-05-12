@@ -25,6 +25,13 @@ use Doctrine\ORM\EntityManagerInterface;
  * Linked Asset rows stay untouched on purpose (spec §7.7: "klient
  * ręcznie usuwa w DAM"). The 24h window guard lives on the entity;
  * this service just orchestrates the DBAL DELETE.
+ *
+ * tenant-safe: import_session_id is the natural tenant anchor.
+ * The ImportSession entity is loaded through TenantFilter via the
+ * repository; objects/values created by that import inherit the
+ * same tenant on the FK chain (every CatalogObject has tenant_id
+ * stamped on prePersist). Filtering by import_session_id therefore
+ * cannot reach rows from other tenants.
  */
 final readonly class ImportRollbackService
 {
