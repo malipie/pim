@@ -97,9 +97,18 @@ final class DatabaseResetCommand extends Command
                 return Command::FAILURE;
             }
 
+            $arrayInput = new \Symfony\Component\Console\Input\ArrayInput($arguments);
+            // Nested ArrayInput defaults to interactive=true even when the
+            // outer command was invoked with --no-interaction. Without this,
+            // doctrine:fixtures:load silently aborts on its purge prompt
+            // (default answer "no") and pim:db:reset reports success despite
+            // an empty fixtures load. Other chained commands (drop/create/
+            // migrate) ship a "yes" default so they were never affected.
+            $arrayInput->setInteractive(false);
+
             $exitCode = $application
                 ->find($commandName)
-                ->run(new \Symfony\Component\Console\Input\ArrayInput($arguments), $output);
+                ->run($arrayInput, $output);
 
             if (Command::SUCCESS !== $exitCode) {
                 $io->error(sprintf('Step "%s" failed (exit %d). Aborting.', $commandName, $exitCode));
