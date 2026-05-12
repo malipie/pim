@@ -29,10 +29,10 @@ const LOGIN_RESPONSE_TIMEOUT_MS = 10_000;
  *   - any other status → throw with the actual code so the next debugger
  *     does not chase ghosts.
  *
- * Once HARD-10 (`storageState` rollout) lands the rate-limit pressure goes
- * away (one login per run, replayed via cookie). This helper stays as a
- * defence-in-depth so future specs that opt out of `storageState` still
- * survive the limiter.
+ * For specs that do not need to exercise the login UX itself, prefer
+ * {@link apiLogin} (HARD-10) — it skips the form interaction and saves
+ * roughly 1.5 seconds per spec, plus dodges the React render flakiness
+ * that comes with form submit + redirect.
  */
 export async function loginAsAdmin(
   page: Page,
@@ -71,8 +71,59 @@ export async function loginAsAdmin(
   }
 
   throw new Error(
-    `Login still rate-limited after ${MAX_LOGIN_ATTEMPTS} attempts — bump the dev override or migrate this spec to storageState.`,
+    `Login still rate-limited after ${MAX_LOGIN_ATTEMPTS} attempts — bump the dev override or migrate this spec to apiLogin.`,
   );
+}
+
+/**
+ * HARD-10 — fast path login via API request (no form interaction).
+ *
+ * Form-based {@link loginAsAdmin} waits for React render + form submit +
+ * redirect → adds ~1.5 seconds per spec on a warm cache, more on cold.
+ * The API call is a single round-trip; the refresh-token cookie lands in
+ * the browser context exactly as it would after a form submit, so the
+ * subsequent `page.goto('/dashboard')` runs the same auth check pipeline
+ * as a real user (AuthedRoute → check() → refresh() with cookie → JWT in
+ * memory).
+ *
+ * Same retry-on-429 strategy as `loginAsAdmin` so the helper survives
+ * accumulated rate-limit buckets without operator intervention.
+ *
+ * Use for specs that need authenticated state but do NOT exercise the
+ * login UX itself. `auth.spec.ts` keeps the form path because it
+ * explicitly asserts on form behaviour.
+ */
+export async function apiLogin(
+  page: Page,
+  email: string = ADMIN_EMAIL,
+  password: string = ADMIN_PASSWORD,
+): Promise<void> {
+  for (let attempt = 0; attempt < MAX_LOGIN_ATTEMPTS; attempt += 1) {
+    const response = await page.request.post('/api/auth/login', {
+      data: { email, password },
+      headers: { accept: 'application/json' },
+    });
+    const status = response.status();
+
+    if (status === 200) {
+      // Cookie is now in the browser context. Land on /dashboard so
+      // AuthedRoute runs check() → refresh() → JWT installs in
+      // module-scope memory, identical to the real user flow.
+      await page.goto('/dashboard');
+      await expect(page).toHaveURL(/\/dashboard$/);
+      return;
+    }
+
+    if (status === 429) {
+      const backoff = RATE_LIMIT_BACKOFF_MS * (attempt + 1);
+      await page.waitForTimeout(backoff);
+      continue;
+    }
+
+    throw new Error(`apiLogin failed with HTTP ${status} (attempt ${attempt + 1}).`);
+  }
+
+  throw new Error(`apiLogin still rate-limited after ${MAX_LOGIN_ATTEMPTS} attempts.`);
 }
 
 /**
