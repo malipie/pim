@@ -166,7 +166,25 @@ final class ImportRunHandler extends AbstractBatchHandler
 
                 if ($this->shouldFlush($processed)) {
                     $this->flushAndClear();
+                    // After clear() every previously-loaded entity is
+                    // detached. The catalog-side lookups in the next
+                    // iteration (Attribute references on ObjectValue,
+                    // Tenant stamped by TenantAssignmentListener) would
+                    // throw "Multiple non-persisted new entities" on the
+                    // next flush — re-merge by reloading the session and
+                    // its tenant, replaying the attribute lookup, and
+                    // resetting TenantContext so the listener pulls the
+                    // managed reference.
                     $session = $this->refreshSession($session);
+                    $tenant = $session->getTenant();
+                    if (!$tenant instanceof Tenant) {
+                        throw new RuntimeException(\sprintf(
+                            'Import session "%s" lost its tenant assignment mid-run.',
+                            $session->getId()->toRfc4122(),
+                        ));
+                    }
+                    $this->tenantContext->set($tenant);
+                    $attributesByCode = $this->validator->loadAttributesByCode($tenant, $columnMapping);
                     $this->progressPublisher->progress($session, $processed, $sku);
                 }
             }
