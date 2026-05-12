@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { jsonFetch } from '@/lib/http';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 
@@ -301,7 +302,7 @@ interface PickerAssetTileProps {
 }
 
 function PickerAssetTile({ asset, isSelected, onToggle }: PickerAssetTileProps) {
-  const attrs = (asset.attributesIndexed ?? {}) as Record<string, unknown>;
+  const attrs = unwrapAttributesIndexed(asset.attributesIndexed);
   const previewUrl = typeof attrs.previewUrl === 'string' ? attrs.previewUrl : null;
   const mime = typeof attrs.mime === 'string' ? attrs.mime : null;
   const filename = typeof attrs.filename === 'string' ? attrs.filename : asset.code;

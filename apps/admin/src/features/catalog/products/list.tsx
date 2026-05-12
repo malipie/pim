@@ -22,6 +22,7 @@ import {
   type CatalogSearchHit,
   useCatalogSearch,
 } from '@/features/catalog/search/use-catalog-search';
+import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
@@ -584,7 +585,11 @@ function catalogObjectToRow(entry: CatalogObjectListEntry): ProductsGridRow {
 }
 
 function buildRow(entry: CatalogObjectListEntry): ProductsGridRow {
-  const attrs = (entry.attributesIndexed ?? {}) as Record<string, unknown>;
+  // `attributes_indexed` envelopes every reading as `{ value, ... }`; flatten
+  // here so the column readers below can keep their `attrs.name` ergonomics.
+  // Without this, every row falls back to `entry.code` (the SKU) and Excel
+  // commits look like no-ops to operators even when the backend persists.
+  const attrs = unwrapAttributesIndexed(entry.attributesIndexed);
   const name = typeof attrs.name === 'string' ? attrs.name : entry.code;
   const brand = typeof attrs.brand === 'string' ? attrs.brand : null;
   const family = readString(attrs, ['family', 'product_family']);

@@ -4,6 +4,7 @@ import { VariantsTab } from '@/components/catalog/variants-tab';
 import type { Provenance } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
+import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { jsonFetch } from '@/lib/http';
 
 import { AttrGroupCard } from './attr-group-card';
@@ -104,7 +105,7 @@ export function VariantsTabHost({ productId }: VariantsTabHostProps) {
   const copyToOthers = (sourceVariantId: string, code: string): void => {
     const sourceVariant = variants.find((v) => v.id === sourceVariantId);
     if (sourceVariant === undefined) return;
-    const sourceAttrs = unwrap(sourceVariant.attributesIndexed ?? {});
+    const sourceAttrs = unwrapAttributesIndexed(sourceVariant.attributesIndexed ?? {});
     const value = fieldValue(sourceVariantId, code, sourceAttrs);
     const others = variants.filter((v) => v.id !== sourceVariantId);
     if (others.length === 0) return;
@@ -247,7 +248,7 @@ export function VariantsTabHost({ productId }: VariantsTabHostProps) {
         ) : (
           <div className="space-y-3">
             {variants.map((variant) => {
-              const baseAttrs = unwrap(variant.attributesIndexed ?? {});
+              const baseAttrs = unwrapAttributesIndexed(variant.attributesIndexed ?? {});
               const filled = countFilled(variantAttributes, baseAttrs, dirtyByVariant[variant.id]);
               return (
                 <AttrGroupCard
@@ -282,18 +283,6 @@ export function VariantsTabHost({ productId }: VariantsTabHostProps) {
       </div>
     </div>
   );
-}
-
-function unwrap(raw: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(raw)) {
-    if (v !== null && typeof v === 'object' && !Array.isArray(v) && 'value' in v) {
-      out[k] = (v as { value: unknown }).value;
-    } else {
-      out[k] = v;
-    }
-  }
-  return out;
 }
 
 function countFilled(
