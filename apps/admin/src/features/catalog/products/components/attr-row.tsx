@@ -121,6 +121,22 @@ export function AttrRow({
               onChange={(event) => onChange(event.target.checked)}
               className="size-4 rounded"
             />
+          ) : attribute.type === 'date' ? (
+            <Input
+              id={`attr-${attribute.code}`}
+              type="date"
+              value={readDateValue(value)}
+              onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
+              className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 text-[13.5px]"
+            />
+          ) : attribute.type === 'datetime' ? (
+            <Input
+              id={`attr-${attribute.code}`}
+              type="datetime-local"
+              value={readDatetimeValue(value)}
+              onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
+              className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 text-[13.5px]"
+            />
           ) : attribute.type === 'select' ? (
             <Combobox
               options={toComboboxOptions(selectOptions, lang)}
@@ -231,6 +247,28 @@ function readMultiselectValue(value: unknown): string[] {
 }
 
 /**
+ * `<input type="date">` only accepts the `YYYY-MM-DD` slice. Backend
+ * may send the same shape (preferred) or a full ISO 8601 string
+ * (legacy seeds) — strip the time component either way and reject
+ * anything that does not look like a valid date.
+ */
+function readDateValue(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const head = value.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : '';
+}
+
+/**
+ * `<input type="datetime-local">` accepts `YYYY-MM-DDTHH:mm` (no
+ * timezone). Strip seconds + zone if backend ships full ISO.
+ */
+function readDatetimeValue(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const head = value.slice(0, 16);
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(head) ? head : '';
+}
+
+/**
  * Read-only display: map option codes to their localized labels so the
  * detail page never shows raw codes (`red`, `new`) when an option label
  * exists. Falls back to the raw value for non-select-like types.
@@ -254,6 +292,14 @@ function renderReadOnlyValue(
       return match ? optionLabel(match, lang) : code;
     });
     return labels.join(', ');
+  }
+  if (attribute.type === 'date') {
+    const head = readDateValue(value);
+    return head === '' ? null : head;
+  }
+  if (attribute.type === 'datetime') {
+    const head = readDatetimeValue(value);
+    return head === '' ? null : head.replace('T', ' ');
   }
   if (value === null || value === undefined || value === '') return null;
   return typeof value === 'string' ? value : String(value);

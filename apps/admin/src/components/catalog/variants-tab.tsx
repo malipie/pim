@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { jsonFetch } from '@/lib/http';
 
@@ -242,27 +243,41 @@ function AxisRow({
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState('');
-  const codeListId = `axis-codes-${axis.code || 'empty'}`;
   const valuesListId = `axis-values-${axis.code || 'empty'}`;
   const matchingAttribute = attributes.find((a) => a.code === axis.code);
   const suggestedValues = matchingAttribute?.options ?? [];
 
+  // Variants axes only make sense for attributes with predefined
+  // values (the generator iterates `select.options` / `multiselect.options`
+  // to compute combinations). Restricting the Combobox to these types
+  // also drops the noise of system attributes (created_at, updated_by,
+  // ...) the previous datalist surfaced. Each option exposes the code
+  // as `description` so operators can still see it under the label.
+  const axisAttributeOptions = attributes
+    .filter((a) => a.type === 'select' || a.type === 'multiselect')
+    .map((a) => ({
+      value: a.code,
+      label: a.label?.pl ?? a.label?.en ?? a.code,
+      description: a.code,
+    }));
+
   return (
     <div className="flex items-start gap-2">
-      <div className="w-32">
-        <Input
-          value={axis.code}
-          onChange={(e) => onCodeChange(e.target.value)}
-          placeholder="color"
-          list={codeListId}
+      <div className="w-48">
+        <Combobox
+          options={axisAttributeOptions}
+          value={axis.code === '' ? null : axis.code}
+          onChange={(next) => onCodeChange(next ?? '')}
+          placeholder={t('products.variants.pick_axis_attribute', {
+            defaultValue: 'Wybierz atrybut osi',
+          })}
+          searchPlaceholder={t('products.variants.search_axis_attribute', {
+            defaultValue: 'Szukaj atrybutu…',
+          })}
+          emptyText={t('products.variants.no_select_attributes', {
+            defaultValue: 'Brak atrybutów typu select/multiselect',
+          })}
         />
-        <datalist id={codeListId}>
-          {attributes.map((a) => (
-            <option key={a.id} value={a.code}>
-              {a.label?.pl ?? a.label?.en ?? a.code}
-            </option>
-          ))}
-        </datalist>
       </div>
       <div className="flex-1 space-y-1">
         <div className="flex flex-wrap gap-1">
@@ -310,18 +325,20 @@ function AxisRow({
             ))}
           </datalist>
         </div>
-        {suggestedValues.length > 0 && axis.values.length === 0 ? (
+        {suggestedValues.length > 0 ? (
           <div className="flex flex-wrap gap-1 pt-1">
-            {suggestedValues.map((opt) => (
-              <button
-                key={opt.code}
-                type="button"
-                onClick={() => onAddValue(opt.code)}
-                className="rounded border border-dashed px-1.5 py-0.5 text-[10px] text-muted-foreground hover:border-solid hover:text-foreground"
-              >
-                +{opt.code}
-              </button>
-            ))}
+            {suggestedValues
+              .filter((opt) => !axis.values.includes(opt.code))
+              .map((opt) => (
+                <button
+                  key={opt.code}
+                  type="button"
+                  onClick={() => onAddValue(opt.code)}
+                  className="rounded border border-dashed px-1.5 py-0.5 text-[10px] text-muted-foreground hover:border-solid hover:text-foreground"
+                >
+                  +{opt.code}
+                </button>
+              ))}
           </div>
         ) : null}
       </div>
