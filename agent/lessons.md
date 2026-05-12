@@ -84,6 +84,14 @@ Epik: 7 ticketów (VIEW-IMP-00..05 + AUDIT) + bloker IMP-16 (kategoria assignmen
 
 ## Patterns to Follow
 
+### Tree-mode lista produktów — masters-only filter + lazy variant load (2026-05-12, PR #514)
+
+- **Problem**: gdy operator wygeneruje N wariantów dla jednego mastera (np. 5 kolorów × 4 rozmiary × 4 tagi = 80), pojedyncza strona Refine `useList` (default 30) zapełnia się WYŁĄCZNIE wariantami tego mastera. Master + inne produkty wypadają z widoku, a inline-grouping w tree mode tworzy "sieroty" (variant.parentId nie matchuje żadnego id w tej samej stronie) i renderuje warianty płasko na górze listy. Wygląda jak crash.
+- **Fix backend**: `ParentIdFilter` akceptuje literał `null` jako wartość → emituje `parent IS NULL`. Frontend w tree mode wysyła `?parent_id=null` żeby dostać tylko masterów. Warianty load-owane lazy przez `/api/products?parent_id={masterId}` na klik chevronu, wynik cache-owany w React state.
+- **ProductsGrid**: prop `alwaysShowChevronOnMasters` — w tree mode chevron renderuje się na każdym masterze (nawet gdy lokalnie variantsCount=0, bo warianty są dopiero lazy-loaded). Bez tego operator nie ma jak rozwinąć mastera.
+- **Reguła ogólniejsza**: hierarchiczne listy (master/variant, kategorie tree, etc.) NIGDY nie polegają na inline-grouping w obrębie jednej strony Refine. Backend MUSI mieć `parent_id=null` filter dla rootów + osobny endpoint do ładowania children. Inline-grouping działa tylko gdy master + wszystkie jego children mieszczą się w tej samej stronie — założenie zawsze fałszywe przy realnych wolumenach.
+- **OpenAPI snapshot drift**: zmiana opisu w `Filter::getDescription()` wymaga regen `docs/api-spec/v0.json`. CI gate "OpenAPI spec drift" złapał to dopiero po pierwszym run-ie. Dodać do checklisty: każda zmiana w `*Filter.php::getDescription()` lub w `Resource/*.xml` → regen snapshot przed push.
+
 ### Native HTML5 date picker > custom — używaj `<input type="date">` dla typu `date` (2026-05-12, PR #513)
 
 - **AttrRow** musi mieć branch dla `attribute.type === 'date'` z `<input type="date">` (i `'datetime'` z `datetime-local`). Bez tego operator dostaje text input bez kalendarza i bez walidacji.
