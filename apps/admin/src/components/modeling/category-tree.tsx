@@ -1,6 +1,7 @@
 import { ChevronRight, FolderTree, Star } from 'lucide-react';
 import { useState } from 'react';
 
+import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { cn } from '@/lib/utils';
 
 export interface CategoryTreeNode {
@@ -346,8 +347,7 @@ export function buildCategoryTree(
 }
 
 function labelFromAttributes(attrs: Record<string, unknown> | null | undefined): string | null {
-  if (!attrs) return null;
-  const name = attrs.name;
+  const name = unwrapAttributesIndexed(attrs).name;
   if (typeof name === 'string') return name;
   if (typeof name === 'object' && name !== null) {
     const map = name as Record<string, string>;

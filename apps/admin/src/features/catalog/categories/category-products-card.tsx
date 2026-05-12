@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { Card } from '@/components/ui/card';
+import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
@@ -172,17 +173,12 @@ function productName(
   attrs: Record<string, unknown> | null | undefined,
   lang: 'pl' | 'en',
 ): string | null {
-  if (!attrs) return null;
-  const name = attrs.name;
+  const name = unwrapAttributesIndexed(attrs).name;
   if (typeof name === 'string') return name;
   if (typeof name === 'object' && name !== null) {
     const map = name as Record<string, unknown>;
     const direct = map[lang];
     if (typeof direct === 'string') return direct;
-    if (typeof map.value === 'object' && map.value !== null) {
-      const v = (map.value as Record<string, unknown>)[lang];
-      if (typeof v === 'string') return v;
-    }
     if (typeof map.pl === 'string') return map.pl;
     if (typeof map.en === 'string') return map.en;
   }

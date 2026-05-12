@@ -9,6 +9,7 @@ import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { HttpError, jsonFetch } from '@/lib/http';
 
 interface CategoryDetail {
@@ -36,7 +37,7 @@ export function CategoryShowPage() {
   }
 
   const category = result;
-  const attrs = (category.attributesIndexed ?? {}) as Record<string, unknown>;
+  const attrs = unwrapAttributesIndexed(category.attributesIndexed);
   const name = typeof attrs.name === 'string' ? attrs.name : category.code;
 
   return (

@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { buildCategoryTree, CategoryTree } from '@/components/modeling/category-tree';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { HttpError, jsonFetch } from '@/lib/http';
 
 interface CategoryRow {
@@ -105,7 +106,7 @@ export function CategoryPickerDialog({
     const needle = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (row.code.toLowerCase().includes(needle)) return true;
-      const name = row.attributesIndexed?.name;
+      const name = unwrapAttributesIndexed(row.attributesIndexed).name;
       if (typeof name === 'string' && name.toLowerCase().includes(needle)) return true;
       if (name && typeof name === 'object') {
         const map = name as Record<string, string>;

@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import type { DuplicateAssetError, UploadAssetResult } from '@/lib/asset-upload';
+import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { jsonFetch } from '@/lib/http';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 
@@ -297,7 +298,7 @@ interface AssetTileProps {
 
 function AssetTile({ asset, locale, isSelected, onToggle }: AssetTileProps) {
   const { t } = useTranslation();
-  const attrs = (asset.attributesIndexed ?? {}) as Record<string, unknown>;
+  const attrs = unwrapAttributesIndexed(asset.attributesIndexed);
   const previewUrl = typeof attrs.previewUrl === 'string' ? attrs.previewUrl : null;
   const mime = typeof attrs.mime === 'string' ? attrs.mime : null;
   const filename = typeof attrs.filename === 'string' ? attrs.filename : asset.code;
@@ -382,9 +383,8 @@ function resolveLocalised(value: unknown, locale: string): string | null {
 
 function hasPendingThumbnails(items: AssetEntry[] | undefined): boolean {
   if (!items) return false;
-  return items.some(
-    (item) =>
-      typeof item.attributesIndexed?.thumbnailsStatus === 'string' &&
-      item.attributesIndexed.thumbnailsStatus === 'pending',
-  );
+  return items.some((item) => {
+    const status = unwrapAttributesIndexed(item.attributesIndexed).thumbnailsStatus;
+    return typeof status === 'string' && status === 'pending';
+  });
 }

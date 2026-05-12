@@ -26,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { MockBadge } from '@/components/ui/mock-badge';
 import { toast } from '@/components/ui/toast';
+import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
@@ -142,7 +143,8 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
 
   const product = isEditMode ? result : null;
   const attrs = useMemo(
-    () => unwrapValues((product?.attributesIndexed ?? {}) as Record<string, unknown>),
+    () =>
+      unwrapAttributesIndexed(product?.attributesIndexed as Record<string, unknown> | undefined),
     [product?.attributesIndexed],
   );
 
@@ -736,18 +738,6 @@ function tabBadge(
     return typeof count === 'number' ? count : null;
   }
   return null;
-}
-
-function unwrapValues(raw: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(raw)) {
-    if (v !== null && typeof v === 'object' && !Array.isArray(v) && 'value' in v) {
-      out[k] = (v as { value: unknown }).value;
-    } else {
-      out[k] = v;
-    }
-  }
-  return out;
 }
 
 function stripAttributes(dirty: Record<string, unknown>): Record<string, unknown> {
