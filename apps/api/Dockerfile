@@ -45,6 +45,7 @@ RUN apk add --no-cache \
         opcache \
         pcntl \
         pdo_pgsql \
+        redis \
         zip
 
 COPY frankenphp/Caddyfile /etc/frankenphp/Caddyfile
