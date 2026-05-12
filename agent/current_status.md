@@ -1,5 +1,22 @@
 # Current Status
 
+## 2026-05-13: PR #533 — auto-seed admin user na container start (DEV-QOL)
+
+**Branch:** `dev/auto-seed-on-container-start`
+**PR:** [#533](https://github.com/malipie/PIM/pull/533) (CI w toku w momencie commit'u tego statusu)
+
+**Powód**: powtarzający się class incidentów „login broken po wipe" (po `pim:db:reset`, `docker compose down -v`, big rebase'ie). Operator widział `Nieprawidłowy e-mail lub hasło` toast — technicznie poprawny, ale wygląda jak bug.
+
+**Co dostarczono**:
+- `pim:dev:ensure-seeded` — idempotentna komenda console (decision tree: pusta DB → reset+fixtures, populated DB bez admin → warning+exit 0, admin obecny → noop). Skipuje na `APP_ENV=prod`.
+- `apps/api/docker-entrypoint.sh` — wrapper FrankenPHP entrypoint odpalający ensure-seeded raz przed `exec frankenphp run`. Best-effort: api wstaje mimo failure seed.
+- `apps/api/Dockerfile` — `COPY` entrypointu, `ENTRYPOINT` + `CMD` zachowujące upstream `frankenphp run …`.
+- **Pre-existing bug fix** w `DatabaseResetCommand`: nested `ArrayInput` musiał mieć `setInteractive(false)` przed `run()`, inaczej `doctrine:fixtures:load` cicho cancelował się na purge prompt (default `[no]`) a parent reportował success. Inne chained commands miały default `[yes]` więc nie były dotknięte. Lekcja → lessons.md.
+
+**Smoke E2E**: drop pim → recreate empty → restart api → entrypoint odpalił reset+fixtures → POST `/api/auth/login` HTTP 200 + JWT. Idempotency: re-restart na populated DB = silent noop (`--quiet-when-noop`).
+
+---
+
 ## 2026-05-12: Epik UI-11 — Importy redesign **DOMKNIĘTY** (8 PR-ów merged, marathon ~24h)
 
 **Merged commits w kolejności:**

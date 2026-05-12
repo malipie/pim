@@ -2,6 +2,38 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z PR #533 (auto-seed admin user, 2026-05-13)
+
+1. **Nested `ArrayInput` w chained Symfony Console commands MUSI mieć explicit `setInteractive(false)`** — inaczej `--no-interaction` outer call NIE propaguje się do inner. Symptom: `pim:db:reset --with-fixtures --force` w entrypoint zwracał success ale fixtures cicho aborted. Root cause: `doctrine:fixtures:load` ma purge confirmation z **default `[no]`**; gdy `$arrayInput->isInteractive() === true` (default), prompt fall-through do `[no]` → fixtures exit 0 bez insertu. Inne chained commands (drop/create/migrate) miały default `[yes]` więc były OK.
+
+   **Wzór do zastosowania ZAWSZE przy chained `$application->find($name)->run($input, $output)`**:
+   ```php
+   $arrayInput = new ArrayInput($arguments);
+   $arrayInput->setInteractive(false);  // critical — flag option NIE wystarczy
+   $application->find($commandName)->run($arrayInput, $output);
+   ```
+   Nawet jeśli `$arguments` zawiera `'--no-interaction' => true`. Flag option jest processowany przez Application boot; nested run() omija ten path.
+
+2. **Doctrine fixtures purge NIE obejmuje rekordów seedowanych przez migration** (sub-lekcja). `AppFixtures::load()` zaczyna od `$manager->persist(new Locale('pl_PL', ...))` z komentarzem „re-seed po purge". Ale jeśli migration `Version2026...` insertuje `pl_PL` przez DML i fixture purger nie czyści tabeli `locales` (bo Locale entity może być flaged jako exclude lub purger nie wykrywa go w order), `--append=false` wybucha unique constraint violation. **W praktyce u nas działa** bo purge dotyka locales, ale gdyby pojawił się następny edge case: rozważ `--purge-with-truncate` lub explicit DELETE w fixture przed persist.
+
+3. **`docker compose exec -T` nie alokuje TTY ale `isInteractive()` w Symfony Console ZALEŻY od stdin TTY check'u** — manual exec `bin/console foo` z `-T` przekazuje `isInteractive=false` do top-level Application bo stdin nie jest TTY. Ale gdy Application chain'uje pod-komendy z fresh `ArrayInput()`, ten input dziedziczy `isInteractive=true` (default). To wytłumacza dlaczego Pre-existing `pim:db:reset --with-fixtures --force` z manual exec też miał ten bug — operator po prostu nigdy się tego nie zorientował, bo... sprawdzić to (może admin@acme.localhost wstawił się przez race lub partial exception przed cancel).
+
+4. **Disk pressure kill'uje docker daemon, nie tylko build** — disk @ 100% (Mac /System/Volumes/Data) rezultuje w `Cannot connect to the Docker daemon at unix:///Users/.../docker.sock`. Daemon się sam restartuje po `docker builder prune -af` (~5GB recovered) i compose stack auto-startuje. **Reguła**: `df -h /System/Volumes/Data` przed każdym dużym build'em na Macu; jeśli >95% used, `docker builder prune -af` jako pre-flight.
+
+5. **Bind-mount source code w dev compose pozwala iterować PHP zmiany BEZ rebuild image** — `apps/api/src/**` jest mount'owany z hosta do `/app/src` w api container. Zmiana w command class jest natychmiast widziana przez `docker compose exec api bin/console foo`. Tylko entrypoint, Dockerfile, composer dependencies wymagają full rebuild. Wzór dla iteracji command/handler/listener: edit → exec → repeat, bez `docker compose build`.
+
+6. **Best-effort entrypoint pattern** — wrapper który robi setup-step ale exec'uje główny CMD niezależnie od wyniku setup. Wzór:
+   ```sh
+   if [ "${APP_ENV:-dev}" = "dev" ]; then
+       php /app/bin/console pim:dev:ensure-seeded --quiet-when-noop --no-interaction \
+           || echo "[entrypoint] WARN: ensure-seeded failed; api will still start."
+   fi
+   exec "$@"
+   ```
+   `||` z echo (a nie `set -e`) gwarantuje że failure setup'u nie blokuje boot'u. Operator dostaje warning w logach + working API. Lepsze niż twardy fail bo: (a) seed bug nie ma blokować developmentu, (b) operator ma diagnostic context na `docker compose logs`.
+
+---
+
 ## Lessons z marathonu PROD-01..05 (production-readiness, 2026-05-12)
 
 Marathon: 5 PR-ów (#526 PROD-01 async Messenger overlay, #531 PROD-02 PgBouncer tx-mode, #528 PROD-03 Meili batch indexing collector, #529 PROD-04 Prometheus + worker-memory alert, #530 PROD-05 per-tenant bulk concurrency lock). Wszystkie merged tego samego dnia.
