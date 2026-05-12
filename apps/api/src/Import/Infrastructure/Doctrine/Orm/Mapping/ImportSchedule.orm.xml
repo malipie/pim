@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Import\Domain\Entity\ImportSchedule"
+            table="import_schedules"
+            repository-class="App\Import\Infrastructure\Doctrine\Repository\DoctrineImportScheduleRepository">
+
+        <unique-constraints>
+            <unique-constraint name="import_schedules_tenant_code_uniq" columns="tenant_id,code"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="import_schedules_tenant_enabled_next_idx" columns="tenant_id,enabled,next_run"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="userId" type="uuid" column="user_id"/>
+
+        <many-to-one field="source" target-entity="App\Import\Domain\Entity\ImportSource">
+            <join-column name="source_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <many-to-one field="profile" target-entity="App\Import\Domain\Entity\ImportProfile">
+            <join-column name="profile_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <field name="name" type="string" length="255"/>
+        <field name="code" type="string" length="64"/>
+        <field name="cron" type="string" length="64"/>
+        <field name="cronHuman" type="string" length="255" column="cron_human" nullable="true"/>
+        <field name="priority" type="string" length="8">
+            <options>
+                <option name="default">normal</option>
+            </options>
+        </field>
+        <field name="enabled" type="boolean">
+            <options>
+                <option name="default">true</option>
+            </options>
+        </field>
+        <field name="nextRun" type="datetimetz_immutable" column="next_run" nullable="true"/>
+        <field name="lastRunAt" type="datetimetz_immutable" column="last_run_at" nullable="true"/>
+        <field name="lastRunStatus" type="string" length="16" column="last_run_status" nullable="true"/>
+        <field name="lastRunDurationMs" type="integer" column="last_run_duration_ms" nullable="true"/>
+        <field name="notifyChannels" type="json" column="notify_channels">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">[]</option>
+            </options>
+        </field>
+        <field name="notifyConfig" type="json" column="notify_config">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">{}</option>
+            </options>
+        </field>
+        <field name="createdAt" type="datetimetz_immutable" column="created_at"/>
+        <field name="updatedAt" type="datetimetz_immutable" column="updated_at"/>
+
+    </entity>
+
+</doctrine-mapping>

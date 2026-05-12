@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <resource class="App\Import\Domain\Entity\ImportSchedule"
+              shortName="ImportSchedule">
+
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>import_schedule:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
+        <operations>
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/import-schedules{._format}"
+                       security="is_granted('READ', 'App\\Import\\Domain\\Entity\\ImportSchedule')"/>
+
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/import-schedules/{id}{._format}"
+                       security="is_granted('READ', object)">
+                <requirements>
+                    <requirement property="id">[0-9a-fA-F-]{36}</requirement>
+                </requirements>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Post"
+                       uriTemplate="/import-schedules{._format}"
+                       input="App\Import\Infrastructure\ApiPlatform\Resource\ImportScheduleInput"
+                       processor="App\Import\Infrastructure\ApiPlatform\State\ImportScheduleProcessor"
+                       security="is_granted('CREATE', 'App\\Import\\Domain\\Entity\\ImportSchedule')"/>
+
+            <operation class="ApiPlatform\Metadata\Patch"
+                       uriTemplate="/import-schedules/{id}{._format}"
+                       input="App\Import\Infrastructure\ApiPlatform\Resource\ImportSchedulePatchInput"
+                       processor="App\Import\Infrastructure\ApiPlatform\State\ImportScheduleProcessor"
+                       security="is_granted('UPDATE', object)">
+                <requirements>
+                    <requirement property="id">[0-9a-fA-F-]{36}</requirement>
+                </requirements>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Delete"
+                       uriTemplate="/import-schedules/{id}{._format}"
+                       processor="App\Import\Infrastructure\ApiPlatform\State\ImportScheduleProcessor"
+                       security="is_granted('DELETE', object)">
+                <requirements>
+                    <requirement property="id">[0-9a-fA-F-]{36}</requirement>
+                </requirements>
+            </operation>
+        </operations>
+    </resource>
+</resources>

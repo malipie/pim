@@ -44,6 +44,7 @@ final class RbacMatrix
         'category',
         'channel',
         'import_profile',
+        'import_schedule',
         'import_session',
         'import_source',
         'integration',
@@ -101,7 +102,7 @@ final class RbacMatrix
                     // is admin-territory (spec §7.8). Read on backup keeps
                     // the wizard's status polling working.
                     ...self::permissionsFor(
-                        resources: ['import_session', 'import_profile', 'import_source'],
+                        resources: ['import_session', 'import_profile', 'import_source', 'import_schedule'],
                         actions: [self::ACTION_READ, self::ACTION_WRITE, self::ACTION_DELETE],
                     ),
                     ...self::permissionsFor(
