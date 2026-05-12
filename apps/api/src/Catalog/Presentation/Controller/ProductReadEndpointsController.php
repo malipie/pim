@@ -12,6 +12,7 @@ use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
+use App\Shared\Infrastructure\Audit\CursorCodec;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -84,20 +85,32 @@ final class ProductReadEndpointsController
         $rawLimit = $request->query->getInt('limit', self::AUDIT_DEFAULT_LIMIT);
         $limit = max(1, min(self::AUDIT_MAX_LIMIT, $rawLimit));
 
-        $rows = $this->connection->fetchAllAssociative(
-            'SELECT type, blame_user, diffs, created_at
-             FROM objects_audit
-             WHERE object_id = :objectId
-             ORDER BY created_at DESC
-             LIMIT :limit',
-            [
-                'objectId' => $product->getId()->toRfc4122(),
-                'limit' => $limit,
-            ],
-            [
-                'limit' => ParameterType::INTEGER,
-            ],
-        );
+        // HARD-05 — opaque cursor over (created_at, id). Without it the
+        // UI is stuck on the first page and operators cannot reach
+        // older history once a product accumulates >LIMIT entries.
+        $cursor = CursorCodec::decode($request->query->get('cursor'));
+
+        $sql = 'SELECT id, type, blame_user, diffs, created_at
+                FROM objects_audit
+                WHERE object_id = :objectId';
+        $params = ['objectId' => $product->getId()->toRfc4122()];
+        $types = ['limit' => ParameterType::INTEGER];
+
+        if (null !== $cursor) {
+            // Tuple comparison: rows older than the cursor in
+            // (created_at, id) lexicographic order. Because id is
+            // monotonically increasing across the audit table, the
+            // comparison stays total even when timestamps tie.
+            $sql .= ' AND (created_at, id) < (:cursorT, :cursorI)';
+            $params['cursorT'] = $cursor['t'];
+            $params['cursorI'] = $cursor['i'];
+            $types['cursorI'] = ParameterType::INTEGER;
+        }
+
+        $sql .= ' ORDER BY created_at DESC, id DESC LIMIT :limit';
+        $params['limit'] = $limit;
+
+        $rows = $this->connection->fetchAllAssociative($sql, $params, $types);
 
         $entries = [];
         foreach ($rows as $row) {
@@ -110,9 +123,22 @@ final class ProductReadEndpointsController
             ];
         }
 
+        // Next cursor only when the page is full — a partial page means
+        // we have served the tail and there is nothing more to fetch.
+        $nextCursor = null;
+        if (\count($rows) === $limit) {
+            $last = $rows[\count($rows) - 1];
+            $lastCreatedAt = $last['created_at'] ?? null;
+            $lastId = $last['id'] ?? null;
+            if (\is_string($lastCreatedAt) && (\is_int($lastId) || (\is_string($lastId) && ctype_digit($lastId)))) {
+                $nextCursor = CursorCodec::encode($lastCreatedAt, (int) $lastId);
+            }
+        }
+
         return new JsonResponse([
             'product_id' => $product->getId()->toRfc4122(),
             'entries' => $entries,
+            'next_cursor' => $nextCursor,
         ]);
     }
 
