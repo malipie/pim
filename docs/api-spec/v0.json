@@ -4916,6 +4916,485 @@
                 }
             }
         },
+        "/api/import-schedules": {
+            "get": {
+                "operationId": "api_import-schedules_get_collection",
+                "tags": [
+                    "ImportSchedule"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ImportSchedule collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "ImportSchedule.jsonld-import_schedule.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ImportSchedule.jsonld-import_schedule.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ImportSchedule-import_schedule.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of ImportSchedule resources.",
+                "description": "Retrieves the collection of ImportSchedule resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "api_import-schedules_post",
+                "tags": [
+                    "ImportSchedule"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "ImportSchedule resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSchedule.jsonld-import_schedule.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSchedule-import_schedule.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a ImportSchedule resource.",
+                "description": "Creates a ImportSchedule resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new ImportSchedule resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportSchedule.ImportScheduleInput"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportSchedule.ImportScheduleInput"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/import-schedules/{id}": {
+            "get": {
+                "operationId": "api_import-schedules_id_get",
+                "tags": [
+                    "ImportSchedule"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ImportSchedule resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSchedule.jsonld-import_schedule.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSchedule-import_schedule.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a ImportSchedule resource.",
+                "description": "Retrieves a ImportSchedule resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ImportSchedule identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "api_import-schedules_id_delete",
+                "tags": [
+                    "ImportSchedule"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "ImportSchedule resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the ImportSchedule resource.",
+                "description": "Removes the ImportSchedule resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ImportSchedule identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_import-schedules_id_patch",
+                "tags": [
+                    "ImportSchedule"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ImportSchedule resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSchedule.jsonld-import_schedule.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportSchedule-import_schedule.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the ImportSchedule resource.",
+                "description": "Updates the ImportSchedule resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ImportSchedule identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated ImportSchedule resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportSchedule.ImportSchedulePatchInput.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
         "/api/import-sources": {
             "get": {
                 "operationId": "api_import-sources_get_collection",
@@ -8619,6 +9098,418 @@
                 ],
                 "description": "Per-user saved configuration for the import wizard (\"smart memory\").\n\nEditing a profile only affects future imports; historical\n{@see ImportSession} rows do not pull mapping changes from their\nprofile retroactively (decision: spec \u00a75.8)."
             },
+            "ImportSchedule-import_schedule.read": {
+                "type": "object",
+                "description": "VIEW-IMP-04 (#502) \u2014 recurring import schedule.\n\nHolds the cron expression, priority, optional source + profile\nbinding, and notification configuration. The cron worker daemon\n(Symfony Scheduler tick) ships in the follow-up; V04 only writes\nthe schedule + supports manual `run-now` dispatch.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "source": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "iri-reference",
+                        "example": "https://example.com/"
+                    },
+                    "profile": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "iri-reference",
+                        "example": "https://example.com/"
+                    },
+                    "name": {
+                        "maxLength": 255,
+                        "type": "string"
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9-]+)$",
+                        "type": "string"
+                    },
+                    "cron": {
+                        "maxLength": 64,
+                        "type": "string"
+                    },
+                    "cronHuman": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "priority": {
+                        "default": "normal",
+                        "type": "string",
+                        "enum": [
+                            "high",
+                            "normal",
+                            "low"
+                        ]
+                    },
+                    "enabled": {
+                        "readOnly": true,
+                        "default": true,
+                        "type": "boolean"
+                    },
+                    "nextRun": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "lastRunAt": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "lastRunStatus": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "lastRunDurationMs": {
+                        "readOnly": true,
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "notifyChannels": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "notifyConfig": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "name",
+                    "code",
+                    "cron"
+                ]
+            },
+            "ImportSchedule.ImportScheduleInput": {
+                "type": "object",
+                "description": "VIEW-IMP-04 (#502) \u2014 recurring import schedule.\n\nHolds the cron expression, priority, optional source + profile\nbinding, and notification configuration. The cron worker daemon\n(Symfony Scheduler tick) ships in the follow-up; V04 only writes\nthe schedule + supports manual `run-now` dispatch.",
+                "required": [
+                    "name",
+                    "code",
+                    "cron"
+                ],
+                "properties": {
+                    "name": {
+                        "maxLength": 255,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9-]+)$",
+                        "default": "",
+                        "type": "string"
+                    },
+                    "cron": {
+                        "maxLength": 64,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "priority": {
+                        "enum": [
+                            "high",
+                            "normal",
+                            "low"
+                        ],
+                        "default": "normal",
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "default": true,
+                        "type": "boolean"
+                    },
+                    "sourceId": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "profileId": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "notifyChannels": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "notifyConfig": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                }
+            },
+            "ImportSchedule.ImportSchedulePatchInput.jsonMergePatch": {
+                "type": "object",
+                "description": "VIEW-IMP-04 (#502) \u2014 recurring import schedule.\n\nHolds the cron expression, priority, optional source + profile\nbinding, and notification configuration. The cron worker daemon\n(Symfony Scheduler tick) ships in the follow-up; V04 only writes\nthe schedule + supports manual `run-now` dispatch.",
+                "properties": {
+                    "name": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9-]+)$",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "cron": {
+                        "maxLength": 64,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "priority": {
+                        "enum": [
+                            "high",
+                            "normal",
+                            "low"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "enabled": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "sourceId": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "profileId": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "notifyChannels": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "notifyConfig": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                }
+            },
+            "ImportSchedule.jsonld-import_schedule.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "source": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "iri-reference",
+                                "example": "https://example.com/"
+                            },
+                            "profile": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "iri-reference",
+                                "example": "https://example.com/"
+                            },
+                            "name": {
+                                "maxLength": 255,
+                                "type": "string"
+                            },
+                            "code": {
+                                "maxLength": 64,
+                                "pattern": "^([a-z0-9-]+)$",
+                                "type": "string"
+                            },
+                            "cron": {
+                                "maxLength": 64,
+                                "type": "string"
+                            },
+                            "cronHuman": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "priority": {
+                                "default": "normal",
+                                "type": "string",
+                                "enum": [
+                                    "high",
+                                    "normal",
+                                    "low"
+                                ]
+                            },
+                            "enabled": {
+                                "readOnly": true,
+                                "default": true,
+                                "type": "boolean"
+                            },
+                            "nextRun": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "lastRunAt": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "lastRunStatus": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "lastRunDurationMs": {
+                                "readOnly": true,
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "notifyChannels": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "notifyConfig": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "updatedAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "code",
+                            "cron"
+                        ]
+                    }
+                ],
+                "description": "VIEW-IMP-04 (#502) \u2014 recurring import schedule.\n\nHolds the cron expression, priority, optional source + profile\nbinding, and notification configuration. The cron worker daemon\n(Symfony Scheduler tick) ships in the follow-up; V04 only writes\nthe schedule + supports manual `run-now` dispatch."
+            },
             "ImportSource-import_source.read": {
                 "type": "object",
                 "description": "VIEW-IMP-03 (#500) \u2014 connection config for incoming file feeds.\n\nLives alongside the profiles + sessions tables in the Import bundle.\nTenant-scoped + owner-scoped; the operator only sees the sources\nthey registered. `authRef` is a pointer to the Symfony Secrets Vault\n\u2014 credential plaintext never lands in the DB.\n\nPolling daemon is not part of V03 \u2014 only the schema, CRUD endpoints,\nand a manual `test-connection` probe land here. Auto-pickup of files\nmatching `filePattern` is scoped to the polling follow-up.",
@@ -9508,6 +10399,10 @@
         {
             "name": "ImportProfile",
             "description": "Per-user saved configuration for the import wizard (\"smart memory\").\n\nEditing a profile only affects future imports; historical\n{@see ImportSession} rows do not pull mapping changes from their\nprofile retroactively (decision: spec \u00a75.8)."
+        },
+        {
+            "name": "ImportSchedule",
+            "description": "VIEW-IMP-04 (#502) \u2014 recurring import schedule.\n\nHolds the cron expression, priority, optional source + profile\nbinding, and notification configuration. The cron worker daemon\n(Symfony Scheduler tick) ships in the follow-up; V04 only writes\nthe schedule + supports manual `run-now` dispatch."
         },
         {
             "name": "ImportSource",

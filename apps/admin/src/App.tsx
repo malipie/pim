@@ -37,7 +37,7 @@ import { DashboardPage } from '@/features/dashboard/page';
 import { LoginPage } from '@/features/identity/auth/login';
 import { ImportsLayout } from '@/features/imports/layout/ImportsLayout';
 import { ImportProfilesView } from '@/features/imports/profiles/ImportProfilesView';
-import { ImportSchedulePlaceholder } from '@/features/imports/schedule/ImportSchedulePlaceholder';
+import { ImportScheduleView } from '@/features/imports/schedule/ImportScheduleView';
 import { ImportSessionsView } from '@/features/imports/sessions/ImportSessionsView';
 import { ImportShowPage } from '@/features/imports/show/ImportShowPage';
 import { ImportSourcesView } from '@/features/imports/sources/ImportSourcesView';
@@ -128,6 +128,10 @@ function App() {
             {
               name: 'import-sources',
               list: '/integrations/imports/sources',
+            },
+            {
+              name: 'import-schedules',
+              list: '/integrations/imports/schedule',
             },
           ]}
           options={{
@@ -231,7 +235,7 @@ function App() {
                   <Route path="sessions" element={<ImportSessionsView />} />
                   <Route path="profiles" element={<ImportProfilesView />} />
                   <Route path="sources" element={<ImportSourcesView />} />
-                  <Route path="schedule" element={<ImportSchedulePlaceholder />} />
+                  <Route path="schedule" element={<ImportScheduleView />} />
                 </Route>
                 <Route path="imports/new" element={<ImportWizardPage />} />
                 <Route path="imports/:id" element={<ImportShowPage />} />

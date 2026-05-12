@@ -1052,6 +1052,76 @@
       "profiles_subtitle": "Biblioteka profili mapowań — zakładka aktywowana w VIEW-IMP-02",
       "profiles_open_manager": "Otwórz menedżera profili"
     },
+    "schedule": {
+      "title": "Harmonogram",
+      "subtitle_eyebrow": "Cron · automatyzacja",
+      "description": "Zadania cron. Cron worker dispatcher dochodzi w follow-up — w MVP możesz uruchamiać harmonogramy manualnie przez „Uruchom teraz”.",
+      "new_schedule": "Nowe zadanie",
+      "active": {
+        "heading": "Aktywne",
+        "empty": "Brak aktywnych harmonogramów."
+      },
+      "paused": {
+        "heading": "Wstrzymane"
+      },
+      "empty": {
+        "title": "Brak harmonogramów",
+        "subtitle": "Dodaj pierwsze zadanie cron żeby zautomatyzować importy."
+      },
+      "timeline": {
+        "eyebrow": "Najbliższe {{hours}} h",
+        "now": "teraz ·",
+        "empty": "Brak zaplanowanych uruchomień w wybranym horyzoncie.",
+        "dot_aria": "Zadanie {{name}} o {{time}}"
+      },
+      "priority": {
+        "high": "high",
+        "normal": "normal",
+        "low": "low"
+      },
+      "card": {
+        "more_actions": "Więcej akcji",
+        "run_now": "Uruchom teraz",
+        "edit": "Edytuj",
+        "delete": "Usuń",
+        "enabled": "włączone",
+        "disabled": "wstrzymane",
+        "toggle_aria": "Przełącz status {{name}}",
+        "source": "Źródło",
+        "profile": "Profil",
+        "no_source": "(brak)",
+        "no_profile": "(brak)",
+        "next_run": "Następne",
+        "last_run": "Ostatnie",
+        "notify": "Notify:"
+      },
+      "dialog": {
+        "title_create": "Nowe zadanie cron",
+        "title_edit": "Edytuj zadanie",
+        "name": "Nazwa",
+        "code": "Kod",
+        "cron": "Wyrażenie cron",
+        "cron_hint": "Standardowy 5-polowy cron. Przykład „0 6 * * *” = codziennie o 06:00.",
+        "priority": "Priorytet",
+        "enabled": "Włącz harmonogram",
+        "source": "Źródło",
+        "source_placeholder": "(opcjonalne)",
+        "profile": "Profil mapowania",
+        "profile_placeholder": "(opcjonalne)",
+        "notify_channels": "Powiadomienia",
+        "notify_hint": "Real transport (Slack/Email/Webhook) wdrożony w VIEW-IMP-04.1 — w MVP zapisujemy konfigurację, ale wysyłka nie działa.",
+        "create": "Dodaj",
+        "errors": {
+          "name_required": "Nazwa harmonogramu jest wymagana.",
+          "cron_invalid": "Wyrażenie cron musi mieć 5 pól rozdzielonych spacjami."
+        }
+      },
+      "delete": {
+        "title": "Usuń harmonogram",
+        "confirm": "Czy na pewno usunąć harmonogram „{{name}}”? Tej operacji nie da się cofnąć.",
+        "confirm_button": "Usuń harmonogram"
+      }
+    },
     "sources": {
       "title": "Źródła danych",
       "subtitle_eyebrow": "Połączenia przychodzące",

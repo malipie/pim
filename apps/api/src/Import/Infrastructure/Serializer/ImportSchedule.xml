@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <class name="App\Import\Domain\Entity\ImportSchedule">
+        <attribute name="id"><group>import_schedule:read</group></attribute>
+        <attribute name="name">
+            <group>import_schedule:read</group>
+            <group>import_schedule:write</group>
+        </attribute>
+        <attribute name="code">
+            <group>import_schedule:read</group>
+            <group>import_schedule:write</group>
+        </attribute>
+        <attribute name="cron">
+            <group>import_schedule:read</group>
+            <group>import_schedule:write</group>
+        </attribute>
+        <attribute name="cronHuman">
+            <group>import_schedule:read</group>
+        </attribute>
+        <attribute name="priority">
+            <group>import_schedule:read</group>
+            <group>import_schedule:write</group>
+        </attribute>
+        <attribute name="enabled">
+            <group>import_schedule:read</group>
+            <group>import_schedule:write</group>
+        </attribute>
+        <attribute name="nextRun"><group>import_schedule:read</group></attribute>
+        <attribute name="lastRunAt"><group>import_schedule:read</group></attribute>
+        <attribute name="lastRunStatus"><group>import_schedule:read</group></attribute>
+        <attribute name="lastRunDurationMs"><group>import_schedule:read</group></attribute>
+        <attribute name="source"><group>import_schedule:read</group></attribute>
+        <attribute name="profile"><group>import_schedule:read</group></attribute>
+        <attribute name="notifyChannels">
+            <group>import_schedule:read</group>
+            <group>import_schedule:write</group>
+        </attribute>
+        <attribute name="notifyConfig">
+            <group>import_schedule:read</group>
+            <group>import_schedule:write</group>
+        </attribute>
+        <attribute name="createdAt"><group>import_schedule:read</group></attribute>
+        <attribute name="updatedAt"><group>import_schedule:read</group></attribute>
+    </class>
+</serializer>

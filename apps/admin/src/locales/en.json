@@ -1012,6 +1012,76 @@
       "profiles_subtitle": "Mapping profiles library — activated in VIEW-IMP-02",
       "profiles_open_manager": "Open profile manager"
     },
+    "schedule": {
+      "title": "Schedule",
+      "subtitle_eyebrow": "Cron · automation",
+      "description": "Recurring cron jobs. The dispatcher daemon ships in the follow-up — MVP supports manual \"Run now\" triggers.",
+      "new_schedule": "New schedule",
+      "active": {
+        "heading": "Active",
+        "empty": "No active schedules."
+      },
+      "paused": {
+        "heading": "Paused"
+      },
+      "empty": {
+        "title": "No schedules yet",
+        "subtitle": "Add your first cron job to automate imports."
+      },
+      "timeline": {
+        "eyebrow": "Next {{hours}} h",
+        "now": "now ·",
+        "empty": "No scheduled runs in the selected horizon.",
+        "dot_aria": "Schedule {{name}} at {{time}}"
+      },
+      "priority": {
+        "high": "high",
+        "normal": "normal",
+        "low": "low"
+      },
+      "card": {
+        "more_actions": "More actions",
+        "run_now": "Run now",
+        "edit": "Edit",
+        "delete": "Delete",
+        "enabled": "enabled",
+        "disabled": "paused",
+        "toggle_aria": "Toggle {{name}}",
+        "source": "Source",
+        "profile": "Profile",
+        "no_source": "(none)",
+        "no_profile": "(none)",
+        "next_run": "Next",
+        "last_run": "Last",
+        "notify": "Notify:"
+      },
+      "dialog": {
+        "title_create": "New cron schedule",
+        "title_edit": "Edit schedule",
+        "name": "Name",
+        "code": "Code",
+        "cron": "Cron expression",
+        "cron_hint": "Standard 5-field cron. Example \"0 6 * * *\" = daily at 06:00.",
+        "priority": "Priority",
+        "enabled": "Enable schedule",
+        "source": "Source",
+        "source_placeholder": "(optional)",
+        "profile": "Mapping profile",
+        "profile_placeholder": "(optional)",
+        "notify_channels": "Notifications",
+        "notify_hint": "Real transport (Slack/Email/Webhook) ships in VIEW-IMP-04.1 — MVP saves the configuration, but no notifications are sent yet.",
+        "create": "Add",
+        "errors": {
+          "name_required": "Schedule name is required.",
+          "cron_invalid": "Cron expression must have 5 space-separated fields."
+        }
+      },
+      "delete": {
+        "title": "Delete schedule",
+        "confirm": "Delete schedule \"{{name}}\"? This action cannot be undone.",
+        "confirm_button": "Delete schedule"
+      }
+    },
     "sources": {
       "title": "Data sources",
       "subtitle_eyebrow": "Inbound connections",

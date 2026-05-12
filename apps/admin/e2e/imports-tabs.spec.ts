@@ -47,15 +47,10 @@ test.describe('Imports hub — tabs', () => {
     ).toBeVisible();
   });
 
-  test('schedule placeholder still renders the coming-soon banner', async ({ page }) => {
-    // Sources got the full view in VIEW-IMP-03 — only the schedule tab
-    // remains a placeholder until VIEW-IMP-04 ships the dedicated UI.
-    await loginAsAdmin(page);
-
-    await page.goto('/integrations/imports/schedule');
-    await expect(page.getByRole('heading', { name: /wkrótce|coming soon/i })).toBeVisible();
-  });
-
+  // All four tabs ship as real views after V04. Per-view specs cover
+  // their content; the foundation suite only proves the tab nav + the
+  // default redirect.
+  //
   // Deep-link refresh behaviour relies on the refresh-cookie token resurrection
   // path in auth-provider.ts (test #2 / test #3 already exercise direct
   // deep-link navigation which is the actual foundation contract). A dedicated
