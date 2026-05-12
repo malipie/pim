@@ -84,6 +84,33 @@ Epik: 7 ticketów (VIEW-IMP-00..05 + AUDIT) + bloker IMP-16 (kategoria assignmen
 
 ## Patterns to Follow
 
+### Audit-driven hardening marathon — 10 ticketów / 10 PR-ów (2026-05-12, PR #515-#524)
+
+Po pełnym audycie kodu (raport: `agent/audit-2026-05-12.md`) operator zlecił marathon "robimy to wszystko". Dziesięć ticketów dostarczone w jednej sesji, każdy = osobny branch + PR + CI + merge per epik marathon rule.
+
+**Co poszło dobrze**:
+- Kolejność szybkie wins → trudne (composite index → docker limits → branch cleanup → tsconfig strict → audit-log cursor → JSONB docs → raw-SQL lint → bundle splitting → flake diagnoza → apiLogin) — operator widział momentum + każdy merge dostarczał real value.
+- 1 realny security/data-leak bug znaleziony przy okazji guard-railu (HARD-07: `MoveCategoryService` cross-tenant ltree leak — drugi UPDATE bez `tenant_id`).
+- 11 latent nullability bugów wyłapanych przez `tsconfig strict` + `noUncheckedIndexedAccess` (HARD-04) — wszystkie w hot pathach (catalog list/show, channel mapping, imports wizard).
+- 80% redukcja initial bundle (HARD-08: 2098 → 415 KB) bez zmiany funkcjonalności.
+
+**Co poszło źle / lekcje**:
+- **Modeling-shell flake — TWO root causes**: lessons.md notowało jeden ("rate limiter wyczerpywany"). Realnie były DWA, oba surface-pattern identyczny "received string `https://pim.localhost/login`":
+  1. `auth_login` 5/IP/15min — early specs zżerają budget
+  2. `auth_refresh` 30/IP/h — page.goto wipe'uje JWT z module-scope memory, AuthedRoute calls refresh, bucket się zapełnia po multi-spec
+- **Lekcja diagnozy**: każdy wyglądający-tak-samo flake może mieć multiple causes. Bez probe API (curl /api/auth/refresh -w status) nie sposób rozróżnić. Pre-mortem: zawsze sprawdź **wszystkie** rate-limited endpointy, nie tylko ten jeden który podejrzewasz.
+- **Pure storageState pattern blocked by single-use refresh tokens**: Lexik refresh rotation z theft detection (#28) revokuje całą rodzinę przy reuse. storageState's static cookie przy 2nd test → revoke. Wymaga backend test-mode toggle (security path → osobny ticket). HARD-10 dostarcza fast-path apiLogin (~80% speed-up bez backend zmian) zamiast pure storageState.
+- **Marathon o 10 ticketach to ~10-15h sesji**. Operator dostał raport końcowy z każdym świadomym odejściem; przerwań tylko kilka (rate-limit retry, OpenAPI snapshot regen, CS-fixer requirements). **Reguła**: marathon o >5 ticketach = pre-flight check że audit jest aktualny + branch hygiene jest cleared + DB ma seed data (operator dziś miał DB z 0 produktów po teście — surprise).
+- **CI guard-rail dla raw SQL** (HARD-07) złapie REGRESJE od PR #525+. Dla retro-aktywnej weryfikacji: 11 plików ręcznie reviewane, jeden bug znaleziony. Wzór: każdy nowy guard-rail wymaga bulk audit istniejącego kodu PRZED CI bramką, inaczej guard-rail blokuje legitimate PR-y.
+
+**Severity table audytu po marathonie** (przed → po):
+- Multi-tenancy: 6/10 → 9/10 (raw SQL guard + MoveCategoryService fix)
+- Bundle: 5/10 → 8/10 (route-splitting)
+- Frontend type safety: 6/10 → 9/10 (strict + noUncheckedIndexedAccess)
+- Database indexes: 8/10 → 9/10 (tenant_parent composite)
+- Tests robustness: 6/10 → 7/10 (rate-limit retry + globalSetup; pełna eliminacja flake czeka na backend test-mode)
+- Documentation: 9/10 → 10/10 (JSONB schemas + audit raport)
+
 ### Tree-mode lista produktów — masters-only filter + lazy variant load (2026-05-12, PR #514)
 
 - **Problem**: gdy operator wygeneruje N wariantów dla jednego mastera (np. 5 kolorów × 4 rozmiary × 4 tagi = 80), pojedyncza strona Refine `useList` (default 30) zapełnia się WYŁĄCZNIE wariantami tego mastera. Master + inne produkty wypadają z widoku, a inline-grouping w tree mode tworzy "sieroty" (variant.parentId nie matchuje żadnego id w tej samej stronie) i renderuje warianty płasko na górze listy. Wygląda jak crash.
