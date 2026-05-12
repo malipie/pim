@@ -14,11 +14,83 @@ name: pim
 x-default-restart: &default_restart
   restart: unless-stopped
 
+# HARD-02 — dev-machine resource limits.
+#
+# CLAUDE.md §3.10 calls out FrankenPHP worker mode as the highest memory-leak
+# risk in the stack: Doctrine Identity Map accumulates between requests and a
+# missing EntityManager::clear() inside a long-running handler can OOM the
+# whole worker pool. Without `deploy.resources.limits` the worker can swallow
+# the entire host memory before the leak surfaces in metrics.
+#
+# Limits below are tuned for a 16 GB dev workstation (sum ≈ 6 GB across all
+# services; leaves headroom for editor + browser). Production overrides land
+# in docker-compose.prod.yml (separate ticket — Faza 1 deploy hardening) and
+# should pair with a Prometheus alert on `frankenphp_worker_memory_bytes >
+# 256MB` per CLAUDE.md §3.10.
+#
+# Compose Spec (v3+) supports `deploy.resources.limits` outside Swarm since
+# 2022 — Docker Desktop 4.x and `docker compose` v2 both honour it.
+x-resource-limits-api: &resource_limits_api
+  deploy:
+    resources:
+      limits:
+        memory: 1024M
+        cpus: "2.0"
+
+x-resource-limits-db: &resource_limits_db
+  deploy:
+    resources:
+      limits:
+        memory: 2048M
+        cpus: "2.0"
+
+x-resource-limits-search: &resource_limits_search
+  deploy:
+    resources:
+      limits:
+        memory: 1024M
+        cpus: "1.0"
+
+x-resource-limits-admin: &resource_limits_admin
+  deploy:
+    resources:
+      limits:
+        memory: 1024M
+        cpus: "1.0"
+
+x-resource-limits-cache: &resource_limits_cache
+  deploy:
+    resources:
+      limits:
+        memory: 256M
+        cpus: "0.5"
+
+x-resource-limits-storage: &resource_limits_storage
+  deploy:
+    resources:
+      limits:
+        memory: 512M
+        cpus: "1.0"
+
+x-resource-limits-edge: &resource_limits_edge
+  deploy:
+    resources:
+      limits:
+        memory: 128M
+        cpus: "0.5"
+
+x-resource-limits-tiny: &resource_limits_tiny
+  deploy:
+    resources:
+      limits:
+        memory: 128M
+        cpus: "0.25"
+
 services:
   # ─── Edge: terminates TLS + routes single-origin traffic ──────────────────
   caddy:
     image: caddy:2-alpine
-    <<: *default_restart
+    <<: [*default_restart, *resource_limits_edge]
     depends_on:
       api:
         condition: service_healthy
@@ -49,7 +121,7 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
-    <<: *default_restart
+    <<: [*default_restart, *resource_limits_api]
     depends_on:
       database:
         condition: service_healthy
@@ -95,7 +167,7 @@ services:
   # ─── Frontend admin (Vite dev server) ─────────────────────────────────────
   admin:
     image: node:22-alpine
-    <<: *default_restart
+    <<: [*default_restart, *resource_limits_admin]
     working_dir: /workspace/apps/admin
     command: sh -c "corepack enable && corepack prepare pnpm@10.33.2 --activate && pnpm install --frozen-lockfile=false && pnpm dev"
     environment:
@@ -120,7 +192,7 @@ services:
       context: ./docker/postgres
       dockerfile: Dockerfile
     image: pim-database:local
-    <<: *default_restart
+    <<: [*default_restart, *resource_limits_db]
     depends_on:
       minio:
         condition: service_healthy
@@ -165,7 +237,7 @@ services:
   # ─── Redis 7 (Symfony Messenger transport + cache) ────────────────────────
   redis:
     image: redis:7-alpine
-    <<: *default_restart
+    <<: [*default_restart, *resource_limits_cache]
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
@@ -178,7 +250,7 @@ services:
   # ─── Meilisearch (search) ─────────────────────────────────────────────────
   meilisearch:
     image: getmeili/meilisearch:v1.13
-    <<: *default_restart
+    <<: [*default_restart, *resource_limits_search]
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-masterKeyPleaseChangeMe}
       MEILI_NO_ANALYTICS: "true"
@@ -196,7 +268,7 @@ services:
   # ─── MinIO (S3-compatible object storage for assets, backups) ─────────────
   minio:
     image: minio/minio:latest
-    <<: *default_restart
+    <<: [*default_restart, *resource_limits_storage]
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
@@ -219,7 +291,7 @@ services:
   # and docker/caddy/Caddyfile.minio.
   minio-tls:
     image: caddy:2-alpine
-    <<: *default_restart
+    <<: [*default_restart, *resource_limits_tiny]
     depends_on:
       minio:
         condition: service_healthy
@@ -250,7 +322,7 @@ services:
   # ─── Mercure (SSE hub) ────────────────────────────────────────────────────
   mercure:
     image: dunglas/mercure:latest
-    <<: *default_restart
+    <<: [*default_restart, *resource_limits_edge]
     environment:
       SERVER_NAME: ":80"
       MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
@@ -282,7 +354,7 @@ services:
   # ─── Mailpit (dev mail catcher) ───────────────────────────────────────────
   mailpit:
     image: axllent/mailpit:latest
-    <<: *default_restart
+    <<: [*default_restart, *resource_limits_tiny]
     environment:
       MP_MAX_MESSAGES: 5000
       MP_SMTP_AUTH_ACCEPT_ANY: 1
