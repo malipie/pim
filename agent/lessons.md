@@ -2,6 +2,32 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z PR #534 (white-screen na generate-variants, 2026-05-13)
+
+1. **„White screen w UI" zaczyna od backend access logu, nie React DevTools**. Operator zgłosił biały ekran ze screenshot'em → pierwszą rzeczą sprawdziłem był `docker logs pim-caddy-1 | grep generate-variants` i znalazłem `duration:30.11s, status:200, content-type:text/html` — wszystko widać natychmiast. Drugi krok: `docker logs pim-api-1 | grep -iE "fatal|exception"` ujawnił `PHP Fatal: Maximum execution time of 30 seconds exceeded`. Cały root cause w 2 grepach. **Reguła**: zanim sprawdzisz React renderer / error boundary, sprawdź czy backend faktycznie odpowiedział poprawnym JSON-em — 90% „white screen" po stronie React'a to malformed BE response.
+
+2. **`Doctrine*Repository::save()` z immediate `flush()` to anti-pattern w pętlach**. Każde `$repo->save($entity)` woła `$em->persist() + $em->flush()`. W pętli M iteracji × N inner saves = M×N flushes, każdy walking całego UnitOfWork → quadratic w czasie. Jeśli `AttributesIndexedSyncListener` (lub inny `postFlush`) jest aktywny, każdy flush triggeruje **drugi** flush. Dla 6 × 15 = 222 round-trips zamiast 1. **Wzór**: w bulk path inject `EntityManagerInterface` + użyj `$em->persist()` w pętli + jeden `$em->flush()` na końcu w `wrapInTransaction()`. Repo `save()` zostaw dla single-edit flows.
+
+3. **`BulkContext::setBulk(true)` mutuje synchroniczne listenery, ale NIE wpływa na `$repo->save()` które wciąż flush'uje**. Listener (`AttributesIndexedSyncListener`) sprawdza `$this->bulkContext->isBulk()` w `onFlush/postFlush` i wcześnie wraca. Save flush mimo to leci do DB. Żeby naprawdę batch'ować, musisz **też** zamienić `save()` na `persist()` + manualne flush. Bulk mode bez tego = tylko sync rebuild listenera muted; raw DB calls są niezmienione.
+
+4. **Po `BulkContext::setBulk(true)` + batch flush, MUSISZ manualnie wywołać `AttributesIndexedRebuilder::rebuild($entity)` dla każdego dotkniętego CatalogObject + drugi flush**. Inaczej `attributes_indexed` JSONB cache jest pusty na świeżych wierszach a read path serwuje pustkę. Wzór:
+   ```php
+   $this->bulkContext->setBulk(true);
+   try {
+       $this->em->wrapInTransaction(function () { /* persist + flush */ });
+   } finally {
+       $this->bulkContext->setBulk(false);
+   }
+   foreach ($freshEntities as $e) { $this->rebuilder->rebuild($e); }
+   $this->em->flush();
+   ```
+
+5. **`safeJsonParse` w `apps/admin/src/lib/http.ts` był subtelnym bugiem**: gdy backend zwracał 200 + HTML (np. FrankenPHP fatal error page), `JSON.parse` rzucał, catch zwracał raw string. Caller dostawał string typowany jako `T` (np. `GenerateVariantsResponse`) i crashował na pierwszym `.property` access → React error boundary → biały ekran. **Fix**: jeśli `response.ok` ale `Content-Type` nie jest JSON-shaped (`application/json`, `application/ld+json`, `application/merge-patch+json`, `application/problem+json`), rzuć `HttpError`. Dodatkowo defensive `Array.isArray()` przy renderze pól tablicowych jako belt-and-suspenders.
+
+6. **Brak transakcji wokół multi-step persist'a zostawia sieroty po timeoucie**. Master `019e1e58…` na localhoście miał 95 wariantów z poprzednich częściowych timeoutów (PHP fatal w połowie loop'a → connection cleanup → niektóre commity przeszły, niektóre nie). `wrapInTransaction()` ratuje przed tym — partial failure = rollback. **Reguła**: każda operacja generująca >1 wiersz domain'u MUSI być w `$em->wrapInTransaction(...)`.
+
+7. **Worker mode cache'uje compiled DI container** — po edycie konstruktora (dodanie/usunięcie parametru) `docker exec api bin/console cache:clear` NIE wystarczy. Trzeba `docker restart pim-api-1` żeby worker pre-loadował nowy compiled container. Symptom: `TypeError: Argument #4 must be of type X, Y given, called in /app/var/cache/dev/Container.../get...Service.php`. Reguła: po DI signature change zawsze `docker restart pim-api-1`.
+
 ## Lessons z PR #533 (auto-seed admin user, 2026-05-13)
 
 1. **Nested `ArrayInput` w chained Symfony Console commands MUSI mieć explicit `setInteractive(false)`** — inaczej `--no-interaction` outer call NIE propaguje się do inner. Symptom: `pim:db:reset --with-fixtures --force` w entrypoint zwracał success ale fixtures cicho aborted. Root cause: `doctrine:fixtures:load` ma purge confirmation z **default `[no]`**; gdy `$arrayInput->isInteractive() === true` (default), prompt fall-through do `[no]` → fixtures exit 0 bez insertu. Inne chained commands (drop/create/migrate) miały default `[yes]` więc były OK.

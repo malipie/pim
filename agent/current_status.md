@@ -1,5 +1,34 @@
 # Current Status
 
+## 2026-05-13: PR #534 — białe okno na „Generuj warianty" (HOTFIX)
+
+**Branch:** `fix/variants-generation-perf` (merged, branch deleted)
+**PR:** [#534](https://github.com/malipie/PIM/pull/534) merged `7ec48c0` via `--admin --squash` (Playwright red — pre-existing `modeling-shell.spec.ts` flake, niezwiązany; per current_status precedensów z UI-11)
+
+**Operator zgłosił**: „próba generowania wariantów w szczegółach produktu wygenerowała błąd white screen + system działa wolniej". Screenshot pusty biały.
+
+**Root cause** (z logów Caddy + FrankenPHP):
+- `POST /api/products/{id}/generate-variants` timeoutowało na 30s — `PHP Fatal: Maximum execution time of 30 seconds exceeded` w `Doctrine ORM RawValuePropertyAccessor`. FrankenPHP zwracał 200 + `text/html` error page.
+- `jsonFetch` traktował HTML jako string typowany `T`, a `variants-tab.tsx` crashował na `response.created.length` → React error boundary → biały ekran bez toastu.
+- Powód timeoutu: kontroler robił M kombinacji × N master values × O(flush) — każdy `$repo->save()` triggerował immediate flush + `AttributesIndexedSyncListener::postFlush` (drugi flush). Dla 6 kombinacji × 15 wartości = min. 222 round-tripów. `findByObject($master)` był w pętli zamiast przed nią.
+- Master `019e1e58…` na localhoście miał 95 sierot z poprzednich częściowych timeoutów (brak transakcji wokół pętli → partial commit).
+
+**Co dostarczono**:
+- `GenerateVariantsController`: `BulkContext::setBulk(true)` wokół pętli, `findByObject($master)` raz przed pętlą, `$em->persist()` + jeden `$em->flush()` w `wrapInTransaction()`, post-flush rebuild `attributes_indexed` per nowy wariant przez `AttributesIndexedRebuilder`, `set_time_limit(120)` jako defence in depth.
+- `jsonFetch`: rzuca `HttpError` gdy 200 + non-JSON `Content-Type` (zamiast oddawać HTML jako `T`). Wzorzec rozciągnięty na cały admin — chroni przed analogicznymi crashami w innych endpointach.
+- `variants-tab.tsx`: defensive `Array.isArray(response.created)` + `?? 0` na licznikach.
+
+**Smoke test (curl + DB inspect)**:
+- 3×3 = 9 wariantów: **0.20s** (było 30s timeout). HTTP 201, `Content-Type: application/json`.
+- Re-run tego samego payloadu: `created_count: 0, skipped_count: 9` w 0.03s (idempotency OK).
+- `attributes_indexed` per wariant: 15 wartości odziedziczone z mastera + nadpisane `color`/`size` z osi.
+
+**Świadome odejścia**:
+- Druga obserwacja operatora („system działa wolniej") — nie zaadresowana w tym PR. Hipoteza: route-level code splitting z #339cbf8 daje one-time chunk fetch per pierwszy entry routa (~50-200ms perceived). Wymaga osobnego audytu p95 latencji top-10 endpointów (Prometheus dashboard) — kandydat na maintenance ticket.
+- Wzorzec `Doctrine*Repository::save()` z immediate flush jest w innych repo (catalog/asset/channel/etc). Refactor systemowy poza scope tego bugfixa — kandydat na ADR „repos should not flush" w fazie 1.
+
+---
+
 ## 2026-05-13: PR #533 — auto-seed admin user na container start (DEV-QOL)
 
 **Branch:** `dev/auto-seed-on-container-start`
