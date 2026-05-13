@@ -1,0 +1,361 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Catalog\Presentation\Controller;
+
+use App\Catalog\Application\Filter\FilterDslResolver;
+use App\Catalog\Domain\Entity\SmartFilterPreset;
+use App\Identity\Domain\Entity\User;
+use App\Shared\Application\TenantContext;
+use DateTimeInterface;
+use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Uid\Uuid;
+use Throwable;
+
+/**
+ * VIEW-09 (#535) — `SmartFilterPreset` CRUD endpoints.
+ *
+ * Read scope:
+ *  - system-shipped (tenant_id IS NULL) — visible to every authenticated user.
+ *  - tenant-shared (user_id IS NULL, tenant_id matches) — Faza 1+ lane.
+ *  - user-owned (user_id matches current user) — visible to owner only.
+ *
+ * Write scope (PATCH / DELETE):
+ *  - built-in (is_built_in=true) → 403 Conflict, immutable per CLAUDE.md ADR.
+ *  - user-owned → owner only.
+ *  - cross-user attempt → 404 (information hiding, not 403).
+ *
+ * Marketing nota PRD §11 — "smart" tutaj znaczy *rule-based*, nie LLM.
+ */
+final class SmartFilterPresetController
+{
+    private const string UUID_REGEX = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+    private const int MAX_USER_PRESETS = 50;
+    private const int MAX_NAME_LEN = 60;
+    private const int MIN_NAME_LEN = 3;
+
+    public function __construct(
+        private readonly EntityManagerInterface $em,
+        private readonly Connection $connection,
+        private readonly TenantContext $tenantContext,
+        private readonly Security $security,
+        private readonly FilterDslResolver $filterDslResolver,
+    ) {
+    }
+
+    #[Route('/api/smart-filter-presets', name: 'pim_smart_filter_presets_list', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function list(Request $request): JsonResponse
+    {
+        $tenant = $this->tenantContext->get();
+        $user = $this->security->getUser();
+        $userId = $user instanceof User ? $user->getId() : null;
+
+        $withCounts = $request->query->getBoolean('counts', false);
+
+        $qb = $this->em->getRepository(SmartFilterPreset::class)
+            ->createQueryBuilder('p')
+            ->orderBy('p.isBuiltIn', 'DESC')
+            ->addOrderBy('p.sortOrder', 'ASC')
+            ->addOrderBy('p.createdAt', 'DESC')
+            ->setMaxResults(self::MAX_USER_PRESETS + 5); // 5 built-in + N user
+
+        // Visible to user: system-shipped (tenant NULL) OR own user-defined.
+        if (null !== $tenant && null !== $userId) {
+            $qb->andWhere('p.tenant IS NULL OR (p.tenant = :tenant AND (p.userId = :user OR p.userId IS NULL))')
+                ->setParameter('tenant', $tenant)
+                ->setParameter('user', $userId);
+        } else {
+            $qb->andWhere('p.tenant IS NULL');
+        }
+
+        /** @var list<SmartFilterPreset> $presets */
+        $presets = $qb->getQuery()->getResult();
+
+        $counts = $withCounts ? $this->resolveCounts($presets) : null;
+
+        return new JsonResponse([
+            'data' => array_map(
+                fn (SmartFilterPreset $p): array => $this->serialize($p, $counts[$p->getId()->toRfc4122()] ?? null),
+                $presets,
+            ),
+        ]);
+    }
+
+    #[Route('/api/smart-filter-presets', name: 'pim_smart_filter_presets_create', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function create(Request $request): JsonResponse
+    {
+        $tenant = $this->tenantContext->get();
+        if (null === $tenant) {
+            throw new BadRequestHttpException('No tenant context.');
+        }
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            throw new BadRequestHttpException('User identity required.');
+        }
+        $userId = $user->getId();
+
+        /** @var array<string, mixed> $body */
+        $body = json_decode($request->getContent(), true) ?? [];
+
+        $name = $this->parseName($body['name'] ?? null);
+        $icon = $this->parseIcon($body['icon'] ?? null);
+        $query = $this->parseQuery($body['query'] ?? null);
+        $sortOrderRaw = $body['sort_order'] ?? 100;
+        $sortOrder = is_numeric($sortOrderRaw) ? (int) $sortOrderRaw : 100;
+
+        $slug = $this->generateUniqueSlug($name['pl'], $tenant->getId(), $userId);
+
+        $preset = new SmartFilterPreset(
+            slug: $slug,
+            name: $name,
+            icon: $icon,
+            query: $query,
+            userId: $userId,
+            isBuiltIn: false,
+            sortOrder: $sortOrder,
+        );
+
+        $this->em->persist($preset);
+        $this->em->flush();
+
+        return new JsonResponse($this->serialize($preset), Response::HTTP_CREATED);
+    }
+
+    #[Route('/api/smart-filter-presets/{id}', name: 'pim_smart_filter_presets_patch', requirements: ['id' => self::UUID_REGEX], methods: ['PATCH'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function patch(string $id, Request $request): JsonResponse
+    {
+        $preset = $this->mustFindOwned($id);
+
+        /** @var array<string, mixed> $body */
+        $body = json_decode($request->getContent(), true) ?? [];
+
+        if (\array_key_exists('name', $body)) {
+            $preset->rename($this->parseName($body['name']));
+        }
+        if (\array_key_exists('icon', $body)) {
+            $preset->changeIcon($this->parseIcon($body['icon']));
+        }
+        if (\array_key_exists('query', $body)) {
+            $preset->updateQuery($this->parseQuery($body['query']));
+        }
+        if (\array_key_exists('sort_order', $body) && is_numeric($body['sort_order'])) {
+            $preset->reorder((int) $body['sort_order']);
+        }
+
+        $this->em->flush();
+
+        return new JsonResponse($this->serialize($preset));
+    }
+
+    #[Route('/api/smart-filter-presets/{id}', name: 'pim_smart_filter_presets_delete', requirements: ['id' => self::UUID_REGEX], methods: ['DELETE'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function delete(string $id): Response
+    {
+        $preset = $this->mustFindOwned($id);
+        $this->em->remove($preset);
+        $this->em->flush();
+
+        return new Response('', Response::HTTP_NO_CONTENT);
+    }
+
+    private function mustFindOwned(string $id): SmartFilterPreset
+    {
+        $preset = $this->em->getRepository(SmartFilterPreset::class)->find(Uuid::fromString($id));
+        if (!$preset instanceof SmartFilterPreset) {
+            throw new NotFoundHttpException(\sprintf('Smart filter preset %s not found.', $id));
+        }
+
+        if ($preset->isBuiltIn()) {
+            throw new AccessDeniedHttpException('Built-in smart filter presets are immutable.');
+        }
+
+        $user = $this->security->getUser();
+        $userId = $user instanceof User ? $user->getId() : null;
+        $tenant = $this->tenantContext->get();
+
+        $sameTenant = null !== $tenant && null !== $preset->getTenant()
+            && $preset->getTenant()->getId()->equals($tenant->getId());
+
+        if (!$sameTenant) {
+            // Cross-tenant — pretend not found (information hiding).
+            throw new NotFoundHttpException(\sprintf('Smart filter preset %s not found.', $id));
+        }
+
+        if (null !== $userId && !$preset->isOwnedBy($userId)) {
+            throw new NotFoundHttpException(\sprintf('Smart filter preset %s not found.', $id));
+        }
+
+        return $preset;
+    }
+
+    /**
+     * @return array{pl: string, en: string}
+     */
+    private function parseName(mixed $raw): array
+    {
+        if (!\is_array($raw)) {
+            throw new BadRequestHttpException('name must be an object {pl, en}.');
+        }
+        $pl = $raw['pl'] ?? null;
+        $en = $raw['en'] ?? null;
+        if (!\is_string($pl) || !\is_string($en)) {
+            throw new BadRequestHttpException('name must include both pl and en strings.');
+        }
+        $pl = trim($pl);
+        $en = trim($en);
+        if (\strlen($pl) < self::MIN_NAME_LEN || \strlen($en) < self::MIN_NAME_LEN) {
+            throw new BadRequestHttpException(\sprintf('name must be at least %d characters in each locale.', self::MIN_NAME_LEN));
+        }
+        if (mb_strlen($pl) > self::MAX_NAME_LEN || mb_strlen($en) > self::MAX_NAME_LEN) {
+            throw new BadRequestHttpException(\sprintf('name must be at most %d characters in each locale.', self::MAX_NAME_LEN));
+        }
+
+        return ['pl' => $pl, 'en' => $en];
+    }
+
+    private function parseIcon(mixed $raw): string
+    {
+        if (!\is_string($raw) || '' === trim($raw)) {
+            throw new BadRequestHttpException('icon is required (emoji string or lucide icon name).');
+        }
+        $icon = trim($raw);
+        if (mb_strlen($icon) > 64) {
+            throw new BadRequestHttpException('icon must be at most 64 characters.');
+        }
+
+        return $icon;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function parseQuery(mixed $raw): array
+    {
+        if (!\is_array($raw)) {
+            throw new BadRequestHttpException('query must be a FilterDsl object.');
+        }
+        /* @var array<string, mixed> $raw */
+        $this->filterDslResolver->validate($raw);
+
+        return $raw;
+    }
+
+    private function generateUniqueSlug(string $name, Uuid $tenantId, Uuid $userId): string
+    {
+        $base = $this->slugify($name);
+        if ('' === $base) {
+            $base = 'preset';
+        }
+        $candidate = $base;
+        $counter = 1;
+        $repo = $this->em->getRepository(SmartFilterPreset::class);
+        while (null !== $repo->findOneBy([
+            'tenant' => $tenantId,
+            'userId' => $userId,
+            'slug' => $candidate,
+        ])) {
+            ++$counter;
+            $candidate = $base.'-'.$counter;
+            if ($counter > 9999) {
+                throw new ConflictHttpException(\sprintf('Cannot allocate a slug for "%s".', $name));
+            }
+        }
+
+        return $candidate;
+    }
+
+    private function slugify(string $name): string
+    {
+        $lower = mb_strtolower($name);
+        // Replace Polish diacritics + non-alnum with hyphen.
+        $map = ['ą' => 'a', 'ć' => 'c', 'ę' => 'e', 'ł' => 'l', 'ń' => 'n', 'ó' => 'o', 'ś' => 's', 'ź' => 'z', 'ż' => 'z'];
+        $ascii = strtr($lower, $map);
+        $slug = preg_replace('/[^a-z0-9]+/u', '-', $ascii) ?? '';
+
+        return trim($slug, '-');
+    }
+
+    /**
+     * Single batched COUNT query for all presets (no N+1). Returns
+     * `[presetId.toRfc4122 => count]`. Counts only run against the
+     * current tenant scope — system-shipped presets are surfaced with
+     * the same count for every viewer (cheap, cache-friendly).
+     *
+     * @param list<SmartFilterPreset> $presets
+     *
+     * @return array<string, int>
+     */
+    private function resolveCounts(array $presets): array
+    {
+        if ([] === $presets) {
+            return [];
+        }
+
+        $tenant = $this->tenantContext->get();
+        $tenantId = $tenant?->getId()->toRfc4122();
+        if (null === $tenantId) {
+            return [];
+        }
+
+        $counts = [];
+        foreach ($presets as $preset) {
+            $sql = $this->filterDslResolver->toCountSql($preset->getQuery());
+            if (null === $sql) {
+                $counts[$preset->getId()->toRfc4122()] = 0;
+                continue;
+            }
+            try {
+                $result = $this->connection->executeQuery(
+                    'SELECT COUNT(*) FROM catalog_objects WHERE tenant_id = :tenant AND kind = :kind AND ('.$sql.')',
+                    ['tenant' => $tenantId, 'kind' => 'product'],
+                )->fetchOne();
+                $counts[$preset->getId()->toRfc4122()] = is_numeric($result) ? (int) $result : 0;
+            } catch (Throwable) {
+                // Fallback: 0 count rather than fail the whole list endpoint.
+                $counts[$preset->getId()->toRfc4122()] = 0;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serialize(SmartFilterPreset $preset, ?int $count = null): array
+    {
+        $payload = [
+            'id' => $preset->getId()->toRfc4122(),
+            'slug' => $preset->getSlug(),
+            'name' => $preset->getName(),
+            'icon' => $preset->getIcon(),
+            'query' => $preset->getQuery(),
+            'is_built_in' => $preset->isBuiltIn(),
+            'is_system' => $preset->isSystem(),
+            'sort_order' => $preset->getSortOrder(),
+            'created_at' => $preset->getCreatedAt()->format(DateTimeInterface::ATOM),
+            'updated_at' => $preset->getUpdatedAt()->format(DateTimeInterface::ATOM),
+        ];
+
+        if (null !== $count) {
+            $payload['count'] = $count;
+        }
+
+        return $payload;
+    }
+}
