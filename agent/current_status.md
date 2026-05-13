@@ -1,5 +1,40 @@
 # Current Status
 
+## 2026-05-13: EPIK UI-09 marathon START — Lista produktów v2 (cockpit operatora wg PRD-PIM-list-advanced)
+
+**Sub-faza:** MVP-Alpha → epik UI-09 (rozbudowa listy produktów do cockpit operatora wg PRD `Project Plan/PRD/PRD-PIM-list-advanced.md`).
+
+**Plan epiku:** `~/.claude/plans/w-folderze-users-mlipieclocal-dev-pim-zr-iridescent-zephyr.md` (zatwierdzony 2026-05-13).
+
+**Scope:** 12 ticketów VIEW-09..VIEW-19 + VIEW-09b, pełen scope MVP wg decyzji operatora 2026-05-13:
+- Query mode AND/OR brackets — pełen edytor (VIEW-09b, nie cut).
+- `increment_numeric` + `multi_attribute_edit` — keep w MVP (VIEW-13).
+- Smart filter presets user-defined — w MVP (VIEW-09).
+
+**Realna estymacja:** ~357h pełen scope (vs PRD §13.5 baseline 131-182h). Solo dev pace 9-13 tygodni.
+
+**Tryb:** EPIK MARATHON RULE z CLAUDE.md aktywny — żadnych przerw, każdy ticket = własny branch + PR + CI + merge.
+
+**Pipeline kolejność:**
+1. VIEW-09 — fundament UI (smart presets + push-down filter panel + chips edit popover) ← **W TRAKCIE**
+2. VIEW-10 — pełne operatory per typ + URL DSL
+3. VIEW-09b — Query mode AND/OR brackets
+4. VIEW-11 — cross-page selection toolbar
+5. VIEW-12 — bulk wizard fundament + sessions + Messenger
+6. VIEW-17 — 24h rollback (przed kolejnymi bulk akcjami)
+7. VIEW-13 — bulk attribute ops (clear/append/remove + increment + multi-attr)
+8. VIEW-14 — bulk taxonomy
+9. VIEW-15 — bulk channels + cascade
+10. VIEW-16 — bulk destructive (delete + duplicate)
+11. VIEW-18 — per-attribute lock
+12. VIEW-19 — Cmd+K palette + Anthropic + 6 MVP intents
+
+**Aktualny ticket:** VIEW-09 (`Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-09-lista-fundament-ui.md`, ~40h estymacja).
+
+**Blockers / decisions cross-context:** brak na tym etapie. Wszystkie scope decyzje potwierdzone przez operatora (Query mode pełen, increment+multi keep, user-defined presets w MVP).
+
+---
+
 ## 2026-05-13: PR #534 — białe okno na „Generuj warianty" (HOTFIX)
 
 **Branch:** `fix/variants-generation-perf` (merged, branch deleted)
