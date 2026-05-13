@@ -208,12 +208,12 @@ export function VariantsTab({
         <div className="rounded-md border bg-muted/40 p-3 text-xs">
           <p className="font-medium">
             {t('products.variants.created_summary', {
-              created: response.created_count,
-              skipped: response.skipped_count,
+              created: response.created_count ?? 0,
+              skipped: response.skipped_count ?? 0,
               defaultValue: '{{created}} created · {{skipped}} skipped (already existed)',
             })}
           </p>
-          {response.created.length > 0 ? (
+          {Array.isArray(response.created) && response.created.length > 0 ? (
             <ul className="mt-2 max-h-48 space-y-0.5 overflow-y-auto font-mono">
               {response.created.map((v) => (
                 <li key={v.sku}>{v.sku}</li>

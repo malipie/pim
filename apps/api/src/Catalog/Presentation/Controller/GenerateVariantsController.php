@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Catalog\Presentation\Controller;
 
-use App\Catalog\Application\ObjectAttributesUpserter;
+use App\Catalog\Application\AttributesIndexedRebuilder;
+use App\Catalog\Application\BulkContext;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectValue;
@@ -14,6 +15,7 @@ use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Shared\Application\TenantContext;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -46,11 +48,25 @@ use Symfony\Component\Uid\Uuid;
  * endpoint after a partial failure is idempotent.
  *
  * Each generated variant inherits master attribute values 1:1 with
- * `Provenance::Manual` (via direct copy of `ObjectValue` rows that
- * preserves `channel_id` + `locale` scope) and stamps the axis values
- * (e.g. `color=red`, `size=S`) on top through `ObjectAttributesUpserter`.
- * The axes editor (#308) ensures axis codes resolve to registered
- * `Attribute`s — unknown codes return 400 to fail fast.
+ * `Provenance::Manual` (non-axis attributes are direct-copied with
+ * `channel_id` + `locale` scope preserved). Axis values are stamped
+ * fresh on top so they take precedence over whatever the master had
+ * on those axis attributes. The axes editor (#308) ensures axis codes
+ * resolve to registered `Attribute`s — unknown codes return 400 to
+ * fail fast.
+ *
+ * Performance shape (fix from white-screen incident 2026-05-13):
+ *   - `BulkContext::setBulk(true)` for the whole loop — the synchronous
+ *     `AttributesIndexedSyncListener` would otherwise re-flush per row
+ *     and turn each variant into N×(persist + listener-rebuild) flushes.
+ *   - Master `ObjectValue` rows are fetched once up front, not per
+ *     combination.
+ *   - Persists are batched and committed with a single `$em->flush()`
+ *     inside a `wrapInTransaction()` block — partial failures roll back
+ *     instead of leaving orphan variants.
+ *   - After the bulk flush, `attributes_indexed` is rebuilt for each
+ *     fresh variant (the sync listener is muted by `BulkContext`) so
+ *     the read path serves the denormalised cache immediately.
  *
  * Out of MVP slice (Faza 1+): axes editor PATCH, master-with-variants
  * delete protection, `Attribute.level=master|variant` enum,
@@ -65,8 +81,10 @@ final class GenerateVariantsController
         private readonly CatalogObjectRepositoryInterface $objects,
         private readonly ObjectValueRepositoryInterface $values,
         private readonly AttributeRepositoryInterface $attributes,
-        private readonly ObjectAttributesUpserter $upserter,
         private readonly TenantContext $tenantContext,
+        private readonly BulkContext $bulkContext,
+        private readonly AttributesIndexedRebuilder $rebuilder,
+        private readonly EntityManagerInterface $em,
     ) {
     }
 
@@ -80,6 +98,11 @@ final class GenerateVariantsController
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function __invoke(string $master_id, Request $request): JsonResponse
     {
+        // Generation can stamp dozens of ObjectValue rows per combination;
+        // 30s default would cut moderate runs (e.g. 3 axes × 4 values × 20
+        // attributes) mid-flush. Bulk import handlers raise the same limit.
+        set_time_limit(120);
+
         $tenant = $this->tenantContext->get();
         if (null === $tenant) {
             throw new BadRequestHttpException('No tenant context.');
@@ -122,7 +145,10 @@ final class GenerateVariantsController
 
         // Fail fast: every axis code must resolve to a registered Attribute on
         // this tenant's schema, otherwise the generated variants would silently
-        // miss their axis ObjectValue stamp on save below.
+        // miss their axis ObjectValue stamp on save below. Keep the resolved
+        // Attribute around so the stamp loop skips a redundant lookup.
+        /** @var array<string, Attribute> $axisAttributes */
+        $axisAttributes = [];
         foreach (array_keys($axes) as $axisCode) {
             $axisAttribute = $this->attributes->findByCode($axisCode, $tenant);
             if (!$axisAttribute instanceof Attribute) {
@@ -131,57 +157,117 @@ final class GenerateVariantsController
                     $axisCode,
                 ));
             }
+            $axisAttributes[$axisCode] = $axisAttribute;
         }
 
         $combinations = $this->cartesianProduct($axes);
 
+        // Pre-fetch master values once. The previous shape called this inside
+        // the combinations loop, turning a 6-combination run with 20 master
+        // values into 120 queries instead of 1.
+        $masterValues = $this->values->findByObject($master);
+
         $created = [];
         $skipped = [];
-        foreach ($combinations as $combination) {
-            $sku = $this->renderSku($master->getCode(), $combination, \is_string($skuTemplate) ? $skuTemplate : null);
-            if (null !== $this->objects->findByCode($sku, ObjectKind::Product, $tenant)) {
-                $skipped[] = $sku;
+        /** @var list<CatalogObject> $createdVariants */
+        $createdVariants = [];
 
-                continue;
-            }
-            $variant = new CatalogObject($master->getObjectType(), $sku);
-            $variant->assignParent($master);
-            $this->objects->save($variant);
+        $this->bulkContext->setBulk(true);
+        try {
+            $this->em->wrapInTransaction(function () use (
+                $master,
+                $combinations,
+                $skuTemplate,
+                $axisAttributes,
+                $masterValues,
+                $tenant,
+                &$created,
+                &$skipped,
+                &$createdVariants,
+                $axes,
+            ): void {
+                foreach ($combinations as $combination) {
+                    $sku = $this->renderSku(
+                        $master->getCode(),
+                        $combination,
+                        \is_string($skuTemplate) ? $skuTemplate : null,
+                    );
+                    if (null !== $this->objects->findByCode($sku, ObjectKind::Product, $tenant)) {
+                        $skipped[] = $sku;
 
-            // 1. Direct-copy each ObjectValue from master so the variant inherits
-            //    name/brand/description/etc. with the same channel + locale scope.
-            //    Provenance resets to Manual — variant is a fresh canonical write,
-            //    not an inherited import/agent value (mirrors DuplicateProductController).
-            foreach ($this->values->findByObject($master) as $masterValue) {
-                $cloned = new ObjectValue(
-                    object: $variant,
-                    attribute: $masterValue->getAttribute(),
-                    value: $masterValue->getValue(),
-                    provenance: Provenance::Manual,
-                );
-                $cloned->changeChannelId($masterValue->getChannelId());
-                $cloned->changeLocale($masterValue->getLocale());
-                $this->values->save($cloned);
-            }
+                        continue;
+                    }
 
-            // 2. Stamp axis values (color=red, size=S) — overrides whatever the
-            //    master had on those axis attributes. Order matters: copy first,
-            //    upsert axes second so axes win.
-            $this->upserter->upsert($variant, $combination, Provenance::Manual);
+                    $variant = new CatalogObject($master->getObjectType(), $sku);
+                    $variant->assignParent($master);
+                    $this->em->persist($variant);
 
-            $created[] = ['sku' => $sku, 'axis_values' => $combination];
+                    // 1. Direct-copy master ObjectValues (channel + locale preserved),
+                    //    skipping any attribute that we are about to stamp as an axis.
+                    //    Axis values must win over inherited master values.
+                    foreach ($masterValues as $masterValue) {
+                        $code = $masterValue->getAttribute()->getCode();
+                        if (\array_key_exists($code, $axisAttributes)) {
+                            continue;
+                        }
+                        $cloned = new ObjectValue(
+                            object: $variant,
+                            attribute: $masterValue->getAttribute(),
+                            value: $masterValue->getValue(),
+                            provenance: Provenance::Manual,
+                        );
+                        $cloned->changeChannelId($masterValue->getChannelId());
+                        $cloned->changeLocale($masterValue->getLocale());
+                        $this->em->persist($cloned);
+                    }
+
+                    // 2. Stamp axis values (color=red, size=S). Variant is fresh,
+                    //    so no findOneByScope round-trip is needed — just persist.
+                    foreach ($combination as $axisCode => $axisValue) {
+                        $axisAttribute = $axisAttributes[$axisCode];
+                        $axisOV = new ObjectValue(
+                            object: $variant,
+                            attribute: $axisAttribute,
+                            value: ['value' => $axisValue],
+                            provenance: Provenance::Manual,
+                        );
+                        $this->em->persist($axisOV);
+                    }
+
+                    $createdVariants[] = $variant;
+                    $created[] = ['sku' => $sku, 'axis_values' => $combination];
+                }
+
+                // Persist the canonical axes definition on the master too —
+                // the master is already managed by the EM (loaded above), so a
+                // mutator + the upcoming flush is enough.
+                $axesDefinition = [];
+                foreach ($axes as $axisCode => $values) {
+                    $axesDefinition[] = [
+                        'code' => $axisCode,
+                        'values' => $values,
+                    ];
+                }
+                $master->declareVariantAxes($axesDefinition);
+
+                // Single batched flush for every variant + master mutation.
+                $this->em->flush();
+            });
+        } finally {
+            $this->bulkContext->setBulk(false);
         }
 
-        // Persist the canonical axes definition on the master.
-        $axesDefinition = [];
-        foreach ($axes as $axisCode => $values) {
-            $axesDefinition[] = [
-                'code' => $axisCode,
-                'values' => $values,
-            ];
+        // BulkContext muted the sync listener during the bulk flush, so the
+        // denormalised `attributes_indexed` cache is empty on the new
+        // variants. Rebuild it synchronously here — the read path (product
+        // detail + variants list) serves from this cache. Done after the
+        // bulk transaction so a rebuild failure cannot orphan variants.
+        foreach ($createdVariants as $variant) {
+            $this->rebuilder->rebuild($variant);
         }
-        $master->declareVariantAxes($axesDefinition);
-        $this->objects->save($master);
+        if ([] !== $createdVariants) {
+            $this->em->flush();
+        }
 
         return new JsonResponse([
             'master_id' => $master->getId()->toRfc4122(),
