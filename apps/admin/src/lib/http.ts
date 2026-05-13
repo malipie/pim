@@ -119,6 +119,24 @@ async function fetchInternal<T>(path: string, init: InternalJsonRequestInit): Pr
     throw new HttpError(response.status, parsed);
   }
 
+  // Defence against the 2026-05-13 white-screen incident: FrankenPHP can
+  // answer 200 with a `text/html` PHP fatal-error page when an endpoint
+  // exceeds `max_execution_time`. Without this guard, `safeJsonParse`
+  // returns the HTML *string* typed as `T` and the caller crashes on the
+  // next property access (e.g. `response.created.length`).
+  const contentType = response.headers.get('content-type') ?? '';
+  const expectsJson =
+    /\b(application\/(ld\+|merge-patch\+|problem\+)?json|application\/javascript)\b/i.test(
+      contentType,
+    );
+  if (text && !expectsJson && typeof parsed === 'string') {
+    throw new HttpError(response.status, {
+      type: 'about:blank',
+      title: 'Unexpected response',
+      detail: `Server returned ${response.status} with ${contentType || 'no'} content-type when JSON was expected.`,
+    });
+  }
+
   return parsed as T;
 }
 
