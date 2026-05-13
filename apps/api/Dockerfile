@@ -52,6 +52,15 @@ COPY frankenphp/Caddyfile /etc/frankenphp/Caddyfile
 COPY frankenphp/php.ini /usr/local/etc/php/conf.d/app.ini
 COPY frankenphp/worker.Caddyfile /etc/frankenphp/worker.Caddyfile
 
+# Custom entrypoint that auto-seeds the dev/test database on container
+# start (idempotent; calls pim:dev:ensure-seeded). See ./docker-entrypoint.sh
+# for the decision tree. Prod containers (APP_ENV=prod) skip the seed
+# entirely so this hook never touches production data.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]
+
 # Composer optimisations: cache layer for vendor before copying source
 COPY composer.json composer.lock ./
 RUN --mount=type=cache,target=/root/.composer/cache \
