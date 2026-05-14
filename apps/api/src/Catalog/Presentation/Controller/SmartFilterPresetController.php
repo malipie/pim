@@ -6,8 +6,8 @@ namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Application\Filter\FilterDslResolver;
 use App\Catalog\Domain\Entity\SmartFilterPreset;
-use App\Identity\Domain\Entity\User;
 use App\Shared\Application\TenantContext;
+use App\Shared\Application\UserIdentityAware;
 use DateTimeInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -61,7 +61,7 @@ final class SmartFilterPresetController
     {
         $tenant = $this->tenantContext->get();
         $user = $this->security->getUser();
-        $userId = $user instanceof User ? $user->getId() : null;
+        $userId = $user instanceof UserIdentityAware ? $user->getId() : null;
 
         $withCounts = $request->query->getBoolean('counts', false);
 
@@ -103,7 +103,7 @@ final class SmartFilterPresetController
             throw new BadRequestHttpException('No tenant context.');
         }
         $user = $this->security->getUser();
-        if (!$user instanceof User) {
+        if (!$user instanceof UserIdentityAware) {
             throw new BadRequestHttpException('User identity required.');
         }
         $userId = $user->getId();
@@ -185,7 +185,7 @@ final class SmartFilterPresetController
         }
 
         $user = $this->security->getUser();
-        $userId = $user instanceof User ? $user->getId() : null;
+        $userId = $user instanceof UserIdentityAware ? $user->getId() : null;
         $tenant = $this->tenantContext->get();
 
         $sameTenant = null !== $tenant && null !== $preset->getTenant()
@@ -249,10 +249,11 @@ final class SmartFilterPresetController
         if (!\is_array($raw)) {
             throw new BadRequestHttpException('query must be a FilterDsl object.');
         }
-        /* @var array<string, mixed> $raw */
-        $this->filterDslResolver->validate($raw);
+        /** @var array<string, mixed> $typed */
+        $typed = $raw;
+        $this->filterDslResolver->validate($typed);
 
-        return $raw;
+        return $typed;
     }
 
     private function generateUniqueSlug(string $name, Uuid $tenantId, Uuid $userId): string
@@ -320,6 +321,7 @@ final class SmartFilterPresetController
                 continue;
             }
             try {
+                // tenant-safe: explicit tenant_id filter
                 $result = $this->connection->executeQuery(
                     'SELECT COUNT(*) FROM catalog_objects WHERE tenant_id = :tenant AND kind = :kind AND ('.$sql.')',
                     ['tenant' => $tenantId, 'kind' => 'product'],

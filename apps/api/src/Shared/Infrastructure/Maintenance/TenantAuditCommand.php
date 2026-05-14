@@ -106,6 +106,11 @@ final class TenantAuditCommand extends Command
      */
     private const array NULLABLE_TENANT_TABLES = [
         'roles',
+        // VIEW-09 (#535) — system-shipped Smart Filter Presets are
+        // shared across every tenant via `tenant_id IS NULL` (built-in
+        // rows). User-defined presets fill the column. See
+        // `App\Shared\Application\SystemShipped` marker contract.
+        'smart_filter_presets',
     ];
 
     public function __construct(
