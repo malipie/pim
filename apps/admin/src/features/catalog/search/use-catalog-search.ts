@@ -46,6 +46,20 @@ export interface UseCatalogSearchOptions {
    * `key >= N AND key <= N` filter expressions.
    */
   rangeFilters?: Record<string, { gte?: number; lte?: number }>;
+  /**
+   * VIEW-10 (#538) — smart filter preset to apply server-side. Passed
+   * as `?smart_preset=<slug-or-id>`; BE resolver fetches the preset DSL,
+   * compiles to a Meilisearch filter expression, and AND-merges with
+   * the flat filters above.
+   */
+  smartPresetId?: string;
+  /**
+   * VIEW-10 (#538) — base64-encoded FilterDsl blob for nested groups
+   * (or oversized single-level conditions). Passed as `?q=<blob>`.
+   * Mutually exclusive with `smartPresetId`; if both are supplied,
+   * `smartPresetId` wins server-side.
+   */
+  filterBlob?: string;
   facets?: string[];
   page?: number;
   perPage?: number;
@@ -65,6 +79,8 @@ export function useCatalogSearch(options: UseCatalogSearchOptions): UseCatalogSe
     query,
     filters,
     rangeFilters,
+    smartPresetId,
+    filterBlob,
     facets,
     page = 1,
     perPage = 30,
@@ -100,6 +116,11 @@ export function useCatalogSearch(options: UseCatalogSearchOptions): UseCatalogSe
           if (range.lte !== undefined) params.set(`filter[${key}][lte]`, String(range.lte));
         }
       }
+      if (smartPresetId !== undefined && smartPresetId !== '') {
+        params.set('smart_preset', smartPresetId);
+      } else if (filterBlob !== undefined && filterBlob !== '') {
+        params.set('q', filterBlob);
+      }
 
       setIsLoading(true);
       jsonFetch<CatalogSearchResult>(`/api/search/${kind}?${params.toString()}`)
@@ -121,7 +142,19 @@ export function useCatalogSearch(options: UseCatalogSearchOptions): UseCatalogSe
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [kind, query, page, perPage, highlight, debounceMs, facets, filters, rangeFilters]);
+  }, [
+    kind,
+    query,
+    page,
+    perPage,
+    highlight,
+    debounceMs,
+    facets,
+    filters,
+    rangeFilters,
+    smartPresetId,
+    filterBlob,
+  ]);
 
   return { result, isLoading, error };
 }

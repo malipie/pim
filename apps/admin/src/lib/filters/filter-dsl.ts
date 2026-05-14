@@ -29,7 +29,16 @@ export type FilterOperator =
   | '<='
   | '>='
   | 'IN'
-  | 'NOT IN';
+  | 'NOT IN'
+  | 'starts with'
+  | 'ends with'
+  | 'contains'
+  | 'not contains'
+  | 'between'
+  | 'after'
+  | 'before'
+  | '= TRUE'
+  | '= FALSE';
 
 export type FilterConditionValue = string | number | boolean | Array<string | number> | null;
 
@@ -59,16 +68,88 @@ export const CORE_OPERATORS: readonly FilterOperator[] = [
   'IS NOT EMPTY',
 ] as const;
 
+/**
+ * VIEW-10 (#538) — 25 operators per type mirror with BE
+ * (`FilterDslResolver::OPERATORS_BY_TYPE`). Keep in sync via the
+ * `lib/filters/operators.ts` typed mirror.
+ */
 export const FILTER_OPERATORS_BY_TYPE: Record<string, readonly FilterOperator[]> = {
-  text: ['=', '≠', 'IS EMPTY', 'IS NOT EMPTY'],
-  number: ['=', '≠', '<', '>', '<=', '>=', 'IS EMPTY', 'IS NOT EMPTY'],
-  metric: ['=', '≠', '<', '>', '<=', '>=', 'IS EMPTY', 'IS NOT EMPTY'],
-  select: ['=', '≠', 'IN', 'NOT IN', 'IS EMPTY', 'IS NOT EMPTY'],
-  multiselect: ['IS EMPTY', 'IS NOT EMPTY'],
-  boolean: ['='],
-  relation: ['=', '≠', 'IN', 'NOT IN', 'IS EMPTY', 'IS NOT EMPTY'],
+  text: [
+    '=',
+    '!=',
+    'IS EMPTY',
+    'IS NOT EMPTY',
+    'starts with',
+    'ends with',
+    'contains',
+    'not contains',
+  ],
+  wysiwyg: [
+    '=',
+    '!=',
+    'IS EMPTY',
+    'IS NOT EMPTY',
+    'starts with',
+    'ends with',
+    'contains',
+    'not contains',
+  ],
+  number: ['=', '!=', '<', '>', '<=', '>=', 'between', 'IS EMPTY', 'IS NOT EMPTY'],
+  metric: ['=', '!=', '<', '>', '<=', '>=', 'between', 'IS EMPTY', 'IS NOT EMPTY'],
+  price: ['=', '!=', '<', '>', '<=', '>=', 'between', 'IS EMPTY', 'IS NOT EMPTY'],
+  date: ['=', '!=', 'after', 'before', 'between', 'IS EMPTY', 'IS NOT EMPTY'],
+  datetime: ['=', '!=', 'after', 'before', 'between', 'IS EMPTY', 'IS NOT EMPTY'],
+  select: ['=', '!=', 'IN', 'NOT IN', 'IS EMPTY', 'IS NOT EMPTY'],
+  multiselect: ['contains', 'not contains', 'IS EMPTY', 'IS NOT EMPTY'],
+  boolean: ['= TRUE', '= FALSE'],
+  relation: ['=', '!=', 'IN', 'NOT IN', 'IS EMPTY', 'IS NOT EMPTY'],
+  reference: ['IS EMPTY', 'IS NOT EMPTY'],
   asset: ['IS EMPTY', 'IS NOT EMPTY'],
 };
+
+/**
+ * VIEW-10 — operator label helpers for UI.
+ */
+export function operatorRequiresValue(op: FilterOperator): boolean {
+  return op !== 'IS EMPTY' && op !== 'IS NOT EMPTY' && op !== '= TRUE' && op !== '= FALSE';
+}
+
+export function operatorRequiresArray(op: FilterOperator): boolean {
+  return op === 'IN' || op === 'NOT IN';
+}
+
+export function operatorRequiresRange(op: FilterOperator): boolean {
+  return op === 'between';
+}
+
+/**
+ * VIEW-10 — alias resolver (UI label → canonical), mirrors
+ * `FilterDslResolver::normaliseOperator()` from BE.
+ */
+export function normaliseOperator(op: string): FilterOperator {
+  const trimmed = op.trim();
+  const aliases: Record<string, FilterOperator> = {
+    '≠': '!=',
+    '≤': '<=',
+    '≥': '>=',
+    STARTS_WITH: 'starts with',
+    'STARTS WITH': 'starts with',
+    ENDS_WITH: 'ends with',
+    'ENDS WITH': 'ends with',
+    NOT_CONTAINS: 'not contains',
+    'NOT CONTAINS': 'not contains',
+    BETWEEN: 'between',
+    AFTER: 'after',
+    BEFORE: 'before',
+    '=TRUE': '= TRUE',
+    '=FALSE': '= FALSE',
+  };
+  const direct = aliases[trimmed];
+  if (direct) return direct;
+  const upper = aliases[trimmed.toUpperCase()];
+  if (upper) return upper;
+  return trimmed as FilterOperator;
+}
 
 /**
  * True when DSL is a grouped form (operator + conditions).

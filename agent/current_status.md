@@ -14,6 +14,11 @@
 - FE: `lib/filters/operators.ts` (OpenAPI-generated TS enum).
 - FE: `components/catalog/filter-operator-picker.tsx` (popover z valid ops per type).
 - FE: `lib/filters/url-serializer.ts` (useSearchParams ↔ filter state).
+- FE: `lib/filters/use-filter-state.ts` (hook synchronizujący conditions z URL przez React Router).
+- FE: `components/catalog/filter-chip.tsx` (inline popover, zastępuje VIEW-09 button-only).
+
+**Ticket:** `Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-10-pelne-operatory-url-dsl.md` (rozpisany 2026-05-14).
+**Branch:** `feat/view-10-pelne-operatory-url-dsl`.
 
 **Blockers:** brak na tym etapie.
 

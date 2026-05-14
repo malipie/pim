@@ -127,7 +127,7 @@ final class SmartFilterPresetsApiTest extends CatalogApiTestCase
             'json' => [
                 'name' => ['pl' => 'Niespójne brak', 'en' => 'Bad query'],
                 'icon' => '⚠️',
-                'query' => ['attr' => 'brand', 'op' => 'STARTS WITH', 'value' => 'F'],
+                'query' => ['attr' => 'brand', 'op' => 'REGEX MATCH', 'value' => '^F.*$'],
             ],
         ]);
 

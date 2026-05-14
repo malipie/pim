@@ -32,6 +32,7 @@ import {
   dslToFlatConditions,
   type FilterCondition,
 } from '@/lib/filters/filter-dsl';
+import { dslToBase64 } from '@/lib/filters/url-serializer';
 import { type SmartFilterPreset, useSmartPresets } from '@/lib/filters/use-smart-presets';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
@@ -140,13 +141,37 @@ export function ProductListPage() {
   }, [filters, advancedFilters]);
 
   const isSearchActive =
-    query !== '' || Object.keys(searchFilters).length > 0 || Object.keys(rangeFilters).length > 0;
+    query !== '' ||
+    Object.keys(searchFilters).length > 0 ||
+    Object.keys(rangeFilters).length > 0 ||
+    activeSmartPresetId !== null ||
+    panelConditions.length > 0;
+
+  // VIEW-10 (#538) — when a smart preset is active OR the panel has
+  // conditions, push them to the BE resolver through the new
+  // `smart_preset` / `q` query params on `/api/search/products`.
+  const activePreset = activeSmartPresetId
+    ? smartPresets.find((p) => p.id === activeSmartPresetId)
+    : undefined;
+  const filterBlob = useMemo<string | undefined>(() => {
+    if (activePreset !== undefined) return undefined;
+    if (panelConditions.length === 0) return undefined;
+    const dsl = conditionsToDsl(panelConditions, matchOperator);
+    if (dsl === null) return undefined;
+    try {
+      return dslToBase64(dsl);
+    } catch {
+      return undefined;
+    }
+  }, [activePreset, panelConditions, matchOperator]);
 
   const { result: searchResult, isLoading: isSearchLoading } = useCatalogSearch({
     kind: 'products',
     query,
     filters: searchFilters,
     rangeFilters,
+    smartPresetId: activePreset?.slug ?? activePreset?.id,
+    filterBlob,
     facets: PRODUCT_FACETS,
     perPage: 30,
   });

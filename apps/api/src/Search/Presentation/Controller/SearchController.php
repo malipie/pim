@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 namespace App\Search\Presentation\Controller;
 
+use App\Catalog\Application\Filter\FilterDslResolver;
+use App\Catalog\Application\Filter\FilterUrlSerializer;
+use App\Catalog\Domain\Entity\SmartFilterPreset;
 use App\Catalog\Domain\ObjectKind;
 use App\Search\Application\CatalogSearchService;
+use App\Shared\Application\TenantContext;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Uid\Uuid;
 
 use const FILTER_VALIDATE_BOOLEAN;
 
@@ -34,6 +41,10 @@ final class SearchController
 {
     public function __construct(
         private readonly CatalogSearchService $searchService,
+        private readonly FilterDslResolver $filterDslResolver,
+        private readonly FilterUrlSerializer $filterUrlSerializer,
+        private readonly EntityManagerInterface $em,
+        private readonly TenantContext $tenantContext,
     ) {
     }
 
@@ -103,6 +114,11 @@ final class SearchController
         $perPage = min(100, max(1, (int) ($request->query->get('perPage') ?? 30)));
         $highlight = filter_var($request->query->get('highlight'), FILTER_VALIDATE_BOOLEAN);
 
+        // VIEW-10 (#538) — `smart_preset` + `filter` query params compile
+        // a FilterDsl through the resolver and AND-merge the resulting
+        // Meilisearch expression with the existing flat filters above.
+        $customFilterExpression = $this->resolveCustomFilter($request);
+
         $result = $this->searchService->search(
             kind: $kind,
             query: $query,
@@ -112,6 +128,7 @@ final class SearchController
             perPage: $perPage,
             highlight: $highlight,
             rangeFilters: $rangeFilters,
+            customFilterExpression: $customFilterExpression,
         );
 
         return new JsonResponse([
@@ -122,5 +139,61 @@ final class SearchController
             'page' => $page,
             'perPage' => $perPage,
         ]);
+    }
+
+    /**
+     * Resolve `?smart_preset` and `?filter` query params into a
+     * Meilisearch filter expression string, or `null` if neither is
+     * present.
+     */
+    private function resolveCustomFilter(Request $request): ?string
+    {
+        $smartPreset = $request->query->get('smart_preset');
+        if (\is_string($smartPreset) && '' !== trim($smartPreset)) {
+            $preset = $this->loadPreset(trim($smartPreset));
+            if (null === $preset) {
+                throw new NotFoundHttpException(\sprintf('Smart filter preset "%s" not found.', $smartPreset));
+            }
+
+            return $this->filterDslResolver->toMeilisearchFilter($preset->getQuery());
+        }
+
+        $blob = $request->query->get('q');
+        if (\is_string($blob) && '' !== trim($blob)) {
+            $dsl = $this->filterUrlSerializer->fromBase64(trim($blob));
+            if ([] === $dsl) {
+                return null;
+            }
+
+            return $this->filterDslResolver->toMeilisearchFilter($dsl);
+        }
+
+        return null;
+    }
+
+    private function loadPreset(string $idOrSlug): ?SmartFilterPreset
+    {
+        $repo = $this->em->getRepository(SmartFilterPreset::class);
+        if (1 === preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', $idOrSlug)) {
+            $preset = $repo->find(Uuid::fromString($idOrSlug));
+            if ($preset instanceof SmartFilterPreset) {
+                return $preset;
+            }
+        }
+
+        $tenant = $this->tenantContext->get();
+        // Try system-shipped (tenant=null) first, then tenant-owned.
+        $bySlug = $repo->findBy(['slug' => $idOrSlug]);
+        foreach ($bySlug as $candidate) {
+            $candidateTenant = $candidate->getTenant();
+            if (null === $candidateTenant) {
+                return $candidate;
+            }
+            if (null !== $tenant && $candidateTenant->getId()->equals($tenant->getId())) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }
