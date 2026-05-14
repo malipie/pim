@@ -103,6 +103,10 @@ final class TenantAuditCommand extends Command
         // VIEW-27 (#558) — per-user attribute favorites junction. Tenant
         // scope inherited via users.tenant_id (FK CASCADE on user delete).
         'user_filter_favorites',
+        // EXP-01 (#580) — per-job export trace. Tenant scope inherited
+        // via the parent ExportSession (FK CASCADE on delete); pairs
+        // with the same pattern used by import_logs and bulk_logs.
+        'export_logs',
     ];
 
     /**
