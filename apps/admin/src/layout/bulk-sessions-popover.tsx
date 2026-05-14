@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { toast } from '@/components/ui/toast';
-import { jsonFetch } from '@/lib/http';
+import { getAccessToken, jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 /**
@@ -60,6 +60,13 @@ export function BulkSessionsPopover() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async (): Promise<void> => {
+    // Bail when there's no in-memory access token yet. The very first
+    // mount on a hard reload happens before authProvider.check() has
+    // finished its silent refresh; firing jsonFetch here would 401,
+    // exhaust the single-flight refresh, and Refine's `onError(401)`
+    // would clear the token + redirect to /login. The 30s poll picks
+    // the data up once authentication settles.
+    if (getAccessToken() === null) return;
     try {
       const body = await jsonFetch<{ member?: BulkSessionRow[] }>(
         '/api/bulk-sessions?status=active&limit=10',
@@ -72,17 +79,17 @@ export function BulkSessionsPopover() {
   }, []);
 
   useEffect(() => {
-    // Hard reload races: AppLayout can mount before `authProvider.check()`
-    // finishes its silent refresh, so the very first fetch may fire with
-    // an empty `accessToken` and a `jsonFetch` retry through refresh.
-    // Run an immediate fetch (handles the steady-state) plus a short
-    // re-fetch 500ms later so the popover picks up data after the JWT
-    // settles. The 30s poll keeps it fresh thereafter.
+    // Mount fires immediately (no-op without token), then a series of
+    // short retries to bridge the 0–2s window between AppLayout mount
+    // and `authProvider.check()` populating the access token after a
+    // hard reload. Steady-state polling at 30s takes over afterwards.
     void refresh();
-    const retryHandle = window.setTimeout(() => void refresh(), 500);
+    const retryHandles = [500, 1500, 3500].map((delay) =>
+      window.setTimeout(() => void refresh(), delay),
+    );
     const pollHandle = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
     return () => {
-      window.clearTimeout(retryHandle);
+      for (const h of retryHandles) window.clearTimeout(h);
       window.clearInterval(pollHandle);
     };
   }, [refresh]);
