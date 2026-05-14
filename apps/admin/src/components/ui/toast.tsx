@@ -15,21 +15,36 @@ import { cn } from '@/lib/utils';
 
 type ToastLevel = 'info' | 'error' | 'success';
 
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastEntry {
   id: number;
   level: ToastLevel;
   text: string;
+  action?: ToastAction;
+}
+
+interface ToastActionInput {
+  text: string;
+  label: string;
+  onClick: () => void;
+  durationMs?: number;
 }
 
 interface ToastApi {
   info: (text: string) => void;
   error: (text: string) => void;
   success: (text: string) => void;
+  action: (input: ToastActionInput) => void;
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
 const MAX_VISIBLE = 3;
 const AUTO_DISMISS_MS = 4000;
+const ACTION_DISMISS_MS = 5000;
 
 let externalApi: ToastApi | null = null;
 
@@ -37,6 +52,7 @@ export const toast: ToastApi = {
   info: (text) => externalApi?.info(text),
   error: (text) => externalApi?.error(text),
   success: (text) => externalApi?.success(text),
+  action: (input) => externalApi?.action(input),
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -48,17 +64,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const push = useCallback(
-    (level: ToastLevel, text: string): void => {
+    (level: ToastLevel, text: string, action?: ToastAction, durationMs?: number): void => {
       counterRef.current += 1;
       const id = counterRef.current;
+      const entry: ToastEntry = action ? { id, level, text, action } : { id, level, text };
       setEntries((prev) => {
-        const next = [...prev, { id, level, text }];
+        const next = [...prev, entry];
         if (next.length > MAX_VISIBLE) next.splice(0, next.length - MAX_VISIBLE);
         return next;
       });
       window.setTimeout(() => {
         dismiss(id);
-      }, AUTO_DISMISS_MS);
+      }, durationMs ?? AUTO_DISMISS_MS);
     },
     [dismiss],
   );
@@ -73,6 +90,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       },
       success: (text) => {
         push('success', text);
+      },
+      action: ({ text, label, onClick, durationMs }) => {
+        push('success', text, { label, onClick }, durationMs ?? ACTION_DISMISS_MS);
       },
     }),
     [push],
@@ -143,6 +163,18 @@ function ToastCard({ entry, onDismiss }: ToastCardProps) {
     >
       <Icon className={cn('mt-0.5 size-4 shrink-0', accent)} aria-hidden="true" />
       <p className="flex-1 text-[13px] leading-snug text-zinc-700">{entry.text}</p>
+      {entry.action ? (
+        <button
+          type="button"
+          onClick={() => {
+            entry.action?.onClick();
+            onDismiss(entry.id);
+          }}
+          className="rounded-md px-2 py-1 text-[12px] font-semibold text-violet-600 hover:bg-violet-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+        >
+          {entry.action.label}
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => {
