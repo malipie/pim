@@ -1,5 +1,50 @@
 # Current Status
 
+## 2026-05-14: VIEW-09b marathon START — Query mode AND/OR brackets editor
+
+**Sub-faza:** MVP-Alpha → epik UI-09, ticket 3/12 (VIEW-09b).
+
+**Cel (~28h estymacja, plan epiku):**
+- FE: pełen edytor query mode w AdvancedFilterPanel — nested AND/OR/NOT z drag-handle do bracketing (PRD §5.3 + §7.4).
+- Decyzja library vs from scratch w POC pierwszego dnia (react-querybuilder v8 MIT ~50KB gzip vs from scratch).
+- Read-only display mode (mockup `list-v2-overlays.jsx` l. 116-126) — JSX z kolorowymi tokenami jako preview parsed expression.
+- BE: rozszerzenie `FilterDslResolver` o zagnieżdżone OR/AND/NOT struktury (depth max 3 z PRD §13.2 walidacja).
+- URL persistence: hashowany blob `?q=<base64-json>` już istnieje (VIEW-10), VIEW-09b dodaje query mode UI.
+
+**Blockers:** brak.
+
+---
+
+## 2026-05-14: VIEW-10 marathon ZAMKNIĘTY — pełne operatory per typ + URL DSL serializer + BE smart_preset
+
+**Sub-faza:** MVP-Alpha, epik UI-09, ticket 2/12 (VIEW-10) ✅ DONE.
+
+**PR:** [#539](https://github.com/malipie/PIM/pull/539) merged 2026-05-14 (`857978d`).
+
+**Co dostarczone:**
+- BE: `FilterDslResolver` rozszerzony z 11 → 25 operatorów per typ atrybutu (PRD §5.5). Stałe `OPERATORS_BY_TYPE` + `OP_*` publiczne dla FE mirror. Aliasy UI label → canonical w `normaliseOperator()`.
+- BE: `toMeilisearchFilter()` — DSL → Meilisearch filter expression string. `validateOperatorForType()` — type-narrow walidacja.
+- BE: `AttributeMetadataResolver` z in-memory cache per-request + reserved type fallback (`completeness_pct`, `enabled`, `sku`, `category`, `main_image`).
+- BE: `FilterUrlSerializer` bi-directional URL params ↔ DSL + base64 fallback dla nested + 4096-bytes soft limit (413).
+- BE: `SearchController::products()` accept `?smart_preset=<slug-or-id>` + `?q=<base64>`. `CatalogSearchService` accept optional `customFilterExpression`.
+- FE: `filter-dsl.ts` 9 nowych operatorów + `FILTER_OPERATORS_BY_TYPE` pełen mirror BE. `normaliseOperator` + `operatorRequiresValue/Array/Range`.
+- FE: `lib/filters/operators.ts` + `lib/filters/url-serializer.ts` (TS port BE — shorthand op codes, dslToBase64/base64ToDsl, dslToUrlParams).
+- FE: `useCatalogSearch` przyjmuje `smartPresetId` + `filterBlob`. `list.tsx` propaguje activeSmartPresetId → `?smart_preset=<slug>`, panel conditions → `?q=<base64>` do BE.
+- Tests: 82 zielone (32 parametrized op matrix + 11 URL serializer + 39 regression).
+
+**Smoke test po merge:**
+- POST `/api/auth/login` → 200, token 528 chars.
+- GET `/api/search/products?smart_preset=red-low-completeness` → 200, processingMs=28ms (świetna p95 perf gate).
+- GET `/api/search/products?smart_preset=does-not-exist-xyz` → 404.
+
+**Lessons z VIEW-10:**
+1. **PHPStan max dev vs CI cache divergence** powtarza się z VIEW-09. Lokalny cache:warmup → CI strict inference inny. Każdy `array<string, mixed>` zwracany z `json_decode` wymaga `/** @var */` + local typed alias zamiast `(string) $mixed` cast.
+2. **Search bundle może depend na Catalog_Internals** (deptrac.yaml l. 152-156). Nie potrzeba osobnego Contracts wrapper'a dla SmartFilterPreset/FilterDslResolver — bezpośredni use w `SearchController`.
+3. **Meilisearch filter expression syntax** różni się od SQL: `IN [a, b]` (nie `IN (a, b)`), `EXISTS` (nie `IS NOT NULL`), brak `ENDS WITH` → fallback do `CONTAINS`. Resolver musi mieć dwa compile paths.
+4. **Cache w services** vs **per-request**: `AttributeMetadataResolver` używa in-memory hash (request-lifetime). To wystarczy bo Symfony FrankenPHP worker mode resetuje request scope.
+
+---
+
 ## 2026-05-14: VIEW-10 marathon START — pełne operatory per typ + URL DSL serializer + BE smart_preset
 
 **Sub-faza:** MVP-Alpha → epik UI-09, ticket 2/12 (VIEW-10).
