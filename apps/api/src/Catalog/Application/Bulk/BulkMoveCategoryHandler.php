@@ -66,6 +66,7 @@ final class BulkMoveCategoryHandler
                     );
 
                     $this->objectCategories->replaceForProduct($product, $targetUuids, $primaryId);
+                    $product->markTouchedByBulkSession($session->getId());
 
                     $this->em->persist(new BulkLog(
                         $session->getId(),

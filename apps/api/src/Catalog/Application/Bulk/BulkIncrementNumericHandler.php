@@ -101,6 +101,7 @@ final class BulkIncrementNumericHandler
                     } else {
                         $indexed[$attrCode] = $newValue;
                         $object->updateAttributeIndex($indexed);
+                        $object->markTouchedByBulkSession($session->getId());
                         $this->em->persist(new BulkLog(
                             $session->getId(),
                             $object->getId(),

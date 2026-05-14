@@ -82,6 +82,7 @@ final class BulkRemoveCategoryHandler
                             'No matching category assignments',
                         ));
                     } else {
+                        $product->markTouchedByBulkSession($session->getId());
                         $afterIds = array_values(array_diff($existingIds, $categoryIds));
                         $this->em->persist(new BulkLog(
                             $session->getId(),

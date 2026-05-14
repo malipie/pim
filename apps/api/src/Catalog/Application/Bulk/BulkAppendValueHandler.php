@@ -75,6 +75,7 @@ final class BulkAppendValueHandler
                         $list[] = $value;
                         $indexed[$attrCode] = $list;
                         $object->updateAttributeIndex($indexed);
+                        $object->markTouchedByBulkSession($session->getId());
                         $this->em->persist(new BulkLog(
                             $session->getId(),
                             $object->getId(),
