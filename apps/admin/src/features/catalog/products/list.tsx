@@ -5,14 +5,18 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { AdvancedFilterBuilder } from '@/components/catalog/advanced-filter-builder';
+import { AdvancedFilterPanel } from '@/components/catalog/advanced-filter-panel';
 import { BulkBar } from '@/components/catalog/bulk-bar';
 import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
 import { type ExcelColumn, ExcelLikeGrid } from '@/components/catalog/excel-like-grid';
+import { FilterChipsBar } from '@/components/catalog/filter-chips-bar';
 import { FilterPill } from '@/components/catalog/filter-pill';
 import type { FilterValue } from '@/components/catalog/product-filter-chips';
 import { ProductsGrid, type ProductsGridRow } from '@/components/catalog/products-grid';
+import { SaveAsSmartPresetModal } from '@/components/catalog/save-as-smart-preset-modal';
 import { SaveViewModal } from '@/components/catalog/save-view-modal';
 import { SavedViewsRail } from '@/components/catalog/saved-views-rail';
+import { SmartFilterPresetsRow } from '@/components/catalog/smart-filter-presets-row';
 import type { SyncAggregate } from '@/components/catalog/sync-aggregate-icon';
 import { type VariantsMode, VariantsToggle } from '@/components/catalog/variants-toggle';
 import { type ProductsViewMode, ViewModeToggle } from '@/components/catalog/view-mode-toggle';
@@ -23,6 +27,12 @@ import {
   useCatalogSearch,
 } from '@/features/catalog/search/use-catalog-search';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
+import {
+  conditionsToDsl,
+  dslToFlatConditions,
+  type FilterCondition,
+} from '@/lib/filters/filter-dsl';
+import { type SmartFilterPreset, useSmartPresets } from '@/lib/filters/use-smart-presets';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
@@ -96,6 +106,19 @@ export function ProductListPage() {
   const [activeViewSlug, setActiveViewSlug] = useState<string | null>(null);
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   const [expandedMasters, setExpandedMasters] = useState<Set<string>>(new Set());
+  // VIEW-09: smart presets + push-down advanced filter panel + filter chips bar.
+  // The legacy FilterPill + AdvancedFilterBuilder Sheet stay in place so this
+  // ticket adds without breaking. VIEW-10 unifies the two flows.
+  const {
+    presets: smartPresets,
+    isLoading: smartPresetsLoading,
+    create: createSmartPreset,
+  } = useSmartPresets({ withCounts: true });
+  const [activeSmartPresetId, setActiveSmartPresetId] = useState<string | null>(null);
+  const [advancedPanelOpen, setAdvancedPanelOpen] = useState(false);
+  const [panelConditions, setPanelConditions] = useState<FilterCondition[]>([]);
+  const [matchOperator, setMatchOperator] = useState<'AND' | 'OR'>('AND');
+  const [showSaveAsPresetModal, setShowSaveAsPresetModal] = useState(false);
 
   const { searchFilters, rangeFilters } = useMemo(() => {
     const sf: Record<string, string | string[]> = { ...filters };
@@ -282,6 +305,129 @@ export function ProductListPage() {
     });
   };
 
+  /**
+   * VIEW-09: map known FilterCondition shapes onto the existing
+   * `filters` (searchFilters) + `rangeFilters` plumbing so apply-preset
+   * actually filters the list for the simplest cases.
+   *
+   * Coverage in VIEW-09 (FE resolver):
+   *   - `attr=brand`, `=`, single string  → filters.brand = value
+   *   - `attr=brand`, `IN`, array         → filters.brand = array
+   *   - `attr=completeness_pct`, `<`, n   → rangeFilters.completenessPct.lte = n - 1
+   *   - `attr=completeness_pct`, `<=`, n  → rangeFilters.completenessPct.lte = n
+   *   - `attr=completeness_pct`, `>=`, n  → rangeFilters.completenessPct.gte = n
+   *   - `attr=enabled`, `=`, bool         → filters.enabled = 'true'/'false'
+   *
+   * Conditions outside this shape (IS EMPTY, locale-scoped, asset,
+   * relation joins) are surfaced as an unobtrusive toast and skipped.
+   * Full DSL → search resolver lands in VIEW-10.
+   */
+  const applyConditionsToFilters = (
+    conditions: FilterCondition[],
+  ): {
+    matched: number;
+    skipped: number;
+  } => {
+    const nextFilters: Record<string, string | string[]> = {};
+    const nextAdvanced: Record<string, FilterValue> = {};
+    let matched = 0;
+    let skipped = 0;
+
+    for (const cond of conditions) {
+      const value = cond.value;
+      const op = cond.op;
+      const attr = cond.attr;
+
+      if (attr === 'brand' || attr === 'family') {
+        if (op === '=' && typeof value === 'string') {
+          nextFilters[attr] = value;
+          matched += 1;
+          continue;
+        }
+        if (op === 'IN' && Array.isArray(value)) {
+          nextFilters[attr] = value.map(String);
+          matched += 1;
+          continue;
+        }
+      }
+
+      if (attr === 'enabled' && op === '=' && typeof value === 'boolean') {
+        nextFilters.enabled = String(value);
+        matched += 1;
+        continue;
+      }
+
+      if (attr === 'completeness_pct') {
+        if ((op === '<' || op === '<=') && typeof value === 'number') {
+          const lte = op === '<' ? value - 1 : value;
+          nextAdvanced.completeness = { ...(nextAdvanced.completeness as object), lte };
+          matched += 1;
+          continue;
+        }
+        if ((op === '>' || op === '>=') && typeof value === 'number') {
+          const gte = op === '>' ? value + 1 : value;
+          nextAdvanced.completeness = { ...(nextAdvanced.completeness as object), gte };
+          matched += 1;
+          continue;
+        }
+      }
+
+      skipped += 1;
+    }
+
+    setFilters(nextFilters);
+    setAdvancedFilters(nextAdvanced);
+    return { matched, skipped };
+  };
+
+  const handleApplySmartPreset = (preset: SmartFilterPreset | null): void => {
+    if (preset === null) {
+      setActiveSmartPresetId(null);
+      setPanelConditions([]);
+      applyConditionsToFilters([]);
+      return;
+    }
+
+    setActiveSmartPresetId(preset.id);
+    const conditions = dslToFlatConditions(preset.query);
+    if (conditions === null) {
+      toast.info(
+        t('products.smart_filters.nested_unsupported', {
+          defaultValue: 'Preset zawiera zagnieżdżone grupy AND/OR (Query mode w VIEW-09b).',
+        }),
+      );
+      setPanelConditions([]);
+      return;
+    }
+
+    setPanelConditions(conditions);
+    const { matched, skipped } = applyConditionsToFilters(conditions);
+    if (skipped > 0) {
+      toast.info(
+        t('products.smart_filters.partial_apply', {
+          matched,
+          skipped,
+          defaultValue: `Zastosowano ${matched} warunków, ${skipped} pominiętych (czeka na BE resolver w VIEW-10).`,
+        }),
+      );
+    }
+  };
+
+  const handleApplyAdvancedPanel = (): void => {
+    setAdvancedPanelOpen(false);
+    setActiveSmartPresetId(null);
+    const { matched, skipped } = applyConditionsToFilters(panelConditions);
+    if (skipped > 0) {
+      toast.info(
+        t('products.advanced_filter.partial_apply', {
+          matched,
+          skipped,
+          defaultValue: `Zastosowano ${matched} warunków, ${skipped} pominiętych (czeka na BE resolver w VIEW-10).`,
+        }),
+      );
+    }
+  };
+
   const handleApplySavedView = (view: { slug: string; config: Record<string, unknown> }): void => {
     setActiveViewSlug(view.slug);
     const cfg = view.config;
@@ -390,6 +536,25 @@ export function ProductListPage() {
         currentTotal={totalHits}
       />
 
+      <SmartFilterPresetsRow
+        presets={smartPresets}
+        activeId={activeSmartPresetId}
+        onSelect={handleApplySmartPreset}
+        onCreate={() => {
+          if (panelConditions.length === 0) {
+            toast.info(
+              t('products.smart_filters.create_requires_conditions', {
+                defaultValue: 'Najpierw dodaj warunek w panelu zaawansowanym.',
+              }),
+            );
+            setAdvancedPanelOpen(true);
+            return;
+          }
+          setShowSaveAsPresetModal(true);
+        }}
+        isLoading={smartPresetsLoading}
+      />
+
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[280px]">
           <Search
@@ -443,6 +608,24 @@ export function ProductListPage() {
           }}
         />
 
+        <Button
+          type="button"
+          variant={advancedPanelOpen ? 'default' : 'outline'}
+          onClick={() => setAdvancedPanelOpen((prev) => !prev)}
+          className="h-11 rounded-2xl"
+          aria-expanded={advancedPanelOpen}
+          aria-controls="advanced-filter-panel"
+        >
+          {t('products.toolbar.filter_by_attribute_button', {
+            defaultValue: 'Filtruj zaawansowane',
+          })}
+          {panelConditions.length > 0 && (
+            <span className="ml-1.5 rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700">
+              {panelConditions.length}
+            </span>
+          )}
+        </Button>
+
         <VariantsToggle mode={variantsMode} onChange={setVariantsMode} />
 
         <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
@@ -468,6 +651,60 @@ export function ProductListPage() {
           </Link>
         </Button>
       </div>
+
+      <div id="advanced-filter-panel">
+        <AdvancedFilterPanel
+          open={advancedPanelOpen}
+          conditions={panelConditions}
+          setConditions={setPanelConditions}
+          matchOperator={matchOperator}
+          setMatchOperator={setMatchOperator}
+          onApply={handleApplyAdvancedPanel}
+          onClose={() => setAdvancedPanelOpen(false)}
+          onClear={() => {
+            setPanelConditions([]);
+            applyConditionsToFilters([]);
+            setActiveSmartPresetId(null);
+          }}
+          onSaveAsView={() => {
+            setShowSaveViewModal(true);
+          }}
+          onSaveAsPreset={() => {
+            setShowSaveAsPresetModal(true);
+          }}
+          resultCount={totalHits}
+        />
+      </div>
+
+      <FilterChipsBar
+        chips={panelConditions}
+        attrLabelMap={{
+          brand: t('products.toolbar.filter_brand', { defaultValue: 'Marka' }),
+          family: t('products.toolbar.filter_family', { defaultValue: 'Rodzina' }),
+          category: t('products.fields.categories', { defaultValue: 'Kategoria' }),
+          completeness_pct: t('products.fields.completeness', { defaultValue: 'Compl.' }),
+          enabled: t('products.fields.enabled', { defaultValue: 'Aktywny' }),
+          price: t('products.fields.price', { defaultValue: 'Cena' }),
+          'description.pl': t('products.fields.description_pl', { defaultValue: 'Opis · PL' }),
+          'description.en': t('products.fields.description_en', { defaultValue: 'Opis · EN' }),
+          main_image: t('products.fields.main_image', { defaultValue: 'Główne zdjęcie' }),
+          meta_description: t('products.fields.meta_description', {
+            defaultValue: 'Meta description',
+          }),
+        }}
+        onRemove={(idx) => {
+          const next = panelConditions.filter((_, i) => i !== idx);
+          setPanelConditions(next);
+          applyConditionsToFilters(next);
+          if (next.length === 0) setActiveSmartPresetId(null);
+        }}
+        onClearAll={() => {
+          setPanelConditions([]);
+          applyConditionsToFilters([]);
+          setActiveSmartPresetId(null);
+        }}
+        onEditChip={() => setAdvancedPanelOpen(true)}
+      />
 
       <div className="flex flex-wrap items-center gap-2 text-[12px] text-zinc-500">
         <span className="tabular-nums">
@@ -578,6 +815,22 @@ export function ProductListPage() {
           }}
           onSaved={(slug) => {
             setActiveViewSlug(slug);
+          }}
+        />
+      ) : null}
+
+      {showSaveAsPresetModal ? (
+        <SaveAsSmartPresetModal
+          query={conditionsToDsl(panelConditions, matchOperator)}
+          create={createSmartPreset}
+          onClose={() => setShowSaveAsPresetModal(false)}
+          onSaved={(preset) => {
+            toast.success(
+              t('products.smart_filters.save_success', {
+                defaultValue: 'Smart Preset zapisany',
+              }),
+            );
+            setActiveSmartPresetId(preset.id);
           }}
         />
       ) : null}

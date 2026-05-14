@@ -6,6 +6,7 @@ namespace App\Identity\Domain\Entity;
 
 use App\Identity\Contracts\Event\UserAuthenticated;
 use App\Shared\Application\TenantAware;
+use App\Shared\Application\UserIdentityAware;
 use App\Shared\Domain\AggregateRoot;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
@@ -28,7 +29,7 @@ use Symfony\Component\Uid\Uuid;
  * The TenantAware interface lets CurrentTenantProvider read the tenant from
  * the security token's user without coupling Identity to Catalog.
  */
-class User extends AggregateRoot implements UserInterface, PasswordAuthenticatedUserInterface, TenantAware
+class User extends AggregateRoot implements UserInterface, PasswordAuthenticatedUserInterface, TenantAware, UserIdentityAware
 {
     public const string STATUS_ACTIVE = 'active';
     public const string STATUS_DISABLED = 'disabled';

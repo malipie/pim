@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Infrastructure\Doctrine\EventListener;
 
+use App\Shared\Application\SystemShipped;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\TenantScoped;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
@@ -45,6 +46,13 @@ final readonly class TenantAssignmentListener
         }
 
         if (null !== $entity->getTenant()) {
+            return;
+        }
+
+        // System-shipped rows stay tenant-less by design (built-in
+        // ObjectTypes are still per-tenant, but SmartFilterPreset and
+        // future global catalogs use the SystemShipped lane).
+        if ($entity instanceof SystemShipped && $entity->isSystem()) {
             return;
         }
 

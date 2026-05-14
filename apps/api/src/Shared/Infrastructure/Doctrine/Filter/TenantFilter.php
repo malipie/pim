@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Infrastructure\Doctrine\Filter;
 
+use App\Shared\Application\SystemShipped;
 use App\Shared\Application\TenantScoped;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query\Filter\SQLFilter;
@@ -49,6 +50,18 @@ final class TenantFilter extends SQLFilter
 
         if ('' === $value || 'NULL' === $value) {
             return '';
+        }
+
+        // Entities with a SystemShipped lane (built-ins shared across
+        // tenants via `tenant_id IS NULL`) must surface those rows to
+        // every tenant alongside the tenant's own entries.
+        if (is_subclass_of($targetEntity->getName(), SystemShipped::class, true)) {
+            return \sprintf(
+                '(%s.tenant_id = %s OR %s.tenant_id IS NULL)',
+                $targetTableAlias,
+                $value,
+                $targetTableAlias,
+            );
         }
 
         return \sprintf('%s.tenant_id = %s', $targetTableAlias, $value);
