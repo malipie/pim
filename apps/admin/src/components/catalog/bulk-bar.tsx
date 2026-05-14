@@ -25,6 +25,8 @@ interface BulkBarProps {
   selectedIds: string[];
   onClear: () => void;
   onApplied: () => void;
+  onOpenWizard?: () => void;
+  onOpenCategoryModal?: () => void;
 }
 
 /**
@@ -36,7 +38,13 @@ interface BulkBarProps {
  * wired through `POST /api/products/bulk-edit` so the only currently
  * shipped destructive action stays accessible.
  */
-export function BulkBar({ selectedIds, onClear, onApplied }: BulkBarProps) {
+export function BulkBar({
+  selectedIds,
+  onClear,
+  onApplied,
+  onOpenWizard,
+  onOpenCategoryModal,
+}: BulkBarProps) {
   const { t } = useTranslation();
   const [isPending, setIsPending] = useState(false);
 
@@ -102,7 +110,7 @@ export function BulkBar({ selectedIds, onClear, onApplied }: BulkBarProps) {
 
         <button
           type="button"
-          onClick={placeholder('VIEW-05.2')}
+          onClick={onOpenWizard ?? placeholder('VIEW-05.2')}
           className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
         >
           <Pencil className="size-3.5" aria-hidden="true" />
@@ -110,7 +118,7 @@ export function BulkBar({ selectedIds, onClear, onApplied }: BulkBarProps) {
         </button>
         <button
           type="button"
-          onClick={placeholder('VIEW-05.3')}
+          onClick={onOpenCategoryModal ?? placeholder('VIEW-05.3')}
           className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
         >
           <FolderTree className="size-3.5" aria-hidden="true" />

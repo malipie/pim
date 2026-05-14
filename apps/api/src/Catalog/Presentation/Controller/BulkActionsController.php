@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Catalog\Presentation\Controller;
 
+use App\Catalog\Application\Bulk\BulkAddCategoryHandler;
 use App\Catalog\Application\Bulk\BulkAppendValueHandler;
 use App\Catalog\Application\Bulk\BulkClearAttributeHandler;
 use App\Catalog\Application\Bulk\BulkIncrementNumericHandler;
+use App\Catalog\Application\Bulk\BulkMoveCategoryHandler;
 use App\Catalog\Application\Bulk\BulkMultiAttributeEditHandler;
+use App\Catalog\Application\Bulk\BulkRemoveCategoryHandler;
 use App\Catalog\Application\Bulk\BulkRemoveValueHandler;
 use App\Catalog\Application\Bulk\BulkSetAttributeHandler;
 use App\Catalog\Domain\Entity\BulkSession;
@@ -51,6 +54,9 @@ final class BulkActionsController
         private readonly BulkRemoveValueHandler $removeValueHandler,
         private readonly BulkIncrementNumericHandler $incrementNumericHandler,
         private readonly BulkMultiAttributeEditHandler $multiAttributeEditHandler,
+        private readonly BulkAddCategoryHandler $addCategoryHandler,
+        private readonly BulkRemoveCategoryHandler $removeCategoryHandler,
+        private readonly BulkMoveCategoryHandler $moveCategoryHandler,
     ) {
     }
 
@@ -81,6 +87,9 @@ final class BulkActionsController
             'remove_value',
             'increment_numeric',
             'multi_attribute_edit',
+            'add_category',
+            'remove_category',
+            'move_category',
         ], true)) {
             throw new BadRequestHttpException(\sprintf('Unsupported bulk action "%s" in MVP.', $action));
         }
@@ -123,6 +132,18 @@ final class BulkActionsController
     private function computePreviewDiff(string $action, array $payload, CatalogObject $object): array
     {
         $indexed = $object->getAttributesIndexed();
+
+        if (\in_array($action, ['add_category', 'remove_category', 'move_category'], true)) {
+            $categoryIds = $this->extractCategoryIds($payload);
+            $before = ['categories' => '—'];
+            $after = match ($action) {
+                'add_category' => ['categories' => '+ '.\count($categoryIds)],
+                'remove_category' => ['categories' => '− '.\count($categoryIds)],
+                default => ['categories' => '= '.\count($categoryIds)],
+            };
+
+            return [$before, $after];
+        }
 
         if ('multi_attribute_edit' === $action) {
             $edits = $payload['edits'] ?? [];
@@ -264,6 +285,18 @@ final class BulkActionsController
                 $session,
                 $this->normaliseEdits($payload['edits'] ?? null),
             ),
+            'add_category' => $this->addCategoryHandler->handle(
+                $session,
+                $this->extractCategoryIds($payload),
+            ),
+            'remove_category' => $this->removeCategoryHandler->handle(
+                $session,
+                $this->extractCategoryIds($payload),
+            ),
+            'move_category' => $this->moveCategoryHandler->handle(
+                $session,
+                $this->extractCategoryIds($payload),
+            ),
             default => throw new NotFoundHttpException(\sprintf('Bulk action "%s" not implemented.', $actionType)),
         };
 
@@ -290,6 +323,30 @@ final class BulkActionsController
         }
 
         return trim($code);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @return list<string>
+     */
+    private function extractCategoryIds(array $payload): array
+    {
+        $raw = $payload['category_ids'] ?? null;
+        if (!\is_array($raw) || [] === $raw) {
+            throw new BadRequestHttpException('payload.category_ids must be a non-empty array.');
+        }
+        $out = [];
+        foreach ($raw as $id) {
+            if (\is_string($id) && '' !== $id) {
+                $out[] = $id;
+            }
+        }
+        if ([] === $out) {
+            throw new BadRequestHttpException('payload.category_ids has no valid entries.');
+        }
+
+        return $out;
     }
 
     /**
