@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Catalog\Domain\Entity\BulkLog" table="bulk_logs">
+        <indexes>
+            <index name="bulk_logs_session_idx" columns="bulk_session_id"/>
+            <index name="bulk_logs_object_idx" columns="object_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <field name="bulkSessionId" type="uuid" column="bulk_session_id"/>
+        <field name="objectId" type="uuid" column="object_id"/>
+        <field name="attributeId" type="uuid" column="attribute_id" nullable="true"/>
+
+        <field name="oldValue" type="json" column="old_value" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <field name="newValue" type="json" column="new_value" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+
+        <field name="level" type="string" length="8">
+            <options>
+                <option name="default">info</option>
+            </options>
+        </field>
+        <field name="message" type="text" nullable="true"/>
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+    </entity>
+
+</doctrine-mapping>

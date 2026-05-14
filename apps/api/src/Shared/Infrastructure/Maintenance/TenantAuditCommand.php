@@ -96,6 +96,10 @@ final class TenantAuditCommand extends Command
         // tenant_id column to keep writes lean (5k rows × 5 errors =
         // 25k log inserts per realistic import).
         'import_logs',
+        // VIEW-12 (#543) — bulk_logs inherits tenant scope through the
+        // parent bulk_session (FK CASCADE on delete); keeps the
+        // append-only log free of redundant tenant columns.
+        'bulk_logs',
     ];
 
     /**

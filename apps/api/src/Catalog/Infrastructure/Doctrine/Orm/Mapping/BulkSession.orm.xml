@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Catalog\Domain\Entity\BulkSession" table="bulk_sessions">
+        <indexes>
+            <index name="bulk_sessions_tenant_user_idx" columns="tenant_id,user_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="userId" type="uuid" column="user_id" nullable="true"/>
+        <field name="actionType" type="string" length="64" column="action_type"/>
+
+        <field name="targetObjectIds" type="json" column="target_object_ids">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+
+        <field name="targetCount" type="integer" column="target_count"/>
+        <field name="successCount" type="integer" column="success_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="skippedCount" type="integer" column="skipped_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="errorCount" type="integer" column="error_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+
+        <field name="actionPayload" type="json" column="action_payload">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+
+        <field name="rollbackAvailableUntil" type="datetime_immutable" column="rollback_available_until" nullable="true"/>
+        <field name="rolledBackAt" type="datetime_immutable" column="rolled_back_at" nullable="true"/>
+        <field name="source" type="string" length="16">
+            <options>
+                <option name="default">manual</option>
+            </options>
+        </field>
+        <field name="cmdKCommand" type="text" column="cmd_k_command" nullable="true"/>
+        <field name="startedAt" type="datetime_immutable" column="started_at"/>
+        <field name="completedAt" type="datetime_immutable" column="completed_at" nullable="true"/>
+    </entity>
+
+</doctrine-mapping>
