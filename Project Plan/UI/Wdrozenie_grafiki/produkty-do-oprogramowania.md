@@ -2,15 +2,39 @@
 
 > Baza pod kolejne GitHub tickety. Każda pozycja zaznaczona w kodzie komentarzem `MOCK:` lub `TODO(handoff)`.
 >
-> **Stan na 2026-05-02 po merge'u #358.** Aktualna implementacja list+detail jest w ~75-80% gotowa po marathonie UI-02; ten plik wylicza luki które handoff design ujawnia.
+> **Stan na 2026-05-14 po marathonie UI-09 (12/12 ticketów ✅).** Aktualna implementacja list+detail jest w ~95% gotowa — pełen scope MVP feature'a cockpit operatora wg `PRD-PIM-list-advanced.md` dostarczony. Sekcja "Już zrealizowane" rozszerzona o wszystkie tickety UI-09.
+
+## Zrealizowane w marathonie UI-09 (2026-05-14)
+
+- [x] **VIEW-09** (#536+#537) — Smart filter presets (5 built-in + user-defined) + push-down advanced filter panel + filter chips edit popover
+- [x] **VIEW-10** (#539) — 25 operatorów per typ atrybutu + URL filter DSL serializer + `?smart_preset=` BE
+- [x] **VIEW-09b** (#541) — Query mode AND/OR brackets editor (recursive QueryGroupEditor)
+- [x] **VIEW-11** (#542) — Cross-page selection toolbar + select-all-matching (10k cap)
+- [x] **VIEW-12** (#543) — Bulk wizard 3-step + `bulk_sessions` + `bulk_logs` + `set_attribute` E2E
+- [x] **VIEW-17** (#544) — 24h rollback toast + executor + `GET/POST /api/bulk-sessions/{id}[/rollback]`
+- [x] **VIEW-13** (#545) — clear/append/remove/increment_numeric/multi_attribute_edit handlery + wizard 6-mode picker
+- [x] **VIEW-14** (#546) — add/remove/move_category handlery + `BulkCategoryModal` + `toast.action` 5s Undo
+- [x] **VIEW-15** (#547) — publish/unpublish_channels handler + `BulkPublishModal` + cascade banner (soft flag)
+- [x] **VIEW-16** (#548) — delete + duplicate handlery + hard confirm typing modal
+- [x] **VIEW-18** (#549) — `AttributeLockReader` + `attribute_locked` JSONB slot + endpoint + FE toggle
+- [x] **VIEW-19** (#550) — Cmd+K palette + rule-based planner + 6 MVP intents (USP demo-ready)
+
+## Follow-up tickety (deferred z marathon UI-09)
+
+- [ ] **VIEW-15.1** — `GET /api/products/bulk-actions/cascade-preview` server-side count variants + cross-sell + sales-in-progress warning. FE: BulkPublishModal banner z prawdziwym count zamiast placeholder.
+- [ ] **VIEW-17.1** — `BulkRollbackHandler` extension: dispatch per-action-type. Obecnie pokrywa `set_attribute` only. Recipe rows już w BulkLog dla `add_category/remove_category/move_category/publish_channels/delete/duplicate`. Estymacja: M (12-16h).
+- [ ] **VIEW-18.1** — `AttributeLockReader` integration w pozostałych 5 attribute handlerach (clear/append/remove/increment/multi). Skip+report wizard banner "X produktów ma zablokowany atrybut Y". Estymacja: S (4-6h).
+- [ ] **VIEW-19.1** — Anthropic SDK PHP integration. POST `/api/agent/cmd-k` swap planner z regex → Claude Sonnet 4.5 tool-use. Mercure SSE `cmd-k.{user_id}` streaming. BYOK + rate limits (50/h/user, 10/run, 100k tokens/run, $20/dzień/tenant) z CLAUDE.md §8.5. Estymacja: L (22-32h) — to jest epik 0.7 Faza 2.
+
+## Frontend + nowy endpoint backendowy
 
 ## Frontend + nowy endpoint backendowy
 
 ### Bulk operations (rozszerzenie istniejącego /bulk-edit)
 
-- [ ] **Bulk attribute edit** — `POST /api/products/bulk-edit` z operation `edit_attribute`. Frontend: `BulkEditAttributeModal` (picker atrybutu + value input) wywoływany z `bulk-actions-toolbar.tsx`. Backend: rozszerzenie istniejącego `BulkEditController` o nowy operation handler. Estymacja: M (FE 3-4h, BE 4-5h).
-- [ ] **Bulk category change** — `POST /api/products/bulk-edit` z operation `change_category`. Modal picker kategorii + apply do selected SKU.
-- [ ] **Bulk export CSV** — `GET /api/products/export?ids=…&format=csv` (streaming). Backend: streaming CSV response (FrankenPHP buffer flush — patrz lessons), wszystkie visible columns + attribute columns. Frontend: modal "Export selected" → trigger download. Estymacja: M (FE 3-4h, BE 5-6h).
+- [x] **Bulk attribute edit** — zrealizowane w VIEW-12 + VIEW-13 (`POST /api/products/bulk-actions/set_attribute` + clear/append/remove/increment/multi).
+- [x] **Bulk category change** — zrealizowane w VIEW-14 (`POST /api/products/bulk-actions/{add|remove|move}_category`).
+- [ ] **Bulk export CSV** — `GET /api/products/export?ids=…&format=csv` (streaming). Backend: streaming CSV response (FrankenPHP buffer flush — patrz lessons), wszystkie visible columns + attribute columns. Frontend: modal "Export selected" → trigger download. Estymacja: M (FE 3-4h, BE 5-6h). NIE objęte marathonem UI-09 (export-as-data ≠ edit-bulk).
 
 ### Relationships / Associations
 

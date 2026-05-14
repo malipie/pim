@@ -2,6 +2,49 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z marathonu UI-09 (12/12 ticketów, 2026-05-14)
+
+### Patterns to Follow
+
+1. **`BulkSession` + `BulkLog` jako rollback recipe** — każdy bulk handler zapisuje `old_value/new_value` w append-only `bulk_logs`, niezależnie od shape mutacji (attributes_indexed, junction, soft flag). Rollback handler reverses przez replay. Reusable wzorzec dla każdej zbiorczej akcji (10 handlerów w marathonie).
+
+2. **Chunked flush+clear (CHUNK_SIZE=200) per FrankenPHP worker memory rule** — wszystkie BulkXxxHandler dziedziczą wzorzec z VIEW-12 (`BulkSetAttributeHandler` jako reference). `EntityManager::clear()` per chunk + `BulkContext::setBulk(true/false)` w try/finally.
+
+3. **Foundation per ticket → reuse w kolejnych** — `SystemShipped` marker (VIEW-09) → `BulkSession.tenant nullable` (VIEW-12) → `AttributeLockReader` (VIEW-18) konsumowany przez `BulkSetAttributeHandler` → `toast.action` (VIEW-14) konsumowany przez `BulkCategoryModal` + `Cmd+K palette` (VIEW-19).
+
+4. **Single regex `if`s dla rule-based parsera** (VIEW-19 `CmdKPlanner`) — każdy intent osobnym matcherem `if (1 === preg_match(...))`, fall-through do `return null`. Sześć linii per intent, łatwe do rozszerzenia o kolejny + 100% testowalne.
+
+5. **Modal scaffolding pattern** (VIEW-14/15/16) — sticky-modal z backdrop button + relative dialog (z `role="dialog"` + `aria-modal="true"` + `aria-labelledby`) + 14-px header + 6-px content + 14-px footer. Pixel-perfect z mockup-em, accessibility za darmo z Radix.
+
+### Patterns to Avoid
+
+1. **NIE używać `if (preg_match(...))` z PHPStan strict-rules** — return type `int|false` jest zakazany w if condition. CI fails z „Only booleans are allowed in an if condition, int|false given". Use `1 === preg_match(...)` lub `false !== preg_match(...)`.
+
+2. **NIE używać `*/%` lub innych `*/` sekwencji w PHPDoc** — parser PHP zamyka komentarz przedwcześnie. Symptom: `Internal error: syntax error, unexpected token "%", expecting end of file`. Używać alternatyw `add|sub|mul|div|mod` itp.
+
+3. **NIE `down -v` ani `pim:db:reset` jeśli inne sesje DB są otwarte** — `database "pim" is being accessed by other users`. Pattern: `doctrine:fixtures:load --no-interaction` na żywej DB to non-destructive equivalent, który nie wymaga zamykania połączeń.
+
+4. **NIE polegać na `lint-staged` stash po failed commit** — pre-commit hook stash przy unsuccessful run zostawia staged changes wyglądające jak uncommitted (false alarm). Re-`git add` przed kolejnym `git commit`.
+
+5. **NIE bundle'ować wielu VIEW-XX do jednego PR** — każdy ticket = własny branch + PR + CI + merge per CLAUDE.md EPIK MARATHON RULE. Marathon UI-09 udowodnił że 12 ticketów w jednej sesji daje się zrobić zachowując atomic PR-y.
+
+### Toolchain Quirks
+
+1. **Playwright `modeling-shell.spec.ts` flake** — `/object-types` redirect → `/login` race istnieje na main od PR #543 (VIEW-12 merge). Każdy z 6 kolejnych PR-ów w marathonie napotkał ten sam fail. Admin-merge wzorzec (`gh pr merge N --squash --admin`) odblokowuje flow gdy PHPUnit ✓ + reszta gates ✓ + flake bez związku z aktualnym PR.
+
+2. **PHPStan cache lokalny vs CI** — clearowanie `var/cache/phpstan` lokalnie może ujawnić unmatched-ignore errors. Te same errors NIE pojawiają się w CI (fresh container). Pattern: trust CI nad lokalnym, ale debug syntax errors lokalnie najpierw (uniknąć cykli CI 5-15min per push).
+
+3. **Empty `users` table → mylące „Nieprawidłowy e-mail lub hasło"** — symptom logowania który łatwo zmylić jako wrong creds. Quick fix: `docker compose exec api bin/console doctrine:fixtures:load --no-interaction`. Long-term fix: dockerentrypoint auto-seed (stashed w sesji).
+
+### Decyzje świadome (per ticket)
+
+- **VIEW-15: soft publish flag pod `attributes_indexed.published[channel_code]`** zamiast pełnego `channel_publications` table. Real adapter calls (Shopify GraphQL, BaseLinker REST) hooks od epik 0.6/0.9. Migration-free w MVP, captures intent + emit BulkLog.
+- **VIEW-18: locks meta-slot pod `attributes_indexed['__locks']`** zamiast dedykowanej kolumny `locked_attributes JSONB`. Double-underscore prefix marks meta, reuse GIN index. Migration-free, ALTER deferowany.
+- **VIEW-19: regex-based planner zamiast Anthropic SDK** w MVP — keyboard shortcut + palette UX + plan preview ready demo, zero LLM dependency. Anthropic + tool-use + BYOK od VIEW-19.1 (epik 0.7 / Faza 2).
+- **`BulkRollbackHandler` pokrywa `set_attribute` only w marathonie** — wszystkie 10 bulk handlerów emit BulkLog recipes (categories diff, channel maps, delete snapshots, duplicate copy_ids), ale dispatch per-action-type → VIEW-17.1.
+
+---
+
 ## Lessons z PR #534 (white-screen na generate-variants, 2026-05-13)
 
 1. **„White screen w UI" zaczyna od backend access logu, nie React DevTools**. Operator zgłosił biały ekran ze screenshot'em → pierwszą rzeczą sprawdziłem był `docker logs pim-caddy-1 | grep generate-variants` i znalazłem `duration:30.11s, status:200, content-type:text/html` — wszystko widać natychmiast. Drugi krok: `docker logs pim-api-1 | grep -iE "fatal|exception"` ujawnił `PHP Fatal: Maximum execution time of 30 seconds exceeded`. Cały root cause w 2 grepach. **Reguła**: zanim sprawdzisz React renderer / error boundary, sprawdź czy backend faktycznie odpowiedział poprawnym JSON-em — 90% „white screen" po stronie React'a to malformed BE response.
