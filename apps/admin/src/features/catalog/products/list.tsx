@@ -7,6 +7,8 @@ import { Link } from 'react-router';
 import { AdvancedFilterBuilder } from '@/components/catalog/advanced-filter-builder';
 import { AdvancedFilterPanel } from '@/components/catalog/advanced-filter-panel';
 import { BulkCategoryModal } from '@/components/catalog/bulk-actions/category-modal';
+import { BulkDuplicateModal } from '@/components/catalog/bulk-actions/duplicate-modal';
+import { BulkDeleteConfirmModal } from '@/components/catalog/bulk-actions/hard-confirm-modal';
 import { BulkPublishModal } from '@/components/catalog/bulk-actions/publish-modal';
 import { BulkBar } from '@/components/catalog/bulk-bar';
 import { BulkWizard } from '@/components/catalog/bulk-wizard/bulk-wizard';
@@ -111,6 +113,8 @@ export function ProductListPage() {
   const [bulkWizardOpen, setBulkWizardOpen] = useState(false);
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
   const [bulkPublishOpen, setBulkPublishOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDuplicateOpen, setBulkDuplicateOpen] = useState(false);
   const [lastBulkSession, setLastBulkSession] = useState<RollbackSession | null>(null);
   const [variantsMode, setVariantsMode] = useState<VariantsMode>('tree');
   const [viewMode, setViewMode] = useState<ProductsViewMode>(() => {
@@ -935,6 +939,8 @@ export function ProductListPage() {
         onOpenWizard={() => setBulkWizardOpen(true)}
         onOpenCategoryModal={() => setBulkCategoryOpen(true)}
         onOpenPublishModal={() => setBulkPublishOpen(true)}
+        onOpenDeleteModal={() => setBulkDeleteOpen(true)}
+        onOpenDuplicateModal={() => setBulkDuplicateOpen(true)}
       />
 
       {bulkWizardOpen ? (
@@ -968,6 +974,32 @@ export function ProductListPage() {
         <BulkPublishModal
           selectedIds={Array.from(selected)}
           onClose={() => setBulkPublishOpen(false)}
+          onApplied={(result) => {
+            setLastBulkSession(result);
+            setSelected(new Set());
+            setShowSelectedOnly(false);
+            void refetch();
+          }}
+        />
+      ) : null}
+
+      {bulkDeleteOpen ? (
+        <BulkDeleteConfirmModal
+          selectedIds={Array.from(selected)}
+          onClose={() => setBulkDeleteOpen(false)}
+          onApplied={(result) => {
+            setLastBulkSession(result);
+            setSelected(new Set());
+            setShowSelectedOnly(false);
+            void refetch();
+          }}
+        />
+      ) : null}
+
+      {bulkDuplicateOpen ? (
+        <BulkDuplicateModal
+          selectedIds={Array.from(selected)}
+          onClose={() => setBulkDuplicateOpen(false)}
           onApplied={(result) => {
             setLastBulkSession(result);
             setSelected(new Set());
