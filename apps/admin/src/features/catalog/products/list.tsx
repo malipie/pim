@@ -1,9 +1,9 @@
 import { useList } from '@refinedev/core';
 import { Plus, Search, Upload } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-
+import { CmdKPalette } from '@/components/agent/cmd-k-palette';
 import { AdvancedFilterBuilder } from '@/components/catalog/advanced-filter-builder';
 import { AdvancedFilterPanel } from '@/components/catalog/advanced-filter-panel';
 import { BulkCategoryModal } from '@/components/catalog/bulk-actions/category-modal';
@@ -115,7 +115,19 @@ export function ProductListPage() {
   const [bulkPublishOpen, setBulkPublishOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDuplicateOpen, setBulkDuplicateOpen] = useState(false);
+  const [cmdKOpen, setCmdKOpen] = useState(false);
   const [lastBulkSession, setLastBulkSession] = useState<RollbackSession | null>(null);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent): void => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCmdKOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
   const [variantsMode, setVariantsMode] = useState<VariantsMode>('tree');
   const [viewMode, setViewMode] = useState<ProductsViewMode>(() => {
     if (typeof window === 'undefined') return 'grid';
@@ -941,6 +953,7 @@ export function ProductListPage() {
         onOpenPublishModal={() => setBulkPublishOpen(true)}
         onOpenDeleteModal={() => setBulkDeleteOpen(true)}
         onOpenDuplicateModal={() => setBulkDuplicateOpen(true)}
+        onOpenCmdK={() => setCmdKOpen(true)}
       />
 
       {bulkWizardOpen ? (
@@ -1008,6 +1021,19 @@ export function ProductListPage() {
           }}
         />
       ) : null}
+
+      <CmdKPalette
+        open={cmdKOpen}
+        onClose={() => setCmdKOpen(false)}
+        selectedIds={Array.from(selected)}
+        totalMatching={crossPageSelection.active ? crossPageSelection.totalMatched : selected.size}
+        onApplied={(result) => {
+          setLastBulkSession(result);
+          setSelected(new Set());
+          setShowSelectedOnly(false);
+          void refetch();
+        }}
+      />
 
       <RollbackToast
         session={lastBulkSession}
