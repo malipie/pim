@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Catalog\Presentation\Controller;
 
+use App\Catalog\Application\Bulk\BulkAppendValueHandler;
+use App\Catalog\Application\Bulk\BulkClearAttributeHandler;
+use App\Catalog\Application\Bulk\BulkIncrementNumericHandler;
+use App\Catalog\Application\Bulk\BulkMultiAttributeEditHandler;
+use App\Catalog\Application\Bulk\BulkRemoveValueHandler;
 use App\Catalog\Application\Bulk\BulkSetAttributeHandler;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -41,6 +46,11 @@ final class BulkActionsController
         private readonly Security $security,
         private readonly CatalogObjectRepositoryInterface $catalogObjects,
         private readonly BulkSetAttributeHandler $setAttributeHandler,
+        private readonly BulkClearAttributeHandler $clearAttributeHandler,
+        private readonly BulkAppendValueHandler $appendValueHandler,
+        private readonly BulkRemoveValueHandler $removeValueHandler,
+        private readonly BulkIncrementNumericHandler $incrementNumericHandler,
+        private readonly BulkMultiAttributeEditHandler $multiAttributeEditHandler,
     ) {
     }
 
@@ -64,43 +74,134 @@ final class BulkActionsController
         $skipped = 0;
         $errors = 0;
 
-        if ('set_attribute' === $action) {
-            $attrCode = $payload['attr'] ?? null;
-            $newValue = $payload['value'] ?? null;
-            if (!\is_string($attrCode) || '' === $attrCode) {
-                throw new BadRequestHttpException('payload.attr is required.');
-            }
-            $sampleIds = \array_slice($targetIds, 0, 5);
-            foreach ($sampleIds as $id) {
-                try {
-                    $object = $this->catalogObjects->findById(Uuid::fromString($id));
-                    if (!$object instanceof CatalogObject) {
-                        ++$errors;
-                        continue;
-                    }
-                    $oldValue = $object->getAttributesIndexed()[$attrCode] ?? null;
-                    $sample[] = [
-                        'id' => $object->getId()->toRfc4122(),
-                        'sku' => $object->getCode(),
-                        'before' => $oldValue,
-                        'after' => $newValue,
-                    ];
-                } catch (Throwable) {
-                    ++$errors;
-                }
-            }
-
-            return new JsonResponse([
-                'action' => $action,
-                'target_count' => \count($targetIds),
-                'success_count' => \count($targetIds) - $skipped - $errors,
-                'skipped_count' => $skipped,
-                'error_count' => $errors,
-                'sample' => $sample,
-            ]);
+        if (!\in_array($action, [
+            'set_attribute',
+            'clear_attribute',
+            'append_value',
+            'remove_value',
+            'increment_numeric',
+            'multi_attribute_edit',
+        ], true)) {
+            throw new BadRequestHttpException(\sprintf('Unsupported bulk action "%s" in MVP.', $action));
         }
 
-        throw new BadRequestHttpException(\sprintf('Unsupported bulk action "%s" in MVP.', $action));
+        $sampleIds = \array_slice($targetIds, 0, 5);
+        foreach ($sampleIds as $id) {
+            try {
+                $object = $this->catalogObjects->findById(Uuid::fromString($id));
+                if (!$object instanceof CatalogObject) {
+                    ++$errors;
+                    continue;
+                }
+                [$before, $after] = $this->computePreviewDiff($action, $payload, $object);
+                $sample[] = [
+                    'id' => $object->getId()->toRfc4122(),
+                    'sku' => $object->getCode(),
+                    'before' => $before,
+                    'after' => $after,
+                ];
+            } catch (Throwable) {
+                ++$errors;
+            }
+        }
+
+        return new JsonResponse([
+            'action' => $action,
+            'target_count' => \count($targetIds),
+            'success_count' => \count($targetIds) - $skipped - $errors,
+            'skipped_count' => $skipped,
+            'error_count' => $errors,
+            'sample' => $sample,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @return array{mixed, mixed}
+     */
+    private function computePreviewDiff(string $action, array $payload, CatalogObject $object): array
+    {
+        $indexed = $object->getAttributesIndexed();
+
+        if ('multi_attribute_edit' === $action) {
+            $edits = $payload['edits'] ?? [];
+            if (!\is_array($edits)) {
+                return [$indexed, $indexed];
+            }
+            $before = [];
+            $after = [];
+            foreach ($edits as $edit) {
+                if (!\is_array($edit) || !\is_string($edit['attr'] ?? null) || !\is_string($edit['op'] ?? null)) {
+                    continue;
+                }
+                $code = $edit['attr'];
+                $before[$code] = $indexed[$code] ?? null;
+                $after[$code] = 'clear' === $edit['op'] ? null : ($edit['value'] ?? null);
+            }
+
+            return [$before, $after];
+        }
+
+        $attrCode = $payload['attr'] ?? null;
+        if (!\is_string($attrCode) || '' === $attrCode) {
+            throw new BadRequestHttpException('payload.attr is required.');
+        }
+        $current = $indexed[$attrCode] ?? null;
+
+        return match ($action) {
+            'set_attribute' => [$current, $payload['value'] ?? null],
+            'clear_attribute' => [$current, null],
+            'append_value' => [$current, $this->previewAppend($current, $payload['value'] ?? null)],
+            'remove_value' => [$current, $this->previewRemove($current, $payload['value'] ?? null)],
+            'increment_numeric' => [$current, $this->previewIncrement(
+                $current,
+                \is_string($payload['operator'] ?? null) ? $payload['operator'] : '+',
+                is_numeric($payload['operand'] ?? null) ? (float) $payload['operand'] : 0.0,
+            )],
+            default => [$current, $current],
+        };
+    }
+
+    private function previewAppend(mixed $current, mixed $value): mixed
+    {
+        $list = match (true) {
+            \is_array($current) => $current,
+            null === $current => [],
+            default => [$current],
+        };
+        if (\in_array($value, $list, true)) {
+            return $list;
+        }
+        $list[] = $value;
+
+        return $list;
+    }
+
+    private function previewRemove(mixed $current, mixed $value): mixed
+    {
+        if (\is_array($current)) {
+            return array_values(array_filter($current, static fn ($v) => $v !== $value));
+        }
+
+        return $current === $value ? null : $current;
+    }
+
+    private function previewIncrement(mixed $current, string $operator, float $operand): mixed
+    {
+        if (!is_numeric($current)) {
+            return $current;
+        }
+        $base = (float) $current;
+
+        return match ($operator) {
+            '+' => $base + $operand,
+            '-' => $base - $operand,
+            '*' => $base * $operand,
+            '/' => 0.0 === $operand ? null : $base / $operand,
+            '%' => 0.0 === $operand ? null : fmod($base, $operand),
+            default => $base,
+        };
     }
 
     #[Route('/api/products/bulk-actions/{actionType}', name: 'pim_bulk_actions_apply', methods: ['POST'])]
@@ -136,8 +237,32 @@ final class BulkActionsController
         $result = match ($actionType) {
             'set_attribute' => $this->setAttributeHandler->handle(
                 $session,
-                \is_string($payload['attr'] ?? null) ? $payload['attr'] : '',
+                $this->requirePayloadAttr($payload),
                 $payload['value'] ?? null,
+            ),
+            'clear_attribute' => $this->clearAttributeHandler->handle(
+                $session,
+                $this->requirePayloadAttr($payload),
+            ),
+            'append_value' => $this->appendValueHandler->handle(
+                $session,
+                $this->requirePayloadAttr($payload),
+                $payload['value'] ?? null,
+            ),
+            'remove_value' => $this->removeValueHandler->handle(
+                $session,
+                $this->requirePayloadAttr($payload),
+                $payload['value'] ?? null,
+            ),
+            'increment_numeric' => $this->incrementNumericHandler->handle(
+                $session,
+                $this->requirePayloadAttr($payload),
+                \is_string($payload['operator'] ?? null) ? $payload['operator'] : '+',
+                is_numeric($payload['operand'] ?? null) ? (float) $payload['operand'] : 0.0,
+            ),
+            'multi_attribute_edit' => $this->multiAttributeEditHandler->handle(
+                $session,
+                $this->normaliseEdits($payload['edits'] ?? null),
             ),
             default => throw new NotFoundHttpException(\sprintf('Bulk action "%s" not implemented.', $actionType)),
         };
@@ -152,6 +277,50 @@ final class BulkActionsController
             'rollback_available_until' => $session->getRollbackAvailableUntil()?->format(DateTimeInterface::ATOM),
             'completed_at' => $session->getCompletedAt()?->format(DateTimeInterface::ATOM),
         ]);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function requirePayloadAttr(array $payload): string
+    {
+        $code = $payload['attr'] ?? null;
+        if (!\is_string($code) || '' === trim($code)) {
+            throw new BadRequestHttpException('payload.attr is required.');
+        }
+
+        return trim($code);
+    }
+
+    /**
+     * @return list<array{attr: string, op: string, value?: mixed}>
+     */
+    private function normaliseEdits(mixed $raw): array
+    {
+        if (!\is_array($raw)) {
+            throw new BadRequestHttpException('payload.edits must be a non-empty array.');
+        }
+        $out = [];
+        foreach ($raw as $edit) {
+            if (!\is_array($edit)) {
+                continue;
+            }
+            $code = $edit['attr'] ?? null;
+            $op = $edit['op'] ?? null;
+            if (!\is_string($code) || '' === $code || !\is_string($op)) {
+                continue;
+            }
+            $entry = ['attr' => $code, 'op' => $op];
+            if (\array_key_exists('value', $edit)) {
+                $entry['value'] = $edit['value'];
+            }
+            $out[] = $entry;
+        }
+        if ([] === $out) {
+            throw new BadRequestHttpException('payload.edits has no valid entries.');
+        }
+
+        return $out;
     }
 
     /**
