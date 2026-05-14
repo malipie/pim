@@ -90,12 +90,25 @@ export function BulkPublishModal({ selectedIds, onClose, onApplied }: PublishMod
           payload: { channel_codes: Array.from(pickedCodes) },
         },
       });
-      toast.success(
-        t('products.bulk_publish.applied', {
+      // VIEW-32 — inline 5s Undo. Sticky 24h rollback toast (VIEW-17)
+      // appears in parallel, so the operator keeps both windows.
+      toast.action({
+        text: t('products.bulk_publish.applied', {
           count: response.success_count,
           defaultValue: `Zaktualizowano ${response.success_count} produktów`,
         }),
-      );
+        label: t('products.bulk_publish.undo', { defaultValue: 'Cofnij' }),
+        onClick: () => {
+          void jsonFetch(`/api/bulk-sessions/${response.session_id}/rollback`, {
+            method: 'POST',
+          }).then(() => {
+            toast.success(
+              t('products.bulk_publish.undone', { defaultValue: 'Cofnięto publikację' }),
+            );
+            onApplied(response);
+          });
+        },
+      });
       onApplied(response);
       onClose();
     } catch (e) {

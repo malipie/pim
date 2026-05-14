@@ -1,16 +1,46 @@
 import { useList } from '@refinedev/core';
 import { Plus, Search, Upload } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { CmdKPalette } from '@/components/agent/cmd-k-palette';
-import { AdvancedFilterPanel } from '@/components/catalog/advanced-filter-panel';
-import { BulkCategoryModal } from '@/components/catalog/bulk-actions/category-modal';
-import { BulkDuplicateModal } from '@/components/catalog/bulk-actions/duplicate-modal';
-import { BulkDeleteConfirmModal } from '@/components/catalog/bulk-actions/hard-confirm-modal';
-import { BulkPublishModal } from '@/components/catalog/bulk-actions/publish-modal';
 import { BulkBar } from '@/components/catalog/bulk-bar';
-import { BulkWizard } from '@/components/catalog/bulk-wizard/bulk-wizard';
+
+// VIEW-37 (#577) — lazy-load wszystkich modali + wizard + Cmd+K palette
+// + Advanced filter panel. Te komponenty mają ~150-200KB gzip razem
+// i renderują się tylko po user interaction. Code-split daje fast
+// initial paint przy zachowaniu pełnego UX.
+const CmdKPalette = lazy(() =>
+  import('@/components/agent/cmd-k-palette').then((m) => ({ default: m.CmdKPalette })),
+);
+const AdvancedFilterPanel = lazy(() =>
+  import('@/components/catalog/advanced-filter-panel').then((m) => ({
+    default: m.AdvancedFilterPanel,
+  })),
+);
+const BulkCategoryModal = lazy(() =>
+  import('@/components/catalog/bulk-actions/category-modal').then((m) => ({
+    default: m.BulkCategoryModal,
+  })),
+);
+const BulkDuplicateModal = lazy(() =>
+  import('@/components/catalog/bulk-actions/duplicate-modal').then((m) => ({
+    default: m.BulkDuplicateModal,
+  })),
+);
+const BulkDeleteConfirmModal = lazy(() =>
+  import('@/components/catalog/bulk-actions/hard-confirm-modal').then((m) => ({
+    default: m.BulkDeleteConfirmModal,
+  })),
+);
+const BulkPublishModal = lazy(() =>
+  import('@/components/catalog/bulk-actions/publish-modal').then((m) => ({
+    default: m.BulkPublishModal,
+  })),
+);
+const BulkWizard = lazy(() =>
+  import('@/components/catalog/bulk-wizard/bulk-wizard').then((m) => ({ default: m.BulkWizard })),
+);
+
 import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
 import { type ExcelColumn, ExcelLikeGrid } from '@/components/catalog/excel-like-grid';
 import { FilterChipsBar } from '@/components/catalog/filter-chips-bar';
@@ -601,47 +631,51 @@ export function ProductListPage() {
       </div>
 
       <div id="advanced-filter-panel">
-        <AdvancedFilterPanel
-          open={advancedPanelOpen}
-          conditions={panelConditions}
-          setConditions={setPanelConditions}
-          matchOperator={matchOperator}
-          setMatchOperator={setMatchOperator}
-          onApply={handleApplyAdvancedPanel}
-          onClose={() => setAdvancedPanelOpen(false)}
-          onClear={() => {
-            setPanelConditions([]);
-            setQueryDsl(null);
-            setActiveSmartPresetId(null);
-          }}
-          onSaveAsView={() => {
-            setShowSaveViewModal(true);
-          }}
-          onSaveAsPreset={() => {
-            setShowSaveAsPresetModal(true);
-          }}
-          resultCount={totalHits}
-          mode={advancedMode}
-          setMode={(next) => {
-            // Toggle: flat conditions → root group when entering query;
-            // query → first-level flat when entering grid (drops nested).
-            if (next === 'query' && advancedMode === 'grid') {
-              setQueryDsl({
-                operator: matchOperator,
-                conditions: panelConditions.length > 0 ? panelConditions : [],
-              });
-            }
-            if (next === 'grid' && advancedMode === 'query' && queryDsl) {
-              const flat = queryDsl.conditions.filter(
-                (c): c is FilterCondition => !('operator' in c),
-              );
-              setPanelConditions(flat);
-            }
-            setAdvancedMode(next);
-          }}
-          queryDsl={queryDsl}
-          setQueryDsl={(next) => setQueryDsl(next)}
-        />
+        {advancedPanelOpen ? (
+          <Suspense fallback={null}>
+            <AdvancedFilterPanel
+              open={advancedPanelOpen}
+              conditions={panelConditions}
+              setConditions={setPanelConditions}
+              matchOperator={matchOperator}
+              setMatchOperator={setMatchOperator}
+              onApply={handleApplyAdvancedPanel}
+              onClose={() => setAdvancedPanelOpen(false)}
+              onClear={() => {
+                setPanelConditions([]);
+                setQueryDsl(null);
+                setActiveSmartPresetId(null);
+              }}
+              onSaveAsView={() => {
+                setShowSaveViewModal(true);
+              }}
+              onSaveAsPreset={() => {
+                setShowSaveAsPresetModal(true);
+              }}
+              resultCount={totalHits}
+              mode={advancedMode}
+              setMode={(next) => {
+                // Toggle: flat conditions → root group when entering query;
+                // query → first-level flat when entering grid (drops nested).
+                if (next === 'query' && advancedMode === 'grid') {
+                  setQueryDsl({
+                    operator: matchOperator,
+                    conditions: panelConditions.length > 0 ? panelConditions : [],
+                  });
+                }
+                if (next === 'grid' && advancedMode === 'query' && queryDsl) {
+                  const flat = queryDsl.conditions.filter(
+                    (c): c is FilterCondition => !('operator' in c),
+                  );
+                  setPanelConditions(flat);
+                }
+                setAdvancedMode(next);
+              }}
+              queryDsl={queryDsl}
+              setQueryDsl={(next) => setQueryDsl(next)}
+            />
+          </Suspense>
+        ) : null}
       </div>
 
       <FilterChipsBar
@@ -835,11 +869,80 @@ export function ProductListPage() {
         onOpenCmdK={() => setCmdKOpen(true)}
       />
 
-      {bulkWizardOpen ? (
-        <BulkWizard
-          open={bulkWizardOpen}
+      <Suspense fallback={null}>
+        {bulkWizardOpen ? (
+          <BulkWizard
+            open={bulkWizardOpen}
+            selectedIds={Array.from(selected)}
+            onClose={() => setBulkWizardOpen(false)}
+            onApplied={(result) => {
+              setLastBulkSession(result);
+              setSelected(new Set());
+              setShowSelectedOnly(false);
+              void refetch();
+            }}
+          />
+        ) : null}
+
+        {bulkCategoryOpen ? (
+          <BulkCategoryModal
+            selectedIds={Array.from(selected)}
+            onClose={() => setBulkCategoryOpen(false)}
+            onApplied={(result) => {
+              setLastBulkSession(result);
+              setSelected(new Set());
+              setShowSelectedOnly(false);
+              void refetch();
+            }}
+          />
+        ) : null}
+
+        {bulkPublishOpen ? (
+          <BulkPublishModal
+            selectedIds={Array.from(selected)}
+            onClose={() => setBulkPublishOpen(false)}
+            onApplied={(result) => {
+              setLastBulkSession(result);
+              setSelected(new Set());
+              setShowSelectedOnly(false);
+              void refetch();
+            }}
+          />
+        ) : null}
+
+        {bulkDeleteOpen ? (
+          <BulkDeleteConfirmModal
+            selectedIds={Array.from(selected)}
+            onClose={() => setBulkDeleteOpen(false)}
+            onApplied={(result) => {
+              setLastBulkSession(result);
+              setSelected(new Set());
+              setShowSelectedOnly(false);
+              void refetch();
+            }}
+          />
+        ) : null}
+
+        {bulkDuplicateOpen ? (
+          <BulkDuplicateModal
+            selectedIds={Array.from(selected)}
+            onClose={() => setBulkDuplicateOpen(false)}
+            onApplied={(result) => {
+              setLastBulkSession(result);
+              setSelected(new Set());
+              setShowSelectedOnly(false);
+              void refetch();
+            }}
+          />
+        ) : null}
+
+        <CmdKPalette
+          open={cmdKOpen}
+          onClose={() => setCmdKOpen(false)}
           selectedIds={Array.from(selected)}
-          onClose={() => setBulkWizardOpen(false)}
+          totalMatching={
+            crossPageSelection.active ? crossPageSelection.totalMatched : selected.size
+          }
           onApplied={(result) => {
             setLastBulkSession(result);
             setSelected(new Set());
@@ -847,72 +950,7 @@ export function ProductListPage() {
             void refetch();
           }}
         />
-      ) : null}
-
-      {bulkCategoryOpen ? (
-        <BulkCategoryModal
-          selectedIds={Array.from(selected)}
-          onClose={() => setBulkCategoryOpen(false)}
-          onApplied={(result) => {
-            setLastBulkSession(result);
-            setSelected(new Set());
-            setShowSelectedOnly(false);
-            void refetch();
-          }}
-        />
-      ) : null}
-
-      {bulkPublishOpen ? (
-        <BulkPublishModal
-          selectedIds={Array.from(selected)}
-          onClose={() => setBulkPublishOpen(false)}
-          onApplied={(result) => {
-            setLastBulkSession(result);
-            setSelected(new Set());
-            setShowSelectedOnly(false);
-            void refetch();
-          }}
-        />
-      ) : null}
-
-      {bulkDeleteOpen ? (
-        <BulkDeleteConfirmModal
-          selectedIds={Array.from(selected)}
-          onClose={() => setBulkDeleteOpen(false)}
-          onApplied={(result) => {
-            setLastBulkSession(result);
-            setSelected(new Set());
-            setShowSelectedOnly(false);
-            void refetch();
-          }}
-        />
-      ) : null}
-
-      {bulkDuplicateOpen ? (
-        <BulkDuplicateModal
-          selectedIds={Array.from(selected)}
-          onClose={() => setBulkDuplicateOpen(false)}
-          onApplied={(result) => {
-            setLastBulkSession(result);
-            setSelected(new Set());
-            setShowSelectedOnly(false);
-            void refetch();
-          }}
-        />
-      ) : null}
-
-      <CmdKPalette
-        open={cmdKOpen}
-        onClose={() => setCmdKOpen(false)}
-        selectedIds={Array.from(selected)}
-        totalMatching={crossPageSelection.active ? crossPageSelection.totalMatched : selected.size}
-        onApplied={(result) => {
-          setLastBulkSession(result);
-          setSelected(new Set());
-          setShowSelectedOnly(false);
-          void refetch();
-        }}
-      />
+      </Suspense>
 
       <RollbackToast
         session={lastBulkSession}

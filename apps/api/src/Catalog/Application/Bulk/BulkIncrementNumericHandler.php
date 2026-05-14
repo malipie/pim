@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Application\Bulk;
 
 use App\Catalog\Application\BulkContext;
+use App\Catalog\Application\Lock\AttributeLockReader;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -20,6 +21,7 @@ use Throwable;
  * Applies an arithmetic operator (+ - * / %) to a numeric attribute
  * across N products. Cmd+K killer use case (PRD §3.5): `price *= 1.10`.
  * Skips rows where the current value is not numeric (warning log).
+ * Locked attributes (VIEW-33 / PRD §8.3) skip with a warning entry.
  *
  * Division-by-zero raises a per-row error log (no-op) rather than
  * aborting the batch.
@@ -32,6 +34,7 @@ final class BulkIncrementNumericHandler
         private readonly CatalogObjectRepositoryInterface $catalogObjects,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
+        private readonly AttributeLockReader $lockReader,
     ) {
     }
 
@@ -44,7 +47,7 @@ final class BulkIncrementNumericHandler
             throw new BadRequestHttpException(\sprintf('Unsupported operator "%s".', $operator));
         }
 
-        $this->bulkContext->setBulk(true);
+        $this->bulkContext->setBulk(true, $session->getId());
         try {
             $success = 0;
             $skipped = 0;
@@ -57,6 +60,26 @@ final class BulkIncrementNumericHandler
                     if (!$object instanceof CatalogObject) {
                         ++$errors;
                         ++$chunkCounter;
+                        continue;
+                    }
+
+                    if ($this->lockReader->isLocked($object, $attrCode)) {
+                        ++$skipped;
+                        $this->em->persist(new BulkLog(
+                            $session->getId(),
+                            $object->getId(),
+                            null,
+                            $object->getAttributesIndexed()[$attrCode] ?? null,
+                            $object->getAttributesIndexed()[$attrCode] ?? null,
+                            BulkLog::LEVEL_WARNING,
+                            'Attribute locked',
+                        ));
+                        ++$chunkCounter;
+                        if ($chunkCounter >= self::CHUNK_SIZE) {
+                            $this->em->flush();
+                            $this->em->clear();
+                            $chunkCounter = 0;
+                        }
                         continue;
                     }
 
