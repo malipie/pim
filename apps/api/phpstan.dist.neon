@@ -101,4 +101,6 @@ parameters:
               - src/Import/Domain/Entity/ImportSourceLog.php
               - src/Import/Domain/Entity/ImportSchedule.php
               - src/Import/Domain/Entity/ImportScheduleRun.php
+              - src/Export/Domain/Entity/ExportSession.php
+              - src/Export/Domain/Entity/ExportProfile.php
               - src/Backup/Domain/Entity/Backup.php

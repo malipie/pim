@@ -38,6 +38,15 @@ flysystem:
             options:
                 client: 'pim.assets.s3_client'
                 bucket: '%env(default::AWS_IMPORTS_BUCKET)%'
+        # EXP-01 (#580) — generated export files (XLSX / CSV).
+        # PRD §11.1: bucket layout `<tenant_id>/<session_id>.<format>`.
+        # Forever retention for paid tiers (PRD §11.7); Free tier 7d cleanup
+        # lands with sessions API (EXP-08) + scheduled command.
+        exports.storage:
+            adapter: 'aws'
+            options:
+                client: 'pim.assets.s3_client'
+                bucket: '%env(default::AWS_EXPORTS_BUCKET)%'
 
 # CI does not run a MinIO service; the functional `AssetUploaderTest`
 # still wants to write through the real Flysystem operator (it proves the
@@ -54,3 +63,7 @@ when@test:
                 adapter: 'local'
                 options:
                     directory: '%kernel.project_dir%/var/test/imports'
+            exports.storage:
+                adapter: 'local'
+                options:
+                    directory: '%kernel.project_dir%/var/test/exports'
