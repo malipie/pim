@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AttributePicker } from '@/components/catalog/attribute-picker';
-import { QueryGroupEditor } from '@/components/catalog/query-group-editor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -15,14 +14,13 @@ import {
 import { cn } from '@/lib/utils';
 
 /**
- * VIEW-09 (#535) — push-down sticky-collapsible advanced filter panel.
+ * VIEW-09 — push-down sticky-collapsible advanced filter panel.
  * Replaces Sheet-based `AdvancedFilterBuilder` (UI-02.9 / #299).
  *
- * Grid mode only in VIEW-09 (Query mode tab disabled — lands in VIEW-09b).
- * Full operator set per attribute type → VIEW-10 (currently hardcoded
- * CORE_OPERATORS as fallback).
- *
- * Pixel-perfect Tailwind mirror of mockup `list-v2-overlays.jsx` l. 40-146.
+ * Grid mode only — Query / „Power" mode was removed (2026-05-14)
+ * because the operator workflow stayed in the grid path; the recursive
+ * AND/OR/NOT editor produced no benefit and added a parsing surface
+ * (BE base64 blob) that has to be maintained.
  */
 
 type PanelAttr = {
@@ -41,7 +39,6 @@ const FIRST_PANEL_ATTR: PanelAttr = {
 
 const PANEL_ATTRS: ReadonlyArray<PanelAttr> = [
   FIRST_PANEL_ATTR,
-  { code: 'family', name: 'Rodzina', type: 'relation', star: true },
   { code: 'category', name: 'Kategoria', type: 'relation', star: true },
   { code: 'completeness_pct', name: 'Completeness %', type: 'number', star: true },
   { code: 'enabled', name: 'Aktywny', type: 'boolean', star: true },
@@ -66,16 +63,6 @@ interface AdvancedFilterPanelProps {
   onSaveAsView?: () => void;
   onSaveAsPreset?: () => void;
   resultCount?: number;
-  /**
-   * VIEW-09b (#540) — Query mode editor state. When `mode='query'`,
-   * `queryDsl` is the recursive AND/OR tree edited inside
-   * `<QueryGroupEditor>`. When `mode='grid'`, `conditions` (flat list)
-   * is the source of truth.
-   */
-  mode?: 'grid' | 'query';
-  setMode?: (mode: 'grid' | 'query') => void;
-  queryDsl?: import('@/lib/filters/filter-dsl').FilterGroup | null;
-  setQueryDsl?: (dsl: import('@/lib/filters/filter-dsl').FilterGroup) => void;
 }
 
 export function AdvancedFilterPanel({
@@ -90,10 +77,6 @@ export function AdvancedFilterPanel({
   onSaveAsView,
   onSaveAsPreset,
   resultCount,
-  mode = 'grid',
-  setMode,
-  queryDsl,
-  setQueryDsl,
 }: AdvancedFilterPanelProps) {
   const { t } = useTranslation();
   // VIEW-22a (#553) — draft state. Panel edits go into draftConditions and
@@ -102,9 +85,6 @@ export function AdvancedFilterPanel({
   // behaviour where picking an attribute alone wiped the list to 0 hits.
   const [draftConditions, setDraftConditions] = useState<FilterCondition[]>(conditions);
   const [draftMatchOperator, setDraftMatchOperator] = useState<'AND' | 'OR'>(matchOperator);
-  const [draftQueryDsl, setDraftQueryDsl] = useState<
-    import('@/lib/filters/filter-dsl').FilterGroup | null
-  >(queryDsl ?? null);
 
   // VIEW-22a — re-seed draft only when the panel transitions from closed
   // → open. While open we keep the local draft and ignore parent prop
@@ -115,7 +95,6 @@ export function AdvancedFilterPanel({
     if (!open) return;
     setDraftConditions(conditions);
     setDraftMatchOperator(matchOperator);
-    setDraftQueryDsl(queryDsl ?? null);
   }, [open]);
 
   if (!open) return null;
@@ -135,7 +114,6 @@ export function AdvancedFilterPanel({
   const commitAndApply = (): void => {
     setConditions(draftConditions);
     setMatchOperator(draftMatchOperator);
-    if (setQueryDsl && draftQueryDsl) setQueryDsl(draftQueryDsl);
     onApply();
   };
 
@@ -149,40 +127,6 @@ export function AdvancedFilterPanel({
         <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500">
           {t('products.advanced_filter.title', { defaultValue: 'Filtr zaawansowany' })}
         </span>
-        {/* Mode toggle — VIEW-09b unlocked Query tab */}
-        <div role="tablist" className="h-7 rounded-xl bg-zinc-100 inline-flex items-center p-0.5">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'grid'}
-            onClick={() => setMode?.('grid')}
-            className={cn(
-              'h-6 px-2.5 rounded-lg text-[11.5px] font-medium',
-              mode === 'grid'
-                ? 'bg-white text-zinc-900 shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-900',
-            )}
-          >
-            {t('products.advanced_filter.mode_grid', { defaultValue: 'Grid' })}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'query'}
-            onClick={() => setMode?.('query')}
-            className={cn(
-              'h-6 px-2.5 rounded-lg text-[11.5px] font-medium inline-flex items-center gap-1',
-              mode === 'query'
-                ? 'bg-white text-zinc-900 shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-900',
-            )}
-          >
-            {t('products.advanced_filter.mode_query', { defaultValue: 'Query' })}
-            <span className="text-[9.5px] uppercase tracking-wider px-1 py-px rounded bg-amber-100 text-amber-700">
-              {t('products.advanced_filter.mode_query_power_label', { defaultValue: 'power' })}
-            </span>
-          </button>
-        </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[11.5px] text-zinc-400 tabular-nums">
             {t('products.advanced_filter.condition_count', {
@@ -208,136 +152,129 @@ export function AdvancedFilterPanel({
         </div>
       </div>
 
-      {/* Body — query mode (VIEW-09b) OR grid mode (VIEW-09) */}
-      {mode === 'query' && draftQueryDsl && setQueryDsl ? (
-        <div className="p-5">
-          <QueryGroupEditor group={draftQueryDsl} attrs={PANEL_ATTRS} onChange={setDraftQueryDsl} />
-        </div>
-      ) : null}
-      {mode !== 'query' && (
-        <div className="p-5">
-          <div className="space-y-2">
-            {draftConditions.map((cond, idx) => {
-              const attrMeta = PANEL_ATTRS.find((a) => a.code === cond.attr) ?? FIRST_PANEL_ATTR;
-              const ops = FILTER_OPERATORS_BY_TYPE[attrMeta.type] ?? CORE_OPERATORS;
-              const isEmpty = cond.op === 'IS EMPTY' || cond.op === 'IS NOT EMPTY';
+      {/* Body */}
+      <div className="p-5">
+        <div className="space-y-2">
+          {draftConditions.map((cond, idx) => {
+            const attrMeta = PANEL_ATTRS.find((a) => a.code === cond.attr) ?? FIRST_PANEL_ATTR;
+            const ops = FILTER_OPERATORS_BY_TYPE[attrMeta.type] ?? CORE_OPERATORS;
+            const isEmpty = cond.op === 'IS EMPTY' || cond.op === 'IS NOT EMPTY';
 
-              return (
-                // Index-based key is acceptable here: the editor mutates
-                // conditions in-place by index, so a stable identity would
-                // require a synthetic id field on every condition. The
-                // surrounding controls already key off the index too.
-                // biome-ignore lint/suspicious/noArrayIndexKey: see comment
-                <div key={`cond-${idx}`} className="flex items-center gap-2">
-                  {idx === 0 ? (
-                    <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 w-12">
-                      {t('products.advanced_filter.where_label', { defaultValue: 'Gdzie' })}
-                    </span>
-                  ) : (
-                    <select
-                      value={draftMatchOperator}
-                      onChange={(e) => setDraftMatchOperator(e.target.value as 'AND' | 'OR')}
-                      aria-label="Conjunction"
-                      className="h-9 w-12 text-[11px] uppercase tracking-wider font-semibold text-zinc-500 bg-zinc-50 rounded-lg px-1 outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 border-0"
-                    >
-                      <option value="AND">AND</option>
-                      <option value="OR">OR</option>
-                    </select>
-                  )}
-
-                  <AttributePicker
-                    value={cond.attr}
-                    onChange={(picked) => {
-                      if (picked === null) return;
-                      const nextAttrMeta = PANEL_ATTRS.find((a) => a.code === picked.code);
-                      const inferredType =
-                        nextAttrMeta?.type ??
-                        (picked.type as undefined | keyof typeof FILTER_OPERATORS_BY_TYPE) ??
-                        FIRST_PANEL_ATTR.type;
-                      const nextOps = FILTER_OPERATORS_BY_TYPE[inferredType] ?? CORE_OPERATORS;
-                      updateCondition(idx, {
-                        attr: picked.code,
-                        op: nextOps[0] ?? '=',
-                        value: '',
-                      });
-                    }}
-                    className="min-w-[200px]"
-                  />
-
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-500">
-                    {attrMeta.type}
+            return (
+              // Index-based key is acceptable here: the editor mutates
+              // conditions in-place by index, so a stable identity would
+              // require a synthetic id field on every condition. The
+              // surrounding controls already key off the index too.
+              // biome-ignore lint/suspicious/noArrayIndexKey: see comment
+              <div key={`cond-${idx}`} className="flex items-center gap-2">
+                {idx === 0 ? (
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 w-12">
+                    {t('products.advanced_filter.where_label', { defaultValue: 'Gdzie' })}
                   </span>
-
+                ) : (
                   <select
-                    value={cond.op}
-                    onChange={(e) => updateCondition(idx, { op: e.target.value as FilterOperator })}
-                    aria-label="Operator"
-                    className="h-9 px-2.5 text-[12.5px] bg-white border border-zinc-200 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 font-mono min-w-[120px]"
+                    value={draftMatchOperator}
+                    onChange={(e) => setDraftMatchOperator(e.target.value as 'AND' | 'OR')}
+                    aria-label="Conjunction"
+                    className="h-9 w-12 text-[11px] uppercase tracking-wider font-semibold text-zinc-500 bg-zinc-50 rounded-lg px-1 outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 border-0"
                   >
-                    {ops.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
+                    <option value="AND">AND</option>
+                    <option value="OR">OR</option>
                   </select>
+                )}
 
-                  {!isEmpty && (
-                    <Input
-                      value={
-                        typeof cond.value === 'string' || typeof cond.value === 'number'
-                          ? String(cond.value)
-                          : Array.isArray(cond.value)
-                            ? cond.value.join(', ')
-                            : ''
-                      }
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        const next =
-                          cond.op === 'IN' || cond.op === 'NOT IN'
-                            ? raw
-                                .split(',')
-                                .map((s) => s.trim())
-                                .filter(Boolean)
-                            : attrMeta.type === 'number' || attrMeta.type === 'metric'
-                              ? raw === ''
-                                ? ''
-                                : Number(raw)
-                              : raw;
-                        updateCondition(idx, { value: next });
-                      }}
-                      placeholder={
-                        attrMeta.type === 'number' || attrMeta.type === 'metric'
-                          ? 'wartość'
-                          : 'wpisz wartość'
-                      }
-                      className="h-9 flex-1 text-[12.5px]"
-                    />
-                  )}
-                  {isEmpty && <div className="flex-1" />}
+                <AttributePicker
+                  value={cond.attr}
+                  onChange={(picked) => {
+                    if (picked === null) return;
+                    const nextAttrMeta = PANEL_ATTRS.find((a) => a.code === picked.code);
+                    const inferredType =
+                      nextAttrMeta?.type ??
+                      (picked.type as undefined | keyof typeof FILTER_OPERATORS_BY_TYPE) ??
+                      FIRST_PANEL_ATTR.type;
+                    const nextOps = FILTER_OPERATORS_BY_TYPE[inferredType] ?? CORE_OPERATORS;
+                    updateCondition(idx, {
+                      attr: picked.code,
+                      op: nextOps[0] ?? '=',
+                      value: '',
+                    });
+                  }}
+                  className="min-w-[200px]"
+                />
 
-                  <button
-                    type="button"
-                    onClick={() => removeCondition(idx)}
-                    aria-label="Usuń warunek"
-                    className="h-9 w-9 grid place-items-center text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-500">
+                  {attrMeta.type}
+                </span>
 
-          <button
-            type="button"
-            onClick={addCondition}
-            className="mt-3 text-[12.5px] text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
-          >
-            <Plus className="size-3.5" />
-            {t('products.advanced_filter.add_condition', { defaultValue: 'Dodaj warunek' })}
-          </button>
+                <select
+                  value={cond.op}
+                  onChange={(e) => updateCondition(idx, { op: e.target.value as FilterOperator })}
+                  aria-label="Operator"
+                  className="h-9 px-2.5 text-[12.5px] bg-white border border-zinc-200 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 font-mono min-w-[120px]"
+                >
+                  {ops.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+
+                {!isEmpty && (
+                  <Input
+                    value={
+                      typeof cond.value === 'string' || typeof cond.value === 'number'
+                        ? String(cond.value)
+                        : Array.isArray(cond.value)
+                          ? cond.value.join(', ')
+                          : ''
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const next =
+                        cond.op === 'IN' || cond.op === 'NOT IN'
+                          ? raw
+                              .split(',')
+                              .map((s) => s.trim())
+                              .filter(Boolean)
+                          : attrMeta.type === 'number' || attrMeta.type === 'metric'
+                            ? raw === ''
+                              ? ''
+                              : Number(raw)
+                            : raw;
+                      updateCondition(idx, { value: next });
+                    }}
+                    placeholder={
+                      attrMeta.type === 'number' || attrMeta.type === 'metric'
+                        ? 'wartość'
+                        : 'wpisz wartość'
+                    }
+                    className="h-9 flex-1 text-[12.5px]"
+                  />
+                )}
+                {isEmpty && <div className="flex-1" />}
+
+                <button
+                  type="button"
+                  onClick={() => removeCondition(idx)}
+                  aria-label="Usuń warunek"
+                  className="h-9 w-9 grid place-items-center text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+            );
+          })}
         </div>
-      )}
+
+        <button
+          type="button"
+          onClick={addCondition}
+          className="mt-3 text-[12.5px] text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
+        >
+          <Plus className="size-3.5" />
+          {t('products.advanced_filter.add_condition', { defaultValue: 'Dodaj warunek' })}
+        </button>
+      </div>
 
       {/* Footer */}
       <div className="px-5 h-12 flex items-center gap-3 border-t border-zinc-100 bg-zinc-50/50">

@@ -107,7 +107,17 @@ final readonly class CatalogSearchService
             'offset' => max(0, ($page - 1) * $perPage),
         ];
         if ([] !== $facets) {
-            $options['facets'] = $facets;
+            // Defense-in-depth: Meilisearch rejects facet requests that
+            // reference non-filterable attributes with "Invalid facet
+            // distribution" and the entire search returns empty. Filter
+            // the requested facets against what the index actually supports
+            // so a stale FE list (e.g. legacy `family` facet) degrades to
+            // "no breakdown" instead of "0 hits".
+            $allowed = $this->filterableAttributesFor($kind);
+            $valid = array_values(array_filter($facets, static fn (string $f) => \in_array($f, $allowed, true)));
+            if ([] !== $valid) {
+                $options['facets'] = $valid;
+            }
         }
         if ($highlight) {
             $options['attributesToHighlight'] = ['*'];
@@ -173,5 +183,19 @@ final readonly class CatalogSearchService
             'facetDistribution' => [],
             'processingTimeMs' => 0,
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function filterableAttributesFor(ObjectKind $kind): array
+    {
+        $settings = new IndexSettingsTemplate()->settingsFor($kind);
+        $raw = $settings['filterableAttributes'] ?? [];
+        if (!\is_array($raw)) {
+            return [];
+        }
+
+        return array_values(array_filter($raw, 'is_string'));
     }
 }

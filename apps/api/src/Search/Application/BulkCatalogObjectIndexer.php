@@ -142,7 +142,9 @@ final readonly class BulkCatalogObjectIndexer
         $tenant = $object->getTenant();
         \assert($tenant instanceof Tenant);
 
-        return [
+        $attributesIndexed = $object->getAttributesIndexed();
+
+        return array_merge(DocumentFlattener::flatten($attributesIndexed), [
             'id' => $object->getId()->toRfc4122(),
             'tenantId' => $tenant->getId()->toRfc4122(),
             'code' => $object->getCode(),
@@ -152,10 +154,10 @@ final readonly class BulkCatalogObjectIndexer
             'enabled' => $object->isEnabled(),
             'parentId' => $object->getParent()?->getId()->toRfc4122(),
             'path' => $object->getPath(),
-            'attributesIndexed' => $object->getAttributesIndexed(),
+            'attributesIndexed' => $attributesIndexed,
             'completeness' => $object->getCompleteness(),
             'createdAt' => $object->getCreatedAt()->getTimestamp(),
             'updatedAt' => $object->getUpdatedAt()->getTimestamp(),
-        ];
+        ]);
     }
 }

@@ -91,7 +91,7 @@ final class SmartFilterPresetTest extends TestCase
 
         $preset->rename(['pl' => 'Nowy', 'en' => 'New']);
         $preset->changeIcon('⚡');
-        $preset->updateQuery(['attr' => 'family', 'op' => '=', 'value' => 'Czujniki']);
+        $preset->updateQuery(['attr' => 'brand', 'op' => '=', 'value' => 'Acme']);
         $preset->reorder(42);
         $preset->changeSlug('renamed');
 

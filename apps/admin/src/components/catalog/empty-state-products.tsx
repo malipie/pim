@@ -52,7 +52,7 @@ export function EmptyStateProducts({ onCloneFrom }: { onCloneFrom?: () => void }
       <p className="rounded bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
         {t('products.empty.cmdk_hint', {
           defaultValue:
-            'Tip: open Cmd+K and ask the agent — "stwórz produkt sku=ABC123 family=Czujniki" (Beta-Demo).',
+            'Tip: open Cmd+K and ask the agent — "stwórz produkt sku=ABC123 marka=Acme" (Beta-Demo).',
         })}
       </p>
     </div>
