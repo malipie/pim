@@ -83,6 +83,7 @@ final class BulkDuplicateHandler
 
                     $copy = new CatalogObject($source->getObjectType(), $newCode);
                     $this->catalogObjects->save($copy);
+                    $copy->markTouchedByBulkSession($session->getId());
 
                     foreach ($this->values->findByObject($source) as $sourceValue) {
                         $cloned = new ObjectValue(

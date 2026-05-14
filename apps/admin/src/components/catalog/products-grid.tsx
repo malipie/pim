@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ImageOff } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -118,11 +118,17 @@ export function ProductsGrid({
               <input
                 type="checkbox"
                 checked={allSelected}
-                onChange={onToggleSelectAll}
+                onChange={() => onToggleSelectAll()}
                 aria-label={t('products.actions.select_all', {
                   defaultValue: 'Zaznacz wszystkie',
                 })}
-                className="size-3.5"
+                className={cn(
+                  'size-4 rounded border appearance-none cursor-pointer transition relative',
+                  'bg-white border-zinc-300 hover:border-zinc-500',
+                  'checked:bg-zinc-900 checked:border-zinc-900',
+                  "checked:after:content-['✓'] after:absolute after:inset-0",
+                  'after:grid after:place-items-center after:text-[10px] after:text-white after:leading-none',
+                )}
               />
             ) : (
               t(`products.fields.${key}`, { defaultValue: defaultLabelFor(key) })
@@ -229,7 +235,7 @@ function ProductsGridRowView({
     >
       <div className="px-3 py-2.5 pl-4">
         {variant ? (
-          <span className="inline-block size-3.5" />
+          <span className="inline-block size-4" />
         ) : (
           <input
             type="checkbox"
@@ -241,7 +247,13 @@ function ProductsGridRowView({
               sku: row.sku,
               defaultValue: 'Zaznacz {{sku}}',
             })}
-            className="size-3.5"
+            className={cn(
+              'size-4 rounded border appearance-none cursor-pointer transition relative',
+              'bg-white border-zinc-300 hover:border-zinc-500',
+              'checked:bg-zinc-900 checked:border-zinc-900',
+              "checked:after:content-['✓'] after:absolute after:inset-0",
+              'after:grid after:place-items-center after:text-[10px] after:text-white after:leading-none',
+            )}
           />
         )}
       </div>
@@ -251,11 +263,12 @@ function ProductsGridRowView({
         <span
           aria-hidden="true"
           className={cn(
-            'grid place-items-center rounded-xl bg-zinc-100 text-[18px]',
+            'grid place-items-center rounded-xl bg-zinc-100 text-zinc-400',
             variant ? 'h-8 w-8' : 'h-9 w-9',
           )}
+          title="brak miniatury"
         >
-          ▣
+          <ImageOff className="size-4" aria-hidden="true" />
         </span>
       </div>
 

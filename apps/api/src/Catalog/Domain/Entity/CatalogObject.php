@@ -122,6 +122,14 @@ class CatalogObject extends AggregateRoot implements TenantScoped
      */
     private ?Uuid $importSessionId = null;
 
+    /**
+     * VIEW-28 (#559) — denormalized cache of the last BulkSession id
+     * that mutated this row. Set by bulk handlers after a successful
+     * write; reset to NULL on hard delete of the parent BulkSession
+     * (`ON DELETE SET NULL` in the FK).
+     */
+    private ?Uuid $lastBulkSessionId = null;
+
     private DateTimeImmutable $createdAt;
     private DateTimeImmutable $updatedAt;
 
@@ -379,6 +387,22 @@ class CatalogObject extends AggregateRoot implements TenantScoped
     public function assignImportSession(?Uuid $sessionId): void
     {
         $this->importSessionId = $sessionId;
+    }
+
+    public function getLastBulkSessionId(): ?Uuid
+    {
+        return $this->lastBulkSessionId;
+    }
+
+    /**
+     * VIEW-28 (#559) — bulk handlers call this immediately after writing
+     * to flag the row as touched by the given session. Also bumps
+     * `updatedAt` so listeners and audit pipelines see a fresh edit.
+     */
+    public function markTouchedByBulkSession(Uuid $sessionId): void
+    {
+        $this->lastBulkSessionId = $sessionId;
+        $this->touch();
     }
 
     private function touch(): void

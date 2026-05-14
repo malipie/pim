@@ -89,6 +89,7 @@ final class BulkAddCategoryHandler
                             'All categories already assigned',
                         ));
                     } else {
+                        $product->markTouchedByBulkSession($session->getId());
                         $this->em->persist(new BulkLog(
                             $session->getId(),
                             $product->getId(),

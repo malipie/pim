@@ -84,6 +84,7 @@ final class BulkPublishChannelsHandler
                     } else {
                         $indexed['published'] = $publishedRaw;
                         $product->updateAttributeIndex($indexed);
+                        $product->markTouchedByBulkSession($session->getId());
                         $this->em->persist(new BulkLog(
                             $session->getId(),
                             $product->getId(),
