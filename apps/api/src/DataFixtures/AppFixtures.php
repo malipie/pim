@@ -6,6 +6,7 @@ namespace App\DataFixtures;
 
 use App\Catalog\Application\BuiltInAssociationTypeSeeder;
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
+use App\Catalog\Application\BuiltInSmartFilterPresetsSeeder;
 use App\Catalog\Application\BuiltInSystemAttributesSeeder;
 use App\Catalog\Application\DefaultMenuSeeder;
 use App\Catalog\Application\DemoCatalogSeeder;
@@ -49,6 +50,7 @@ class AppFixtures extends Fixture
         private readonly ObjectTypeRepositoryInterface $objectTypeRepository,
         private readonly DemoCatalogSeeder $demoCatalogSeeder,
         private readonly DefaultMenuSeeder $defaultMenuSeeder,
+        private readonly BuiltInSmartFilterPresetsSeeder $smartFilterPresetsSeeder,
     ) {
     }
 
@@ -106,6 +108,12 @@ class AppFixtures extends Fixture
             // matching the legacy hard-coded sidebar minus Services).
             $this->defaultMenuSeeder->seed($tenant);
         }
+
+        // VIEW-09 (#535): 5 built-in Smart Filter Presets are system-shipped
+        // (`tenant_id IS NULL`), shared across every tenant. The migration
+        // inlines these on fresh schema, but fixtures-load purges the
+        // database first — re-seed here so the post-fixtures DB matches.
+        $this->smartFilterPresetsSeeder->seed();
 
         $admins = [
             'demo' => 'admin@demo.localhost',
