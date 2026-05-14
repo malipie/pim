@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Export\Domain\Entity\ExportSession"
+            table="export_sessions"
+            repository-class="App\Export\Infrastructure\Doctrine\Repository\DoctrineExportSessionRepository">
+
+        <indexes>
+            <index name="export_sessions_tenant_user_started_idx" columns="tenant_id,user_id,started_at"/>
+            <index name="export_sessions_tenant_started_idx" columns="tenant_id,started_at"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="userId" type="uuid" column="user_id"/>
+
+        <many-to-one field="profile" target-entity="App\Export\Domain\Entity\ExportProfile">
+            <join-column name="profile_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <field name="source" type="string" length="32"/>
+        <field name="format" type="string" length="8"/>
+        <field name="encoding" type="string" length="16" nullable="true"/>
+        <field name="targetScope" type="string" length="16" column="target_scope"/>
+
+        <field name="filterSnapshot" type="json" column="filter_snapshot" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+
+        <field name="selectedObjectIds" type="json" column="selected_object_ids" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+
+        <field name="selectedColumns" type="json" column="selected_columns">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">[]</option>
+            </options>
+        </field>
+
+        <field name="locales" type="json" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+
+        <field name="channels" type="json" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+
+        <field name="includeVariants" type="boolean" column="include_variants">
+            <options>
+                <option name="default">true</option>
+            </options>
+        </field>
+
+        <field name="targetCount" type="integer" column="target_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+
+        <field name="successCount" type="integer" column="success_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+
+        <field name="filePath" type="text" column="file_path" nullable="true"/>
+        <field name="fileSizeBytes" type="bigint" column="file_size_bytes" nullable="true"/>
+        <field name="durationMs" type="integer" column="duration_ms" nullable="true"/>
+
+        <field name="status" type="string" length="16">
+            <options>
+                <option name="default">pending</option>
+            </options>
+        </field>
+
+        <field name="errorMessage" type="text" column="error_message" nullable="true"/>
+
+        <field name="startedAt" type="datetime_immutable" column="started_at"/>
+        <field name="completedAt" type="datetime_immutable" column="completed_at" nullable="true"/>
+
+    </entity>
+
+</doctrine-mapping>

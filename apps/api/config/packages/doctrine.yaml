@@ -107,6 +107,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Import/Infrastructure/Doctrine/Orm/Mapping'
                 prefix: 'App\Import\Domain\Entity'
                 alias: Import
+            Export:
+                type: xml
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Export/Infrastructure/Doctrine/Orm/Mapping'
+                prefix: 'App\Export\Domain\Entity'
+                alias: Export
             Backup:
                 type: xml
                 is_bundle: false

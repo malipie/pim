@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Export\Domain\Entity\ExportLog"
+            table="export_logs"
+            repository-class="App\Export\Infrastructure\Doctrine\Repository\DoctrineExportLogRepository">
+
+        <indexes>
+            <index name="export_logs_session_idx" columns="export_session_id,created_at"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="exportSession" target-entity="App\Export\Domain\Entity\ExportSession">
+            <join-column name="export_session_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="level" type="string" length="8"/>
+        <field name="message" type="text"/>
+
+        <field name="context" type="json" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+
+    </entity>
+
+</doctrine-mapping>
