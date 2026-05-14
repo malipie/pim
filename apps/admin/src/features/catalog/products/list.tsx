@@ -7,6 +7,7 @@ import { Link } from 'react-router';
 import { AdvancedFilterBuilder } from '@/components/catalog/advanced-filter-builder';
 import { AdvancedFilterPanel } from '@/components/catalog/advanced-filter-panel';
 import { BulkCategoryModal } from '@/components/catalog/bulk-actions/category-modal';
+import { BulkPublishModal } from '@/components/catalog/bulk-actions/publish-modal';
 import { BulkBar } from '@/components/catalog/bulk-bar';
 import { BulkWizard } from '@/components/catalog/bulk-wizard/bulk-wizard';
 import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
@@ -109,6 +110,7 @@ export function ProductListPage() {
   // VIEW-17 (#544) — sticky 24h rollback toast for the last applied session.
   const [bulkWizardOpen, setBulkWizardOpen] = useState(false);
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+  const [bulkPublishOpen, setBulkPublishOpen] = useState(false);
   const [lastBulkSession, setLastBulkSession] = useState<RollbackSession | null>(null);
   const [variantsMode, setVariantsMode] = useState<VariantsMode>('tree');
   const [viewMode, setViewMode] = useState<ProductsViewMode>(() => {
@@ -932,6 +934,7 @@ export function ProductListPage() {
         onApplied={onBulkApplied}
         onOpenWizard={() => setBulkWizardOpen(true)}
         onOpenCategoryModal={() => setBulkCategoryOpen(true)}
+        onOpenPublishModal={() => setBulkPublishOpen(true)}
       />
 
       {bulkWizardOpen ? (
@@ -952,6 +955,19 @@ export function ProductListPage() {
         <BulkCategoryModal
           selectedIds={Array.from(selected)}
           onClose={() => setBulkCategoryOpen(false)}
+          onApplied={(result) => {
+            setLastBulkSession(result);
+            setSelected(new Set());
+            setShowSelectedOnly(false);
+            void refetch();
+          }}
+        />
+      ) : null}
+
+      {bulkPublishOpen ? (
+        <BulkPublishModal
+          selectedIds={Array.from(selected)}
+          onClose={() => setBulkPublishOpen(false)}
           onApplied={(result) => {
             setLastBulkSession(result);
             setSelected(new Set());

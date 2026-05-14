@@ -10,6 +10,7 @@ use App\Catalog\Application\Bulk\BulkClearAttributeHandler;
 use App\Catalog\Application\Bulk\BulkIncrementNumericHandler;
 use App\Catalog\Application\Bulk\BulkMoveCategoryHandler;
 use App\Catalog\Application\Bulk\BulkMultiAttributeEditHandler;
+use App\Catalog\Application\Bulk\BulkPublishChannelsHandler;
 use App\Catalog\Application\Bulk\BulkRemoveCategoryHandler;
 use App\Catalog\Application\Bulk\BulkRemoveValueHandler;
 use App\Catalog\Application\Bulk\BulkSetAttributeHandler;
@@ -57,6 +58,7 @@ final class BulkActionsController
         private readonly BulkAddCategoryHandler $addCategoryHandler,
         private readonly BulkRemoveCategoryHandler $removeCategoryHandler,
         private readonly BulkMoveCategoryHandler $moveCategoryHandler,
+        private readonly BulkPublishChannelsHandler $publishChannelsHandler,
     ) {
     }
 
@@ -90,6 +92,8 @@ final class BulkActionsController
             'add_category',
             'remove_category',
             'move_category',
+            'publish_channels',
+            'unpublish_channels',
         ], true)) {
             throw new BadRequestHttpException(\sprintf('Unsupported bulk action "%s" in MVP.', $action));
         }
@@ -143,6 +147,18 @@ final class BulkActionsController
             };
 
             return [$before, $after];
+        }
+
+        if (\in_array($action, ['publish_channels', 'unpublish_channels'], true)) {
+            $channels = $this->extractChannelCodes($payload);
+            $publishedBefore = \is_array($indexed['published'] ?? null) ? $indexed['published'] : [];
+            $publishedAfter = $publishedBefore;
+            $target = 'publish_channels' === $action;
+            foreach ($channels as $code) {
+                $publishedAfter[$code] = $target;
+            }
+
+            return [$publishedBefore, $publishedAfter];
         }
 
         if ('multi_attribute_edit' === $action) {
@@ -297,6 +313,16 @@ final class BulkActionsController
                 $session,
                 $this->extractCategoryIds($payload),
             ),
+            'publish_channels' => $this->publishChannelsHandler->handle(
+                $session,
+                $this->extractChannelCodes($payload),
+                true,
+            ),
+            'unpublish_channels' => $this->publishChannelsHandler->handle(
+                $session,
+                $this->extractChannelCodes($payload),
+                false,
+            ),
             default => throw new NotFoundHttpException(\sprintf('Bulk action "%s" not implemented.', $actionType)),
         };
 
@@ -344,6 +370,30 @@ final class BulkActionsController
         }
         if ([] === $out) {
             throw new BadRequestHttpException('payload.category_ids has no valid entries.');
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @return list<string>
+     */
+    private function extractChannelCodes(array $payload): array
+    {
+        $raw = $payload['channel_codes'] ?? null;
+        if (!\is_array($raw) || [] === $raw) {
+            throw new BadRequestHttpException('payload.channel_codes must be a non-empty array.');
+        }
+        $out = [];
+        foreach ($raw as $code) {
+            if (\is_string($code) && '' !== $code) {
+                $out[] = $code;
+            }
+        }
+        if ([] === $out) {
+            throw new BadRequestHttpException('payload.channel_codes has no valid entries.');
         }
 
         return $out;
