@@ -96,7 +96,9 @@ export function useCatalogSearch(options: UseCatalogSearchOptions): UseCatalogSe
     let cancelled = false;
     const handle = window.setTimeout(() => {
       const params = new URLSearchParams();
-      if (query !== '') params.set('q', query);
+      // VIEW-20 (#551) — text search lives under `?query=`; `?q=` is reserved
+      // for the base64 filter blob (VIEW-10).
+      if (query !== '') params.set('query', query);
       params.set('page', String(page));
       params.set('perPage', String(perPage));
       if (highlight) params.set('highlight', 'true');
