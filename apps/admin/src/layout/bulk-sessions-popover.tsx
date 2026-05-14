@@ -60,18 +60,28 @@ export function BulkSessionsPopover() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async (): Promise<void> => {
-    // Bail when there's no in-memory access token yet. The very first
-    // mount on a hard reload happens before authProvider.check() has
-    // finished its silent refresh; firing jsonFetch here would 401,
-    // exhaust the single-flight refresh, and Refine's `onError(401)`
-    // would clear the token + redirect to /login. The 30s poll picks
-    // the data up once authentication settles.
-    if (getAccessToken() === null) return;
+    // Bail when there's no in-memory access token. The very first mount
+    // on a hard reload happens before authProvider.check() finishes its
+    // silent refresh; firing the request now would 401.
+    const token = getAccessToken();
+    if (token === null) return;
+    // Raw fetch (NOT jsonFetch) intentionally: the wrapper retries every
+    // 401 by triggering the refresh + replay chain, and a 401 that the
+    // chain cannot recover from bubbles into authProvider.onError which
+    // clears the token and redirects to /login. The bulk-sessions
+    // popover is a nice-to-have; it must never destabilise the auth
+    // state. Treat any non-200 as "no data" and stay quiet.
     try {
-      const body = await jsonFetch<{ member?: BulkSessionRow[] }>(
-        '/api/bulk-sessions?status=active&limit=10',
-        { accept: 'application/json' },
-      );
+      const response = await fetch('/api/bulk-sessions?status=active&limit=10', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+          accept: 'application/json',
+          authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) return;
+      const body = (await response.json()) as { member?: BulkSessionRow[] };
       setSessions(body.member ?? []);
     } catch {
       // Silent: the topbar must not bubble a failure.
