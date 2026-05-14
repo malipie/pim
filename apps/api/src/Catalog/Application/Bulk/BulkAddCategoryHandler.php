@@ -11,6 +11,7 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectCategory;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
+use App\Search\Application\BulkReindexQueue;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 use Throwable;
@@ -32,6 +33,7 @@ final class BulkAddCategoryHandler
         private readonly ObjectCategoryRepositoryInterface $objectCategories,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
+        private readonly BulkReindexQueue $reindexQueue,
     ) {
     }
 
@@ -129,6 +131,8 @@ final class BulkAddCategoryHandler
             $session->complete($success, $skipped, $errors);
             $this->em->persist($session);
             $this->em->flush();
+
+            $this->reindexQueue->queueAll($session->getTargetObjectIds());
 
             return ['success' => $success, 'skipped' => $skipped, 'error' => $errors];
         } finally {

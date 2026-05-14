@@ -39,6 +39,15 @@ final class DocumentFlattener
             if (\in_array($code, self::RESERVED_KEYS, true)) {
                 continue;
             }
+            // Bulk handlers (VIEW-12 path) write raw scalars to
+            // `attributes_indexed` instead of the canonical
+            // `{value: X}` envelope used by ObjectAttributesUpserter.
+            // Both shapes must funnel into the same Meili top-level so
+            // a brand filter set via the wizard returns hits.
+            if (\is_scalar($envelope) || null === $envelope) {
+                $out[$code] = $envelope;
+                continue;
+            }
             if (!\is_array($envelope)) {
                 continue;
             }

@@ -10,6 +10,7 @@ use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
+use App\Search\Application\BulkReindexQueue;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -49,6 +50,7 @@ final class BulkRollbackHandler
         private readonly ObjectCategoryRepositoryInterface $objectCategories,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
+        private readonly BulkReindexQueue $reindexQueue,
     ) {
     }
 
@@ -124,6 +126,8 @@ final class BulkRollbackHandler
                 $sessionFresh->markRolledBack();
                 $this->em->flush();
             }
+
+            $this->reindexQueue->queueAll($session->getTargetObjectIds());
 
             return $restored;
         } finally {

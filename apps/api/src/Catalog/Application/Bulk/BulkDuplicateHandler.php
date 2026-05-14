@@ -13,6 +13,7 @@ use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Provenance;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
+use App\Search\Application\BulkReindexQueue;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -36,6 +37,7 @@ final class BulkDuplicateHandler
         private readonly ObjectValueRepositoryInterface $values,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
+        private readonly BulkReindexQueue $reindexQueue,
     ) {
     }
 
@@ -135,6 +137,8 @@ final class BulkDuplicateHandler
             $session->complete($success, $skipped, $errors);
             $this->em->persist($session);
             $this->em->flush();
+
+            $this->reindexQueue->queueAll($session->getTargetObjectIds());
 
             return ['success' => $success, 'skipped' => $skipped, 'error' => $errors];
         } finally {

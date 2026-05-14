@@ -10,6 +10,7 @@ use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Search\Application\BulkReindexQueue;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 use Throwable;
@@ -35,6 +36,7 @@ final class BulkSetAttributeHandler
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
         private readonly AttributeLockReader $lockReader,
+        private readonly BulkReindexQueue $reindexQueue,
     ) {
     }
 
@@ -142,6 +144,8 @@ final class BulkSetAttributeHandler
             $session->complete($success, $skipped, $errors);
             $this->em->persist($session);
             $this->em->flush();
+
+            $this->reindexQueue->queueAll($session->getTargetObjectIds());
 
             return ['success' => $success, 'skipped' => $skipped, 'error' => $errors];
         } finally {
