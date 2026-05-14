@@ -113,6 +113,14 @@ final class SearchController
         $page = max(1, (int) ($request->query->get('page') ?? 1));
         $perPage = min(100, max(1, (int) ($request->query->get('perPage') ?? 30)));
         $highlight = filter_var($request->query->get('highlight'), FILTER_VALIDATE_BOOLEAN);
+        // VIEW-11 (#542) — count-only shortcut for cross-page selection
+        // toolbar. Skips hit hydration + facet aggregation; Meilisearch
+        // still has to evaluate the filter, but the payload is ~5x cheaper.
+        $countOnly = filter_var($request->query->get('count_only'), FILTER_VALIDATE_BOOLEAN);
+        if ($countOnly) {
+            $perPage = 1;
+            $facets = [];
+        }
 
         // VIEW-10 (#538) — `smart_preset` + `filter` query params compile
         // a FilterDsl through the resolver and AND-merge the resulting
@@ -130,6 +138,13 @@ final class SearchController
             rangeFilters: $rangeFilters,
             customFilterExpression: $customFilterExpression,
         );
+
+        if ($countOnly) {
+            return new JsonResponse([
+                'totalHits' => $result['totalHits'],
+                'processingTimeMs' => $result['processingTimeMs'],
+            ]);
+        }
 
         return new JsonResponse([
             'hits' => $result['hits'],

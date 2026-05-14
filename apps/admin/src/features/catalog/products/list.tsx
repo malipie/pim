@@ -16,6 +16,7 @@ import { ProductsGrid, type ProductsGridRow } from '@/components/catalog/product
 import { SaveAsSmartPresetModal } from '@/components/catalog/save-as-smart-preset-modal';
 import { SaveViewModal } from '@/components/catalog/save-view-modal';
 import { SavedViewsRail } from '@/components/catalog/saved-views-rail';
+import { SelectionToolbar } from '@/components/catalog/selection-toolbar';
 import { SmartFilterPresetsRow } from '@/components/catalog/smart-filter-presets-row';
 import type { SyncAggregate } from '@/components/catalog/sync-aggregate-icon';
 import { type VariantsMode, VariantsToggle } from '@/components/catalog/variants-toggle';
@@ -92,6 +93,15 @@ export function ProductListPage() {
   const [advancedFilters, setAdvancedFilters] = useState<Record<string, FilterValue>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
+  // VIEW-11 (#542) — cross-page selection escalation. The per-row `selected`
+  // Set above stays the source of truth for grid/bulk; `crossPageSelection`
+  // tracks the "select all matching" path (server resolved up to 10k IDs).
+  const [crossPageSelection, setCrossPageSelection] = useState<{
+    active: boolean;
+    totalMatched: number;
+    capped: boolean;
+  }>({ active: false, totalMatched: 0, capped: false });
+  const [crossPageLoading, setCrossPageLoading] = useState(false);
   const [variantsMode, setVariantsMode] = useState<VariantsMode>('tree');
   const [viewMode, setViewMode] = useState<ProductsViewMode>(() => {
     if (typeof window === 'undefined') return 'grid';
@@ -766,6 +776,52 @@ export function ProductListPage() {
           setActiveSmartPresetId(null);
         }}
         onEditChip={() => setAdvancedPanelOpen(true)}
+      />
+
+      <SelectionToolbar
+        mode={crossPageSelection.active ? 'all-matching' : selected.size > 0 ? 'page' : 'none'}
+        perPageCount={selected.size}
+        matchingCount={totalHits}
+        totalMatched={crossPageSelection.totalMatched}
+        capped={crossPageSelection.capped}
+        isLoading={crossPageLoading}
+        onSelectAllMatching={() => {
+          void (async () => {
+            setCrossPageLoading(true);
+            try {
+              const body: Record<string, unknown> = {};
+              if (activePreset !== undefined) {
+                body.smart_preset = activePreset.slug ?? activePreset.id;
+              } else if (filterBlob !== undefined) {
+                body.filter = filterBlob;
+              }
+              if (query !== '') body.q = query;
+              const response = await jsonFetch<{
+                ids: string[];
+                totalMatched: number;
+                capped: boolean;
+              }>('/api/products/select-all-matching', {
+                method: 'POST',
+                body,
+              });
+              setSelected(new Set(response.ids));
+              setCrossPageSelection({
+                active: true,
+                totalMatched: response.totalMatched,
+                capped: response.capped,
+              });
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : 'unknown');
+            } finally {
+              setCrossPageLoading(false);
+            }
+          })();
+        }}
+        onClear={() => {
+          setSelected(new Set());
+          setCrossPageSelection({ active: false, totalMatched: 0, capped: false });
+          setShowSelectedOnly(false);
+        }}
       />
 
       <div className="flex flex-wrap items-center gap-2 text-[12px] text-zinc-500">
