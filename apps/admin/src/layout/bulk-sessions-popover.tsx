@@ -33,8 +33,6 @@ interface BulkSessionRow {
   source: string;
 }
 
-const POLL_INTERVAL_MS = 30_000;
-
 const ACTION_LABEL_FALLBACK: Record<string, string> = {
   set_attribute: 'Ustaw atrybut',
   clear_attribute: 'Wyczyść atrybut',
@@ -89,20 +87,25 @@ export function BulkSessionsPopover() {
   }, []);
 
   useEffect(() => {
-    // Mount fires immediately (no-op without token), then a series of
-    // short retries to bridge the 0–2s window between AppLayout mount
-    // and `authProvider.check()` populating the access token after a
-    // hard reload. Steady-state polling at 30s takes over afterwards.
+    // Fetch once on mount (no-op without token) + a single retry 1.5s
+    // later to bridge hard-reload races where `authProvider.check()`
+    // has not yet populated the access token. No background polling —
+    // the previous 30s tick + 500/1500/3500ms retry cascade tripped
+    // the /api/auth/refresh rate limiter in Playwright CI and logged
+    // operators out (PR #578 trace analysis). The popover refreshes
+    // on every open (see below) which is when the data actually
+    // matters; the badge can lag at most until the operator clicks
+    // the trigger, which is acceptable for a 24h rollback window.
     void refresh();
-    const retryHandles = [500, 1500, 3500].map((delay) =>
-      window.setTimeout(() => void refresh(), delay),
-    );
-    const pollHandle = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
-    return () => {
-      for (const h of retryHandles) window.clearTimeout(h);
-      window.clearInterval(pollHandle);
-    };
+    const retry = window.setTimeout(() => void refresh(), 1500);
+    return () => window.clearTimeout(retry);
   }, [refresh]);
+
+  // Always refetch when the popover opens so the operator never sees
+  // a stale list — even after navigating across other surfaces.
+  useEffect(() => {
+    if (open) void refresh();
+  }, [open, refresh]);
 
   useEffect(() => {
     if (!open) return;
