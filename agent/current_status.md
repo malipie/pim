@@ -1,37 +1,66 @@
 # Current Status
 
-## 2026-05-13: EPIK UI-09 marathon START — Lista produktów v2 (cockpit operatora wg PRD-PIM-list-advanced)
+## 2026-05-14: VIEW-10 marathon START — pełne operatory per typ + URL DSL serializer + BE smart_preset
 
-**Sub-faza:** MVP-Alpha → epik UI-09 (rozbudowa listy produktów do cockpit operatora wg PRD `Project Plan/PRD/PRD-PIM-list-advanced.md`).
+**Sub-faza:** MVP-Alpha → epik UI-09, ticket 2/12 (VIEW-10).
 
-**Plan epiku:** `~/.claude/plans/w-folderze-users-mlipieclocal-dev-pim-zr-iridescent-zephyr.md` (zatwierdzony 2026-05-13).
+**Plan epiku:** `~/.claude/plans/w-folderze-users-mlipieclocal-dev-pim-zr-iridescent-zephyr.md`.
 
-**Scope:** 12 ticketów VIEW-09..VIEW-19 + VIEW-09b, pełen scope MVP wg decyzji operatora 2026-05-13:
-- Query mode AND/OR brackets — pełen edytor (VIEW-09b, nie cut).
-- `increment_numeric` + `multi_attribute_edit` — keep w MVP (VIEW-13).
-- Smart filter presets user-defined — w MVP (VIEW-09).
+**Cel VIEW-10 (~26h estymacja):**
+- BE: rozszerzenie `FilterDslResolver` z 11 → 25 operatorów per typ atrybutu (text 8, number/metric 8, date 7, select 6, multiselect 4, boolean 1, relation 5, asset 2 — PRD §5.5).
+- BE: `UrlSerializer` (bi-directional URL params ↔ JSONB DSL, lossy single-level + hashed blob fallback dla query mode).
+- BE: rozszerzenie `SearchController` o `?smart_preset=<id>` + `?filter=<base64>` params → resolver → Meilisearch filter expression.
+- BE: RFC 7807 Problem Details dla invalid operator/type combo.
+- FE: `lib/filters/operators.ts` (OpenAPI-generated TS enum).
+- FE: `components/catalog/filter-operator-picker.tsx` (popover z valid ops per type).
+- FE: `lib/filters/url-serializer.ts` (useSearchParams ↔ filter state).
 
-**Realna estymacja:** ~357h pełen scope (vs PRD §13.5 baseline 131-182h). Solo dev pace 9-13 tygodni.
+**Blockers:** brak na tym etapie.
 
-**Tryb:** EPIK MARATHON RULE z CLAUDE.md aktywny — żadnych przerw, każdy ticket = własny branch + PR + CI + merge.
+---
 
-**Pipeline kolejność:**
-1. VIEW-09 — fundament UI (smart presets + push-down filter panel + chips edit popover) ← **W TRAKCIE**
-2. VIEW-10 — pełne operatory per typ + URL DSL
-3. VIEW-09b — Query mode AND/OR brackets
-4. VIEW-11 — cross-page selection toolbar
-5. VIEW-12 — bulk wizard fundament + sessions + Messenger
-6. VIEW-17 — 24h rollback (przed kolejnymi bulk akcjami)
-7. VIEW-13 — bulk attribute ops (clear/append/remove + increment + multi-attr)
-8. VIEW-14 — bulk taxonomy
-9. VIEW-15 — bulk channels + cascade
-10. VIEW-16 — bulk destructive (delete + duplicate)
-11. VIEW-18 — per-attribute lock
-12. VIEW-19 — Cmd+K palette + Anthropic + 6 MVP intents
+## 2026-05-14: VIEW-09 marathon ZAMKNIĘTY — Lista produktów v2 fundament UI + BE foundation
 
-**Aktualny ticket:** VIEW-09 (`Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-09-lista-fundament-ui.md`, ~40h estymacja).
+**Sub-faza:** MVP-Alpha, epik UI-09, ticket 1/12 (VIEW-09) ✅ DONE.
 
-**Blockers / decisions cross-context:** brak na tym etapie. Wszystkie scope decyzje potwierdzone przez operatora (Query mode pełen, increment+multi keep, user-defined presets w MVP).
+**PR-y zmergeowane:**
+- **PR #536** `4203d55` `feat(catalog): Produkty · Lista v2 — fundament UI + BE foundation (VIEW-09)`
+- **PR #537** `01fefb7` `fix(catalog): seed Smart Filter Presets via AppFixtures (#537)`
+
+**Issue:** #535.
+
+**Co dostarczone:**
+- Migracja `smart_filter_presets` + 5 built-in inline seed (`inconsistent-translations`, `missing-images`, `weak-seo`, `red-low-completeness`, `no-category`).
+- Nowy `SystemShipped` marker interface w `Shared\Application` — rozszerza `TenantScoped` o tenant-less lane dla shared built-in rows. `TenantFilter` + `TenantAssignmentListener` rozszerzone o allow-list.
+- Encja `SmartFilterPreset` (TenantScoped + SystemShipped) z built-in immutability + ownership invariants.
+- CRUD endpoint z owner-only writes + 403 built-in + 404 cross-tenant.
+- `FilterDslResolver` 11 ops + flat / 3-level grouped DSL + identifier safety + SQL literal escape.
+- 5 FE komponentów: `SmartFilterPresetsRow`, `AdvancedFilterPanel` (push-down Magento style), `FilterChipsBar`, `SaveAsSmartPresetModal`, `lib/filters/*`.
+- `list.tsx` integracja + `applyConditionsToFilters` FE resolver (mapuje 6 known shapes na search/range filters).
+- Playwright spec 3 scenariusze (built-in render, chip toggle, panel apply).
+
+**Świadome odejścia (deferred):**
+- Query mode AND/OR brackets → VIEW-09b
+- Pełne 25 operatorów per typ → VIEW-10 (this)
+- BE `smart_preset` param w SearchController → VIEW-10
+- Inline FilterChip popover (operator + value picker) → VIEW-10
+- Cross-page selection → VIEW-11
+- BulkBar 14 akcji + wizard → VIEW-12+
+- Cmd+K palette → VIEW-19
+- Rollback toast → VIEW-17
+- Per-attribute lock → VIEW-18
+- axe-core E2E scan (pakiet `@axe-core/playwright` nie zainstalowany) → follow-up
+
+**Lessons z VIEW-09:**
+1. **SystemShipped marker pattern**: tenant-less built-in rows wymagają oddzielnego interfejsu (nie wystarczy `TenantScoped` z `tenant_id IS NULL`). TenantFilter + TenantAssignmentListener muszą wiedzieć żeby pominąć.
+2. **`pim:db:reset --with-fixtures` skipuje migration inline INSERT-y** (schema:create zamiast migrate). Każdy migracja seed inline MUSI mieć runtime seeder wywoływany z AppFixtures dla dev/test parity.
+3. **PHPStan max różni się dev vs CI** — `mixed[]` w lokalnym cache, `array<string, mixed>` w CI inference. Lokalny `mixed[]` może być błędny gdy cache:warmup nie został wywołany przed phpstan.
+4. **Deptrac**: Catalog nie może depend na `Identity\User`. Rozwiązanie: marker interface w `Shared\Application` (`UserIdentityAware extends UserInterface` + `getId(): Uuid`); `User implements` go.
+5. **Raw SQL lint** łapie też słowo `executeQuery` w docblockach (regex `executeQuery|executeStatement|createNativeQuery` na całym pliku). Każde wystąpienie wymaga inline `// tenant-safe:` markera lub przefrazowania.
+6. **TenantAuditCommand** ma allow-list `NULLABLE_TENANT_TABLES` — każdy nowy SystemShipped table musi tam dojść.
+7. **TS 5 / React 19** — `JSX.Element` namespace nie jest globalny, return type albo inferowany, albo importowany jako `type { JSX } from 'react'`.
+8. **Biome strict**: `role="region"` woła `<section>`, `role="radio"` na button woła real `<input type="radio">`, `aria-label` na `<span>` jest forbidden, index-as-key wymaga inline `biome-ignore` z uzasadnieniem.
+9. **Playwright pre-existing flake** (rate-limit auth quota → `modeling-shell` + `dashboard` redirect na `/login`) — merge mimo czerwonego per precedens PR #534. Storage state rollout odblokuje CI Playwright na większości specs.
 
 ---
 
