@@ -86,6 +86,16 @@
         </field>
         <field name="importSessionId" type="uuid" column="import_session_id" nullable="true"/>
 
+        <!--
+            VIEW-28 (#559) — denormalized cache of the last BulkSession id
+            that touched this row. NULL by default; bulk handlers set it
+            after a successful mutation. Partial index defined in the
+            migration (skips NULL rows to keep the index lean).
+            ON DELETE SET NULL on FK so dropping an expired bulk_session
+            does not cascade into products.
+        -->
+        <field name="lastBulkSessionId" type="uuid" column="bulk_session_id" nullable="true"/>
+
         <field name="createdAt" type="datetime_immutable" column="created_at"/>
         <field name="updatedAt" type="datetime_immutable" column="updated_at"/>
 

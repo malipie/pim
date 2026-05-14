@@ -55,6 +55,7 @@ final class BulkClearAttributeHandler
                     $oldValue = $indexed[$attrCode] ?? null;
                     unset($indexed[$attrCode]);
                     $object->updateAttributeIndex($indexed);
+                    $object->markTouchedByBulkSession($session->getId());
 
                     $this->em->persist(new BulkLog(
                         $session->getId(),
