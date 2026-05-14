@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace App\Search\Application;
 
+use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
 use App\Catalog\Domain\ObjectKind;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Bridge from bulk handlers (which run with `BulkContext::isBulk()=true`
- * so the per-event {@see CatalogIndexSubscriber} short-circuits) into
- * the shared {@see CatalogIndexCollector}.
+ * Search-side adapter for {@see BulkReindexQueueInterface}. Bridges
+ * bulk handlers (which run with `BulkContext::isBulk()=true` so the
+ * per-event {@see CatalogIndexSubscriber} short-circuits) into the
+ * shared {@see CatalogIndexCollector}.
  *
  * VIEW-12 carried an unstated assumption that bulk handlers would call
  * `pim:search:reindex` at the end of their run — fine for CSV imports
@@ -21,24 +23,18 @@ use Symfony\Component\Uid\Uuid;
  * — one batched Meili call per request, dedupe for free, no command
  * dispatch needed.
  *
- * Bulk handlers receive this service instead of the collector directly
- * because:
- *   - It documents the intent (this is the post-bulk reindex path,
- *     not generic queueing).
- *   - The collector lives in the Search bundle's internal namespace;
- *     the queue exposes the minimal surface area handlers need
- *     (`queueAll(list<string>)`).
+ * Bulk handlers depend on {@see BulkReindexQueueInterface} from the
+ * Catalog namespace; Symfony DI autowires it to this adapter so the
+ * dependency direction stays `Search → Catalog_Internals` (allowed)
+ * instead of `Catalog_Internals → Search` (rejected by deptrac).
  */
-final readonly class BulkReindexQueue
+final readonly class CatalogBulkReindexQueue implements BulkReindexQueueInterface
 {
     public function __construct(
         private CatalogIndexCollector $collector,
     ) {
     }
 
-    /**
-     * @param iterable<string> $idsRfc4122 catalog object ids touched by the bulk run
-     */
     public function queueAll(iterable $idsRfc4122): void
     {
         foreach ($idsRfc4122 as $id) {
@@ -49,12 +45,6 @@ final readonly class BulkReindexQueue
         }
     }
 
-    /**
-     * Bulk delete companion — used by BulkDeleteHandler so the affected
-     * Meili documents are removed in the same kernel.terminate flush.
-     *
-     * @param iterable<string> $idsRfc4122
-     */
     public function queueAllDeleted(iterable $idsRfc4122, ObjectKind $kind): void
     {
         foreach ($idsRfc4122 as $id) {

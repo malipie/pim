@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Catalog\Application\Bulk;
 
 use App\Catalog\Application\BulkContext;
+use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
-use App\Search\Application\BulkReindexQueue;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -50,7 +50,7 @@ final class BulkRollbackHandler
         private readonly ObjectCategoryRepositoryInterface $objectCategories,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
-        private readonly BulkReindexQueue $reindexQueue,
+        private readonly BulkReindexQueueInterface $reindexQueue,
     ) {
     }
 

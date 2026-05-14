@@ -6,11 +6,11 @@ namespace App\Catalog\Application\Bulk;
 
 use App\Catalog\Application\BulkContext;
 use App\Catalog\Application\Lock\AttributeLockReader;
+use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
-use App\Search\Application\BulkReindexQueue;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 use Throwable;
@@ -36,7 +36,7 @@ final class BulkSetAttributeHandler
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
         private readonly AttributeLockReader $lockReader,
-        private readonly BulkReindexQueue $reindexQueue,
+        private readonly BulkReindexQueueInterface $reindexQueue,
     ) {
     }
 
