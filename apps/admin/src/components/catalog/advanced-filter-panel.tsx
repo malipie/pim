@@ -1,4 +1,5 @@
 import { Link2, Plus, Trash2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { QueryGroupEditor } from '@/components/catalog/query-group-editor';
@@ -94,18 +95,47 @@ export function AdvancedFilterPanel({
   setQueryDsl,
 }: AdvancedFilterPanelProps) {
   const { t } = useTranslation();
+  // VIEW-22a (#553) — draft state. Panel edits go into draftConditions and
+  // are committed to the parent (and thereby to the search) ONLY when the
+  // operator clicks „Zastosuj filtr". This stops the previous auto-apply
+  // behaviour where picking an attribute alone wiped the list to 0 hits.
+  const [draftConditions, setDraftConditions] = useState<FilterCondition[]>(conditions);
+  const [draftMatchOperator, setDraftMatchOperator] = useState<'AND' | 'OR'>(matchOperator);
+  const [draftQueryDsl, setDraftQueryDsl] = useState<
+    import('@/lib/filters/filter-dsl').FilterGroup | null
+  >(queryDsl ?? null);
+
+  // VIEW-22a — re-seed draft only when the panel transitions from closed
+  // → open. While open we keep the local draft and ignore parent prop
+  // drift (e.g. a smart preset apply behind the panel) so the operator's
+  // edits are not silently overwritten.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — only seed on open flip
+  useEffect(() => {
+    if (!open) return;
+    setDraftConditions(conditions);
+    setDraftMatchOperator(matchOperator);
+    setDraftQueryDsl(queryDsl ?? null);
+  }, [open]);
+
   if (!open) return null;
 
   const updateCondition = (idx: number, patch: Partial<FilterCondition>): void => {
-    setConditions(conditions.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+    setDraftConditions(draftConditions.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
   };
   const removeCondition = (idx: number): void => {
-    setConditions(conditions.filter((_, i) => i !== idx));
+    setDraftConditions(draftConditions.filter((_, i) => i !== idx));
   };
   const addCondition = (): void => {
     const defaultAttr = PANEL_ATTRS[0];
     if (!defaultAttr) return;
-    setConditions([...conditions, { attr: defaultAttr.code, op: '=', value: '' }]);
+    setDraftConditions([...draftConditions, { attr: defaultAttr.code, op: '=', value: '' }]);
+  };
+
+  const commitAndApply = (): void => {
+    setConditions(draftConditions);
+    setMatchOperator(draftMatchOperator);
+    if (setQueryDsl && draftQueryDsl) setQueryDsl(draftQueryDsl);
+    onApply();
   };
 
   return (
@@ -155,8 +185,8 @@ export function AdvancedFilterPanel({
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[11.5px] text-zinc-400 tabular-nums">
             {t('products.advanced_filter.condition_count', {
-              count: conditions.length,
-              defaultValue: `${conditions.length} warunków`,
+              count: draftConditions.length,
+              defaultValue: `${draftConditions.length} warunków`,
             })}
           </span>
           <button
@@ -178,15 +208,15 @@ export function AdvancedFilterPanel({
       </div>
 
       {/* Body — query mode (VIEW-09b) OR grid mode (VIEW-09) */}
-      {mode === 'query' && queryDsl && setQueryDsl ? (
+      {mode === 'query' && draftQueryDsl && setQueryDsl ? (
         <div className="p-5">
-          <QueryGroupEditor group={queryDsl} attrs={PANEL_ATTRS} onChange={setQueryDsl} />
+          <QueryGroupEditor group={draftQueryDsl} attrs={PANEL_ATTRS} onChange={setDraftQueryDsl} />
         </div>
       ) : null}
       {mode !== 'query' && (
         <div className="p-5">
           <div className="space-y-2">
-            {conditions.map((cond, idx) => {
+            {draftConditions.map((cond, idx) => {
               const attrMeta = PANEL_ATTRS.find((a) => a.code === cond.attr) ?? FIRST_PANEL_ATTR;
               const ops = FILTER_OPERATORS_BY_TYPE[attrMeta.type] ?? CORE_OPERATORS;
               const isEmpty = cond.op === 'IS EMPTY' || cond.op === 'IS NOT EMPTY';
@@ -204,8 +234,8 @@ export function AdvancedFilterPanel({
                     </span>
                   ) : (
                     <select
-                      value={matchOperator}
-                      onChange={(e) => setMatchOperator(e.target.value as 'AND' | 'OR')}
+                      value={draftMatchOperator}
+                      onChange={(e) => setDraftMatchOperator(e.target.value as 'AND' | 'OR')}
                       aria-label="Conjunction"
                       className="h-9 w-12 text-[11px] uppercase tracking-wider font-semibold text-zinc-500 bg-zinc-50 rounded-lg px-1 outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 border-0"
                     >
@@ -333,20 +363,24 @@ export function AdvancedFilterPanel({
           <div className="h-6 rounded-lg bg-white border border-zinc-200 inline-flex items-center p-0.5">
             <button
               type="button"
-              onClick={() => setMatchOperator('AND')}
+              onClick={() => setDraftMatchOperator('AND')}
               className={cn(
                 'h-5 px-2 rounded-md text-[11px]',
-                matchOperator === 'AND' ? 'bg-zinc-900 text-white font-medium' : 'text-zinc-500',
+                draftMatchOperator === 'AND'
+                  ? 'bg-zinc-900 text-white font-medium'
+                  : 'text-zinc-500',
               )}
             >
               {t('products.advanced_filter.match_all', { defaultValue: 'Wszystkie (AND)' })}
             </button>
             <button
               type="button"
-              onClick={() => setMatchOperator('OR')}
+              onClick={() => setDraftMatchOperator('OR')}
               className={cn(
                 'h-5 px-2 rounded-md text-[11px]',
-                matchOperator === 'OR' ? 'bg-zinc-900 text-white font-medium' : 'text-zinc-500',
+                draftMatchOperator === 'OR'
+                  ? 'bg-zinc-900 text-white font-medium'
+                  : 'text-zinc-500',
               )}
             >
               {t('products.advanced_filter.match_any', { defaultValue: 'Dowolne (OR)' })}
@@ -354,7 +388,7 @@ export function AdvancedFilterPanel({
           </div>
         </div>
 
-        {conditions.length > 0 && (
+        {draftConditions.length > 0 && (
           <span className="text-[11.5px] text-zinc-400 inline-flex items-center gap-1.5">
             <Link2 className="size-3.5" />
             <span>
@@ -384,7 +418,7 @@ export function AdvancedFilterPanel({
               variant="ghost"
               type="button"
               onClick={onSaveAsPreset}
-              disabled={conditions.length === 0}
+              disabled={draftConditions.length === 0}
               className="h-9 text-[12.5px]"
             >
               {t('products.advanced_filter.save_as_preset', {
@@ -394,8 +428,8 @@ export function AdvancedFilterPanel({
           )}
           <Button
             type="button"
-            onClick={onApply}
-            disabled={conditions.length === 0}
+            onClick={commitAndApply}
+            disabled={draftConditions.length === 0}
             className="h-9 px-4 rounded-xl bg-zinc-900 text-white text-[12.5px] font-medium hover:bg-zinc-800"
           >
             {t('products.advanced_filter.apply', { defaultValue: 'Zastosuj filtr' })}
