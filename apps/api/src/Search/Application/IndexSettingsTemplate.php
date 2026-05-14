@@ -52,8 +52,21 @@ final class IndexSettingsTemplate
         return match ($kind) {
             ObjectKind::Product => [
                 'searchableAttributes' => ['code', 'name', 'sku', 'brand', 'description'],
-                'filterableAttributes' => ['tenantId', 'kind', 'status', 'enabled', 'objectTypeId', 'brand', 'category', 'completeness_pct', 'sync_status_aggregate'],
-                'sortableAttributes' => ['createdAt', 'updatedAt', 'name'],
+                // Filterable list mirrors the attributes exposed by the
+                // advanced filter UI (`PANEL_ATTRS` in
+                // `advanced-filter-panel.tsx`). DocumentFlattener promotes
+                // each envelope's scalar to a top-level key during indexing
+                // so these names resolve at filter time. Adding a new
+                // operator-facing attribute? Update both lists — Meili
+                // rejects filters against undeclared attributes and the
+                // whole query returns 0 hits.
+                'filterableAttributes' => [
+                    'tenantId', 'kind', 'status', 'enabled', 'objectTypeId',
+                    'brand', 'category', 'completeness_pct', 'sync_status_aggregate',
+                    'price', 'stock', 'tags', 'main_image', 'color', 'size',
+                    'in_stock', 'release_date',
+                ],
+                'sortableAttributes' => ['createdAt', 'updatedAt', 'name', 'price'],
                 'displayedAttributes' => ['*'],
                 'rankingRules' => ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
             ],

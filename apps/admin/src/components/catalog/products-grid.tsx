@@ -1,4 +1,4 @@
-import { ChevronRight, ImageOff } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -240,16 +240,6 @@ function ProductsGridRowView({
 
       <div className="px-3 py-2 flex items-center gap-1">
         {variant ? <span className="ml-1 text-zinc-300">└</span> : null}
-        <span
-          aria-hidden="true"
-          className={cn(
-            'grid place-items-center rounded-xl bg-zinc-100 text-zinc-400',
-            variant ? 'h-8 w-8' : 'h-9 w-9',
-          )}
-          title="brak miniatury"
-        >
-          <ImageOff className="size-4" aria-hidden="true" />
-        </span>
       </div>
 
       <div className="px-3 py-2 font-mono text-[12px] flex items-center gap-1.5">
