@@ -14,7 +14,7 @@
         </id>
 
         <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
-            <join-column name="tenant_id" referenced-column-name="id" nullable="true" on-delete="RESTRICT"/>
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
         </many-to-one>
 
         <field name="userId" type="uuid" column="user_id" nullable="true"/>
