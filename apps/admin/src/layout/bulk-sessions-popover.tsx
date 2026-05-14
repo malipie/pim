@@ -72,9 +72,19 @@ export function BulkSessionsPopover() {
   }, []);
 
   useEffect(() => {
+    // Hard reload races: AppLayout can mount before `authProvider.check()`
+    // finishes its silent refresh, so the very first fetch may fire with
+    // an empty `accessToken` and a `jsonFetch` retry through refresh.
+    // Run an immediate fetch (handles the steady-state) plus a short
+    // re-fetch 500ms later so the popover picks up data after the JWT
+    // settles. The 30s poll keeps it fresh thereafter.
     void refresh();
-    const handle = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
-    return () => window.clearInterval(handle);
+    const retryHandle = window.setTimeout(() => void refresh(), 500);
+    const pollHandle = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
+    return () => {
+      window.clearTimeout(retryHandle);
+      window.clearInterval(pollHandle);
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -89,7 +99,7 @@ export function BulkSessionsPopover() {
     return () => window.removeEventListener('mousedown', onClick);
   }, [open]);
 
-  if (sessions.length === 0) return null;
+  const hasSessions = sessions.length > 0;
 
   const rollback = async (sessionId: string): Promise<void> => {
     setRollingBack(sessionId);
@@ -118,12 +128,17 @@ export function BulkSessionsPopover() {
           defaultValue: 'Aktywne akcje do cofnięcia: {{count}}',
         })}
         aria-expanded={open}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
+        className={cn(
+          'relative inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
+          hasSessions ? 'text-zinc-700 hover:text-zinc-900' : 'text-zinc-400 hover:text-zinc-700',
+        )}
       >
         <Clock className="size-4" aria-hidden="true" />
-        <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 font-mono text-[10px] font-semibold text-white">
-          {sessions.length > 9 ? '9+' : sessions.length}
-        </span>
+        {hasSessions ? (
+          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 font-mono text-[10px] font-semibold text-white">
+            {sessions.length > 9 ? '9+' : sessions.length}
+          </span>
+        ) : null}
       </button>
 
       {open ? (
@@ -139,10 +154,23 @@ export function BulkSessionsPopover() {
             <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
               {t('bulk_sessions.popover_title', { defaultValue: 'Cofalne akcje (24h)' })}
             </span>
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[10.5px] font-semibold text-emerald-700">
+            <span
+              className={cn(
+                'rounded-full px-2 py-0.5 font-mono text-[10.5px] font-semibold',
+                hasSessions ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500',
+              )}
+            >
               {sessions.length} {t('bulk_sessions.active_short', { defaultValue: 'aktywne' })}
             </span>
           </div>
+
+          {!hasSessions ? (
+            <div className="px-4 py-6 text-center text-[12.5px] text-zinc-500">
+              {t('bulk_sessions.empty', {
+                defaultValue: 'Brak akcji do cofnięcia w ostatnich 24h.',
+              })}
+            </div>
+          ) : null}
 
           <ul className="max-h-[420px] divide-y divide-zinc-100 overflow-y-auto">
             {sessions.map((s) => (
