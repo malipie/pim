@@ -112,7 +112,19 @@ export function AdvancedFilterPanel({
   };
 
   const commitAndApply = (): void => {
-    setConditions(draftConditions);
+    // Numeric fields keep the raw string (`"101,99"`) in the draft so
+    // the operator can type the Polish decimal comma without the input
+    // resetting mid-keystroke. Normalize to a number at apply time so
+    // the DSL serializer + Meili filter expression see the right type.
+    const normalised = draftConditions.map((cond) => {
+      const meta = PANEL_ATTRS.find((a) => a.code === cond.attr);
+      const isNumeric = meta?.type === 'number' || meta?.type === 'metric';
+      if (!isNumeric || typeof cond.value !== 'string') return cond;
+      const trimmed = cond.value.replace(',', '.');
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? { ...cond, value: parsed } : cond;
+    });
+    setConditions(normalised);
     setMatchOperator(draftMatchOperator);
     onApply();
   };
@@ -221,6 +233,11 @@ export function AdvancedFilterPanel({
 
                 {!isEmpty && (
                   <Input
+                    inputMode={
+                      attrMeta.type === 'number' || attrMeta.type === 'metric'
+                        ? 'decimal'
+                        : undefined
+                    }
                     value={
                       typeof cond.value === 'string' || typeof cond.value === 'number'
                         ? String(cond.value)
@@ -230,35 +247,26 @@ export function AdvancedFilterPanel({
                     }
                     onChange={(e) => {
                       const raw = e.target.value;
-                      let next: string | number | string[];
-                      if (cond.op === 'IN' || cond.op === 'NOT IN') {
-                        next = raw
-                          .split(',')
-                          .map((s) => s.trim())
-                          .filter(Boolean);
-                      } else if (attrMeta.type === 'number' || attrMeta.type === 'metric') {
-                        if (raw === '') {
-                          next = '';
-                        } else {
-                          // Polish locale uses comma as the decimal
-                          // separator. JS Number() rejects it and yields
-                          // NaN, so the operator typing `101,99` lost the
-                          // filter value entirely. Accept both separators
-                          // by normalising before parsing; keep the raw
-                          // string when the result is not finite so the
-                          // operator can keep typing without the input
-                          // resetting mid-keystroke.
-                          const parsed = Number(raw.replace(',', '.'));
-                          next = Number.isFinite(parsed) ? parsed : raw;
-                        }
-                      } else {
-                        next = raw;
-                      }
+                      // Always keep the verbatim string in draft state.
+                      // `commitAndApply` is responsible for converting
+                      // numeric strings (including the Polish comma
+                      // decimal `101,99`) to numbers — keeping the
+                      // intermediate value as a string avoids the
+                      // round-trip `Number(...) -> String(...)` that
+                      // strips a trailing separator while the operator
+                      // is still typing.
+                      const next: string | string[] =
+                        cond.op === 'IN' || cond.op === 'NOT IN'
+                          ? raw
+                              .split(',')
+                              .map((s) => s.trim())
+                              .filter(Boolean)
+                          : raw;
                       updateCondition(idx, { value: next });
                     }}
                     placeholder={
                       attrMeta.type === 'number' || attrMeta.type === 'metric'
-                        ? 'wartość'
+                        ? 'np. 101,99'
                         : 'wpisz wartość'
                     }
                     className="h-9 flex-1 text-[12.5px]"
