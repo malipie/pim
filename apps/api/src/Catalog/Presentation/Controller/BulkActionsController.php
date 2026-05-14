@@ -7,6 +7,8 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Application\Bulk\BulkAddCategoryHandler;
 use App\Catalog\Application\Bulk\BulkAppendValueHandler;
 use App\Catalog\Application\Bulk\BulkClearAttributeHandler;
+use App\Catalog\Application\Bulk\BulkDeleteHandler;
+use App\Catalog\Application\Bulk\BulkDuplicateHandler;
 use App\Catalog\Application\Bulk\BulkIncrementNumericHandler;
 use App\Catalog\Application\Bulk\BulkMoveCategoryHandler;
 use App\Catalog\Application\Bulk\BulkMultiAttributeEditHandler;
@@ -59,6 +61,8 @@ final class BulkActionsController
         private readonly BulkRemoveCategoryHandler $removeCategoryHandler,
         private readonly BulkMoveCategoryHandler $moveCategoryHandler,
         private readonly BulkPublishChannelsHandler $publishChannelsHandler,
+        private readonly BulkDeleteHandler $deleteHandler,
+        private readonly BulkDuplicateHandler $duplicateHandler,
     ) {
     }
 
@@ -94,6 +98,8 @@ final class BulkActionsController
             'move_category',
             'publish_channels',
             'unpublish_channels',
+            'delete',
+            'duplicate',
         ], true)) {
             throw new BadRequestHttpException(\sprintf('Unsupported bulk action "%s" in MVP.', $action));
         }
@@ -147,6 +153,14 @@ final class BulkActionsController
             };
 
             return [$before, $after];
+        }
+
+        if ('delete' === $action) {
+            return [['code' => $object->getCode()], null];
+        }
+
+        if ('duplicate' === $action) {
+            return [['code' => $object->getCode()], ['code' => $object->getCode().'-COPY-N']];
         }
 
         if (\in_array($action, ['publish_channels', 'unpublish_channels'], true)) {
@@ -323,6 +337,8 @@ final class BulkActionsController
                 $this->extractChannelCodes($payload),
                 false,
             ),
+            'delete' => $this->dispatchDelete($session, $body, $targetIds),
+            'duplicate' => $this->duplicateHandler->handle($session),
             default => throw new NotFoundHttpException(\sprintf('Bulk action "%s" not implemented.', $actionType)),
         };
 
@@ -373,6 +389,24 @@ final class BulkActionsController
         }
 
         return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     * @param list<string>         $targetIds
+     *
+     * @return array{success: int, skipped: int, error: int}
+     */
+    private function dispatchDelete(BulkSession $session, array $body, array $targetIds): array
+    {
+        $confirmationCount = $body['confirmation_count'] ?? null;
+        if (!\is_int($confirmationCount) || $confirmationCount !== \count($targetIds)) {
+            throw new BadRequestHttpException(
+                'confirmation_count must equal the target count for destructive actions.',
+            );
+        }
+
+        return $this->deleteHandler->handle($session);
     }
 
     /**

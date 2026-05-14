@@ -1,4 +1,13 @@
-import { Download, FolderTree, Globe, MoreHorizontal, Pencil, Sparkles } from 'lucide-react';
+import {
+  Copy,
+  Download,
+  FolderTree,
+  Globe,
+  MoreHorizontal,
+  Pencil,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -28,6 +37,8 @@ interface BulkBarProps {
   onOpenWizard?: () => void;
   onOpenCategoryModal?: () => void;
   onOpenPublishModal?: () => void;
+  onOpenDeleteModal?: () => void;
+  onOpenDuplicateModal?: () => void;
 }
 
 /**
@@ -46,6 +57,8 @@ export function BulkBar({
   onOpenWizard,
   onOpenCategoryModal,
   onOpenPublishModal,
+  onOpenDeleteModal,
+  onOpenDuplicateModal,
 }: BulkBarProps) {
   const { t } = useTranslation();
   const [isPending, setIsPending] = useState(false);
@@ -180,6 +193,27 @@ export function BulkBar({
               >
                 <Globe className="mr-2 size-3.5" aria-hidden="true" />
                 {t('products.bulk.publish_channels', { defaultValue: 'Publikuj na kanałach' })}
+              </DropdownMenuItem>
+            ) : null}
+            {onOpenDuplicateModal ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onOpenDuplicateModal();
+                }}
+              >
+                <Copy className="mr-2 size-3.5" aria-hidden="true" />
+                {t('products.bulk.duplicate', { defaultValue: 'Duplikuj' })}
+              </DropdownMenuItem>
+            ) : null}
+            {onOpenDeleteModal ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onOpenDeleteModal();
+                }}
+                className="text-rose-700 focus:bg-rose-50 focus:text-rose-700"
+              >
+                <Trash2 className="mr-2 size-3.5" aria-hidden="true" />
+                {t('products.bulk.delete', { defaultValue: 'Usuń' })}
               </DropdownMenuItem>
             ) : null}
           </DropdownMenuContent>
