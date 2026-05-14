@@ -120,6 +120,13 @@ export function ProductListPage() {
   const [panelConditions, setPanelConditions] = useState<FilterCondition[]>([]);
   const [matchOperator, setMatchOperator] = useState<'AND' | 'OR'>('AND');
   const [showSaveAsPresetModal, setShowSaveAsPresetModal] = useState(false);
+  // VIEW-09b (#540) — query mode editor state. When `advancedMode === 'query'`,
+  // `queryDsl` is the recursive AND/OR tree. Toggling to grid mode flattens
+  // a single root group; toggling back rebuilds from `panelConditions`.
+  const [advancedMode, setAdvancedMode] = useState<'grid' | 'query'>('grid');
+  const [queryDsl, setQueryDsl] = useState<import('@/lib/filters/filter-dsl').FilterGroup | null>(
+    null,
+  );
 
   const { searchFilters, rangeFilters } = useMemo(() => {
     const sf: Record<string, string | string[]> = { ...filters };
@@ -145,7 +152,8 @@ export function ProductListPage() {
     Object.keys(searchFilters).length > 0 ||
     Object.keys(rangeFilters).length > 0 ||
     activeSmartPresetId !== null ||
-    panelConditions.length > 0;
+    panelConditions.length > 0 ||
+    (queryDsl?.conditions.length ?? 0) > 0;
 
   // VIEW-10 (#538) — when a smart preset is active OR the panel has
   // conditions, push them to the BE resolver through the new
@@ -155,6 +163,14 @@ export function ProductListPage() {
     : undefined;
   const filterBlob = useMemo<string | undefined>(() => {
     if (activePreset !== undefined) return undefined;
+    // VIEW-09b (#540) — query mode wins when active and has conditions.
+    if (advancedMode === 'query' && queryDsl && queryDsl.conditions.length > 0) {
+      try {
+        return dslToBase64(queryDsl);
+      } catch {
+        return undefined;
+      }
+    }
     if (panelConditions.length === 0) return undefined;
     const dsl = conditionsToDsl(panelConditions, matchOperator);
     if (dsl === null) return undefined;
@@ -163,7 +179,7 @@ export function ProductListPage() {
     } catch {
       return undefined;
     }
-  }, [activePreset, panelConditions, matchOperator]);
+  }, [activePreset, panelConditions, matchOperator, advancedMode, queryDsl]);
 
   const { result: searchResult, isLoading: isSearchLoading } = useCatalogSearch({
     kind: 'products',
@@ -688,6 +704,7 @@ export function ProductListPage() {
           onClose={() => setAdvancedPanelOpen(false)}
           onClear={() => {
             setPanelConditions([]);
+            setQueryDsl(null);
             applyConditionsToFilters([]);
             setActiveSmartPresetId(null);
           }}
@@ -698,6 +715,26 @@ export function ProductListPage() {
             setShowSaveAsPresetModal(true);
           }}
           resultCount={totalHits}
+          mode={advancedMode}
+          setMode={(next) => {
+            // Toggle: flat conditions → root group when entering query;
+            // query → first-level flat when entering grid (drops nested).
+            if (next === 'query' && advancedMode === 'grid') {
+              setQueryDsl({
+                operator: matchOperator,
+                conditions: panelConditions.length > 0 ? panelConditions : [],
+              });
+            }
+            if (next === 'grid' && advancedMode === 'query' && queryDsl) {
+              const flat = queryDsl.conditions.filter(
+                (c): c is FilterCondition => !('operator' in c),
+              );
+              setPanelConditions(flat);
+            }
+            setAdvancedMode(next);
+          }}
+          queryDsl={queryDsl}
+          setQueryDsl={(next) => setQueryDsl(next)}
         />
       </div>
 
