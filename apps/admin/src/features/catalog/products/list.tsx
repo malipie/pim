@@ -1,5 +1,5 @@
 import { useList } from '@refinedev/core';
-import { Plus, Search, Upload } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -601,19 +601,6 @@ export function ProductListPage() {
 
         <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
 
-        <Button
-          type="button"
-          variant="outline"
-          disabled
-          aria-disabled="true"
-          title={t('products.import_disabled', {
-            defaultValue: 'Mock — wymaga oprogramowania importu CSV/XLSX',
-          })}
-          className="h-11 rounded-2xl"
-        >
-          <Upload className="size-4" />
-          {t('products.toolbar.import', { defaultValue: 'Import' })}
-        </Button>
         <Button asChild className="h-11 rounded-2xl px-4">
           <Link to="/products/new">
             <Plus className="size-4" />
