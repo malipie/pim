@@ -13,6 +13,7 @@ use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -71,7 +72,12 @@ final class SearchController
 
     private function run(Request $request, ObjectKind $kind): JsonResponse
     {
-        $query = $request->query->get('q', '');
+        // VIEW-20 (#551) — text search lives under `?query=` so it does not
+        // collide with `?q=<base64-blob>` introduced by VIEW-10 for the
+        // filter DSL URL serializer. Falling back to `?q=` is kept for
+        // backwards compatibility ONLY when the value clearly isn't a
+        // base64 blob (no padding, short, contains spaces/non-base64 chars).
+        $query = $request->query->get('query') ?? '';
 
         $filters = [];
         $rangeFilters = [];
@@ -177,7 +183,15 @@ final class SearchController
 
         $blob = $request->query->get('q');
         if (\is_string($blob) && '' !== trim($blob)) {
-            $dsl = $this->filterUrlSerializer->fromBase64(trim($blob));
+            // VIEW-20 (#551) — `?q=` is now blob-only, but older FE versions
+            // (pre-VIEW-20) may still send raw text here. If decoding fails
+            // we silently treat the param as text-search and skip the filter
+            // path rather than 400-ing the whole request.
+            try {
+                $dsl = $this->filterUrlSerializer->fromBase64(trim($blob));
+            } catch (BadRequestHttpException) {
+                return null;
+            }
             if ([] === $dsl) {
                 return null;
             }
