@@ -47,17 +47,83 @@ interface BulkActionResult {
   completed_at?: string;
 }
 
+type BulkMode =
+  | 'set_attribute'
+  | 'clear_attribute'
+  | 'append_value'
+  | 'remove_value'
+  | 'increment_numeric'
+  | 'multi_attribute_edit';
+
+const MODE_LABELS: Record<BulkMode, string> = {
+  set_attribute: 'Ustaw wartość',
+  clear_attribute: 'Wyczyść',
+  append_value: 'Dodaj do listy',
+  remove_value: 'Usuń z listy',
+  increment_numeric: 'Operacja arytm.',
+  multi_attribute_edit: 'Multi-atrybut',
+};
+
+interface MultiEdit {
+  id: string;
+  attr: string;
+  op: 'set' | 'clear';
+  value: string;
+}
+
+let multiEditCounter = 0;
+const nextEditId = (): string => `edit-${++multiEditCounter}`;
+
 export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizardProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [mode, setMode] = useState<BulkMode>('set_attribute');
   const [attrCode, setAttrCode] = useState('');
   const [newValue, setNewValue] = useState('');
+  const [operator, setOperator] = useState<'+' | '-' | '*' | '/' | '%'>('*');
+  const [operand, setOperand] = useState('1.10');
+  const [edits, setEdits] = useState<MultiEdit[]>([
+    { id: nextEditId(), attr: '', op: 'set', value: '' },
+  ]);
   const [preview, setPreview] = useState<BulkActionPreview | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   if (!open) return null;
 
-  const canAdvance = step === 1 ? attrCode.trim() !== '' && newValue.trim() !== '' : true;
+  const buildPayload = (): Record<string, unknown> => {
+    if (mode === 'multi_attribute_edit') {
+      return {
+        edits: edits
+          .filter((e) => e.attr.trim() !== '')
+          .map((e) => ({
+            attr: e.attr.trim(),
+            op: e.op,
+            ...(e.op === 'set' ? { value: e.value } : {}),
+          })),
+      };
+    }
+    if (mode === 'increment_numeric') {
+      return { attr: attrCode.trim(), operator, operand: Number(operand) };
+    }
+    if (mode === 'clear_attribute') {
+      return { attr: attrCode.trim() };
+    }
+    return { attr: attrCode.trim(), value: newValue };
+  };
+
+  const canAdvance = (() => {
+    if (step !== 1) return true;
+    if (mode === 'multi_attribute_edit') {
+      return edits.some((e) => e.attr.trim() !== '');
+    }
+    if (mode === 'clear_attribute') {
+      return attrCode.trim() !== '';
+    }
+    if (mode === 'increment_numeric') {
+      return attrCode.trim() !== '' && operand.trim() !== '' && !Number.isNaN(Number(operand));
+    }
+    return attrCode.trim() !== '' && newValue.trim() !== '';
+  })();
 
   const fetchPreview = async (): Promise<void> => {
     setIsLoading(true);
@@ -65,9 +131,9 @@ export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizard
       const response = await jsonFetch<BulkActionPreview>('/api/products/bulk-actions/preview', {
         method: 'POST',
         body: {
-          action: 'set_attribute',
+          action: mode,
           target_ids: selectedIds,
-          payload: { attr: attrCode, value: newValue },
+          payload: buildPayload(),
         },
       });
       setPreview(response);
@@ -81,16 +147,13 @@ export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizard
   const apply = async (): Promise<void> => {
     setIsLoading(true);
     try {
-      const response = await jsonFetch<BulkActionResult>(
-        '/api/products/bulk-actions/set_attribute',
-        {
-          method: 'POST',
-          body: {
-            target_ids: selectedIds,
-            payload: { attr: attrCode, value: newValue },
-          },
+      const response = await jsonFetch<BulkActionResult>(`/api/products/bulk-actions/${mode}`, {
+        method: 'POST',
+        body: {
+          target_ids: selectedIds,
+          payload: buildPayload(),
         },
-      );
+      });
       onApplied(response);
       toast.success(
         t('products.bulk_wizard.applied_success', {
@@ -194,35 +257,183 @@ export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizard
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <label
-                  htmlFor="bulk-attr-code"
-                  className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500"
-                >
-                  {t('products.bulk_wizard.attr_label', { defaultValue: 'Kod atrybutu' })}
-                </label>
-                <Input
-                  id="bulk-attr-code"
-                  value={attrCode}
-                  onChange={(e) => setAttrCode(e.target.value)}
-                  placeholder="brand, family, description_en …"
-                  className="mt-2"
-                />
+                <div className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 mb-2">
+                  {t('products.bulk_wizard.mode_label', { defaultValue: 'Tryb operacji' })}
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.keys(MODE_LABELS) as BulkMode[]).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMode(m)}
+                      className={cn(
+                        'h-9 px-3 rounded-lg text-[12px] font-medium border',
+                        mode === m
+                          ? 'bg-zinc-900 text-white border-zinc-900'
+                          : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300',
+                      )}
+                    >
+                      {MODE_LABELS[m]}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label
-                  htmlFor="bulk-attr-value"
-                  className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500"
-                >
-                  {t('products.bulk_wizard.value_label', { defaultValue: 'Nowa wartość' })}
-                </label>
-                <Input
-                  id="bulk-attr-value"
-                  value={newValue}
-                  onChange={(e) => setNewValue(e.target.value)}
-                  placeholder="np. Festo"
-                  className="mt-2"
-                />
-              </div>
+              {mode !== 'multi_attribute_edit' && (
+                <div>
+                  <label
+                    htmlFor="bulk-attr-code"
+                    className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500"
+                  >
+                    {t('products.bulk_wizard.attr_label', { defaultValue: 'Kod atrybutu' })}
+                  </label>
+                  <Input
+                    id="bulk-attr-code"
+                    value={attrCode}
+                    onChange={(e) => setAttrCode(e.target.value)}
+                    placeholder="brand, family, description_en …"
+                    className="mt-2"
+                  />
+                </div>
+              )}
+              {(mode === 'set_attribute' || mode === 'append_value' || mode === 'remove_value') && (
+                <div>
+                  <label
+                    htmlFor="bulk-attr-value"
+                    className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500"
+                  >
+                    {mode === 'set_attribute'
+                      ? t('products.bulk_wizard.value_label', { defaultValue: 'Nowa wartość' })
+                      : mode === 'append_value'
+                        ? t('products.bulk_wizard.append_value_label', {
+                            defaultValue: 'Wartość do dodania',
+                          })
+                        : t('products.bulk_wizard.remove_value_label', {
+                            defaultValue: 'Wartość do usunięcia',
+                          })}
+                  </label>
+                  <Input
+                    id="bulk-attr-value"
+                    value={newValue}
+                    onChange={(e) => setNewValue(e.target.value)}
+                    placeholder="np. Festo"
+                    className="mt-2"
+                  />
+                </div>
+              )}
+              {mode === 'increment_numeric' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      htmlFor="bulk-operator"
+                      className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500"
+                    >
+                      Operator
+                    </label>
+                    <select
+                      id="bulk-operator"
+                      value={operator}
+                      onChange={(e) => setOperator(e.target.value as '+' | '-' | '*' | '/' | '%')}
+                      className="mt-2 h-9 w-full rounded-lg border border-zinc-200 px-2 text-[13px] font-mono"
+                    >
+                      <option value="+">+ dodaj</option>
+                      <option value="-">- odejmij</option>
+                      <option value="*">* pomnóż</option>
+                      <option value="/">/ podziel</option>
+                      <option value="%">% modulo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="bulk-operand"
+                      className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500"
+                    >
+                      Wartość
+                    </label>
+                    <Input
+                      id="bulk-operand"
+                      value={operand}
+                      onChange={(e) => setOperand(e.target.value)}
+                      placeholder="np. 1.10 (price *= 1.10)"
+                      className="mt-2 font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+              {mode === 'multi_attribute_edit' && (
+                <div className="space-y-3">
+                  <div className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500">
+                    {t('products.bulk_wizard.multi_label', {
+                      defaultValue: 'Lista edycji (attr · op · value)',
+                    })}
+                  </div>
+                  {edits.map((edit) => (
+                    <div key={edit.id} className="flex gap-2 items-center">
+                      <Input
+                        value={edit.attr}
+                        onChange={(e) =>
+                          setEdits((arr) =>
+                            arr.map((row) =>
+                              row.id === edit.id ? { ...row, attr: e.target.value } : row,
+                            ),
+                          )
+                        }
+                        placeholder="attr code"
+                        className="flex-1"
+                      />
+                      <select
+                        value={edit.op}
+                        onChange={(e) =>
+                          setEdits((arr) =>
+                            arr.map((row) =>
+                              row.id === edit.id
+                                ? { ...row, op: e.target.value as 'set' | 'clear' }
+                                : row,
+                            ),
+                          )
+                        }
+                        className="h-9 w-24 rounded-lg border border-zinc-200 px-2 text-[13px]"
+                      >
+                        <option value="set">set</option>
+                        <option value="clear">clear</option>
+                      </select>
+                      {edit.op === 'set' && (
+                        <Input
+                          value={edit.value}
+                          onChange={(e) =>
+                            setEdits((arr) =>
+                              arr.map((row) =>
+                                row.id === edit.id ? { ...row, value: e.target.value } : row,
+                              ),
+                            )
+                          }
+                          placeholder="value"
+                          className="flex-1"
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEdits((arr) => arr.filter((row) => row.id !== edit.id))}
+                        className="h-9 w-9 rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+                        aria-label="Remove edit row"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEdits((arr) => [
+                        ...arr,
+                        { id: nextEditId(), attr: '', op: 'set', value: '' },
+                      ])
+                    }
+                    className="h-8 px-3 rounded-lg border border-dashed border-zinc-300 text-[12px] font-medium text-zinc-600 hover:bg-zinc-50"
+                  >
+                    + Dodaj atrybut
+                  </button>
+                </div>
+              )}
             </div>
           )}
           {step === 2 && (
