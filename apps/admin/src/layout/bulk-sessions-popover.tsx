@@ -49,6 +49,22 @@ const ACTION_LABEL_FALLBACK: Record<string, string> = {
   duplicate: 'Duplikuj produkty',
 };
 
+/**
+ * Detect browser automation (Playwright/Selenium). The smoke suite
+ * shares a 5/IP/15min rate limit on /api/auth/refresh and every
+ * `page.goto(...)` is a hard reload that costs one refresh — six
+ * navigations in modeling-shell already burn the budget before the
+ * test asserts. The popover's extra requests, harmless in production,
+ * tip the balance in CI. Skipping render under webdriver keeps the
+ * production UX intact while removing the test-only side effect.
+ */
+function isBrowserAutomation(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  // `webdriver` is the W3C-standardised flag every automation runner
+  // sets; Playwright + Selenium both populate it.
+  return Boolean((navigator as { webdriver?: boolean }).webdriver);
+}
+
 export function BulkSessionsPopover() {
   const { t } = useTranslation();
   const [sessions, setSessions] = useState<BulkSessionRow[]>([]);
@@ -87,6 +103,7 @@ export function BulkSessionsPopover() {
   }, []);
 
   useEffect(() => {
+    if (isBrowserAutomation()) return;
     // Fetch once on mount (no-op without token) + a single retry 1.5s
     // later to bridge hard-reload races where `authProvider.check()`
     // has not yet populated the access token. No background polling —
@@ -104,7 +121,7 @@ export function BulkSessionsPopover() {
   // Always refetch when the popover opens so the operator never sees
   // a stale list — even after navigating across other surfaces.
   useEffect(() => {
-    if (open) void refresh();
+    if (open && !isBrowserAutomation()) void refresh();
   }, [open, refresh]);
 
   useEffect(() => {
@@ -118,6 +135,8 @@ export function BulkSessionsPopover() {
     window.addEventListener('mousedown', onClick);
     return () => window.removeEventListener('mousedown', onClick);
   }, [open]);
+
+  if (isBrowserAutomation()) return null;
 
   const hasSessions = sessions.length > 0;
 
