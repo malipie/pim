@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { CmdKPalette } from '@/components/agent/cmd-k-palette';
-import { AdvancedFilterBuilder } from '@/components/catalog/advanced-filter-builder';
 import { AdvancedFilterPanel } from '@/components/catalog/advanced-filter-panel';
 import { BulkCategoryModal } from '@/components/catalog/bulk-actions/category-modal';
 import { BulkDuplicateModal } from '@/components/catalog/bulk-actions/duplicate-modal';
@@ -15,8 +14,6 @@ import { BulkWizard } from '@/components/catalog/bulk-wizard/bulk-wizard';
 import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
 import { type ExcelColumn, ExcelLikeGrid } from '@/components/catalog/excel-like-grid';
 import { FilterChipsBar } from '@/components/catalog/filter-chips-bar';
-import { FilterPill } from '@/components/catalog/filter-pill';
-import type { FilterValue } from '@/components/catalog/product-filter-chips';
 import { ProductsGrid, type ProductsGridRow } from '@/components/catalog/products-grid';
 import { type RollbackSession, RollbackToast } from '@/components/catalog/rollback-toast';
 import { SaveAsSmartPresetModal } from '@/components/catalog/save-as-smart-preset-modal';
@@ -84,19 +81,10 @@ const EXCEL_COLUMNS: ExcelColumn<ExcelProductRow>[] = [
   { key: 'variantAxis', label: 'Wariant', type: 'text', width: 120, readOnly: true },
 ];
 
-const STATUS_VALUES: ReadonlyArray<{ value: string; label: string; sync: SyncAggregate }> = [
-  { value: 'green', label: 'OK', sync: 'green' },
-  { value: 'yellow', label: 'Niepełne', sync: 'yellow' },
-  { value: 'red', label: 'Błąd', sync: 'red' },
-];
-
-const CHANNEL_VALUES: ReadonlyArray<string> = ['Shopify', 'BaseLinker', 'Allegro'];
-
 export function ProductListPage() {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
-  const [advancedFilters, setAdvancedFilters] = useState<Record<string, FilterValue>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   // VIEW-11 (#542) — cross-page selection escalation. The per-row `selected`
@@ -144,8 +132,8 @@ export function ProductListPage() {
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   const [expandedMasters, setExpandedMasters] = useState<Set<string>>(new Set());
   // VIEW-09: smart presets + push-down advanced filter panel + filter chips bar.
-  // The legacy FilterPill + AdvancedFilterBuilder Sheet stay in place so this
-  // ticket adds without breaking. VIEW-10 unifies the two flows.
+  // VIEW-21 (#552) removed the legacy FilterPill row + AdvancedFilterBuilder
+  // Sheet — only the push-down panel + chips bar drive filters now.
   const {
     presets: smartPresets,
     isLoading: smartPresetsLoading,
@@ -164,24 +152,14 @@ export function ProductListPage() {
     null,
   );
 
+  // VIEW-21 (#552) — `advancedFilters` legacy state was removed with the
+  // AdvancedFilterBuilder Sheet. Range/extra filters now flow through the
+  // panel `conditions` → DSL → `?q=<base64>` BE resolver (VIEW-10).
   const { searchFilters, rangeFilters } = useMemo(() => {
     const sf: Record<string, string | string[]> = { ...filters };
     const rf: Record<string, { gte?: number; lte?: number }> = {};
-    for (const [key, value] of Object.entries(advancedFilters)) {
-      if (value === null || value === undefined) continue;
-      if (Array.isArray(value)) {
-        sf[key] = value as string[];
-      } else if (typeof value === 'object') {
-        const range: { gte?: number; lte?: number } = {};
-        if (typeof value.gte === 'number') range.gte = value.gte;
-        if (typeof value.lte === 'number') range.lte = value.lte;
-        if (Object.keys(range).length > 0) rf[key] = range;
-      } else if (typeof value === 'string' && value !== '') {
-        sf[key] = value;
-      }
-    }
     return { searchFilters: sf, rangeFilters: rf };
-  }, [filters, advancedFilters]);
+  }, [filters]);
 
   const isSearchActive =
     query !== '' ||
@@ -341,29 +319,6 @@ export function ProductListPage() {
     return Math.max(0, Math.floor((Date.now() - newest) / 60000));
   }, [products]);
 
-  const setPillFilter =
-    (key: string) =>
-    (next: string | null): void => {
-      setFilters((prev) => {
-        const updated = { ...prev };
-        if (next === null) {
-          delete updated[key];
-        } else {
-          updated[key] = next;
-        }
-        return updated;
-      });
-    };
-
-  const handleChannelChange = (next: string | null): void => {
-    if (next === null) return;
-    toast.info(
-      t('products.toolbar.channel_filter_pending', {
-        defaultValue: 'Filtr per kanał czeka na epik 0.6 (channel_publications)',
-      }),
-    );
-  };
-
   const toggleSelect = (id: string): void => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -382,86 +337,10 @@ export function ProductListPage() {
     });
   };
 
-  /**
-   * VIEW-09: map known FilterCondition shapes onto the existing
-   * `filters` (searchFilters) + `rangeFilters` plumbing so apply-preset
-   * actually filters the list for the simplest cases.
-   *
-   * Coverage in VIEW-09 (FE resolver):
-   *   - `attr=brand`, `=`, single string  → filters.brand = value
-   *   - `attr=brand`, `IN`, array         → filters.brand = array
-   *   - `attr=completeness_pct`, `<`, n   → rangeFilters.completenessPct.lte = n - 1
-   *   - `attr=completeness_pct`, `<=`, n  → rangeFilters.completenessPct.lte = n
-   *   - `attr=completeness_pct`, `>=`, n  → rangeFilters.completenessPct.gte = n
-   *   - `attr=enabled`, `=`, bool         → filters.enabled = 'true'/'false'
-   *
-   * Conditions outside this shape (IS EMPTY, locale-scoped, asset,
-   * relation joins) are surfaced as an unobtrusive toast and skipped.
-   * Full DSL → search resolver lands in VIEW-10.
-   */
-  const applyConditionsToFilters = (
-    conditions: FilterCondition[],
-  ): {
-    matched: number;
-    skipped: number;
-  } => {
-    const nextFilters: Record<string, string | string[]> = {};
-    const nextAdvanced: Record<string, FilterValue> = {};
-    let matched = 0;
-    let skipped = 0;
-
-    for (const cond of conditions) {
-      const value = cond.value;
-      const op = cond.op;
-      const attr = cond.attr;
-
-      if (attr === 'brand' || attr === 'family') {
-        if (op === '=' && typeof value === 'string') {
-          nextFilters[attr] = value;
-          matched += 1;
-          continue;
-        }
-        if (op === 'IN' && Array.isArray(value)) {
-          nextFilters[attr] = value.map(String);
-          matched += 1;
-          continue;
-        }
-      }
-
-      if (attr === 'enabled' && op === '=' && typeof value === 'boolean') {
-        nextFilters.enabled = String(value);
-        matched += 1;
-        continue;
-      }
-
-      if (attr === 'completeness_pct') {
-        if ((op === '<' || op === '<=') && typeof value === 'number') {
-          const lte = op === '<' ? value - 1 : value;
-          nextAdvanced.completeness = { ...(nextAdvanced.completeness as object), lte };
-          matched += 1;
-          continue;
-        }
-        if ((op === '>' || op === '>=') && typeof value === 'number') {
-          const gte = op === '>' ? value + 1 : value;
-          nextAdvanced.completeness = { ...(nextAdvanced.completeness as object), gte };
-          matched += 1;
-          continue;
-        }
-      }
-
-      skipped += 1;
-    }
-
-    setFilters(nextFilters);
-    setAdvancedFilters(nextAdvanced);
-    return { matched, skipped };
-  };
-
   const handleApplySmartPreset = (preset: SmartFilterPreset | null): void => {
     if (preset === null) {
       setActiveSmartPresetId(null);
       setPanelConditions([]);
-      applyConditionsToFilters([]);
       return;
     }
 
@@ -478,31 +357,11 @@ export function ProductListPage() {
     }
 
     setPanelConditions(conditions);
-    const { matched, skipped } = applyConditionsToFilters(conditions);
-    if (skipped > 0) {
-      toast.info(
-        t('products.smart_filters.partial_apply', {
-          matched,
-          skipped,
-          defaultValue: `Zastosowano ${matched} warunków, ${skipped} pominiętych (czeka na BE resolver w VIEW-10).`,
-        }),
-      );
-    }
   };
 
   const handleApplyAdvancedPanel = (): void => {
     setAdvancedPanelOpen(false);
     setActiveSmartPresetId(null);
-    const { matched, skipped } = applyConditionsToFilters(panelConditions);
-    if (skipped > 0) {
-      toast.info(
-        t('products.advanced_filter.partial_apply', {
-          matched,
-          skipped,
-          defaultValue: `Zastosowano ${matched} warunków, ${skipped} pominiętych (czeka na BE resolver w VIEW-10).`,
-        }),
-      );
-    }
   };
 
   const handleApplySavedView = (view: { slug: string; config: Record<string, unknown> }): void => {
@@ -568,15 +427,6 @@ export function ProductListPage() {
   };
 
   const showEmptyState = !isLoading && baseRows.length === 0 && !isSearchActive;
-
-  const brandOptions = useMemo(
-    () => buildFacetOptions(searchResult?.facetDistribution ?? {}, 'brand'),
-    [searchResult],
-  );
-  const familyOptions = useMemo(
-    () => buildFacetOptions(searchResult?.facetDistribution ?? {}, 'family'),
-    [searchResult],
-  );
 
   return (
     <div id="products-list-page" className="space-y-5 pb-24">
@@ -652,39 +502,6 @@ export function ProductListPage() {
           />
         </div>
 
-        <FilterPill
-          label={t('products.toolbar.filter_brand', { defaultValue: 'Marka' })}
-          value={filters.brand as string | undefined}
-          options={brandOptions}
-          onChange={setPillFilter('brand')}
-        />
-        <FilterPill
-          label={t('products.toolbar.filter_family', { defaultValue: 'Rodzina' })}
-          value={filters.family as string | undefined}
-          options={familyOptions}
-          onChange={setPillFilter('family')}
-        />
-        <FilterPill
-          label={t('products.toolbar.filter_channel', { defaultValue: 'Kanał' })}
-          value={undefined}
-          options={CHANNEL_VALUES.map((v) => ({ value: v, label: v }))}
-          onChange={handleChannelChange}
-        />
-        <FilterPill
-          label={t('products.toolbar.filter_status', { defaultValue: 'Status' })}
-          value={filters.syncStatusAggregate as string | undefined}
-          options={STATUS_VALUES.map((s) => ({ value: s.sync, label: s.label }))}
-          onChange={setPillFilter('syncStatusAggregate')}
-        />
-
-        <AdvancedFilterBuilder
-          filters={advancedFilters}
-          onApply={setAdvancedFilters}
-          onSaveAsView={() => {
-            setShowSaveViewModal(true);
-          }}
-        />
-
         <Button
           type="button"
           variant={advancedPanelOpen ? 'default' : 'outline'}
@@ -741,7 +558,6 @@ export function ProductListPage() {
           onClear={() => {
             setPanelConditions([]);
             setQueryDsl(null);
-            applyConditionsToFilters([]);
             setActiveSmartPresetId(null);
           }}
           onSaveAsView={() => {
@@ -793,12 +609,10 @@ export function ProductListPage() {
         onRemove={(idx) => {
           const next = panelConditions.filter((_, i) => i !== idx);
           setPanelConditions(next);
-          applyConditionsToFilters(next);
           if (next.length === 0) setActiveSmartPresetId(null);
         }}
         onClearAll={() => {
           setPanelConditions([]);
-          applyConditionsToFilters([]);
           setActiveSmartPresetId(null);
         }}
         onEditChip={() => setAdvancedPanelOpen(true)}
@@ -1073,18 +887,6 @@ export function ProductListPage() {
       ) : null}
     </div>
   );
-}
-
-function buildFacetOptions(
-  distribution: Record<string, Record<string, number>>,
-  field: string,
-): Array<{ value: string; label: string }> {
-  const dist = distribution[field];
-  if (dist === undefined) return [];
-  return Object.entries(dist)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 30)
-    .map(([value]) => ({ value, label: value }));
 }
 
 function searchHitToRow(hit: CatalogSearchHit): ProductsGridRow {
