@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Identity\Domain\Entity\UserFilterFavorite"
+            table="user_filter_favorites"
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineUserFilterFavoriteRepository">
+
+        <indexes>
+            <index name="idx_uff_user_order" columns="user_id,sort_order"/>
+        </indexes>
+
+        <id name="user" association-key="true"/>
+        <id name="attribute" association-key="true"/>
+
+        <many-to-one field="user" target-entity="App\Identity\Domain\Entity\User">
+            <join-column name="user_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <many-to-one field="attribute" target-entity="App\Catalog\Domain\Entity\Attribute">
+            <join-column name="attribute_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="sortOrder" type="integer" column="sort_order"/>
+
+    </entity>
+
+</doctrine-mapping>
