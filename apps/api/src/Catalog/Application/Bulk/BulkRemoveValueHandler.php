@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Application\Bulk;
 
 use App\Catalog\Application\BulkContext;
+use App\Catalog\Application\Lock\AttributeLockReader;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -18,7 +19,8 @@ use Throwable;
  *
  * Removes a value from a list attribute. If the slot is scalar matching
  * the value, it becomes null (unset). If the value is not present, the
- * row is skipped (no-op, warning log).
+ * row is skipped (no-op, warning log). Locked attributes (VIEW-33 /
+ * PRD §8.3) skip with a warning entry.
  */
 final class BulkRemoveValueHandler
 {
@@ -28,6 +30,7 @@ final class BulkRemoveValueHandler
         private readonly CatalogObjectRepositoryInterface $catalogObjects,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
+        private readonly AttributeLockReader $lockReader,
     ) {
     }
 
@@ -49,6 +52,26 @@ final class BulkRemoveValueHandler
                     if (!$object instanceof CatalogObject) {
                         ++$errors;
                         ++$chunkCounter;
+                        continue;
+                    }
+
+                    if ($this->lockReader->isLocked($object, $attrCode)) {
+                        ++$skipped;
+                        $this->em->persist(new BulkLog(
+                            $session->getId(),
+                            $object->getId(),
+                            null,
+                            $object->getAttributesIndexed()[$attrCode] ?? null,
+                            $object->getAttributesIndexed()[$attrCode] ?? null,
+                            BulkLog::LEVEL_WARNING,
+                            'Attribute locked',
+                        ));
+                        ++$chunkCounter;
+                        if ($chunkCounter >= self::CHUNK_SIZE) {
+                            $this->em->flush();
+                            $this->em->clear();
+                            $chunkCounter = 0;
+                        }
                         continue;
                     }
 

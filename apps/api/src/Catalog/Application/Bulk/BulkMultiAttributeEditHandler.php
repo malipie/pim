@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Application\Bulk;
 
 use App\Catalog\Application\BulkContext;
+use App\Catalog\Application\Lock\AttributeLockReader;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -20,6 +21,8 @@ use Throwable;
  * Applies a list of (attr, op, value) tuples to each target in a single
  * transaction per object. Each attribute change emits its own BulkLog
  * (so rollback can replay individually). Supported ops: `set`, `clear`.
+ * Locked attributes (VIEW-33 / PRD §8.3) skip per-edit with a warning
+ * entry; other edits in the same row still apply.
  *
  * Cmd+K killer use case (PRD §3.5): „skopiuj manufacturer do brand i
  * ustaw enabled=true dla wszystkich z manufacturer IS NOT EMPTY".
@@ -32,6 +35,7 @@ final class BulkMultiAttributeEditHandler
         private readonly CatalogObjectRepositoryInterface $catalogObjects,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
+        private readonly AttributeLockReader $lockReader,
     ) {
     }
 
@@ -49,6 +53,7 @@ final class BulkMultiAttributeEditHandler
         $this->bulkContext->setBulk(true);
         try {
             $success = 0;
+            $skipped = 0;
             $errors = 0;
             $chunkCounter = 0;
 
@@ -67,6 +72,20 @@ final class BulkMultiAttributeEditHandler
                         $code = $edit['attr'];
                         $op = $edit['op'];
                         $oldValue = $indexed[$code] ?? null;
+
+                        if ($this->lockReader->isLocked($object, $code)) {
+                            ++$skipped;
+                            $this->em->persist(new BulkLog(
+                                $session->getId(),
+                                $object->getId(),
+                                null,
+                                $oldValue,
+                                $oldValue,
+                                BulkLog::LEVEL_WARNING,
+                                \sprintf('Attribute locked: %s', $code),
+                            ));
+                            continue;
+                        }
 
                         if ('set' === $op) {
                             $newValue = $edit['value'] ?? null;
@@ -129,11 +148,11 @@ final class BulkMultiAttributeEditHandler
                 $this->em->flush();
             }
 
-            $session->complete($success, 0, $errors);
+            $session->complete($success, $skipped, $errors);
             $this->em->persist($session);
             $this->em->flush();
 
-            return ['success' => $success, 'skipped' => 0, 'error' => $errors];
+            return ['success' => $success, 'skipped' => $skipped, 'error' => $errors];
         } finally {
             $this->bulkContext->setBulk(false);
         }
