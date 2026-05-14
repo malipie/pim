@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Application\Bulk;
 
 use App\Catalog\Application\BulkContext;
+use App\Catalog\Application\Lock\AttributeLockReader;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -33,6 +34,7 @@ final class BulkSetAttributeHandler
         private readonly CatalogObjectRepositoryInterface $catalogObjects,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
+        private readonly AttributeLockReader $lockReader,
     ) {
     }
 
@@ -67,6 +69,26 @@ final class BulkSetAttributeHandler
                             'Object not found',
                         ));
                         ++$chunkCounter;
+                        continue;
+                    }
+
+                    if ($this->lockReader->isLocked($object, $attrCode)) {
+                        ++$skipped;
+                        $this->em->persist(new BulkLog(
+                            $session->getId(),
+                            $object->getId(),
+                            null,
+                            $object->getAttributesIndexed()[$attrCode] ?? null,
+                            $object->getAttributesIndexed()[$attrCode] ?? null,
+                            BulkLog::LEVEL_WARNING,
+                            'Attribute locked',
+                        ));
+                        ++$chunkCounter;
+                        if ($chunkCounter >= self::CHUNK_SIZE) {
+                            $this->em->flush();
+                            $this->em->clear();
+                            $chunkCounter = 0;
+                        }
                         continue;
                     }
 
