@@ -1,0 +1,151 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Search\Presentation\Controller;
+
+use App\Catalog\Application\Filter\FilterDslResolver;
+use App\Catalog\Application\Filter\FilterUrlSerializer;
+use App\Catalog\Domain\Entity\SmartFilterPreset;
+use App\Catalog\Domain\ObjectKind;
+use App\Search\Application\CatalogSearchService;
+use App\Shared\Application\TenantContext;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Uid\Uuid;
+
+/**
+ * VIEW-11 (#542) — bulk selection helper for the cross-page selection
+ * toolbar.
+ *
+ * The flat selection state in the UI tracks per-row checkbox toggles,
+ * but operators want to escalate to *„select all matching"* without
+ * pagination. The toolbar issues a POST here with the current filter
+ * payload (smart preset OR base64 DSL), the backend resolves the
+ * Meilisearch filter expression, paginates through up to {@see HARD_CAP}
+ * matching documents, and returns the bare UUID list.
+ *
+ * Hard cap 10k IDs per request (PRD §14 R-35 mitigation): heavier
+ * selections degrade async bulk handlers; payload >10k IDs strains the
+ * client JSON parser. Selections beyond the cap surface
+ * `capped: true` + `totalMatched` so the toolbar can warn the user.
+ */
+final class BulkSelectionController
+{
+    public const int HARD_CAP = 10_000;
+    private const int PAGE_SIZE = 1_000;
+
+    public function __construct(
+        private readonly CatalogSearchService $searchService,
+        private readonly FilterDslResolver $filterDslResolver,
+        private readonly FilterUrlSerializer $filterUrlSerializer,
+        private readonly EntityManagerInterface $em,
+        private readonly TenantContext $tenantContext,
+    ) {
+    }
+
+    #[Route('/api/products/select-all-matching', name: 'pim_bulk_select_all_matching', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
+    public function selectAllMatching(Request $request): JsonResponse
+    {
+        /** @var array<string, mixed> $body */
+        $body = json_decode($request->getContent(), true) ?? [];
+
+        $query = \is_string($body['q'] ?? null) ? trim($body['q']) : '';
+        $customFilterExpression = $this->resolveCustomFilter($body);
+
+        $limit = isset($body['limit']) && is_numeric($body['limit'])
+            ? min(self::HARD_CAP, max(1, (int) $body['limit']))
+            : self::HARD_CAP;
+
+        $ids = [];
+        $page = 1;
+        $totalMatched = 0;
+        while (true) {
+            $result = $this->searchService->search(
+                kind: ObjectKind::Product,
+                query: $query,
+                page: $page,
+                perPage: self::PAGE_SIZE,
+                customFilterExpression: $customFilterExpression,
+            );
+            $totalMatched = $result['totalHits'];
+            foreach ($result['hits'] as $hit) {
+                if (isset($hit['id']) && \is_string($hit['id'])) {
+                    $ids[] = $hit['id'];
+                }
+                if (\count($ids) >= $limit) {
+                    break 2;
+                }
+            }
+            if (\count($result['hits']) < self::PAGE_SIZE) {
+                break; // no more pages
+            }
+            ++$page;
+        }
+
+        return new JsonResponse([
+            'ids' => $ids,
+            'totalMatched' => $totalMatched,
+            'capped' => \count($ids) < $totalMatched,
+            'limit' => $limit,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     */
+    private function resolveCustomFilter(array $body): ?string
+    {
+        $smartPreset = $body['smart_preset'] ?? null;
+        if (\is_string($smartPreset) && '' !== trim($smartPreset)) {
+            $preset = $this->loadPreset(trim($smartPreset));
+            if (null === $preset) {
+                throw new NotFoundHttpException(\sprintf('Smart filter preset "%s" not found.', $smartPreset));
+            }
+
+            return $this->filterDslResolver->toMeilisearchFilter($preset->getQuery());
+        }
+
+        $blob = $body['filter'] ?? null;
+        if (\is_string($blob) && '' !== trim($blob)) {
+            $dsl = $this->filterUrlSerializer->fromBase64(trim($blob));
+            if ([] === $dsl) {
+                return null;
+            }
+
+            return $this->filterDslResolver->toMeilisearchFilter($dsl);
+        }
+
+        return null;
+    }
+
+    private function loadPreset(string $idOrSlug): ?SmartFilterPreset
+    {
+        $repo = $this->em->getRepository(SmartFilterPreset::class);
+        if (1 === preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', $idOrSlug)) {
+            $preset = $repo->find(Uuid::fromString($idOrSlug));
+            if ($preset instanceof SmartFilterPreset) {
+                return $preset;
+            }
+        }
+
+        $tenant = $this->tenantContext->get();
+        $bySlug = $repo->findBy(['slug' => $idOrSlug]);
+        foreach ($bySlug as $candidate) {
+            $candidateTenant = $candidate->getTenant();
+            if (null === $candidateTenant) {
+                return $candidate;
+            }
+            if (null !== $tenant && $candidateTenant->getId()->equals($tenant->getId())) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+}
