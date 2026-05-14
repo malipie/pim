@@ -8,6 +8,7 @@ use App\Catalog\Application\BulkContext;
 use App\Catalog\Domain\ObjectKind;
 use App\Search\Application\BulkCatalogObjectIndexer;
 use App\Search\Application\IndexSettingsTemplate;
+use App\Search\Infrastructure\MeilisearchClientFactory;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
@@ -15,6 +16,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Throwable;
 
 /**
  * `pim:search:reindex` (#51 / 0.5.3) — full or per-kind rebuild of the
@@ -43,6 +45,7 @@ final class SearchReindexCommand extends Command
     public function __construct(
         private readonly BulkCatalogObjectIndexer $indexer,
         private readonly BulkContext $bulkContext,
+        private readonly MeilisearchClientFactory $clientFactory,
     ) {
         parent::__construct();
     }
@@ -62,6 +65,12 @@ final class SearchReindexCommand extends Command
                 null,
                 InputOption::VALUE_NONE,
                 'Iterate the catalog + log batches but do not push to Meili.',
+            )
+            ->addOption(
+                'purge',
+                null,
+                InputOption::VALUE_NONE,
+                'Delete every existing document from the targeted index before reindex. Use after pim:db:reset to drop orphans from previous tenants.',
             );
     }
 
@@ -87,12 +96,18 @@ final class SearchReindexCommand extends Command
         }
 
         $dryRun = true === $input->getOption('dry-run');
+        $purge = true === $input->getOption('purge');
 
         $io->title(\sprintf(
-            '%s reindex of %s',
+            '%s reindex of %s%s',
             $dryRun ? 'DRY-RUN' : 'Live',
             null === $kind ? 'every built-in kind' : IndexSettingsTemplate::indexName($kind),
+            $purge ? ' (purging existing docs first)' : '',
         ));
+
+        if ($purge && !$dryRun) {
+            $this->purgeIndexes($kind, $io);
+        }
 
         $progress = new ProgressBar($output);
         $progress->setFormat('verbose');
@@ -125,5 +140,27 @@ final class SearchReindexCommand extends Command
         ));
 
         return Command::SUCCESS;
+    }
+
+    private function purgeIndexes(?ObjectKind $kind, SymfonyStyle $io): void
+    {
+        try {
+            $client = $this->clientFactory->create();
+        } catch (Throwable $e) {
+            $io->warning(\sprintf('Cannot reach Meilisearch to purge: %s. Continuing with reindex anyway.', $e->getMessage()));
+
+            return;
+        }
+
+        $kinds = null === $kind ? IndexSettingsTemplate::indexedKinds() : [$kind];
+        foreach ($kinds as $k) {
+            $name = IndexSettingsTemplate::indexName($k);
+            try {
+                $client->index($name)->deleteAllDocuments();
+                $io->writeln(\sprintf('  purged: %s', $name));
+            } catch (Throwable $e) {
+                $io->warning(\sprintf('Purge of "%s" failed: %s', $name, $e->getMessage()));
+            }
+        }
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Application\Bulk;
 
 use App\Catalog\Application\BulkContext;
+use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -49,6 +50,7 @@ final class BulkRollbackHandler
         private readonly ObjectCategoryRepositoryInterface $objectCategories,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
+        private readonly BulkReindexQueueInterface $reindexQueue,
     ) {
     }
 
@@ -124,6 +126,8 @@ final class BulkRollbackHandler
                 $sessionFresh->markRolledBack();
                 $this->em->flush();
             }
+
+            $this->reindexQueue->queueAll($session->getTargetObjectIds());
 
             return $restored;
         } finally {

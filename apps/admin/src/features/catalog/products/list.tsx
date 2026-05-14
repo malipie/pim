@@ -1,5 +1,5 @@
 import { useList } from '@refinedev/core';
-import { Plus, Search, Upload } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -90,7 +90,12 @@ interface CatalogObjectListEntry {
   parentId?: string | null;
 }
 
-const PRODUCT_FACETS = ['enabled', 'status', 'brand', 'family'];
+// VIEW-26+ fix — `family` was in facets but NOT in Meili filterableAttributes;
+// Meili rejected the whole query with "Invalid facet distribution" so the
+// service caught the error and returned an empty result. Operator typing
+// "demo" saw 0 wyników mimo 100 dopasowań. Keep this list synced z
+// IndexSettingsTemplate::settingsFor(Product).filterableAttributes.
+const PRODUCT_FACETS = ['enabled', 'status', 'brand'];
 
 /**
  * Column set for Excel view (UI-02.12 restored). SKU + status + variant
@@ -109,7 +114,6 @@ type ExcelProductRow = ProductsGridRow & Record<string, unknown>;
 const EXCEL_COLUMNS: ExcelColumn<ExcelProductRow>[] = [
   { key: 'sku', label: 'SKU', type: 'text', width: 160, readOnly: true },
   { key: 'name', label: 'Nazwa', type: 'text', width: 280 },
-  { key: 'brand', label: 'Marka', type: 'text', width: 160 },
   { key: 'enabled', label: 'Aktywny', type: 'boolean', width: 100 },
   { key: 'status', label: 'Status', type: 'text', width: 100, readOnly: true },
   { key: 'completenessPct', label: 'Kompletność', type: 'number', width: 110, readOnly: true },
@@ -219,13 +223,6 @@ export function ProductListPage() {
   const [panelConditions, setPanelConditions] = useState<FilterCondition[]>([]);
   const [matchOperator, setMatchOperator] = useState<'AND' | 'OR'>('AND');
   const [showSaveAsPresetModal, setShowSaveAsPresetModal] = useState(false);
-  // VIEW-09b (#540) — query mode editor state. When `advancedMode === 'query'`,
-  // `queryDsl` is the recursive AND/OR tree. Toggling to grid mode flattens
-  // a single root group; toggling back rebuilds from `panelConditions`.
-  const [advancedMode, setAdvancedMode] = useState<'grid' | 'query'>('grid');
-  const [queryDsl, setQueryDsl] = useState<import('@/lib/filters/filter-dsl').FilterGroup | null>(
-    null,
-  );
 
   // VIEW-21 (#552) — `advancedFilters` legacy state was removed with the
   // AdvancedFilterBuilder Sheet. Range/extra filters now flow through the
@@ -241,8 +238,7 @@ export function ProductListPage() {
     Object.keys(searchFilters).length > 0 ||
     Object.keys(rangeFilters).length > 0 ||
     activeSmartPresetId !== null ||
-    panelConditions.length > 0 ||
-    (queryDsl?.conditions.length ?? 0) > 0;
+    panelConditions.length > 0;
 
   // VIEW-10 (#538) — when a smart preset is active OR the panel has
   // conditions, push them to the BE resolver through the new
@@ -252,14 +248,6 @@ export function ProductListPage() {
     : undefined;
   const filterBlob = useMemo<string | undefined>(() => {
     if (activePreset !== undefined) return undefined;
-    // VIEW-09b (#540) — query mode wins when active and has conditions.
-    if (advancedMode === 'query' && queryDsl && queryDsl.conditions.length > 0) {
-      try {
-        return dslToBase64(queryDsl);
-      } catch {
-        return undefined;
-      }
-    }
     if (panelConditions.length === 0) return undefined;
     const dsl = conditionsToDsl(panelConditions, matchOperator);
     if (dsl === null) return undefined;
@@ -268,7 +256,7 @@ export function ProductListPage() {
     } catch {
       return undefined;
     }
-  }, [activePreset, panelConditions, matchOperator, advancedMode, queryDsl]);
+  }, [activePreset, panelConditions, matchOperator]);
 
   // VIEW-26 (#557) — reset pagera do strony 1 gdy filter/query/preset
   // się zmienia, żeby operator nie wylądował na page 5 po zmianie
@@ -307,6 +295,11 @@ export function ProductListPage() {
   const { result, query: listQuery } = useList<CatalogObjectListEntry>({
     resource: 'products',
     filters: masterFilter,
+    // VIEW-26+ fix — pager state must flow into the non-search browse
+    // path too. Without `pagination` Refine asks for the default
+    // pageSize (~30) on every render and ignores the operator's
+    // selection; selectors and pager buttons looked broken.
+    pagination: { currentPage: page, pageSize },
     queryOptions: { enabled: !isSearchActive },
   });
   const refetch = listQuery.refetch;
@@ -489,10 +482,10 @@ export function ProductListPage() {
           body: { enabled: Boolean(value) },
           contentType: 'application/merge-patch+json',
         });
-      } else if (colKey === 'name' || colKey === 'brand') {
+      } else if (colKey === 'name') {
         await jsonFetch(`/api/products/${row.id}`, {
           method: 'PATCH',
-          body: { attributes: { [colKey]: value } },
+          body: { attributes: { name: value } },
           contentType: 'application/merge-patch+json',
         });
       } else {
@@ -608,19 +601,6 @@ export function ProductListPage() {
 
         <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
 
-        <Button
-          type="button"
-          variant="outline"
-          disabled
-          aria-disabled="true"
-          title={t('products.import_disabled', {
-            defaultValue: 'Mock — wymaga oprogramowania importu CSV/XLSX',
-          })}
-          className="h-11 rounded-2xl"
-        >
-          <Upload className="size-4" />
-          {t('products.toolbar.import', { defaultValue: 'Import' })}
-        </Button>
         <Button asChild className="h-11 rounded-2xl px-4">
           <Link to="/products/new">
             <Plus className="size-4" />
@@ -643,7 +623,6 @@ export function ProductListPage() {
               onClose={() => setAdvancedPanelOpen(false)}
               onClear={() => {
                 setPanelConditions([]);
-                setQueryDsl(null);
                 setActiveSmartPresetId(null);
               }}
               onSaveAsView={() => {
@@ -653,26 +632,6 @@ export function ProductListPage() {
                 setShowSaveAsPresetModal(true);
               }}
               resultCount={totalHits}
-              mode={advancedMode}
-              setMode={(next) => {
-                // Toggle: flat conditions → root group when entering query;
-                // query → first-level flat when entering grid (drops nested).
-                if (next === 'query' && advancedMode === 'grid') {
-                  setQueryDsl({
-                    operator: matchOperator,
-                    conditions: panelConditions.length > 0 ? panelConditions : [],
-                  });
-                }
-                if (next === 'grid' && advancedMode === 'query' && queryDsl) {
-                  const flat = queryDsl.conditions.filter(
-                    (c): c is FilterCondition => !('operator' in c),
-                  );
-                  setPanelConditions(flat);
-                }
-                setAdvancedMode(next);
-              }}
-              queryDsl={queryDsl}
-              setQueryDsl={(next) => setQueryDsl(next)}
             />
           </Suspense>
         ) : null}
@@ -682,7 +641,6 @@ export function ProductListPage() {
         chips={panelConditions}
         attrLabelMap={{
           brand: t('products.toolbar.filter_brand', { defaultValue: 'Marka' }),
-          family: t('products.toolbar.filter_family', { defaultValue: 'Rodzina' }),
           category: t('products.fields.categories', { defaultValue: 'Kategoria' }),
           completeness_pct: t('products.fields.completeness', { defaultValue: 'Compl.' }),
           enabled: t('products.fields.enabled', { defaultValue: 'Aktywny' }),
@@ -1015,8 +973,6 @@ function buildRow(entry: CatalogObjectListEntry): ProductsGridRow {
   // commits look like no-ops to operators even when the backend persists.
   const attrs = unwrapAttributesIndexed(entry.attributesIndexed);
   const name = typeof attrs.name === 'string' ? attrs.name : entry.code;
-  const brand = typeof attrs.brand === 'string' ? attrs.brand : null;
-  const family = readString(attrs, ['family', 'product_family']);
   const variantAxis = readString(attrs, ['variant_axis', 'axis']);
   const categories = readCategories(attrs);
   const price = readPrice(attrs);
@@ -1030,8 +986,6 @@ function buildRow(entry: CatalogObjectListEntry): ProductsGridRow {
     id: entry.id,
     sku: entry.code,
     name,
-    brand,
-    family,
     categories,
     price,
     completenessPct: typeof entry.completenessPct === 'number' ? entry.completenessPct : 0,

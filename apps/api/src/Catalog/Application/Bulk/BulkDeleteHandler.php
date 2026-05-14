@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Catalog\Application\Bulk;
 
 use App\Catalog\Application\BulkContext;
+use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -33,6 +35,7 @@ final class BulkDeleteHandler
         private readonly CatalogObjectRepositoryInterface $catalogObjects,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
+        private readonly BulkReindexQueueInterface $reindexQueue,
     ) {
     }
 
@@ -101,6 +104,8 @@ final class BulkDeleteHandler
             $session->complete($success, 0, $errors);
             $this->em->persist($session);
             $this->em->flush();
+
+            $this->reindexQueue->queueAllDeleted($session->getTargetObjectIds(), ObjectKind::Product);
 
             return ['success' => $success, 'skipped' => 0, 'error' => $errors];
         } finally {

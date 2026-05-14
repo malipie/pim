@@ -43,6 +43,13 @@ final class AttributePatchInput
     public ?bool $required = null;
 
     /**
+     * VIEW-38 (#579) — toggle from Settings → Attributes for whether
+     * the attribute appears as a Meilisearch filterableAttribute.
+     */
+    #[Groups(['attribute:patch'])]
+    public ?bool $filterable = null;
+
+    /**
      * @var array<string, mixed>|null
      */
     #[Assert\Type('array')]

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Export\Domain\Entity\ExportProfile"
+            table="export_profiles"
+            repository-class="App\Export\Infrastructure\Doctrine\Repository\DoctrineExportProfileRepository">
+
+        <unique-constraints>
+            <unique-constraint name="export_profiles_tenant_user_name_uniq" columns="tenant_id,user_id,name"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="export_profiles_tenant_user_idx" columns="tenant_id,user_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="userId" type="uuid" column="user_id"/>
+
+        <field name="name" type="string" length="255"/>
+        <field name="description" type="text" nullable="true"/>
+
+        <field name="config" type="json">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">{}</option>
+            </options>
+        </field>
+
+        <field name="lastRunAt" type="datetime_immutable" column="last_run_at" nullable="true"/>
+        <field name="runCount" type="integer" column="run_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+        <field name="updatedAt" type="datetime_immutable" column="updated_at"/>
+
+    </entity>
+
+</doctrine-mapping>

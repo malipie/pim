@@ -60,6 +60,16 @@ final class AttributeInput
     public bool $required = false;
 
     /**
+     * VIEW-38 (#579) — exposes the attribute as a top-level
+     * Meilisearch filter target. Toggled in the Settings → Attributes
+     * UI; persisted via `Attribute::changeFilterable`. The
+     * `AttributeFilterableProvisionListener` reprovisions the index
+     * settings on the same flush.
+     */
+    #[Groups(['attribute:create'])]
+    public bool $filterable = false;
+
+    /**
      * @var array<string, mixed>
      */
     #[Assert\Type('array')]

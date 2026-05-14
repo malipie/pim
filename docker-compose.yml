@@ -314,6 +314,7 @@ services:
       mc mb -p local/pim-assets || true;
       mc mb -p local/pim-backups || true;
       mc mb -p local/pim-imports || true;
+      mc mb -p local/pim-exports || true;
       mc anonymous set download local/pim-assets || true;
       mc ilm rule add --expire-days 7 local/pim-imports || true;
       "

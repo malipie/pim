@@ -20,6 +20,7 @@ final readonly class UpdateAttributeCommand
         public ?bool $localizable = null,
         public ?bool $scopable = null,
         public ?bool $required = null,
+        public ?bool $filterable = null,
         public ?array $validationRules = null,
         public ?int $position = null,
     ) {

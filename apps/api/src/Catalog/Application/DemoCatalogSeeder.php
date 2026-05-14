@@ -278,7 +278,7 @@ final readonly class DemoCatalogSeeder
      */
     private function seedProducts(ObjectType $type, array $categories, array $assets, array $attributes): void
     {
-        $brands = ['Acme', 'Globex', 'Soylent', 'Initech', 'Hooli'];
+        $brands = ['Acme', 'Globex', 'Soylent', 'Initech', 'Hooli', 'Festo', 'Bosch'];
         $colors = ['red', 'green', 'blue', 'black', 'white'];
         $sizes = ['XS', 'S', 'M', 'L', 'XL'];
         $tagSets = [['new'], ['sale', 'eco'], ['premium'], ['new', 'premium'], ['sale']];

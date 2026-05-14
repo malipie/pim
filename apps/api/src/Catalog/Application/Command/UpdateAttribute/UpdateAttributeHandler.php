@@ -54,6 +54,7 @@ final readonly class UpdateAttributeHandler
             $attemptsStructuralChange = null !== $command->localizable
                 || null !== $command->scopable
                 || null !== $command->required
+                || null !== $command->filterable
                 || null !== $command->validationRules;
             if ($attemptsStructuralChange) {
                 throw new UnprocessableEntityHttpException(\sprintf(
@@ -75,6 +76,9 @@ final readonly class UpdateAttributeHandler
         }
         if (null !== $command->required) {
             $attribute->changeRequired($command->required);
+        }
+        if (null !== $command->filterable) {
+            $attribute->changeFilterable($command->filterable);
         }
         if (null !== $command->validationRules) {
             $attribute->updateValidationRules($command->validationRules);

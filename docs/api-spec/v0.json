@@ -7082,6 +7082,10 @@
                     "required": {
                         "readOnly": true,
                         "type": "boolean"
+                    },
+                    "filterable": {
+                        "readOnly": true,
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -7147,6 +7151,11 @@
                         "default": false,
                         "type": "boolean"
                     },
+                    "filterable": {
+                        "description": "VIEW-38 (#579) \u2014 exposes the attribute as a top-level\nMeilisearch filter target. Toggled in the Settings \u2192 Attributes\nUI; persisted via `Attribute::changeFilterable`. The\n`AttributeFilterableProvisionListener` reprovisions the index\nsettings on the same flush.",
+                        "default": false,
+                        "type": "boolean"
+                    },
                     "validationRules": {
                         "type": "object",
                         "additionalProperties": {
@@ -7205,6 +7214,13 @@
                         ]
                     },
                     "required": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "filterable": {
+                        "description": "VIEW-38 (#579) \u2014 toggle from Settings \u2192 Attributes for whether\nthe attribute appears as a Meilisearch filterableAttribute.",
                         "type": [
                             "boolean",
                             "null"
@@ -7328,6 +7344,10 @@
                                 "type": "boolean"
                             },
                             "required": {
+                                "readOnly": true,
+                                "type": "boolean"
+                            },
+                            "filterable": {
                                 "readOnly": true,
                                 "type": "boolean"
                             }

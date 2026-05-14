@@ -56,6 +56,11 @@
                 <option name="default">false</option>
             </options>
         </field>
+        <field name="isFilterable" type="boolean" column="is_filterable">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
         <field name="isSystem" type="boolean" column="is_system">
             <options>
                 <option name="default">false</option>

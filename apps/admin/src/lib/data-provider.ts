@@ -34,6 +34,13 @@ export const dataProvider: DataProvider = {
     if (pagination?.currentPage) {
       query.page = pagination.currentPage;
     }
+    if (pagination?.pageSize) {
+      // API Platform reads `itemsPerPage` per the Hydra pagination
+      // extension. Without this the BE always returned the default
+      // page size (30) regardless of the operator's selection in the
+      // pager dropdown.
+      query.itemsPerPage = pagination.pageSize;
+    }
     // Forward simple `eq` field filters as query params. The custom
     // collection extensions per resource read these directly (the
     // Asset DAM pipeline relies on `?search=` + `?mimeGroup=`).

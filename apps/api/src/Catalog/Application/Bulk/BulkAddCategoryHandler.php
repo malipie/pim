@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Application\Bulk;
 
 use App\Catalog\Application\BulkContext;
+use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -32,6 +33,7 @@ final class BulkAddCategoryHandler
         private readonly ObjectCategoryRepositoryInterface $objectCategories,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
+        private readonly BulkReindexQueueInterface $reindexQueue,
     ) {
     }
 
@@ -129,6 +131,8 @@ final class BulkAddCategoryHandler
             $session->complete($success, $skipped, $errors);
             $this->em->persist($session);
             $this->em->flush();
+
+            $this->reindexQueue->queueAll($session->getTargetObjectIds());
 
             return ['success' => $success, 'skipped' => $skipped, 'error' => $errors];
         } finally {

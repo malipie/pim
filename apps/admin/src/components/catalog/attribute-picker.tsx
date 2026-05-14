@@ -1,5 +1,6 @@
 import { ChevronDown, Search, Star, StarOff } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { Input } from '@/components/ui/input';
@@ -66,6 +67,13 @@ export function AttributePicker({
   const [query, setQuery] = useState('');
   const [attributes, setAttributes] = useState<AttributeRow[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Portal-positioned popup — escapes parent `overflow:hidden`
+  // (BulkWizard modal, AdvancedFilterPanel sticky bar) so the dropdown
+  // is not clipped behind the dialog footer.
+  const [panelRect, setPanelRect] = useState<{ top: number; left: number; width: number } | null>(
+    null,
+  );
 
   const { favorites, toggle } = useFilterFavorites();
 
@@ -86,16 +94,43 @@ export function AttributePicker({
     };
   }, []);
 
-  // Close on outside click
+  // Close on outside click. Panel lives in a portal so the closing
+  // listener must also tolerate clicks landing inside `panelRef`.
   useEffect(() => {
     if (!open) return;
     const handler = (event: MouseEvent): void => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      const target = event.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     window.addEventListener('mousedown', handler);
     return () => window.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // Recompute portal anchor on open + on resize/scroll. Without this the
+  // panel sticks where it first opened and drifts when the page scrolls.
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelRect(null);
+      return;
+    }
+    const update = (): void => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setPanelRect({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 320),
+      });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
   }, [open]);
 
   const allowedRows = useMemo(() => {
@@ -147,80 +182,92 @@ export function AttributePicker({
         <span className="truncate text-left">{triggerLabel}</span>
         <ChevronDown className="size-4 shrink-0 text-zinc-400" aria-hidden="true" />
       </button>
-      {open ? (
-        <div className="absolute z-30 mt-1 w-[320px] rounded-xl border border-zinc-200 bg-white shadow-xl">
-          <div className="p-2 border-b border-zinc-100">
-            <div className="relative">
-              <Search
-                className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400"
-                aria-hidden="true"
-              />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t('attribute_picker.search_placeholder', {
-                  defaultValue: 'Szukaj atrybutu…',
-                })}
-                className="h-8 pl-7 text-[12.5px]"
-                autoFocus
-              />
-            </div>
-          </div>
-
-          <div className="max-h-[320px] overflow-y-auto py-1">
-            {favoriteRows.length > 0 ? (
-              <>
-                <div className="px-3 py-1 text-[10.5px] uppercase tracking-wider font-semibold text-zinc-400">
-                  {t('attribute_picker.favorites', { defaultValue: 'Ulubione' })}
-                </div>
-                {favoriteRows.map((row) => (
-                  <PickerRow
-                    key={`fav-${row.id}`}
-                    row={row}
-                    locale={locale}
-                    isFavorite
-                    isActive={value === row.id || value === row.code}
-                    onPick={() => {
-                      onChange({ id: row.id, code: row.code, type: row.type });
-                      setOpen(false);
-                    }}
-                    onToggleFavorite={() => {
-                      void toggle(row.id);
-                    }}
+      {open && panelRect && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={panelRef}
+              style={{
+                position: 'fixed',
+                top: panelRect.top,
+                left: panelRect.left,
+                width: panelRect.width,
+              }}
+              className="z-[100] rounded-xl border border-zinc-200 bg-white shadow-xl"
+            >
+              <div className="p-2 border-b border-zinc-100">
+                <div className="relative">
+                  <Search
+                    className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400"
+                    aria-hidden="true"
                   />
-                ))}
-                <div className="my-1 h-px bg-zinc-100" />
-              </>
-            ) : null}
-
-            <div className="px-3 py-1 text-[10.5px] uppercase tracking-wider font-semibold text-zinc-400">
-              {t('attribute_picker.all', { defaultValue: 'Wszystkie atrybuty' })}
-            </div>
-            {filteredRows.length === 0 ? (
-              <div className="px-3 py-2 text-[12px] text-zinc-400">
-                {t('attribute_picker.empty', { defaultValue: 'Brak atrybutów' })}
+                  <Input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={t('attribute_picker.search_placeholder', {
+                      defaultValue: 'Szukaj atrybutu…',
+                    })}
+                    className="h-8 pl-7 text-[12.5px]"
+                    autoFocus
+                  />
+                </div>
               </div>
-            ) : (
-              filteredRows.map((row) => (
-                <PickerRow
-                  key={row.id}
-                  row={row}
-                  locale={locale}
-                  isFavorite={favoriteIds.has(row.id)}
-                  isActive={value === row.id || value === row.code}
-                  onPick={() => {
-                    onChange({ id: row.id, code: row.code, type: row.type });
-                    setOpen(false);
-                  }}
-                  onToggleFavorite={() => {
-                    void toggle(row.id);
-                  }}
-                />
-              ))
-            )}
-          </div>
-        </div>
-      ) : null}
+
+              <div className="max-h-[320px] overflow-y-auto py-1">
+                {favoriteRows.length > 0 ? (
+                  <>
+                    <div className="px-3 py-1 text-[10.5px] uppercase tracking-wider font-semibold text-zinc-400">
+                      {t('attribute_picker.favorites', { defaultValue: 'Ulubione' })}
+                    </div>
+                    {favoriteRows.map((row) => (
+                      <PickerRow
+                        key={`fav-${row.id}`}
+                        row={row}
+                        locale={locale}
+                        isFavorite
+                        isActive={value === row.id || value === row.code}
+                        onPick={() => {
+                          onChange({ id: row.id, code: row.code, type: row.type });
+                          setOpen(false);
+                        }}
+                        onToggleFavorite={() => {
+                          void toggle(row.id);
+                        }}
+                      />
+                    ))}
+                    <div className="my-1 h-px bg-zinc-100" />
+                  </>
+                ) : null}
+
+                <div className="px-3 py-1 text-[10.5px] uppercase tracking-wider font-semibold text-zinc-400">
+                  {t('attribute_picker.all', { defaultValue: 'Wszystkie atrybuty' })}
+                </div>
+                {filteredRows.length === 0 ? (
+                  <div className="px-3 py-2 text-[12px] text-zinc-400">
+                    {t('attribute_picker.empty', { defaultValue: 'Brak atrybutów' })}
+                  </div>
+                ) : (
+                  filteredRows.map((row) => (
+                    <PickerRow
+                      key={row.id}
+                      row={row}
+                      locale={locale}
+                      isFavorite={favoriteIds.has(row.id)}
+                      isActive={value === row.id || value === row.code}
+                      onPick={() => {
+                        onChange({ id: row.id, code: row.code, type: row.type });
+                        setOpen(false);
+                      }}
+                      onToggleFavorite={() => {
+                        void toggle(row.id);
+                      }}
+                    />
+                  ))
+                )}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

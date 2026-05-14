@@ -6,6 +6,7 @@ namespace App\Catalog\Application\Bulk;
 
 use App\Catalog\Application\BulkContext;
 use App\Catalog\Application\Lock\AttributeLockReader;
+use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -35,6 +36,7 @@ final class BulkSetAttributeHandler
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
         private readonly AttributeLockReader $lockReader,
+        private readonly BulkReindexQueueInterface $reindexQueue,
     ) {
     }
 
@@ -142,6 +144,8 @@ final class BulkSetAttributeHandler
             $session->complete($success, $skipped, $errors);
             $this->em->persist($session);
             $this->em->flush();
+
+            $this->reindexQueue->queueAll($session->getTargetObjectIds());
 
             return ['success' => $success, 'skipped' => $skipped, 'error' => $errors];
         } finally {

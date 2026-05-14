@@ -127,6 +127,18 @@ final class InMemoryAttributeRepository implements AttributeRepositoryInterface
     public function remove(Attribute $attribute): void
     {
     }
+
+    public function filterableCodes(): array
+    {
+        $codes = [];
+        foreach ($this->byCode as $attribute) {
+            if ($attribute->isFilterable()) {
+                $codes[] = $attribute->getCode();
+            }
+        }
+
+        return $codes;
+    }
 }
 
 /**

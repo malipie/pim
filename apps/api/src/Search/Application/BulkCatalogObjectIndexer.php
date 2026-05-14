@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Search\Application;
 
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectCategory;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
 use App\Search\Infrastructure\MeilisearchClientFactory;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,6 +38,7 @@ final readonly class BulkCatalogObjectIndexer
 
     public function __construct(
         private EntityManagerInterface $em,
+        private ObjectCategoryRepositoryInterface $objectCategories,
         private MeilisearchClientFactory $clientFactory,
         ?LoggerInterface $logger = null,
     ) {
@@ -142,7 +145,9 @@ final readonly class BulkCatalogObjectIndexer
         $tenant = $object->getTenant();
         \assert($tenant instanceof Tenant);
 
-        return [
+        $attributesIndexed = $object->getAttributesIndexed();
+
+        $base = [
             'id' => $object->getId()->toRfc4122(),
             'tenantId' => $tenant->getId()->toRfc4122(),
             'code' => $object->getCode(),
@@ -152,10 +157,18 @@ final readonly class BulkCatalogObjectIndexer
             'enabled' => $object->isEnabled(),
             'parentId' => $object->getParent()?->getId()->toRfc4122(),
             'path' => $object->getPath(),
-            'attributesIndexed' => $object->getAttributesIndexed(),
+            'attributesIndexed' => $attributesIndexed,
             'completeness' => $object->getCompleteness(),
             'createdAt' => $object->getCreatedAt()->getTimestamp(),
             'updatedAt' => $object->getUpdatedAt()->getTimestamp(),
         ];
+        if (ObjectKind::Product === $object->getKind()) {
+            $base['category'] = array_map(
+                static fn (ObjectCategory $a): string => $a->getCategory()->getCode(),
+                $this->objectCategories->findByProduct($object),
+            );
+        }
+
+        return array_merge(DocumentFlattener::flatten($attributesIndexed), $base);
     }
 }

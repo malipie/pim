@@ -1,4 +1,4 @@
-import { ChevronRight, ImageOff } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -12,8 +12,6 @@ export interface ProductsGridRow {
   id: string;
   sku: string;
   name: string;
-  brand: string | null;
-  family: string | null;
   categories: string[] | null;
   price: { amount: number; currency: string } | null;
   completenessPct: number;
@@ -46,15 +44,13 @@ interface ProductsGridProps {
 }
 
 const GRID_TPL =
-  '44px 52px 130px minmax(220px,1.4fr) 120px 110px minmax(140px,0.9fr) 150px 150px 110px 70px 44px';
+  '44px 52px 130px minmax(240px,1.6fr) minmax(160px,1fr) 150px 150px 110px 70px 44px';
 
 const COL_KEYS = [
   'sel',
   'img',
   'sku',
   'name',
-  'brand',
-  'family',
   'cats',
   'compl',
   'channels',
@@ -77,7 +73,7 @@ const SYNC_LABEL_TONE: Record<SyncAggregate, string> = {
  * layout with a single CSS grid that follows the mockup's exact column
  * widths, hover/selected/variant tones, and tree-expand chevron + axis
  * label rendering for variants. Cells without backend coverage in MVP
- * render `—` placeholders (categories / price / family fall back when
+ * render `—` placeholders (categories / price fall back when
  * `attributesIndexed` doesn't expose them yet — see VIEW-05.1
  * follow-up).
  */
@@ -122,13 +118,7 @@ export function ProductsGrid({
                 aria-label={t('products.actions.select_all', {
                   defaultValue: 'Zaznacz wszystkie',
                 })}
-                className={cn(
-                  'size-4 rounded border appearance-none cursor-pointer transition relative',
-                  'bg-white border-zinc-300 hover:border-zinc-500',
-                  'checked:bg-zinc-900 checked:border-zinc-900',
-                  "checked:after:content-['✓'] after:absolute after:inset-0",
-                  'after:grid after:place-items-center after:text-[10px] after:text-white after:leading-none',
-                )}
+                className="size-4 cursor-pointer accent-zinc-900"
               />
             ) : (
               t(`products.fields.${key}`, { defaultValue: defaultLabelFor(key) })
@@ -175,10 +165,6 @@ function defaultLabelFor(key: (typeof COL_KEYS)[number]): string {
       return 'SKU';
     case 'name':
       return 'Nazwa';
-    case 'brand':
-      return 'Marka';
-    case 'family':
-      return 'Rodzina';
     case 'cats':
       return 'Kategorie';
     case 'compl':
@@ -247,29 +233,13 @@ function ProductsGridRowView({
               sku: row.sku,
               defaultValue: 'Zaznacz {{sku}}',
             })}
-            className={cn(
-              'size-4 rounded border appearance-none cursor-pointer transition relative',
-              'bg-white border-zinc-300 hover:border-zinc-500',
-              'checked:bg-zinc-900 checked:border-zinc-900',
-              "checked:after:content-['✓'] after:absolute after:inset-0",
-              'after:grid after:place-items-center after:text-[10px] after:text-white after:leading-none',
-            )}
+            className="size-4 cursor-pointer accent-zinc-900"
           />
         )}
       </div>
 
       <div className="px-3 py-2 flex items-center gap-1">
         {variant ? <span className="ml-1 text-zinc-300">└</span> : null}
-        <span
-          aria-hidden="true"
-          className={cn(
-            'grid place-items-center rounded-xl bg-zinc-100 text-zinc-400',
-            variant ? 'h-8 w-8' : 'h-9 w-9',
-          )}
-          title="brak miniatury"
-        >
-          <ImageOff className="size-4" aria-hidden="true" />
-        </span>
       </div>
 
       <div className="px-3 py-2 font-mono text-[12px] flex items-center gap-1.5">
@@ -335,12 +305,6 @@ function ProductsGridRowView({
         {variant && row.variantAxis !== null ? (
           <span className="text-[10.5px] text-zinc-500 font-mono">{row.variantAxis}</span>
         ) : null}
-      </div>
-
-      <div className="px-3 py-2 truncate text-zinc-700">{variant ? '' : (row.brand ?? '—')}</div>
-
-      <div className="px-3 py-2 text-zinc-600 truncate text-[12.5px]">
-        {variant ? '' : (row.family ?? '—')}
       </div>
 
       <div className="px-3 py-2 flex items-center gap-1 flex-wrap">
