@@ -47,7 +47,7 @@ final class BulkSetAttributeHandler
      */
     public function handle(BulkSession $session, string $attrCode, mixed $newValue): array
     {
-        $this->bulkContext->setBulk(true);
+        $this->bulkContext->setBulk(true, $session->getId());
         try {
             $success = 0;
             $skipped = 0;

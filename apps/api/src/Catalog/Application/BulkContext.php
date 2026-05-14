@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application;
 
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -23,19 +24,30 @@ use Symfony\Contracts\Service\ResetInterface;
  * leave the listeners on. The flag is request-scoped (Symfony service
  * is request-shared by default), so a misbehaving bulk run cannot leak
  * into a follow-up admin request.
+ *
+ * VIEW-35 (#575) — additionally carries the active `bulkSessionId` so
+ * downstream listeners on `ObjectValue` can stamp
+ * `provenance = Bulk` + `meta.bulk_session_id` for audit (PRD §5.4).
  */
 final class BulkContext implements ResetInterface
 {
     private bool $bulk = false;
+    private ?Uuid $sessionId = null;
 
-    public function setBulk(bool $bulk): void
+    public function setBulk(bool $bulk, ?Uuid $sessionId = null): void
     {
         $this->bulk = $bulk;
+        $this->sessionId = $bulk ? $sessionId : null;
     }
 
     public function isBulk(): bool
     {
         return $this->bulk;
+    }
+
+    public function getSessionId(): ?Uuid
+    {
+        return $this->sessionId;
     }
 
     /**
@@ -46,5 +58,6 @@ final class BulkContext implements ResetInterface
     public function reset(): void
     {
         $this->bulk = false;
+        $this->sessionId = null;
     }
 }

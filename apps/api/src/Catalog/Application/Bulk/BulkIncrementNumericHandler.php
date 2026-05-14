@@ -47,7 +47,7 @@ final class BulkIncrementNumericHandler
             throw new BadRequestHttpException(\sprintf('Unsupported operator "%s".', $operator));
         }
 
-        $this->bulkContext->setBulk(true);
+        $this->bulkContext->setBulk(true, $session->getId());
         try {
             $success = 0;
             $skipped = 0;

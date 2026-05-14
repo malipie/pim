@@ -44,7 +44,7 @@ final class BulkDuplicateHandler
      */
     public function handle(BulkSession $session): array
     {
-        $this->bulkContext->setBulk(true);
+        $this->bulkContext->setBulk(true, $session->getId());
         try {
             $success = 0;
             $skipped = 0;

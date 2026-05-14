@@ -50,7 +50,7 @@ final class BulkMultiAttributeEditHandler
             throw new BadRequestHttpException('edits must be a non-empty list.');
         }
 
-        $this->bulkContext->setBulk(true);
+        $this->bulkContext->setBulk(true, $session->getId());
         try {
             $success = 0;
             $skipped = 0;

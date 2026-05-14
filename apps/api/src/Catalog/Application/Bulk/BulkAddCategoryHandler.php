@@ -42,7 +42,7 @@ final class BulkAddCategoryHandler
      */
     public function handle(BulkSession $session, array $categoryIds): array
     {
-        $this->bulkContext->setBulk(true);
+        $this->bulkContext->setBulk(true, $session->getId());
         try {
             $success = 0;
             $skipped = 0;

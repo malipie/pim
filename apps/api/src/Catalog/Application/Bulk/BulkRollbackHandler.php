@@ -58,7 +58,7 @@ final class BulkRollbackHandler
             throw new BadRequestHttpException('Rollback window expired or already used.');
         }
 
-        $this->bulkContext->setBulk(true);
+        $this->bulkContext->setBulk(true, $session->getId());
         $restored = 0;
         try {
             $logs = $this->em->getRepository(BulkLog::class)
