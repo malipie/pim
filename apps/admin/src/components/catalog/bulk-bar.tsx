@@ -39,6 +39,7 @@ interface BulkBarProps {
   onOpenPublishModal?: () => void;
   onOpenDeleteModal?: () => void;
   onOpenDuplicateModal?: () => void;
+  onOpenCmdK?: () => void;
 }
 
 /**
@@ -59,6 +60,7 @@ export function BulkBar({
   onOpenPublishModal,
   onOpenDeleteModal,
   onOpenDuplicateModal,
+  onOpenCmdK,
 }: BulkBarProps) {
   const { t } = useTranslation();
   const [isPending, setIsPending] = useState(false);
@@ -149,14 +151,14 @@ export function BulkBar({
         </button>
         <button
           type="button"
-          onClick={placeholder('VIEW-05.5')}
+          onClick={onOpenCmdK ?? placeholder('VIEW-05.5')}
           className={cn(
             'text-[13px] font-medium px-3 py-1.5 rounded-xl bg-violet-500 hover:bg-violet-400 inline-flex items-center gap-1.5',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
           )}
         >
           <Sparkles className="size-3.5" aria-hidden="true" />
-          {t('products.bulk.delegate_agent', { defaultValue: 'Zleć agentowi' })}
+          {t('products.bulk.delegate_agent', { defaultValue: 'Zleć agentowi (⌘K)' })}
         </button>
 
         <DropdownMenu>
