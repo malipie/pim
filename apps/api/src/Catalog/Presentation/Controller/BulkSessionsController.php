@@ -7,9 +7,12 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Application\Bulk\BulkRollbackHandler;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
+use App\Shared\Application\TenantContext;
+use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -31,7 +34,69 @@ final class BulkSessionsController
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly BulkRollbackHandler $rollbackHandler,
+        private readonly TenantContext $tenantContext,
     ) {
+    }
+
+    /**
+     * VIEW-17b — recent bulk sessions visible in the topbar popover.
+     *
+     * Tenant-scoped + filtered to either *active 24h rollback window*
+     * (default — what the popover needs) or *all* recent sessions when
+     * the caller asks for a wider view. Cursor pagination is overkill
+     * here: the popover renders ~10 rows, the full audit ticket
+     * (VIEW-17c) will introduce its own list endpoint with filters.
+     */
+    #[Route('/api/bulk-sessions', name: 'pim_bulk_session_list', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function list(Request $request): JsonResponse
+    {
+        $tenant = $this->tenantContext->get();
+        if (null === $tenant) {
+            return new JsonResponse(['member' => [], 'total' => 0]);
+        }
+
+        $limit = max(1, min(50, (int) $request->query->get('limit', '10')));
+        $status = $request->query->get('status', 'active');
+
+        $qb = $this->em->getRepository(BulkSession::class)
+            ->createQueryBuilder('s')
+            ->where('s.tenant = :tenant')
+            ->setParameter('tenant', $tenant)
+            ->orderBy('s.startedAt', 'DESC')
+            ->setMaxResults($limit);
+
+        if ('active' === $status) {
+            $qb
+                ->andWhere('s.rolledBackAt IS NULL')
+                ->andWhere('s.rollbackAvailableUntil IS NOT NULL')
+                ->andWhere('s.rollbackAvailableUntil > :now')
+                ->setParameter('now', new DateTimeImmutable());
+        }
+
+        /** @var list<BulkSession> $sessions */
+        $sessions = $qb->getQuery()->getResult();
+
+        return new JsonResponse([
+            'member' => array_map(
+                static fn (BulkSession $s): array => [
+                    'id' => $s->getId()->toRfc4122(),
+                    'action_type' => $s->getActionType(),
+                    'target_count' => $s->getTargetCount(),
+                    'success_count' => $s->getSuccessCount(),
+                    'skipped_count' => $s->getSkippedCount(),
+                    'error_count' => $s->getErrorCount(),
+                    'started_at' => $s->getStartedAt()->format(DateTimeInterface::ATOM),
+                    'completed_at' => $s->getCompletedAt()?->format(DateTimeInterface::ATOM),
+                    'rollback_available_until' => $s->getRollbackAvailableUntil()?->format(DateTimeInterface::ATOM),
+                    'rolled_back_at' => $s->getRolledBackAt()?->format(DateTimeInterface::ATOM),
+                    'is_rollback_available' => $s->isRollbackAvailable(),
+                    'source' => $s->getSource(),
+                ],
+                $sessions,
+            ),
+            'total' => \count($sessions),
+        ]);
     }
 
     #[Route('/api/bulk-sessions/{id}', name: 'pim_bulk_session_show', requirements: ['id' => self::UUID_REGEX], methods: ['GET'])]
