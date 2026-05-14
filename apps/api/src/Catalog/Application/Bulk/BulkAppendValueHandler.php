@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Application\Bulk;
 
 use App\Catalog\Application\BulkContext;
+use App\Catalog\Application\Lock\AttributeLockReader;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -18,7 +19,8 @@ use Throwable;
  *
  * Appends a value to a list attribute. If the attribute slot is null or
  * scalar, it is promoted to `[old, new]` (dedup). If the value is
- * already present, the row is skipped (no-op, info log).
+ * already present, the row is skipped (no-op, info log). Locked
+ * attributes (VIEW-33 / PRD §8.3) skip with a warning entry.
  */
 final class BulkAppendValueHandler
 {
@@ -28,6 +30,7 @@ final class BulkAppendValueHandler
         private readonly CatalogObjectRepositoryInterface $catalogObjects,
         private readonly EntityManagerInterface $em,
         private readonly BulkContext $bulkContext,
+        private readonly AttributeLockReader $lockReader,
     ) {
     }
 
@@ -49,6 +52,26 @@ final class BulkAppendValueHandler
                     if (!$object instanceof CatalogObject) {
                         ++$errors;
                         ++$chunkCounter;
+                        continue;
+                    }
+
+                    if ($this->lockReader->isLocked($object, $attrCode)) {
+                        ++$skipped;
+                        $this->em->persist(new BulkLog(
+                            $session->getId(),
+                            $object->getId(),
+                            null,
+                            $object->getAttributesIndexed()[$attrCode] ?? null,
+                            $object->getAttributesIndexed()[$attrCode] ?? null,
+                            BulkLog::LEVEL_WARNING,
+                            'Attribute locked',
+                        ));
+                        ++$chunkCounter;
+                        if ($chunkCounter >= self::CHUNK_SIZE) {
+                            $this->em->flush();
+                            $this->em->clear();
+                            $chunkCounter = 0;
+                        }
                         continue;
                     }
 
