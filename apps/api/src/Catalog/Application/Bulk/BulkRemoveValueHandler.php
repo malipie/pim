@@ -75,6 +75,7 @@ final class BulkRemoveValueHandler
                             ));
                             $indexed[$attrCode] = $newList;
                             $object->updateAttributeIndex($indexed);
+                            $object->markTouchedByBulkSession($session->getId());
                             $this->em->persist(new BulkLog(
                                 $session->getId(),
                                 $object->getId(),
@@ -89,6 +90,7 @@ final class BulkRemoveValueHandler
                     } elseif ($oldValue === $value) {
                         unset($indexed[$attrCode]);
                         $object->updateAttributeIndex($indexed);
+                        $object->markTouchedByBulkSession($session->getId());
                         $this->em->persist(new BulkLog(
                             $session->getId(),
                             $object->getId(),

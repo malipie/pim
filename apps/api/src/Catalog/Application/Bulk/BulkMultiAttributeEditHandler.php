@@ -101,6 +101,7 @@ final class BulkMultiAttributeEditHandler
 
                     if ($rowChanged) {
                         $object->updateAttributeIndex($indexed);
+                        $object->markTouchedByBulkSession($session->getId());
                         ++$success;
                     }
                 } catch (Throwable $e) {
