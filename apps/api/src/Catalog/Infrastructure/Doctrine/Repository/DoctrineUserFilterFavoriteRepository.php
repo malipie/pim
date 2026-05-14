@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Infrastructure\Doctrine\Repository;
+namespace App\Catalog\Infrastructure\Doctrine\Repository;
 
 use App\Catalog\Domain\Entity\Attribute;
-use App\Identity\Domain\Entity\User;
-use App\Identity\Domain\Entity\UserFilterFavorite;
-use App\Identity\Domain\Repository\UserFilterFavoriteRepositoryInterface;
+use App\Catalog\Domain\Entity\UserFilterFavorite;
+use App\Catalog\Domain\Repository\UserFilterFavoriteRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -22,12 +21,12 @@ final class DoctrineUserFilterFavoriteRepository extends ServiceEntityRepository
         parent::__construct($registry, UserFilterFavorite::class);
     }
 
-    public function findByUser(User $user): array
+    public function findByUser(Uuid $userId): array
     {
         /** @var list<UserFilterFavorite> $rows */
         $rows = $this->createQueryBuilder('f')
-            ->where('f.user = :user')
-            ->setParameter('user', $user)
+            ->where('f.userId = :user')
+            ->setParameter('user', $userId, 'uuid')
             ->orderBy('f.sortOrder', 'ASC')
             ->getQuery()
             ->getResult();
@@ -35,20 +34,23 @@ final class DoctrineUserFilterFavoriteRepository extends ServiceEntityRepository
         return $rows;
     }
 
-    public function replaceForUser(User $user, array $entries): void
+    public function replaceForUser(Uuid $userId, array $entries): void
     {
         $em = $this->getEntityManager();
-        $em->wrapInTransaction(static function () use ($em, $user, $entries): void {
+        $em->wrapInTransaction(static function () use ($em, $userId, $entries): void {
             $em->createQueryBuilder()
                 ->delete(UserFilterFavorite::class, 'f')
-                ->where('f.user = :user')
-                ->setParameter('user', $user)
+                ->where('f.userId = :user')
+                ->setParameter('user', $userId, 'uuid')
                 ->getQuery()
                 ->execute();
 
             foreach ($entries as $entry) {
                 $attribute = $em->getReference(Attribute::class, Uuid::fromString($entry['attribute_id']));
-                $favorite = new UserFilterFavorite($user, $attribute, $entry['sort_order']);
+                if (!$attribute instanceof Attribute) {
+                    continue;
+                }
+                $favorite = new UserFilterFavorite($userId, $attribute, $entry['sort_order']);
                 $em->persist($favorite);
             }
             $em->flush();
