@@ -230,17 +230,30 @@ export function AdvancedFilterPanel({
                     }
                     onChange={(e) => {
                       const raw = e.target.value;
-                      const next =
-                        cond.op === 'IN' || cond.op === 'NOT IN'
-                          ? raw
-                              .split(',')
-                              .map((s) => s.trim())
-                              .filter(Boolean)
-                          : attrMeta.type === 'number' || attrMeta.type === 'metric'
-                            ? raw === ''
-                              ? ''
-                              : Number(raw)
-                            : raw;
+                      let next: string | number | string[];
+                      if (cond.op === 'IN' || cond.op === 'NOT IN') {
+                        next = raw
+                          .split(',')
+                          .map((s) => s.trim())
+                          .filter(Boolean);
+                      } else if (attrMeta.type === 'number' || attrMeta.type === 'metric') {
+                        if (raw === '') {
+                          next = '';
+                        } else {
+                          // Polish locale uses comma as the decimal
+                          // separator. JS Number() rejects it and yields
+                          // NaN, so the operator typing `101,99` lost the
+                          // filter value entirely. Accept both separators
+                          // by normalising before parsing; keep the raw
+                          // string when the result is not finite so the
+                          // operator can keep typing without the input
+                          // resetting mid-keystroke.
+                          const parsed = Number(raw.replace(',', '.'));
+                          next = Number.isFinite(parsed) ? parsed : raw;
+                        }
+                      } else {
+                        next = raw;
+                      }
                       updateCondition(idx, { value: next });
                     }}
                     placeholder={

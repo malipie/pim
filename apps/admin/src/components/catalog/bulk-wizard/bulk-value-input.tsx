@@ -137,14 +137,23 @@ export function BulkValueInput({
   if (attrType === 'number' || attrType === 'metric') {
     return (
       <Input
-        type="number"
+        // text + inputMode=decimal because native type=number swallows
+        // the Polish comma decimal separator and reports an empty
+        // `e.target.value`, so the operator typing `101,99` lost the
+        // filter value mid-keystroke.
+        type="text"
         inputMode="decimal"
         value={typeof value === 'string' || typeof value === 'number' ? String(value) : ''}
         onChange={(e) => {
           const raw = e.target.value;
-          onChange(raw === '' ? '' : Number(raw));
+          if (raw === '') {
+            onChange('');
+            return;
+          }
+          const parsed = Number(raw.replace(',', '.'));
+          onChange(Number.isFinite(parsed) ? parsed : raw);
         }}
-        placeholder={placeholder ?? 'np. 49.99'}
+        placeholder={placeholder ?? 'np. 49,99'}
         className="font-mono"
       />
     );
