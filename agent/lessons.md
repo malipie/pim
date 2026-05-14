@@ -2,6 +2,16 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z bug-fix marathonu (VIEW-20..28, 2026-05-14)
+
+### Patterns to Avoid
+
+**`bin/console cache:clear` w FrankenPHP worker mode wymaga restartu kontenera.**
+- Symptom: po `cache:clear` losowe endpointy zwracają fatal error `Failed to open stream: var/cache/dev/Container1dz5xVq/getXxxControllerService.php — No such file or directory`. Worker trzyma snapshot starego container-a w pamięci który referencjuje już-usunięte pliki.
+- **Why:** FrankenPHP worker mode keeps Symfony kernel in-memory między requestami (CLAUDE.md §3.10). `cache:clear` usuwa pliki na dysku ale worker process nadal mapuje stary container.
+- **How to apply:** po `cache:clear` ZAWSZE `docker compose restart api`. Albo wybierz `cache:warmup` (który nie kasuje, tylko regeneruje) zamiast `cache:clear`.
+- **Worst case impact:** operator widzi pustą sidebar (menu `/api/menu_configuration/effective` zwraca 500), myśli że ostatni PR zepsuł UI. Ja debugowałem 5 min za nim znalazłem stack trace pokazujący że plik serwisu nie istnieje.
+
 ## Lessons z marathonu UI-09 (12/12 ticketów, 2026-05-14)
 
 ### Patterns to Follow

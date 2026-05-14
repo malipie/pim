@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Presentation;
+namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Domain\Entity\Attribute;
-use App\Identity\Domain\Entity\User;
-use App\Identity\Domain\Entity\UserFilterFavorite;
-use App\Identity\Domain\Repository\UserFilterFavoriteRepositoryInterface;
+use App\Catalog\Domain\Entity\UserFilterFavorite;
+use App\Catalog\Domain\Repository\UserFilterFavoriteRepositoryInterface;
+use App\Shared\Application\UserIdentityAware;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -27,6 +27,11 @@ use Symfony\Component\Uid\Uuid;
  * `PUT /api/users/me/filter-favorites` atomically replaces the entire
  * list. Body: `{ "attribute_ids": ["uuid", ...] }`. Max 10 entries
  * (400 otherwise) — the picker UX caps at 10 ulubione.
+ *
+ * Lives in Catalog (not Identity) because both `Attribute` and the
+ * repository sit in Catalog; the user identity is obtained via the
+ * shared `UserIdentityAware` contract so the controller never imports
+ * `App\Identity\Domain\Entity\User`.
  */
 final class UserFilterFavoritesController
 {
@@ -43,8 +48,8 @@ final class UserFilterFavoritesController
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function show(): JsonResponse
     {
-        $user = $this->requireUser();
-        $rows = $this->favorites->findByUser($user);
+        $userId = $this->requireUserId();
+        $rows = $this->favorites->findByUser($userId);
 
         return new JsonResponse([
             'favorites' => array_map(
@@ -63,7 +68,7 @@ final class UserFilterFavoritesController
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function replace(Request $request): JsonResponse
     {
-        $user = $this->requireUser();
+        $userId = $this->requireUserId();
 
         /** @var array<string, mixed> $body */
         $body = json_decode($request->getContent(), true) ?? [];
@@ -92,18 +97,18 @@ final class UserFilterFavoritesController
             ++$sortOrder;
         }
 
-        $this->favorites->replaceForUser($user, $entries);
+        $this->favorites->replaceForUser($userId, $entries);
 
         return $this->show();
     }
 
-    private function requireUser(): User
+    private function requireUserId(): Uuid
     {
         $user = $this->security->getUser();
-        if (!$user instanceof User) {
+        if (!$user instanceof UserIdentityAware) {
             throw new BadRequestHttpException('Authenticated user required.');
         }
 
-        return $user;
+        return $user->getId();
     }
 }
