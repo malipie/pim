@@ -111,7 +111,9 @@ final class SearchController
         ));
 
         $page = max(1, (int) ($request->query->get('page') ?? 1));
-        $perPage = min(100, max(1, (int) ($request->query->get('perPage') ?? 30)));
+        // VIEW-26 (#557) — page size selector wykładnia 20/50/100/200,
+        // więc cap podniesiony ze 100 do 200.
+        $perPage = min(200, max(1, (int) ($request->query->get('perPage') ?? 30)));
         $highlight = filter_var($request->query->get('highlight'), FILTER_VALIDATE_BOOLEAN);
         // VIEW-11 (#542) — count-only shortcut for cross-page selection
         // toolbar. Skips hit hydration + facet aggregation; Meilisearch

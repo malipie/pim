@@ -16,6 +16,11 @@ import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
 import { type ExcelColumn, ExcelLikeGrid } from '@/components/catalog/excel-like-grid';
 import { FilterChipsBar } from '@/components/catalog/filter-chips-bar';
 import { FilterPill } from '@/components/catalog/filter-pill';
+import {
+  PAGE_SIZE_OPTIONS,
+  type PageSize,
+  PaginationBar,
+} from '@/components/catalog/pagination-bar';
 import type { FilterValue } from '@/components/catalog/product-filter-chips';
 import { ProductsGrid, type ProductsGridRow } from '@/components/catalog/products-grid';
 import { type RollbackSession, RollbackToast } from '@/components/catalog/rollback-toast';
@@ -92,10 +97,50 @@ const STATUS_VALUES: ReadonlyArray<{ value: string; label: string; sync: SyncAgg
 
 const CHANNEL_VALUES: ReadonlyArray<string> = ['Shopify', 'BaseLinker', 'Allegro'];
 
+function readInitialPageSize(): PageSize {
+  if (typeof window === 'undefined') return 50;
+  const urlParam = new URLSearchParams(window.location.search).get('pageSize');
+  const parsedUrl = urlParam !== null ? Number(urlParam) : Number.NaN;
+  if (PAGE_SIZE_OPTIONS.includes(parsedUrl as PageSize)) {
+    return parsedUrl as PageSize;
+  }
+  const stored = window.localStorage.getItem('pim.products.pageSize');
+  const parsedStored = stored !== null ? Number(stored) : Number.NaN;
+  if (PAGE_SIZE_OPTIONS.includes(parsedStored as PageSize)) {
+    return parsedStored as PageSize;
+  }
+  return 50;
+}
+
+function readInitialPage(): number {
+  if (typeof window === 'undefined') return 1;
+  const urlParam = new URLSearchParams(window.location.search).get('page');
+  const parsed = urlParam !== null ? Number(urlParam) : Number.NaN;
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
+}
+
 export function ProductListPage() {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
+  // VIEW-26 (#557) — pager + page size selector. Init kolejność:
+  // URL `?page=` + `?pageSize=` → localStorage → default 50.
+  const [page, setPage] = useState<number>(() => readInitialPage());
+  const [pageSize, setPageSize] = useState<PageSize>(() => readInitialPageSize());
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('pim.products.pageSize', String(pageSize));
+  }, [pageSize]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', String(page));
+    params.set('pageSize', String(pageSize));
+    const url = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+    window.history.replaceState(null, '', url);
+  }, [page, pageSize]);
   const [advancedFilters, setAdvancedFilters] = useState<Record<string, FilterValue>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
@@ -217,6 +262,14 @@ export function ProductListPage() {
     }
   }, [activePreset, panelConditions, matchOperator, advancedMode, queryDsl]);
 
+  // VIEW-26 (#557) — reset pagera do strony 1 gdy filter/query/preset
+  // się zmienia, żeby operator nie wylądował na page 5 po zmianie
+  // filtra który ma tylko 2 strony wyników.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — `setPage` is stable, page tracked elsewhere
+  useEffect(() => {
+    setPage(1);
+  }, [query, filters, activeSmartPresetId, filterBlob, variantsMode]);
+
   const { result: searchResult, isLoading: isSearchLoading } = useCatalogSearch({
     kind: 'products',
     query,
@@ -225,7 +278,8 @@ export function ProductListPage() {
     smartPresetId: activePreset?.slug ?? activePreset?.id,
     filterBlob,
     facets: PRODUCT_FACETS,
-    perPage: 30,
+    page,
+    perPage: pageSize,
   });
 
   // Tree mode (#514): only fetch master products. Without this filter
@@ -940,6 +994,17 @@ export function ProductListPage() {
           alwaysShowChevronOnMasters={variantsMode === 'tree' && !isSearchActive}
         />
       )}
+
+      <PaginationBar
+        page={page}
+        pageSize={pageSize}
+        totalItems={totalHits}
+        onPageChange={setPage}
+        onPageSizeChange={(next) => {
+          setPageSize(next);
+          setPage(1);
+        }}
+      />
 
       <BulkBar
         selectedIds={Array.from(selected)}
