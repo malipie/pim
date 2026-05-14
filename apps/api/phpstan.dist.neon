@@ -88,7 +88,6 @@ parameters:
               - src/Catalog/Domain/Entity/Association.php
               - src/Catalog/Domain/Entity/BulkEditJob.php
               - src/Catalog/Domain/Entity/SavedView.php
-              - src/Catalog/Domain/Entity/SmartFilterPreset.php
               - src/Catalog/Domain/Entity/BulkSession.php
               - src/Channel/Domain/Entity/Channel.php
               - src/Asset/Domain/Entity/Asset.php
