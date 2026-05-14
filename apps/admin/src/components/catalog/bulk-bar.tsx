@@ -1,4 +1,4 @@
-import { Download, FolderTree, MoreHorizontal, Pencil, Sparkles } from 'lucide-react';
+import { Download, FolderTree, Globe, MoreHorizontal, Pencil, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -27,6 +27,7 @@ interface BulkBarProps {
   onApplied: () => void;
   onOpenWizard?: () => void;
   onOpenCategoryModal?: () => void;
+  onOpenPublishModal?: () => void;
 }
 
 /**
@@ -44,6 +45,7 @@ export function BulkBar({
   onApplied,
   onOpenWizard,
   onOpenCategoryModal,
+  onOpenPublishModal,
 }: BulkBarProps) {
   const { t } = useTranslation();
   const [isPending, setIsPending] = useState(false);
@@ -170,6 +172,16 @@ export function BulkBar({
             >
               {t('products.bulk.disable', { defaultValue: 'Wyłącz' })}
             </DropdownMenuItem>
+            {onOpenPublishModal ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onOpenPublishModal();
+                }}
+              >
+                <Globe className="mr-2 size-3.5" aria-hidden="true" />
+                {t('products.bulk.publish_channels', { defaultValue: 'Publikuj na kanałach' })}
+              </DropdownMenuItem>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
 
