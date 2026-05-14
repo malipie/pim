@@ -84,7 +84,7 @@ final class FilterDslResolver
      * literal values escaped via `pg_escape_literal` semantics. Future
      * VIEW-10 will switch to PDO-bound parameters for safety; for VIEW-09
      * the DSL flow is admin-only (curated dropdown values) and the
-     * controller's `executeQuery` is wrapped in try/catch.
+     * controller-side execution is wrapped in try/catch.
      *
      * @param array<string, mixed> $dsl
      */
