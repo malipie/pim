@@ -77,7 +77,7 @@ final class SearchController
         // filter DSL URL serializer. Falling back to `?q=` is kept for
         // backwards compatibility ONLY when the value clearly isn't a
         // base64 blob (no padding, short, contains spaces/non-base64 chars).
-        $query = (string) ($request->query->get('query') ?? '');
+        $query = $request->query->get('query') ?? '';
 
         $filters = [];
         $rangeFilters = [];
