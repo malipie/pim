@@ -7,12 +7,14 @@ import { Link } from 'react-router';
 import { AdvancedFilterBuilder } from '@/components/catalog/advanced-filter-builder';
 import { AdvancedFilterPanel } from '@/components/catalog/advanced-filter-panel';
 import { BulkBar } from '@/components/catalog/bulk-bar';
+import { BulkWizard } from '@/components/catalog/bulk-wizard/bulk-wizard';
 import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
 import { type ExcelColumn, ExcelLikeGrid } from '@/components/catalog/excel-like-grid';
 import { FilterChipsBar } from '@/components/catalog/filter-chips-bar';
 import { FilterPill } from '@/components/catalog/filter-pill';
 import type { FilterValue } from '@/components/catalog/product-filter-chips';
 import { ProductsGrid, type ProductsGridRow } from '@/components/catalog/products-grid';
+import { type RollbackSession, RollbackToast } from '@/components/catalog/rollback-toast';
 import { SaveAsSmartPresetModal } from '@/components/catalog/save-as-smart-preset-modal';
 import { SaveViewModal } from '@/components/catalog/save-view-modal';
 import { SavedViewsRail } from '@/components/catalog/saved-views-rail';
@@ -102,6 +104,10 @@ export function ProductListPage() {
     capped: boolean;
   }>({ active: false, totalMatched: 0, capped: false });
   const [crossPageLoading, setCrossPageLoading] = useState(false);
+  // VIEW-12 (#543) — bulk wizard open/close.
+  // VIEW-17 (#544) — sticky 24h rollback toast for the last applied session.
+  const [bulkWizardOpen, setBulkWizardOpen] = useState(false);
+  const [lastBulkSession, setLastBulkSession] = useState<RollbackSession | null>(null);
   const [variantsMode, setVariantsMode] = useState<VariantsMode>('tree');
   const [viewMode, setViewMode] = useState<ProductsViewMode>(() => {
     if (typeof window === 'undefined') return 'grid';
@@ -922,6 +928,28 @@ export function ProductListPage() {
           setShowSelectedOnly(false);
         }}
         onApplied={onBulkApplied}
+      />
+
+      {bulkWizardOpen ? (
+        <BulkWizard
+          open={bulkWizardOpen}
+          selectedIds={Array.from(selected)}
+          onClose={() => setBulkWizardOpen(false)}
+          onApplied={(result) => {
+            setLastBulkSession(result);
+            setSelected(new Set());
+            setShowSelectedOnly(false);
+            void refetch();
+          }}
+        />
+      ) : null}
+
+      <RollbackToast
+        session={lastBulkSession}
+        onDismiss={() => setLastBulkSession(null)}
+        onRolledBack={() => {
+          void refetch();
+        }}
       />
 
       {showSaveViewModal ? (
