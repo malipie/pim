@@ -41,10 +41,11 @@ final readonly class CatalogSearchService
     }
 
     /**
-     * @param array<string, scalar|list<scalar>>             $filters      plain key→value / key→[v1,v2] OR matches on top of tenant scope
-     * @param list<string>                                   $facets       Attribute codes to facet on
-     * @param array<string, mixed>                           $extra        forward-compat — Meili options not surfaced here yet (sort, ranking)
-     * @param array<string, array{gte?: float, lte?: float}> $rangeFilters numeric range filters (UI-02.24); mapped to Meili `key >= N AND key <= N`
+     * @param array<string, scalar|list<scalar>>             $filters                plain key→value / key→[v1,v2] OR matches on top of tenant scope
+     * @param list<string>                                   $facets                 Attribute codes to facet on
+     * @param array<string, mixed>                           $extra                  forward-compat — Meili options not surfaced here yet (sort, ranking)
+     * @param array<string, array{gte?: float, lte?: float}> $rangeFilters           numeric range filters (UI-02.24); mapped to Meili `key >= N AND key <= N`
+     * @param ?string                                        $customFilterExpression VIEW-10 — pre-built Meilisearch filter expression from FilterDslResolver::toMeilisearchFilter() AND-merged with tenant + flat filters
      *
      * @return array{hits: list<array<string, mixed>>, totalHits: int, facetDistribution: array<string, mixed>, processingTimeMs: int}
      */
@@ -58,6 +59,7 @@ final readonly class CatalogSearchService
         bool $highlight = false,
         array $extra = [],
         array $rangeFilters = [],
+        ?string $customFilterExpression = null,
     ): array {
         if (ObjectKind::Custom === $kind) {
             return $this->emptyResult();
@@ -93,6 +95,9 @@ final readonly class CatalogSearchService
             if (isset($range['lte'])) {
                 $extraFilters[] = \sprintf('%s <= %s', $key, $range['lte']);
             }
+        }
+        if (null !== $customFilterExpression && '' !== trim($customFilterExpression)) {
+            $extraFilters[] = '('.$customFilterExpression.')';
         }
         $filterExpression = trim($tenantFilter.([] !== $extraFilters ? ' AND '.implode(' AND ', $extraFilters) : ''));
 

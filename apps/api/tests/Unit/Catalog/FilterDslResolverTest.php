@@ -64,9 +64,9 @@ final class FilterDslResolverTest extends TestCase
     public function testValidateRejectsUnsupportedOperator(): void
     {
         $this->expectException(BadRequestHttpException::class);
-        $this->expectExceptionMessageMatches('/Operator "STARTS WITH" not supported/');
+        $this->expectExceptionMessageMatches('/Operator "REGEX MATCH" not supported/');
 
-        $this->resolver->validate(['attr' => 'brand', 'op' => 'STARTS WITH', 'value' => 'Fest']);
+        $this->resolver->validate(['attr' => 'brand', 'op' => 'REGEX MATCH', 'value' => '^F.*$']);
     }
 
     public function testValidateRejectsMalformedGroup(): void
