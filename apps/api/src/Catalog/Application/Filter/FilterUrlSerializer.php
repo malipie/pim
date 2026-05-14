@@ -92,10 +92,11 @@ final class FilterUrlSerializer
         if (!\is_array($decoded)) {
             throw new BadRequestHttpException('Filter blob must decode to a JSON object.');
         }
-        /* @var array<string, mixed> $decoded */
-        $this->resolver->validate($decoded);
+        /** @var array<string, mixed> $typed */
+        $typed = $decoded;
+        $this->resolver->validate($typed);
 
-        return $decoded;
+        return $typed;
     }
 
     /**
