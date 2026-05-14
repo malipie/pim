@@ -48,6 +48,7 @@ interface CreatePayload {
   required: boolean;
   unique: boolean;
   indexed: boolean;
+  filterable: boolean;
 }
 
 const EMPTY: CreatePayload = {
@@ -60,6 +61,7 @@ const EMPTY: CreatePayload = {
   required: false,
   unique: false,
   indexed: false,
+  filterable: false,
 };
 
 const TYPES = [
@@ -101,6 +103,7 @@ export function AttributeCreatePage() {
         label: stripEmpty({ pl: values.labelPl, en: values.labelEn }),
         type: values.type,
         required: values.required,
+        filterable: values.filterable,
       };
       const help = stripEmpty({ pl: values.helpPl, en: values.helpEn });
       if (Object.keys(help).length > 0) body.help = help;
@@ -320,6 +323,15 @@ export function AttributeCreatePage() {
                 })}
                 checked={values.indexed}
                 onChange={(next) => setValues({ ...values, indexed: next })}
+              />
+              <SettingToggleRow
+                label={t('attributes.flags.filterable_label', { defaultValue: 'Filtrowalny' })}
+                description={t('attributes.flags.filterable_desc', {
+                  defaultValue:
+                    'Pojawia się w panelu Filtruj zaawansowane. Reindex wymaga zmian ustawień Meilisearch.',
+                })}
+                checked={values.filterable}
+                onChange={(next) => setValues({ ...values, filterable: next })}
               />
             </div>
           </Section>

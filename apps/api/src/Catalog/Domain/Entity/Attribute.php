@@ -57,6 +57,17 @@ class Attribute implements TenantScoped
     private bool $isRequired = false;
 
     /**
+     * VIEW-38 (#579) — `is_filterable=true` exposes the attribute as a
+     * top-level filter target on the catalog Meilisearch index. The
+     * indexer denormalizes the envelope's scalar value via
+     * {@see DocumentFlattener}, and `MeilisearchIndexProvisioner`
+     * unions the codes of every `is_filterable=true` attribute into
+     * `filterableAttributes` so a filter expression like
+     * `manufacturer = "Bosch"` resolves without a settings deploy.
+     */
+    private bool $isFilterable = false;
+
+    /**
      * UI-08.3 (#258) — `is_system=true` marks platform-owned attributes
      * (`created_at`, `updated_at`, `created_by`, `updated_by`). They are
      * created by migration / seeder, never deletable, code immutable, and
@@ -215,6 +226,16 @@ class Attribute implements TenantScoped
     public function changeRequired(bool $required): void
     {
         $this->isRequired = $required;
+    }
+
+    public function isFilterable(): bool
+    {
+        return $this->isFilterable;
+    }
+
+    public function changeFilterable(bool $filterable): void
+    {
+        $this->isFilterable = $filterable;
     }
 
     /**

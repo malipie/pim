@@ -76,6 +76,7 @@ final readonly class CreateAttributeHandler
         $attribute->changeLocalizable($command->localizable);
         $attribute->changeScopable($command->scopable);
         $attribute->changeRequired($command->required);
+        $attribute->changeFilterable($command->filterable);
         $attribute->updateValidationRules($command->validationRules);
         $attribute->reorder($command->position);
 

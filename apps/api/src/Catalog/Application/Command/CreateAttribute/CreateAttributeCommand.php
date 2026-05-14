@@ -20,6 +20,7 @@ final readonly class CreateAttributeCommand
         public bool $localizable = false,
         public bool $scopable = false,
         public bool $required = false,
+        public bool $filterable = false,
         public array $validationRules = [],
         public int $position = 0,
         public array $attachToGroups = [],

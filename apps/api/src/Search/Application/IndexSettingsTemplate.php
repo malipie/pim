@@ -5,29 +5,49 @@ declare(strict_types=1);
 namespace App\Search\Application;
 
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use LogicException;
 
 /**
  * Per-`ObjectKind` Meilisearch index settings template (#49 / 0.5.1).
  *
- * Settings (searchable / filterable / sortable / faceting) are pinned
- * here so each kind's index opens with a known shape — the package
- * quirk in lessons #0.0.x calls out that **facetable attributes must
- * be declared explicitly** or `?facets=` returns empty without an
- * error, which is impossible to catch in CI without a contract test.
+ * VIEW-38 (#579) — the product index's `filterableAttributes` is now
+ * built dynamically: a small reserved set (system-owned columns Meili
+ * always needs) unioned with the distinct codes of every
+ * `attributes.is_filterable=true` row. Operators flip the toggle in
+ * Settings → Attributes and the next request that refreshes settings
+ * (postPersist/postUpdate listener) exposes the new filter target
+ * without a deploy.
  *
- * Per-attribute config is intentionally narrow in MVP — the indexer
- * (#50) writes these via `Index::updateSettings()` once at boot. A
- * future per-tenant overlay can read overrides from
- * `object_type.search_config` JSONB (post-ADR-009) without touching
- * this template.
- *
- * Indexes per kind (`products`, `categories`, `assets`) — singular
- * `objects` index would force per-kind branching at every read site;
- * three small indexes keep filter mental models clean.
+ * Other kinds (Category / Asset / Brand) keep the static list — they
+ * carry no operator-extensible attribute slot in MVP.
  */
 final class IndexSettingsTemplate
 {
+    /**
+     * Reserved filterable fields the product index always carries
+     * regardless of operator-defined attributes. `tenantId` enforces
+     * the multi-tenant isolation filter in `CatalogSearchService`;
+     * `kind` / `status` / `enabled` / `objectTypeId` drive UI surfaces
+     * (variant toggle, status pills, type-scoped saved views);
+     * `sync_status_aggregate` is the badge column;
+     * `completeness_pct` powers the Red (<50%) smart preset;
+     * `category` is denormalized by the indexer from `object_categories`
+     * (not a user attribute, but a join surface needed for the
+     * `IS EMPTY category` preset).
+     *
+     * @var list<string>
+     */
+    private const array PRODUCT_RESERVED_FILTERABLE = [
+        'tenantId', 'kind', 'status', 'enabled', 'objectTypeId',
+        'completeness_pct', 'sync_status_aggregate', 'category',
+    ];
+
+    public function __construct(
+        private readonly ?AttributeRepositoryInterface $attributes = null,
+    ) {
+    }
+
     /**
      * Index name per kind. `kind=custom` is reserved for Faza 2/3
      * (per ADR-009) — the indexer skips custom kinds in MVP.
@@ -52,20 +72,7 @@ final class IndexSettingsTemplate
         return match ($kind) {
             ObjectKind::Product => [
                 'searchableAttributes' => ['code', 'name', 'sku', 'brand', 'description'],
-                // Filterable list mirrors the attributes exposed by the
-                // advanced filter UI (`PANEL_ATTRS` in
-                // `advanced-filter-panel.tsx`). DocumentFlattener promotes
-                // each envelope's scalar to a top-level key during indexing
-                // so these names resolve at filter time. Adding a new
-                // operator-facing attribute? Update both lists — Meili
-                // rejects filters against undeclared attributes and the
-                // whole query returns 0 hits.
-                'filterableAttributes' => [
-                    'tenantId', 'kind', 'status', 'enabled', 'objectTypeId',
-                    'brand', 'category', 'completeness_pct', 'sync_status_aggregate',
-                    'price', 'stock', 'tags', 'main_image', 'color', 'size',
-                    'in_stock', 'release_date',
-                ],
+                'filterableAttributes' => $this->productFilterableAttributes(),
                 'sortableAttributes' => ['createdAt', 'updatedAt', 'name', 'price'],
                 'displayedAttributes' => ['*'],
                 'rankingRules' => ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
@@ -93,6 +100,18 @@ final class IndexSettingsTemplate
             ],
             ObjectKind::Custom => throw new LogicException('Custom kind has no MVP settings template.'),
         };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function productFilterableAttributes(): array
+    {
+        $dynamic = null === $this->attributes ? [] : $this->attributes->filterableCodes();
+        $merged = array_values(array_unique([...self::PRODUCT_RESERVED_FILTERABLE, ...$dynamic]));
+        sort($merged);
+
+        return $merged;
     }
 
     /**

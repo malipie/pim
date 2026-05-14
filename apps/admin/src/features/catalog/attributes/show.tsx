@@ -42,6 +42,7 @@ interface AttributeDetail {
   localizable?: boolean;
   scopable?: boolean;
   unique?: boolean;
+  filterable?: boolean;
   system?: boolean;
 }
 
@@ -120,6 +121,7 @@ function Editor({
   const [localizable, setLocalizable] = useState(attribute.localizable ?? false);
   const [scopable, setScopable] = useState(attribute.scopable ?? false);
   const [unique, setUnique] = useState(attribute.unique ?? false);
+  const [filterable, setFilterable] = useState(attribute.filterable ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -134,6 +136,7 @@ function Editor({
     localizable !== (attribute.localizable ?? false),
     scopable !== (attribute.scopable ?? false),
     unique !== (attribute.unique ?? false),
+    filterable !== (attribute.filterable ?? false),
   ].filter(Boolean).length;
   const dirty = dirtyFields > 0;
 
@@ -148,6 +151,7 @@ function Editor({
     setLocalizable(attribute.localizable ?? false);
     setScopable(attribute.scopable ?? false);
     setUnique(attribute.unique ?? false);
+    setFilterable(attribute.filterable ?? false);
     setError(null);
   };
 
@@ -164,6 +168,7 @@ function Editor({
         if (localizable !== (attribute.localizable ?? false)) body.localizable = localizable;
         if (scopable !== (attribute.scopable ?? false)) body.scopable = scopable;
         if (unique !== (attribute.unique ?? false)) body.required = unique; // BE has no `unique` flag yet
+        if (filterable !== (attribute.filterable ?? false)) body.filterable = filterable;
       }
       await jsonFetch(`/api/attributes/${attribute.id}`, {
         method: 'PATCH',
@@ -306,7 +311,7 @@ function Editor({
             <div className="mb-3 text-[11.5px] font-medium text-muted-foreground">
               {t('attributes.flags_label', { defaultValue: 'Flagi' })}
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <FlagPill
                 on={localizable}
                 label={t('attributes.flags.localizable_label', { defaultValue: 'Localizable' })}
@@ -330,6 +335,14 @@ function Editor({
                   defaultValue: 'unikalna wartość w obrębie typu',
                 })}
                 onChange={isSystem ? undefined : setUnique}
+              />
+              <FlagPill
+                on={filterable}
+                label={t('attributes.flags.filterable_label', { defaultValue: 'Filtrowalny' })}
+                desc={t('attributes.flags.filterable_desc', {
+                  defaultValue: 'pojawia się w filtrach',
+                })}
+                onChange={isSystem ? undefined : setFilterable}
               />
             </div>
           </div>

@@ -43,4 +43,23 @@ class DoctrineAttributeRepository extends ServiceEntityRepository implements Att
         $em->remove($entity);
         $em->flush();
     }
+
+    public function filterableCodes(): array
+    {
+        /** @var list<array{code: string}> $rows */
+        $rows = $this->getEntityManager()
+            ->createQueryBuilder()
+            ->select('DISTINCT a.code')
+            ->from(Attribute::class, 'a')
+            ->where('a.isFilterable = true')
+            ->getQuery()
+            ->getScalarResult();
+
+        $codes = [];
+        foreach ($rows as $row) {
+            $codes[] = $row['code'];
+        }
+
+        return $codes;
+    }
 }

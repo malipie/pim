@@ -79,6 +79,7 @@ final readonly class AttributeProcessor implements ProcessorInterface
             localizable: $data->localizable,
             scopable: $data->scopable,
             required: $data->required,
+            filterable: $data->filterable,
             validationRules: $data->validationRules,
             position: $data->position,
             attachToGroups: $data->attachToGroups,
@@ -123,6 +124,7 @@ final readonly class AttributeProcessor implements ProcessorInterface
             localizable: $data->localizable,
             scopable: $data->scopable,
             required: $data->required,
+            filterable: $data->filterable,
             validationRules: $data->validationRules,
             position: $data->position,
         );
