@@ -2,6 +2,7 @@ import { Layers, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { AttributePicker } from '@/components/catalog/attribute-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
@@ -280,18 +281,13 @@ export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizard
               </div>
               {mode !== 'multi_attribute_edit' && (
                 <div>
-                  <label
-                    htmlFor="bulk-attr-code"
-                    className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500"
-                  >
-                    {t('products.bulk_wizard.attr_label', { defaultValue: 'Kod atrybutu' })}
-                  </label>
-                  <Input
-                    id="bulk-attr-code"
+                  <div className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 mb-2">
+                    {t('products.bulk_wizard.attr_label', { defaultValue: 'Atrybut' })}
+                  </div>
+                  <AttributePicker
                     value={attrCode}
-                    onChange={(e) => setAttrCode(e.target.value)}
-                    placeholder="brand, family, description_en …"
-                    className="mt-2"
+                    onChange={(picked) => setAttrCode(picked?.code ?? '')}
+                    allowedTypes={mode === 'increment_numeric' ? ['number', 'metric'] : undefined}
                   />
                 </div>
               )}

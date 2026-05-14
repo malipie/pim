@@ -2,6 +2,7 @@ import { Link2, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { AttributePicker } from '@/components/catalog/attribute-picker';
 import { QueryGroupEditor } from '@/components/catalog/query-group-editor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -244,42 +245,24 @@ export function AdvancedFilterPanel({
                     </select>
                   )}
 
-                  <select
+                  <AttributePicker
                     value={cond.attr}
-                    onChange={(e) => {
-                      const nextAttr =
-                        PANEL_ATTRS.find((a) => a.code === e.target.value) ?? FIRST_PANEL_ATTR;
-                      const nextOps = FILTER_OPERATORS_BY_TYPE[nextAttr.type] ?? CORE_OPERATORS;
+                    onChange={(picked) => {
+                      if (picked === null) return;
+                      const nextAttrMeta = PANEL_ATTRS.find((a) => a.code === picked.code);
+                      const inferredType =
+                        nextAttrMeta?.type ??
+                        (picked.type as undefined | keyof typeof FILTER_OPERATORS_BY_TYPE) ??
+                        FIRST_PANEL_ATTR.type;
+                      const nextOps = FILTER_OPERATORS_BY_TYPE[inferredType] ?? CORE_OPERATORS;
                       updateCondition(idx, {
-                        attr: e.target.value,
+                        attr: picked.code,
                         op: nextOps[0] ?? '=',
                         value: '',
                       });
                     }}
-                    aria-label="Atrybut"
-                    className="h-9 px-2.5 text-[12.5px] bg-white border border-zinc-200 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 min-w-[160px]"
-                  >
-                    <optgroup
-                      label={t('products.attribute_groups.favorites', { defaultValue: 'Ulubione' })}
-                    >
-                      {PANEL_ATTRS.filter((a) => a.star).map((a) => (
-                        <option key={a.code} value={a.code}>
-                          {a.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup
-                      label={t('products.attribute_groups.all', {
-                        defaultValue: 'Wszystkie atrybuty',
-                      })}
-                    >
-                      {PANEL_ATTRS.filter((a) => !a.star).map((a) => (
-                        <option key={a.code} value={a.code}>
-                          {a.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
+                    className="min-w-[200px]"
+                  />
 
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-500">
                     {attrMeta.type}

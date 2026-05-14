@@ -100,6 +100,9 @@ final class TenantAuditCommand extends Command
         // parent bulk_session (FK CASCADE on delete); keeps the
         // append-only log free of redundant tenant columns.
         'bulk_logs',
+        // VIEW-27 (#558) — per-user attribute favorites junction. Tenant
+        // scope inherited via users.tenant_id (FK CASCADE on user delete).
+        'user_filter_favorites',
     ];
 
     /**
