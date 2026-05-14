@@ -10,6 +10,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { AgentSearch } from './agent-search';
 import { AppFooter } from './app-footer';
 import { AuditLogStatus } from './audit-log-status';
+import { BulkSessionsPopover } from './bulk-sessions-popover';
 import { LanguageSwitcher } from './language-switcher';
 import { NotificationsBell } from './notifications-bell';
 import { SidebarNav } from './sidebar-nav';
@@ -62,6 +63,7 @@ export function AppLayout() {
                 <AgentSearch />
               </div>
               <LanguageSwitcher />
+              <BulkSessionsPopover />
               <NotificationsBell />
               <div className="hidden md:block">
                 <AuditLogStatus />
