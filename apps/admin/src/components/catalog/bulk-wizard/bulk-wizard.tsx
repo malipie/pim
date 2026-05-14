@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AttributePicker } from '@/components/catalog/attribute-picker';
+import { BulkValueInput } from '@/components/catalog/bulk-wizard/bulk-value-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
@@ -80,7 +81,11 @@ export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizard
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [mode, setMode] = useState<BulkMode>('set_attribute');
   const [attrCode, setAttrCode] = useState('');
-  const [newValue, setNewValue] = useState('');
+  // VIEW-25b (#556) — typ atrybutu wybranego w Pickerze (text / number /
+  // select / multiselect / boolean / date / metric). Determinuje shape
+  // <BulkValueInput> + payload zwracanego do BE.
+  const [attrType, setAttrType] = useState<string | undefined>(undefined);
+  const [newValue, setNewValue] = useState<unknown>('');
   const [operator, setOperator] = useState<'+' | '-' | '*' | '/' | '%'>('*');
   const [operand, setOperand] = useState('1.10');
   const [edits, setEdits] = useState<MultiEdit[]>([
@@ -123,7 +128,11 @@ export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizard
     if (mode === 'increment_numeric') {
       return attrCode.trim() !== '' && operand.trim() !== '' && !Number.isNaN(Number(operand));
     }
-    return attrCode.trim() !== '' && newValue.trim() !== '';
+    if (attrCode.trim() === '') return false;
+    if (newValue === undefined || newValue === null) return false;
+    if (typeof newValue === 'string') return newValue.trim() !== '';
+    if (Array.isArray(newValue)) return newValue.length > 0;
+    return true;
   })();
 
   const fetchPreview = async (): Promise<void> => {
@@ -286,17 +295,20 @@ export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizard
                   </div>
                   <AttributePicker
                     value={attrCode}
-                    onChange={(picked) => setAttrCode(picked?.code ?? '')}
+                    onChange={(picked) => {
+                      setAttrCode(picked?.code ?? '');
+                      setAttrType(picked?.type);
+                      // reset value when typ atrybutu zmienia się żeby
+                      // stara wartość (np. string) nie wpadła w bool/select input.
+                      setNewValue(picked?.type === 'multiselect' ? [] : '');
+                    }}
                     allowedTypes={mode === 'increment_numeric' ? ['number', 'metric'] : undefined}
                   />
                 </div>
               )}
               {(mode === 'set_attribute' || mode === 'append_value' || mode === 'remove_value') && (
                 <div>
-                  <label
-                    htmlFor="bulk-attr-value"
-                    className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500"
-                  >
+                  <div className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 mb-2">
                     {mode === 'set_attribute'
                       ? t('products.bulk_wizard.value_label', { defaultValue: 'Nowa wartość' })
                       : mode === 'append_value'
@@ -306,13 +318,12 @@ export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizard
                         : t('products.bulk_wizard.remove_value_label', {
                             defaultValue: 'Wartość do usunięcia',
                           })}
-                  </label>
-                  <Input
-                    id="bulk-attr-value"
+                  </div>
+                  <BulkValueInput
+                    attrCode={attrCode}
+                    attrType={attrType}
                     value={newValue}
-                    onChange={(e) => setNewValue(e.target.value)}
-                    placeholder="np. Festo"
-                    className="mt-2"
+                    onChange={setNewValue}
                   />
                 </div>
               )}
