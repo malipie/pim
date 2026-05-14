@@ -86,6 +86,15 @@ final class DatabaseResetCommand extends Command
 
         if ($loadFixtures) {
             $steps[] = ['doctrine:fixtures:load', ['--no-interaction' => true]];
+            // Wiping Postgres rotates every tenant UUID (TenantFactory
+            // generates fresh ids); without dropping Meili documents the
+            // shared `products`/`categories`/… indexes accumulate orphans
+            // from previous seeds. Each orphan still carries its old
+            // `tenantId` filter value, so admin search hides them — but
+            // they break unique-code assumptions, inflate the doc count,
+            // and confuse debugging (one `code=DEMO-100` per past seed).
+            // The `--purge` flag wipes documents and re-imports cleanly.
+            $steps[] = ['pim:search:reindex', ['--kind' => 'all', '--purge' => true]];
         }
 
         foreach ($steps as [$commandName, $arguments]) {
