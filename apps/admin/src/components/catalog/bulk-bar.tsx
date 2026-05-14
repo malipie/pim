@@ -108,7 +108,7 @@ export function BulkBar({
   };
 
   return (
-    <div className="sticky bottom-6 z-30 flex justify-center pointer-events-none">
+    <div className="fixed bottom-6 left-0 right-0 z-40 flex justify-center pointer-events-none">
       <section
         aria-label={t('products.bulk.aria_region', { defaultValue: 'Akcje masowe' })}
         className="pointer-events-auto bg-zinc-900 text-white rounded-3xl shadow-xl px-6 py-3 flex items-center gap-5 animate-in fade-in slide-in-from-bottom-2 duration-200"
