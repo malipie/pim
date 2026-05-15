@@ -1,6 +1,8 @@
 import { useApiUrl, useCustom, useCustomMutation } from '@refinedev/core';
 import { useTranslation } from 'react-i18next';
 
+import { getAccessToken } from '@/lib/http';
+
 interface ExportSessionRow {
   id: string;
   format: 'xlsx' | 'csv';
@@ -55,8 +57,43 @@ export function ExportSessionsView(): React.ReactElement {
 
   const sessions = result?.data?.items ?? [];
 
-  const onDownload = (id: string) => {
-    window.open(`${apiUrl}/exports/sessions/${id}/download`, '_blank');
+  const onDownload = async (id: string) => {
+    // `window.open(...)` doesn't carry Authorization headers, so the
+    // backend `/download` endpoint (JWT-guarded) responds 401 in a new
+    // tab. Fetch with Bearer token, then trigger a blob download via a
+    // temp anchor — same pattern as ExportModal sync path.
+    try {
+      const token = getAccessToken();
+      const headers: Record<string, string> = {
+        accept:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/csv, application/json',
+      };
+      if (token !== null) {
+        headers['authorization'] = `Bearer ${token}`;
+      }
+      const response = await fetch(`${apiUrl}/exports/sessions/${id}/download`, {
+        method: 'GET',
+        headers,
+        credentials: 'same-origin',
+      });
+      if (!response.ok) {
+        throw new Error(`Download failed: HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const filename =
+        parseFilename(response.headers.get('content-disposition')) ?? `pim-export-${id}`;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('Export download failed', err);
+    }
   };
 
   const onRerun = (id: string) => {
@@ -189,6 +226,12 @@ export function ExportSessionsView(): React.ReactElement {
       </table>
     </div>
   );
+}
+
+function parseFilename(header: string | null): string | null {
+  if (header === null) return null;
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(header);
+  return match?.[1] !== undefined ? decodeURIComponent(match[1]) : null;
 }
 
 export default ExportSessionsView;
