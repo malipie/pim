@@ -55,11 +55,24 @@ export function SavedViewsRail({
         // pagination shape change) the older `setViews(body.views)` left the
         // hook with `views = undefined` and the next `views.map(...)` blew up
         // the whole tree (white screen on /products, 2026-05-12).
-        if (!cancelled) setViews(body.views ?? []);
+        if (!cancelled) {
+          setViews(body.views ?? []);
+          setError(null);
+        }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'unknown');
+        // 2026-05-15 — operator saw `HTTP 200` errors from `jsonFetch`'s
+        // white-screen guard (PHP fatal-page disguised as JSON 200 or auth
+        // race where the cached response slipped past the JSON content-type
+        // check). The saved-views rail is non-critical UX — if the fetch
+        // can't return rows, degrade silently to "no views" instead of
+        // blocking the catalog page with a red alarm. Log the original
+        // failure so DevTools shows the smell for follow-up debugging.
+        // eslint-disable-next-line no-console
+        console.warn('saved-views fetch failed; degrading to empty list', err);
+        setViews([]);
+        setError(null);
       });
     return () => {
       cancelled = true;

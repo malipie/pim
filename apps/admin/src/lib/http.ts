@@ -130,10 +130,15 @@ async function fetchInternal<T>(path: string, init: InternalJsonRequestInit): Pr
       contentType,
     );
   if (text && !expectsJson && typeof parsed === 'string') {
+    // Include a body snippet in the detail so DevTools shows what the
+    // server actually returned (HTML fatal page? auth refresh redirect?
+    // Vite index.html fallback?). 200 chars is enough to spot patterns
+    // without flooding the toast.
+    const snippet = parsed.length > 200 ? `${parsed.slice(0, 200)}…` : parsed;
     throw new HttpError(response.status, {
       type: 'about:blank',
       title: 'Unexpected response',
-      detail: `Server returned ${response.status} with ${contentType || 'no'} content-type when JSON was expected.`,
+      detail: `Server returned ${response.status} with ${contentType || 'no'} content-type when JSON was expected. Body starts with: ${snippet}`,
     });
   }
 
