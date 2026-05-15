@@ -23,6 +23,13 @@ interface ExportModalProps {
   onOpenChange: (open: boolean) => void;
   /** SKU IDs preselected from the catalog list. Triggers `target_scope=selected`. */
   selectedObjectIds?: readonly string[];
+  /**
+   * Pre-parsed FilterDSL snapshot to pass through `target_scope=filter`.
+   * When provided, the "Cały filter" radio becomes enabled and the
+   * snapshot is forwarded to the export endpoint. Set by `ExportNewPage`
+   * after parsing the user's JSON input.
+   */
+  filterSnapshot?: Record<string, unknown> | null;
 }
 
 /**
@@ -46,14 +53,20 @@ interface ExportModalProps {
  *   - Locale + channel sub-toggles — wymaga `/api/tenant/locales`
  *     + per-attribute scope dropdown. Single-locale tenant MVP
  *     nie używa.
- *   - target_scope=filter z modalu — modal nie ma kontekstu filtra
- *     listy; pełna ścieżka filtrowa działa w `/integrations/exports/new`
- *     (EXP-20).
+ *
+ * Filter scope:
+ *   - Modal-from-list (no `filterSnapshot` prop): "Cały filter" radio
+ *     is disabled with a hint to use the full-page form.
+ *   - Full-page form (`ExportNewPage` passes `filterSnapshot`): radio
+ *     is enabled, and the snapshot rides through the export payload.
+ *   - Backend SQL resolution lives in `SyncExportRunner::resolveFilter`
+ *     (EXP-20 #632) via `FilterDslResolver::toCountSql`.
  */
 export function ExportModal({
   open,
   onOpenChange,
   selectedObjectIds = [],
+  filterSnapshot = null,
 }: ExportModalProps): React.ReactElement {
   const { t } = useTranslation();
   const apiUrl = useApiUrl();
@@ -61,7 +74,8 @@ export function ExportModal({
   const [columns, setColumns] = useState<string[]>(['sku', 'parent_sku', 'status']);
   const [format, setFormat] = useState<ExportFormat>('xlsx');
   const [encoding, setEncoding] = useState<ExportEncoding>('utf8_bom');
-  const initialScope: TargetScope = selectedObjectIds.length > 0 ? 'selected' : 'all';
+  const initialScope: TargetScope =
+    selectedObjectIds.length > 0 ? 'selected' : filterSnapshot !== null ? 'filter' : 'all';
   const [targetScope, setTargetScope] = useState<TargetScope>(initialScope);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +119,9 @@ export function ExportModal({
     if (targetScope === 'selected') {
       payload['selected_object_ids'] = selectedObjectIds;
     }
+    if (targetScope === 'filter' && filterSnapshot !== null) {
+      payload['filter_snapshot'] = filterSnapshot;
+    }
 
     try {
       // Raw fetch — sync response is XLSX/CSV binary (NOT JSON), so
@@ -134,6 +151,9 @@ export function ExportModal({
         };
         if (format === 'csv') {
           profileConfig['encoding'] = encoding;
+        }
+        if (targetScope === 'filter' && filterSnapshot !== null) {
+          profileConfig['filter_snapshot'] = filterSnapshot;
         }
         const profileResponse = await fetch(`${apiUrl}/exports/profiles`, {
           method: 'POST',
@@ -325,6 +345,32 @@ export function ExportModal({
                   count: selectedObjectIds.length,
                   defaultValue: `Zaznaczone (${selectedObjectIds.length})`,
                 })}
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="scope"
+                  className="size-4"
+                  checked={targetScope === 'filter'}
+                  onChange={() => setTargetScope('filter')}
+                  disabled={filterSnapshot === null}
+                  title={
+                    filterSnapshot === null
+                      ? t('exports.modal.scope_filter_disabled', {
+                          defaultValue:
+                            'Filtr dostępny tylko z formularza /integrations/exports/new.',
+                        })
+                      : undefined
+                  }
+                />
+                {t('exports.modal.scope_filter', { defaultValue: 'Cały filter' })}
+                {filterSnapshot === null && (
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    {t('exports.modal.scope_filter_hint', {
+                      defaultValue: '(użyj /integrations/exports/new)',
+                    })}
+                  </span>
+                )}
               </label>
               <label className="flex items-center gap-2">
                 <input
