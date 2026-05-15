@@ -167,6 +167,24 @@ const ImportWizardPage = lazyPage(
   () => import('@/features/imports/wizard/ImportWizardPage'),
   'ImportWizardPage',
 );
+// EXP-09 (#588) — Exports hub MVP. Placeholder views for sessions/profiles
+// + new flow; real grids land with EXP-13/EXP-14, column picker EXP-10.
+const ExportsLayout = lazyPage(
+  () => import('@/features/exports/layout/ExportsLayout'),
+  'ExportsLayout',
+);
+const ExportSessionsView = lazyPage(
+  () => import('@/features/exports/sessions/ExportSessionsView'),
+  'ExportSessionsView',
+);
+const ExportProfilesView = lazyPage(
+  () => import('@/features/exports/profiles/ExportProfilesView'),
+  'ExportProfilesView',
+);
+const ExportNewPage = lazyPage(
+  () => import('@/features/exports/wizard/ExportNewPage'),
+  'ExportNewPage',
+);
 const IntegrationsLayout = lazyPage(
   () => import('@/features/integration-hub/IntegrationsLayout'),
   'IntegrationsLayout',
@@ -279,6 +297,19 @@ function App() {
             {
               name: 'import-schedules',
               list: '/integrations/imports/schedule',
+            },
+            // EXP-09 (#588) — Refine resource registrations for the
+            // Exports hub. List endpoints land with EXP-13 (sessions
+            // grid) and EXP-14 (profiles grid).
+            {
+              name: 'export-sessions',
+              list: '/integrations/exports/sessions',
+              show: '/integrations/exports/sessions/:id',
+              create: '/integrations/exports/new',
+            },
+            {
+              name: 'export-profiles',
+              list: '/integrations/exports/profiles',
             },
           ]}
           options={{
@@ -396,6 +427,15 @@ function App() {
                   </Route>
                   <Route path="imports/new" element={<ImportWizardPage />} />
                   <Route path="imports/:id" element={<ImportShowPage />} />
+                  {/* EXP-09 (#588) — Exports hub MVP. Tabs sessions/profiles
+                      + standalone /new full-page form. Mirrors imports layout
+                      depth so deep-links survive into Faza 1. */}
+                  <Route path="exports" element={<ExportsLayout />}>
+                    <Route index element={<Navigate to="sessions" replace />} />
+                    <Route path="sessions" element={<ExportSessionsView />} />
+                    <Route path="profiles" element={<ExportProfilesView />} />
+                  </Route>
+                  <Route path="exports/new" element={<ExportNewPage />} />
                   <Route path="api-configurator" element={<ApiProfilesListPage />} />
                   <Route path="api-configurator/create" element={<ApiProfileCreatePage />} />
                   <Route path="api-configurator/:id/edit" element={<ApiProfileEditPage />} />

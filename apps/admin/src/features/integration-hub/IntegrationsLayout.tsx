@@ -13,12 +13,8 @@ interface TabDef {
 
 const TABS: readonly TabDef[] = [
   { to: '/integrations/imports', labelKey: 'integrations.tabs.imports', enabled: true },
-  {
-    to: '/integrations/exports',
-    labelKey: 'integrations.tabs.exports',
-    enabled: false,
-    comingSoonKey: 'integrations.coming_soon',
-  },
+  // EXP-09 (#588) — Exports hub enabled. Grids + modal land in EXP-13/14.
+  { to: '/integrations/exports', labelKey: 'integrations.tabs.exports', enabled: true },
   {
     to: '/integrations/connectors',
     labelKey: 'integrations.tabs.connectors',
