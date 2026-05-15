@@ -1,3 +1,21 @@
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export interface ColumnGroup {
@@ -34,26 +52,24 @@ export interface ColumnPickerProps {
 }
 
 /**
- * EXP-10 (#589) — Two-pane column picker (MVP).
+ * EXP-10 (#589) — Two-pane column picker.
  *
  * Left pane: groups of available columns with checkboxes. Click checks
  * → adds to right pane. Re-check unchecks.
  *
  * Right pane: ordered list of selected columns with X buttons to
- * remove and ↑↓ buttons to reorder. PRD §3.3 punkt 4 specified
- * drag-and-drop reorder via dnd-kit — deferred to a follow-up
- * because the picker contract (props in / out) is identical and
- * dnd-kit can swap in without changing call sites. ARIA-aware
- * reordering buttons cover keyboard-only operators today.
+ * remove. Reordering supports two paths so keyboard-only operators
+ * are not locked out (EXP-19 #631):
+ *   - Drag the grip handle (PointerSensor) for mouse / touch users.
+ *   - Tab to ↑↓ buttons for keyboard users (KeyboardSensor on the
+ *     grip also works via dnd-kit, but the explicit buttons remain
+ *     so the affordance is visible).
  *
  * Świadome odejścia:
  *  - No search filter (typeahead) in the left pane — list is
  *    small enough in MVP (~10 built-ins + per-tenant attributes
  *    when EXP-11 wires them in). Adding a search input is a
  *    follow-up the same instant attribute count grows past ~30.
- *  - No drag-and-drop — ↑↓ buttons keep keyboard navigation
- *    accessible from day 1; dnd-kit lands when a real
- *    a11y review confirms its compatibility (axe-core gate).
  *  - No locale / channel sub-selectors for scopable attributes
  *    — locale checkboxes live as a separate section in the modal
  *    (EXP-11) so the picker stays focused on "which columns",
@@ -65,6 +81,11 @@ export function ColumnPicker({
   onChange,
 }: ColumnPickerProps): React.ReactElement {
   const { t } = useTranslation();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const isSelected = (key: string) => selected.includes(key);
 
@@ -88,6 +109,15 @@ export function ColumnPicker({
     next[target] = next[index] as string;
     next[index] = tmp;
     onChange(next);
+  };
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over === null || active.id === over.id) return;
+    const oldIndex = selected.indexOf(String(active.id));
+    const newIndex = selected.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    onChange(arrayMove([...selected], oldIndex, newIndex));
   };
 
   return (
@@ -147,53 +177,126 @@ export function ColumnPicker({
             </button>
           )}
         </header>
-        <ol className="max-h-[60vh] divide-y overflow-y-auto">
-          {selected.length === 0 ? (
+        {selected.length === 0 ? (
+          <ol className="max-h-[60vh] overflow-y-auto">
             <li className="p-4 text-center text-sm text-muted-foreground">
               {t('exports.column_picker.empty', { defaultValue: 'Zaznacz kolumny po lewej.' })}
             </li>
-          ) : (
-            selected.map((key, index) => (
-              <li key={key} className="flex items-center justify-between gap-2 px-3 py-2">
-                <code className="truncate text-sm">{key}</code>
-                <div className="inline-flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => move(index, -1)}
-                    disabled={index === 0}
-                    className="rounded border border-input bg-background px-2 py-0.5 text-xs disabled:opacity-30"
-                    aria-label={t('exports.column_picker.move_up', {
-                      defaultValue: 'Przesuń w górę',
-                    })}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => move(index, 1)}
-                    disabled={index === selected.length - 1}
-                    className="rounded border border-input bg-background px-2 py-0.5 text-xs disabled:opacity-30"
-                    aria-label={t('exports.column_picker.move_down', {
-                      defaultValue: 'Przesuń w dół',
-                    })}
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => remove(key)}
-                    className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs text-rose-900"
-                    aria-label={t('exports.column_picker.remove', { defaultValue: 'Usuń' })}
-                  >
-                    ×
-                  </button>
-                </div>
-              </li>
-            ))
-          )}
-        </ol>
+          </ol>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={[...selected]} strategy={verticalListSortingStrategy}>
+              <ol className="max-h-[60vh] divide-y overflow-y-auto">
+                {selected.map((key, index) => (
+                  <SortableColumnRow
+                    key={key}
+                    columnKey={key}
+                    index={index}
+                    total={selected.length}
+                    onMoveUp={() => move(index, -1)}
+                    onMoveDown={() => move(index, 1)}
+                    onRemove={() => remove(key)}
+                    labels={{
+                      dragHandle: t('exports.column_picker.drag_handle', {
+                        defaultValue: 'Przeciągnij, aby zmienić kolejność',
+                      }),
+                      moveUp: t('exports.column_picker.move_up', {
+                        defaultValue: 'Przesuń w górę',
+                      }),
+                      moveDown: t('exports.column_picker.move_down', {
+                        defaultValue: 'Przesuń w dół',
+                      }),
+                      remove: t('exports.column_picker.remove', { defaultValue: 'Usuń' }),
+                    }}
+                  />
+                ))}
+              </ol>
+            </SortableContext>
+          </DndContext>
+        )}
       </section>
     </div>
+  );
+}
+
+interface SortableColumnRowProps {
+  columnKey: string;
+  index: number;
+  total: number;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onRemove: () => void;
+  labels: {
+    dragHandle: string;
+    moveUp: string;
+    moveDown: string;
+    remove: string;
+  };
+}
+
+function SortableColumnRow({
+  columnKey,
+  index,
+  total,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+  labels,
+}: SortableColumnRowProps): React.ReactElement {
+  const sortable = useSortable({ id: columnKey });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(sortable.transform),
+    transition: sortable.transition,
+    opacity: sortable.isDragging ? 0.6 : 1,
+  };
+
+  return (
+    <li
+      ref={sortable.setNodeRef}
+      style={style}
+      className="flex items-center justify-between gap-2 bg-card px-3 py-2"
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        <button
+          type="button"
+          {...sortable.attributes}
+          {...sortable.listeners}
+          aria-label={labels.dragHandle}
+          className="grid size-6 cursor-grab place-items-center rounded text-muted-foreground hover:bg-muted active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <GripVertical className="size-4" aria-hidden="true" />
+        </button>
+        <code className="truncate text-sm">{columnKey}</code>
+      </div>
+      <div className="inline-flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onMoveUp}
+          disabled={index === 0}
+          className="rounded border border-input bg-background px-2 py-0.5 text-xs disabled:opacity-30"
+          aria-label={labels.moveUp}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          onClick={onMoveDown}
+          disabled={index === total - 1}
+          className="rounded border border-input bg-background px-2 py-0.5 text-xs disabled:opacity-30"
+          aria-label={labels.moveDown}
+        >
+          ↓
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs text-rose-900"
+          aria-label={labels.remove}
+        >
+          ×
+        </button>
+      </div>
+    </li>
   );
 }
 
