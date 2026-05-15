@@ -27,4 +27,11 @@ interface ExportSessionRepositoryInterface
      * dispatching a new job.
      */
     public function countActiveForTenant(Tenant $tenant): int;
+
+    /**
+     * Delete the session row. CASCADE on the DB schema removes any
+     * `export_logs` attached to it; the MinIO file is the controller's
+     * responsibility (EXP-08 download path).
+     */
+    public function remove(ExportSession $session): void;
 }
