@@ -11,7 +11,8 @@ import {
 } from '@/components/ui/dialog';
 import { getAccessToken } from '@/lib/http';
 
-import { BUILT_IN_COLUMN_GROUPS, ColumnPicker } from '../components/ColumnPicker';
+import { ColumnPicker } from '../components/ColumnPicker';
+import { useExportColumnCatalog } from '../components/use-export-column-catalog';
 
 type ExportFormat = 'xlsx' | 'csv';
 type ExportEncoding = 'utf8_bom' | 'windows_1250';
@@ -69,6 +70,8 @@ export function ExportModal({
   const [targetScope, setTargetScope] = useState<TargetScope>(initialScope);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const columnCatalog = useExportColumnCatalog();
 
   const onSubmit = async () => {
     if (columns.length === 0) {
@@ -175,9 +178,22 @@ export function ExportModal({
           <section>
             <h3 className="mb-2 text-sm font-medium">
               {t('exports.modal.section_columns', { defaultValue: 'Kolumny' })}
+              {columnCatalog.isLoading ? (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {t('exports.modal.columns_loading', { defaultValue: '(ładuję atrybuty…)' })}
+                </span>
+              ) : null}
+              {columnCatalog.error !== null ? (
+                <span className="ml-2 text-xs font-normal text-rose-600">
+                  {t('exports.modal.columns_error', {
+                    defaultValue:
+                      '(nie udało się załadować atrybutów — pokazuję tylko wbudowane kolumny)',
+                  })}
+                </span>
+              ) : null}
             </h3>
             <ColumnPicker
-              available={BUILT_IN_COLUMN_GROUPS}
+              available={columnCatalog.groups}
               selected={columns}
               onChange={setColumns}
             />
