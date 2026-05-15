@@ -101,6 +101,15 @@ final class ImportRunHandler extends AbstractBatchHandler
      */
     public function run(ImportSession $session): void
     {
+        // Streaming + per-row Doctrine flushes scale with file size.
+        // A 100-row XLSX easily exceeds FrankenPHP's default 30s HTTP
+        // budget (max_execution_time is 0 in CLI but the worker resets
+        // it to 30 for each request). Without this opt-out the import
+        // handler gets killed mid-loop, the response still returns 200
+        // because the headers were already flushed, but the session
+        // stays `pending` forever and 0 import_logs are written.
+        set_time_limit(0);
+
         $tenant = $session->getTenant();
         if (!$tenant instanceof Tenant) {
             $session->markFailed('Import session has no tenant assignment.');

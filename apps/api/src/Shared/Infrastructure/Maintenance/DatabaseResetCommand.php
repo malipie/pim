@@ -97,6 +97,23 @@ final class DatabaseResetCommand extends Command
             $steps[] = ['pim:search:reindex', ['--kind' => 'all', '--purge' => true]];
         }
 
+        // Wipe stale BulkOperationLock flock files (`sf.bulk-op-{tenant}.lock`)
+        // sitting in /tmp from previous tenant generations. The tenant
+        // UUID rotates on every fixture reload, so the old lock file
+        // never matches the new tenant — but a worker that crashed
+        // mid-bulk-run still leaves the lock present for the same
+        // tenant ID, blocking subsequent runs for up to the 1h TTL.
+        // Resetting the DB is the right point to flush that state.
+        $lockDir = sys_get_temp_dir();
+        $matches = glob($lockDir.'/sf.bulk-op-*.lock');
+        $stale = \is_array($matches) ? $matches : [];
+        foreach ($stale as $lockPath) {
+            @unlink($lockPath);
+        }
+        if ([] !== $stale) {
+            $io->writeln(sprintf('  cleared %d stale bulk-op lock file(s)', \count($stale)));
+        }
+
         foreach ($steps as [$commandName, $arguments]) {
             $io->section(sprintf('→ %s', $commandName));
             $application = $this->getApplication();

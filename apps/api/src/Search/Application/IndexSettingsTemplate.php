@@ -41,6 +41,11 @@ final class IndexSettingsTemplate
     private const array PRODUCT_RESERVED_FILTERABLE = [
         'tenantId', 'kind', 'status', 'enabled', 'objectTypeId',
         'completeness_pct', 'sync_status_aggregate', 'category',
+        // `parentId` exposed so the variant-tree view (only masters) can
+        // mirror its `parent_id IS NULL` filter on cross-page selection
+        // through Meili (`BulkSelectionController` reads `variants_mode`
+        // from the body and emits the matching filter).
+        'parentId',
     ];
 
     public function __construct(
@@ -76,6 +81,14 @@ final class IndexSettingsTemplate
                 'sortableAttributes' => ['createdAt', 'updatedAt', 'name', 'price'],
                 'displayedAttributes' => ['*'],
                 'rankingRules' => ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
+                // Meili's default `maxTotalHits` (1000) caps cross-page
+                // selection at the first page and silently truncates the
+                // result. Operator's "Zaznacz wszystkie pasujące" loop
+                // page-by-page tops out at 1000 even though tenants
+                // routinely run 5–10× that. Raised to match the bulk
+                // selection HARD_CAP (10 000) — `BulkSelectionController`
+                // already enforces that as the absolute ceiling.
+                'pagination' => ['maxTotalHits' => 10_000],
             ],
             ObjectKind::Category => [
                 'searchableAttributes' => ['code', 'name', 'path', 'seo_title'],

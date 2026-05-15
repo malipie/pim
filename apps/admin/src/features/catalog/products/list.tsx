@@ -682,7 +682,15 @@ export function ProductListPage() {
           void (async () => {
             setCrossPageLoading(true);
             try {
-              const body: Record<string, unknown> = {};
+              const body: Record<string, unknown> = {
+                // Mirror the list view's variant-tree gate so the
+                // server-side selection excludes variants when the
+                // grid is hiding them. Without this the badge shows
+                // "4495 zaznaczonych" against a 2395-row list because
+                // Meili returns master+variant docs that the list
+                // (`parent_id=null` filter on Refine useList) hid.
+                variants_mode: variantsMode,
+              };
               if (activePreset !== undefined) {
                 body.smart_preset = activePreset.slug ?? activePreset.id;
               } else if (filterBlob !== undefined) {
