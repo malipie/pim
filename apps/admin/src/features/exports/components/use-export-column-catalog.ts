@@ -69,38 +69,61 @@ export function useExportColumnCatalog(): ExportColumnCatalog {
     setError(null);
 
     void (async () => {
-      try {
-        const [attrsResponse, groupsResponse, workspaceResponse] = await Promise.all([
-          jsonFetch<AttributeRow[] | { member?: AttributeRow[] }>(
-            '/api/attributes?itemsPerPage=500',
-          ),
-          jsonFetch<AttributeGroupRow[] | { member?: AttributeGroupRow[] }>(
-            '/api/attribute_groups?itemsPerPage=100',
-          ),
-          jsonFetch<WorkspaceRow>('/api/workspaces/current'),
-        ]);
+      // Promise.allSettled — partial failures are OK. Attribute catalog
+      // is the critical one (the rest are nice-to-have for grouping +
+      // locale fan-out). The hook only flips `error` if attributes
+      // themselves cannot load; groups + workspace silently fall back to
+      // their defaults so the modal still ships a useful picker.
+      const [attrsResult, groupsResult, workspaceResult] = await Promise.allSettled([
+        jsonFetch<AttributeRow[] | { member?: AttributeRow[] }>('/api/attributes?itemsPerPage=500'),
+        jsonFetch<AttributeGroupRow[] | { member?: AttributeGroupRow[] }>(
+          '/api/attribute_groups?itemsPerPage=100',
+        ),
+        jsonFetch<WorkspaceRow>('/api/workspaces/current'),
+      ]);
 
-        if (cancelled) return;
+      if (cancelled) return;
 
-        const attrsList = Array.isArray(attrsResponse)
-          ? attrsResponse
-          : (attrsResponse.member ?? []);
-        const groupsList = Array.isArray(groupsResponse)
-          ? groupsResponse
-          : (groupsResponse.member ?? []);
-
-        setAttrs(attrsList);
-        setAttrGroups(groupsList);
-        setWorkspace(workspaceResponse);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err : new Error(String(err)));
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+      if (attrsResult.status === 'fulfilled') {
+        const value = attrsResult.value;
+        const list = Array.isArray(value) ? value : (value.member ?? []);
+        setAttrs(list);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn('export-column-catalog: attributes fetch failed', attrsResult.reason);
+        setAttrs([]);
+        setError(
+          attrsResult.reason instanceof Error
+            ? attrsResult.reason
+            : new Error(String(attrsResult.reason)),
+        );
       }
+
+      if (groupsResult.status === 'fulfilled') {
+        const value = groupsResult.value;
+        const list = Array.isArray(value) ? value : (value.member ?? []);
+        setAttrGroups(list);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(
+          'export-column-catalog: attribute_groups fetch failed (degrading to "Inne" bucket)',
+          groupsResult.reason,
+        );
+        setAttrGroups([]);
+      }
+
+      if (workspaceResult.status === 'fulfilled') {
+        setWorkspace(workspaceResult.value);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(
+          'export-column-catalog: workspace fetch failed (using default locales pl/en)',
+          workspaceResult.reason,
+        );
+        setWorkspace(null);
+      }
+
+      setIsLoading(false);
     })();
 
     return () => {
