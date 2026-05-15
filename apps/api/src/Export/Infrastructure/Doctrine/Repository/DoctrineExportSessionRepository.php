@@ -29,6 +29,13 @@ class DoctrineExportSessionRepository extends ServiceEntityRepository implements
         $em->flush();
     }
 
+    public function remove(ExportSession $session): void
+    {
+        $em = $this->getEntityManager();
+        $em->remove($session);
+        $em->flush();
+    }
+
     public function findById(Uuid $id): ?ExportSession
     {
         return parent::find($id->toRfc4122());
