@@ -10,6 +10,7 @@ use App\Export\Domain\Enum\ExportEncoding;
 use App\Export\Domain\Enum\ExportFormat;
 use App\Export\Domain\Enum\ExportSource;
 use App\Export\Domain\Enum\ExportTargetScope;
+use App\Export\Domain\Message\RunExportMessage;
 use App\Export\Domain\Repository\ExportSessionRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
@@ -23,6 +24,7 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
@@ -59,6 +61,7 @@ final class SyncExportController
         private readonly ExportSessionRepositoryInterface $sessions,
         private readonly TenantContext $tenantContext,
         private readonly Security $security,
+        private readonly MessageBusInterface $bus,
     ) {
     }
 
@@ -115,9 +118,11 @@ final class SyncExportController
         $session->setTargetCount($targetCount);
 
         if ($targetCount >= self::SYNC_THRESHOLD) {
-            // Async path: persist the pending session, return 202.
-            // EXP-06 message handler will run the export off-band.
+            // Async path: persist the pending session, dispatch the
+            // RunExportMessage so EXP-06 handler picks it up (sync
+            // transport in dev runs it inline; doctrine queue in prod).
             $this->sessions->save($session);
+            $this->bus->dispatch(new RunExportMessage($session->getId()));
 
             return new JsonResponse(
                 data: [

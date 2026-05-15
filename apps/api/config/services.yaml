@@ -202,6 +202,13 @@ services:
         arguments:
             $importsStorage: '@imports.storage'
 
+    # EXP-06 (#585) — async export worker. Same named-storage binding so
+    # the handler can write the generated XLSX/CSV to MinIO under
+    # `<tenant_id>/<session_id>.<format>` (PRD §11.1).
+    App\Export\Application\Async\ExportJobHandler:
+        arguments:
+            $exportsStorage: '@exports.storage'
+
     # VIEW-IMP-03 (#500) — health-check drivers for ImportSource. Only the
     # folder driver does a real probe in the MVP; sftp/ftp/http/webhook/
     # api/upload land with the polling daemon follow-up and use the
