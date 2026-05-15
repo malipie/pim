@@ -28,32 +28,27 @@ interface ExportModalProps {
 /**
  * EXP-11 (#590) — Modal kontekstowy z listy produktów.
  *
- * Four sections (PRD §13.1):
+ * Sections (PRD §13.1):
  *   1. Kolumny — embedded ColumnPicker (EXP-10).
  *   2. Format + encoding (CSV only) — radio + radio.
  *   3. Co eksportujesz — Zaznaczone (N) / Cały filter / Wszystkie produkty.
- *   4. Locale + channel toggles (placeholder w MVP — pełne UX z
- *      EXP-10 picker locale/channel sub-selectors landuje gdy
- *      tenant locales/channels API jest fetched).
+ *   4. Zapisz jako profil (EXP-18 #630) — opcjonalny checkbox + name.
+ *      Profil zapisywany PRZED eksportem; 409 (duplikat nazwy)
+ *      blokuje eksport, więc user może poprawić nazwę bez orphan
+ *      pobrania.
  *
  * Submit POSTs to `/api/products/export`:
  *   - `target_count < 100` → BinaryFileResponse z bytes → browser
  *     download (file Content-Disposition).
  *   - `target_count >= 100` → 202 Accepted, toast + close modal.
  *
- * Świadome odejścia:
- *   - BulkActionsToolbar integration — operator otwiera modal przez
- *     prop control (parent component decides when). Toolbar wiring
- *     follow-up: dodać "Eksport" button do `apps/admin/src/features/catalog/products/list/*`
- *     który wywołuje `setOpen(true)`. Modal ships standalone gotowy
- *     na to plug-in.
- *   - Locale + channel toggles — placeholder section. Pełne UX
- *     wymaga `useCustom(/api/tenant/locales)` + per-attribute
- *     scope dropdown. Faza 1 candidate.
- *   - "Save as profile" checkbox — wymaga EXP-07 profile create
- *     dispatch przy submit (już dostępny w API). Sekcja zarezerwowana
- *     jako placeholder; pełna integracja w follow-up gdy modal
- *     edit-mode (EXP-14 Edit action) wymaga symmetric save.
+ * Świadome odejścia (Faza 1):
+ *   - Locale + channel sub-toggles — wymaga `/api/tenant/locales`
+ *     + per-attribute scope dropdown. Single-locale tenant MVP
+ *     nie używa.
+ *   - target_scope=filter z modalu — modal nie ma kontekstu filtra
+ *     listy; pełna ścieżka filtrowa działa w `/integrations/exports/new`
+ *     (EXP-20).
  */
 export function ExportModal({
   open,
@@ -70,6 +65,9 @@ export function ExportModal({
   const [targetScope, setTargetScope] = useState<TargetScope>(initialScope);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveAsProfile, setSaveAsProfile] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   const columnCatalog = useExportColumnCatalog();
 
@@ -80,8 +78,20 @@ export function ExportModal({
       );
       return;
     }
+    const trimmedProfileName = profileName.trim();
+    if (saveAsProfile) {
+      if (trimmedProfileName.length < 1 || trimmedProfileName.length > 255) {
+        setProfileError(
+          t('exports.modal.profile_error_name_length', {
+            defaultValue: 'Nazwa profilu musi mieć 1-255 znaków.',
+          }),
+        );
+        return;
+      }
+    }
     setSubmitting(true);
     setError(null);
+    setProfileError(null);
 
     const payload: Record<string, unknown> = {
       format,
@@ -110,6 +120,50 @@ export function ExportModal({
       if (token !== null) {
         headers['authorization'] = `Bearer ${token}`;
       }
+
+      // Save profile FIRST when requested. 409 (duplicate name) blocks
+      // the export so the user can correct the name without an orphan
+      // download. selected_object_ids are stripped — running the profile
+      // later shouldn't carry ad-hoc selections from this submit.
+      if (saveAsProfile) {
+        const profileConfig: Record<string, unknown> = {
+          selected_columns: columns,
+          format,
+          target_scope: targetScope,
+          include_variants: true,
+        };
+        if (format === 'csv') {
+          profileConfig['encoding'] = encoding;
+        }
+        const profileResponse = await fetch(`${apiUrl}/exports/profiles`, {
+          method: 'POST',
+          headers: { ...headers, accept: 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ name: trimmedProfileName, config: profileConfig }),
+        });
+        if (!profileResponse.ok) {
+          if (profileResponse.status === 409) {
+            setProfileError(
+              t('exports.modal.profile_error_duplicate', {
+                defaultValue: 'Profil o tej nazwie już istnieje.',
+              }),
+            );
+          } else {
+            const text = await profileResponse.text();
+            let detail = `HTTP ${profileResponse.status}`;
+            try {
+              const parsed = JSON.parse(text) as { detail?: string; message?: string };
+              detail = parsed.detail ?? parsed.message ?? detail;
+            } catch {
+              // Non-JSON body — keep status code only.
+            }
+            setProfileError(detail);
+          }
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const response = await fetch(`${apiUrl}/products/export`, {
         method: 'POST',
         headers,
@@ -283,6 +337,54 @@ export function ExportModal({
                 {t('exports.modal.scope_all', { defaultValue: 'Wszystkie produkty' })}
               </label>
             </div>
+          </section>
+
+          {/* Section 4 — Save as profile */}
+          <section className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                className="size-4"
+                checked={saveAsProfile}
+                onChange={(e) => {
+                  setSaveAsProfile(e.target.checked);
+                  if (!e.target.checked) {
+                    setProfileError(null);
+                  }
+                }}
+              />
+              {t('exports.modal.save_as_profile', { defaultValue: 'Zapisz jako profil' })}
+            </label>
+            {saveAsProfile && (
+              <div className="space-y-1 pl-6">
+                <input
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => {
+                    setProfileName(e.target.value);
+                    if (profileError !== null) setProfileError(null);
+                  }}
+                  maxLength={255}
+                  placeholder={t('exports.modal.profile_name_placeholder', {
+                    defaultValue: 'Nazwa profilu (1-255 znaków)',
+                  })}
+                  className="w-full rounded border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  aria-invalid={profileError !== null}
+                  aria-describedby={profileError !== null ? 'profile-error' : undefined}
+                />
+                {profileError !== null && (
+                  <p id="profile-error" className="text-xs text-rose-700" role="alert">
+                    {profileError}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {t('exports.modal.profile_hint', {
+                    defaultValue:
+                      'Profil zapisuje wybrane kolumny, format i scope. Uruchomisz go ponownie z zakładki Profile.',
+                  })}
+                </p>
+              </div>
+            )}
           </section>
         </div>
 
