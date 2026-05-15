@@ -1,4 +1,4 @@
-import { useApiUrl, useCustomMutation } from '@refinedev/core';
+import { useApiUrl } from '@refinedev/core';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { getAccessToken } from '@/lib/http';
 
 import { BUILT_IN_COLUMN_GROUPS, ColumnPicker } from '../components/ColumnPicker';
 
@@ -21,12 +22,6 @@ interface ExportModalProps {
   onOpenChange: (open: boolean) => void;
   /** SKU IDs preselected from the catalog list. Triggers `target_scope=selected`. */
   selectedObjectIds?: readonly string[];
-}
-
-interface ExportSubmitResult {
-  id?: string;
-  status?: string;
-  target_count?: number;
 }
 
 /**
@@ -75,9 +70,7 @@ export function ExportModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { mutate: submit } = useCustomMutation<ExportSubmitResult>();
-
-  const onSubmit = () => {
+  const onSubmit = async () => {
     if (columns.length === 0) {
       setError(
         t('exports.modal.error_no_columns', { defaultValue: 'Wybierz co najmniej jedną kolumnę.' }),
@@ -100,40 +93,73 @@ export function ExportModal({
       payload['selected_object_ids'] = selectedObjectIds;
     }
 
-    submit(
-      {
-        url: `${apiUrl}/products/export`,
-        method: 'post',
-        values: payload,
-      },
-      {
-        onSuccess: (response) => {
-          // Async path (HTTP 202) → toast + close. Sync path returns
-          // binary; Refine custom mutation cannot stream the
-          // download, so the FE encodes the same payload as a form
-          // POST through window.open for sync-scale exports.
-          if (response.data?.status === 'pending') {
-            // Async dispatched — Recent grid will pick it up via
-            // 5s polling (EXP-13).
-            onOpenChange(false);
-            window.location.href = '/integrations/exports/sessions';
-            return;
-          }
-          // For sync exports, fall back to a form-POST trick that
-          // lets the browser handle the binary stream directly.
-          submitFormPost(apiUrl, payload);
-          onOpenChange(false);
-        },
-        onError: (mutationError) => {
-          setError(
-            mutationError instanceof Error
-              ? mutationError.message
-              : t('exports.modal.error_generic', { defaultValue: 'Eksport nie powiódł się.' }),
-          );
-        },
-        onSettled: () => setSubmitting(false),
-      },
-    );
+    try {
+      // Raw fetch — sync response is XLSX/CSV binary (NOT JSON), so
+      // Refine's useCustomMutation / jsonFetch reject it as
+      // "HTTP 200" via the 2026-05-13 white-screen guard. We branch
+      // on status: 202 → JSON redirect; 200 → blob download.
+      const token = getAccessToken();
+      const headers: Record<string, string> = {
+        'content-type': 'application/json',
+        accept:
+          'application/json, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/csv',
+      };
+      if (token !== null) {
+        headers['authorization'] = `Bearer ${token}`;
+      }
+      const response = await fetch(`${apiUrl}/products/export`, {
+        method: 'POST',
+        headers,
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+      });
+
+      if (response.status === 202) {
+        // Async path — Recent grid will pick it up via polling (EXP-13).
+        onOpenChange(false);
+        window.location.href = '/integrations/exports/sessions';
+        return;
+      }
+
+      if (!response.ok) {
+        const text = await response.text();
+        let detail = `HTTP ${response.status}`;
+        try {
+          const parsed = JSON.parse(text) as { detail?: string; message?: string };
+          detail = parsed.detail ?? parsed.message ?? detail;
+        } catch {
+          // Non-JSON error body — keep the status code only.
+        }
+        setError(detail);
+        return;
+      }
+
+      // Sync path — read body as a blob and trigger a download via a
+      // temp anchor. browsers handle Content-Disposition + content-type
+      // when the bytes arrive as a Blob URL.
+      const blob = await response.blob();
+      const filename =
+        parseFilename(response.headers.get('content-disposition')) ??
+        `pim-export-${new Date().toISOString().replace(/[:.]/g, '-')}.${format}`;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      // Revoke after a tick so Safari has time to start the download.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      onOpenChange(false);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : t('exports.modal.error_generic', { defaultValue: 'Eksport nie powiódł się.' }),
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -275,24 +301,16 @@ export function ExportModal({
 }
 
 /**
- * Sync exports come back as a binary `application/vnd.openxmlformats-...`
- * stream. Refine's `useCustomMutation` does not surface raw blobs in a
- * way the browser will download — we re-POST through an invisible
- * `<form>` so the browser handles the Content-Disposition flow natively.
+ * Pull the filename out of a `Content-Disposition` header so the
+ * triggered anchor download lands on disk with the same name the
+ * backend chose (sync controller computes `pim-export-<timestamp>.<ext>`).
+ * Returns null if the header is missing or unparseable — caller falls
+ * back to a client-generated name.
  */
-function submitFormPost(apiUrl: string, payload: Record<string, unknown>): void {
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = `${apiUrl}/products/export`;
-  form.target = '_self';
-  const input = document.createElement('input');
-  input.type = 'hidden';
-  input.name = '__payload';
-  input.value = JSON.stringify(payload);
-  form.appendChild(input);
-  document.body.appendChild(form);
-  form.submit();
-  document.body.removeChild(form);
+function parseFilename(header: string | null): string | null {
+  if (header === null) return null;
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(header);
+  return match?.[1] !== undefined ? decodeURIComponent(match[1]) : null;
 }
 
 export default ExportModal;
