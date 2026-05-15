@@ -1,7 +1,10 @@
-import { useApiUrl, useCustom, useCustomMutation } from '@refinedev/core';
+import { useApiUrl, useCustom, useCustomMutation, useGetIdentity } from '@refinedev/core';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { getAccessToken } from '@/lib/http';
+
+import { useExportSessionsStream } from '../hooks/useExportSessionsStream';
 
 interface ExportSessionRow {
   id: string;
@@ -27,6 +30,10 @@ const STATUS_STYLES: Record<ExportSessionRow['status'], string> = {
   error: 'bg-rose-100 text-rose-900',
 };
 
+interface Identity {
+  id: string;
+}
+
 /**
  * EXP-13 (#592) — Recent exports grid.
  *
@@ -36,21 +43,28 @@ const STATUS_STYLES: Record<ExportSessionRow['status'], string> = {
  *   - Rerun → POST `/rerun`, refreshes the grid.
  *   - Delete → DELETE, refreshes the grid.
  *
- * 5-second polling refresh keeps the running rows alive without
- * Mercure SSE wiring (PRD §11.5; native SSE subscription is a
- * follow-up — `exports/{user_id}` topic publishes are already running
- * on the backend EXP-06 handler, so flipping the FE switch is just an
- * EventSource hookup).
+ * Status freshness: Mercure SSE (`exports/{user_id}` topic, EXP-17 #629)
+ * triggers an immediate REST refetch on every `progress` / `status`
+ * event from the EXP-06 publisher. REST is the source of truth; when
+ * the hub is unreachable the 5s polling fallback keeps the grid alive.
  */
 export function ExportSessionsView(): React.ReactElement {
   const { t } = useTranslation();
   const apiUrl = useApiUrl();
+  const { data: identity } = useGetIdentity<Identity>();
 
   const { result, query } = useCustom<SessionsResponse>({
     url: `${apiUrl}/exports/sessions`,
     method: 'get',
     queryOptions: { refetchInterval: 5000, staleTime: 2000 },
   });
+
+  const { lastEvent } = useExportSessionsStream(identity?.id ?? null);
+
+  useEffect(() => {
+    if (lastEvent === null) return;
+    void query.refetch();
+  }, [lastEvent, query]);
 
   const { mutate: rerun } = useCustomMutation();
   const { mutate: del } = useCustomMutation();
