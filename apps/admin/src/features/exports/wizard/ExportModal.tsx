@@ -241,13 +241,13 @@ export function ExportModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col">
         <DialogHeader>
           <DialogTitle>
             {t('exports.modal.title', { defaultValue: 'Eksportuj produkty' })}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-6">
+        <div className="-mx-6 flex-1 space-y-6 overflow-y-auto px-6">
           {/* Section 1 — Kolumny */}
           <section>
             <h3 className="mb-2 text-sm font-medium">
