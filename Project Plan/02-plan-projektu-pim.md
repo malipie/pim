@@ -829,14 +829,26 @@ PRD: [`PRD/PRD-PIM-exports.md`](PRD/PRD-PIM-exports.md). Feature notatka: [`UI/f
 - IMP-19 (#605) — Multi-locale columns (attribute.locale notation).
 
 **Świadome odejścia (marathon trade-offs):**
-- BulkActionsToolbar integration dla modalu — ships standalone, wiring follow-up.
-- Locale + channel sub-toggles w modalu — placeholder, wymaga `useCustom(/api/tenant/locales)`.
-- "Save as profile" submit handler — backend gotowy, FE incremental.
-- Mercure SSE FE wiring (EXP-13) — backend publishes, FE używa 5s polling.
-- dnd-kit drag-drop w pickerze (EXP-10) — ↑↓ buttons cover keyboard nav.
-- `target_scope=filter` — backend 501; wymaga FilterDslResolver integration.
-- Pełne 5-scenariuszowe E2E — round-trip blocked by IMP-16..19.
-- Cross-user audit (R-45) + presigned URLs (§11.6) — Faza 1.
+- ~~BulkActionsToolbar integration dla modalu~~ — zaimplementowane jeszcze w maratonie (#591/#595).
+- ~~"Save as profile" submit handler~~ — EXP-18 (#630, PR #635).
+- ~~Mercure SSE FE wiring (EXP-13)~~ — EXP-17 (#629, PR #634).
+- ~~dnd-kit drag-drop w pickerze (EXP-10)~~ — EXP-19 (#631, PR #636).
+- ~~`target_scope=filter` — backend 501~~ — EXP-20 (#632, PR #637).
+- Locale + channel sub-toggles w modalu — **Faza 1** (wymaga `/api/tenant/locales` + per-attribute scope dropdown).
+- Pełne 5 scenariuszy E2E — 4 z 5 pokryte w EXP-21 (#633), round-trip = **EXP-22** blocked by IMP-16..19.
+- Cross-user audit (R-45) + presigned URLs (§11.6) — **Faza 1**.
+
+### 0.10b. Mini-epik EXP-17..21 — Świadome odejścia po maratonie #580-#595 (2026-05-15)
+
+Status: 5/5 zamknięte (PR #634..#638).
+
+- [x] **EXP-17 (#629, PR #634)** — Mercure SSE FE wiring dla Recent exports grid (`useExportSessionsStream`).
+- [x] **EXP-18 (#630, PR #635)** — Save-as-profile FE submit (checkbox + name + POST przed eksportem).
+- [x] **EXP-19 (#631, PR #636)** — dnd-kit drag-drop reorder w ColumnPicker (↑↓ buttons zachowane jako a11y fallback).
+- [x] **EXP-20 (#632, PR #637)** — `target_scope=filter` + FilterDslResolver SQL integration + raw JSON textarea w ExportNewPage.
+- [x] **EXP-21 (#633, PR #638)** — E2E Playwright (4/5 scenariuszy: sync from list + save-as-profile + bulk + async mocked) + docstring cleanup + plan/lessons update.
+
+**Follow-up:** EXP-22 round-trip E2E — blocked by IMP-16 (#602), IMP-17 (#603), IMP-18 (#604), IMP-19 (#605).
 
 ---
 
