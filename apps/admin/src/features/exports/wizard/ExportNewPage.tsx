@@ -14,17 +14,15 @@ import { ExportModal } from './ExportModal';
  *
  * Why reuse the modal instead of a parallel page-level form:
  *   - Submit flow + payload validation are identical.
- *   - Sections (columns, format/encoding, scope) match 1:1.
+ *   - Sections (columns, format/encoding, scope, save-as-profile)
+ *     match 1:1.
  *   - Single source of truth for FE export controls keeps the
- *     contract tight as the modal evolves (e.g. when locale toggles
- *     and "save as profile" wire in).
+ *     contract tight as the modal evolves.
  *
  * Świadome odejścia (PRD §13.1 + §14):
- *   - Chip filter picker — backend zwraca 501 dla target_scope=filter
- *     w MVP sync runnera. Once the FilterDslResolver lands in the
- *     async path, this page grows a chip-style filter section above
- *     the modal — same component, just gated on tenant-side feature
- *     flag.
+ *   - Chip filter picker dla target_scope=filter — gated on EXP-20
+ *     FilterDslResolver integration. Modal sam z listy nie ma
+ *     kontekstu filtra, ta strona dorośnie do tego po EXP-20.
  *   - No back-to-hub breadcrumb in MVP — Esc/cancel on the modal
  *     returns to `/integrations/exports` which IS the hub.
  */
