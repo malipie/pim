@@ -40,6 +40,12 @@ interface BulkBarProps {
   onOpenDeleteModal?: () => void;
   onOpenDuplicateModal?: () => void;
   onOpenCmdK?: () => void;
+  /**
+   * EXP-11 follow-up — opens ExportModal pre-filled z target_scope=selected
+   * + selected_object_ids = selectedIds. Backend `POST /api/products/export`
+   * sync <100 SKU → BinaryFileResponse, ≥100 → async session.
+   */
+  onOpenExportModal?: () => void;
 }
 
 /**
@@ -61,6 +67,7 @@ export function BulkBar({
   onOpenDeleteModal,
   onOpenDuplicateModal,
   onOpenCmdK,
+  onOpenExportModal,
 }: BulkBarProps) {
   const { t } = useTranslation();
   const [isPending, setIsPending] = useState(false);
@@ -143,7 +150,7 @@ export function BulkBar({
         </button>
         <button
           type="button"
-          onClick={placeholder('VIEW-05.4')}
+          onClick={onOpenExportModal ?? placeholder('VIEW-05.4')}
           className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
         >
           <Download className="size-3.5" aria-hidden="true" />

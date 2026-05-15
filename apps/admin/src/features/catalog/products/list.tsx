@@ -40,6 +40,11 @@ const BulkPublishModal = lazy(() =>
 const BulkWizard = lazy(() =>
   import('@/components/catalog/bulk-wizard/bulk-wizard').then((m) => ({ default: m.BulkWizard })),
 );
+// EXP-11 follow-up — modal eksportu z bulk toolbar. Lazy load żeby
+// nie ważył initial bundle (modal renderuje się tylko po user action).
+const ExportModal = lazy(() =>
+  import('@/features/exports/wizard/ExportModal').then((m) => ({ default: m.ExportModal })),
+);
 
 import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
 import { type ExcelColumn, ExcelLikeGrid } from '@/components/catalog/excel-like-grid';
@@ -183,6 +188,8 @@ export function ProductListPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDuplicateOpen, setBulkDuplicateOpen] = useState(false);
   const [cmdKOpen, setCmdKOpen] = useState(false);
+  // EXP-11 follow-up — export modal otwierany przez Eksport button w BulkBar.
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [lastBulkSession, setLastBulkSession] = useState<RollbackSession | null>(null);
 
   useEffect(() => {
@@ -825,7 +832,18 @@ export function ProductListPage() {
         onOpenDeleteModal={() => setBulkDeleteOpen(true)}
         onOpenDuplicateModal={() => setBulkDuplicateOpen(true)}
         onOpenCmdK={() => setCmdKOpen(true)}
+        onOpenExportModal={() => setExportModalOpen(true)}
       />
+
+      <Suspense fallback={null}>
+        {exportModalOpen ? (
+          <ExportModal
+            open={exportModalOpen}
+            onOpenChange={setExportModalOpen}
+            selectedObjectIds={Array.from(selected)}
+          />
+        ) : null}
+      </Suspense>
 
       <Suspense fallback={null}>
         {bulkWizardOpen ? (
