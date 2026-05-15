@@ -1,5 +1,55 @@
 # Current Status
 
+## 2026-05-15: 🏁 Marathon EXP-01..EXP-16 ZAMKNIĘTY — 16/16 ticketów (Eksport produktów MVP)
+
+**Sub-faza:** MVP-Final, epik EXP (Eksport produktów) ✅ DONE single-session marathon.
+
+**16 ticketów zmergeowanych w marathonie 2026-05-15:**
+
+| Ticket | PR | Co dostarczone |
+|---|---|---|
+| EXP-01 | #578 (drugi agent) | Schema + entities + MinIO bucket (3 tabele + flysystem) |
+| EXP-02 | #597 | POC IMP kontrakt audit (4/4 FAIL → IMP-16..19) |
+| EXP-03 | #606 | ExportBuilder + ColumnResolver + ValueSerializer + 15 unit tests |
+| EXP-04 | #608 | `pim:export:benchmark` Console + append-only log |
+| EXP-05 | #609 | POST /api/products/export sync + OpenSpout XLSX + CSV |
+| EXP-06 | #610 | Async ExportJobHandler + Mercure SSE + MinIO upload |
+| EXP-07 | #611 | Profiles CRUD API (5 endpoints) |
+| EXP-08 | #612 | Sessions API (7 endpoints) + download stream + rerun |
+| EXP-09 | #613 | FE foundation (Refine + routes + ExportsLayout) |
+| EXP-10 | #616 | Two-pane ColumnPicker MVP |
+| EXP-11 | #617 | ExportModal z 4 sekcjami |
+| EXP-12 | #618 | Full-page form reusing ExportModal |
+| EXP-13 | #614 | Recent exports grid + 5s polling + Download/Rerun/Delete |
+| EXP-14 | #615 | Saved profiles grid + Run-now + Delete |
+| EXP-15 | #619 | Hub smoke + dogfooding follow-up plan |
+| EXP-16 | (ten PR) | Plan / PRD / lessons / feature-exports.md updates |
+
+**Plus fix #607** — TenantAuditCommand whitelist `export_logs` (unblock PHPUnit po EXP-01).
+
+**4 follow-up tickety utworzone (PRD §9.2 round-trip kontrakty IMP):**
+- IMP-16 (#602) — Variants flat parent_sku
+- IMP-17 (#603) — Multi-value pipe-separated parser
+- IMP-18 (#604) — Asset URL → asset_id
+- IMP-19 (#605) — Multi-locale columns (attribute.locale)
+
+**Świadome odejścia:**
+- BulkActionsToolbar wiring dla EXP-11 (modal ships standalone).
+- Locale + channel toggles w modalu (placeholder).
+- Save-as-profile FE submit (backend gotowy).
+- Mercure SSE FE wiring w EXP-13 (5s polling fallback; backend publishes).
+- dnd-kit drag-drop w pickerze (↑↓ buttons cover keyboard).
+- target_scope=filter (backend 501; wymaga FilterDslResolver).
+- Pełne 5-scenariuszowe E2E (round-trip blocked by IMP-16..19).
+
+**Aktywne blokery:** IMP-16..IMP-19 dla pełnego round-trip Magdy SEO PL+EN (PRD §3.5 killer scenario).
+
+**Następny krok:** operator session zamykająca IMP-16..19 + Marcin 50k SKU dogfooding (PRD §13.4).
+
+Pełna nota feature: `Project Plan/UI/feature-exports.md`. Audit raport: `agent/exp-02-imp-audit.md`. Smoke report: `agent/exp-15-smoke-report.md`. Perf log: `apps/api/agent/exp-04-perf-benchmark.md`.
+
+---
+
 ## 2026-05-14: 🏁 Marathon UI-09 ZAMKNIĘTY — 12/12 ticketów na main
 
 **Sub-faza:** MVP-Alpha, epik UI-09 (Lista produktów v2 — cockpit operatora) ✅ DONE.

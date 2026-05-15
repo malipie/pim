@@ -795,4 +795,49 @@ Projekt uznajemy za sukces, jeśli:
 
 ---
 
+## Epik EXP — Eksport produktów (MVP-Final, 2026-05-15)
+
+PRD: [`PRD/PRD-PIM-exports.md`](PRD/PRD-PIM-exports.md). Feature notatka: [`UI/feature-exports.md`](UI/feature-exports.md).
+
+**Cel:** dwa entry points (kontekstowy z listy + centralny `/integrations/exports/new`) z worker engine + 4-section konfigurator + saved profiles per user + Recent exports history + manual bridge reimport przez `/integrations/imports`.
+
+**Status:** wszystkie 16 ticketów zamknięte single-session marathonem (PR #597..#619).
+
+- [x] **EXP-01 (#580)** — Schema + entities + MinIO bucket. *Implemented via PR #578.*
+- [x] **EXP-02 (#581)** — POC IMP kontrakt audit (4/4 FAIL → IMP-16..19).
+- [x] **EXP-03 (#582)** — ExportBuilder + ColumnResolver + ValueSerializer.
+- [x] **EXP-04 (#583)** — POC `pim:export:benchmark` Console.
+- [x] **EXP-05 (#584)** — Sync export endpoint + OpenSpout + CSV.
+- [x] **EXP-06 (#585)** — Async ExportJobHandler + Mercure SSE.
+- [x] **EXP-07 (#586)** — Profiles CRUD API (5 endpoints).
+- [x] **EXP-08 (#587)** — Sessions API + run-from-profile + download (7 endpoints).
+- [x] **EXP-09 (#588)** — FE foundation (Refine + routes + tab layout).
+- [x] **EXP-10 (#589)** — Two-pane ColumnPicker MVP.
+- [x] **EXP-11 (#590)** — Modal kontekstowy z 4 sekcjami.
+- [x] **EXP-12 (#591)** — Full-page form reusing ExportModal.
+- [x] **EXP-13 (#592)** — Recent exports grid + 5s polling + actions.
+- [x] **EXP-14 (#593)** — Saved profiles grid + Run-now + Delete.
+- [x] **EXP-15 (#594)** — Hub smoke + dogfooding follow-up plan.
+- [x] **EXP-16 (#595)** — Plan / PRD / lessons docs update.
+
+**Plus fix #607** — TenantAuditCommand whitelist `export_logs` (unblock PHPUnit post-EXP-01).
+
+**Follow-up tickety utworzone:**
+- IMP-16 (#602) — Variants flat parent_sku w imporcie.
+- IMP-17 (#603) — Multi-value pipe-separated parser.
+- IMP-18 (#604) — Asset URL → asset_id resolution.
+- IMP-19 (#605) — Multi-locale columns (attribute.locale notation).
+
+**Świadome odejścia (marathon trade-offs):**
+- BulkActionsToolbar integration dla modalu — ships standalone, wiring follow-up.
+- Locale + channel sub-toggles w modalu — placeholder, wymaga `useCustom(/api/tenant/locales)`.
+- "Save as profile" submit handler — backend gotowy, FE incremental.
+- Mercure SSE FE wiring (EXP-13) — backend publishes, FE używa 5s polling.
+- dnd-kit drag-drop w pickerze (EXP-10) — ↑↓ buttons cover keyboard nav.
+- `target_scope=filter` — backend 501; wymaga FilterDslResolver integration.
+- Pełne 5-scenariuszowe E2E — round-trip blocked by IMP-16..19.
+- Cross-user audit (R-45) + presigned URLs (§11.6) — Faza 1.
+
+---
+
 *Koniec planu projektu. Dokument żyjący — aktualizowany co fazę.*

@@ -1565,3 +1565,27 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Synology Drive vs `node_modules`** — pre-commit hook (`pnpm exec commitlint`) failuje jeśli node_modules/.pnpm/ajv/ ma dataless flag. Symptom: `TypeError: getJSONTypes is not a function`. Fix per session: `find node_modules -type f -print0 | xargs -0 -P 8 -n 100 cat > /dev/null`. Pattern: po pierwszym `husky` failure z node-side errorem, materializuj node_modules.
 
 - **Docker Caddyfile EDEADLK przy starcie stack'u** — `caddy` container restart loops z `Error: reading config from file: read /etc/caddy/Caddyfile: resource deadlock avoided`. Fix: `cat docker/caddy/Caddyfile > /dev/null` żeby zmaterializować. Plus `find docker -type f -exec cat {} > /dev/null \;` jednorazowo dla wszystkich Caddy/Mercure/MinIO config'ów. Wzorzec na początku każdej sesji `pnpm stack:up`.
+
+## Lessons z EXP-01..EXP-16 (Eksport produktów, 2026-05-15)
+
+- **Drugi agent może shipnąć część scope EXP-01 w "fix" PR-ze** — PR #578 oznaczony jako "fix(catalog): unbreak search + pager" zmergeował też pełen EXP-01 schema/entities/MinIO bucket. Pattern dla marathonu: po fetch main sprawdzić `ls apps/api/src/<bounded-context>` zanim się stworzy nową branch — może już istnieje. Wzorzec: każdy ticket marathon-mode zaczyna od `git checkout main && git pull` + sprawdzenia czy zakres ticketu nie został zamknięty równolegle.
+
+- **TenantAuditCommand INFRA_TABLES allowlist jest kontraktem nie konwencją** — każda nowa tabela bez `tenant_id` musi mieć wpis w `apps/api/src/Shared/Infrastructure/Maintenance/TenantAuditCommand.php` z komentarzem dlaczego (`import_logs`, `bulk_logs`, `export_logs` patrz fix #607). Bez tego `TenantAuditCommandTest::reportsCleanStateAfterAllMigrations` failuje na każdym PR-ze i blokuje PHPUnit. Wzorzec: jeśli tabela log/audit dziedziczy tenant scope przez FK na parent — dodać do INFRA_TABLES w tym samym PR co migrację.
+
+- **OpenSpout 5.x API ≠ 3.x docs** — `Style::setFontBold()` → `Style::withFontBold(true)`, `Row::fromValues()` z stylem → `Row::fromValuesWithStyle()`, `Options::SHOULD_USE_INLINE_STRINGS` jest public field z default `true`. PHPStan max wyłapuje breaking changes — używaj go zanim shippujesz wrapper class dla zewnętrznej lib.
+
+- **Refine `useCustomMutation<unknown>` PHPStan-equivalent fail** — `unknown` nie satisfies `BaseRecord`. Użyj `useCustomMutation()` bez generic (defaults do `BaseRecord`) lub konkretnego interface. Wzorzec: dla custom REST endpoints nie typuj generic-em jeśli odpowiedź jest fire-and-forget.
+
+- **PRD §14 open questions zaszyte w ticketach jako defaulty z walidacją w PR** — operator wybrał ścieżkę nie-osobnego POC ticketu (Sprint 1 walidacja). Defaulty (pipe-separated multi, blank cell, asset URL, UTF-8 BOM, self-audit only) zostały zaszyte w EXP-03..EXP-08 z eksplicit notatkami w PR description. Wzorzec dla podobnych marathonów: PRD open questions → świadome defaulty + PR notatka "walidacja z [persona] w follow-up sesji" zamiast osobnych POC ticketów per pytanie.
+
+- **EPIK MARATHON RULE — minimum viable z świadomym uzasadnieniem JEST OK** — operator approved marathon mode z auto-accept; wszystkie FE tickety (EXP-09..EXP-14) shipped jako minimum-viable z explicit deferrals w PR descriptions: BulkActionsToolbar wiring, Mercure SSE FE (backend publishes), dnd-kit drag-drop, locale toggles, save-as-profile checkbox. Pattern: dokumentuj **co** zostaje deferred + **dlaczego** + **kto rozłączy** (zwykle "follow-up sesja").
+
+- **EXP-05 sync controller dispatcher dodany w EXP-06 PR (cross-ticket edit)** — controller z EXP-05 nie miał `MessageBus->dispatch(RunExportMessage)` bo RunExportMessage żyje w EXP-06 branch. Wzorzec dla async-w-2-ticketach: PR z producerem (controller) ships sync-only path; PR z consumerem (handler) dodaje 4-line dispatch edit do controller'a. Kolejność merge musi być producer → consumer.
+
+- **Marathon rebase z conflict w services.yaml** — gdy dwa branche dodają entries do tej samej sekcji `services.yaml` (tu `$importsStorage` + `$exportsStorage` bindings), git rebase tworzy textual conflict. Resolution = manual merge obu nowych bloków + git add. Wzorzec: każda new app context która dodaje named storage binding musi land sequencjalnie, nie równolegle.
+
+- **`pim:export:benchmark` jako runtime-config benchmark** — Console command z `--tenant --limit --chunk --columns` daje stable interface dla future runs; append-only `agent/exp-04-perf-benchmark.md` log gromadzi trend bez per-run merge conflictu. Wzorzec dla każdego POC perf benchmark: ship jako Console command + markdown log file zamiast jednorazowego raportu.
+
+- **EXP-02 audit jako blocker przed implementacją** — read-only audit IMP-01..15 zwrócił 4/4 FAIL przed startem EXP-03+. Result: 4 follow-up tickety IMP-16..IMP-19 utworzone od razu, marathon kontynuował z świadomym round-trip-deferred (EXP-15 dokumentuje). Wzorzec: jeśli round-trip / kontrakt z innym epikiem jest KILLER feature, zrób read-only audit ZANIM zaczniesz implementację — wynik kształtuje plan.
+
+- **Vite TypeScript noEmit OOM w 1024MB Node** — `pnpm typecheck` w admin container failuje na heap exhaustion bez `NODE_OPTIONS=--max-old-space-size=2048`. Pattern dla każdej sesji FE: prefix `NODE_OPTIONS='--max-old-space-size=2048'` przed typecheck/biome jeśli OOM się powtarza.
