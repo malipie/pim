@@ -7,7 +7,7 @@
 **Data utworzenia:** 2026-05-14
 **Wersja dokumentu:** 1.0
 **Autor:** Marcin Lipiec (synteza brainstormingu 5-falowego 2026-05-14)
-**Status:** Draft — wymaga walidacji z Magdą + POC performance benchmark w Sprint 1
+**Status:** Implemented (MVP) 2026-05-15 — marathon EXP-01..EXP-16 (PR #597..#619). 4 follow-upy IMP-16..IMP-19 (#602..#605) blokują pełen round-trip per EXP-02 audit (`agent/exp-02-imp-audit.md`). Lista świadomych odejść w `Project Plan/02-plan-projektu-pim.md` epik EXP. Validation z Magdą + Tomaszem oraz dogfooding Marcin 50k SKU — manualne follow-up sesje per `agent/exp-15-smoke-report.md`.
 
 > **Nota o scope dokumentu.** To **feature-PRD** dla *jednego* obszaru produktu (eksport produktów z dwoma entry points: kontekstowy z listy + centralny `/integrations/exports`). Pełen product-PRD dla Cortex PIM (pozycjonowanie, ICP, model biznesowy, multitenant SaaS, pricing) — patrz `Zrodla/PRD/PRD-PIM.md`. Sekcje 3, 4, 11, 12 niniejszego dokumentu zawierają wyciąg / odniesienia do master PRD; sekcje 5–10, 13–14 są feature-specific.
 >
