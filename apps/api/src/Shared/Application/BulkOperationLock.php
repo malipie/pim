@@ -61,10 +61,46 @@ final readonly class BulkOperationLock
         );
 
         if (false === $lock->acquire(blocking: false)) {
-            return null;
+            // Flock-backed locks survive a PHP fatal that bypasses
+            // `finally { release() }`. The OS releases the file lock
+            // on process exit, but FrankenPHP's worker mode keeps the
+            // same process alive across requests, so a request that
+            // hit `max_execution_time` (e.g. a 30s bulk handler with
+            // no `set_time_limit(0)` opt-out) holds the flock until
+            // the worker is recycled. Pre-`set_time_limit` runs left
+            // stale locks that blocked the next bulk action for the
+            // full 1h TTL. As a safety net: when the lock file is
+            // older than the TTL, treat it as abandoned, unlink, and
+            // retry once. New holders rotate the file on acquire so
+            // a healthy concurrent holder won't trip this branch.
+            $this->forceClearStaleLockFile($tenant);
+            // PHPStan can't see past the first `acquire()` call here
+            // because `LockInterface::acquire(blocking: false)` is
+            // typed as a closed boolean. Suppressed manually — at
+            // runtime the second call can succeed once the stale
+            // file got unlinked above.
+            // @phpstan-ignore booleanNot.alwaysTrue
+            if (!$lock->acquire(blocking: false)) {
+                return null;
+            }
         }
 
         return $lock;
+    }
+
+    private function forceClearStaleLockFile(Tenant $tenant): void
+    {
+        $matches = glob(sys_get_temp_dir().'/sf.'.self::keyFor($tenant).'.*.lock');
+        if (!\is_array($matches)) {
+            return;
+        }
+        $threshold = time() - (int) self::TTL_SECONDS;
+        foreach ($matches as $path) {
+            $mtime = @filemtime($path);
+            if (false !== $mtime && $mtime < $threshold) {
+                @unlink($path);
+            }
+        }
     }
 
     public static function keyFor(Tenant $tenant): string

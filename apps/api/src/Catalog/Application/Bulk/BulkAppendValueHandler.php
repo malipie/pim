@@ -41,6 +41,12 @@ final class BulkAppendValueHandler
      */
     public function handle(BulkSession $session, string $attrCode, mixed $value): array
     {
+        // Long bulk runs (2k+ products) routinely exceed PHP's
+        // 30s HTTP timeout — without disabling it the handler
+        // is killed mid-loop, the session stays incomplete, and
+        // the operator sees 200 + zero rows touched.
+        set_time_limit(0);
+
         $this->bulkContext->setBulk(true, $session->getId());
         try {
             $success = 0;
@@ -135,6 +141,20 @@ final class BulkAppendValueHandler
 
             if ($chunkCounter > 0) {
                 $this->em->flush();
+            }
+
+            // Reload BulkSession: per-chunk em->clear() detached the
+
+            // local instance and its Tenant proxy. The final persist
+
+            // below would otherwise raise EntityNotFoundException on
+
+            // flush trying to resolve the stale proxy.
+
+            $reloaded = $this->em->find(BulkSession::class, $session->getId());
+
+            if ($reloaded instanceof BulkSession) {
+                $session = $reloaded;
             }
 
             $session->complete($success, $skipped, $errors);

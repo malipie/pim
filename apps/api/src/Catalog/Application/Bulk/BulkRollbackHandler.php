@@ -56,6 +56,12 @@ final class BulkRollbackHandler
 
     public function rollback(BulkSession $session): int
     {
+        // Long bulk rollbacks (reversing 2k+ products) routinely exceed
+        // PHP's 30s HTTP timeout — without disabling it the handler is
+        // killed mid-loop, the session stays incomplete, and the
+        // operator sees 200 + zero rows touched.
+        set_time_limit(0);
+
         if (!$session->isRollbackAvailable()) {
             throw new BadRequestHttpException('Rollback window expired or already used.');
         }

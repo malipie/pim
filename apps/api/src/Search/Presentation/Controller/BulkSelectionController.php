@@ -58,6 +58,19 @@ final class BulkSelectionController
         $query = \is_string($body['q'] ?? null) ? trim($body['q']) : '';
         $customFilterExpression = $this->resolveCustomFilter($body);
 
+        // Mirror the list view's variant-tree gate: when the operator
+        // sees only masters (`variants_mode=tree`, default in the FE),
+        // selecting "all matching" must not pull variants in — otherwise
+        // the badge count exceeds the visible row count and bulk actions
+        // run on rows the operator can't see.
+        $variantsMode = \is_string($body['variants_mode'] ?? null) ? $body['variants_mode'] : 'tree';
+        if ('tree' === $variantsMode) {
+            $masterClause = 'parentId IS NULL';
+            $customFilterExpression = null === $customFilterExpression
+                ? $masterClause
+                : '('.$customFilterExpression.') AND '.$masterClause;
+        }
+
         $limit = isset($body['limit']) && is_numeric($body['limit'])
             ? min(self::HARD_CAP, max(1, (int) $body['limit']))
             : self::HARD_CAP;
