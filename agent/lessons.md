@@ -2,6 +2,40 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z mini-epik EXP-17..21 (świadome odejścia po maratonie #580-#595, 2026-05-15)
+
+### Patterns to Follow
+
+1. **Audytuj docstringi świadomych odejść zanim zaplanujesz follow-up** — operator dał listę 8 trade-offów do rozpisania; jeden z nich („BulkActionsToolbar wiring") był już zaimplementowany w późniejszych PR-ach maratonu, ale nieaktualny komentarz w `ExportModal.tsx:44-49` zostawiał wrażenie że feature nie ships'uje. Read-first przed `gh issue create` oszczędza fałszywe tickety. Lekcja: docstring „świadome odejście" w merged PR-ze != live trade-off; weryfikuj `grep -rn "onOpenExportModal\|export.*click"` przed planowaniem.
+
+2. **Wzorce SSE/dnd-kit kopiowalne 1:1 między modułami** — `useImportProgress` → `useExportSessionsStream` zmienia tylko topic prefix; `settings/menu` Row sortable → ColumnPicker `SortableColumnRow` używa identycznych sensors + `verticalListSortingStrategy`. Cross-module reuse to maraton-friendly default zamiast green-fielding.
+
+3. **POST profile PRZED eksportem chroni przed orphan downloadem** — gdyby save-as-profile nastąpił PO udanym sync 200, dedup 409 by się stał *po* tym jak plik już się pobrał. Order matters: walidacja po side-effectach to zła UX. Pattern: side-effect z fail-blocking-walidacją idzie *przed* nieodwracalnym effect-em.
+
+4. **CI infra flake na main ≠ blokada** — Playwright `modeling-shell.spec.ts` modal-shell test failuje konsekwentnie na main HEAD i wszystkich ostatnich PR-ach (5+ z ostatnich 10 runów). `gh pr merge N --squash --admin` jest authoryzowanym wzorem operatora dla tej infra flaki gdy reszta gates green; sprawdzaj `gh run list --branch main` żeby się upewnić że to pre-existing.
+
+### Patterns to Avoid
+
+1. **NIE wrap'ować całego row-a w drag listeners** — `useSortable` attaches `attributes` + `listeners` na drag handle button, NIE na całym `<li>`. W przeciwnym razie remove × button triggeruje drag start zamiast onClick. Wzór z `settings/menu/index.tsx:90-97`.
+
+2. **NIE polegać na 100+ SKU w dev seed dla async-export E2E** — fixtures mają 3 ACME masters; scenariusz „async path >=100" wymaga albo bulk-create przed testem (slow + DB pollution) albo `page.route()` mock z fulfill 202. Mock dla FE branching logic, real SKU dla full backend round-trip.
+
+3. **NIE bundle'ować backend SQL resolver-a z FE filter builder-em** — `target_scope=filter` ma dwie warstwy: SQL compile (FilterDslResolver::toCountSql + tenant-scoped SELECT) i FE input (JSON textarea jako MVP). Można shipować backend bez chip-style buildera; nie blokuj jednego na drugim.
+
+### Toolchain Quirks
+
+1. **`phpstan analyse src/Export` (folder-only) emituje fałszywe „unmatched ignore pattern" errors** — baseline patterns w `phpstan.dist.neon` odnoszą się do plików spoza skanu, więc phpstan reportuje 5 błędów które znikają przy pełnej analizie. Dla per-folder run użyj `phpstan analyse src/Export --no-progress` i ignoruj te wpisy, lub uruchom pełne `phpstan analyse --memory-limit=2G` dla sanity check.
+
+2. **`phpstan analyse` (full repo) wymaga `--memory-limit=2G`** — domyślnie OOM-uje przy „Result is incomplete because of severe errors". Lokalnie: docker exec api z `--memory-limit=2G`. CI ma to ustawione w workflow.
+
+### Decyzje świadome (per ticket)
+
+- **EXP-17**: zachowane `refetchInterval: 5000` jako fallback obok SSE — gdy hub niedostępny REST polling guarantee'uje że grid się refreshuje, kosztem dodatkowego requestu co 5s gdy SSE działa. Wymiana to mała cena za reliability.
+- **EXP-18**: save-as-profile POST PRZED export POST — eliminuje race (download succeeded → profile create 409 → user widzi error mimo udanego eksportu). Trade-off: ekstra request gdy walidacja eksportu by failnęła i tak. Akceptowalne.
+- **EXP-19**: ↑↓ buttons zachowane obok dnd-kit grip — duplicate affordance ale a11y win (keyboard sensor dnd-kit jest nieoczywisty bez wizualnej wskazówki, tab przez grip + spacja). axe-core nie wymaga ale operator może zmienić w przyszłości.
+- **EXP-20**: FE filter input jako `<details><textarea>` z surowym JSON-em zamiast chip buildera — pełny chip builder to ~600 linii kodu i drug-rok scope. MVP raw textarea operator powerusera (Marcin's PRD §3.5 snapshot use case) działa od dnia 1.
+- **EXP-21**: scenariusz (b) async-with-real-progress mocked-out via `page.route().fulfill()` — bulk-creating 150 SKUs w E2E setup'ie byłoby ~30s i niestabilne. Mock 202 testuje FE branching, full integration zostaje dla EXP-22 round-trip kiedy IMP-16..19 zamknięte.
+
 ## Lessons z bug-fix marathonu (VIEW-20..28, 2026-05-14)
 
 ### Patterns to Avoid
