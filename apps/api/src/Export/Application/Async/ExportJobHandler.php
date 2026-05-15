@@ -6,6 +6,7 @@ namespace App\Export\Application\Async;
 
 use App\Export\Application\Sync\SyncExportRunner;
 use App\Export\Domain\Entity\ExportSession;
+use App\Export\Domain\Enum\ExportStatus;
 use App\Export\Domain\Message\RunExportMessage;
 use App\Export\Domain\Repository\ExportSessionRepositoryInterface;
 use App\Shared\Application\AbstractBatchHandler;
@@ -76,6 +77,22 @@ final class ExportJobHandler extends AbstractBatchHandler
         if (!$session instanceof ExportSession) {
             return;
         }
+
+        // Idempotency guard — Messenger sync transport (dev) + retry policies
+        // can dispatch the same envelope twice on the same in-flight session.
+        // Without the guard the second pass calls markRunning() on a 'done'
+        // session and throws "Cannot transition from done", which then
+        // chains into markError() on the same 'done' session for another
+        // throw. Skip if not in pending state.
+        if (ExportStatus::Pending !== $session->getStatus()) {
+            $this->logger->info('Export job handler skipped — session not pending', [
+                'session_id' => $session->getId()->toRfc4122(),
+                'status' => $session->getStatus()->value,
+            ]);
+
+            return;
+        }
+
         $tenant = $session->getTenant();
         if (!$tenant instanceof Tenant) {
             $session->markError('Export session has no tenant assignment.');
@@ -97,15 +114,31 @@ final class ExportJobHandler extends AbstractBatchHandler
             $this->progress->progress($session, $session->getSuccessCount(), estimatedSecondsRemaining: 0);
             $this->progress->status($session);
         } catch (Throwable $error) {
-            $session->markError($error->getMessage());
-            $this->sessions->save($session);
-            $this->progress->status($session);
-            $this->logger->error('Export job failed', [
-                'session_id' => $session->getId()->toRfc4122(),
-                'error' => $error->getMessage(),
-            ]);
+            // markError throws if the session has already transitioned to
+            // 'done' (e.g. runToFile completed but MinIO upload failed
+            // afterwards). In that case the rows are already in the temp
+            // file, but the user cannot download them — we keep the
+            // session as 'done' and just log the post-flight failure so
+            // the operator sees the smell without a 500 to the FE.
+            if (ExportStatus::Done === $session->getStatus()) {
+                $this->logger->error('Export job post-flight failure on already-done session', [
+                    'session_id' => $session->getId()->toRfc4122(),
+                    'error' => $error->getMessage(),
+                ]);
+            } else {
+                $session->markError($error->getMessage());
+                $this->sessions->save($session);
+                $this->progress->status($session);
+                $this->logger->error('Export job failed', [
+                    'session_id' => $session->getId()->toRfc4122(),
+                    'error' => $error->getMessage(),
+                ]);
+            }
             // No re-throw — failure is captured in session state; the
-            // operator restarts via the rerun endpoint (EXP-08).
+            // operator restarts via the rerun endpoint (EXP-08). Re-throwing
+            // would surface a 500 (or HandlerFailedException unwrap) at the
+            // sync transport in dev, which the FE then renders as a red
+            // alarm on the modal even though the export itself succeeded.
         } finally {
             @unlink($tempPath);
         }
