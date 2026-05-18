@@ -306,6 +306,21 @@ services:
     # RBAC-P2-006 (#655) — PermissionResolver consumes the dedicated
     # permissions_cache pool so tag-based invalidation does not collide
     # with the modeling cache namespace.
+    # RBAC-P3-001 (#664) — runtime guard for #[RequiresPermission]. The
+    # PHPStan rule from RBAC-P1-010 catches missing attributes at build
+    # time; this listener is the defence-in-depth layer that throws in
+    # dev when an unannotated /api/* endpoint sneaks through, and logs
+    # a warning in prod (operator playbook: tail Loki for it).
+    App\Identity\Infrastructure\Http\EndpointGuardListener:
+        arguments:
+            $environment: '%kernel.environment%'
+            # strictMode stays `false` while ~130 controllers wait on
+            # Phase 6 (#720-#722) to gain their RBAC attribute. Once the
+            # PHPStan baseline reaches zero entries, flip this to `true`
+            # (or expose as %env(bool:RBAC_GUARD_STRICT)% with prod=false,
+            # dev=true) to throw on accidental future omissions.
+            $strictMode: false
+
     App\Identity\Application\PermissionResolver:
         arguments:
             $cache: '@pim.permissions_cache'
