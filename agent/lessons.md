@@ -2,6 +2,49 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z RBAC Phase 2 marathon (9/14 done + 5 plans — 2026-05-18 cd. same day)
+
+### Patterns to Follow
+
+1. **Brownfield close-as-DONE pattern dla pre-existing infra** — Phase 2 miał 6 ticketów których scope już shipped pre-RBAC (Sprint-0 + epic 0.X early work). Wzór: audit existing files, post audit comment z 1:1 mapping table (Wymaganie → Status → Plik), close issue. 6× w Phase 2 (#650, #651, #653, #656, #659, #660). Total time savings: ~30-40h vs naive re-implementation.
+
+2. **Background-agent triage for cross-cutting concerns** — Dependabot's 31-PR backlog was a distraction from RBAC marathon. Spawn parallel general-purpose agent z explicit narrow scope ("triage Dependabot PRs ONLY, do not touch feat/rbac-*"). Agent reported 5 merged + 11 needs-review + 9 real-CI-fails reclassified + 7 skipped, plus surfaced 3 high-value findings I'd have missed (GIN/json mismatch, 2 PHPStan errors in main, Symfony 7.4 LTS pin violations). Wzór: when triage volume blocks main work, delegate to agent with strict scope boundaries.
+
+3. **Bundle hotfix w naturalnym sąsiadującym migration** — P1-005 GIN-on-json bug found by background agent. Bundling fix w #779 RLS migration (same Phase 2 work, same transaction window) zamiast osobny hotfix PR = atomic rollout + reduces commit noise. Wzór: when fixing a stale bug, prefer bundling z related ongoing work over standalone PR.
+
+4. **`gh issue comment --body-file /tmp/x.md`** dla multi-line plans z Polish special chars — zsh globbing breaks `--body "$(cat <<EOF...)"` z markdown bullets + `*` glyphs + Polish quotes. Write plan to /tmp file first, pass --body-file. Pattern: always use --body-file for posts >10 lines.
+
+### Patterns to Avoid
+
+1. **NIE usuwaj ignoreErrors paths bez testowania w fresh-cache CI** — `reportUnmatchedIgnoredErrors: true` flagged Import/Domain/Entity paths as "stale". Locally PHPStan said "no errors" (cached state). CI z fresh cache: 6 errors fired. Lesson: PHPStan cache locally != fresh CI run. Test via `docker compose exec api composer phpstan -- --no-cache` before assuming ignore is stale. Reverted w follow-up commit on each PR.
+
+2. **NIE używaj Doctrine `JSON` type gdy potrzebujesz GIN index** — Doctrine `json` maps to Postgres `json` column type. Postgres `json` does NOT support GIN; `jsonb` does. P1-005 migration created GIN on `json` column — succeeded under permissive `doctrine:schema:update`, failed under strict `doctrine:migrations:migrate` (Playwright). Lesson: any column queried via GIN MUST be raw `JSONB NOT NULL` w migration SQL (not Doctrine `json` type). Bundled hotfix w #779 (P2-005).
+
+3. **NIE rozdrabniaj substantive new services na rushed implementations w marathon tail** — Magic link / password reset / SSO are 5-30h chunks. Plowing through them at session end leads to half-baked quality. Wzór: post comprehensive task-level plan comment, mark as "deferred to focused session", move on. Phase 2 tail: 5 plans posted on #657/#658/#661/#662/#663 — clean handoff without compromised code.
+
+### Toolchain quirks
+
+1. **`gh issue comment` z Polish quotes (`„"`) crashes zsh globbing** — use `--body-file` z temp file. Affects every multi-line Polish-language comment.
+
+2. **Dependabot lockfile bug** — root pnpm-lock.yaml does NOT auto-regenerate when Dependabot updates apps/admin/package.json (workspaces config). 4 Dependabot patches stuck in "lockfile out of sync" state requiring manual `pnpm install --filter @pim/admin --lockfile-only` push. **Configuration fix**: investigate dependabot.yml `versioning-strategy: increase-if-necessary` or set root manifest.
+
+3. **Doctrine `JSON` vs `JSONB`** — Doctrine 3.x `type="json"` maps to Postgres `json` (not `jsonb`). Use `<field name="x" type="json"/>` in XML for entity mapping but explicit `JSONB` in migration SQL. Mismatch fails on operations requiring jsonb (GIN, `@>` operator, jsonb_set).
+
+### Decyzje świadome (per ticket Phase 2)
+
+- **P2-001 #650** (Lexik JWT): closed-as-DONE. Świadome: JWT keys w passphrase + env vars zamiast Symfony Secrets Vault — Phase 7 #724 pentest prep handles vault migration.
+- **P2-002 #651** (email+password): closed-as-DONE. Świadome: User.failed_login_attempts column → Phase 5 #694 (deactivate/reactivate user flow handles lockout column).
+- **P2-003 #652** (ApiToken auth): merged via #778. Świadome: POST /api/api-tokens endpoint → Phase 5 #699/#700 (Settings UI). Async last_used_at via Messenger → Phase 6 #720 (after profiling shows >5ms overhead).
+- **P2-004 #653** (TenantContext + TenantFilter): closed-as-DONE. Świadome: Super Admin bypass mode → Phase 3 #677 break-glass.
+- **P2-005 #654** (Postgres RLS): merged via #779. Świadome: RLS rollout to 30+ remaining tenant-scoped tables → Phase 6 #720. Performance benchmark → Phase 6 #720. Bundled hotfix dla #771 GIN/json mismatch.
+- **P2-006 #655** (PermissionResolver): merged via #777. Świadome: PermissionInvalidationListener → Phase 3 #664. Mercure publish → Phase 4 #687. Benchmark → Phase 6 #720.
+- **P2-007 #656** (/api/me): closed-as-DONE. Świadome: permissions list w response → Phase 3 #664 (po PermissionResolver wire). attribute_restrictions → Phase 3 #671.
+- **P2-008 #657** (Magic link): plan-only. ~4-5h impl deferred.
+- **P2-009 #658** (Password reset): plan-only. ~3-4h impl deferred, mirror #657.
+- **P2-010 #659** (MFA email TOTP): closed-as-DONE. RFC 6238 via spomky-labs/otphp + TotpEnrolmentService już shipped.
+- **P2-011 #660** (MFA Google Authenticator): closed-as-DONE. Same RFC 6238 implementation jak #659; Google Authenticator jest klientem standardu, nie wymaga separate code.
+- **P2-012/013/014 #661/#662/#663** (SSO Google/MS/SAML): plan-only. ~18-26h total, dedicated session. SsoProvider entity DEFERRED z P1-008 ląduje tutaj. Library choices: league/oauth2-google, stevenmaguire/oauth2-microsoft, onelogin/php-saml.
+
 ## Lessons z RBAC Phase 1 FULL marathon (10/10 — 2026-05-18 single session)
 
 ### Patterns to Follow
