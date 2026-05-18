@@ -114,7 +114,10 @@ git push   # gitleaks-action in CI flags the leak and fails the workflow
 ### 3. TruffleHog catches structured token
 
 ```bash
-echo 'JWT_SECRET=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c' >> /tmp/token
+# Use an actual JWT generated locally — DO NOT paste a real example string
+# into this doc; gitleaks would flag the doc itself. Generate fresh:
+JWT=$(jwt encode --secret "test-secret" '{"sub":"123"}')
+echo "JWT_SECRET=$JWT" >> /tmp/token
 git add /tmp/token
 # Local pre-commit (if trufflehog installed): blocks the commit immediately.
 # Otherwise: CI catches at push time.
