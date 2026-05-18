@@ -1,5 +1,42 @@
 # Current Status
 
+## 2026-05-18: 🚀 Epik 0.X Identity & RBAC startuje — Phase 1 Foundation w toku
+
+**Sub-faza:** MVP-Alpha, **epik 0.X Identity & RBAC** (ADR-013, milestones [#9](../../milestone/9)..[#15](../../milestone/15), 89 ticketów, ~330-445h).
+
+**Pre-work zamknięty (sesja 2026-05-17/18):**
+- PR [#729](../../pull/729) — 89 GitHub Issues utworzonych z `Project Plan/PRD/PRD-PIM-rbac.md` + 7 phase backlog files. 13 labels, 7 milestones, `tools/create-rbac-issues.py` (idempotent parser + gh wrapper) + `tools/rbac-issues-mapping.json`.
+
+**Phase 1 progress (2/10 done):**
+
+| Ticket | Issue | PR | Status | Co dostarczone |
+|---|---|---|---|---|
+| RBAC-P1-002 | #641 | [#730](../../pull/730) | ✅ Merged | ADR-013 (Project Plan/01-architektura-pim.md sekcja 13) — formalna decyzja pełen RBAC w MVP-Alpha |
+| RBAC-P1-003 | #642 | [#731](../../pull/731) | ✅ Merged | CLAUDE.md update — Priorytety implementacyjne (RBAC w MVP-Alpha), Epik 0.X breakdown z milestone linkami, 6 plików RBAC w *„Pliki, które utrzymujesz atomowo"* |
+| RBAC-P1-008 | [#647](../../issues/647) | — | 🟡 Plan posted | Brownfield audit completed (Identity bundle JEST brownfield: 5/9 entities + 15+ Voters + RbacSeeder już istnieją). Plan z adapted scope (5 missing entities, świadome odejścia od ticket spec) w komencie issue. Implementacja deferowana do dedykowanej sesji. |
+| RBAC-P1-001 | #640 | — | ⏸️ Not started | Security tooling (Infection / Semgrep / OWASP ZAP / TruffleHog) — wymaga dedykowanej sesji |
+| RBAC-P1-004 | #643 | — | ⏸️ Blocked | Schema 10 tables — wymaga #647 (entities) |
+| RBAC-P1-005 | #644 | — | ⏸️ Blocked | Delta migrations — wymaga #643 |
+| RBAC-P1-006 | #645 | — | ⏸️ Blocked | Permission seed — wymaga #643 |
+| RBAC-P1-007 | #646 | — | ⏸️ Blocked | Role templates — wymaga #645 |
+| RBAC-P1-009 | #648 | — | ⏸️ Blocked | Testcontainers — wymaga #640+#643+#647 |
+| RBAC-P1-010 | #649 | — | ⏸️ Blocked | PHPStan custom rules — wymaga #640 |
+
+**Krytyczne odkrycia (z brownfield audit #647):**
+- **Identity bundle JEST brownfield, nie greenfield**: `apps/api/src/Identity/` ma już DDD layered structure z `Domain/Entity/`, `Domain/Repository/`, `Application/`, `Infrastructure/Doctrine/Repository/`, `Infrastructure/Security/`, `Presentation/`. 5 entities (User, Role, Permission, RefreshToken, TenantAgentConfig) + 15+ Voters + RbacSeeder + MeController + RefreshTokenController + TwoFactorController + TotpEnrolmentService + ByokKeyManager już istnieją.
+- **Doctrine używa XML mapping**, nie PHP attributes. Wszystkie XML w `apps/api/src/Identity/Infrastructure/Doctrine/Orm/Mapping/*.orm.xml`.
+- **Namespace = `App\Identity\`** (zgodny z `psr-4: {"App\\": "src/"}` w composer.json), NIE `Cortex\Identity\` jak sugerował ticket.
+- **Brak per-context Symfony bundles** — wszystkie bounded contexts (Catalog, Channel, Asset, Integration, Identity, …) są namespace'd pod `App\*` bez dedykowanego `IdentityBundle.php`. Autowiring działa przez `config/services.yaml` glob include.
+- **Lexik JWT bundle JUŻ registered** w `config/bundles.php` (Phase 2 #650 partially gotowe).
+
+**Następny krok:** dedykowana sesja P1-008 (~3-4h focused) z adapted scope = 5 missing entities (SuperAdmin, UserRole junction, ApiToken, Invitation, UserTenantMembership) — SsoProvider deferowany do Phase 2 #661. Każdy entity = POPO + XML mapping + Domain repo interface + Doctrine repo impl. Po #647 unblok #643 (migrations) → #644/645/646/647 cascade.
+
+**Aktywne blokery:** brak — czekam na decyzję operatora czy startujemy #647 jako kolejną sesję, czy idziemy paralelnie #640 (security tooling, no deps).
+
+**Pełen plan epiku:** `Project Plan/07-rbac-implementation-plan.md` (v3.1) + `Project Plan/PRD/PRD-PIM-rbac.md` (v2.1).
+
+---
+
 ## 2026-05-15: 🏁 Marathon EXP-01..EXP-16 ZAMKNIĘTY — 16/16 ticketów (Eksport produktów MVP)
 
 **Sub-faza:** MVP-Final, epik EXP (Eksport produktów) ✅ DONE single-session marathon.
