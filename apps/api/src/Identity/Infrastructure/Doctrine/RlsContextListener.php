@@ -54,16 +54,20 @@ final class RlsContextListener
             // No tenant resolved — unset the session-local variable so any
             // accidental query through the connection returns 0 rows from
             // the RLS-protected tables.
+            // tenant-safe: infrastructure (sets the Postgres session variable that RLS policies read; does not query tenant-scoped data)
             $this->connection->executeStatement("SELECT set_config('app.current_tenant', '', true)");
+            // tenant-safe: infrastructure (clears super-admin session flag)
             $this->connection->executeStatement("SELECT set_config('app.is_super_admin', 'false', true)");
 
             return;
         }
 
+        // tenant-safe: infrastructure (establishes the tenant_id RLS policies use; this IS the tenant boundary, not a bypass)
         $this->connection->executeStatement(
             "SELECT set_config('app.current_tenant', :tenant_id, true)",
             ['tenant_id' => $tenant->getId()->toRfc4122()],
         );
+        // tenant-safe: infrastructure (clears super-admin session flag for every regular request)
         $this->connection->executeStatement("SELECT set_config('app.is_super_admin', 'false', true)");
     }
 
@@ -74,6 +78,7 @@ final class RlsContextListener
      */
     public function enableSuperAdminBypass(): void
     {
+        // tenant-safe: infrastructure (Super Admin bypass — audited via Phase 3 #676 listener with cross_tenant_access=true)
         $this->connection->executeStatement("SELECT set_config('app.is_super_admin', 'true', true)");
     }
 }
