@@ -303,6 +303,13 @@ services:
         arguments:
             $modelingCache: '@pim.modeling_cache'
 
+    # RBAC-P2-006 (#655) — PermissionResolver consumes the dedicated
+    # permissions_cache pool so tag-based invalidation does not collide
+    # with the modeling cache namespace.
+    App\Identity\Application\PermissionResolver:
+        arguments:
+            $cache: '@pim.permissions_cache'
+
 when@test:
     parameters:
         pim.refresh_token.cookie_secure: false
