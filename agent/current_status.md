@@ -1,5 +1,58 @@
 # Current Status
 
+## 2026-05-18 (cd.): ⚡ Phase 2 RBAC marathon — 9/14 merged + 5 plans posted
+
+**Sub-faza:** MVP-Alpha, epik 0.X Identity & RBAC, **Phase 2 (Backend Auth)** w toku. Milestone [#10](../../milestone/10) — 9/14 done w jednej sesji marathon po Phase 1 close.
+
+**Phase 2 — co zrobione:**
+
+| Ticket | Issue | PR | Status | Co dostarczone |
+|---|---|---|---|---|
+| RBAC-P2-001 Lexik JWT | #650 | — | ✅ Closed-as-DONE | Brownfield audit: bundle JUŻ registered + JWT keypair + lexik_jwt_authentication.yaml + login firewall + RefreshTokenController + LoginSuccessHandler. Świadome odejście: klucze NIE w Symfony Secrets Vault — pozostaje passphrase + env vars (Phase 7 #724 pentest prep). |
+| RBAC-P2-002 email+password | #651 | — | ✅ Closed-as-DONE | json_login authenticator + rate limiter (5/15min) + AuthenticationFailureListener. Świadome odejście: User.failed_login_attempts column → Phase 5 #694. |
+| RBAC-P2-003 ApiToken auth | #652 | [#778](../../pull/778) | ✅ Merged | RbacApiTokenAuthenticator + RbacApiTokenUser. Header `Authorization: Token cortex_<tenant>_<random32>`. SHA-256 hash lookup. Świadome odejście: POST /api/api-tokens endpoint → Phase 5 #699/#700. |
+| RBAC-P2-004 TenantContext + TenantFilter | #653 | — | ✅ Closed-as-DONE | Brownfield audit: TenantContext + CurrentTenantProvider + TenantFilter + TenantFilterConfigurator + TenantContextRebindingMiddleware JUŻ istnieją. AC-3 (Super Admin bypass) → Phase 3 #677. |
+| RBAC-P2-005 Postgres RLS | #654 | [#779](../../pull/779) | ✅ Merged | Version20260518170000: RLS enabled na 5 RBAC tabelach (api_tokens, invitations, user_role_assignments, user_tenant_memberships, audit_logs) + tenant_isolation + super_admin_bypass policies + RlsContextListener. **Bundled hotfix**: P1-005 #771 GIN-on-json mismatch — special_flags ALTER do jsonb (was deterministic Playwright fail on every Phase 2 PR). |
+| RBAC-P2-006 PermissionResolver | #655 | [#777](../../pull/777) | ✅ Merged | PermissionSet VO + PermissionResolver service (single JOIN query). pim.permissions_cache TagAware pool (5min TTL). Świadome odejścia: PermissionInvalidationListener → Phase 3 #664, Mercure publish → Phase 4 #687, benchmark → Phase 6 #720. |
+| RBAC-P2-007 /api/me | #656 | — | ✅ Closed-as-DONE | Brownfield audit: MeController + firewall. Świadome odejście: permissions list w response → Phase 3 #664 (after PermissionResolver wire). |
+| RBAC-P2-008 Magic link invite | #657 | — | 🟡 Plan posted | Task-level plan w komencie issue. ~4-5h impl. Invitation entity + repo gotowe z P1-008. |
+| RBAC-P2-009 Password reset | #658 | — | 🟡 Plan posted | Task-level plan w komencie issue. ~3-4h impl, mirror pattern z #657. |
+| RBAC-P2-010 MFA email TOTP | #659 | — | ✅ Closed-as-DONE | Brownfield audit: TotpEnrolmentService + TwoFactorController + spomky-labs/otphp + User.totpBackupCodes JUŻ shipped. RFC 6238 standard. |
+| RBAC-P2-011 MFA Google Authenticator | #660 | — | ✅ Closed-as-DONE | Same implementation jak #659 — RFC 6238 TOTP secret compatible z Google Authenticator (no separate code needed). |
+| RBAC-P2-012/013/014 SSO Google/MS/SAML | #661 #662 #663 | — | 🟡 Plans posted | Comprehensive task-level plan posted on each (shared substrate + per-provider sections). ~18-26h total — dedicated session(s). SsoProvider entity DEFERRED z P1-008 ląduje tutaj. Library choices: league/oauth2-google, stevenmaguire/oauth2-microsoft, onelogin/php-saml. |
+
+**Bonus deliverables w sesji:**
+- **GIN-on-json hotfix** (P1-005 audit_logs.special_flags) — bundled w #779. Unblocks Playwright CI deterministically (was failing every Phase 2 PR).
+- **Stale ignoreErrors cleanup attempt** — initially dropped Import/Domain/Entity/* paths w #777, then RESTORED after CI fail revealed they were active patterns (local PHPStan cache had stale state).
+- **Dropping stale Import paths bonus** — applied to all 3 merged Phase 2 PRs.
+
+**Krytyczne odkrycia (przez background-agent triage 31 Dependabot PR-ów):**
+- **GIN-on-json deterministic Playwright fail** — opisane wyżej + naprawione w #779
+- **2 actual PHPStan errors w MAIN** — wykryte przez phpstan 2.1.55+ (current pin 2.1.51): `TenantAuditCommand.php:189` (`'OK' === 'OK'` tautology) + `tests/Integration/Identity/ByokKeyManagerTest.php:99` (nullsafe na non-nullable TenantAgentConfig). Worth follow-up lint-fix ticket przed PHPStan bump.
+- **Symfony 7.4 LTS pin violations** w 3 Dependabot patches (#750 api-platform/symfony, #744 api-platform/doctrine-orm, #742 doctrine/orm) — transitively pulled Symfony 8.x major. Composer.json potrzebuje constraint `"symfony/*": "~7.4"` lub Dependabot `ignore` rule. **Worth follow-up infra ticket.**
+- **Pnpm workspace lockfile bug** — Dependabot updates apps/admin/package.json but root pnpm-lock.yaml nie regeneruje. 4 Dependabot patches stuck (#762, #761, #760, #755). Either `versioning-strategy: increase-if-necessary` w dependabot.yml, lub manual pnpm install push.
+
+**Background agent (Dependabot triage) wynik:**
+- 5 patches merged (#751 symfony/mime, #747 symfony/console, #749 symfony/serializer, #756 vite, #739 symfony/rate-limiter)
+- 11 minor/major labelled needs-manual-review
+- 9 patches reclassified do needs-manual-review (real CI failures, nie flake)
+- 7 GitHub Actions majors skipped per instructions
+
+**Phase 2 metrics:**
+- 9/14 tickets DONE (64%)
+- 5/14 deferred z comprehensive task-level plans (#657, #658, #661, #662, #663)
+- 3 PR-y zmergeowane (#777, #778, #779)
+- 1 hotfix bundled (#779 GIN→jsonb)
+- 0 nowych regression (Playwright fix unblocks future CI)
+
+**Następny krok:** **Phase 3 (Permission Engine)** — milestone [#11](../../milestone/11), 14 ticketów #664-#677, ~80-100h. PermissionResolver (#777) i RbacApiTokenAuthenticator (#778) gotowe substraty. Pierwsze cascade-ready: #664 (#[RequiresPermission] guard + listener), #665 (ProductVoter), #671 (3-state attribute permissions enforcement).
+
+**Phase 2 reszta:** #657 (magic link, ~4-5h) + #658 (password reset, ~3-4h) + #661/#662/#663 (SSO, ~18-26h total) — dedicated session(s).
+
+**Aktywne blokery:** brak.
+
+---
+
 ## 2026-05-18: 🏁 Phase 1 RBAC ZAMKNIĘTY — 10/10 ticketów merged (single-session marathon)
 
 **Sub-faza:** MVP-Alpha, **epik 0.X Identity & RBAC** (ADR-013, milestones [#9](../../milestone/9)..[#15](../../milestone/15), 89 ticketów, ~330-445h). **Phase 1 (Foundation) DONE.**
