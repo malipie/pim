@@ -24,3 +24,13 @@ framework:
                 adapter: cache.app
                 default_lifetime: 300
                 tags: true
+
+            # RBAC-P2-006 (#655) — TagAware pool for PermissionResolver.
+            # Tags allow PermissionInvalidationListener to nuke per-user
+            # and per-role cache entries on UserRole / RolePermission /
+            # Role updates without enumerating individual keys. Backed by
+            # cache.app (filesystem dev/test, Redis in prod via env override).
+            pim.permissions_cache:
+                adapter: cache.app
+                default_lifetime: 300
+                tags: true
