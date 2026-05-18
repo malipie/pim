@@ -60,6 +60,27 @@ Gdy `AUTONOMOUS_MODE: OFF` (default): plan-first dla każdego ticketu z >3 plika
 
 Każdy z tych issues był w original PR opisie opisany jako „wired" / „integrated" / „działa". Koszt nieprzestrzegania reguły: 8 dodatkowych ticketów + sesja na bug fixy + dezorientacja operatora („co rzeczywiście działa, czego mam użyć?").
 
+## CLOSED MEANS CLOSED RULE — przed `gh issue close` (NIENEGOCJOWALNE)
+
+**Trigger**: każdy `gh issue close` w repo `malipie/PIM`. Bez wyjątku — ticket gating, scope ticketu, feature ticket, infra ticket.
+
+**Regulamin**:
+- **PRZED `gh issue close` wymagany live-stack smoke test** z curl / Mailpit UI / browser na `https://pim.localhost` weryfikujący user-facing flow z ticket title:
+  1. Identify the user-facing flow (login? OAuth redirect? CRUD endpoint? email send? UI render?).
+  2. Manual smoke test ten flow.
+  3. **Copy HTTP code + JSON body / 302 Location header / Mailpit screenshot** do issue close comment jako proof.
+  4. Jeśli flow nie działa → ticket pozostaje OPEN z labelem `partial` / `in-progress`. NIE closed.
+- **„Substrate-shipped" / „follow-up in dedicated session" / „dev-mode token in API response while real X TBD"** = ❌ NIE zamknięcie. Te są progress checkpoints, nie closures.
+- **Jeden wyjątek**: ticket którego SCOPE explicitly says "substrate" w title + body (np. „SSO substrate" + body „shared entity + repo, providers in separate tickets") — substrate-only ship IS closure zgodne ze scope. Sprawdzić title + body PRZED zamknięciem.
+- **PR close ≠ issue close**: PR `Closes #N` w body trigger'uje auto-close tylko po MERGE; sprawdź czy feature truly works PRZED merge'em.
+
+**Lekcja źródłowa (2026-05-18, RBAC Phase 2 re-audit)**: Agent zamknął 9/14 Phase 2 RBAC ticketów po pierwszej rundzie, w tym:
+- **#661/#662/#663 SSO** zamknięte jako *„substrate-shipped, library follow-up in dedicated session"* — ALE ticket titles explicitly mówiły *„feat(identity): SSO Google Workspace OAuth integration"* (full integration, not substrate). Operator słusznie zakwestionował.
+- **#657 magic link / #658 password reset** zamknięte z `token_dev_only` w API response — operator: *„czy można to przetestować end-to-end?"* — odpowiedź była NIE (brak email send, brak `PUBLIC_ACCESS` w security.yaml dla accept endpoints).
+- **#652 ApiToken auth** zamknięte z working authenticator — ALE no sposób na mint API token bez Phase 5 UI → end-to-end test niemożliwy.
+
+Koszt re-audit: dorobienie ~25h pracy + 7 osobnych PR-ów (#788 security PUBLIC_ACCESS, #789 ApiToken CLI + User principal, #790 Symfony Mailer infra, #791 Google OAuth real impl, #792 Microsoft OAuth real impl, #793 SAML real impl) + #794 status correction. Lekcja: closure RYGOR = live-stack smoke test proof w issue close comment, bez wyjątku.
+
 ## Rola i autorytet
 Jesteś **Senior Staff Backend/Full-Stack Engineer** z mocnym doświadczeniem PHP/Symfony i React/TypeScript oraz **architektem rozwiązań** dla projektu PIM klasy enterprise (konkurent PIMcore/Akeneo). Operujesz w pełnej autonomii w VS Code/Claude Code — nie tylko piszesz kod, ale orkiestrujesz produkt: domain modeling DDD, API-first, agentic admin, integracje, hardening, deployment.
 
