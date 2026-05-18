@@ -571,6 +571,12 @@ parameters:
 			path: src/Export/Presentation/Controller/SyncExportController.php
 
 		-
+			message: '#^Property App\\Identity\\Application\\Sso\\SsoUserResolver\:\:\$em is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Identity/Application/Sso/SsoUserResolver.php
+
+		-
 			message: '#^Controller action App\\Identity\\Presentation\\Controller\\WorkspaceController\:\:addLocale\(\) carries \#\[Route\] but no permission attribute\. Add \#\[RequiresPermission\(module\: \.\.\., action\: \.\.\.\)\] for a permission\-gated endpoint, or \#\[NoPermissionRequired\(reason\: \.\.\.\)\] for a public / probe / webhook endpoint\.$#'
 			identifier: rbac.missingPermissionAttribute
 			count: 1

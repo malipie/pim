@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Identity\Domain\Entity\SsoProvider"
+            table="sso_providers"
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineSsoProviderRepository">
+
+        <unique-constraints>
+            <unique-constraint name="sso_providers_tenant_kind_uniq" columns="tenant_id,kind"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="sso_providers_tenant_idx" columns="tenant_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <field name="tenantId" type="uuid" column="tenant_id"/>
+        <field name="kind" type="string" length="32"/>
+        <field name="name" type="string" length="255"/>
+        <field name="config" type="json">
+            <options>
+                <option name="default">{}</option>
+            </options>
+        </field>
+        <field name="enabled" type="boolean">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+        <field name="updatedAt" type="datetime_immutable" column="updated_at" nullable="true"/>
+
+    </entity>
+
+</doctrine-mapping>
