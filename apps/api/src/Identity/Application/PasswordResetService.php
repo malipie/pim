@@ -11,7 +11,12 @@ use App\Identity\Domain\Repository\UserRepositoryInterface;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use LogicException;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Address;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 /**
@@ -41,6 +46,9 @@ final class PasswordResetService
         private readonly UserRepositoryInterface $users,
         private readonly MagicLinkTokenHasher $tokenHasher,
         private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly MailerInterface $mailer,
+        private readonly LoggerInterface $logger,
+        private readonly string $appBaseUrl = 'https://pim.localhost',
     ) {
     }
 
@@ -67,6 +75,28 @@ final class PasswordResetService
             tokenHash: $tokenHash,
         );
         $this->tokens->save($token);
+
+        // Send reset email (Mailpit catches in dev). Failure is logged but
+        // does NOT block the request flow — account-enumeration prevention
+        // requires the response to be identical regardless of email
+        // existence + mail delivery success.
+        try {
+            $message = new TemplatedEmail()
+                ->from(new Address('noreply@pim.localhost', 'Cortex PIM'))
+                ->to(new Address($email))
+                ->subject('Reset hasła — Cortex PIM')
+                ->htmlTemplate('email/password-reset.html.twig')
+                ->context([
+                    'recipient_email' => $email,
+                    'confirm_url' => \sprintf('%s/password-reset/%s', $this->appBaseUrl, $plaintext),
+                ]);
+            $this->mailer->send($message);
+        } catch (TransportExceptionInterface $e) {
+            $this->logger->warning('Password reset email failed to send', [
+                'token_id' => $token->getId()->toRfc4122(),
+                'reason' => $e->getMessage(),
+            ]);
+        }
 
         return $plaintext;
     }
