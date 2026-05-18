@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Identity\Domain\Entity\ApiToken"
+            table="api_tokens"
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineApiTokenRepository">
+
+        <unique-constraints>
+            <unique-constraint name="api_tokens_token_hash_uniq" columns="token_hash"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="api_tokens_tenant_idx" columns="tenant_id"/>
+            <index name="api_tokens_user_idx" columns="user_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <field name="tenantId" type="uuid" column="tenant_id"/>
+        <field name="userId" type="uuid" column="user_id"/>
+        <field name="name" type="string" length="255"/>
+        <field name="tokenHash" type="string" length="255" column="token_hash"/>
+        <field name="tokenLast4" type="string" length="8" column="token_last4"/>
+        <field name="scopes" type="json">
+            <options>
+                <option name="default">[]</option>
+            </options>
+        </field>
+        <field name="expiresAt" type="datetime_immutable" column="expires_at" nullable="true"/>
+        <field name="revokedAt" type="datetime_immutable" column="revoked_at" nullable="true"/>
+        <field name="lastUsedAt" type="datetime_immutable" column="last_used_at" nullable="true"/>
+        <field name="lastUsedIp" type="string" length="45" column="last_used_ip" nullable="true"/>
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+
+    </entity>
+
+</doctrine-mapping>

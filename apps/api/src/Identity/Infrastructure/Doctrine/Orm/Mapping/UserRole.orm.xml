@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Identity\Domain\Entity\UserRole"
+            table="user_role_assignments"
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineUserRoleRepository">
+
+        <unique-constraints>
+            <unique-constraint name="user_role_assignments_user_role_uniq" columns="user_id,role_id"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="user_role_assignments_user_idx" columns="user_id"/>
+            <index name="user_role_assignments_role_idx" columns="role_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <field name="userId" type="uuid" column="user_id"/>
+        <field name="roleId" type="uuid" column="role_id"/>
+        <field name="localeScope" type="json" column="locale_scope">
+            <options>
+                <option name="default">[]</option>
+            </options>
+        </field>
+        <field name="channelScope" type="json" column="channel_scope">
+            <options>
+                <option name="default">[]</option>
+            </options>
+        </field>
+        <field name="attributeGroupScope" type="json" column="attribute_group_scope">
+            <options>
+                <option name="default">[]</option>
+            </options>
+        </field>
+        <field name="assignedAt" type="datetime_immutable" column="assigned_at"/>
+
+    </entity>
+
+</doctrine-mapping>
