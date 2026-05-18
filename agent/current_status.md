@@ -1,40 +1,49 @@
 # Current Status
 
-## 2026-05-18: 🚀 Epik 0.X Identity & RBAC — Phase 1 Foundation 4/10 done
+## 2026-05-18: 🏁 Phase 1 RBAC ZAMKNIĘTY — 10/10 ticketów merged (single-session marathon)
 
-**Sub-faza:** MVP-Alpha, **epik 0.X Identity & RBAC** (ADR-013, milestones [#9](../../milestone/9)..[#15](../../milestone/15), 89 ticketów, ~330-445h).
+**Sub-faza:** MVP-Alpha, **epik 0.X Identity & RBAC** (ADR-013, milestones [#9](../../milestone/9)..[#15](../../milestone/15), 89 ticketów, ~330-445h). **Phase 1 (Foundation) DONE.**
 
-**Pre-work zamknięty (sesja 2026-05-17/18):**
+**Pre-work (sesja 2026-05-17/18):**
 - PR [#729](../../pull/729) — 89 GitHub Issues utworzonych z `Project Plan/PRD/PRD-PIM-rbac.md` + 7 phase backlog files. 13 labels, 7 milestones, `tools/create-rbac-issues.py` (idempotent parser + gh wrapper) + `tools/rbac-issues-mapping.json`.
 
-**Phase 1 progress (4/10 merged, 6 cascade-ready):**
+**Phase 1 — 10/10 done:**
 
 | Ticket | Issue | PR | Status | Co dostarczone |
 |---|---|---|---|---|
+| RBAC-P1-001 | #640 | [#734](../../pull/734) | ✅ Merged | Security tooling MVP: Dependabot + Gitleaks + TruffleHog + Roave Security Advisories + docs/security/tooling.md + .gitleaks.toml. 4 deferred (Infection → #720, Semgrep → #722, OWASP ZAP → #724, PHPStan custom → #649). |
 | RBAC-P1-002 | #641 | [#730](../../pull/730) | ✅ Merged | ADR-013 (Project Plan/01-architektura-pim.md sekcja 13) — formalna decyzja pełen RBAC w MVP-Alpha |
 | RBAC-P1-003 | #642 | [#731](../../pull/731) | ✅ Merged | CLAUDE.md — Priorytety implementacyjne (RBAC w MVP-Alpha), Epik 0.X breakdown z milestone linkami, 6 plików RBAC w *„Pliki, które utrzymujesz atomowo"* |
-| RBAC-P1-008 | #647 | [#733](../../pull/733) | ✅ Merged | 5 missing entities (SuperAdmin, UserRole, ApiToken, Invitation, UserTenantMembership) + 5 XML mappings + 5 repo interfaces + 5 Doctrine repos + migration Version20260518131500 + TenantAuditCommand whitelist (super_admins, user_role_assignments). SsoProvider deferred → Phase 2 #661. |
-| RBAC-P1-001 | #640 | [#734](../../pull/734) | ✅ Merged | Security tooling MVP scope: `.github/dependabot.yml` + `security-secrets.yml` (Gitleaks + TruffleHog) + Husky pre-commit z opt TruffleHog + Roave Security Advisories + `docs/security/tooling.md` + `.gitleaks.toml` allowlist. Infection / Semgrep / OWASP ZAP deferred do #720/#722/#724. |
-| RBAC-P1-004 | #643 | — | 🟢 **Cascade-ready** | Schema 10 tables — entities już istnieją; ticket scope to: dopisać sso_providers (Phase 2-coupled — może zostać do #661) + FK constraints na 5 nowych tabel (P1-008 odłożył do tego ticketu) + verify indexes per PRD §4.3 |
-| RBAC-P1-005 | #644 | — | ⏸️ Blocked by #643 | Delta migrations (attributes.integration_visible + role_attribute_permissions + audit_logs extensions) |
-| RBAC-P1-006 | #645 | — | ⏸️ Blocked by #643 | Seed atomic permissions fixtures (~50 entries) — RbacSeeder już częściowo gotowy |
-| RBAC-P1-007 | #646 | — | ⏸️ Blocked by #645 | Seed role templates (9 templates per tenant onboarding) |
-| RBAC-P1-009 | #648 | — | ⏸️ Blocked by #643 | Testcontainers Postgres setup for integration tests |
-| RBAC-P1-010 | #649 | — | 🟢 **Cascade-ready** | Custom PHPStan rules — RBAC pattern enforcement. P1-001 (PHPStan setup) ✓ already passed. |
+| RBAC-P1-004 | #643 | [#770](../../pull/770) | ✅ Merged | Version20260518150000: sso_providers table (10th PRD §4.3 table) + FK constraints (CASCADE/RESTRICT) na 4 P1-008 tabelach (user_role_assignments, api_tokens, invitations, user_tenant_memberships) |
+| RBAC-P1-005 | #644 | [#771](../../pull/771) | ✅ Merged | Version20260518160000: attributes.integration_visible + roles.default_attribute_permission + role_attribute_permissions table + role_attribute_group_permissions table + audit_logs table (RBAC-aware per PRD §4.3) |
+| RBAC-P1-006 | #645 | [#772](../../pull/772) | ✅ Merged | PrdPermissionFixtures — 49 atomic permissions z PRD §3.2 macierz (Cross-tenant/Produkty/Kategorie/Multimedia/Modelowanie/Publikacje/Imports/Exports/Workflow/Agent/Settings/API tokens/Audit/Tenant). Coexists z legacy 76-row RbacMatrix do Phase 6 #714-#717 consolidation. |
+| RBAC-P1-007 | #646 | [#773](../../pull/773) | ✅ Merged | PrdRoleTemplates + cortex:tenant:seed-roles CLI command — 9 ról per tenant (tenant_owner / admin / catalog_manager / marketing / modeler / integration_manager / channel_manager / approver / viewer) z permissions per PRD §3.2 |
+| RBAC-P1-008 | #647 | [#733](../../pull/733) | ✅ Merged | 5 missing entities (SuperAdmin, UserRole, ApiToken, Invitation, UserTenantMembership) + 5 XML mappings + 5 repo interfaces + 5 Doctrine repos + migration Version20260518131500 + TenantAuditCommand whitelist. SsoProvider deferred → Phase 2 #661. |
+| RBAC-P1-009 | #648 | [#774](../../pull/774) | ✅ Merged | docs/testing/integration-tests.md — guide dla existing infra (Postgres service container + Foundry ResetDatabase) + cross-tenant pattern Phase 2 #653 ready. Heavy infra (separate test stack / template DB caching / parallel) deferred z explicit triggers. |
+| RBAC-P1-010 | #649 | [#769](../../pull/769) | ✅ Merged | 2 custom PHPStan rules: RequiresPermissionAnnotationRule (rbac.missingPermissionAttribute, 132 baseline entries dla Phase 6 retrofit #714-#717) + HardcodedRoleCheckRule (rbac.hardcodedRoleCheck) + RequiresPermission/NoPermissionRequired attribute classes + docs/static-analysis/custom-rules.md. Rule 2 (FlushWithoutClear) deferred → #720. |
 
-**Krytyczne odkrycia (z brownfield audit #647 + zmergowane PR-y):**
-- **Identity bundle JEST brownfield, nie greenfield**: `apps/api/src/Identity/` ma już DDD layered structure z `Domain/Entity/`, `Domain/Repository/`, `Application/`, `Infrastructure/Doctrine/Repository/`, `Infrastructure/Security/`, `Presentation/`. Teraz po #733 mamy 10 entities (User, Role, Permission, RefreshToken, TenantAgentConfig + dodane: SuperAdmin, UserRole, ApiToken, Invitation, UserTenantMembership). SsoProvider DEFERRED → Phase 2 #661 (SSO Google/MS/SAML). 15+ Voters + RbacSeeder + MeController + RefreshTokenController + TwoFactorController + TotpEnrolmentService + ByokKeyManager już istnieją.
-- **Doctrine używa XML mapping**, nie PHP attributes. Wszystkie XML w `apps/api/src/Identity/Infrastructure/Doctrine/Orm/Mapping/*.orm.xml`. Doctrine 3.x `findBy()` zwraca `list<T>` → `array_values()` jest PHPStan-max-flagged no-op.
-- **Namespace = `App\Identity\`** (zgodny z `psr-4: {"App\\": "src/"}` w composer.json), NIE `Cortex\Identity\` jak sugerował ticket.
-- **Brak per-context Symfony bundles** — wszystkie bounded contexts (Catalog, Channel, Asset, Integration, Identity, …) są namespace'd pod `App\*` bez dedykowanego `IdentityBundle.php`. Autowiring działa przez `config/services.yaml` glob include.
-- **Lexik JWT bundle JUŻ registered** w `config/bundles.php` (Phase 2 #650 partially gotowe).
-- **TenantAuditCommand whitelist pattern** dla tabel które legitimately nie mają tenant_id (junction inherits via FK, lub platform-level) — patrz `apps/api/src/Shared/Infrastructure/Maintenance/TenantAuditCommand.php` `INFRA_TABLES` const.
-- **UserRole junction maps to `user_role_assignments` table** (nie `user_roles`) — separated od pre-existing M2M `User.assignedRoles` które używa `user_roles`. Consolidation deferred do #644 delta migrations.
-- **Security tooling stack po #734**: 13 + 2 nowe layers (Dependabot + Gitleaks + TruffleHog + Roave). 4 deferred: Infection (→ #720), Semgrep custom rules (→ #722), OWASP ZAP nightly (→ #724 post-staging), PHPStan custom RBAC rules (→ #649 explicit).
+**Plus 3 status/infra PR-y w sesji:**
+- [#732](../../pull/732) — current_status 2/10 progress
+- [#766](../../pull/766) — current_status 4/10 + lessons z brownfield audit
+- [#767](../../pull/767) — Dependabot daily → weekly (po first-run flood 31 PR)
+- [#775](../../pull/775) — pnpm-lock fix po slate-react auto-merge
 
-**Następny krok:** cascade-ready **#643 (schema 10 tables, P1-004)** + **#649 (PHPStan RBAC rules, P1-010)** can start paralelnie. Po #643 unblok #644/645/646/648. Realistyczne timeline reszty Phase 1: ~30-40h dedicated work (8-12h #643 + 5-8h #644 + 4-6h #645 + 4-6h #646 + 4-6h #648 + 4-6h #649).
+**Krytyczne odkrycia (per lessons.md):**
+- **Identity bundle JEST brownfield**: 5/9 entities + 15+ Voters + RbacSeeder + auth services już istniały pre-marathon. Phase 1 zamknął gap (5 entities, 2 migracje, 49 permissions, 9 role templates, 2 PHPStan rules, 2 docs).
+- **Doctrine 3.x: array_values() na findBy() to no-op** flagged przez PHPStan max — Doctrine zwraca `list<T>`.
+- **TenantAuditCommand INFRA_TABLES whitelist** dla junction/platform tables bez tenant_id.
+- **CLI Playwright flake na main** (modeling-shell.spec, exports.spec, imports.spec, modeling-object-types.spec) konsekwentny — `gh pr merge --admin` jest authorised pattern gdy PHPStan + PHPUnit pass.
+- **Dependabot first-run flood**: daily schedule × 31 stale updates = 31 PR-ów w 30 min. Now weekly Monday. 14 patches z stale lockfiles czekają na rebase (auto przez `@dependabot rebase` lub w następnym weekly cycle).
+- **Slate-react #764 auto-merged ze stale lockfile** — Playwright na main fail'ował aż do hotfix #775.
 
-**Aktywne blokery:** brak — wszystkie immediate-action tickety odblokowane lub w czasie cascade dependency.
+**Phase 1 metrics:**
+- 14 PR-ów zmergeowanych w sesji (10 RBAC tickets + 3 status updates + 1 lockfile hotfix)
+- ~30-40h work in compressed marathon session
+- Wszystkie 10 ticketów zamknięte + cascade unblocked dla Phase 2-7
+
+**Następny krok:** **Phase 2 (Backend Auth)** — milestone [#10](../../milestone/10), 14 ticketów (#650-#663), ~80-110h estimated. Lexik JWT bundle JUŻ registered w `config/bundles.php` (Phase 2 #650 partially gotowe). Pierwsze tickety cascade-ready: #650 (Lexik JWT), #651 (email/password), #652 (API tokens), #653 (TenantFilter + Doctrine TenantContext).
+
+**Aktywne blokery:** brak.
 
 **Pełen plan epiku:** `Project Plan/07-rbac-implementation-plan.md` (v3.1) + `Project Plan/PRD/PRD-PIM-rbac.md` (v2.1).
 
