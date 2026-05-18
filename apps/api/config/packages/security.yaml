@@ -50,6 +50,9 @@ security:
             jwt: ~
             custom_authenticators:
                 - App\ApiConfigurator\Infrastructure\Security\ApiKeyAuthenticator
+                # RBAC-P2-003 (#652) — Identity ApiToken auth (Authorization: Token cortex_...).
+                # Distinct from JWT (Bearer) and ApiKey (X-API-Key) so supports() picking is deterministic.
+                - App\Identity\Infrastructure\Security\RbacApiTokenAuthenticator
             provider: app_user_provider
 
         main:
