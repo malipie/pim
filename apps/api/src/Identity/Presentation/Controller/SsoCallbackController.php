@@ -13,6 +13,7 @@ use App\Shared\Domain\Repository\TenantRepositoryInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -49,7 +50,8 @@ final class SsoCallbackController extends AbstractController
         private readonly SamlAuthProvider $saml,
         private readonly SsoUserResolver $userResolver,
         private readonly JWTTokenManagerInterface $jwtManager,
-        private readonly string $appBaseUrl = 'https://pim.localhost',
+        #[Autowire(env: 'APP_BASE_URL')]
+        private readonly string $appBaseUrl,
     ) {
     }
 

@@ -2,6 +2,38 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z Google SSO live smoke test (#661 truly closed, 2026-05-18 evening)
+
+### Patterns to Follow
+
+1. **Google OAuth redirect URI: `.localhost` TLD jest rejected, `localhost` ma explicit exception** — `pim.localhost` (Caddy default w dev) NIE przechodzi Google Console validation z błędem "musi kończyć się publiczną domeną najwyższego poziomu". `https://localhost` przechodzi (RFC 8252 / Google's special-case). Caddyfile już nasłuchuje na oba hosty (`pim.localhost, localhost {...}`), więc switch jest config-only. Wzór: `APP_BASE_URL` env var z `.env` default `pim.localhost` + `.env.dev` override `localhost` dla SSO dev testów. Controller: `#[Autowire(env: 'APP_BASE_URL')] string $appBaseUrl`.
+
+2. **`hosted_domain='gmail.com'` to antipattern** — `hosted_domain` w Google OAuth config istnieje WYŁĄCZNIE dla Workspace tenant restriction (np. `firma.pl`). Dla prywatnego `@gmail.com` Google NIE wysyła `hd` claim'u w userinfo response → league/oauth2-google `assertMatchingDomain` rzuca `HostedDomainException: User is not part of domain 'gmail.com'`. Wzór: dla Workspace customer config = `hosted_domain: '<domena>'`; dla open SSO config = klucz NIEOBECNY (nie null, nie empty string — `isset()` w GoogleAuthProvider check'uje obecność). DB SQL: `config = (config::jsonb - 'hosted_domain')::json`.
+
+3. **OAuth Consent Screen "User Type: Internal"** rzuca 403 `org_internal` dla każdego konta spoza Workspace org — w tym prywatnego Gmaila autora aplikacji. Pierwsza próba: zmień na "External" → status "Testing" → dodaj swoje konto do "Test users" → flow działa. Standard dev/test setup dla każdego OAuth Client zanim aplikacja przechodzi formal Google verification.
+
+4. **Google Cloud Console field disambiguation** — operator wkleił redirect URI w pole "Autoryzowane źródła JavaScriptu" zamiast "Autoryzowane identyfikatory URI przekierowania". Dwa różne pola:
+   - **JS origins** (Autoryzowane źródła JS): tylko `scheme://host[:port]`, ZERO path — np. `https://localhost`
+   - **Redirect URIs** (URI przekierowania): full URL z path — np. `https://localhost/api/auth/sso/demo/google/callback`
+
+### Patterns to Avoid
+
+1. **NIE hardcoduj `appBaseUrl = 'https://pim.localhost'` w SSO controller** — środowisko dev może wymagać innego hostname'u z powodów provider-specific (Google rejects `.localhost`, Microsoft Azure może mieć inne quirks). Zawsze env-driven. Default w `.env` pasuje do production-like dev; per-env override w `.env.<env>`.
+
+2. **NIE używaj `(jsonb - 'key')` na kolumnie typu `json`** — operator `-` (subtract key) zdefiniowany tylko dla `jsonb`. Cast roundtrip: `((config::jsonb) - 'key')::json`. Lekcja dla ad-hoc data fixów na kolumnach `json` (nie `jsonb`).
+
+3. **NIE oczekuj że SSO flow zakończy się "I'm logged in admin SPA"** — `SsoCallbackController` returns `JsonResponse {token, user, tenant}`, ale `apps/admin/src/lib/http.ts:9` trzyma JWT w **module-scoped memory** (XSS defence) z recovery przez `/api/auth/refresh` opartym o HttpOnly cookie ustawiany WYŁĄCZNIE przez `LoginSuccessHandler` (email/password login). SSO controller NIE ustawia tego cookie → SPA nie wie o sesji. To Phase 4 #678 (session bootstrap) territory — open ticket. Workaround dla manual testu SSO usera: directly hit endpoint via curl/browser, parse JWT z JSON, użyj curl `Authorization: Bearer ...` do testów API.
+
+### Toolchain quirks
+
+1. **`docker compose exec api printenv APP_BASE_URL` zwraca pusty** — Symfony `Dotenv` component reads `.env` files into `$_ENV` only w PHP runtime, NIE w shell. Weryfikacja env wiringu: `php bin/console debug:container <ServiceID> --show-arguments` — zobaczysz `%env(APP_BASE_URL)%` placeholder, co potwierdza że Symfony parametr-resolve'r picknie go on demand.
+
+2. **Just-in-time User provisioning w SSO daje default role `viewer`** (per PRD §3.6) — nie admin. Operator promote'uje DB-side jeśli chce wejść w panel: `UPDATE user_role_assignments SET role_id = (SELECT id FROM roles WHERE code='admin' AND tenant_id=...) WHERE user_id=...`. Long-term: Phase 5 #686 Users UI daje role assignment z UI; #683 default-role per tenant config (np. "domyślna rola dla nowych SSO usów: admin/editor/viewer").
+
+### Decyzja świadoma
+
+- **`#661 Google SSO closed via live smoke test (2026-05-18 evening)`** — operator manually executed full flow z prywatnym `@gmail.com` po `User Type: External + Test users` w Google Console + `hosted_domain` removal w DB. JWT issued, user auto-provisioned z `viewer` (potem promote'd do `admin`). Proof: JWT payload `{iat: 1779135090, exp: 1779138690, username: 'marcin.lipiec@gmail.com'}`, DB user `019e3cb7-0ef5-7b93-a427-caf3b98d5788 / active / created 2026-05-18 20:11:30`.
+
 ## Lessons z RBAC Phase 2 HONEST re-closure (14/14 truly testable — 2026-05-18 final)
 
 ### Patterns to Follow (kluczowe lekcje z operator challenge)
