@@ -107,6 +107,16 @@ final class TenantAuditCommand extends Command
         // via the parent ExportSession (FK CASCADE on delete); pairs
         // with the same pattern used by import_logs and bulk_logs.
         'export_logs',
+        // RBAC-P1-008 (#647) — platform-level operators. No tenant_id by
+        // design; SuperAdmin sits outside the tenant boundary and is
+        // forensically traceable via `cross_tenant_access=true` in
+        // audit_logs (Phase 3 #677, Phase 5 #712).
+        'super_admins',
+        // RBAC-P1-008 (#647) — per-user role assignment with scope
+        // (locale/channel/attribute_groups). Junction; tenant scope
+        // inherited via user_id FK to users(tenant_id). Coexists with
+        // legacy `user_roles` M2M until #644 delta migrations consolidate.
+        'user_role_assignments',
     ];
 
     /**

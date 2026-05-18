@@ -30,7 +30,7 @@ class DoctrineUserRoleRepository extends ServiceEntityRepository implements User
      */
     public function findByUser(Uuid $userId): array
     {
-        return array_values($this->findBy(['userId' => $userId->toRfc4122()]));
+        return $this->findBy(['userId' => $userId->toRfc4122()]);
     }
 
     /**
@@ -38,7 +38,7 @@ class DoctrineUserRoleRepository extends ServiceEntityRepository implements User
      */
     public function findByRole(Uuid $roleId): array
     {
-        return array_values($this->findBy(['roleId' => $roleId->toRfc4122()]));
+        return $this->findBy(['roleId' => $roleId->toRfc4122()]);
     }
 
     public function findByUserAndRole(Uuid $userId, Uuid $roleId): ?UserRole

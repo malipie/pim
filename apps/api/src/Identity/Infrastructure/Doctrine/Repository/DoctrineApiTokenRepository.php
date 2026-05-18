@@ -35,7 +35,7 @@ class DoctrineApiTokenRepository extends ServiceEntityRepository implements ApiT
      */
     public function findByUser(Uuid $userId): array
     {
-        return array_values($this->findBy(['userId' => $userId->toRfc4122()]));
+        return $this->findBy(['userId' => $userId->toRfc4122()]);
     }
 
     /**
@@ -43,7 +43,7 @@ class DoctrineApiTokenRepository extends ServiceEntityRepository implements ApiT
      */
     public function findByTenant(Uuid $tenantId): array
     {
-        return array_values($this->findBy(['tenantId' => $tenantId->toRfc4122()]));
+        return $this->findBy(['tenantId' => $tenantId->toRfc4122()]);
     }
 
     public function save(ApiToken $entity): void

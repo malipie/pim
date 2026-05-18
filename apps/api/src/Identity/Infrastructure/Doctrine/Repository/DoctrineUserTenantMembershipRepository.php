@@ -30,7 +30,7 @@ class DoctrineUserTenantMembershipRepository extends ServiceEntityRepository imp
      */
     public function findByUser(Uuid $userId): array
     {
-        return array_values($this->findBy(['userId' => $userId->toRfc4122()]));
+        return $this->findBy(['userId' => $userId->toRfc4122()]);
     }
 
     /**
@@ -38,7 +38,7 @@ class DoctrineUserTenantMembershipRepository extends ServiceEntityRepository imp
      */
     public function findByTenant(Uuid $tenantId): array
     {
-        return array_values($this->findBy(['tenantId' => $tenantId->toRfc4122()]));
+        return $this->findBy(['tenantId' => $tenantId->toRfc4122()]);
     }
 
     public function findByUserAndTenant(Uuid $userId, Uuid $tenantId): ?UserTenantMembership

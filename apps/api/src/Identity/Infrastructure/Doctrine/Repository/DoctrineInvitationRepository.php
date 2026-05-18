@@ -35,7 +35,7 @@ class DoctrineInvitationRepository extends ServiceEntityRepository implements In
      */
     public function findByTenant(Uuid $tenantId): array
     {
-        return array_values($this->findBy(['tenantId' => $tenantId->toRfc4122()]));
+        return $this->findBy(['tenantId' => $tenantId->toRfc4122()]);
     }
 
     /**
@@ -43,7 +43,7 @@ class DoctrineInvitationRepository extends ServiceEntityRepository implements In
      */
     public function findByEmail(string $email): array
     {
-        return array_values($this->findBy(['email' => $email]));
+        return $this->findBy(['email' => $email]);
     }
 
     public function save(Invitation $entity): void
