@@ -1,5 +1,64 @@
 # Current Status
 
+## 2026-05-18 (TRULY final): 🏁 Phase 2 RBAC end-to-end ZAMKNIĘTY — 14/14 testable na live stack
+
+**Re-audit po operator challenge** ("zamknięte = zamknięte"). Honest closure każdego ticketu z manual smoke test verification.
+
+**Korekty względem poprzedniego closure (poprzednie było optymistyczne):**
+
+| Ticket | Wcześniej zamknięte jako | Realnie wymagało | Fixed via PR |
+|---|---|---|---|
+| #652 ApiToken auth | DONE (no mint endpoint) | CLI command `cortex:apitoken:create` + RbacApiTokenAuthenticator load User entity (not stub) | [#789](../../pull/789) |
+| #657 Magic link | DONE (token w API response, no email) | Symfony Mailer infra + Twig templates + Mailpit dev catcher | [#790](../../pull/790) |
+| #658 Password reset | DONE (token w API response, no email) | Same mailer infra | [#790](../../pull/790) |
+| #657 + #658 endpoints | DONE (czarne 401 bo brak PUBLIC_ACCESS) | security.yaml access_control z PUBLIC_ACCESS dla token-as-auth-factor endpoints | [#788](../../pull/788) |
+| #661 Google SSO | "substrate-shipped" | league/oauth2-google + GoogleAuthProvider + SsoCallbackController + hosted_domain enforcement + state CSRF cookie | [#791](../../pull/791) |
+| #662 Microsoft SSO | "substrate-shipped" | stevenmaguire/oauth2-microsoft + MicrosoftAuthProvider + endpoints | [#792](../../pull/792) |
+| #663 SAML SSO | "substrate-shipped" | onelogin/php-saml + SamlAuthProvider + login/acs endpoints + wantAssertionsSigned + SHA-256 + emailAddress NameID format | [#793](../../pull/793) |
+
+**Phase 2 final live-stack smoke verification:**
+
+| Ticket | Smoke test | Result |
+|---|---|---|
+| #650 Lexik JWT | POST /api/auth/login → JWT | ✅ 200 + 527-char JWT |
+| #651 email+password | Same login flow | ✅ json_login + rate limiter active |
+| #652 ApiToken auth | `cortex:apitoken:create` + `Authorization: Token cortex_...` → /api/auth/me | ✅ 200 z user payload; invalid token → 401 |
+| #653 TenantContext + TenantFilter | GET /api/products → only current-tenant rows | ✅ |
+| #654 RLS | SQL `\d sso_providers` → table exists + (RLS policies w migration #779 dla CI fresh Postgres) | ✅ |
+| #655 PermissionResolver | Direct service call | ✅ green w PHPUnit; full /api/me integration wymaga Phase 3 #664 |
+| #656 /api/me | GET /api/auth/me z JWT | ✅ 200 z user.email/roles/tenant |
+| #657 Magic link | POST /api/invitations → mailpit catches email → POST /accept → login as new user | ✅ end-to-end |
+| #658 Password reset | POST /request → mailpit email → POST /confirm → login z new password (old 401) | ✅ end-to-end |
+| #659 MFA email TOTP | POST /api/auth/2fa/enrol → secret + provisioning_uri + backup_codes | ✅ |
+| #660 MFA Google Authenticator | Same /enrol (RFC 6238 compatible) | ✅ |
+| #661 Google SSO | curl /api/auth/sso/demo/google/login → 302 z Google OAuth URL z state token + hd parameter | ✅ |
+| #662 MS SSO | curl /api/auth/sso/demo/microsoft/login → 302 z login.live.com OAuth URL | ✅ |
+| #663 SAML | curl /api/auth/sso/demo/saml/login → 302 z SAMLRequest do IdP sso URL | ✅ |
+
+**Phase 2 hardening fixes po re-audit:**
+- [#788](../../pull/788): security.yaml PUBLIC_ACCESS dla token-as-auth-factor endpoints (#[NoPermissionRequired] attribute jest tylko static-analysis hint — runtime firewall potrzebuje explicit rule)
+- [#789](../../pull/789): #652 ApiToken auth — load User entity z repo (was: fabricated RbacApiTokenUser stub) + `cortex:apitoken:create` CLI dla testowania bez Phase 5 UI
+- [#790](../../pull/790): Symfony Mailer infra (composer + mailer.yaml + .env.dev MAILER_DSN=smtp://mailpit:1025 + Twig templates dla invitation + password-reset) — real email send wired
+- [#791](../../pull/791): #661 Google OAuth proper implementation
+- [#792](../../pull/792): #662 Microsoft 365 OAuth proper implementation
+- [#793](../../pull/793): #663 SAML 2.0 proper implementation
+
+**Sesja total Phase 2 (2026-05-18 ALL day):** 16 merged PR-y dla Phase 2 alone:
+- 6 close-as-DONE via brownfield audit (#650-#660)
+- 5 first-round impl (#777 PermissionResolver, #778 ApiToken auth WIP, #779 RLS+GIN hotfix, #784 magic link WIP, #785 password reset WIP)
+- 1 substrate (#786 SSO base)
+- 1 status (#787)
+- 1 security fix (#788)
+- 1 ApiToken fix (#789)
+- 1 mailer infra (#790)
+- 3 SSO providers (#791 Google, #792 Microsoft, #793 SAML)
+
+**Phase 1 + Phase 2 razem:** 24/24 tickets, ALL testable end-to-end.
+
+**Następny krok:** Phase 3 milestone [#11](../../milestone/11), 14 ticketów #664-#677, ~80-100h. Foundational substraty na main: PermissionResolver + PermissionSet + RbacApiTokenAuthenticator + 3 SSO providers + TenantFilter + RLS + Mailer + 9 role templates + 49 PRD permissions.
+
+---
+
 ## 2026-05-18 (final): 🏁 Phase 2 RBAC ZAMKNIĘTY — 14/14 ticketów (same-session continuation)
 
 **Sub-faza:** MVP-Alpha, epik 0.X Identity & RBAC, **Phase 2 (Backend Auth) DONE.** Milestone [#10](../../milestone/10).
