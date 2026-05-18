@@ -1,5 +1,19 @@
 #!/usr/bin/env sh
-# PIM pre-commit gate — runs lint-staged on staged files.
-# See package.json `lint-staged` for per-extension rules.
+# PIM pre-commit gate — runs lint-staged on staged files + TruffleHog
+# secrets scan as a defence-in-depth gate alongside the CI workflow
+# (.github/workflows/security-secrets.yml).
 
 pnpm exec lint-staged
+
+# RBAC-P1-001 (#640) — local secrets-leak guard.
+# Skip if trufflehog is not installed locally; CI catches it anyway.
+# Install instructions: docs/security/tooling.md
+if command -v trufflehog >/dev/null 2>&1; then
+    # Scan staged changes only (--since-commit=HEAD with --no-update for
+    # current diff). Exit 1 blocks the commit; --fail makes it explicit.
+    trufflehog git file://. --since-commit=HEAD --only-verified --fail --no-update --quiet || {
+        echo "❌ TruffleHog found verified secrets in staged changes. Remove them before committing." >&2
+        echo "   Run 'trufflehog git file://. --since-commit=HEAD --only-verified' to see findings." >&2
+        exit 1
+    }
+fi

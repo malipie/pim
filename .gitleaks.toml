@@ -1,0 +1,15 @@
+# Gitleaks config — RBAC-P1-001 (#640).
+# Extends the default Gitleaks rule set; do not redefine rules here.
+# Only allowlist legitimate matches that would otherwise block CI.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documentation examples and dummy secrets used in negative-test recipes"
+paths = [
+    # docs/security/tooling.md intentionally references the AWS example key
+    # AKIAIOSFODNN7EXAMPLE — AWS-published placeholder used industry-wide
+    # for documentation. It is not a live secret.
+    '''docs/security/tooling\.md''',
+]
