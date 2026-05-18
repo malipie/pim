@@ -96,7 +96,9 @@ final class ByokKeyManagerTest extends KernelTestCase
         \assert(\is_string($first));
 
         $manager->setKey($tenant, 'sk-ant-rotated-key');
-        $second = $this->repo()->findForTenant($tenant)?->getAnthropicApiKeyEncrypted();
+        $config = $this->repo()->findForTenant($tenant);
+        \assert(null !== $config);
+        $second = $config->getAnthropicApiKeyEncrypted();
 
         self::assertNotSame($first, $second, 'Ciphertext must change on rotation.');
         self::assertSame('sk-ant-rotated-key', $manager->resolveKey($tenant));

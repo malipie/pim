@@ -180,15 +180,17 @@ final class TenantAuditCommand extends Command
             $hasIndex = $this->columnHasIndex($table, 'tenant_id');
             $indexSeverity = $hasIndex ? self::SEVERITY_OK : self::SEVERITY_WARN;
 
-            $worst = self::SEVERITY_OK;
-            foreach ([$nullableSeverity, $indexSeverity] as $candidate) {
-                if (self::SEVERITY_FAIL === $candidate) {
-                    $worst = self::SEVERITY_FAIL;
-                    break;
-                }
-                if (self::SEVERITY_WARN === $candidate && self::SEVERITY_OK === $worst) {
-                    $worst = self::SEVERITY_WARN;
-                }
+            // Worst severity from the two candidate checks. PHPStan
+            // narrows $nullableSeverity to 'OK'|'FAIL' (line ~165) and
+            // $indexSeverity to 'OK'|'WARN' (line ~181), so we only test
+            // the values each variable can actually hold. FAIL beats
+            // WARN beats OK.
+            if (self::SEVERITY_FAIL === $nullableSeverity) {
+                $worst = self::SEVERITY_FAIL;
+            } elseif (self::SEVERITY_WARN === $indexSeverity) {
+                $worst = self::SEVERITY_WARN;
+            } else {
+                $worst = self::SEVERITY_OK;
             }
 
             $rows[] = [
