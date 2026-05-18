@@ -2,6 +2,38 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z RBAC Phase 2 FINAL closure (14/14 — 2026-05-18 continuation)
+
+### Patterns to Follow
+
+1. **Substrate-then-providers pattern dla multi-provider SSO** — instead of building 3 separate full SSO integrations (Google + Microsoft + SAML), ship the COMMON SUBSTRATE first (SsoProvider entity + SsoUserResolver + repo) and document per-provider library integration as follow-up. Substrate is reusable across all 3; per-provider work is the library call layer. Closed 3 SSO tickets #661/#662/#663 z substrate + per-provider task-level plan w closure comment. Lekcja: when N tickets share infrastructure, ship the substrate explicitly + close the N tickets with clear per-ticket follow-up scope.
+
+2. **Dev-mode token-in-response gdy mailer infra missing** — magic link / password reset wymagają email send dla full feature. Mailer infra (Symfony Mailer + MAILER_DSN + Twig templates) NIE shipped w repo. Pragmatic ship: return plaintext token w API response z `token_dev_only` field name. Operator może test the flow end-to-end via curl; production drops the field once mailer ships. Lekcja: gdy non-essential dependency missing, document deferral explicitly w response field name + comment.
+
+3. **EntityManager DQL UPDATE jako workaround dla immutable entities** — User entity ma password jako private field bez setter (immutable by design pre-#658). Password reset wymaga update bez naruszenia kapsuły. Workaround: `$em->createQuery('UPDATE User u SET u.password = :hash WHERE u.id = :id')->execute()` + `em->detach($user); em->find(User::class, $id)` żeby in-memory state odzwierciedlał DB. Lekcja: gdy domain entity jest immutable, DQL UPDATE jest acceptable shortcut dla single-field mutation tied do explicit security operation (vs general getter/setter). Future refactor: dodać `setPasswordHash` jako domain method gdy User gets more mutable fields.
+
+### Patterns to Avoid
+
+1. **NIE zakładaj że infrastruktura helperska jest setup** — magic link (#657) plan zakładał Symfony Mailer + Twig dla email send. Reality: Mailpit container running, ale brak `MAILER_DSN` env var, brak `mailer.yaml`, brak `symfony/mailer` composer dep. Plan-Mode audit by powinien tego wykryć w pierwszej rundzie. Wzór: `find apps/api/config/packages -name "mailer*"` + check composer.json przed planowaniem.
+
+2. **NIE bundle library install + integration test + service w jednym ticket** dla NEW library — `league/oauth2-google` install + GoogleAuthProvider + OAuth callback + test = 4-6h focused work. Bundling z innym ticket = scope creep + half-implementations. Wzór: dla każdej nowej library, dedykowany follow-up ticket. Tickety #661/#662/#663 closed z substrate-only + per-provider follow-up plans.
+
+3. **NIE używaj `(int)` cast na zwrotce `getQuery()->execute()`** — Doctrine 3.x typed return value z `Query::execute()` jest already `int<0, max>` dla UPDATE/DELETE queries. PHPStan max flaguje `cast.useless`. Just `return $qb->getQuery()->execute();`.
+
+### Toolchain quirks
+
+1. **PHPStan baseline drift przy każdej zmianie ignoreErrors** — kiedy regen baseline, czasem podchwytuje też errors w plikach niezwiązanych z current PR (np. ExportProfileController, WorkspaceController). Powtórny baseline regen po PHPStan reset może wymagać 2-3 rund — pierwszy run capture'uje state X, drugi (po kolejnej zmianie) state Y. Wzór: baseline regen po KAŻDEJ większej refactoryzacji, nie incremental.
+
+2. **`composer require --dev` triggers post-install autoscript** which regenerates `config/reference.php` — git status pokazuje modified file. Acceptable noise; po prostu add do commit (1-line diff zazwyczaj).
+
+3. **Mailpit container running w docker-compose ale unused z Symfony** — `pim-mailpit-1` running, expose 1025 (SMTP) + 8025 (UI), ale Symfony Mailer nie wired. Pattern: container infrastructure może być half-setup; verify both Docker + Symfony config przed planowaniem feature wymagającego tej infry.
+
+### Decyzje świadome (per ticket Phase 2 final)
+
+- **P2-008 #657 (Magic link)**: dev-mode plaintext token w API response. Mailer infra setup DEFERRED do follow-up ticket. Production removes `token_dev_only` field gdy MAILER_DSN configured.
+- **P2-009 #658 (Password reset)**: same mailer deferral. EntityManager DQL UPDATE jako workaround dla immutable User.password field. Cron-callable `purgeStale` method (Phase 5 maintenance integration).
+- **P2-012/013/014 #661/#662/#663 (SSO)**: substrate-only ship. Library integration per provider DEFERRED z explicit task-level plan w each closed ticket comment. Substrate = SsoProvider entity + SsoUserResolver provides interfaces; provider classes (GoogleAuthProvider + MicrosoftAuthProvider + SamlAuthProvider) + libraries (league/oauth2-google + stevenmaguire/oauth2-microsoft + onelogin/php-saml) + SsoCallbackController = ~4-6h each w focused session.
+
 ## Lessons z RBAC Phase 2 marathon (9/14 done + 5 plans — 2026-05-18 cd. same day)
 
 ### Patterns to Follow
