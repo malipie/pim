@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\Sso\GoogleAuthProvider;
+use App\Identity\Application\Sso\MicrosoftAuthProvider;
 use App\Identity\Application\Sso\SsoUserResolver;
 use App\Identity\Domain\Attribute\NoPermissionRequired;
 use App\Shared\Domain\Repository\TenantRepositoryInterface;
@@ -43,6 +44,7 @@ final class SsoCallbackController extends AbstractController
     public function __construct(
         private readonly TenantRepositoryInterface $tenants,
         private readonly GoogleAuthProvider $google,
+        private readonly MicrosoftAuthProvider $microsoft,
         private readonly SsoUserResolver $userResolver,
         private readonly JWTTokenManagerInterface $jwtManager,
         private readonly string $appBaseUrl = 'https://pim.localhost',
@@ -136,6 +138,91 @@ final class SsoCallbackController extends AbstractController
         ]);
 
         // Clear state cookie after successful auth.
+        $response->headers->clearCookie(self::STATE_COOKIE, '/api/auth/sso');
+
+        return $response;
+    }
+
+    #[Route(
+        path: '/api/auth/sso/{tenantCode}/microsoft/login',
+        methods: ['GET'],
+        name: 'api_auth_sso_microsoft_login',
+    )]
+    #[NoPermissionRequired(reason: 'SSO login entry point.')]
+    public function microsoftLogin(string $tenantCode): RedirectResponse
+    {
+        $tenant = $this->tenants->findByCode($tenantCode);
+        if (null === $tenant) {
+            throw new NotFoundHttpException(\sprintf('Tenant "%s" not found.', $tenantCode));
+        }
+
+        $redirectUri = \sprintf('%s/api/auth/sso/%s/microsoft/callback', $this->appBaseUrl, $tenantCode);
+
+        try {
+            $auth = $this->microsoft->authorizationUrl($tenant, $redirectUri);
+        } catch (RuntimeException $e) {
+            throw new BadRequestHttpException($e->getMessage(), $e);
+        }
+
+        $response = new RedirectResponse($auth['url']);
+        $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create(
+            self::STATE_COOKIE,
+            $auth['state'],
+            time() + self::STATE_TTL_SECONDS,
+            '/api/auth/sso',
+            null,
+            true,
+            true,
+            false,
+            'lax',
+        ));
+
+        return $response;
+    }
+
+    #[Route(
+        path: '/api/auth/sso/{tenantCode}/microsoft/callback',
+        methods: ['GET'],
+        name: 'api_auth_sso_microsoft_callback',
+    )]
+    #[NoPermissionRequired(reason: 'SSO callback verifies state + provider claim.')]
+    public function microsoftCallback(string $tenantCode, Request $request): Response
+    {
+        $tenant = $this->tenants->findByCode($tenantCode);
+        if (null === $tenant) {
+            throw new NotFoundHttpException(\sprintf('Tenant "%s" not found.', $tenantCode));
+        }
+
+        $code = $request->query->get('code', '');
+        $state = $request->query->get('state', '');
+        $cookieState = $request->cookies->get(self::STATE_COOKIE, '');
+
+        if ('' === $code || '' === $state || '' === $cookieState || !hash_equals($cookieState, $state)) {
+            throw new BadRequestHttpException('Invalid OAuth callback (state mismatch or missing code).');
+        }
+
+        $redirectUri = \sprintf('%s/api/auth/sso/%s/microsoft/callback', $this->appBaseUrl, $tenantCode);
+
+        try {
+            $email = $this->microsoft->fetchUserEmail($tenant, $code, $redirectUri);
+        } catch (RuntimeException $e) {
+            throw new BadRequestHttpException($e->getMessage(), $e);
+        }
+
+        $user = $this->userResolver->resolveOrProvision($tenant, $email);
+        $jwt = $this->jwtManager->create($user);
+
+        $response = new JsonResponse([
+            'token' => $jwt,
+            'user' => [
+                'id' => $user->getId()->toRfc4122(),
+                'email' => $user->getEmail(),
+            ],
+            'tenant' => [
+                'id' => $tenant->getId()->toRfc4122(),
+                'code' => $tenant->getCode(),
+            ],
+        ]);
         $response->headers->clearCookie(self::STATE_COOKIE, '/api/auth/sso');
 
         return $response;
