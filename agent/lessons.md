@@ -2,6 +2,39 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z RBAC Phase 1 marathon (P1-002/003/008/001 — 2026-05-18)
+
+### Patterns to Follow
+
+1. **Backlog ticketów może zakładać greenfield, gdy projekt jest brownfield — audit FIRST** — RBAC backlog (Project Plan/08..14) rozpisano z założeniem że Identity bundle dochodzi od zera. Reality: 5/9 entities + 15+ Voters + RbacSeeder + auth services już istnieją z poprzednich MVP-Alpha ticketów. **Wzór:** zanim implementujesz Phase 1 ticket, `find apps/api/src/{BundleName} -type f` + spot-check 1-2 plików → jeśli istnieje DDD layered struktura, brownfield. Adapt scope (5 missing entities zamiast 9 from scratch) i dokumentuj świadome odejścia w komencie issue PRZED `gh issue edit --add-label ready-to-implement`. Lekcja źródłowa: P1-008 #647 — full audit zaoszczędził ~3-4h pracy nad re-scaffoldingiem istniejącego kodu.
+
+2. **`gh pr merge N --squash --admin` autoryzowany dla Playwright flake gdy reszta CI green** — Quality (Frontend) na `main` failuje konsekwentnie (4 z ostatnich 5 runów na main). Confirmed źródła: `modeling-shell.spec.ts` + `exports.spec.ts:44` + `imports.spec.ts` (3 tests) + `modeling-object-types.spec.ts`. Verify-via: `gh run list --branch main --workflow quality-frontend.yml --limit 5`. Operator's pattern: merge z `--admin` gdy PHPStan / PHPUnit / Deptrac / Biome / TypeScript / composer audit / pnpm audit etc. PASS, tylko Playwright FAIL. Stosowane w #733 i #734 tej sesji.
+
+3. **Wzorce kopiowane 1:1 między entity classes** — pierwszy entity scaffolded (SuperAdmin) ustanowił template: POPO + Uuid::v7() + DateTimeImmutable + status string consts + `declare(strict_types=1)` + PHPDoc. Kolejne 4 (UserRole/ApiToken/Invitation/UserTenantMembership) tylko zmieniają fields + table name. XML mapping również 1:1 wzór `<id type=uuid>` + `<generator strategy=NONE>` + `<field type=...>` + `<unique-constraints>` + `<indexes>`. Doctrine repo impl 100% boilerplate: `extends ServiceEntityRepository implements Interface` + 4 metody. **Wzór:** scaffold pierwszy entity carefully, copy template dla pozostałych w tej samej PR.
+
+### Patterns to Avoid
+
+1. **NIE używaj `array_values()` na zwrotce z Doctrine `findBy()`** — Doctrine ORM 3.x zwraca `list<T>`, więc `array_values()` jest no-op flagged przez PHPStan max (`arrayValues.list`). Repo metody zwracające list-of-entities pisz po prostu jako `return $this->findBy(['field' => $value]);` — PHPDoc `@return list<T>` zostaje, ale call wrap usunięty. Zauważone w 4 z 5 Doctrine repo impls w #733; fix commit `6f5b70e`.
+
+2. **NIE używaj `--no-verify` przy commitcie chyba że Docker stack jest down** — pre-commit hook `lint-staged-php.sh` wymaga `pim-api` containera w docker compose. Gdy Docker daemon nie jest uruchomiony, hook fail'uje z `lint-staged PHP: stack is down and pim-api image is missing`. Pattern: zamiast bypass'ować `--no-verify`, **najpierw** uruchom `pnpm stack:up` (jeśli Docker Desktop chodzi) i retry. Bypass tylko gdy Docker Desktop sam jest down (GUI launch wymaga operator action) — wtedy explicit justification w commit body. CI server-side runs identical checks anyway.
+
+3. **NIE inline real-looking JWT/AWS keys w docs/** — Gitleaks regex flags real-looking secrets w komitach, włącznie z negative-test recipes w `docs/security/tooling.md`. Use `jwt encode` snippet generujący token at runtime (jak teraz w `docs/security/tooling.md:117`) zamiast wklejać hardcoded string. AWS-published placeholder `AKIAIOSFODNN7EXAMPLE` jest OK, ale wymaga `.gitleaks.toml` allowlist na pliku docs.
+
+### Toolchain quirks
+
+1. **PHPUnit Foundry `ResetDatabase` builds schema from entity metadata** — gdy dodajesz nową entity z XML mapping, Foundry's `ResetDatabase` w PHPUnit tworzy odpowiednie tabele automatycznie. Ale Playwright E2E używa `doctrine:fixtures:load` które wymaga FAKTYCZNYCH migrations. Pattern: dodając entities w PR, ZAWSZE dodaj Doctrine migration w tej samej PR — inaczej Playwright fail'uje z `relation "X" does not exist`. Migration można wygenerować przez `docker compose exec api bin/console doctrine:migrations:diff` (ale auto-generated czasem łapie stale schema drift z dev DB — review przed commit).
+
+2. **Dev DB może mieć tabele które CI nie ma** — w trakcie eksperymentów lokalnie tabele bywają tworzone via `doctrine:schema:update`. `migrations:diff` then nie generuje CREATE TABLE (bo DB ma tabelę). Sprawdź: `docker compose exec database psql -U pim -d pim -c "\dt"` przed `migrations:diff`. Jeśli dev DB ma „wyprzedzenie" w stosunku do migrations, użyj `pg_dump --schema-only -t <table>` jako baseline dla ręcznego migration file.
+
+3. **TenantAuditCommand whitelist pattern dla junction/platform-level tables** — `apps/api/src/Shared/Infrastructure/Maintenance/TenantAuditCommand.php` ma `INFRA_TABLES` const z tabelami które legitimately NIE mają tenant_id (junctions inherit via FK, lub platform-level tables jak `super_admins`). Test `tests/Integration/Maintenance/TenantAuditCommandTest.php` blokuje merge gdy nowa tabela bez tenant_id NIE jest na whitelist. Dodając junction lub platform table, **MUSISZ** dopisać do `INFRA_TABLES` z komentarzem wyjaśniającym scope inheritance. Egzemple: `user_roles` (M2M, scope via user), `super_admins` (platform-level), `bulk_logs` (via bulk_session), `export_logs` (via ExportSession).
+
+### Decyzje świadome (per ticket)
+
+- **P1-008 #647 (Identity entities)**: SsoProvider deferred do Phase 2 #661 (gdy SSO Google/MS/SAML auth ląduje); UserRole maps do `user_role_assignments` zamiast collidować z legacy `User.assignedRoles` M2M `user_roles`; FK constraints odłożone do P1-004 #643; bundle structure follows established DDD layered (NIE flat z ticket spec); namespace `App\Identity\` (NIE `Cortex\Identity\`); XML mapping (NIE PHP attributes).
+- **P1-001 #640 (Security tooling)**: Infection deferred (→ #720 lub follow-up — 2-3h config); Semgrep deferred (→ Phase 6 #722 dedicated); OWASP ZAP deferred (→ Phase 7 #724 post-staging); custom PHPStan RBAC rules deferred (→ Phase 1 #649 dedicated). Shipped 4 layers: Dependabot + Gitleaks + TruffleHog + Roave Security Advisories + comprehensive `docs/security/tooling.md`.
+- **CI Playwright merge z `--admin`**: pre-existing flake na main, NIE related do moich zmian (verified: `gh run list --branch main` shows same failures). Per CLAUDE.md lessons #4: "`gh pr merge N --squash --admin` jest authoryzowanym wzorem operatora dla tej infra flaki gdy reszta gates green".
+
+
 ## Lessons z mini-epik EXP-17..21 (świadome odejścia po maratonie #580-#595, 2026-05-15)
 
 ### Patterns to Follow
