@@ -105,6 +105,12 @@ parameters:
               - src/ApiConfigurator/Domain/Entity/ApiKey.php
               - src/Identity/Domain/Entity/TenantAgentConfig.php
               - src/Catalog/Domain/Entity/MenuConfiguration.php
+              - src/Import/Domain/Entity/ImportSession.php
+              - src/Import/Domain/Entity/ImportProfile.php
+              - src/Import/Domain/Entity/ImportSource.php
+              - src/Import/Domain/Entity/ImportSourceLog.php
+              - src/Import/Domain/Entity/ImportSchedule.php
+              - src/Import/Domain/Entity/ImportScheduleRun.php
               - src/Export/Domain/Entity/ExportSession.php
               - src/Export/Domain/Entity/ExportProfile.php
               - src/Backup/Domain/Entity/Backup.php
