@@ -1,0 +1,106 @@
+# Dependabot config — RBAC-P1-001 (#640).
+# Mitigates risk R-26 (stack drift) per CLAUDE.md §"Zarządzanie zależnościami":
+#   - Renovate / Dependabot z automerge tylko patch, manual review minor/major.
+#
+# Schedule: daily for security-sensitive ecosystems, weekly for stable ones.
+# Each PR carries `dependencies` label so the bulk maintenance ticket
+# (CLAUDE.md "Maintenance ticket co 2 epiki") can grep recent PRs.
+version: 2
+
+updates:
+  # ────────────────────────────────────────────────────────────────
+  # GitHub Actions — CI/CD workflow definitions
+  # ────────────────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "ci"
+      include: scope
+
+  # ────────────────────────────────────────────────────────────────
+  # Composer — PHP backend (apps/api/)
+  # ────────────────────────────────────────────────────────────────
+  - package-ecosystem: composer
+    directory: /apps/api
+    schedule:
+      interval: daily
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - backend
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    # Manual review for major bumps per CLAUDE.md §"Zarządzanie zależnościami":
+    # "Po każdym major bump pakietu generującego kod (np. API Platform, Doctrine)
+    # — pełen composer dump-autoload + regeneracja DTO/types + naprawa breaking
+    # changes zanim ticket = done."
+    ignore:
+      - dependency-name: "api-platform/*"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "doctrine/*"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "symfony/*"
+        update-types:
+          - version-update:semver-major
+
+  # ────────────────────────────────────────────────────────────────
+  # npm — workspace root (monorepo deps: husky, biome, lint-staged, commitlint)
+  # ────────────────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - tooling
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+
+  # ────────────────────────────────────────────────────────────────
+  # npm — admin frontend (apps/admin/)
+  # ────────────────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /apps/admin
+    schedule:
+      interval: daily
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - frontend
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    ignore:
+      - dependency-name: "react"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "react-dom"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "@refinedev/*"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "vite"
+        update-types:
+          - version-update:semver-major

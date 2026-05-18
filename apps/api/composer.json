@@ -125,6 +125,7 @@
         "phpstan/phpstan-symfony": "^2",
         "phpunit/phpunit": "^12",
         "rector/rector": "^2.4",
+        "roave/security-advisories": "dev-latest",
         "symfony/browser-kit": "7.4.*",
         "symfony/css-selector": "7.4.*",
         "symfony/http-client": "7.4.*",
