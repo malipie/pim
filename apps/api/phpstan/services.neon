@@ -1,0 +1,18 @@
+# RBAC-P1-010 (#649) — custom PHPStan rules for RBAC pattern enforcement.
+# Included from phpstan.dist.neon so the rules run on every PHPStan invocation.
+#
+# Adding a new rule:
+#   1. Implement it in phpstan/Rules/<Name>Rule.php (namespace App\PHPStan\Rules).
+#   2. Register the class below under `services:` with tag `phpstan.rules.rule`.
+#   3. Add fixtures + assertions in tests/StaticAnalysis/.
+#   4. Document in docs/static-analysis/custom-rules.md.
+
+services:
+    -
+        class: App\PHPStan\Rules\RequiresPermissionAnnotationRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: App\PHPStan\Rules\HardcodedRoleCheckRule
+        tags:
+            - phpstan.rules.rule

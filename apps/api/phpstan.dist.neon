@@ -6,8 +6,18 @@
 #   - phpstan-doctrine (entity manager, query builder typing)
 #   - phpstan-strict-rules (boolean coercion, defensive comparisons)
 #
-# Custom rules (custom PHPStan rule blokująca flush() w pętli bez clear()) dochodzą
-# w momencie pierwszego batch handler'a — sekcja 3.10 architektury, Sprint 0 ticket 0.0.13.
+# Custom rules — RBAC-P1-010 (#649). Two rules ship today:
+#   - RequiresPermissionAnnotationRule — every #[Route] method must
+#     declare #[RequiresPermission] or #[NoPermissionRequired].
+#   - HardcodedRoleCheckRule — forbids $user->hasRole(), isAdmin(),
+#     in_array(..., getRoles()) outside Identity/Infrastructure/Security/.
+# A third rule (flush-without-clear) is tracked as follow-up after the
+# first batch handler that does not extend AbstractBatchHandler.
+# See docs/static-analysis/custom-rules.md for the full inventory.
+
+includes:
+    - phpstan/services.neon
+    - phpstan-baseline.neon
 
 parameters:
     level: max

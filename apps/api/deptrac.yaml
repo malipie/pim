@@ -104,7 +104,7 @@ parameters:
               - type: directory
                 value: 'src/ApiConfigurator/.*'
 
-        # ─── Tooling — fixtures, benchmarks, foundry stories ───────────
+        # ─── Tooling — fixtures, benchmarks, foundry stories, PHPStan rules ───
         - name: Tooling
           collectors:
               - type: directory
@@ -113,6 +113,11 @@ parameters:
                 value: 'src/DataFixtures/.*'
               - type: directory
                 value: 'src/Story/.*'
+              # RBAC-P1-010 (#649) — custom PHPStan rules. They reach
+              # into Identity attribute classes to detect their presence
+              # at static-analysis time; legitimate tooling cross-cut.
+              - type: directory
+                value: 'src/PHPStan/.*'
 
     ruleset:
         Catalog_Internals:
