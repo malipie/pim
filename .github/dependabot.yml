@@ -32,7 +32,11 @@ updates:
   - package-ecosystem: composer
     directory: /apps/api
     schedule:
-      interval: daily
+      # Weekly to avoid first-run backlog flood. Patch updates are
+      # frequent enough that weekly catches them within the
+      # CLAUDE.md "Maintenance ticket co 2 epiki" cadence.
+      interval: weekly
+      day: monday
       time: "06:00"
       timezone: Europe/Warsaw
     open-pull-requests-limit: 10
@@ -81,7 +85,11 @@ updates:
   - package-ecosystem: npm
     directory: /apps/admin
     schedule:
-      interval: daily
+      # Weekly to avoid first-run backlog flood. Patch updates are
+      # frequent enough that weekly catches them within the
+      # CLAUDE.md "Maintenance ticket co 2 epiki" cadence.
+      interval: weekly
+      day: monday
       time: "06:00"
       timezone: Europe/Warsaw
     open-pull-requests-limit: 10
