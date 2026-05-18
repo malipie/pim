@@ -6,6 +6,7 @@ namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\Sso\GoogleAuthProvider;
 use App\Identity\Application\Sso\MicrosoftAuthProvider;
+use App\Identity\Application\Sso\SamlAuthProvider;
 use App\Identity\Application\Sso\SsoUserResolver;
 use App\Identity\Domain\Attribute\NoPermissionRequired;
 use App\Shared\Domain\Repository\TenantRepositoryInterface;
@@ -45,6 +46,7 @@ final class SsoCallbackController extends AbstractController
         private readonly TenantRepositoryInterface $tenants,
         private readonly GoogleAuthProvider $google,
         private readonly MicrosoftAuthProvider $microsoft,
+        private readonly SamlAuthProvider $saml,
         private readonly SsoUserResolver $userResolver,
         private readonly JWTTokenManagerInterface $jwtManager,
         private readonly string $appBaseUrl = 'https://pim.localhost',
@@ -226,5 +228,62 @@ final class SsoCallbackController extends AbstractController
         $response->headers->clearCookie(self::STATE_COOKIE, '/api/auth/sso');
 
         return $response;
+    }
+
+    #[Route(
+        path: '/api/auth/sso/{tenantCode}/saml/login',
+        methods: ['GET'],
+        name: 'api_auth_sso_saml_login',
+    )]
+    #[NoPermissionRequired(reason: 'SAML SSO login entry point.')]
+    public function samlLogin(string $tenantCode): RedirectResponse
+    {
+        $tenant = $this->tenants->findByCode($tenantCode);
+        if (null === $tenant) {
+            throw new NotFoundHttpException(\sprintf('Tenant "%s" not found.', $tenantCode));
+        }
+
+        try {
+            $url = $this->saml->loginUrl($tenant);
+        } catch (RuntimeException $e) {
+            throw new BadRequestHttpException($e->getMessage(), $e);
+        }
+
+        return new RedirectResponse($url);
+    }
+
+    #[Route(
+        path: '/api/auth/sso/{tenantCode}/saml/acs',
+        methods: ['POST'],
+        name: 'api_auth_sso_saml_acs',
+    )]
+    #[NoPermissionRequired(reason: 'SAML ACS verifies signed assertion from IdP; that is the auth factor.')]
+    public function samlAcs(string $tenantCode): Response
+    {
+        $tenant = $this->tenants->findByCode($tenantCode);
+        if (null === $tenant) {
+            throw new NotFoundHttpException(\sprintf('Tenant "%s" not found.', $tenantCode));
+        }
+
+        try {
+            $email = $this->saml->processCallback($tenant);
+        } catch (RuntimeException $e) {
+            throw new BadRequestHttpException($e->getMessage(), $e);
+        }
+
+        $user = $this->userResolver->resolveOrProvision($tenant, $email);
+        $jwt = $this->jwtManager->create($user);
+
+        return new JsonResponse([
+            'token' => $jwt,
+            'user' => [
+                'id' => $user->getId()->toRfc4122(),
+                'email' => $user->getEmail(),
+            ],
+            'tenant' => [
+                'id' => $tenant->getId()->toRfc4122(),
+                'code' => $tenant->getCode(),
+            ],
+        ]);
     }
 }

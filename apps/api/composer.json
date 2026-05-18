@@ -23,6 +23,7 @@
         "league/oauth2-google": "^4",
         "lexik/jwt-authentication-bundle": "^3",
         "meilisearch/meilisearch-php": "^1.16",
+        "onelogin/php-saml": "^4",
         "openspout/openspout": "^5.7",
         "phpdocumentor/reflection-docblock": "^5.6.7",
         "phpoffice/phpspreadsheet": "^5.7",
