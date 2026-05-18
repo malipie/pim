@@ -1121,6 +1121,47 @@ Asymetria zysków vs koszt jest podobna jak w ADR-003 (multi-tenant ready, singl
 - ADR-006 (hybrid attribute model) — ADR-012 respektuje (`object_values JSONB` zostaje source of truth dla wartości; AttributeGroup jest tylko o organizacji formularzy + dziedziczeniu).
 - `02-plan-projektu-pim.md` §3.6 (epik 0.12 / UI-08 sequencing).
 
+### ADR-013: Role-Based Access Control od dnia 1 w MVP-Alpha
+
+**Status:** Zaakceptowany (2026-05-18)
+
+**Kontekst:**
+Pierwotna wersja `PRD-PIM-rbac.md` (v1) zakładała *„Faza 1 cuts"* — minimalny RBAC w MVP (4-5 ról immutable, brak builder-a, brak field-level, brak workflow gating) z pełnym scope dopiero w Fazie 1. Decyzja była motywowana presją czasu MVP-Alpha i założeniem że RBAC to *„cross-cutting tax"*, który można dopisać post-factum. Pięć sygnałów wymusiło reverse podczas planowania pilotów (zsyntetyzowane w PRD-PIM-rbac §6.1, v2):
+
+1. **API tokens scopes muszą dojrzeć przed pierwszym integratorem** — token bez scope = total access = ryzyko leak'u (BaseLinker / Shopify side-channel). Pilot z integratorem bez per-scope tokenów to incident waiting to happen.
+2. **Cmd+K agent rate limits + cost ceilings** — agent z runaway billing potencjalnie generuje $1000+/dzień bez gatingu (sekcja 8.5 architektury — twarde limity). Implementacja tych limitów wymaga User → Role → Permission resolwera od dnia 1.
+3. **Audit log compliance** — RODO + roadmap SOC 2 (Faza 3) wymagają *„kto kiedy co zmienił"* z `permission_check_result` per akcji. Retrofit audit logu na działającym systemie = re-write ~60 endpointów + brak historycznych entries.
+4. **Field-level secrets** — `attributes.integration_visible` flag oraz role-based scrubbing JSONB fields (credentials, internal margins, supplier notes) — bez 3-state attribute permissions (restricted/view/edit) Marketing widzi marżę kosztową, Translator widzi credentialé BaseLinkera.
+5. **Cross-tenant isolation defence in depth** — przed pierwszym multi-tenant deployment (Faza 1 SaaS), Doctrine TenantFilter + Postgres RLS + Voters + audit musi być battle-tested. Retrofit po pierwszym leak'u = reputation damage.
+
+**Rozważane opcje:**
+- **(a)** Minimal RBAC w MVP + refactor w Fazie 1 — odrzucony. Koszt refactoru *„na żywym organizmie"* (przed pierwszym pilotem ~60 endpointów do retrofitu + breaking changes API + downtime migracji + przepisanie testów) szacowany na 80-120h, plus ryzyko regresji w produkcji.
+- **(b)** Hybrid (proper schema od dnia 1 + 5 templates immutable + role builder Faza 1) — odrzucony jako *„suboptymalny middle"*. Schema cost = pełen schema cost, ale UX cost = brak custom role builder przez 8-12 tygodni Fazy 1 = pilot musi się zmieścić w 5 templates, co nie pasuje do realiów polskiego rynku (Marcin: *„Marketing PL ma inne uprawnienia niż Marketing EN; Translator chińskiego nie powinien widzieć ceny zakupu"*).
+- **(c)** Pełen RBAC w MVP-Alpha — wybrany. Wszystkie 10 ról (Super Admin + 9 tenant) + builder + field-level + workflow + per-locale/channel scope + per-attribute 3-state + Cmd+K integration + Super Admin operator panel + break-glass + audit `permission_check_result`.
+
+**Decyzja:** Opcja (c). Pełen RBAC w MVP-Alpha zgodnie ze scope [PRD-PIM-rbac §3.2 macierz uprawnień](PRD/PRD-PIM-rbac.md) jako autoritative source of truth. 10 ról (1 platform-level: Super Admin; 9 tenant-level: Owner, Admin, Editor, Reviewer, Marketing, Translator, Integrator, Viewer, Auditor) + custom role builder + per-attribute permissions (3-state restricted/view/edit z resolution order attribute → group → role default — PRD §3.5) + per-locale + per-channel scope + workflow-state policy (Symfony Workflow integration) + ownership check (own vs all) + field-level serializer filtering + Super Admin cross-tenant bypass z audit + break-glass CLI. Implementacja w 7 phase'ach (89 ticketów, milestones #9-#15, ~330-445h).
+
+**Uzasadnienie:**
+Asymetria zysków vs koszt jest klasyczna i sprawdzona w ADR-003 (multi-tenant ready, single-tenant deployed) i ADR-009 (generic ObjectType z built-in Product/Category/Asset): *„zaprojektować jak na enterprise, deployować jak na MVP"*. Cross-cutting concerns aplikowane od dnia 1 nie mają technical debt; aplikowane post-factum mają debt × N gdzie N = liczba endpointów / komponentów dotkniętych przez retrofit. Dla RBAC w MVP-Alpha N ≈ 60 endpointów + ~40 widoków admin UI = retrofit cost wykładniczy. Plus: zero refactor risk, zero breaking changes dla integratorów, zero downtime, zero re-write testów. Cena: +330-445h jednorazowo w MVP-Alpha (8-12 tygodni Marcin solo dev tempo per PRD §7).
+
+**Konsekwencje:**
+- **Koszt:** **+330-445h** rozbite na 7 phase'ów (PRD §7 v2; backlog: `08-rbac-tickets-phase-1.md` do `14-rbac-tickets-phase-7.md`, 89 ticketów). v1 zakładał 0h w MVP — różnica to świadomie zaakceptowany koszt by uniknąć Fazy 1 refactor.
+- **Schema:** 10 nowych tabel (`super_admins`, `users`, `roles`, `permissions`, `role_permissions`, `user_roles`, `api_tokens`, `invitations`, `user_tenant_memberships`, `sso_providers`) + delta `attributes.integration_visible BOOLEAN` + delta `role_attribute_permissions` + delta `role_attribute_group_permissions` + delta `audit_logs.permission_check_result/special_flags`. Migracje w Phase 1 (`#643`, `#644`).
+- **Egzekucja patternu od dnia 1:** każdy nowy endpoint musi mieć `#[RequiresPermission]` attribute (egzekwowane przez custom PHPStan rule — `#649`). Każdy nowy frontend komponent musi być wrapped w `<PermissionGate>` lub `useCanI()` hook (egzekwowane przez code review + ewentualnie ESLint custom rule). Brak grace period.
+- **Faza 6 (Refactor + Hardening, milestone #14):** retrofit `#[RequiresPermission]` do ~60 endpointów stworzonych pre-RBAC (epiki 0.1–0.6) — ticket #714–#717. Skala refactoru ograniczona bo Voters + policy infrastructure już istnieje z Phase 3.
+- **Faza 7 (Pentest + Launch, milestone #15):** obligatoryjny manual red-team Marcina (15-point checklist, `#723`) + opcjonalny external pentest (`#724–#726`) przed soft launch z design partners (`#728`). Bez red-team pass — no launch.
+- **CLAUDE.md update:** sekcja *„Priorytety implementacyjne"* musi zaktualizować ADR-013 z Faza 1 → MVP-Alpha (Phase 1-3 z 7 phase'ów RBAC) + Phase 4-7 jako wymóg pre-launch (ticket #642 / RBAC-P1-003).
+- **Wszystkie wcześniejsze *„Faza 1 candidate"*** w `Project Plan/UI/feature-list-advanced.md` i `Project Plan/UI/feature-exports.md` dotykające RBAC → przeniesione do MVP (PRD §6.1).
+- **Cross-tenant isolation test suite** jako obligatoryjny CI gate od Phase 1 (`#648` testcontainers Postgres) — bez 10+ scenarios cross-tenant pass nie merge'ujemy do main (Layer 3 z `07-rbac-implementation-plan.md` §2).
+
+**Referencje:**
+- [`PRD/PRD-PIM-rbac.md`](PRD/PRD-PIM-rbac.md) (v2.1, 2026-05-16) — autoritative scope: §3.2 macierz uprawnień (10 ról × ~50 permissions), §3.5 3-state attribute permissions resolution order, §6.1 *„co świadomie zawiera MVP vs v1 Faza 1 cuts"*, §7 estymacja 330-445h.
+- [`07-rbac-implementation-plan.md`](07-rbac-implementation-plan.md) (v3.1, 2026-05-16) — strategia operacyjna: 7 phase'ów, testing strategy (4 layers), security tooling (Infection / Semgrep / OWASP ZAP / TruffleHog), red-team checklist.
+- Backlog: `08-rbac-tickets-phase-1.md` (Foundation, 10 tickets) → `14-rbac-tickets-phase-7.md` (Pentest + Launch, 6 tickets). 89 ticketów, milestones #9–#15.
+- ADR-003 (multi-tenant ready, single-tenant deployed) — analogiczna asymetria *„ready od dnia 1 / deploy minimalnie"*.
+- ADR-009 (generic ObjectType z built-in Product/Category/Asset) — sprawdzony pattern *„infrastruktura full-scope, UX zoptymalizowany pod MVP"*.
+- ADR-006 (hybrid attribute model) — RBAC field-level filtering operuje na `object_values JSONB` zgodnie z ADR-006; per-attribute 3-state permissions parametryzują serialization context.
+
 ## 14. Roadmap rozwoju
 
 Roadmap fazowa, wysokopoziomowa. Szczegółowy backlog i estymacje w dokumencie `02-plan-projektu-pim.md`.
