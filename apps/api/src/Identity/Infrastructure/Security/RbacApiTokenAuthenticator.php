@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Infrastructure\Security;
 
 use App\Identity\Domain\Repository\ApiTokenRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Repository\TenantRepositoryInterface;
 use DateTimeImmutable;
@@ -49,6 +50,7 @@ final class RbacApiTokenAuthenticator extends AbstractAuthenticator
 
     public function __construct(
         private readonly ApiTokenRepositoryInterface $apiTokens,
+        private readonly UserRepositoryInterface $users,
         private readonly TenantRepositoryInterface $tenants,
         private readonly TenantContext $tenantContext,
     ) {
@@ -91,17 +93,31 @@ final class RbacApiTokenAuthenticator extends AbstractAuthenticator
         $apiToken->recordUsage($request->getClientIp(), new DateTimeImmutable());
         $this->apiTokens->save($apiToken);
 
-        $user = new RbacApiTokenUser(
-            apiTokenId: $apiToken->getId(),
-            userId: $apiToken->getUserId(),
-            tenantId: $managedTenant->getId(),
-            tokenLast4: $apiToken->getTokenLast4(),
-            scopes: $apiToken->getScopes(),
-        );
+        // The principal IS the User the token was minted for — auth via
+        // token is just an alternative to JWT (admin SPA uses JWT,
+        // integrations use ApiToken). MeController + Voters + any
+        // permission check thus see the same User entity regardless of
+        // which authenticator fired. Token-specific metadata (scopes,
+        // token_id, last4) is attached to the request via TenantContext
+        // + request attributes for downstream Voters (Phase 3 #664+).
+        $user = $this->users->findById($apiToken->getUserId());
+        if (null === $user) {
+            throw new CustomUserMessageAuthenticationException('User for API token not found.');
+        }
+        if (!$user->isActive()) {
+            throw new CustomUserMessageAuthenticationException('User for API token is disabled.');
+        }
+
+        // Stash token metadata on the request for Phase 3 Voters that
+        // need scope-aware decisions (scopes determine whether the token
+        // can POST vs read-only).
+        $request->attributes->set('_api_token_id', $apiToken->getId()->toRfc4122());
+        $request->attributes->set('_api_token_scopes', $apiToken->getScopes());
+        $request->attributes->set('_api_token_last4', $apiToken->getTokenLast4());
 
         return new SelfValidatingPassport(new UserBadge(
             $user->getUserIdentifier(),
-            static fn (): RbacApiTokenUser => $user,
+            static fn (): \App\Identity\Domain\Entity\User => $user,
         ));
     }
 
