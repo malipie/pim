@@ -141,17 +141,29 @@ Twarde limity, **nienegocjowalne**: 50 tool calls/h/user, 10 tool calls/agent_ru
 - Po każdym major bump pakietu generującego kod (np. API Platform, Doctrine) — pełen `composer dump-autoload` + regeneracja DTO/types + naprawa breaking changes zanim ticket = done.
 - Pin do starszej wersji wymaga komentarza w pliku z konkretnym powodem (breaking incompatibility, missing platform support, unfixed bug + link do issue).
 
-## Priorytety implementacyjne (kolejność sub-faz, **rewizja 2026-04-27** — patrz `Project Plan/06-sprint-0-findings.md` sekcja 2)
+## Priorytety implementacyjne (kolejność sub-faz, **rewizja 2026-05-18** — ADR-013 przenosi pełen RBAC z Fazy 1 do MVP-Alpha; patrz `Project Plan/06-sprint-0-findings.md` sekcja 2 + ADR-013)
 1. **Sprint 0** (40-55h) — vertical slice, gate decision. Bez Sprintu 0 NIE wchodzimy w MVP Core.
-2. **MVP-Alpha** — backend + API + admin core CRUD (epiki 0.1–0.6, **bez 0.7 agent**)
-3. **MVP-Final** — API Configurator + hardening + a11y + analytics + pgBackRest + BYOK (epiki 0.10–0.11, **bez 0.8/0.9 integracji**)
-4. **Faza 1** → Integracje **BaseLinker (epik 0.8) + Shopify (epik 0.9)** + RLS aktywacja + monitoring full stack + pierwsze produkcje
+2. **MVP-Alpha** — backend + API + admin core CRUD (epiki 0.1–0.6) **+ epik 0.X Identity & RBAC (ADR-013) — pełen scope per `Project Plan/PRD/PRD-PIM-rbac.md` v2.1**, **bez 0.7 agent**
+3. **MVP-Final** — API Configurator + hardening + a11y + analytics + pgBackRest + BYOK (epiki 0.10–0.11) + RBAC Phase 6 (refactor existing endpoints) + Phase 7 (pentest + soft launch), **bez 0.8/0.9 integracji**
+4. **Faza 1** → Integracje **BaseLinker (epik 0.8) + Shopify (epik 0.9)** + monitoring full stack + pierwsze produkcje. *(RLS aktywacja przeniesiona do MVP-Alpha — RBAC Phase 2 ticket #654 implementuje od dnia 1, defence in depth obligatoryjne przed pilotami.)*
 5. **Faza 2** → **Agent layer (epik 0.7 Beta-Min + Beta-Full)** + Magento + IdoSell + multi-tenant SaaS + marketplace integracji
-6. **Faza 3** → SSO, white-label, ISO/SOC 2
+6. **Faza 3** → SSO advanced (SAML beyond MVP), white-label, ISO/SOC 2
 
 Każda sub-faza kończy się **5-min screencast demo** (nawet do siebie).
 
-**Hooks pod Fazę 2 zostają w MVP** (4-6h, kandydat do epiku 0.3 lub 0.11): `pending_changes` table jako pusta migracja, `provenance` enum z zarezerwowanym `agent`, lifecycle event subscriber emitujący `EntityChanged`. Agent w Fazie 2 dochodzi bez migracji danych.
+**Hooks pod Fazę 2 zostają w MVP** (4-6h, kandydat do epiku 0.3 lub 0.11): `pending_changes` table jako pusta migracja, `provenance` enum z zarezerwowanym `agent`, lifecycle event subscriber emitujący `EntityChanged`. Agent w Fazie 2 dochodzi bez migracji danych. **Uwaga:** to są hooki dla AGENT layer (epik 0.7), które rzeczywiście są opóźnione do Fazy 2. **RBAC jest pełny w MVP** (nie hooks-only) — wszystkie 10 ról + builder + field-level + workflow + per-attribute + per-locale/channel od dnia 1 (ADR-013).
+
+### Epik 0.X Identity & RBAC — 7 phase'ów, 89 ticketów, ~330-445h (MVP-Alpha + część MVP-Final)
+
+- **Phase 1 Foundation** (milestone [#9](../../milestone/9), 10 ticketów) — tooling, ADR-013, schema 10 tabel, seed, IdentityBundle skeleton, PHPStan rules
+- **Phase 2 Backend Auth** (milestone [#10](../../milestone/10), 14 ticketów) — JWT, email/password, API tokens, Tenant Context, Postgres RLS, Permission Resolver, MFA, SSO
+- **Phase 3 Permission Engine** (milestone [#11](../../milestone/11), 14 ticketów) — Voters, `#[RequiresPermission]`, 3-state attribute permissions, per-locale/channel scope, workflow-state policy, field-level filtering, audit, Super Admin bypass
+- **Phase 4 Frontend Core** (milestone [#12](../../milestone/12), 13 ticketów) — session bootstrap, route guards, `<PermissionGate>`, interceptors, field-level form rendering, MFA UI
+- **Phase 5 Settings UI** (milestone [#13](../../milestone/13), 22 tickety) — Users/Roles/Tokens UI, custom role builder, per-attribute grants, SSO config, Super Admin operator panel, break-glass
+- **Phase 6 Refactor + Hardening** (milestone [#14](../../milestone/14), 10 ticketów) — retrofit `#[RequiresPermission]` do ~60 endpointów pre-RBAC, CI gates lockdown, Prometheus/Grafana dashboards, Semgrep rules
+- **Phase 7 Pentest + Launch** (milestone [#15](../../milestone/15), 6 ticketów) — manual red-team Marcina (15-point), optional external pentest, fix critical findings, user-facing docs (privacy/RODO), soft launch z 1-2 design partners
+
+Authoritative spec: [`Project Plan/PRD/PRD-PIM-rbac.md`](Project%20Plan/PRD/PRD-PIM-rbac.md) (§3.2 macierz uprawnień, §3.5 attribute permissions resolution). Operacyjny plan: [`Project Plan/07-rbac-implementation-plan.md`](Project%20Plan/07-rbac-implementation-plan.md). Backlog: `Project Plan/08-rbac-tickets-phase-1.md` ... `14-rbac-tickets-phase-7.md`.
 
 ## Core principles
 - **API-first nigdy się nie kończy** — żaden feature nie jest gotowy, jeśli nie jest dostępny przez API.
@@ -198,3 +210,9 @@ Refs #32
 - **`Project Plan/06-sprint-0-findings.md`** — utworzony w #16, agreguje świadome odejścia + dokumentuje rewizję zakresu MVP. Aktualizuj per Sprint-0 ticket który odsłoni nowe wnioski.
 - **`docs/api-spec/v{version}.json`** — wersjonowany snapshot OpenAPI eksportowany z `/api/docs.jsonopenapi` przy każdym tagu release (CI step, nie ręcznie). *(W AP4 ścieżka to `.jsonopenapi`, nie `.json` — patrz lessons #1.)*
 - **`Project Plan/UI/Wdrozenie_grafiki/`** — single source of truth dla planu wdrożenia design handoffu (epik UI-03, issues #356/#357/#358). Główny plik: `plan-handoff-wdrozenie.md`. Trzy pliki backlogu (`dashboard-do-oprogramowania.md`, `modelowanie-do-oprogramowania.md`, `produkty-do-oprogramowania.md`) lądują w tym samym folderze gdy powstają. **NIE pracuj na kopii w `~/.claude/plans/` — to plan-mode artifact zostawiony do referencji.** Każda aktualizacja planu (zmiana scope, dopisanie luki backlogu, post-mortem) idzie do tego folderu i jest commitowana razem z PR-ami epiku UI-03.
+- **`Project Plan/PRD/PRD-PIM-rbac.md`** — master spec dla RBAC (v2.1, ADR-013): macierz uprawnień §3.2, 3-state attribute permissions §3.5, scope MVP §6.1, estymacja §7. Zmiana scope wymaga update + bump version.
+- **`Project Plan/07-rbac-implementation-plan.md`** — operacyjny plan RBAC (v3.1): 7 phase'ów, testing strategy (4 layers), security tooling stack, red-team checklist §5.3. Aktualizuj per lessons z każdej fazy.
+- **`Project Plan/08-rbac-tickets-phase-1.md` ... `14-rbac-tickets-phase-7.md`** — backlog 89 ticketów (Issues #640-#728). Pliki backlogowe trzymane w repo dla reproducibility; faktyczny tracking w GitHub Issues + milestones #9-#15.
+- **`docs/security/threat-model.md`** (TBD — Phase 6 ticket #720 lub #722) — STRIDE threat model dla RBAC + integrations. Aktualizuj po nowych attack vectors odkrytych w red-team.
+- **`docs/security/security-checklist.md`** (TBD — Phase 6) — checklist code review dla każdego PR dotykającego auth/permissions. Aktualizuj po findings z pentest.
+- **`docs/operations/break-glass-runbook.md`** (TBD — Phase 5 ticket #677/#712) — runbook dla Super Admin break-glass recovery (zablokowany Owner, password reset bez email, MFA reset). Aktualizuj per incident.
