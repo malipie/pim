@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Identity\Domain\Entity\SuperAdmin"
+            table="super_admins"
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineSuperAdminRepository">
+
+        <unique-constraints>
+            <unique-constraint name="super_admins_email_uniq" columns="email"/>
+        </unique-constraints>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <field name="email" type="string" length="255"/>
+        <field name="passwordHash" type="string" length="255" column="password_hash"/>
+        <field name="name" type="string" length="255"/>
+        <field name="status" type="string" length="16">
+            <options>
+                <option name="default">active</option>
+            </options>
+        </field>
+        <field name="lastLoginAt" type="datetime_immutable" column="last_login_at" nullable="true"/>
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+
+    </entity>
+
+</doctrine-mapping>

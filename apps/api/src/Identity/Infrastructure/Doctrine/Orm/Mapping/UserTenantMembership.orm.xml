@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Identity\Domain\Entity\UserTenantMembership"
+            table="user_tenant_memberships"
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineUserTenantMembershipRepository">
+
+        <unique-constraints>
+            <unique-constraint name="user_tenant_memberships_user_tenant_uniq" columns="user_id,tenant_id"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="user_tenant_memberships_user_idx" columns="user_id"/>
+            <index name="user_tenant_memberships_tenant_idx" columns="tenant_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <field name="userId" type="uuid" column="user_id"/>
+        <field name="tenantId" type="uuid" column="tenant_id"/>
+        <field name="status" type="string" length="16">
+            <options>
+                <option name="default">pending</option>
+            </options>
+        </field>
+        <field name="invitedAt" type="datetime_immutable" column="invited_at"/>
+        <field name="joinedAt" type="datetime_immutable" column="joined_at" nullable="true"/>
+        <field name="revokedAt" type="datetime_immutable" column="revoked_at" nullable="true"/>
+
+    </entity>
+
+</doctrine-mapping>
