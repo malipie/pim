@@ -97,7 +97,9 @@ final class ByokKeyManagerTest extends KernelTestCase
 
         $manager->setKey($tenant, 'sk-ant-rotated-key');
         $config = $this->repo()->findForTenant($tenant);
-        \assert(null !== $config);
+        // setKey() persisted the row two lines up, so findForTenant() is
+        // guaranteed non-null here. PHPStan 2.1.55+ proves this statically,
+        // so no assert is needed.
         $second = $config->getAnthropicApiKeyEncrypted();
 
         self::assertNotSame($first, $second, 'Ciphertext must change on rotation.');
