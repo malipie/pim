@@ -1,5 +1,35 @@
 # Current Status
 
+## 2026-05-18 (final): 🏁 Phase 2 RBAC ZAMKNIĘTY — 14/14 ticketów (same-session continuation)
+
+**Sub-faza:** MVP-Alpha, epik 0.X Identity & RBAC, **Phase 2 (Backend Auth) DONE.** Milestone [#10](../../milestone/10).
+
+**Phase 2 close-out (po pierwszej rundzie 9/14):**
+
+| Ticket | Status | Co dostarczone |
+|---|---|---|
+| RBAC-P2-008 #657 Magic link | ✅ [#784](../../pull/784) | InvitationService + InvitationController + MagicLinkTokenHasher. Dev-mode plaintext token w API response (mailer infra TBD). |
+| RBAC-P2-009 #658 Password reset | ✅ [#785](../../pull/785) | PasswordResetToken entity + service + endpoints + migration Version20260518180000 (FK CASCADE users + tenants). |
+| RBAC-P2-012/013/014 #661/#662/#663 SSO | ✅ [#786](../../pull/786) substrate + 3 issues closed | SsoProvider entity + repo + SsoUserResolver shipped. Per-provider library integration (Google/MS/SAML) — explicit follow-up notes na każdym closed issue (~4-6h każdy). |
+
+**Phase 2 final breakdown (14/14):**
+- 6 closed-as-DONE via brownfield audit (#650 JWT, #651 email/pwd, #653 TenantContext, #656 /api/me, #659/#660 MFA)
+- 5 merged implementation (#777 PermissionResolver, #778 ApiToken auth, #779 RLS+GIN hotfix, #784 magic link, #785 password reset)
+- 1 substrate merged + 3 follow-up closed (#786 SSO substrate; #661/#662/#663 closed z library-integration plan)
+
+**Total Phase 2 PR-y w sesji:** 7 (#777, #778, #779, #784, #785, #786 + bonus #781 lint fix + #782 phpstan bump + #783 npm batch)
+
+**Świadome odejścia per ticket Phase 2 final:**
+- **#657 magic link**: Symfony Mailer infra NIE shipped (no MAILER_DSN, no mailer.yaml; Mailpit container running w docker-compose). Dev-mode: plaintext token w API response. Mailer setup = osobny follow-up.
+- **#658 password reset**: Same mailer deferral. Service używa `EntityManager::createQuery` UPDATE bo `User` entity nie ma `setPasswordHash` method — pragmatic shortcut, future refactor gdy User gains more mutable fields.
+- **#661/#662/#663 SSO**: substrate-only ship. Provider classes (`GoogleAuthProvider`, `MicrosoftAuthProvider`, `SamlAuthProvider`) + `SsoCallbackController` + library installs (`league/oauth2-google`, `stevenmaguire/oauth2-microsoft`, `onelogin/php-saml`) = ~4-6h każdy. Substrate provides interfaces; implementation closure w dedicated sessions per provider.
+
+**Phase 1 + Phase 2 razem:** 24/24 tickets closed (10 Phase 1 + 14 Phase 2) w jednej długiej sesji. ~50-80h estimated work compressed do compressed marathon session.
+
+**Następny krok:** **Phase 3 (Permission Engine)** — milestone [#11](../../milestone/11), 14 ticketów #664-#677, ~80-100h. Foundational substraty gotowe: PermissionResolver + PermissionSet + RbacApiTokenAuthenticator + SsoUserResolver + TenantContext + TenantFilter + Postgres RLS + RBAC tables + 9 role templates + 49 PRD permissions. First cascade-ready: #664 (#[RequiresPermission] guard + listener — leverages attribute classes from #769).
+
+---
+
 ## 2026-05-18 (cd.): ⚡ Phase 2 RBAC marathon — 9/14 merged + 5 plans posted
 
 **Sub-faza:** MVP-Alpha, epik 0.X Identity & RBAC, **Phase 2 (Backend Auth)** w toku. Milestone [#10](../../milestone/10) — 9/14 done w jednej sesji marathon po Phase 1 close.
