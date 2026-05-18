@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ tenant_name }} — Zaproszenie</title>
+</head>
+<body style="font-family: -apple-system, system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; color: #1a1a1a;">
+    <h1 style="font-size: 20px;">Zaproszenie do {{ tenant_name }}</h1>
+
+    <p>Hej {{ recipient_email }},</p>
+
+    <p>
+        <strong>{{ invited_by_email }}</strong> zaprasza Cię do dołączenia do
+        organizacji <strong>{{ tenant_name }}</strong> w Cortex PIM jako
+        <strong>{{ role_name }}</strong>.
+    </p>
+
+    <p>Kliknij w link poniżej żeby zaakceptować zaproszenie i ustawić hasło:</p>
+
+    <p>
+        <a href="{{ accept_url }}" style="display: inline-block; background: #0070f3; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">
+            Akceptuj zaproszenie
+        </a>
+    </p>
+
+    <p style="color: #6b7280; font-size: 14px;">
+        Link wygasa <strong>{{ expires_at|date('Y-m-d H:i') }}</strong> (7 dni od wystawienia).
+        Jeśli nie poprosiłeś o to zaproszenie, zignoruj ten email.
+    </p>
+
+    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 32px 0;">
+
+    <p style="color: #9ca3af; font-size: 12px;">
+        Cortex PIM • {{ tenant_name }}
+    </p>
+</body>
+</html>

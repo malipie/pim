@@ -15,7 +15,12 @@ use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use LogicException;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Address;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -53,6 +58,9 @@ final class InvitationService
         private readonly RoleRepositoryInterface $roles,
         private readonly MagicLinkTokenHasher $tokenHasher,
         private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly MailerInterface $mailer,
+        private readonly LoggerInterface $logger,
+        private readonly string $appBaseUrl = 'https://pim.localhost',
     ) {
     }
 
@@ -88,6 +96,32 @@ final class InvitationService
         );
 
         $this->invitations->save($invitation);
+
+        // Send invitation email (Mailpit catches in dev — see https://mail.pim.localhost).
+        // Failure to send is logged but does NOT block the create flow — the
+        // operator can re-send via Phase 5 UI, and the dev-mode token return
+        // covers test scenarios.
+        try {
+            $email = new TemplatedEmail()
+                ->from(new Address('noreply@pim.localhost', 'Cortex PIM'))
+                ->to(new Address($email))
+                ->subject(\sprintf('Zaproszenie do %s — Cortex PIM', $tenant->getName()))
+                ->htmlTemplate('email/invitation.html.twig')
+                ->context([
+                    'recipient_email' => $email,
+                    'tenant_name' => $tenant->getName(),
+                    'invited_by_email' => $invitedBy->getEmail(),
+                    'role_name' => $role->getName(),
+                    'accept_url' => \sprintf('%s/invitations/%s/accept', $this->appBaseUrl, $plaintext),
+                    'expires_at' => $expiresAt,
+                ]);
+            $this->mailer->send($email);
+        } catch (TransportExceptionInterface $e) {
+            $this->logger->warning('Invitation email failed to send', [
+                'invitation_id' => $invitation->getId()->toRfc4122(),
+                'reason' => $e->getMessage(),
+            ]);
+        }
 
         return ['invitation' => $invitation, 'token' => $plaintext];
     }
