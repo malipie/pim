@@ -130,6 +130,18 @@ class User extends AggregateRoot implements UserInterface, PasswordAuthenticated
         return $this->password;
     }
 
+    /**
+     * Swap the stored password hash. The controller layer is responsible
+     * for hashing the plaintext before calling this (so the entity stays
+     * agnostic of the hashing strategy) and for verifying the previous
+     * password — this method is intentionally low-level and does NOT
+     * re-authenticate. See {@see \App\Identity\Presentation\Controller\ChangePasswordController}.
+     */
+    public function changePassword(string $newPasswordHash): void
+    {
+        $this->password = $newPasswordHash;
+    }
+
     public function getCreatedAt(): DateTimeImmutable
     {
         return $this->createdAt;

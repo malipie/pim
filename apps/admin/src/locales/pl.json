@@ -86,6 +86,32 @@
       "toast_error": "Nie udało się zapisać zmian",
       "error_loading": "Nie udało się załadować konfiguracji menu."
     },
+    "security": {
+      "title": "Bezpieczeństwo",
+      "intro": "Zmiana hasła i MFA. Pełne zarządzanie sesjami i klucze sprzętowe dochodzą w kolejnych ticketach.",
+      "change_password": {
+        "title": "Zmień hasło",
+        "intro": "Potwierdź obecne hasło i wpisz nowe. Po zapisaniu zostaniesz wylogowany — zaloguj się ponownie nowym hasłem."
+      },
+      "field_current": "Obecne hasło",
+      "field_new": "Nowe hasło",
+      "field_confirm": "Powtórz nowe hasło",
+      "submit": "Zmień hasło",
+      "submitting": "Zmieniam...",
+      "toast_success": "Hasło zostało zmienione. Zaloguj się ponownie.",
+      "error_wrong_current": "Obecne hasło jest niepoprawne.",
+      "error_too_short": "Nowe hasło musi mieć co najmniej {{min}} znaków.",
+      "error_mismatch": "Hasła nie są identyczne.",
+      "error_generic": "Nie udało się zmienić hasła. Spróbuj ponownie.",
+      "strength": {
+        "label": "Siła hasła",
+        "empty": "—",
+        "weak": "Słabe",
+        "fair": "Średnie",
+        "good": "Dobre",
+        "strong": "Silne"
+      }
+    },
     "billing": {
       "title": "Subskrypcja",
       "intro": "Aktualny plan tenanta. Pełna integracja z bramką płatności pojawi się w Fazie 1 — na razie zmiana planu wymaga kontaktu z supportem.",
