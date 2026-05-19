@@ -28,9 +28,14 @@ if [ "${1#-}" != "$1" ]; then
     set -- frankenphp run "$@"
 fi
 
-# Run the seed guard only on dev / test. The command itself rechecks
-# APP_ENV but the early bail saves a kernel boot in prod containers.
-if [ "${APP_ENV:-dev}" = "dev" ] || [ "${APP_ENV:-dev}" = "test" ]; then
+# Run the seed guard only on dev / test, and never in CI — Playwright's
+# workflow drives migrations + fixtures explicitly via `bin/console
+# doctrine:migrations:migrate` after the container is up, and the seed
+# guard's `pim:db:reset --with-fixtures` would race against that step
+# (it creates the schema first, then the workflow's `migrations:migrate`
+# trips "relation already exists"). GitHub Actions exports CI=true on
+# every job; honour it as the universal "don't auto-mutate the DB" flag.
+if [ "${CI:-}" != "true" ] && { [ "${APP_ENV:-dev}" = "dev" ] || [ "${APP_ENV:-dev}" = "test" ]; }; then
     if [ -x /app/bin/console ]; then
         echo "[entrypoint] Running pim:dev:ensure-seeded (env=${APP_ENV:-dev})"
         php /app/bin/console pim:dev:ensure-seeded --quiet-when-noop --no-interaction \
