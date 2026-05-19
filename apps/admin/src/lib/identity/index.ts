@@ -29,3 +29,5 @@ export {
   useCanIAny,
   useIdentity,
 } from './use-identity';
+
+export { usePermissionInvalidationSse } from './use-permission-invalidation-sse';
