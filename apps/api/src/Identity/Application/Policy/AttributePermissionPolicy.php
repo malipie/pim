@@ -58,7 +58,7 @@ use Symfony\Component\Uid\Uuid;
  * 3-state values — the serializer composes them with the integration
  * flag for the final response shape.
  */
-final readonly class AttributePermissionPolicy
+readonly class AttributePermissionPolicy
 {
     public function __construct(
         private Connection $connection,
