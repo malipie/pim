@@ -115,6 +115,30 @@
         "active": "Active",
         "disabled": "Deactivated"
       }
+    },
+    "roles": {
+      "title": "Roles",
+      "intro": "Seeded system templates + per-tenant custom roles. Permission editing, duplicating and creating new custom roles arrive in follow-up tickets.",
+      "create_cta": "Create custom role",
+      "create_pending_hint": "Custom role builder coming in #696.",
+      "col_name": "Name",
+      "col_type": "Type",
+      "col_permissions": "Permissions",
+      "col_user_count": "Users / created",
+      "col_actions": "Actions",
+      "permissions_count_one": "{{count}} permission",
+      "permissions_count_other": "{{count}} permissions",
+      "permissions_count": "{{count}} permissions",
+      "created_at": "since {{date}}",
+      "empty": "No roles available for this tenant.",
+      "error_loading": "Could not load roles list.",
+      "row_actions": "Row actions (coming soon)",
+      "system_immutable_hint": "System roles are immutable — create a custom role if you need different permissions.",
+      "actions_pending_hint": "Edit / duplicate / delete land in #696.",
+      "type": {
+        "system": "System",
+        "custom": "Custom"
+      }
     }
   },
   "catalogs_pdf": {
