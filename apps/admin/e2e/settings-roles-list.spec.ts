@@ -25,13 +25,15 @@ test('Settings → Roles list — smoke', async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByRole('table')).toBeVisible();
 
-  // The 4 seeded global roles must each render with a System badge. We
-  // scope through the table to avoid cross-matching the sidebar nav item.
+  // The 4 seeded global roles must each render. Use `.first()` because
+  // each role surfaces both the human-readable name ("Viewer") and the
+  // monospaced code identifier ("viewer") — Playwright's strict mode
+  // refuses the assertion otherwise.
   const table = page.getByRole('table');
-  await expect(table.getByText(/super admin/i)).toBeVisible();
-  await expect(table.getByText(/catalog manager/i)).toBeVisible();
-  await expect(table.getByText(/integration manager/i)).toBeVisible();
-  await expect(table.getByText(/^viewer$/i)).toBeVisible();
+  await expect(table.getByText(/super admin/i).first()).toBeVisible();
+  await expect(table.getByText(/catalog manager/i).first()).toBeVisible();
+  await expect(table.getByText(/integration manager/i).first()).toBeVisible();
+  await expect(table.getByText('Viewer', { exact: true })).toBeVisible();
   // At least one System badge (capitalised) must be visible. The custom
   // path isn't seeded in dev, so we don't assert the Custom badge here.
   await expect(table.getByText(/^system$/i).first()).toBeVisible();
