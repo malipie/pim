@@ -15,6 +15,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
 
+import { isMenuRefVisible, useIdentity } from '@/lib/identity';
 import { type EffectiveMenuItem, useEffectiveMenu } from '@/lib/use-effective-menu';
 import { cn } from '@/lib/utils';
 
@@ -147,11 +148,22 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const { t } = useTranslation();
 
   const { data, isError } = useEffectiveMenu();
+  const { identity } = useIdentity();
 
   // While loading on a fresh reload, show the fallback list — without it
   // the sidebar flashes empty for ~50-200ms on every hard navigation.
   // On error, the fallback also kicks in (graceful degradation).
-  const items: EffectiveMenuItem[] = data && !isError ? data.visible : FALLBACK_ITEMS;
+  const rawItems: EffectiveMenuItem[] = data && !isError ? data.visible : FALLBACK_ITEMS;
+
+  // RBAC-P4-005 (#682) — second-line filter against the identity store.
+  // Backend `useEffectiveMenu` already filters server-side per Phase 6
+  // retrofit; this pass hides any leftover entry the SPA cached before
+  // a permission revoke / role change landed (the Mercure invalidation
+  // in RBAC-P4-010 #687 keeps the cache fresh between refreshes).
+  // Items without an entry in MENU_PERMISSIONS are treated as public.
+  const items: EffectiveMenuItem[] = rawItems.filter((item) =>
+    isMenuRefVisible(identity, item.ref),
+  );
 
   const activeModulesCount = items.filter((item) => !item.comingSoon).length;
 
