@@ -144,6 +144,10 @@ services:
       MEILI_KEY: ${MEILI_MASTER_KEY:-masterKeyPleaseChangeMe}
       TRUSTED_PROXIES: 127.0.0.1,REMOTE_ADDR
       TRUSTED_HOSTS: '^pim\.localhost$$|^localhost$$|^api$$'
+      # CI sentinel — propagated from GitHub Actions so docker-entrypoint.sh
+      # can skip the dev seed guard (Playwright workflow drives migrations
+      # itself, see apps/api/docker-entrypoint.sh).
+      CI: ${CI:-}
     expose:
       - "80"
     # Live-mount the source tree so iterating on PHP code does not require a

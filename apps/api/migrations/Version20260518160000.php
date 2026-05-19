@@ -135,7 +135,7 @@ final class Version20260518160000 extends AbstractMigration
                 new_value JSON DEFAULT NULL,
                 permission_check_result VARCHAR(32) DEFAULT NULL,
                 cross_tenant_access BOOLEAN NOT NULL DEFAULT FALSE,
-                special_flags JSON NOT NULL DEFAULT '[]',
+                special_flags JSONB NOT NULL DEFAULT '[]'::jsonb,
                 ip_address VARCHAR(45) DEFAULT NULL,
                 user_agent TEXT DEFAULT NULL,
                 created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,

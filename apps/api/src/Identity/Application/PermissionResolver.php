@@ -36,7 +36,7 @@ use Symfony\Contracts\Cache\TagAwareCacheInterface;
  * include attribute_*_permissions — those resolve separately via
  * AttributePermissionPolicy.
  */
-final class PermissionResolver
+final class PermissionResolver implements PermissionResolverInterface
 {
     private const string CACHE_KEY_PREFIX = 'permissions';
     private const int CACHE_TTL_SECONDS = 300; // 5 min per ticket §"Risk flags"
@@ -62,8 +62,8 @@ final class PermissionResolver
         return $this->cache->get($cacheKey, function (ItemInterface $item) use ($tenantId, $userId): PermissionSet {
             $item->expiresAfter(self::CACHE_TTL_SECONDS);
             $item->tag([
-                'user:'.$userId,
-                'tenant:'.$tenantId,
+                'user_'.$userId,
+                'tenant_'.$tenantId,
             ]);
 
             return $this->loadFromDatabase($tenantId, $userId);
@@ -75,7 +75,7 @@ final class PermissionResolver
      */
     public function invalidateUser(string $tenantId, string $userId): void
     {
-        $this->cache->invalidateTags(['user:'.$userId]);
+        $this->cache->invalidateTags(['user_'.$userId]);
     }
 
     /**
@@ -83,7 +83,7 @@ final class PermissionResolver
      */
     public function invalidateRole(string $roleId): void
     {
-        $this->cache->invalidateTags(['role:'.$roleId]);
+        $this->cache->invalidateTags(['role_'.$roleId]);
     }
 
     /**
@@ -91,7 +91,7 @@ final class PermissionResolver
      */
     public function invalidateTenant(string $tenantId): void
     {
-        $this->cache->invalidateTags(['tenant:'.$tenantId]);
+        $this->cache->invalidateTags(['tenant_'.$tenantId]);
     }
 
     public static function cacheKeyFor(string $tenantId, string $userId): string
@@ -105,14 +105,19 @@ final class PermissionResolver
         // user_role_assignments is the new junction with scope columns (RBAC-P1-008);
         // legacy `user_roles` M2M (Sprint-0 path) stays operational and is consulted
         // by the secondary query below until #644 delta migrations consolidate.
+        // PostgreSQL `json` columns have no equality operator, so DISTINCT
+        // on the raw json column errors out (`could not identify an
+        // equality operator for type json`). Cast to text — dedup happens
+        // on string form, which is fine because mergeScope() re-decodes
+        // the JSON below before producing the final list.
         $sql = <<<'SQL'
-                SELECT DISTINCT p.code, ura.locale_scope, ura.channel_scope, ura.attribute_group_scope
+                SELECT DISTINCT p.code, ura.locale_scope::text AS locale_scope, ura.channel_scope::text AS channel_scope, ura.attribute_group_scope::text AS attribute_group_scope
                 FROM user_role_assignments ura
                 INNER JOIN role_permissions rp ON rp.role_id = ura.role_id
                 INNER JOIN permissions p ON p.id = rp.permission_id
                 WHERE ura.user_id = :user_id
                 UNION
-                SELECT DISTINCT p.code, '[]'::json AS locale_scope, '[]'::json AS channel_scope, '[]'::json AS attribute_group_scope
+                SELECT DISTINCT p.code, '[]' AS locale_scope, '[]' AS channel_scope, '[]' AS attribute_group_scope
                 FROM user_roles ur
                 INNER JOIN role_permissions rp ON rp.role_id = ur.role_id
                 INNER JOIN permissions p ON p.id = rp.permission_id

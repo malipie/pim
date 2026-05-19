@@ -44,17 +44,23 @@ use Doctrine\Migrations\AbstractMigration;
  */
 final class Version20260518170000 extends AbstractMigration
 {
+    // user_role_assignments is intentionally excluded — it has no tenant_id
+    // column (the user_id FK to a tenant-scoped users row supplies the
+    // boundary). Trying to apply a tenant-isolation policy on it errors
+    // with "column tenant_id does not exist" on every fresh database.
+    // Phase 3 ticket follow-up adds a junction-aware policy if benchmarks
+    // justify the extra layer; for now TenantFilter + the parent table's
+    // RLS keep the join tenant-safe.
     private const array RLS_TABLES = [
         'api_tokens',
         'invitations',
-        'user_role_assignments',
         'user_tenant_memberships',
         'audit_logs',
     ];
 
     public function getDescription(): string
     {
-        return 'RBAC-P2-005 — enable RLS + tenant-isolation policy on 5 RBAC tables (api_tokens, invitations, user_role_assignments, user_tenant_memberships, audit_logs)';
+        return 'RBAC-P2-005 — enable RLS + tenant-isolation policy on 4 RBAC tables (api_tokens, invitations, user_tenant_memberships, audit_logs)';
     }
 
     public function up(Schema $schema): void
