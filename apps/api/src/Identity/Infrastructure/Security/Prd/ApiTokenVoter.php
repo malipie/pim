@@ -37,6 +37,8 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
  * fit — this voter implements its own check directly. Cross-tenant
  * tokens never authorise even with `all.view_revoke`, because that code
  * is tenant-scoped.
+ *
+ * @extends Voter<string, ApiToken|class-string<ApiToken>>
  */
 final class ApiTokenVoter extends Voter
 {

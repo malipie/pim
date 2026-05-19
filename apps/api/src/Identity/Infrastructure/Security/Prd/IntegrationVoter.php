@@ -37,6 +37,8 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
  * Last-used IP redaction (per ticket discussion) is a serializer concern
  * (RBAC-P3-012 #675), not a voter concern — this voter only decides
  * whether the action is allowed, not which fields the response carries.
+ *
+ * @extends Voter<string, object|string>
  */
 final class IntegrationVoter extends Voter
 {
