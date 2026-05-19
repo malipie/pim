@@ -244,3 +244,11 @@ parameters:
             - App\Catalog\Domain\ObjectKind
         App\Identity\Infrastructure\Security\Prd\AssetVoter:
             - App\Asset\Domain\Entity\Asset
+        # RBAC-P3-004 (#667) — modeling-row voters under Prd\. Each Voter
+        # legitimately references the resource class it protects.
+        App\Identity\Infrastructure\Security\Prd\ObjectTypeVoter:
+            - App\Catalog\Domain\Entity\ObjectType
+        App\Identity\Infrastructure\Security\Prd\AttributeVoter:
+            - App\Catalog\Domain\Entity\Attribute
+        App\Identity\Infrastructure\Security\Prd\AttributeGroupVoter:
+            - App\Catalog\Domain\Entity\AttributeGroup
