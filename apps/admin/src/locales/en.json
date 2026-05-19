@@ -63,6 +63,7 @@
       "users": "Users",
       "roles": "Roles",
       "security": "Password policy, 2FA",
+      "billing": "Subscription",
       "ai": "AI configuration"
     },
     "placeholder": {
@@ -82,6 +83,22 @@
       "protected_tooltip": "This item is required and cannot be hidden",
       "toast_error": "Failed to save changes",
       "error_loading": "Could not load menu configuration."
+    },
+    "billing": {
+      "title": "Subscription",
+      "intro": "Current tenant plan. The full payment-gateway integration ships in Phase 1 — plan changes go through support until then.",
+      "current_plan_label": "Current plan",
+      "upgrade_hint": "Need to change your plan? Use the button below to message support.",
+      "coming_soon_title": "Billing integration coming soon",
+      "coming_soon_description": "MVP does not charge inside PIM — Stripe + VAT invoices land in Phase 1. Support will adjust the plan manually and send a proforma invoice in the meantime.",
+      "contact_support": "Contact support",
+      "forbidden_title": "Access denied",
+      "forbidden_description": "Only the tenant Owner can see the Subscription page. Reach out to your administrator if you need access.",
+      "plans": {
+        "starter": "Starter",
+        "pro": "Pro",
+        "enterprise": "Enterprise"
+      }
     },
     "users": {
       "title": "Users",

@@ -190,6 +190,10 @@ const IntegrationsLayout = lazyPage(
   'IntegrationsLayout',
 );
 const AiSettingsPage = lazyPage(() => import('@/features/settings/ai'), 'AiSettingsPage');
+const BillingSettingsPage = lazyPage(
+  () => import('@/features/settings/billing'),
+  'BillingSettingsPage',
+);
 const LocalesSettingsPage = lazyPage(
   () => import('@/features/settings/locales'),
   'LocalesSettingsPage',
@@ -421,6 +425,7 @@ function App() {
                   <Route path="users" element={<UsersSettingsPage />} />
                   <Route path="roles" element={<RolesSettingsPage />} />
                   <Route path="security" element={<SecuritySettingsPage />} />
+                  <Route path="billing" element={<BillingSettingsPage />} />
                   <Route path="ai" element={<AiSettingsPage />} />
                 </Route>
                 {/* Top-level Integracje hub — łączy Imports MVP (epik 0.13)

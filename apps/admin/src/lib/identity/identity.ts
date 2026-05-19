@@ -15,7 +15,7 @@ export interface MeResponse {
   email: string;
   /** Symfony Security role strings (legacy + scoped roles). */
   roles: string[];
-  tenant: { id: string; code: string; name: string } | null;
+  tenant: { id: string; code: string; name: string; plan?: string } | null;
   last_login_at: string | null;
   /** PRD §3.2 permission codes — flat strings like `products.view`. */
   permissions: string[];
@@ -37,7 +37,7 @@ export interface Identity {
   id: string;
   email: string;
   roles: string[];
-  tenant: { id: string; code: string; name: string } | null;
+  tenant: { id: string; code: string; name: string; plan?: string } | null;
   lastLoginAt: string | null;
   permissions: ReadonlySet<string>;
   localeScope: string[];

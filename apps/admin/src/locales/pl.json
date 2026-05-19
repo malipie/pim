@@ -65,6 +65,7 @@
       "users": "Użytkownicy",
       "roles": "Role",
       "security": "Polityka Haseł, 2FA",
+      "billing": "Subskrypcja",
       "ai": "Konfiguracja AI"
     },
     "placeholder": {
@@ -84,6 +85,22 @@
       "protected_tooltip": "Ta pozycja jest wymagana i nie może być ukryta",
       "toast_error": "Nie udało się zapisać zmian",
       "error_loading": "Nie udało się załadować konfiguracji menu."
+    },
+    "billing": {
+      "title": "Subskrypcja",
+      "intro": "Aktualny plan tenanta. Pełna integracja z bramką płatności pojawi się w Fazie 1 — na razie zmiana planu wymaga kontaktu z supportem.",
+      "current_plan_label": "Aktualny plan",
+      "upgrade_hint": "Chcesz zmienić plan? Kliknij niżej, żeby napisać do supportu.",
+      "coming_soon_title": "Pełna integracja billingu w przygotowaniu",
+      "coming_soon_description": "W MVP nie pobieramy płatności w PIM — Stripe + faktury VAT dochodzą w Fazie 1. Do tego czasu support dopasuje plan ręcznie i prześle fakturę proformę.",
+      "contact_support": "Skontaktuj się z supportem",
+      "forbidden_title": "Brak dostępu",
+      "forbidden_description": "Tylko Owner tenanta widzi sekcję Subskrypcja. Skontaktuj się z administratorem, jeśli potrzebujesz dostępu.",
+      "plans": {
+        "starter": "Starter",
+        "pro": "Pro",
+        "enterprise": "Enterprise"
+      }
     },
     "users": {
       "title": "Użytkownicy",

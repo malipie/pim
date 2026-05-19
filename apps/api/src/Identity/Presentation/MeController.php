@@ -80,6 +80,11 @@ final readonly class MeController
                 'id' => $tenant->getId()->toRfc4122(),
                 'code' => $tenant->getCode(),
                 'name' => $tenant->getName(),
+                // RBAC-P5-016 (#706) — Settings → Billing placeholder
+                // surfaces the current plan tier read-only. Phase 1 ships
+                // the actual billing integration; until then this field
+                // is the only signal the placeholder page consumes.
+                'plan' => $tenant->getPlan(),
             ],
             'last_login_at' => $user->getLastLoginAt()?->format(DateTimeInterface::ATOM),
             'permissions' => $permissions->getCodes(),
