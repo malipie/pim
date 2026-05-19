@@ -1,5 +1,68 @@
 # Current Status
 
+## 2026-05-19/20: 🚧 Phase 5 RBAC w trakcie — 4/22 ticketów shipped, marathon bypass
+
+**Tryb:** AUTONOMOUS_MODE: ON w CLAUDE.md + bypass mode w sesji per operator instruction. EPIK MARATHON RULE — każdy ticket dostaje własny branch + PR + CI + merge, bez bundlingu.
+
+**Zamknięte (merged into main):**
+
+| Ticket | PR | Scope | Smoke verification |
+|---|---|---|---|
+| #691 Users list | [#819](../../pull/819) | `GET /api/users` + `/settings/users` table z search/status/role filter + pager 50/page | ✅ 200, totalItems: 1 (admin), no password/totp_secret leak, status filter active/disabled, search debounce 300ms |
+| #695 Roles list | [#820](../../pull/820) | `GET /api/roles` + `/settings/roles` table z System/Custom badges + user_count + permissions_count | ✅ 200, 4 system roles, super_admin user_count=1, permissions_count 15-76 per role |
+| #706 Billing placeholder | [#821](../../pull/821) | Owner-gated `/settings/billing` + extend `/api/auth/me` o `tenant.plan` (Tenant::PLAN_*) | ✅ tenant.plan: "starter", PermissionGate(user.admin) restricts non-owners |
+| #708 403 polish + modals | [#822](../../pull/822) | Polished Forbidden403Page (icon, back/logout, debug details), LastAdminProtectionModal + OwnerUniquenessModal (standalone, await #693/#694 wiring) | ✅ render + back history fallback + logout drains auth provider |
+
+**Architektoniczne decyzje (świadome odejścia z PRD):**
+
+- **Permission gate:** wszystkie Phase 5 endpointy gatowane na `user.admin` (RbacMatrix seeded). PRD §3.2 mówi `settings.users.manage` / `settings.roles.manage` / `settings.billing.manage` — ale RbacMatrix nie seeduje tych kodów. Phase 6 retrofit (#720+) doda PRD codes + zmigruje gate. Do tego czasu `user.admin` jest super-admin-only proxy.
+- **Custom roles tylko czytane:** #695 listuje tenant custom roles ale create/edit nie ma — buttons disabled z hintem na #696. Custom role builder UI jest w innym tickecie.
+- **Action buttons across Wave 1:** wszystkie 3-dot row actions w Users i Roles list są stubs (disabled z hintem). Wire dochodzi przy #692/#693/#694 (Users) i #696 (Roles).
+- **Tenant.plan exposed in `/api/auth/me`:** zamiast osobnego `/api/billing/info` endpointu, plan tier siedzi na bootstrap response. Mniej round-tripów, prostsze cache invalidation.
+
+**Otwarte (Wave 2-4):**
+
+| Wave | Tickety |
+|---|---|
+| Wave 2 (po Wave 1) | #692 invite, #693 edit user, #694 deactivate, #696 role builder, #700 token wizard, #701 revoke token |
+| Wave 3 | #697 attribute permissions tab (PRD §3.5 cross-ref required), #698 auto-grant + scope |
+| Wave 4 | #699 API tokens list, #702 password change, #703 MFA, #704 SSO config, #705 tenant config, #707 accept invitation, #709-#712 Super Admin panel |
+
+**Workflow ustalony dla Phase 5 (bypass mode):**
+1. Branch z latest main (rebase against merged PRs jeśli konflikt)
+2. Plan Mode comment do GH issue (skompresowany format)
+3. BE + FE + i18n + Playwright spec (lean — tylko 1 e2e per ticket)
+4. PHPStan max + Biome strict + tsc-noEmit + PHPUnit + Playwright lokalnie
+5. Smoke test na żywym `pim.localhost` z curl + DevTools verification
+6. Commit z Conventional Commits + PR z `Closes #N` body
+7. CI poll → merge → continue
+
+**Phase 4 status (dotychczas niezdone w main):**
+- #685 global HTTP interceptor — `useHttpErrorToast` shipped w #818 (PR commit `267aa23`) ale issue pozostaje OPEN. **Honestly closed = jeszcze nie**.
+- #683 tenant-switch dropdown — open
+- #688 Cmd+K palette permission filtering — open  
+- #689 MFA wizard UI — open, blocker dla #703 (P5-013 MFA UI)
+- #690 password reset UI — open
+- #679 httpOnly cookie + JWT refresh — open
+
+Żaden Phase 4 open ticket NIE jest hard blocker dla Wave 1-3 Phase 5. #689 → blocker dla Wave 4 #703 only.
+
+**Pattern problemu z e2e (lessons):**
+- Playwright strict-mode łapie duplikat `getByText` gdy ten sam string jest w sidebar + table (user menu pokazuje admin email obok tabeli)
+- Fix: `getByRole('table').getByText(...)` + `.first()` gdy konieczne
+- Auth-rate-limiter shared per IP per 15min → 5/IP limit szybko zjedzony przy wielu specs
+
+**Live-stack smoke routine (zestandaryzowana dla każdego ticketu):**
+```bash
+JWT=$(curl -sk -X POST https://pim.localhost/api/auth/login -H "Content-Type: application/json" \
+  -d '{"email":"admin@demo.localhost","password":"changeme"}' | python3 -c "import json,sys;print(json.load(sys.stdin)['token'])")
+curl -sk "https://pim.localhost/api/<resource>" -H "Authorization: Bearer $JWT" | python3 -m json.tool
+```
+
+Po każdym `composer fixtures:load` lub PHPUnit Api/* potrzebny `docker compose restart api` żeby refresh FrankenPHP worker route cache.
+
+---
+
 ## 2026-05-18 (TRULY final): 🏁 Phase 2 RBAC end-to-end ZAMKNIĘTY — 14/14 testable na live stack
 
 **Re-audit po operator challenge** ("zamknięte = zamknięte"). Honest closure każdego ticketu z manual smoke test verification.
