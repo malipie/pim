@@ -19,6 +19,7 @@ export {
   type RestrictedFieldEnvelope,
   type RestrictedFieldValue,
 } from './restricted-field';
+export { useHttpErrorToast } from './use-http-error-toast';
 export {
   IDENTITY_QUERY_KEY,
   useCanEditAttributeGroup,
