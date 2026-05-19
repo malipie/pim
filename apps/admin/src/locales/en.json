@@ -84,6 +84,32 @@
       "toast_error": "Failed to save changes",
       "error_loading": "Could not load menu configuration."
     },
+    "security": {
+      "title": "Security",
+      "intro": "Change your password and configure MFA. Full session management and hardware keys arrive in follow-up tickets.",
+      "change_password": {
+        "title": "Change password",
+        "intro": "Confirm the current password and pick a new one. You will be signed out — log back in with the new credential."
+      },
+      "field_current": "Current password",
+      "field_new": "New password",
+      "field_confirm": "Confirm new password",
+      "submit": "Change password",
+      "submitting": "Saving...",
+      "toast_success": "Password updated. Sign in again with the new password.",
+      "error_wrong_current": "The current password is incorrect.",
+      "error_too_short": "The new password must be at least {{min}} characters long.",
+      "error_mismatch": "Passwords do not match.",
+      "error_generic": "Could not change the password. Please try again.",
+      "strength": {
+        "label": "Password strength",
+        "empty": "—",
+        "weak": "Weak",
+        "fair": "Fair",
+        "good": "Good",
+        "strong": "Strong"
+      }
+    },
     "billing": {
       "title": "Subscription",
       "intro": "Current tenant plan. The full payment-gateway integration ships in Phase 1 — plan changes go through support until then.",
