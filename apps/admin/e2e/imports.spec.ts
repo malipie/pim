@@ -28,7 +28,10 @@ test.describe('Imports MVP', () => {
   // suggestions. After the fix, a CSV with three obvious column names
   // produces three mapping rows.
   test('mapping step renders rows after CSV upload', async ({ page }) => {
-    test.fixme(true, 'Pending #799: file input on /integrations/imports/new wizard not reached — step gating changed after IMP-* PRs');
+    test.fixme(
+      true,
+      'Pending #799: file input on /integrations/imports/new wizard not reached — step gating changed after IMP-* PRs',
+    );
     await loginAsAdmin(page);
     await page.goto('/integrations/imports/new');
 
@@ -55,7 +58,10 @@ test.describe('Imports MVP', () => {
   // crashing Step 3 with "Wgranie pliku nie powiodło się.: HTTP 401".
   // After the fix, the dry-run call carries auth + the KPI cards render.
   test('validation step renders KPI cards after dry-run', async ({ page }) => {
-    test.fixme(true, 'Pending #799: file input on imports wizard not reached — see sibling test fixme above');
+    test.fixme(
+      true,
+      'Pending #799: file input on imports wizard not reached — see sibling test fixme above',
+    );
     await loginAsAdmin(page);
     await page.goto('/integrations/imports/new');
 
@@ -89,7 +95,10 @@ test.describe('Imports MVP', () => {
   // ImportObjectCreator picks the value up and lands the row in the
   // object_categories junction — covered by the backend ApiTest.
   test('mapping auto-detects the category column for product imports', async ({ page }) => {
-    test.fixme(true, 'Pending #799: file input on imports wizard not reached — see sibling test fixme above');
+    test.fixme(
+      true,
+      'Pending #799: file input on imports wizard not reached — see sibling test fixme above',
+    );
     await loginAsAdmin(page);
     await page.goto('/integrations/imports/new');
 

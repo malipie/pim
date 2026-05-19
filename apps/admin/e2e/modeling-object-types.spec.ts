@@ -11,7 +11,10 @@ import { loginAsAdmin } from './helpers/auth';
  * rate limiter (5/IP/15min) is shared with the rest of the e2e run.
  */
 test('VIEW-01 Modeling · Object Types — list + detail + wizard smoke', async ({ page }) => {
-  test.fixme(true, 'Pending #799: heading selector /object types/i level=1 no longer matches the rendered Modeling shell (UI-08.9 #264 reorg). Selector needs updating.');
+  test.fixme(
+    true,
+    'Pending #799: heading selector /object types/i level=1 no longer matches the rendered Modeling shell (UI-08.9 #264 reorg). Selector needs updating.',
+  );
   await loginAsAdmin(page);
 
   // 1. List: navigate to /modeling/object-types and assert built-in section.

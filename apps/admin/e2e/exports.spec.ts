@@ -44,7 +44,10 @@ test('exports hub MVP — tabs + new flow smoke', async ({ page }) => {
 test('exports modal — sync XLSX download from list + save-as-profile lifecycle', async ({
   page,
 }) => {
-  test.fixme(true, 'Pending #799: even after the /catalog/products → /products route fix, ACME demo seed is on tenant=acme but loginAsAdmin signs in as admin@demo.localhost — the products list reads demo and finds no ACME masters. Needs `loginAsAcmeAdmin` helper or to switch the seed home tenant.');
+  test.fixme(
+    true,
+    'Pending #799: even after the /catalog/products → /products route fix, ACME demo seed is on tenant=acme but loginAsAdmin signs in as admin@demo.localhost — the products list reads demo and finds no ACME masters. Needs `loginAsAcmeAdmin` helper or to switch the seed home tenant.',
+  );
   await apiLogin(page);
 
   const profileName = `E2E-EXP-${Date.now().toString(36)}`;
