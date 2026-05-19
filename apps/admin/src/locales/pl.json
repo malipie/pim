@@ -1564,5 +1564,28 @@
       "rollback_failed": "Wycofanie importu nie powiodło się.",
       "upload_failed": "Wgranie pliku nie powiodło się."
     }
+  },
+  "rbac": {
+    "forbidden": {
+      "title": "Brak dostępu",
+      "body": "Nie masz uprawnień do tego widoku. Jeśli uważasz, że to pomyłka, skontaktuj się z administratorem tenanta.",
+      "back": "Wróć",
+      "logout": "Wyloguj",
+      "debug_details": "Szczegóły techniczne",
+      "permission_required_label": "Wymagane uprawnienie"
+    },
+    "last_admin": {
+      "title": "Nie można pozostawić tenanta bez Administratora",
+      "body": "Użytkownik {{user}} jest ostatnim Administratorem w tym tenancie.",
+      "guidance": "Przypisz rolę Administrator innemu użytkownikowi najpierw, potem wróć do tej akcji.",
+      "close": "Zamknij"
+    },
+    "owner_uniqueness": {
+      "title": "Tenant może mieć tylko jednego Ownera",
+      "body": "Rola Owner jest już przypisana innemu użytkownikowi.",
+      "body_with_owner": "Rola Owner jest już przypisana użytkownikowi {{owner}}.",
+      "guidance": "Skorzystaj z transferu właścicielstwa (Settings → Tenant) zamiast przypisywać Owner po raz drugi.",
+      "close": "Zamknij"
+    }
   }
 }

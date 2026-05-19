@@ -1522,5 +1522,28 @@
       "rollback_failed": "Rollback failed.",
       "upload_failed": "File upload failed."
     }
+  },
+  "rbac": {
+    "forbidden": {
+      "title": "Access denied",
+      "body": "You do not have permission to view this page. If you believe this is a mistake, contact your tenant administrator.",
+      "back": "Back",
+      "logout": "Sign out",
+      "debug_details": "Technical details",
+      "permission_required_label": "Required permission"
+    },
+    "last_admin": {
+      "title": "Cannot leave the tenant without an Administrator",
+      "body": "User {{user}} is the last Administrator on this tenant.",
+      "guidance": "Assign the Administrator role to another user first, then come back to this action.",
+      "close": "Close"
+    },
+    "owner_uniqueness": {
+      "title": "A tenant can only have one Owner",
+      "body": "The Owner role is already assigned to another user.",
+      "body_with_owner": "The Owner role is already assigned to {{owner}}.",
+      "guidance": "Use the ownership transfer flow (Settings → Tenant) instead of assigning Owner twice.",
+      "close": "Close"
+    }
   }
 }
