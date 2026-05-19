@@ -2,6 +2,69 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z Phase 5 Wave 1 (2026-05-19/20, #691/#695/#706/#708 shipped)
+
+### Patterns to Follow
+
+1. **`getByRole('table').getByText(...)` zamiast `getByText(...)` w Playwright** — top-bar UserMenu pokazuje admin email; tabela też pokazuje admin email; strict-mode rzuca duplicate match. Plus dla list ról: name `Viewer` + monospaced code `viewer` w tej samej komórce → użyj `.first()` lub `getByText('Viewer', { exact: true })`. Każdy nowy spec settings list ten pattern stosuje, zanim Playwright nas zaskoczy.
+
+2. **Hydra-compatible response envelope na custom controllers** — `apps/admin/src/lib/data-provider.ts` używa `{member, totalItems}`. Nowe custom controllery (`UsersListController`, `RolesListController`) zwracają tę samą obwódkę plus `meta: {page, per_page, total_pages}` jako extra info. Refine `useList` unwrapuje przez `data: data.member ?? []`, `total: data.totalItems ?? 0` bez custom branch per-resource.
+
+3. **DISTINCT na User entity z `roles json` column** — Postgres błąd: `could not identify an equality operator for type json`. PermissionResolver fix to `::text` cast. Repository fix dla M2M filtra to **EXISTS subquery** zamiast `INNER JOIN ... DISTINCT`:
+   ```php
+   $sub = $this->createQueryBuilder('u_sub')
+       ->select('u_sub.id')
+       ->innerJoin('u_sub.assignedRoles', 'r')
+       ->where('u_sub.id = u.id')
+       ->andWhere('r.id IN (:roleIds)');
+   $qb->andWhere($qb->expr()->exists($sub->getDQL()))->setParameter('roleIds', $roleIds);
+   ```
+   EXISTS nie projektuje json column → brak comparison constraint.
+
+4. **`docker compose exec -T -e APP_ENV=test api ./vendor/bin/phpunit`** — phpunit.dist.xml ma `<server name="APP_ENV" value="test" force="true" />` ale FrankenPHP worker w dev mode trzyma container env `APP_ENV=dev`. Explicit `-e APP_ENV=test` flag stabilizuje test boot — bez tego `LogicException: Could not find service "test.service_container"`. Procedure: `docker compose exec -T -e APP_ENV=test api php bin/console cache:clear --env=test` przed pierwszym `phpunit` w sesji.
+
+5. **`docker compose restart api` po nowym `#[Route]`** — FrankenPHP worker mode trzyma route cache w pamięci. Nowy route z `#[Route]` attribute pojawi się w `debug:router` po `cache:clear` ALE worker dalej widzi stary route table. Symptom: `No routes found for "/api/X/"` mimo że `php bin/console router:match /api/X` mówi OK. Fix: `docker compose restart api` (~5 sec).
+
+6. **Permission codes drift między PRD §3.2 a seeded RbacMatrix** — PRD spec: `settings.users.manage`, `settings.roles.manage`, `settings.billing.manage`. RbacMatrix seed: `user.read/write/delete/admin`, `tenant.admin`. Wave 1 gate to `user.admin` (super-admin-only). Phase 6 retrofit (#720+) migration plan: dodaj `settings.*` codes do `permissions` table, update voters, update `#[RequiresPermission]` attributes na endpointach. Każdy Wave 1+ controller komentuje to świadomie żeby Phase 6 wiedział co zmieniać.
+
+7. **`{@inheritDoc}` w impl repo to PHP-CS-Fixer noise** — interface ma full PHPDoc, impl nie powinno duplicate. PHP-CS-Fixer usuwa `{@inheritDoc}` block. Wzór: w impl repos brak doc block na metody które dziedziczą — IDE i tak read z interface.
+
+### Patterns to Avoid
+
+1. **NIE używaj `getByText(/^Viewer$/i)`** gdy `Viewer` to display name + `viewer` to code w tej samej tabeli. Polski/angielski case-insensitive regex łapie oba. Zamiast: `getByText('Viewer', { exact: true })` (case-sensitive) lub `getByText(/^viewer$/).first()`.
+
+2. **NIE assertuj `t('rbac.forbidden.title', 'fallback')` z drugim argumentem** jeśli ten string ma być przetłumaczony — to inline default, nie odbija translation file. Wzór: trzymaj wszystkie user-facing stringi w `pl.json`/`en.json`.
+
+3. **NIE forkuj branch z main PRZED rebase merged PR-ów** — gdy #695 fork z pre-#691 main, App.tsx merge conflict przy register `users`/`roles` resources. Wzór: zawsze `git checkout main && git pull` przed nowym branchem, lub `git rebase origin/main` po pushu jeśli inny PR zmergeował się w międzyczasie.
+
+4. **NIE testuj nowego `/api/<resource>` z curl PRZED `docker compose restart api`** — patrz #5 wyżej. Pierwszy curl po nowym route trafi w "No routes found" 500 error → wygląda jak bug w controllerze.
+
+### Package Quirks
+
+1. **Refine v4 `useList` return shape**: `{ result, query }` (NIE `{ data, isLoading, isError }` jak v3). Migration od v3 → v4 pattern:
+   ```ts
+   const { result, query: listQuery } = useList<T>({ resource, pagination, filters });
+   const isLoading = listQuery.isLoading;
+   const data: T[] = result?.data ?? [];
+   const total = result?.total ?? 0;
+   ```
+
+2. **PHPUnit `assert(is_array($payload))` po `$response->toArray()`** — `toArray()` returns typed array but PHPStan max sees it as `mixed`. Fix: `/** @var array<string, mixed> $payload */ $payload = $response->toArray();`. PHPStan respects PHPDoc narrowing.
+
+3. **API Platform 4 `#[Route]` on custom controllers działa**, ale routing.controllers loader cache'uje. PHPUnit (`test.service_container` boots fresh kernel) zawsze widzi nowe route'y; live stack (FrankenPHP worker) wymaga restart.
+
+### Decyzje świadome
+
+1. **#706 Tenant.plan w `/api/auth/me` zamiast `/api/billing/info`** — placeholder page tylko czyta plan tier, brak innego billing state. Dedicated endpoint dochodzi w Faza 1 razem z Stripe integration. Mniej round-tripów na bootstrap.
+
+2. **#708 protection modals ship as visual-only** — `LastAdminProtectionModal` + `OwnerUniquenessModal` mają `open` / `onOpenChange` props ale wiring (open condition) dochodzi w #693/#694. Pozwala #708 zamknąć bez dependency na deactivate flow.
+
+3. **`itemsPerPage` query param na `/api/users`** zamiast `per_page` lub `pageSize` — Refine data-provider emit `itemsPerPage` (API Platform Hydra convention). Controller accepts oba dla compatibility (`per_page` fallback w razie custom client).
+
+4. **Custom role create/edit deferred do #696** — #695 listuje custom roles z usercount ale create button shipuje disabled z hintem. Custom role builder UI to ~14-18h (matrix grid + cross-tab badges), nie skutkowe w #695 scope.
+
+---
+
 ## Lessons z Google SSO live smoke test (#661 truly closed, 2026-05-18 evening)
 
 ### Patterns to Follow
