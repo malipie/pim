@@ -14,6 +14,7 @@ use App\Identity\Infrastructure\Security\ProductVoter;
 use App\Shared\Domain\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Security\Core\Authentication\Token\NullToken;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 
@@ -139,11 +140,9 @@ final class ProductVoterTest extends TestCase
 
         $voter = new ProductVoter($this->createStub(PermissionResolverInterface::class));
 
-        $token = new UsernamePasswordToken(new \stdClass() instanceof User ? new \stdClass() : new User($tenant, 'anon@x.y', ''), 'main');
-
         self::assertSame(
             VoterInterface::ACCESS_DENIED,
-            $voter->vote(new \Symfony\Component\Security\Core\Authentication\Token\NullToken(), $product, ['view']),
+            $voter->vote(new NullToken(), $product, ['view']),
         );
     }
 
