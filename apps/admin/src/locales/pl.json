@@ -117,6 +117,30 @@
         "active": "Aktywny",
         "disabled": "Dezaktywowany"
       }
+    },
+    "roles": {
+      "title": "Role",
+      "intro": "Predefiniowane role systemowe + role customowe per tenant. Edycja uprawnień, klonowanie i tworzenie nowych ról dochodzą w kolejnych ticketach.",
+      "create_cta": "Utwórz rolę customową",
+      "create_pending_hint": "Kreator ról customowych wkrótce (#696).",
+      "col_name": "Nazwa",
+      "col_type": "Typ",
+      "col_permissions": "Uprawnienia",
+      "col_user_count": "Użytkownicy / utworzono",
+      "col_actions": "Akcje",
+      "permissions_count_one": "{{count}} uprawnienie",
+      "permissions_count_other": "{{count}} uprawnień",
+      "permissions_count": "{{count}} uprawnień",
+      "created_at": "od {{date}}",
+      "empty": "Brak ról dla tego tenanta.",
+      "error_loading": "Nie udało się załadować listy ról.",
+      "row_actions": "Akcje wiersza (wkrótce)",
+      "system_immutable_hint": "Role systemowe są niezmienne — utwórz rolę customową, jeśli potrzebujesz innych uprawnień.",
+      "actions_pending_hint": "Edycja / duplikacja / usuwanie dochodzą w #696.",
+      "type": {
+        "system": "System",
+        "custom": "Custom"
+      }
     }
   },
   "catalogs_pdf": {

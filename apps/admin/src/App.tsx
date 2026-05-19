@@ -288,6 +288,13 @@ function App() {
               list: '/settings/users',
             },
             {
+              // RBAC-P5-005 (#695) — Settings → Roles list. Lists system
+              // templates + tenant custom roles with user counts. Create/edit
+              // routes land with #696 (custom role builder).
+              name: 'roles',
+              list: '/settings/roles',
+            },
+            {
               name: 'import-sessions',
               list: '/integrations/imports/sessions',
               show: '/integrations/imports/:id',
