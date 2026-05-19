@@ -47,9 +47,9 @@ final class AuditLogScrubber
     ];
 
     /**
-     * @param array<string, mixed>|null $payload
+     * @param array<array-key, mixed>|null $payload
      *
-     * @return array<string, mixed>|null
+     * @return array<array-key, mixed>|null
      */
     public function scrub(?array $payload): ?array
     {
@@ -61,9 +61,9 @@ final class AuditLogScrubber
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param array<array-key, mixed> $payload
      *
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function scrubAssoc(array $payload): array
     {
@@ -75,7 +75,6 @@ final class AuditLogScrubber
             }
 
             if (\is_array($value)) {
-                /* @var array<string, mixed> $value */
                 $out[$key] = $this->scrubAssoc($value);
                 continue;
             }

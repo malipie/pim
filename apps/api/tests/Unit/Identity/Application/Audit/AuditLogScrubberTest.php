@@ -26,6 +26,7 @@ final class AuditLogScrubberTest extends TestCase
             'mfa_secret' => 'JBSWY3DPEHPK3PXP',
         ]);
 
+        self::assertNotNull($result);
         self::assertSame('user@alpha.localhost', $result['email']);
         self::assertSame(AuditLogScrubber::REDACTION_SENTINEL, $result['password']);
         self::assertSame(AuditLogScrubber::REDACTION_SENTINEL, $result['password_hash']);
@@ -50,10 +51,17 @@ final class AuditLogScrubberTest extends TestCase
             ],
         ]);
 
-        self::assertSame('Marcin', $result['user']['name']);
-        self::assertSame(AuditLogScrubber::REDACTION_SENTINEL, $result['user']['totp_secret']);
-        self::assertSame(AuditLogScrubber::REDACTION_SENTINEL, $result['integration']['shopify']['access_token']);
-        self::assertSame('demo-store', $result['integration']['shopify']['shop']);
+        self::assertNotNull($result);
+        $user = $result['user'];
+        $integration = $result['integration'];
+        self::assertIsArray($user);
+        self::assertIsArray($integration);
+        self::assertSame('Marcin', $user['name']);
+        self::assertSame(AuditLogScrubber::REDACTION_SENTINEL, $user['totp_secret']);
+        $shopify = $integration['shopify'];
+        self::assertIsArray($shopify);
+        self::assertSame(AuditLogScrubber::REDACTION_SENTINEL, $shopify['access_token']);
+        self::assertSame('demo-store', $shopify['shop']);
     }
 
     #[Test]
@@ -67,6 +75,7 @@ final class AuditLogScrubberTest extends TestCase
             'Access_Token' => 'shpat_xxx',
         ]);
 
+        self::assertNotNull($result);
         self::assertSame(AuditLogScrubber::REDACTION_SENTINEL, $result['Password']);
         self::assertSame(AuditLogScrubber::REDACTION_SENTINEL, $result['PASSWORD_HASH']);
         self::assertSame(AuditLogScrubber::REDACTION_SENTINEL, $result['Access_Token']);

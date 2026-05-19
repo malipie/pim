@@ -31,7 +31,7 @@ use Symfony\Component\Uid\Uuid;
  * scrubbing for sensitive fields is the {@see AuditLogScrubber}'s
  * responsibility before the entry is constructed.
  */
-final class AuditLog
+class AuditLog
 {
     /**
      * @param array<string, mixed>|null $oldValue

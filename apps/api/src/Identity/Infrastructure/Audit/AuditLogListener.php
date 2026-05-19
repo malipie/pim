@@ -75,7 +75,8 @@ final readonly class AuditLogListener
             $event->getResponse()->getStatusCode(),
         );
 
-        $route = (string) ($request->attributes->get('_route') ?? $request->getPathInfo());
+        $routeAttribute = $request->attributes->get('_route');
+        $route = \is_string($routeAttribute) && '' !== $routeAttribute ? $routeAttribute : $request->getPathInfo();
         $resourceId = $this->mapper->resolveResourceId($request->attributes->all());
 
         $user = $this->security->getUser();
