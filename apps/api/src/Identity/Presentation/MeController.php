@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation;
 
+use App\Identity\Application\PermissionResolverInterface;
 use App\Identity\Domain\Entity\User;
 use DateTimeInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -14,16 +15,37 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * GET /api/auth/me — return the principal currently authenticated by the JWT.
  *
- * Used by the admin SPA on bootstrap to populate the user menu and decide
- * which sidebar entries are reachable, and by integration clients smoke-
- * testing their token. The shape stays minimal — id, email, the resolved
- * role list, the tenant header (code + name), and `last_login_at` — so the
- * payload doubles as the boot manifest without leaking permission internals.
+ * Used by the admin SPA on bootstrap to populate the identity store
+ * (`useIdentity()` hook) and decide which sidebar entries / form fields
+ * are reachable, and by integration clients smoke-testing their token.
+ *
+ * Response shape (after RBAC-P4-001 #678):
+ *
+ *   - `id`, `email`, `roles`            — Symfony Security role strings
+ *                                          (legacy + scoped roles),
+ *   - `tenant: {id, code, name}`        — caller's tenant header,
+ *   - `last_login_at`                   — ATOM-formatted timestamp,
+ *   - `permissions: string[]`           — flat PRD §3.2 permission codes
+ *                                          aggregated from every assigned
+ *                                          role (`products.view`,
+ *                                          `settings.users.manage`, …),
+ *   - `locale_scope: string[]`          — union of role locale scopes;
+ *                                          `[]` / `["*"]` = no
+ *                                          restriction (PRD §3.6),
+ *   - `channel_scope: string[]`         — same for channels (PRD §3.7),
+ *   - `attribute_group_scope: string[]` — group narrowing for the
+ *                                          Modeler / channel-scoped
+ *                                          roles.
+ *
+ * The frontend Set-backed identity store turns the permissions array
+ * into O(1) `hasPermission(code)` lookups; locale / channel arrays
+ * drive value-edit gating in the dynamic form renderer (RBAC-P4-009).
  */
 final readonly class MeController
 {
     public function __construct(
         private Security $security,
+        private PermissionResolverInterface $resolver,
     ) {
     }
 
@@ -48,6 +70,7 @@ final readonly class MeController
         }
 
         $tenant = $user->getTenant();
+        $permissions = $this->resolver->resolve($user);
 
         return new JsonResponse([
             'id' => $user->getId()->toRfc4122(),
@@ -59,6 +82,10 @@ final readonly class MeController
                 'name' => $tenant->getName(),
             ],
             'last_login_at' => $user->getLastLoginAt()?->format(DateTimeInterface::ATOM),
+            'permissions' => $permissions->getCodes(),
+            'locale_scope' => $permissions->getLocaleScope(),
+            'channel_scope' => $permissions->getChannelScope(),
+            'attribute_group_scope' => $permissions->getAttributeGroupScope(),
         ]);
     }
 }
