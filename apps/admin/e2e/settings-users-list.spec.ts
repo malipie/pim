@@ -30,8 +30,10 @@ test('Settings → Users list — smoke', async ({ page }) => {
   await expect(page.getByRole('button', { name: /zaproś użytkownika|invite user/i })).toBeVisible();
   await expect(page.getByRole('table')).toBeVisible();
 
-  // The seeded admin user must appear in the list.
-  await expect(page.getByText('admin@demo.localhost')).toBeVisible();
+  // The seeded admin user must appear in the list. Scope the search to the
+  // table — the top-bar user menu also renders the email, so a global
+  // getByText would fail Playwright's strict-mode resolution.
+  await expect(page.getByRole('table').getByText('admin@demo.localhost')).toBeVisible();
 
   // Search → debounce → filter narrows.
   await page.getByLabel(/wyszukaj użytkowników|search users/i).fill('zzz_no_such_user');
