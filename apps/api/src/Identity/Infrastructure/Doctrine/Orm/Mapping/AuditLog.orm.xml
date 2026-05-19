@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Identity\Domain\Entity\AuditLog"
+            table="audit_logs">
+
+        <indexes>
+            <index name="idx_audit_logs_tenant" columns="tenant_id"/>
+            <index name="idx_audit_logs_user" columns="user_id"/>
+            <index name="idx_audit_logs_resource" columns="resource_type,resource_id"/>
+            <index name="idx_audit_logs_created_at" columns="created_at"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <field name="tenantId" type="uuid" column="tenant_id" nullable="true"/>
+        <field name="userId" type="uuid" column="user_id" nullable="true"/>
+        <field name="superAdminId" type="uuid" column="super_admin_id" nullable="true"/>
+
+        <field name="action" type="string" length="64"/>
+        <field name="resourceType" type="string" length="64" column="resource_type"/>
+        <field name="resourceId" type="string" length="255" column="resource_id" nullable="true"/>
+
+        <field name="oldValue" type="json" column="old_value" nullable="true"/>
+        <field name="newValue" type="json" column="new_value" nullable="true"/>
+
+        <field name="permissionCheckResult" type="string" length="32" column="permission_check_result" nullable="true"/>
+        <field name="crossTenantAccess" type="boolean" column="cross_tenant_access"/>
+        <field name="specialFlags" type="json" column="special_flags"/>
+
+        <field name="ipAddress" type="string" length="45" column="ip_address" nullable="true"/>
+        <field name="userAgent" type="text" column="user_agent" nullable="true"/>
+
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+    </entity>
+
+</doctrine-mapping>
