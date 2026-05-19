@@ -35,6 +35,8 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
  * the entity replaces it. Voter does not implement query filtering;
  * that is the responsibility of {@see \App\Identity\Application\Policy\OwnershipPolicy}
  * (RBAC-P3-010 #673) plus the service layer once AuditLog lands.
+ *
+ * @extends Voter<string, object|string>
  */
 final class AuditLogVoter extends Voter
 {
