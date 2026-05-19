@@ -237,3 +237,10 @@ parameters:
         App\Identity\Infrastructure\Security\ProductVoter:
             - App\Catalog\Domain\Entity\CatalogObject
             - App\Catalog\Domain\ObjectKind
+        # RBAC-P3-003 (#666) — sibling voters under Prd\, same reasoning:
+        # voters legitimately reference the resource class they protect.
+        App\Identity\Infrastructure\Security\Prd\CategoryVoter:
+            - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\ObjectKind
+        App\Identity\Infrastructure\Security\Prd\AssetVoter:
+            - App\Asset\Domain\Entity\Asset

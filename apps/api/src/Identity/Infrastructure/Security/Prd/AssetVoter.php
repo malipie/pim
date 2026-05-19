@@ -1,0 +1,55 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Identity\Infrastructure\Security\Prd;
+
+use App\Asset\Domain\Entity\Asset;
+use App\Identity\Infrastructure\Security\AbstractPrdVoter;
+
+/**
+ * RBAC-P3-003 (#666) — per-asset authorization aligned with the
+ * PRD §3.2 macierz permission codes for the multimedia row
+ * (`multimedia.view`, `multimedia.add_edit_own`,
+ * `multimedia.add_edit_any`, `multimedia.delete`).
+ *
+ * Subject: per ADR-009 Asset carries storage details on its own table
+ * while user-defined metadata lives on a paired `CatalogObject(kind=asset)`
+ * — see the Asset entity PHPDoc. This voter handles the storage entity
+ * directly because all asset CRUD endpoints route through it.
+ *
+ * Scope split per the Phase 3 ticket plan:
+ *   - this voter handles the **broad PRD §3.2 gate** only;
+ *   - the own-vs-any ownership semantics land in
+ *     {@see \App\Identity\Application\Policy\OwnershipPolicy} (RBAC-P3-010,
+ *     #673) — the resource currently has no `uploaded_by` column, so the
+ *     ownership policy is introduced together with the schema change in
+ *     that ticket. Until then the voter affirms whichever of
+ *     `multimedia.add_edit_own` / `multimedia.add_edit_any` the caller's
+ *     role carries; the ownership check stacks on top once #673 lands.
+ *
+ * The legacy {@see \App\Identity\Infrastructure\Security\AssetVoter}
+ * still covers the uppercase `READ`/`WRITE`/`DELETE` attribute style used
+ * by Asset.xml + Asset controllers; both run side-by-side until the
+ * Phase 6 retrofit migrates the surface over.
+ */
+final class AssetVoter extends AbstractPrdVoter
+{
+    /**
+     * @return array<string, string>
+     */
+    protected function permissionMap(): array
+    {
+        return [
+            'view' => 'multimedia.view',
+            'add_edit_own' => 'multimedia.add_edit_own',
+            'add_edit_any' => 'multimedia.add_edit_any',
+            'delete' => 'multimedia.delete',
+        ];
+    }
+
+    protected function subjectClass(): string
+    {
+        return Asset::class;
+    }
+}
