@@ -4,37 +4,34 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Security;
 
+use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\ObjectKind;
+
 /**
  * RBAC-P3-002 (#665) — per-product authorization aligned with the
  * PRD §3.2 macierz permission codes (`products.view`,
  * `products.bulk_operations`, `products.approve_pending_changes`, …).
  *
  * Subject discrimination: ADR-009 unified Product/Category/Asset into
- * the single `App\Catalog\Domain\Entity\CatalogObject` entity with a
- * kind discriminator. This voter accepts only `kind=product` instances;
+ * the single {@see CatalogObject} entity with an {@see ObjectKind}
+ * discriminator. This voter accepts only `kind=Product` instances;
  * the sibling voters (#666 CategoryVoter / AssetVoter) handle the
  * other built-in kinds. Class-level subjects (Post / GetCollection)
- * are gated by the bare FQCN match — the kind discriminator applies on
- * instances, where collection scope is enforced by Doctrine filters.
+ * are gated by the FQCN match alone — the kind discriminator applies
+ * on instances where collection scope is enforced by Doctrine filters.
  *
- * Catalog references are kept as bare strings (no `use` imports) so
- * Deptrac does not flag the Identity-Infrastructure → Catalog-Domain
- * direction. CatalogObjectVoter shipped the same compromise — voters
- * know about permissions, not domain shape.
+ * The Identity-Infrastructure → Catalog-Domain reference is allowed
+ * by an explicit Deptrac baseline entry — voters legitimately need
+ * to know the resource class they protect. Phase 6 may move the
+ * Catalog domain enums into Catalog_Contracts; this voter follows.
  *
  * Per-attribute restrictions (#671 AttributePermissionPolicy),
  * locale/channel scope (#672 LocaleChannelScopePolicy), workflow-state
  * gating (#674 WorkflowStatePolicy) hook in via separate voters /
- * policies — this voter handles only the broad PRD §3.2 gate. The
- * EndpointGuardListener (#664) calls `Security::isGranted` against
- * this voter when `#[RequiresPermission(module: 'products', action:
- * 'edit', subject: '...')]` declares a subject.
+ * policies — this voter handles only the broad PRD §3.2 gate.
  */
 final class ProductVoter extends AbstractPrdVoter
 {
-    private const string SUBJECT_FQCN = 'App\\Catalog\\Domain\\Entity\\CatalogObject';
-    private const string PRODUCT_KIND_VALUE = 'product';
-
     /**
      * @return array<string, string>
      */
@@ -52,28 +49,19 @@ final class ProductVoter extends AbstractPrdVoter
 
     protected function subjectClass(): string
     {
-        return self::SUBJECT_FQCN;
+        return CatalogObject::class;
     }
 
     protected function acceptsSubject(mixed $subject): bool
     {
         if (\is_string($subject)) {
-            return self::SUBJECT_FQCN === $subject;
+            return CatalogObject::class === $subject;
         }
 
-        if (!is_a($subject, self::SUBJECT_FQCN)) {
+        if (!$subject instanceof CatalogObject) {
             return false;
         }
 
-        if (!method_exists($subject, 'getKind')) {
-            return false;
-        }
-
-        $kind = $subject->getKind();
-        if (\is_object($kind) && property_exists($kind, 'value')) {
-            return self::PRODUCT_KIND_VALUE === $kind->value;
-        }
-
-        return self::PRODUCT_KIND_VALUE === $kind;
+        return ObjectKind::Product === $subject->getKind();
     }
 }

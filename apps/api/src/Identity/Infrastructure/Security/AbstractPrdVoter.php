@@ -105,12 +105,10 @@ abstract class AbstractPrdVoter extends Voter
             return true;
         }
 
-        if (\is_object($subject)) {
-            $subjectTenant = $this->extractTenant($subject);
-            if (null !== $subjectTenant
-                && $subjectTenant->getId()->toRfc4122() !== $user->getTenant()->getId()->toRfc4122()) {
-                return false;
-            }
+        $subjectTenant = $this->extractTenant($subject);
+        if (null !== $subjectTenant
+            && $subjectTenant->getId()->toRfc4122() !== $user->getTenant()->getId()->toRfc4122()) {
+            return false;
         }
 
         return true;
