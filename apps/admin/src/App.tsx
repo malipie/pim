@@ -281,6 +281,13 @@ function App() {
               show: '/integrations/api-configurator/:id',
             },
             {
+              // RBAC-P5-001 (#691) — Settings → Users list. The page lives at
+              // /settings/users; Refine resource registration drives the
+              // useList wiring + future create/edit routes (#692/#693).
+              name: 'users',
+              list: '/settings/users',
+            },
+            {
               name: 'import-sessions',
               list: '/integrations/imports/sessions',
               show: '/integrations/imports/:id',

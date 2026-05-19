@@ -84,6 +84,39 @@
       "protected_tooltip": "Ta pozycja jest wymagana i nie może być ukryta",
       "toast_error": "Nie udało się zapisać zmian",
       "error_loading": "Nie udało się załadować konfiguracji menu."
+    },
+    "users": {
+      "title": "Użytkownicy",
+      "intro": "Zarządzaj kontami w obrębie tenanta. Zaproszenia magic link, MFA i przypisanie ról dochodzą w kolejnych ticketach.",
+      "invite_cta": "Zaproś użytkownika",
+      "search_placeholder": "Szukaj po email lub nazwie...",
+      "search_aria": "Wyszukaj użytkowników",
+      "filter_status": "Status",
+      "filter_status_all": "Wszystkie",
+      "filter_role": "Rola",
+      "filter_role_all": "Wszystkie role",
+      "filter_role_pending_hint": "Filtr po roli dostępny po wdrożeniu zarządzania rolami (#695).",
+      "count_one": "{{count}} użytkownik",
+      "count_other": "{{count}} użytkowników",
+      "count": "{{count}} użytkowników",
+      "col_user": "Użytkownik",
+      "col_roles": "Role",
+      "col_status": "Status",
+      "col_last_login": "Ostatnie logowanie",
+      "col_actions": "Akcje",
+      "no_roles": "brak ról",
+      "row_actions": "Akcje wiersza (wkrótce)",
+      "last_login_never": "nigdy",
+      "empty_title": "Brak użytkowników",
+      "empty_description": "Żaden użytkownik nie pasuje do bieżących filtrów. Wyczyść je albo zaproś pierwszego użytkownika.",
+      "error_loading": "Nie udało się załadować listy użytkowników.",
+      "pagination_status": "Strona {{page}} z {{total_pages}}",
+      "pagination_prev": "Poprzednia strona",
+      "pagination_next": "Następna strona",
+      "status": {
+        "active": "Aktywny",
+        "disabled": "Dezaktywowany"
+      }
     }
   },
   "catalogs_pdf": {

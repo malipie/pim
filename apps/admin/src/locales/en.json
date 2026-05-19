@@ -82,6 +82,39 @@
       "protected_tooltip": "This item is required and cannot be hidden",
       "toast_error": "Failed to save changes",
       "error_loading": "Could not load menu configuration."
+    },
+    "users": {
+      "title": "Users",
+      "intro": "Manage user accounts inside this tenant. Magic-link invitations, MFA and role assignment land in follow-up tickets.",
+      "invite_cta": "Invite user",
+      "search_placeholder": "Search by email or name...",
+      "search_aria": "Search users",
+      "filter_status": "Status",
+      "filter_status_all": "All",
+      "filter_role": "Role",
+      "filter_role_all": "All roles",
+      "filter_role_pending_hint": "Role filter unlocks once role management ships (#695).",
+      "count_one": "{{count}} user",
+      "count_other": "{{count}} users",
+      "count": "{{count}} users",
+      "col_user": "User",
+      "col_roles": "Roles",
+      "col_status": "Status",
+      "col_last_login": "Last login",
+      "col_actions": "Actions",
+      "no_roles": "no roles",
+      "row_actions": "Row actions (coming soon)",
+      "last_login_never": "never",
+      "empty_title": "No users",
+      "empty_description": "No user matches the current filters. Clear them or invite the first user.",
+      "error_loading": "Could not load users list.",
+      "pagination_status": "Page {{page}} of {{total_pages}}",
+      "pagination_prev": "Previous page",
+      "pagination_next": "Next page",
+      "status": {
+        "active": "Active",
+        "disabled": "Deactivated"
+      }
     }
   },
   "catalogs_pdf": {
