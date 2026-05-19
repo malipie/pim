@@ -12,6 +12,7 @@ export {
   type Identity,
   type MeResponse,
 } from './identity';
+export { isMenuRefVisible, MENU_PERMISSIONS } from './menu-permissions';
 export {
   decideFieldMode,
   type FieldRenderMode,
