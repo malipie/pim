@@ -229,3 +229,11 @@ parameters:
             - App\Catalog\Domain\Entity\ObjectType
         App\Shared\Infrastructure\Http\RequestTenantSubscriber:
             - App\Identity\Application\CurrentTenantProvider
+        # RBAC-P3-002 (#665) — ProductVoter legitimately depends on
+        # CatalogObject + ObjectKind because the Voter protects that
+        # exact resource. Same reasoning as the existing CatalogObjectVoter
+        # pattern. Phase 6 may move both enums into Catalog_Contracts;
+        # this voter follows then.
+        App\Identity\Infrastructure\Security\ProductVoter:
+            - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\ObjectKind
