@@ -12,7 +12,13 @@ export {
   type Identity,
   type MeResponse,
 } from './identity';
-
+export {
+  decideFieldMode,
+  type FieldRenderMode,
+  isRestrictedFieldEnvelope,
+  type RestrictedFieldEnvelope,
+  type RestrictedFieldValue,
+} from './restricted-field';
 export {
   IDENTITY_QUERY_KEY,
   useCanEditAttributeGroup,
