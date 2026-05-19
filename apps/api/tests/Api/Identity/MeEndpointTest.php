@@ -69,6 +69,10 @@ final class MeEndpointTest extends ApiTestCase
         self::assertIsArray($body['tenant'] ?? null);
         self::assertSame(self::TENANT_CODE, $body['tenant']['code'] ?? null);
         self::assertSame('Demo Tenant', $body['tenant']['name'] ?? null);
+        // RBAC-P5-016 (#706) — billing page reads tenant.plan; the default
+        // for a freshly minted Tenant aggregate is "starter" (see PLAN_*
+        // constants on Tenant).
+        self::assertSame('starter', $body['tenant']['plan'] ?? null);
         self::assertArrayHasKey('last_login_at', $body);
     }
 
