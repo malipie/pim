@@ -132,6 +132,12 @@ final class TenantAuditCommand extends Command
         // rows). User-defined presets fill the column. See
         // `App\Shared\Application\SystemShipped` marker contract.
         'smart_filter_presets',
+        // RBAC-P3-013 (#676) — RBAC-aware audit log. `tenant_id` is
+        // nullable by design because Super Admin cross-tenant operations
+        // carry no tenant context (e.g. /api/admin/tenants listing).
+        // `cross_tenant_access=true` + `super_admin_id` flag those rows
+        // forensically.
+        'audit_logs',
     ];
 
     public function __construct(

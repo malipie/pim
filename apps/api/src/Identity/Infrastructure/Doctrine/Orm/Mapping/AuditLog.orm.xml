@@ -7,6 +7,13 @@
     <entity name="App\Identity\Domain\Entity\AuditLog"
             table="audit_logs">
 
+        <indexes>
+            <index name="idx_audit_logs_tenant" columns="tenant_id"/>
+            <index name="idx_audit_logs_user" columns="user_id"/>
+            <index name="idx_audit_logs_resource" columns="resource_type,resource_id"/>
+            <index name="idx_audit_logs_created_at" columns="created_at"/>
+        </indexes>
+
         <id name="id" type="uuid" column="id">
             <generator strategy="NONE"/>
         </id>
