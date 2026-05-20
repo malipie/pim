@@ -202,6 +202,7 @@ const LocalesSettingsPage = lazyPage(
 const MenuSettingsPage = lazyPage(() => import('@/features/settings/menu'), 'MenuSettingsPage');
 const RolesSettingsPage = lazyPage(() => import('@/features/settings/roles'), 'RolesSettingsPage');
 const RolesEditorRoute = lazyPage(() => import('@/features/settings/roles'), 'RolesEditorRoute');
+const SsoSettingsPage = lazyPage(() => import('@/features/settings/sso'), 'SsoSettingsPage');
 const SettingsIndex = lazyPage(() => import('@/features/settings/SettingsIndex'), 'SettingsIndex');
 const SecuritySettingsPage = lazyPage(
   () => import('@/features/settings/security'),
@@ -449,6 +450,7 @@ function App() {
                   <Route path="billing" element={<BillingSettingsPage />} />
                   <Route path="tenant" element={<TenantSettingsPage />} />
                   <Route path="ai" element={<AiSettingsPage />} />
+                  <Route path="sso" element={<SsoSettingsPage />} />
                 </Route>
                 {/* Top-level Integracje hub — łączy Imports MVP (epik 0.13)
                     + Profile API z VIEW-08 (sub-tab API Configurator). Stare

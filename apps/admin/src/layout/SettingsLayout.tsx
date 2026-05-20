@@ -1,6 +1,7 @@
 import {
   Building2,
   CreditCard,
+  Globe,
   Key,
   KeyRound,
   Languages,
@@ -29,6 +30,7 @@ const SETTINGS_NAV: readonly SettingsNavItem[] = [
   { to: '/settings/users', icon: Users, label: 'settings.nav.users' },
   { to: '/settings/roles', icon: ShieldCheck, label: 'settings.nav.roles' },
   { to: '/settings/api-tokens', icon: Key, label: 'settings.nav.api_tokens' },
+  { to: '/settings/sso', icon: Globe, label: 'settings.nav.sso' },
   { to: '/settings/security', icon: KeyRound, label: 'settings.nav.security' },
   { to: '/settings/tenant', icon: Building2, label: 'settings.nav.tenant' },
   { to: '/settings/billing', icon: CreditCard, label: 'settings.nav.billing' },
