@@ -30,9 +30,13 @@ security:
         # AND sets the rotating refresh-token cookie via LoginSuccessHandler
         # (#28). The custom handler wraps the Lexik default; it does not
         # replace JWT issuance.
+        # user_checker (RBAC-P5-021 #711) — refuses the login when the
+        # caller's tenant is suspended or soft-deleted on top of the
+        # default user-level checks.
         login:
             pattern: ^/api/auth/login$
             stateless: true
+            user_checker: App\Identity\Infrastructure\Security\TenantUserChecker
             json_login:
                 check_path: /api/auth/login
                 username_path: email
@@ -47,6 +51,7 @@ security:
         api:
             pattern: ^/api
             stateless: true
+            user_checker: App\Identity\Infrastructure\Security\TenantUserChecker
             jwt: ~
             custom_authenticators:
                 - App\ApiConfigurator\Infrastructure\Security\ApiKeyAuthenticator

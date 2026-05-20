@@ -1,14 +1,33 @@
-import { Building2, Loader2, ShieldAlert, Users } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  Ban,
+  Building2,
+  Loader2,
+  MoreHorizontal,
+  Play,
+  Plus,
+  ShieldAlert,
+  Trash2,
+  Users,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { toast } from '@/components/ui/toast';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 import { AdminTenantShowPage } from './AdminTenantShowPage';
-import type { AdminTenantSummary } from './types';
+import { CreateTenantModal } from './CreateTenantModal';
+import type { AdminTenantSummary, TenantStatus } from './types';
 
 export { AdminTenantShowPage };
 
@@ -18,9 +37,12 @@ interface ListResponse {
 }
 
 type PlanFilter = 'all' | string;
+type StatusFilter = 'all' | TenantStatus;
 
 /**
- * RBAC-P5-019 (#709) — Super Admin operator panel: tenant list.
+ * RBAC-P5-019 (#709) + RBAC-P5-021 (#711) — Super Admin operator
+ * panel: tenant list with full lifecycle CRUD (create + suspend /
+ * reactivate / soft-delete).
  *
  * Lives at `/admin/tenants` inside the existing admin app. The
  * long-term home per the ticket spec is the dedicated
@@ -30,9 +52,9 @@ type PlanFilter = 'all' | string;
  * gated by the `super_admin` role check on the backend.
  *
  * **Privacy boundary:** the wire shape carries metadata only (tenant
- * identity, plan, locale config, active-user counter). Tenant domain
- * data (products, attributes, values) is NEVER exposed here — the
- * audit row stamps `cross_tenant_access=true` on every read so the
+ * identity, plan, status, locale config, active-user counter). Tenant
+ * domain data (products, attributes, values) is NEVER exposed here —
+ * the audit row stamps `cross_tenant_access=true` on every read so the
  * forensic trail is mechanical.
  */
 export function AdminTenantsListPage() {
@@ -41,32 +63,28 @@ export function AdminTenantsListPage() {
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState<PlanFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
-  useEffect(() => {
-    let cancelled = false;
+  const reload = useCallback(() => {
     setLoading(true);
+    setError(false);
     jsonFetch<ListResponse>('/api/admin/tenants', { method: 'GET' })
-      .then((data) => {
-        if (!cancelled) setTenants(data.member);
-      })
+      .then((data) => setTenants(data.member))
       .catch((err: unknown) => {
-        if (cancelled) return;
         if ((err as { status?: number })?.status === 403) {
           setForbidden(true);
         } else {
           setError(true);
         }
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(reload, [reload]);
 
   const plans = useMemo(() => {
     const seen = new Set<string>();
@@ -78,13 +96,14 @@ export function AdminTenantsListPage() {
     const needle = search.trim().toLowerCase();
     return tenants.filter((tenant) => {
       if (planFilter !== 'all' && tenant.plan !== planFilter) return false;
+      if (statusFilter !== 'all' && tenant.status !== statusFilter) return false;
       if (needle.length > 0) {
         const haystack = `${tenant.code} ${tenant.name} ${tenant.domain ?? ''}`.toLowerCase();
         if (!haystack.includes(needle)) return false;
       }
       return true;
     });
-  }, [tenants, search, planFilter]);
+  }, [tenants, search, planFilter, statusFilter]);
 
   if (forbidden) {
     return (
@@ -98,14 +117,20 @@ export function AdminTenantsListPage() {
 
   return (
     <div className="space-y-4">
-      <header>
-        <div className="flex items-baseline gap-2">
-          <Building2 className="size-5 text-accent-violet" aria-hidden="true" />
-          <h2 className="display text-xl font-semibold tracking-tight">
-            {t('admin.tenants.title')}
-          </h2>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-baseline gap-2">
+            <Building2 className="size-5 text-accent-violet" aria-hidden="true" />
+            <h2 className="display text-xl font-semibold tracking-tight">
+              {t('admin.tenants.title')}
+            </h2>
+          </div>
+          <p className="max-w-2xl text-sm text-muted-foreground">{t('admin.tenants.intro')}</p>
         </div>
-        <p className="max-w-2xl text-sm text-muted-foreground">{t('admin.tenants.intro')}</p>
+        <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
+          <Plus className="size-4" aria-hidden="true" />
+          {t('admin.tenants.create_cta')}
+        </Button>
       </header>
 
       <div className="rounded-md border border-dashed bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -136,6 +161,19 @@ export function AdminTenantsListPage() {
               ))}
             </select>
           </label>
+          <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            <span>{t('admin.tenants.filter_status')}:</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+            >
+              <option value="all">{t('admin.tenants.filter_status_all')}</option>
+              <option value="active">{t('admin.tenants.status.active')}</option>
+              <option value="suspended">{t('admin.tenants.status.suspended')}</option>
+              <option value="deleted">{t('admin.tenants.status.deleted')}</option>
+            </select>
+          </label>
           <div className="text-xs text-muted-foreground sm:ml-auto">
             {t('admin.tenants.count', { count: filtered.length })}
           </div>
@@ -160,30 +198,35 @@ export function AdminTenantsListPage() {
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-2 text-left">{t('admin.tenants.col_tenant')}</th>
+                <th className="px-4 py-2 text-left">{t('admin.tenants.col_status')}</th>
                 <th className="px-4 py-2 text-left">{t('admin.tenants.col_plan')}</th>
                 <th className="px-4 py-2 text-left">{t('admin.tenants.col_users')}</th>
                 <th className="px-4 py-2 text-left">{t('admin.tenants.col_locales')}</th>
                 <th className="px-4 py-2 text-left">{t('admin.tenants.col_created')}</th>
+                <th className="px-4 py-2 text-right" aria-label={t('admin.tenants.col_actions')} />
               </tr>
             </thead>
             <tbody>
               {filtered.map((tenant) => (
-                <TenantRow key={tenant.id} tenant={tenant} />
+                <TenantRow key={tenant.id} tenant={tenant} onChanged={reload} />
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      <CreateTenantModal open={createOpen} onOpenChange={setCreateOpen} onSuccess={reload} />
     </div>
   );
 }
 
-function TenantRow({ tenant }: { tenant: AdminTenantSummary }) {
+function TenantRow({ tenant, onChanged }: { tenant: AdminTenantSummary; onChanged: () => void }) {
   const { i18n } = useTranslation();
   const createdAt = new Date(tenant.created_at).toLocaleDateString(i18n.language);
+  const isDeleted = tenant.status === 'deleted';
 
   return (
-    <tr className="border-t hover:bg-muted/20">
+    <tr className={cn('border-t hover:bg-muted/20', isDeleted && 'opacity-60')}>
       <td className="px-4 py-2.5">
         <Link to={`/admin/tenants/${tenant.id}`} className="block">
           <div className="text-sm font-medium hover:underline">{tenant.name}</div>
@@ -197,6 +240,9 @@ function TenantRow({ tenant }: { tenant: AdminTenantSummary }) {
             ) : null}
           </div>
         </Link>
+      </td>
+      <td className="px-4 py-2.5">
+        <StatusBadge status={tenant.status} />
       </td>
       <td className="px-4 py-2.5">
         <PlanBadge plan={tenant.plan} />
@@ -225,7 +271,109 @@ function TenantRow({ tenant }: { tenant: AdminTenantSummary }) {
         </div>
       </td>
       <td className="px-4 py-2.5 text-xs text-muted-foreground">{createdAt}</td>
+      <td className="px-4 py-2.5 text-right">
+        <TenantActions tenant={tenant} onChanged={onChanged} />
+      </td>
     </tr>
+  );
+}
+
+function TenantActions({
+  tenant,
+  onChanged,
+}: {
+  tenant: AdminTenantSummary;
+  onChanged: () => void;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+
+  const callAction = async (path: string, method: 'POST' | 'DELETE', confirmKey?: string) => {
+    if (confirmKey) {
+      const confirmText = t(confirmKey, { name: tenant.name, code: tenant.code });
+      if (!window.confirm(confirmText)) return;
+    }
+    setBusy(true);
+    try {
+      await jsonFetch(`/api/admin/tenants/${tenant.id}${path}`, {
+        method,
+        accept: 'application/json',
+      });
+      toast.success(t('admin.tenants.actions.toast_done'));
+      onChanged();
+    } catch (error: unknown) {
+      const body = (error as { body?: { detail?: string } })?.body;
+      toast.error(body?.detail ?? t('admin.tenants.actions.error'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (tenant.status === 'deleted') {
+    return (
+      <span className="text-[11px] text-muted-foreground">
+        {t('admin.tenants.actions.deleted_label')}
+      </span>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={busy}
+          aria-label={t('admin.tenants.col_actions')}
+        >
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {tenant.status === 'active' ? (
+          <DropdownMenuItem
+            onSelect={() =>
+              void callAction('/suspend', 'POST', 'admin.tenants.actions.confirm_suspend')
+            }
+          >
+            <Ban className="mr-2 size-4 text-amber-700" aria-hidden="true" />
+            {t('admin.tenants.actions.suspend')}
+          </DropdownMenuItem>
+        ) : null}
+        {tenant.status === 'suspended' ? (
+          <DropdownMenuItem onSelect={() => void callAction('/reactivate', 'POST')}>
+            <Play className="mr-2 size-4 text-emerald-700" aria-hidden="true" />
+            {t('admin.tenants.actions.reactivate')}
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem
+          onSelect={() => void callAction('', 'DELETE', 'admin.tenants.actions.confirm_delete')}
+          className="text-rose-600 focus:text-rose-700"
+        >
+          <Trash2 className="mr-2 size-4" aria-hidden="true" />
+          {t('admin.tenants.actions.delete')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function StatusBadge({ status }: { status: TenantStatus }) {
+  const { t } = useTranslation();
+  const classes: Record<TenantStatus, string> = {
+    active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+    suspended: 'bg-amber-50 text-amber-800 ring-amber-200',
+    deleted: 'bg-rose-50 text-rose-700 ring-rose-200',
+  };
+  return (
+    <span
+      className={cn(
+        'inline-flex rounded px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ring-1',
+        classes[status],
+      )}
+    >
+      {t(`admin.tenants.status.${status}`)}
+    </span>
   );
 }
 
@@ -234,6 +382,7 @@ function PlanBadge({ plan }: { plan: string }) {
     starter: 'bg-blue-50 text-blue-700 ring-blue-200',
     growth: 'bg-violet-50 text-violet-700 ring-violet-200',
     scale: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+    pro: 'bg-violet-50 text-violet-700 ring-violet-200',
     enterprise: 'bg-amber-50 text-amber-700 ring-amber-200',
   };
   return (
