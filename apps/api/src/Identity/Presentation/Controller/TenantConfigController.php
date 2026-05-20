@@ -7,12 +7,14 @@ namespace App\Identity\Presentation\Controller;
 use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Shared\Domain\Tenant;
+use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Throwable;
 
 /**
  * RBAC-P5-015 (#705) — Settings → Tenant config endpoints.
@@ -88,7 +90,7 @@ final readonly class TenantConfigController
             }
             try {
                 $tenant->changePrimaryLocale($primary);
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 return $this->problem(
                     Response::HTTP_CONFLICT,
                     'Locale not enabled',
@@ -124,7 +126,7 @@ final readonly class TenantConfigController
             'domain' => $tenant->getDomain(),
             'enabled_locales' => $tenant->getEnabledLocales(),
             'primary_locale' => $tenant->getPrimaryLocale(),
-            'created_at' => $tenant->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            'created_at' => $tenant->getCreatedAt()->format(DateTimeInterface::ATOM),
         ];
     }
 

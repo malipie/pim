@@ -141,9 +141,7 @@ function TenantConfigForm() {
             <h3 id="tenant-config-heading" className="text-sm font-semibold">
               {t('settings.tenant.identity_title')}
             </h3>
-            <p className="text-xs text-muted-foreground">
-              {t('settings.tenant.identity_intro')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('settings.tenant.identity_intro')}</p>
           </div>
         </div>
 
@@ -151,9 +149,7 @@ function TenantConfigForm() {
           <div className="space-y-1.5">
             <Label htmlFor="tenant-code">{t('settings.tenant.field_code')}</Label>
             <Input id="tenant-code" value={tenant.code} disabled readOnly />
-            <p className="text-[11px] text-muted-foreground">
-              {t('settings.tenant.code_hint')}
-            </p>
+            <p className="text-[11px] text-muted-foreground">{t('settings.tenant.code_hint')}</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="tenant-plan">{t('settings.tenant.field_plan')}</Label>
@@ -180,9 +176,7 @@ function TenantConfigForm() {
             </span>
             <div>
               <h3 className="text-sm font-semibold">{t('settings.tenant.locales_title')}</h3>
-              <p className="text-xs text-muted-foreground">
-                {t('settings.tenant.locales_intro')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('settings.tenant.locales_intro')}</p>
             </div>
           </div>
           <div className="space-y-1.5">
