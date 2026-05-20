@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation;
 
 use App\Identity\Application\PermissionResolverInterface;
+use App\Identity\Domain\Attribute\NoPermissionRequired;
 use App\Identity\Domain\Entity\User;
 use DateTimeInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -50,6 +51,7 @@ final readonly class MeController
     }
 
     #[Route(path: '/api/auth/me', methods: ['GET'], name: 'api_auth_me')]
+    #[NoPermissionRequired(reason: 'Every authenticated principal is allowed to read its own identity payload — no RBAC gate beyond JWT authentication.')]
     public function __invoke(): Response
     {
         $user = $this->security->getUser();

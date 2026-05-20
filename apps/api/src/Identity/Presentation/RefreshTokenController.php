@@ -6,6 +6,7 @@ namespace App\Identity\Presentation;
 
 use App\Identity\Application\Exception\RefreshTokenException;
 use App\Identity\Application\RefreshTokenService;
+use App\Identity\Domain\Attribute\NoPermissionRequired;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -32,6 +33,7 @@ final readonly class RefreshTokenController
     }
 
     #[Route(path: '/api/auth/refresh', methods: ['POST'], name: 'api_auth_refresh')]
+    #[NoPermissionRequired(reason: 'Token refresh is by definition pre-authentication — caller has no access token yet, authority comes from the httpOnly refresh cookie alone.')]
     public function __invoke(Request $request): Response
     {
         $cookieValue = $request->cookies->get($this->cookies->getCookieName());

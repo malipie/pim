@@ -45,6 +45,7 @@ final readonly class TwoFactorController
     }
 
     #[Route(path: '/api/auth/2fa/enrol', methods: ['POST'], name: 'api_auth_2fa_enrol')]
+    #[NoPermissionRequired(reason: 'Every authenticated user can enrol an authenticator for their own account — no RBAC gate (self-service security feature).')]
     public function enrol(): Response
     {
         $user = self::requireUser($this->security);
@@ -66,6 +67,7 @@ final readonly class TwoFactorController
     }
 
     #[Route(path: '/api/auth/2fa/verify', methods: ['POST'], name: 'api_auth_2fa_verify')]
+    #[NoPermissionRequired(reason: 'Self-service confirmation of the user\'s own enrolment — caller is the principal.')]
     public function verify(Request $request): Response
     {
         $user = self::requireUser($this->security);
@@ -97,6 +99,7 @@ final readonly class TwoFactorController
     }
 
     #[Route(path: '/api/auth/2fa/disable', methods: ['POST'], name: 'api_auth_2fa_disable')]
+    #[NoPermissionRequired(reason: 'Self-service disable on the caller\'s own MFA. Possession proof inside the handler protects against session theft.')]
     public function disable(Request $request): Response
     {
         $user = self::requireUser($this->security);

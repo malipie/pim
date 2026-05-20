@@ -8,6 +8,7 @@ use App\Catalog\Application\Filter\FilterDslResolver;
 use App\Catalog\Application\Filter\FilterUrlSerializer;
 use App\Catalog\Domain\Entity\SmartFilterPreset;
 use App\Catalog\Domain\ObjectKind;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Search\Application\CatalogSearchService;
 use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
@@ -51,6 +52,7 @@ final class SearchController
 
     #[Route('/api/search/products', name: 'pim_search_products', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function products(Request $request): JsonResponse
     {
         return $this->run($request, ObjectKind::Product);
@@ -58,6 +60,7 @@ final class SearchController
 
     #[Route('/api/search/categories', name: 'pim_search_categories', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'category', action: 'read')]
     public function categories(Request $request): JsonResponse
     {
         return $this->run($request, ObjectKind::Category);
@@ -65,6 +68,7 @@ final class SearchController
 
     #[Route('/api/search/assets', name: 'pim_search_assets', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'asset', action: 'read')]
     public function assets(Request $request): JsonResponse
     {
         return $this->run($request, ObjectKind::Asset);
