@@ -146,7 +146,24 @@
       "col_last_login": "Last login",
       "col_actions": "Actions",
       "no_roles": "no roles",
-      "row_actions": "Row actions (coming soon)",
+      "row_actions": "Row actions",
+      "action_deactivate": "Deactivate",
+      "action_reactivate": "Reactivate",
+      "deactivate": {
+        "title": "Deactivate user",
+        "body": "User {{name}} ({{email}}) will no longer be able to sign in. The active session is invalidated on the next API request.",
+        "reason_label": "Reason (optional)",
+        "reason_placeholder": "E.g. left the company, contract ended...",
+        "cancel": "Cancel",
+        "confirm": "Deactivate",
+        "submitting": "Deactivating...",
+        "toast_success": "{{name}} has been deactivated.",
+        "error_generic": "Could not deactivate the user."
+      },
+      "reactivate": {
+        "toast_success": "{{name}} has been reactivated.",
+        "error_generic": "Could not reactivate the user."
+      },
       "last_login_never": "never",
       "empty_title": "No users",
       "empty_description": "No user matches the current filters. Clear them or invite the first user.",

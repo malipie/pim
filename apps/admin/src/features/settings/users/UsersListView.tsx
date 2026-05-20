@@ -5,12 +5,20 @@ import {
   MoreHorizontal,
   Search,
   ShieldCheck,
+  UserCheck,
+  UserMinus,
   UserPlus,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -20,9 +28,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { toast } from '@/components/ui/toast';
+import { jsonFetch } from '@/lib/http';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { cn } from '@/lib/utils';
 
+import { DeactivateUserModal } from './DeactivateUserModal';
 import { StatusBadge } from './StatusBadge';
 import type { UserListItem, UserStatus } from './types';
 import { UserAvatar } from './UserAvatar';
@@ -82,6 +93,31 @@ export function UsersListView() {
   });
   const isLoading = listQuery.isLoading;
   const isError = listQuery.isError;
+  const refetch = listQuery.refetch;
+
+  // Deactivate flow state — shared modal lives at the list level so we
+  // don't remount per-row when the table re-renders.
+  const [deactivateTarget, setDeactivateTarget] = useState<UserListItem | null>(null);
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const openDeactivate = (user: UserListItem) => {
+    setDeactivateTarget(user);
+    setDeactivateOpen(true);
+  };
+
+  const handleReactivate = async (user: UserListItem) => {
+    try {
+      await jsonFetch(`/api/users/${user.id}/reactivate`, {
+        method: 'POST',
+        body: {},
+        accept: 'application/json',
+        contentType: 'application/json',
+      });
+      toast.success(t('settings.users.reactivate.toast_success', { name: user.display_name }));
+      void refetch();
+    } catch {
+      toast.error(t('settings.users.reactivate.error_generic'));
+    }
+  };
 
   // Reset to page 1 whenever any filter changes — pager must not point at
   // a stale offset that no longer exists in the narrowed result set.
@@ -185,11 +221,25 @@ export function UsersListView() {
               </TableRow>
             )}
             {users.map((user) => (
-              <UserRow key={user.id} user={user} />
+              <UserRow
+                key={user.id}
+                user={user}
+                onDeactivate={openDeactivate}
+                onReactivate={handleReactivate}
+              />
             ))}
           </TableBody>
         </Table>
       </div>
+
+      <DeactivateUserModal
+        user={deactivateTarget}
+        open={deactivateOpen}
+        onOpenChange={setDeactivateOpen}
+        onSuccess={() => {
+          void refetch();
+        }}
+      />
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm shadow-sm">
@@ -222,7 +272,13 @@ export function UsersListView() {
   );
 }
 
-function UserRow({ user }: { user: UserListItem }) {
+interface UserRowProps {
+  user: UserListItem;
+  onDeactivate: (user: UserListItem) => void;
+  onReactivate: (user: UserListItem) => void;
+}
+
+function UserRow({ user, onDeactivate, onReactivate }: UserRowProps) {
   const { t, i18n } = useTranslation();
   const lastLogin = user.last_login_at
     ? new Date(user.last_login_at).toLocaleString(i18n.language)
@@ -255,15 +311,29 @@ function UserRow({ user }: { user: UserListItem }) {
       </TableCell>
       <TableCell className="text-xs text-muted-foreground">{lastLogin}</TableCell>
       <TableCell className="pr-5 text-right">
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled
-          aria-label={t('settings.users.row_actions')}
-          aria-disabled="true"
-        >
-          <MoreHorizontal className="size-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label={t('settings.users.row_actions')}>
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {user.status === 'active' ? (
+              <DropdownMenuItem
+                onSelect={() => onDeactivate(user)}
+                className="text-rose-600 focus:text-rose-700"
+              >
+                <UserMinus className="mr-2 size-4" aria-hidden="true" />
+                {t('settings.users.action_deactivate')}
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onSelect={() => onReactivate(user)}>
+                <UserCheck className="mr-2 size-4" aria-hidden="true" />
+                {t('settings.users.action_reactivate')}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
     </TableRow>
   );
