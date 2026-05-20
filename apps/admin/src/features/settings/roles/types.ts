@@ -31,5 +31,12 @@ export interface RoleDetail {
   is_built_in: boolean;
   tenant_id: string | null;
   permission_codes: string[];
+  /**
+   * RBAC-P5-008 (#698) — when true, new ObjectTypes (epik 0.4) get the
+   * `view + edit` permissions auto-granted to this role on creation.
+   * Existing roles default to `false`; only the new-style POST/PATCH
+   * /api/roles surfaces an editor.
+   */
+  auto_grant_new_object_types: boolean;
   created_at: string;
 }
