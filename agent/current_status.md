@@ -1,5 +1,33 @@
 # Current Status
 
+## 2026-05-21: 🚀 Phase 6 RBAC start — 4/10 ticketów shipped (audit + endpoint retrofit)
+
+**Phase 5 → Phase 6 transition. Marathon w toku.**
+
+| Ticket | PR | Scope | Status |
+|---|---|---|---|
+| #713 audit | [#853](../../pull/853) | `docs/rbac-audit/existing-endpoints-checklist.md` (253 routes inventoried) + `existing-ui-components-checklist.md` (60 UI files) | ✅ merged + closed (auto via `Closes #713`) |
+| #714 Product endpoints | [#854](../../pull/854) | 10 controllers / 19 routes — `products.{view,edit,add,bulk_operations}` | ✅ merged + closed z proof |
+| #715 Catalog/Asset/Modeling | [#855](../../pull/855) | 34 controllers / 60 routes — `modeling.*`, `attribute.*`, `categories.*`, `asset.*`, `user.*`, `agent.bulk_actions` + `[NoPermissionRequired]` na `/api/metrics` (Prometheus). **PHPStan baseline -474 lines.** | ✅ merged + closed z proof |
+| #716 Import/Export/Backup | [#856](../../pull/856) | 25 controllers / 40 routes — `imports.run`, `import_*`, `exports.*`, `integration.admin` (export profile mutations), `api_profile.*`, `backup.*`. **PHPStan baseline -240 lines.** | ✅ merged + closed z proof |
+
+**Pozostałe Phase 6 tickety (6):**
+
+- #717 UI components — wrap `<PermissionGate>` for 60 React files
+- #718 OpenAPI spec regeneration with permission annotations
+- #719 update existing tests with permission scenarios
+- #720 final CI gates (coverage + mutation thresholds)
+- #721 Prometheus + Grafana RBAC dashboards
+- #722 Semgrep custom rules + final tooling lockdown
+
+**Milestone progress:** Phase 6 = 4/10 closed (40%). Remaining ~50-70h of work spread across 6 tickets.
+
+**14 baselined PHPStan errors remain** for Identity-bundle leftovers (`WorkspaceController`, `LogoutController`, `MeController`, `RefreshTokenController`, `ChangePasswordController`, `PasswordResetController`, `SsoUserResolver`) — addressed by a dedicated `#[NoPermissionRequired]` pass during #719/#720 hardening.
+
+**Pattern shipped (recyklowalny dla #717+):** Python helper at `/tmp/apply_permissions.py` reads `/tmp/audit_enriched.json` (from `/tmp/audit_enrich.php` in container), bulk-inserts `#[RequiresPermission(module, action)]` attributes per overrides table + falls back to heuristic mapping from audit. Insertion sites: after `#[IsGranted]` (preferred), after `#[Route]` (single-line), after `#[Route(...)]` multi-line, or directly before method signature. Use statement added in alphabetical position among `use App\*` lines.
+
+---
+
 ## 2026-05-21: 🏁🏁🏁 Phase 5 RBAC CLOSED — 22/22 functional + 2 polish, milestone fully closed
 
 **Phase 5 ZAMKNIĘTY end-to-end.** Wszystkie 22 functional tickety + 2 UI polish PR-y zaszipowane do main, **wszystkie 22 GitHub Issues zamknięte z live-stack smoke-test proofami** (per CLOSED MEANS CLOSED RULE).
