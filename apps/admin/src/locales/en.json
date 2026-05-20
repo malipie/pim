@@ -53,6 +53,40 @@
     "active_modules_count_one": "{{count}} active module",
     "active_modules_count_other": "{{count}} active modules"
   },
+  "admin": {
+    "tenants": {
+      "title": "Tenants (Super Admin)",
+      "intro": "Cross-tenant list of every tenant on the platform. Metadata only (name, plan, users, locales, creation date). Every read stamps `cross_tenant_access=true` on the audit log.",
+      "privacy_boundary_notice": "Privacy boundary (PRD §11): Super Admin sees tenant metadata only. Domain data (Products, Attributes, Values) stays invisible — enforced at the API endpoint layer, not just the UI.",
+      "search_placeholder": "Search tenant by name, code, or domain...",
+      "filter_plan": "Plan",
+      "filter_plan_all": "All plans",
+      "count_one": "{{count}} tenant",
+      "count_other": "{{count}} tenants",
+      "count": "{{count}} tenants",
+      "col_tenant": "Tenant",
+      "col_plan": "Plan",
+      "col_users": "Active",
+      "col_locales": "Locales",
+      "col_created": "Created",
+      "empty": "No tenants match the current filters.",
+      "error_loading": "Could not load tenants list.",
+      "forbidden_title": "Super Admin only",
+      "forbidden_description": "The operator panel is restricted to users with the Super Admin role. Contact your platform administrator.",
+      "detail": {
+        "back": "Back to tenant list",
+        "loading": "Loading...",
+        "not_found": "No tenant found with this ID.",
+        "field_plan": "Plan",
+        "field_users": "Active users",
+        "field_users_hint": "Counts only accounts with status `active`. Deactivated accounts are excluded.",
+        "field_created": "Created",
+        "field_locales": "Locales",
+        "field_locales_hint": "Primary locale: {{primary}}. The rest are secondary.",
+        "crud_deferred": "Plan change / suspend / delete land in #711. Storage usage + bandwidth metrics once the backend exposes a telemetry endpoint."
+      }
+    }
+  },
   "settings": {
     "page_title": "Settings",
     "subnav_aria": "Settings sections",

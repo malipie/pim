@@ -227,4 +227,9 @@ final class InMemoryTenantRepoStub implements TenantRepositoryInterface
     public function remove(Tenant $tenant): void
     {
     }
+
+    public function findAllOrderedByCode(): array
+    {
+        return null === $this->tenant ? [] : [$this->tenant];
+    }
 }

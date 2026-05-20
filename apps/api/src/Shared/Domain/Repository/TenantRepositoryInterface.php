@@ -21,4 +21,15 @@ interface TenantRepositoryInterface
     public function save(Tenant $tenant): void;
 
     public function remove(Tenant $tenant): void;
+
+    /**
+     * RBAC-P5-019 (#709) — every tenant on the platform, ordered by code
+     * for deterministic listing in the Super Admin operator panel.
+     * Cross-tenant by design — callers MUST be Super Admin and operate
+     * inside {@see \App\Identity\Application\SuperAdmin\SuperAdminContext}
+     * so the TenantFilter is disabled.
+     *
+     * @return list<Tenant>
+     */
+    public function findAllOrderedByCode(): array;
 }

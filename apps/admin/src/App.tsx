@@ -217,6 +217,14 @@ const TenantSettingsPage = lazyPage(
   () => import('@/features/settings/tenant'),
   'TenantSettingsPage',
 );
+const AdminTenantsListPage = lazyPage(
+  () => import('@/features/admin/tenants'),
+  'AdminTenantsListPage',
+);
+const AdminTenantShowPage = lazyPage(
+  () => import('@/features/admin/tenants'),
+  'AdminTenantShowPage',
+);
 
 /**
  * Suspense fallback shown while a route chunk loads. Discreet — the
@@ -452,6 +460,13 @@ function App() {
                   <Route path="ai" element={<AiSettingsPage />} />
                   <Route path="sso" element={<SsoSettingsPage />} />
                 </Route>
+                {/* RBAC-P5-019 (#709) — Super Admin operator panel.
+                    Lives under /admin/* inside the existing app until
+                    the admin.cortex.pl subdomain split (operator infra
+                    task). Backend already enforces super_admin role +
+                    cross-tenant bypass via SuperAdminContext. */}
+                <Route path="/admin/tenants" element={<AdminTenantsListPage />} />
+                <Route path="/admin/tenants/:id" element={<AdminTenantShowPage />} />
                 {/* Top-level Integracje hub — łączy Imports MVP (epik 0.13)
                     + Profile API z VIEW-08 (sub-tab API Configurator). Stare
                     ścieżki /publications/* i /api-profiles/* redirectują niżej. */}
