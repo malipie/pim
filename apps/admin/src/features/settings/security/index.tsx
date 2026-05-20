@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next';
 
 import { ChangePasswordForm } from './ChangePasswordForm';
+import { MfaSection } from './MfaSection';
 
 /**
- * RBAC-P5-012 (#702) — Settings → Security entry point.
- *
- * Wave 1 ships password change; MFA enable/disable (#703) docks here
- * once the MFA wizard (#689) is in place.
+ * RBAC-P5-012 (#702) + RBAC-P5-013 (#703) — Settings → Security entry
+ * point. Two sections: password change + MFA lifecycle (enrol /
+ * disable / rotate recovery codes).
  */
 export function SecuritySettingsPage() {
   const { t } = useTranslation();
@@ -21,6 +21,9 @@ export function SecuritySettingsPage() {
       </header>
       <section className="rounded-lg border bg-background p-6 shadow-sm">
         <ChangePasswordForm />
+      </section>
+      <section className="rounded-lg border bg-background p-6 shadow-sm">
+        <MfaSection />
       </section>
     </div>
   );

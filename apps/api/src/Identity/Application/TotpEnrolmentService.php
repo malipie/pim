@@ -105,6 +105,37 @@ final readonly class TotpEnrolmentService
     }
 
     /**
+     * RBAC-P5-013 (#703) — rotate the recovery-code list while keeping
+     * the TOTP secret + enrolment status intact. Used by the
+     * "Generate new codes" button in Profile → Security; invalidates
+     * every existing code so a lost code list can't be re-used.
+     *
+     * Returns the cleartext codes ONCE — same one-shot contract as
+     * {@see enrol()}. Caller is responsible for surfacing them to the
+     * user.
+     *
+     * @return list<string>
+     */
+    public function rotateBackupCodes(User $user): array
+    {
+        [$cleartextCodes, $hashedCodes] = $this->generateBackupCodes();
+        // `startTotpEnrolment` wipes `totpEnabledAt`, so we re-confirm
+        // immediately after — this keeps the user enrolled while
+        // replacing the recovery codes in one round trip.
+        $secret = $user->getTotpSecret();
+        \assert(null !== $secret && '' !== $secret, 'rotateBackupCodes requires an active enrolment');
+        $wasEnabled = $user->isTotpEnabled();
+        $previousEnabledAt = $user->getTotpEnabledAt();
+        $user->startTotpEnrolment($secret, $hashedCodes);
+        if ($wasEnabled) {
+            $user->confirmTotpEnrolment($previousEnabledAt);
+        }
+        $this->em->flush();
+
+        return $cleartextCodes;
+    }
+
+    /**
      * Verify a code against an active TOTP user. Falls back to the
      * one-shot backup code list when the TOTP code does not match;
      * a successful backup code is consumed.
