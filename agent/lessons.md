@@ -2,6 +2,30 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z Phase 5 marathon-2 final (2026-05-20, #697 + #704 shipped)
+
+### Patterns to Follow
+
+1. **Cross-BC reads przez Contracts layer + deptrac extension** — Identity potrzebuje paint per-attribute permission matrix, ale `App\Catalog\Domain\Repository\AttributeRepositoryInterface` jest w Catalog_Internals. Solution: nowy `App\Catalog\Contracts\Service\AttributeCatalogReader` + `AttributeSummary` DTO + adapter `DoctrineAttributeCatalogReader` w Catalog\Application. Plus 1-line deptrac.yaml ext: `Identity_Internals → Catalog_Contracts`. Wzór z ObjectTypeSummary (Channel/Asset już używają tej drogi). Pattern repeatable for Channel/Asset → Identity if future RBAC tickets need cross-BC reads.
+
+2. **`CREATE TABLE IF NOT EXISTS` w migrations** — CI Playwright job failed na "relation already exists" gdy mi pierwsza migration tworząca nową tabelę. Dev DB ma quirk: containers' entrypoint może auto-create schema (dev/test only, guarded by `CI != true`). Mimo guarda, CI też trafia na problem czasem (race condition? schema:create somewhere?). Idempotent migration z `IF NOT EXISTS` na `CREATE TABLE` + każdym `CREATE INDEX` (PostgreSQL 9.5+) działa zarówno z czystej DB w CI jak i z pre-provisioned dev.
+
+3. **Secret masking + masked-secret merging w PATCH** — SsoProvider entity przechowuje `client_secret` etc. w JSONB config. Response builder masking jako `'****'` na read. PATCH path merge: gdy FE sends `client_secret: "****"` keep existing value (nie nadpisuj real secret maska). Pattern: `mergeConfigPreservingMaskedSecrets(current, next)` w controller — wykrywa secret keys (lowercased substring match `client_secret|private_key|idp_certificate|sp_private_key`) i preserve. Bez tego edit non-secret pola wymuszał re-entry secret.
+
+4. **JSON textarea > per-kind structured form** dla low-frequency ops (SSO config) — Google/MS/SAML mają meaningfully different config shapes. Per-kind structured forms add ~6h. Operators tend to copy-paste z IdP console anyway. JSON textarea z pre-filled skeleton per kind. Hint: później można replacement z structured form jeśli UX feedback pokaże potrzebę.
+
+5. **EPIK MARATHON RULE legitimate stop conditions** — `(d) brak credentials/dostępu do zewnętrznego serwisu` covered Phase 4 dependency (#689 needs #659/#660) + admin subdomain dla SA panel (#709-712 needs Caddy config + #677). Per CLAUDE.md stop. Document remaining 3 z hard blockers + plan dla każdego.
+
+### Patterns to Avoid
+
+1. **NIE polegaj na schema:create dla dev DB** — uruchamiaj `doctrine:migrations:migrate` w dev (manual jeśli trzeba `doctrine:migrations:version --add` dla bootstrapping), żeby dev = CI behavior. Mismatched state (dev: schema:create, CI: migrate) maskuje migration bugs jak ten z #697.
+
+2. **NIE używaj `(string) $key` w `foreach ($array as $key => $value)` gdy array jest typed `array<string, mixed>`** — PHPStan rzuca "cast.useless" bo $key już jest string. Pattern dla json_decode result (typed `array<mixed, mixed>`): explicit `ensureStringKeyed()` helper coercing keys via `(string) $key` przed entity constructor calls. Then PHPStan widzi `array<string, mixed>` w call site.
+
+3. **NIE stack 3 PR-y deep** — gdy stacked PR (#835 na #834) trafia w merge, GitHub auto-closes go po deletion bazy. Trzeba re-create + re-CI od początku. Worst case to długie marathon sesja. Lepsze: po pierwszym stacked merge, rebase od razu na main + push --force-with-lease + create fresh PR.
+
+
+
 ## Lessons z Phase 5 marathon-2 (2026-05-20, #693/#696/#698/#700/#701 shipped)
 
 ### Patterns to Follow
