@@ -325,6 +325,15 @@ services:
         arguments:
             $cache: '@pim.permissions_cache'
 
+    # RBAC-P5-021 (#711) — tenant lifecycle gating on every auth event.
+    # Wraps Symfony's default UserChecker so user-level flags
+    # (locked/expired/etc.) still trigger first; we add the tenant
+    # status + soft-delete check on top. Wired to the `main` firewall
+    # via security.yaml's `user_checker:` key.
+    App\Identity\Infrastructure\Security\TenantUserChecker:
+        arguments:
+            $inner: '@security.user_checker'
+
 when@test:
     parameters:
         pim.refresh_token.cookie_secure: false

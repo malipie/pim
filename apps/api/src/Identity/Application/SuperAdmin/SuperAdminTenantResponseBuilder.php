@@ -36,9 +36,12 @@ final readonly class SuperAdminTenantResponseBuilder
      *     name: string,
      *     domain: ?string,
      *     plan: string,
+     *     status: string,
      *     primary_locale: string,
      *     enabled_locales: list<string>,
      *     active_users: int,
+     *     suspended_at: ?string,
+     *     deleted_at: ?string,
      *     created_at: string
      * }>
      */
@@ -59,9 +62,12 @@ final readonly class SuperAdminTenantResponseBuilder
      *     name: string,
      *     domain: ?string,
      *     plan: string,
+     *     status: string,
      *     primary_locale: string,
      *     enabled_locales: list<string>,
      *     active_users: int,
+     *     suspended_at: ?string,
+     *     deleted_at: ?string,
      *     created_at: string
      * }
      */
@@ -73,9 +79,12 @@ final readonly class SuperAdminTenantResponseBuilder
             'name' => $tenant->getName(),
             'domain' => $tenant->getDomain(),
             'plan' => $tenant->getPlan(),
+            'status' => $tenant->getStatus(),
             'primary_locale' => $tenant->getPrimaryLocale(),
             'enabled_locales' => $tenant->getEnabledLocales(),
             'active_users' => $this->countActiveUsers($tenant->getId()),
+            'suspended_at' => $tenant->getSuspendedAt()?->format(DateTimeInterface::ATOM),
+            'deleted_at' => $tenant->getDeletedAt()?->format(DateTimeInterface::ATOM),
             'created_at' => $tenant->getCreatedAt()->format(DateTimeInterface::ATOM),
         ];
     }

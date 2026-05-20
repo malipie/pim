@@ -27,11 +27,27 @@ class Tenant
     public const string PLAN_PRO = 'pro';
     public const string PLAN_ENTERPRISE = 'enterprise';
 
+    /**
+     * RBAC-P5-021 (#711) — tenant lifecycle status.
+     *
+     *   - `active`    default; logins + scheduled tasks proceed
+     *   - `suspended` auth refuses, scheduled tasks (imports/exports/syncs)
+     *                 refuse to run. Reversible via reactivate().
+     *   - `deleted`   soft-deleted; `deleted_at` carries the recovery clock.
+     *                 30 days later `pim:tenants:purge-deleted` hard-deletes.
+     */
+    public const string STATUS_ACTIVE = 'active';
+    public const string STATUS_SUSPENDED = 'suspended';
+    public const string STATUS_DELETED = 'deleted';
+
     private Uuid $id;
     private string $code;
     private string $name;
     private ?string $domain;
     private string $plan;
+    private string $status = self::STATUS_ACTIVE;
+    private ?DateTimeImmutable $suspendedAt = null;
+    private ?DateTimeImmutable $deletedAt = null;
     private DateTimeImmutable $createdAt;
 
     /**
@@ -105,6 +121,70 @@ class Tenant
     public function changePlan(string $plan): void
     {
         $this->plan = $plan;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function isActive(): bool
+    {
+        return self::STATUS_ACTIVE === $this->status && null === $this->deletedAt;
+    }
+
+    public function isSuspended(): bool
+    {
+        return self::STATUS_SUSPENDED === $this->status;
+    }
+
+    public function isDeleted(): bool
+    {
+        return self::STATUS_DELETED === $this->status || null !== $this->deletedAt;
+    }
+
+    public function getSuspendedAt(): ?DateTimeImmutable
+    {
+        return $this->suspendedAt;
+    }
+
+    public function getDeletedAt(): ?DateTimeImmutable
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Suspends the tenant. Idempotent: re-suspending does NOT bump
+     * `suspendedAt`, the timestamp stays at the original suspension so
+     * the audit chain is clean.
+     */
+    public function suspend(?DateTimeImmutable $when = null): void
+    {
+        if ($this->isSuspended()) {
+            return;
+        }
+        $this->status = self::STATUS_SUSPENDED;
+        $this->suspendedAt = $when ?? new DateTimeImmutable();
+    }
+
+    public function reactivate(): void
+    {
+        if (!$this->isSuspended()) {
+            return;
+        }
+        $this->status = self::STATUS_ACTIVE;
+        $this->suspendedAt = null;
+    }
+
+    /**
+     * Soft-delete with a 30-day recovery window. The hard delete is
+     * driven by a separate scheduled command which inspects
+     * `deletedAt < NOW() - INTERVAL '30 days'`.
+     */
+    public function softDelete(?DateTimeImmutable $when = null): void
+    {
+        $this->status = self::STATUS_DELETED;
+        $this->deletedAt = $when ?? new DateTimeImmutable();
     }
 
     /**

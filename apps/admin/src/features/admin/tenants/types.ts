@@ -7,14 +7,19 @@
  * attributes / values would breach PRD §11.
  */
 
+export type TenantStatus = 'active' | 'suspended' | 'deleted';
+
 export interface AdminTenantSummary {
   id: string;
   code: string;
   name: string;
   domain: string | null;
   plan: string;
+  status: TenantStatus;
   primary_locale: string;
   enabled_locales: string[];
   active_users: number;
+  suspended_at: string | null;
+  deleted_at: string | null;
   created_at: string;
 }

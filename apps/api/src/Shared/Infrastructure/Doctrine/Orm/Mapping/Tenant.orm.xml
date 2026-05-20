@@ -25,6 +25,13 @@
                 <option name="default">starter</option>
             </options>
         </field>
+        <field name="status" type="string" length="16">
+            <options>
+                <option name="default">active</option>
+            </options>
+        </field>
+        <field name="suspendedAt" type="datetime_immutable" column="suspended_at" nullable="true"/>
+        <field name="deletedAt" type="datetime_immutable" column="deleted_at" nullable="true"/>
         <field name="createdAt" type="datetime_immutable" column="created_at"/>
 
         <field name="enabledLocales" type="json" column="enabled_locales">
