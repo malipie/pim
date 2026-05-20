@@ -11,7 +11,6 @@ use App\Identity\Domain\Repository\RoleRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Identity\Domain\Repository\UserRoleRepositoryInterface;
 use App\Shared\Domain\Tenant;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 use const PASSWORD_ARGON2ID;
@@ -39,7 +38,6 @@ use const PASSWORD_ARGON2ID;
 final class SsoUserResolver
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
         private readonly UserRepositoryInterface $users,
         private readonly UserRoleRepositoryInterface $userRoles,
         private readonly RoleRepositoryInterface $roles,

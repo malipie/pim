@@ -1,0 +1,64 @@
+# RBAC alert rules — Phase 6 RBAC-P6-009 / #721.
+#
+# Import into Grafana → Alerting → Alert rules, or apply via the Prometheus
+# `rule_files:` config if the org runs Alertmanager directly. Severity
+# labels (`warning`, `critical`, `info`) drive PagerDuty / Slack routing.
+#
+# Thresholds tuned for the MVP scale (3-5 tenants, ~50k SKU per tenant);
+# revisit during Phase 7 pentest week once the team has 2-3 weeks of
+# baseline traffic.
+groups:
+  - name: cortex-rbac
+    interval: 30s
+    rules:
+      - alert: HighRateOf403Denials
+        expr: sum by (tenant) (rate(cortex_permission_denied_total[5m])) > (10 / 60)
+        for: 5m
+        labels:
+          severity: warning
+          area: rbac
+        annotations:
+          summary: ">10/min 403 denials from tenant {{ $labels.tenant }}"
+          description: |
+            Permission denials are firing faster than 10/minute for tenant
+            {{ $labels.tenant }} over the last 5-minute window. Usually
+            this is a recent role / matrix change that left a sidebar entry
+            visible to an under-permissioned persona — check the audit log
+            for the originating IP and the specific `permission` label on
+            the offending series. Credential testing or a misconfigured
+            client are the other plausible causes.
+          runbook_url: https://github.com/malipie/PIM/blob/main/docs/operations/grafana-dashboards/rbac.json
+
+      - alert: AnomalousFailedLogins
+        expr: sum by (tenant) (rate(cortex_failed_login_attempts_total[5m])) > (50 / 60)
+        for: 5m
+        labels:
+          severity: critical
+          area: rbac
+        annotations:
+          summary: ">50/5min failed logins for tenant {{ $labels.tenant }} — brute force suspected"
+          description: |
+            Tenant {{ $labels.tenant }} is logging >50 failed login attempts
+            in the last 5 minutes. Likely candidates: credential stuffing,
+            password spraying, or an automation test that forgot to honour
+            its own rate limit. Investigate the source IP via the access
+            log and consider tripping a 15-minute IP-level deny in Caddy
+            while the incident is triaged.
+          runbook_url: https://github.com/malipie/PIM/blob/main/docs/operations/grafana-dashboards/rbac.json
+
+      - alert: SuperAdminRecoveryUsed
+        expr: increase(cortex_super_admin_recovery_total[10m]) > 0
+        for: 0s
+        labels:
+          severity: info
+          area: rbac
+          notify_slack_security: "true"
+        annotations:
+          summary: "Super Admin break-glass invoked"
+          description: |
+            A Super Admin executed POST /api/admin/break-glass. The audit
+            log on /admin/operator/break-glass lists target user + outcome.
+            Always notify Slack #security so the operator's chain of
+            custody is recorded — even legitimate break-glass usage is
+            audit-grade visibility.
+          runbook_url: https://github.com/malipie/PIM/blob/main/docs/operations/break-glass-runbook.md
