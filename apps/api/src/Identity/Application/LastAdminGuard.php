@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-use App\Identity\Domain\Entity\Role;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Exception\LastAdminProtectionException;
 use Doctrine\DBAL\Connection;
@@ -52,7 +51,7 @@ final readonly class LastAdminGuard
     private function isAdminInTenant(User $subject): bool
     {
         foreach ($subject->getAssignedRoles() as $role) {
-            if ($role instanceof Role && \in_array($role->getCode(), self::ADMIN_ROLE_CODES, true)) {
+            if (\in_array($role->getCode(), self::ADMIN_ROLE_CODES, true)) {
                 return true;
             }
         }
@@ -81,9 +80,13 @@ final readonly class LastAdminGuard
               AND (r.tenant_id = :tenant_id OR r.tenant_id IS NULL)
             SQL;
 
-        return (int) $this->connection->fetchOne($sql, [
+        $count = $this->connection->fetchOne($sql, [
             'tenant_id' => $subject->getTenant()->getId()->toRfc4122(),
             'subject_id' => $subject->getId()->toRfc4122(),
         ]);
+
+        // DBAL returns scalar | false. Postgres COUNT() never returns false
+        // for a valid query, but PHPStan reads the union — narrow defensively.
+        return \is_numeric($count) ? (int) $count : 0;
     }
 }

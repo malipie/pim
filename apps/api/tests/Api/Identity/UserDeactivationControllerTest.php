@@ -172,11 +172,13 @@ final class UserDeactivationControllerTest extends ApiTestCase
         // after `status=disabled` because the firewall has no on-the-
         // fly status check on each request (a separate hardening
         // ticket).
+        $secondaryUser = self::getContainer()
+            ->get(UserRepositoryInterface::class)
+            ->findByEmail(self::SECOND_ADMIN_A_EMAIL);
+        \assert(null !== $secondaryUser);
         $secondaryJwt = self::getContainer()
             ->get(JWTTokenManagerInterface::class)
-            ->create(
-                self::getContainer()->get(UserRepositoryInterface::class)->findByEmail(self::SECOND_ADMIN_A_EMAIL),
-            );
+            ->create($secondaryUser);
 
         // Promote the secondary admin to super_admin so their JWT
         // carries `user.admin` and clears the endpoint gate — then we
@@ -216,13 +218,13 @@ final class UserDeactivationControllerTest extends ApiTestCase
         // Mint a *fresh* JWT for secondary (now super_admin + no
         // tenant_owner). Then attempt to deactivate admin@demo (last
         // tenant_owner) → expect 409 last_admin.
+        $secondaryRefreshed = self::getContainer()
+            ->get(UserRepositoryInterface::class)
+            ->findByEmail(self::SECOND_ADMIN_A_EMAIL);
+        \assert(null !== $secondaryRefreshed);
         $secondaryJwt = self::getContainer()
             ->get(JWTTokenManagerInterface::class)
-            ->create(
-                self::getContainer()
-                    ->get(UserRepositoryInterface::class)
-                    ->findByEmail(self::SECOND_ADMIN_A_EMAIL),
-            );
+            ->create($secondaryRefreshed);
         $client = static::createClient();
         $client->setDefaultOptions(['headers' => ['authorization' => 'Bearer '.$secondaryJwt]]);
         $client->request('POST', '/api/users/'.$this->adminAUserId.'/deactivate');
