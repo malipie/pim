@@ -117,6 +117,11 @@ final class TenantAuditCommand extends Command
         // inherited via user_id FK to users(tenant_id). Coexists with
         // legacy `user_roles` M2M until #644 delta migrations consolidate.
         'user_role_assignments',
+        // RBAC-P5-007 (#697) — per-attribute 3-state permission override
+        // on a role. Junction; tenant scope inherited via role_id FK to
+        // roles(tenant_id), and the attribute_id half is validated against
+        // the caller's tenant at write time by the controller.
+        'role_attribute_permissions',
     ];
 
     /**
