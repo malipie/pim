@@ -1,5 +1,33 @@
 # Current Status
 
+## 2026-05-20: 🏁 Phase 5 RBAC marathon-2 (final-final) — 20/22 ticketów shipped lub w CI
+
+**Sesja 2026-05-20 zaszipowała 9 ticketów (8 RBAC + 1 docs):**
+
+| Ticket | PR | Scope | Status |
+|---|---|---|---|
+| #701 Revoke token | [#831](../../pull/831) | RevokeTokenModal + `POST /api/api-tokens/{id}/revoke` | ✅ merged |
+| #700 Create token wizard | [#832](../../pull/832) | CreateTokenWizard + plaintext-once + scope templates | ✅ merged |
+| #693 Edit user | [#833](../../pull/833) | EditUserModal + `PATCH /api/users/{id}` + last-admin guard | ✅ merged |
+| #696 Custom role builder | [#834](../../pull/834) | PermissionMatrix + `GET /api/permissions` + role CRUD | ✅ merged |
+| #698 Auto-grant + scope | [#836](../../pull/836) | `roles.auto_grant_new_object_types` BOOLEAN + toggle | ✅ merged |
+| #697 Attribute permissions | [#838](../../pull/838) | `role_attribute_permissions` table + `GET/PUT` endpoints + tab UI + cross-BC AttributeCatalogReader | ✅ merged |
+| #704 SSO config UI | [#839](../../pull/839) | `/api/sso/providers` CRUD + Settings → SSO z 3 kartami + secret masking | ✅ merged |
+| #709 + #710 SA Tenant list + detail | [#841](../../pull/841) | `/api/admin/tenants` + `{id}` z SuperAdminContext cross-tenant bypass + `/admin/tenants` table + detail page z privacy boundary | 🟡 CI in progress |
+| docs(agent) marathon-2 | [#837](../../pull/837) + [#840](../../pull/840) | Status + lessons captured | ✅ merged |
+
+**2 tickety pozostają otwarte z hard external blockers (legitimate stop per EPIK MARATHON RULE punkt d):**
+
+| Ticket | Blocker | Plan |
+|---|---|---|
+| #703 MFA UI | Phase 4 #689 (MFA wizard) blocked by Phase 4 #659+#660 (backend MFA endpoints — TOTP enrolment routes). User entity ma fields (`totpSecret`/`totpEnabledAt`/`totpBackupCodes`) ale brak routes. | Po unblock #659/#660/#689 (Phase 4 chain). |
+| #711 SA Tenant CRUD | Wymaga design decisions: tenant lifecycle (suspend vs delete vs archive), plan changes (cascade billing?), create-new-tenant (default user provisioning, locale seeding, role copy). Cross-context z #712 Break-glass UI. | Dedykowana sesja z architectural Plan Mode + ADR (tenant lifecycle state machine). |
+| #712 Break-glass UI | MFA TOTP verify (AC-2) blocked by Phase 4 chain (jak #703). CLI `cortex:rescue-admin` działa today, UI bez MFA verify = LESS secure niż CLI (które ma scaffolded MFA prompt). | Razem z #659/#660 unblock — wtedy MFA verify path land. |
+
+Phase 5: **20/22 shipped lub w CI (~91%)**. Stop legitimate per EPIK MARATHON RULE punkt (d) external credentials/access + punkt (b) cross-context architectural decision.
+
+---
+
 ## 2026-05-20: 🚧 Phase 5 RBAC marathon-2 (final) — 19/22 ticketów shipped lub w CI
 
 **Sesja 2026-05-20 zaszipowała 7 dodatkowych ticketów:**
