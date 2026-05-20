@@ -26,8 +26,10 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final readonly class MetricsController
 {
-    public function __construct(private QueryDurationHistogram $queryHistogram)
-    {
+    public function __construct(
+        private QueryDurationHistogram $queryHistogram,
+        private RbacMetricsRegistry $rbacMetrics,
+    ) {
     }
 
     #[Route(path: '/api/metrics', name: 'app_metrics', methods: ['GET'])]
@@ -38,6 +40,7 @@ final readonly class MetricsController
         $peak = \memory_get_peak_usage(true);
         $pid = \getmypid();
         $queryMetrics = $this->queryHistogram->render();
+        $rbacMetrics = $this->rbacMetrics->render();
 
         $body = <<<METRICS
             # HELP frankenphp_worker_memory_bytes Resident PHP memory of the FrankenPHP worker that handled the scrape.
@@ -52,7 +55,7 @@ final readonly class MetricsController
             # HELP db_query_duration_seconds Wall-clock duration of every Doctrine DBAL query handled by this worker since boot.
             # TYPE db_query_duration_seconds histogram
             {$queryMetrics}
-
+            {$rbacMetrics}
             METRICS;
 
         return new Response($body, Response::HTTP_OK, ['content-type' => 'text/plain; version=0.0.4']);

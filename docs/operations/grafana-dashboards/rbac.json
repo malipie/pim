@@ -1,0 +1,175 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "RBAC observability — denials, cross-tenant access, MFA enrolment, brute-force attempts, break-glass usage. RBAC-P6-009 (#721).",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": ["cortex", "audit"],
+      "targetBlank": true,
+      "title": "PRD §3.2 — macierz uprawnień",
+      "type": "link",
+      "url": "https://github.com/malipie/PIM/blob/main/Project%20Plan/PRD/PRD-PIM-rbac.md#32-macierz-uprawnień"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "PROM_UID" },
+      "description": "5-minute rate of 403 denials emitted by EndpointGuardListener, by permission code. Spikes from a single permission hint at a misconfigured client or a recent role change that left a sidebar entry visible to an under-permissioned persona.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "403 denials rate (5min) by permission",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (permission) (rate(cortex_permission_denied_total[5m]))",
+          "legendFormat": "{{permission}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PROM_UID" },
+      "description": "Cross-tenant access events via SuperAdminContext::runCrossTenant(). Audit-grade panel — every increment is a Super Admin reading or mutating outside their home tenant. Should be quiet outside maintenance windows; sustained traffic is investigated.",
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "short" } },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "title": "Cross-tenant access events (by Super Admin)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (super_admin_id) (rate(cortex_cross_tenant_access_total[15m]))",
+          "legendFormat": "SA {{super_admin_id}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PROM_UID" },
+      "description": "MFA enrolment % per tenant. Updated by the daily MFA-stats cron and on every enrol/disable. Tenants below the org policy threshold (e.g. 80%) deserve a Slack nudge.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "green", "value": 80 }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 9 },
+      "id": 3,
+      "title": "MFA enrolment % per tenant",
+      "type": "bargauge",
+      "targets": [
+        {
+          "expr": "cortex_mfa_enrollment_percentage",
+          "legendFormat": "{{tenant}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PROM_UID" },
+      "description": "5-minute rate of failed login attempts per tenant. A spike from a single tenant suggests credential stuffing — check the audit log for the originating IP / user agent.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "ops"
+        }
+      },
+      "gridPos": { "h": 9, "w": 8, "x": 8, "y": 9 },
+      "id": 4,
+      "title": "Failed login attempts (5min rate)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (tenant) (rate(cortex_failed_login_attempts_total[5m]))",
+          "legendFormat": "{{tenant}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PROM_UID" },
+      "description": "Super Admin break-glass invocations (24h window). Every increment is investigated — the table on /admin/operator/break-glass lists target user + outcome.",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "unit": "short" }
+      },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 9 },
+      "id": 5,
+      "title": "Super Admin recovery invocations (24h)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(increase(cortex_super_admin_recovery_total[24h]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PROM_UID" },
+      "description": "API tokens minted per tenant + scope template. Spikes can correlate with downstream integration rotation windows; sustained activity for a single scope hints at automation churn that should be reviewed.",
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "ops" } },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 18 },
+      "id": 6,
+      "title": "API tokens created (24h) by tenant + scope",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (tenant, scope) (increase(cortex_api_token_created_total[1h]))",
+          "legendFormat": "{{tenant}} / {{scope}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["cortex", "rbac", "audit"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "RBAC Overview — Cortex PIM",
+  "uid": "cortex-rbac-overview",
+  "version": 1,
+  "weekStart": ""
+}
