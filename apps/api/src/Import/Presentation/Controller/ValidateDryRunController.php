@@ -6,6 +6,7 @@ namespace App\Import\Presentation\Controller;
 
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Import\Application\Service\ImportValidationService;
 use App\Import\Domain\Enum\FileEncoding;
 use App\Import\Domain\Exception\InvalidImportFileException;
@@ -45,6 +46,7 @@ final class ValidateDryRunController
         name: 'imports_validate_dry_run',
         methods: ['POST'],
     )]
+    #[RequiresPermission(module: 'imports', action: 'run')]
     public function __invoke(Request $request): JsonResponse
     {
         $file = $request->files->get('file');

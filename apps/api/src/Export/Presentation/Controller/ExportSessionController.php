@@ -13,6 +13,7 @@ use App\Export\Domain\Message\RunExportMessage;
 use App\Export\Domain\Repository\ExportLogRepositoryInterface;
 use App\Export\Domain\Repository\ExportProfileRepositoryInterface;
 use App\Export\Domain\Repository\ExportSessionRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
 use DateTimeInterface;
@@ -70,6 +71,7 @@ final class ExportSessionController
         methods: ['GET'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'exports', action: 'view_all')]
     public function list(): JsonResponse
     {
         [$tenant, $userId] = $this->resolveTenantAndUser();
@@ -88,6 +90,7 @@ final class ExportSessionController
         methods: ['GET'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'exports', action: 'view_all')]
     public function get(string $id): JsonResponse
     {
         $session = $this->loadOwnedOrFail($id);
@@ -104,6 +107,7 @@ final class ExportSessionController
         methods: ['GET'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'exports', action: 'view_all')]
     public function status(string $id): JsonResponse
     {
         $session = $this->loadOwnedOrFail($id);
@@ -125,6 +129,7 @@ final class ExportSessionController
         methods: ['GET'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'exports', action: 'view_all')]
     public function download(string $id): Response
     {
         $session = $this->loadOwnedOrFail($id);
@@ -172,6 +177,7 @@ final class ExportSessionController
         methods: ['POST'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'exports', action: 'run')]
     public function rerun(string $id): JsonResponse
     {
         $source = $this->loadOwnedOrFail($id);
@@ -211,6 +217,7 @@ final class ExportSessionController
         methods: ['POST'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'exports', action: 'run')]
     public function runFromProfile(string $id): JsonResponse
     {
         [$tenant, $userId] = $this->resolveTenantAndUser();
@@ -239,6 +246,7 @@ final class ExportSessionController
         methods: ['DELETE'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'integration', action: 'admin')]
     public function delete(string $id): Response
     {
         $session = $this->loadOwnedOrFail($id);

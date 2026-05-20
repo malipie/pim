@@ -6,6 +6,7 @@ namespace App\Backup\Presentation\Controller;
 
 use App\Backup\Domain\Entity\Backup;
 use App\Backup\Domain\Repository\BackupRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use DateTimeInterface;
 use InvalidArgumentException;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -36,6 +37,7 @@ final class GetBackupController
         requirements: ['id' => '[0-9a-fA-F-]{36}'],
         methods: ['GET'],
     )]
+    #[RequiresPermission(module: 'backup', action: 'read')]
     public function __invoke(string $id): JsonResponse
     {
         try {

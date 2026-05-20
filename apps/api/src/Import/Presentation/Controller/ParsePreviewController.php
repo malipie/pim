@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Application\Service\FileParserService;
 use App\Import\Domain\Enum\FileEncoding;
@@ -42,6 +43,7 @@ final class ParsePreviewController
         name: 'imports_parse_preview',
         methods: ['POST'],
     )]
+    #[RequiresPermission(module: 'imports', action: 'run')]
     public function __invoke(Request $request): JsonResponse
     {
         $user = $this->security->getUser();

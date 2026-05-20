@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Application\Service\ImportThroughputCalculator;
 use DateTimeInterface;
@@ -36,6 +37,7 @@ final class ImportThroughputController
         name: 'imports_throughput',
         methods: ['GET'],
     )]
+    #[RequiresPermission(module: 'import_session', action: 'read')]
     public function __invoke(Request $request): JsonResponse
     {
         $user = $this->security->getUser();

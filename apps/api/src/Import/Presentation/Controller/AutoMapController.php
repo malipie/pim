@@ -8,6 +8,7 @@ use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Import\Application\Service\AutoMapper;
 use App\Import\Domain\ReservedMappingTarget;
 use App\Import\Domain\ValueObject\ColumnMappingSuggestion;
@@ -39,6 +40,7 @@ final class AutoMapController
         name: 'imports_auto_map',
         methods: ['POST'],
     )]
+    #[RequiresPermission(module: 'import_session', action: 'write')]
     public function __invoke(Request $request): JsonResponse
     {
         $payload = json_decode($request->getContent(), true);

@@ -7,6 +7,7 @@ namespace App\ApiConfigurator\Presentation\Controller;
 use App\ApiConfigurator\Application\WebhookDeliveryClient;
 use App\ApiConfigurator\Application\WebhookSecretGenerator;
 use App\ApiConfigurator\Domain\Repository\ApiProfileRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use DateTimeImmutable;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -45,6 +46,7 @@ final class TestWebhookController
         methods: ['POST'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'api_profile', action: 'admin')]
     public function test(string $id): JsonResponse
     {
         $profile = $this->profiles->findById(Uuid::fromString($id));
@@ -84,6 +86,7 @@ final class TestWebhookController
         methods: ['POST'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'api_profile', action: 'admin')]
     public function rotate(string $id): JsonResponse
     {
         $profile = $this->profiles->findById(Uuid::fromString($id));

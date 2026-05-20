@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Application\Service\ScheduleDispatcherService;
 use App\Import\Domain\Entity\ImportSchedule;
@@ -38,6 +39,7 @@ final class ScheduleStateController
         requirements: ['id' => '[0-9a-fA-F-]{36}'],
         methods: ['POST'],
     )]
+    #[RequiresPermission(module: 'import_schedule', action: 'write')]
     public function toggle(string $id): JsonResponse
     {
         $schedule = $this->load($id);
@@ -62,6 +64,7 @@ final class ScheduleStateController
         requirements: ['id' => '[0-9a-fA-F-]{36}'],
         methods: ['POST'],
     )]
+    #[RequiresPermission(module: 'import_schedule', action: 'write')]
     public function runNow(string $id): JsonResponse
     {
         $schedule = $this->load($id);
