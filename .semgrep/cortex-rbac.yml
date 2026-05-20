@@ -94,7 +94,7 @@ rules:
         - "apps/api/tests/**"
 
   - id: cortex-no-plaintext-shopify-token
-    languages: [yaml, json, php, dotenv]
+    languages: [yaml, json, php, generic]
     severity: ERROR
     message: >-
       Plaintext Shopify access token (`shpat_*` / `shpss_*`) committed to
@@ -112,7 +112,7 @@ rules:
         - "**/*.test.*"
 
   - id: cortex-no-plaintext-baselinker-token
-    languages: [yaml, json, php, dotenv]
+    languages: [yaml, json, php, generic]
     severity: ERROR
     message: >-
       Plaintext BaseLinker token committed to the repo. Move to Symfony
