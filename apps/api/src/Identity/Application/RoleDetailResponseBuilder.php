@@ -29,6 +29,7 @@ final class RoleDetailResponseBuilder
      *     is_built_in: bool,
      *     tenant_id: ?string,
      *     permission_codes: list<string>,
+     *     auto_grant_new_object_types: bool,
      *     created_at: string
      * }
      */
@@ -49,6 +50,7 @@ final class RoleDetailResponseBuilder
             'is_built_in' => $role->isGlobal(),
             'tenant_id' => $role->getTenant()?->getId()->toRfc4122(),
             'permission_codes' => $permissionCodes,
+            'auto_grant_new_object_types' => $role->isAutoGrantNewObjectTypes(),
             'created_at' => $role->getCreatedAt()->format(DateTimeInterface::ATOM),
         ];
     }
