@@ -95,7 +95,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "api_tokens.all.view_revoke"
             }
         },
         "/api/api_keys/{id}": {
@@ -178,7 +179,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "api_tokens.all.view_revoke"
             }
         },
         "/api/api_profiles": {
@@ -264,7 +266,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "api_profile.read"
             },
             "post": {
                 "operationId": "api_api_profiles_post",
@@ -370,7 +373,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "api_profile.write"
             }
         },
         "/api/api_profiles/{id}": {
@@ -453,7 +457,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "api_profile.read"
             },
             "delete": {
                 "operationId": "api_api_profiles_id_delete",
@@ -522,7 +527,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "api_profile.delete"
             },
             "patch": {
                 "operationId": "api_api_profiles_id_patch",
@@ -657,7 +663,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "api_profile.write"
             }
         },
         "/api/asset_storage": {
@@ -743,7 +750,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "asset.read"
             }
         },
         "/api/asset_storage/{id}": {
@@ -826,7 +834,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "asset.read"
             }
         },
         "/api/associations": {
@@ -912,7 +921,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "association.read"
             }
         },
         "/api/associations/{id}": {
@@ -995,7 +1005,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "association.read"
             }
         },
         "/api/attributes": {
@@ -1081,7 +1092,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "attribute.read"
             },
             "post": {
                 "operationId": "api_attributes_post",
@@ -1187,7 +1199,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "modeling.attributes.add_edit"
             }
         },
         "/api/attributes/{id}": {
@@ -1270,7 +1283,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "attribute.read"
             },
             "delete": {
                 "operationId": "api_attributes_id_delete",
@@ -1339,7 +1353,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "attribute.delete"
             },
             "patch": {
                 "operationId": "api_attributes_id_patch",
@@ -1474,7 +1489,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "modeling.attributes.add_edit"
             }
         },
         "/api/attribute_groups": {
@@ -1560,7 +1576,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "attribute_group.read"
             },
             "post": {
                 "operationId": "api_attribute_groups_post",
@@ -1666,7 +1683,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "modeling.attribute_groups.add_edit"
             }
         },
         "/api/attribute_groups/{id}": {
@@ -1749,7 +1767,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "attribute_group.read"
             },
             "delete": {
                 "operationId": "api_attribute_groups_id_delete",
@@ -1818,7 +1837,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "attribute_group.delete"
             },
             "patch": {
                 "operationId": "api_attribute_groups_id_patch",
@@ -1953,7 +1973,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "modeling.attribute_groups.add_edit"
             }
         },
         "/api/assets": {
@@ -2173,7 +2194,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "products.view"
             }
         },
         "/api/assets/{id}": {
@@ -2256,7 +2278,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "products.view"
             }
         },
         "/api/categories": {
@@ -2476,7 +2499,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "products.view"
             },
             "post": {
                 "operationId": "categories_post",
@@ -2582,7 +2606,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "products.add"
             }
         },
         "/api/categories/{id}": {
@@ -2665,7 +2690,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "products.view"
             },
             "delete": {
                 "operationId": "categories_delete",
@@ -2734,7 +2760,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "products.delete"
             },
             "patch": {
                 "operationId": "categories_patch",
@@ -2869,7 +2896,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "products.edit"
             }
         },
         "/api/products": {
@@ -3089,7 +3117,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "products.view"
             },
             "post": {
                 "operationId": "products_post",
@@ -3195,7 +3224,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "products.add"
             }
         },
         "/api/products/{id}": {
@@ -3278,7 +3308,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "products.view"
             },
             "delete": {
                 "operationId": "products_delete",
@@ -3347,7 +3378,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "products.delete"
             },
             "patch": {
                 "operationId": "products_patch",
@@ -3482,7 +3514,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "products.edit"
             }
         },
         "/api/channels": {
@@ -3568,7 +3601,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "channel.read"
             },
             "post": {
                 "operationId": "api_channels_post",
@@ -3674,7 +3708,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "channel.write"
             }
         },
         "/api/channels/{id}": {
@@ -3757,7 +3792,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "channel.read"
             },
             "delete": {
                 "operationId": "api_channels_id_delete",
@@ -3826,7 +3862,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "channel.delete"
             },
             "patch": {
                 "operationId": "api_channels_id_patch",
@@ -3961,7 +3998,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "channel.write"
             }
         },
         "/api/channel_object_type_mappings": {
@@ -4047,7 +4085,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "channel.read"
             }
         },
         "/api/channel_object_type_mappings/{id}": {
@@ -4130,7 +4169,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "channel.read"
             },
             "patch": {
                 "operationId": "api_channel_object_type_mappings_id_patch",
@@ -4265,7 +4305,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "channel.write"
             }
         },
         "/api/currencies": {
@@ -4351,7 +4392,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "user.read"
             }
         },
         "/api/currencies/{id}": {
@@ -4434,7 +4476,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "user.read"
             }
         },
         "/api/import-profiles": {
@@ -4520,7 +4563,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "import_profile.read"
             },
             "post": {
                 "operationId": "api_import-profiles_post",
@@ -4626,7 +4670,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "import_profile.write"
             }
         },
         "/api/import-profiles/{id}": {
@@ -4709,7 +4754,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "import_profile.read"
             },
             "delete": {
                 "operationId": "api_import-profiles_id_delete",
@@ -4778,7 +4824,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "import_profile.delete"
             },
             "patch": {
                 "operationId": "api_import-profiles_id_patch",
@@ -4913,7 +4960,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "import_profile.write"
             }
         },
         "/api/import-schedules": {
@@ -4999,7 +5047,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "import_schedule.read"
             },
             "post": {
                 "operationId": "api_import-schedules_post",
@@ -5105,7 +5154,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "import_schedule.write"
             }
         },
         "/api/import-schedules/{id}": {
@@ -5188,7 +5238,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "import_schedule.read"
             },
             "delete": {
                 "operationId": "api_import-schedules_id_delete",
@@ -5257,7 +5308,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "import_schedule.delete"
             },
             "patch": {
                 "operationId": "api_import-schedules_id_patch",
@@ -5392,7 +5444,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "import_schedule.write"
             }
         },
         "/api/import-sources": {
@@ -5478,7 +5531,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "import_source.read"
             },
             "post": {
                 "operationId": "api_import-sources_post",
@@ -5584,7 +5638,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "import_source.write"
             }
         },
         "/api/import-sources/{id}": {
@@ -5667,7 +5722,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "import_source.read"
             },
             "delete": {
                 "operationId": "api_import-sources_id_delete",
@@ -5736,7 +5792,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "import_source.delete"
             },
             "patch": {
                 "operationId": "api_import-sources_id_patch",
@@ -5871,7 +5928,8 @@
                         }
                     },
                     "required": true
-                }
+                },
+                "x-cortex-permission": "import_source.write"
             }
         },
         "/api/locales": {
@@ -5957,7 +6015,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "user.read"
             }
         },
         "/api/locales/{id}": {
@@ -6040,7 +6099,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "user.read"
             }
         },
         "/api/auth/login": {
@@ -6183,7 +6243,8 @@
                         "style": "form",
                         "explode": true
                     }
-                ]
+                ],
+                "x-cortex-permission": "object_type.read"
             }
         },
         "/api/object_types/{id}": {
@@ -6266,7 +6327,8 @@
                         "style": "simple",
                         "explode": false
                     }
-                ]
+                ],
+                "x-cortex-permission": "object_type.read"
             }
         }
     },
