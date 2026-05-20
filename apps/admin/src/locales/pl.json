@@ -148,7 +148,24 @@
       "col_last_login": "Ostatnie logowanie",
       "col_actions": "Akcje",
       "no_roles": "brak ról",
-      "row_actions": "Akcje wiersza (wkrótce)",
+      "row_actions": "Akcje wiersza",
+      "action_deactivate": "Dezaktywuj",
+      "action_reactivate": "Reaktywuj",
+      "deactivate": {
+        "title": "Dezaktywuj użytkownika",
+        "body": "Użytkownik {{name}} ({{email}}) nie będzie mógł się zalogować. Sesja aktywna zostanie wygaszona przy następnym żądaniu API.",
+        "reason_label": "Powód (opcjonalnie)",
+        "reason_placeholder": "Np. odejście z firmy, koniec kontraktu...",
+        "cancel": "Anuluj",
+        "confirm": "Dezaktywuj",
+        "submitting": "Dezaktywuję...",
+        "toast_success": "Użytkownik {{name}} został dezaktywowany.",
+        "error_generic": "Nie udało się dezaktywować użytkownika."
+      },
+      "reactivate": {
+        "toast_success": "Użytkownik {{name}} został reaktywowany.",
+        "error_generic": "Nie udało się reaktywować użytkownika."
+      },
       "last_login_never": "nigdy",
       "empty_title": "Brak użytkowników",
       "empty_description": "Żaden użytkownik nie pasuje do bieżących filtrów. Wyczyść je albo zaproś pierwszego użytkownika.",
