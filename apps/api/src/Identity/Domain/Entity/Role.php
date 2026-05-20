@@ -27,6 +27,14 @@ class Role
 
     private string $name;
 
+    /**
+     * RBAC-P5-008 (#698) — when set, the ObjectType creation flow
+     * (epik 0.4) auto-grants the new type's `view + edit` permissions
+     * to this role at flush time. False on every seeded role so the
+     * default stays explicit-grant.
+     */
+    private bool $autoGrantNewObjectTypes;
+
     private DateTimeImmutable $createdAt;
 
     /**
@@ -44,6 +52,7 @@ class Role
         $this->code = $code;
         $this->name = $name;
         $this->tenant = $tenant;
+        $this->autoGrantNewObjectTypes = false;
         $this->createdAt = new DateTimeImmutable();
         $this->permissions = new ArrayCollection();
     }
@@ -89,6 +98,16 @@ class Role
     public function getPermissions(): Collection
     {
         return $this->permissions;
+    }
+
+    public function isAutoGrantNewObjectTypes(): bool
+    {
+        return $this->autoGrantNewObjectTypes;
+    }
+
+    public function setAutoGrantNewObjectTypes(bool $enabled): void
+    {
+        $this->autoGrantNewObjectTypes = $enabled;
     }
 
     public function grantPermission(Permission $permission): void

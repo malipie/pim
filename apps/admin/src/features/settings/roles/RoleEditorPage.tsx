@@ -55,6 +55,7 @@ export function RoleEditorPage() {
   const [code, setCode] = useState('');
   const [codeTouched, setCodeTouched] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [autoGrant, setAutoGrant] = useState(false);
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +86,7 @@ export function RoleEditorPage() {
             setCode(data.code);
             setCodeTouched(true);
             setSelected(new Set(data.permission_codes));
+            setAutoGrant(data.auto_grant_new_object_types);
           })
           .catch(() => {
             if (!cancelled) toast.error(t('settings.roles.editor.error_load_role'));
@@ -135,7 +137,10 @@ export function RoleEditorPage() {
     try {
       const permissionCodes = Array.from(selected);
       if (isEdit && role) {
-        const body: Record<string, unknown> = { permission_codes: permissionCodes };
+        const body: Record<string, unknown> = {
+          permission_codes: permissionCodes,
+          auto_grant_new_object_types: autoGrant,
+        };
         if (isCustom) {
           body.name = name.trim();
         }
@@ -153,6 +158,7 @@ export function RoleEditorPage() {
             name: name.trim(),
             code: code.trim() || undefined,
             permission_codes: permissionCodes,
+            auto_grant_new_object_types: autoGrant,
           },
           accept: 'application/json',
           contentType: 'application/json',
@@ -294,9 +300,27 @@ export function RoleEditorPage() {
         </div>
       </div>
 
-      <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-        {t('settings.roles.editor.deferred_notice')}
-      </div>
+      <section className="space-y-2 rounded-lg border bg-background p-3 shadow-sm">
+        <h3 className="text-sm font-semibold">{t('settings.roles.editor.advanced_title')}</h3>
+        <label className="flex items-start gap-3 rounded-md border bg-background px-3 py-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4"
+            checked={autoGrant}
+            disabled={loading || submitting}
+            onChange={(e) => setAutoGrant(e.target.checked)}
+          />
+          <div className="flex-1 space-y-0.5">
+            <div className="font-medium">{t('settings.roles.editor.auto_grant_label')}</div>
+            <p className="text-[11px] text-muted-foreground">
+              {t('settings.roles.editor.auto_grant_hint')}
+            </p>
+          </div>
+        </label>
+        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+          {t('settings.roles.editor.scope_deferred_notice')}
+        </div>
+      </section>
 
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">

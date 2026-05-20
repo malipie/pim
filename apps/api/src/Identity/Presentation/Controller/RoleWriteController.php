@@ -92,6 +92,9 @@ final readonly class RoleWriteController
         foreach ($permissions as $permission) {
             $role->grantPermission($permission);
         }
+        if (\array_key_exists('auto_grant_new_object_types', $payload)) {
+            $role->setAutoGrantNewObjectTypes((bool) $payload['auto_grant_new_object_types']);
+        }
         $this->roles->save($role);
 
         return new JsonResponse($this->builder->buildOne($role), Response::HTTP_CREATED);
@@ -154,6 +157,10 @@ final readonly class RoleWriteController
                 return $permissions;
             }
             $this->replacePermissions($role, $permissions);
+        }
+
+        if (\array_key_exists('auto_grant_new_object_types', $payload)) {
+            $role->setAutoGrantNewObjectTypes((bool) $payload['auto_grant_new_object_types']);
         }
 
         $this->roles->save($role);
