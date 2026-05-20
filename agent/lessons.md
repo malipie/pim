@@ -2,6 +2,26 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z Phase 5 marathon-2 final-final (2026-05-20, #709/#710 shipped na koniec)
+
+### Patterns to Follow
+
+1. **`TenantAuditCommand::INFRA_TABLES` allowlist dla nowych junction tables** — każda nowa tabela bez własnego `tenant_id` (junction, audit log, infra) MUSI być dodana do `INFRA_TABLES`, bo `pim:tenant:audit` flags wszystko poza allowlist. `role_attribute_permissions` (junction role↔attribute) trigger 'd PHPUnit failure na #697 PR (test `reportsCleanStateAfterAllMigrations`). Pattern: po dodaniu nowej tabeli, sprawdź czy potrzebuje allowlist entry. Komentarz uzasadnia tenant scope inheritance (np. via parent FK).
+
+2. **Subdomain split jako infra task, nie blocker substrate** — #709 ticket explicitly mentions `admin.cortex.pl` separate subdomain dla Super Admin operator panel. Per CLAUDE.md operator infra decisions są blockers (d), ale routes można zacząć pod `/admin/*` w istniejącym admin app bez subdomain. Backend ma role gate (`super_admin` check) + `SuperAdminContext::runCrossTenant()` wrap = bezpieczne. Subdomain migration to zero-code deployment task. Pattern: deliver functional substrate gated by role, document subdomain split jako follow-up infra task.
+
+3. **Combined PR dla pair ticketów ze wspólnym backend** — #709 + #710 razem w PR #841 bo backend endpoints shared (`GET /api/admin/tenants` + `{id}`). FE pages share types + same SuperAdminTenantResponseBuilder. Lepsze niż 2 PR-y z duplicate review burden. Pattern: jeśli 2 tickety odwołują się do tego samego backend endpoint/projekcji, combine w jednym PR-ze z dual `Refs #X #Y` w body.
+
+4. **Privacy boundary jako wire-shape constraint, nie tylko UI hide** — Super Admin endpoints zwracają WYŁĄCZNIE metadata. Response builder hardcoded shape: `[id, code, name, domain, plan, primary_locale, enabled_locales, active_users, created_at]`. Brak per-tenant domain rows (products, attributes, values) w odpowiedzi. Audit row stamps `cross_tenant_access=true` mechanically via SuperAdminContext. Pattern: privacy boundary enforced AT THE PROJECTION LAYER, nie polegać na UI hiding.
+
+### Patterns to Avoid
+
+1. **NIE zostawiaj kontrolera `Identity → Catalog\Domain\Repository`** — deptrac fails. Zawsze przez Catalog_Contracts (lub Identity_Contracts dla reverse direction). Pattern dla cross-BC reads: contracts-layer DTO + reader interface + adapter w Application.
+
+2. **NIE polegaj na MFA verify wbudowanego w UI gdy backend nie ma routes** — #703 + #712 byłyby insecure bez MFA backend (#659/#660 jeszcze w Phase 4). CLI `cortex:rescue-admin` ma scaffolded MFA prompt (`--mfa-totp` argument) jako TODO until verifier wired. Zatrzymuj UI version do tego samego punktu. Bez MFA UI = security regression vs CLI.
+
+3. **NIE close ticket gdy real scope odjechał z PRD** — #711 SA Tenant CRUD wygląda na "3-line endpoint" ale tenant lifecycle to architectural decision: suspend vs delete, plan change cascade do billing, create-new-tenant flow (default user provisioning, locale seeding, role copy). To Plan Mode + ADR territory. Marathon legitimate stop per punkt (b).
+
 ## Lessons z Phase 5 marathon-2 final (2026-05-20, #697 + #704 shipped)
 
 ### Patterns to Follow
