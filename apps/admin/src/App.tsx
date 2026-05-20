@@ -207,6 +207,10 @@ const SecuritySettingsPage = lazyPage(
   'SecuritySettingsPage',
 );
 const UsersSettingsPage = lazyPage(() => import('@/features/settings/users'), 'UsersSettingsPage');
+const ApiTokensSettingsPage = lazyPage(
+  () => import('@/features/settings/api-tokens'),
+  'ApiTokensSettingsPage',
+);
 
 /**
  * Suspense fallback shown while a route chunk loads. Discreet — the
@@ -298,6 +302,13 @@ function App() {
               // routes land with #696 (custom role builder).
               name: 'roles',
               list: '/settings/roles',
+            },
+            {
+              // RBAC-P5-009 (#699) — Settings → API tokens list. Endpoint
+              // is `/api/api-tokens`; Refine dataProvider hits it via the
+              // resource name. Create/revoke routes land with #700/#701.
+              name: 'api-tokens',
+              list: '/settings/api-tokens',
             },
             {
               name: 'import-sessions',
@@ -426,6 +437,7 @@ function App() {
                   <Route path="channels/:id/edit" element={<ChannelEditPage />} />
                   <Route path="users" element={<UsersSettingsPage />} />
                   <Route path="roles" element={<RolesSettingsPage />} />
+                  <Route path="api-tokens" element={<ApiTokensSettingsPage />} />
                   <Route path="security" element={<SecuritySettingsPage />} />
                   <Route path="billing" element={<BillingSettingsPage />} />
                   <Route path="ai" element={<AiSettingsPage />} />
