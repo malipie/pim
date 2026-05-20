@@ -8,6 +8,7 @@ use App\Catalog\Application\ObjectTypeService;
 use App\Catalog\Domain\Exception\BuiltInObjectTypeException;
 use App\Catalog\Domain\Exception\ObjectTypeHasInstancesException;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -46,6 +47,7 @@ final class DeleteObjectTypeController
         priority: 200,
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.delete_custom', action: 'view')]
     public function __invoke(string $id): JsonResponse
     {
         $objectType = $this->objectTypes->findById(Uuid::fromString($id));

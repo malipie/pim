@@ -7,6 +7,7 @@ namespace App\Asset\Presentation\Controller;
 use App\Asset\Domain\Entity\AssetVariant;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
 use App\Asset\Domain\ThumbnailsStatus;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
@@ -49,6 +50,7 @@ final readonly class PreviewAssetController
     }
 
     #[Route(path: '/api/assets/{id}/preview', name: 'pim_assets_preview', methods: ['GET'])]
+    #[RequiresPermission(module: 'asset', action: 'read')]
     public function __invoke(string $id, ?string $variant = null): StreamedResponse
     {
         $assetId = Uuid::fromString($id);

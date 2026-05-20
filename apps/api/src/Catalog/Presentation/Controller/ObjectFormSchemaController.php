@@ -6,6 +6,7 @@ namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Application\Query\GetObjectFormSchema\GetObjectFormSchemaHandler;
 use App\Catalog\Application\Query\GetObjectFormSchema\GetObjectFormSchemaQuery;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -43,6 +44,7 @@ final class ObjectFormSchemaController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'object_type', action: 'read')]
     public function __invoke(string $id): JsonResponse
     {
         $schema = ($this->handler)(new GetObjectFormSchemaQuery(Uuid::fromString($id)));

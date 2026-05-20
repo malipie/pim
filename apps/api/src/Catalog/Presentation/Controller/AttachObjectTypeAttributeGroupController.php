@@ -7,6 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -45,6 +46,7 @@ final class AttachObjectTypeAttributeGroupController
         methods: ['POST'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.object_types', action: 'add')]
     public function attach(string $id, string $groupId): JsonResponse
     {
         $objectType = $this->objectTypes->findById(Uuid::fromString($id));
@@ -79,6 +81,7 @@ final class AttachObjectTypeAttributeGroupController
         methods: ['DELETE'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.object_types', action: 'add')]
     public function detach(string $id, string $groupId): JsonResponse
     {
         $group = $this->attributeGroups->findById(Uuid::fromString($groupId));

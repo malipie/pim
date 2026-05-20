@@ -9,6 +9,7 @@ use App\Catalog\Application\Migration\AttributeMigrationPlan;
 use App\Catalog\Application\Migration\AttributeMigrationPlanner;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -59,6 +60,7 @@ final class MigrateAttributeTypeController
         methods: ['POST'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.attributes', action: 'add_edit')]
     public function __invoke(string $id, Request $request): JsonResponse
     {
         $attribute = $this->attributes->findById(Uuid::fromString($id));

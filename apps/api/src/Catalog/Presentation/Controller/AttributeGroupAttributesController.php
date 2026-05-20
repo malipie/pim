@@ -6,6 +6,7 @@ namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -42,6 +43,7 @@ final class AttributeGroupAttributesController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'attribute_group', action: 'read')]
     public function __invoke(string $id): JsonResponse
     {
         $group = $this->groups->findById(Uuid::fromString($id));

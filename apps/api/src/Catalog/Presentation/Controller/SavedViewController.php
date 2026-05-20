@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Domain\Entity\SavedView;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -50,6 +51,7 @@ final class SavedViewController
 
     #[Route('/api/saved-views', name: 'pim_saved_views_list', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function list(Request $request): JsonResponse
     {
         $tenant = $this->tenantContext->get();
@@ -78,6 +80,7 @@ final class SavedViewController
 
     #[Route('/api/saved-views', name: 'pim_saved_views_create', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function create(Request $request): JsonResponse
     {
         $tenant = $this->tenantContext->get();
@@ -128,6 +131,7 @@ final class SavedViewController
 
     #[Route('/api/saved-views/{id}', name: 'pim_saved_views_patch', requirements: ['id' => self::UUID_REGEX], methods: ['PATCH'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function patch(string $id, Request $request): JsonResponse
     {
         $view = $this->mustFind($id);
@@ -164,6 +168,7 @@ final class SavedViewController
 
     #[Route('/api/saved-views/{id}', name: 'pim_saved_views_delete', requirements: ['id' => self::UUID_REGEX], methods: ['DELETE'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function delete(string $id): Response
     {
         $view = $this->mustFind($id);

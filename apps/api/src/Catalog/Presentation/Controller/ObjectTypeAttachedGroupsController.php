@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Doctrine\DBAL\Connection;
 use Stringable;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -43,6 +44,7 @@ final class ObjectTypeAttachedGroupsController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'object_type', action: 'read')]
     public function __invoke(string $id): JsonResponse
     {
         $objectType = $this->objectTypes->findById(Uuid::fromString($id));

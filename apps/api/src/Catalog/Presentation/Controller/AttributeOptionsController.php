@@ -7,6 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\AttributeOption;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
 use LogicException;
@@ -53,6 +54,7 @@ final class AttributeOptionsController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'attribute', action: 'read')]
     public function list(string $code): JsonResponse
     {
         $attribute = $this->loadAttributeByCode($code);
@@ -81,6 +83,7 @@ final class AttributeOptionsController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'attribute', action: 'read')]
     public function usage(string $code, string $optionCode): JsonResponse
     {
         $attribute = $this->loadAttributeByCode($code);
@@ -108,6 +111,7 @@ final class AttributeOptionsController
         methods: ['POST'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.attributes', action: 'add_edit')]
     public function create(string $code, Request $request): JsonResponse
     {
         $attribute = $this->loadAttributeByCode($code);
@@ -176,6 +180,7 @@ final class AttributeOptionsController
         methods: ['PATCH'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.attributes', action: 'add_edit')]
     public function patch(string $code, string $optionCode, Request $request): JsonResponse
     {
         $attribute = $this->loadAttributeByCode($code);
@@ -227,6 +232,7 @@ final class AttributeOptionsController
         methods: ['DELETE'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'attribute', action: 'delete')]
     public function delete(string $code, string $optionCode): JsonResponse
     {
         $attribute = $this->loadAttributeByCode($code);

@@ -7,6 +7,7 @@ namespace App\Asset\Presentation\Controller;
 use App\Asset\Domain\Entity\Asset;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
 use App\Catalog\Contracts\Service\ProductAssetLinker;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -38,6 +39,7 @@ final readonly class ProductAssetsController
     }
 
     #[Route(path: '/api/products/{id}/assets', name: 'pim_products_assets_list', methods: ['GET'], format: 'json')]
+    #[RequiresPermission(module: 'asset', action: 'read')]
     public function list(string $id): JsonResponse
     {
         $productId = $this->parseUuid($id, 'product');
@@ -55,6 +57,7 @@ final readonly class ProductAssetsController
     }
 
     #[Route(path: '/api/products/{id}/assets', name: 'pim_products_assets_link', methods: ['POST'], format: 'json')]
+    #[RequiresPermission(module: 'asset', action: 'write')]
     public function link(string $id, Request $request): JsonResponse
     {
         $productId = $this->parseUuid($id, 'product');
@@ -96,6 +99,7 @@ final readonly class ProductAssetsController
         methods: ['DELETE'],
         format: 'json',
     )]
+    #[RequiresPermission(module: 'asset', action: 'write')]
     public function unlink(string $id, string $assetId): JsonResponse
     {
         $productId = $this->parseUuid($id, 'product');

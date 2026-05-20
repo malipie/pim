@@ -7,6 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Application\ObjectTypeService;
 use App\Catalog\Domain\Exception\BuiltInObjectTypeException;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -49,6 +50,7 @@ final class UpdateObjectTypeController
         priority: 200,
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.object_types', action: 'add')]
     public function __invoke(string $id, Request $request): JsonResponse
     {
         $objectType = $this->objectTypes->findById(Uuid::fromString($id));

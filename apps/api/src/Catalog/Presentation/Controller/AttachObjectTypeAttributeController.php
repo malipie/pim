@@ -7,6 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Application\ObjectTypeService;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -51,6 +52,7 @@ final class AttachObjectTypeAttributeController
         methods: ['POST'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.object_types', action: 'add')]
     public function attach(string $id, string $attributeId): JsonResponse
     {
         $objectType = $this->objectTypes->findById(Uuid::fromString($id));
@@ -76,6 +78,7 @@ final class AttachObjectTypeAttributeController
         methods: ['DELETE'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.object_types', action: 'add')]
     public function detach(string $id, string $attributeId): JsonResponse
     {
         $objectType = $this->objectTypes->findById(Uuid::fromString($id));
@@ -101,6 +104,7 @@ final class AttachObjectTypeAttributeController
         methods: ['POST'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.object_types', action: 'add')]
     public function bulkAttach(string $id, Request $request): JsonResponse
     {
         $objectType = $this->objectTypes->findById(Uuid::fromString($id));

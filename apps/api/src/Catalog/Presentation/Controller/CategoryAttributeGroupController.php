@@ -10,6 +10,7 @@ use App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\CategoryAttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use InvalidArgumentException;
 use JsonException;
@@ -66,6 +67,7 @@ final class CategoryAttributeGroupController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'attribute_group', action: 'read')]
     public function list(string $id, Request $request): JsonResponse
     {
         $category = $this->fetchCategory($id);
@@ -111,6 +113,7 @@ final class CategoryAttributeGroupController
         methods: ['POST'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.attribute_groups', action: 'add_edit')]
     public function declare(string $id, Request $request): JsonResponse
     {
         $category = $this->fetchCategory($id);
@@ -154,6 +157,7 @@ final class CategoryAttributeGroupController
         methods: ['DELETE'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.attribute_groups', action: 'add_edit')]
     public function detach(string $id, string $groupId, string $targetTypeId): JsonResponse
     {
         $category = $this->fetchCategory($id);
@@ -186,6 +190,7 @@ final class CategoryAttributeGroupController
         methods: ['PATCH'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.attribute_groups', action: 'add_edit')]
     public function reorder(string $id, string $groupId, string $targetTypeId, Request $request): JsonResponse
     {
         $category = $this->fetchCategory($id);
