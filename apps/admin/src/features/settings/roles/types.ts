@@ -17,3 +17,19 @@ export interface RoleListItem {
   created_at: string;
   permissions_count: number;
 }
+
+/**
+ * RBAC-P5-006 (#696) — wire shape for `GET /api/roles/{id}` consumed
+ * by the custom-role builder editor. Mirrors
+ * {@link RoleDetailResponseBuilder} on the API side.
+ */
+export interface RoleDetail {
+  id: string;
+  code: string;
+  name: string;
+  type: RoleListType;
+  is_built_in: boolean;
+  tenant_id: string | null;
+  permission_codes: string[];
+  created_at: string;
+}

@@ -62,4 +62,13 @@ interface UserRepositoryInterface
         ?array $roleIds,
         ?string $search,
     ): int;
+
+    /**
+     * RBAC-P5-006 (#696) — number of users on any tenant who currently
+     * hold the given role via the M2M assignment table. Used by the
+     * custom-role-builder DELETE path to refuse a delete that would
+     * leave dangling references (operator must reassign or strip the
+     * role first).
+     */
+    public function countAssignedToRole(Uuid $roleId): int;
 }

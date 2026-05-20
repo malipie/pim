@@ -1,8 +1,15 @@
 import { useList } from '@refinedev/core';
-import { MoreHorizontal, Plus, ShieldCheck } from 'lucide-react';
+import { MoreHorizontal, Pencil, Plus, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -33,6 +40,7 @@ import type { RoleListItem } from './types';
  */
 export function RolesListView() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
 
   const { result, query: listQuery } = useList<RoleListItem>({
     resource: 'roles',
@@ -51,13 +59,7 @@ export function RolesListView() {
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">{t('settings.roles.intro')}</p>
         </div>
-        <Button
-          size="sm"
-          className="gap-1.5"
-          disabled
-          aria-disabled="true"
-          title={t('settings.roles.create_pending_hint')}
-        >
+        <Button size="sm" className="gap-1.5" onClick={() => navigate('/settings/roles/new')}>
           <Plus className="size-4" aria-hidden="true" />
           {t('settings.roles.create_cta')}
         </Button>
@@ -91,7 +93,12 @@ export function RolesListView() {
               </TableRow>
             )}
             {roles.map((role) => (
-              <RoleRow key={role.id} role={role} locale={i18n.language} />
+              <RoleRow
+                key={role.id}
+                role={role}
+                locale={i18n.language}
+                onEdit={() => navigate(`/settings/roles/${role.id}/edit`)}
+              />
             ))}
           </TableBody>
         </Table>
@@ -100,7 +107,15 @@ export function RolesListView() {
   );
 }
 
-function RoleRow({ role, locale }: { role: RoleListItem; locale: string }) {
+function RoleRow({
+  role,
+  locale,
+  onEdit,
+}: {
+  role: RoleListItem;
+  locale: string;
+  onEdit: () => void;
+}) {
   const { t } = useTranslation();
   const createdAt = new Date(role.created_at).toLocaleDateString(locale);
 
@@ -135,20 +150,21 @@ function RoleRow({ role, locale }: { role: RoleListItem; locale: string }) {
         </div>
       </TableCell>
       <TableCell className="pr-5 text-right">
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled
-          aria-label={t('settings.roles.row_actions')}
-          aria-disabled="true"
-          title={
-            'system' === role.type
-              ? t('settings.roles.system_immutable_hint')
-              : t('settings.roles.actions_pending_hint')
-          }
-        >
-          <MoreHorizontal className="size-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label={t('settings.roles.row_actions')}>
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={onEdit}>
+              <Pencil className="mr-2 size-4" aria-hidden="true" />
+              {role.type === 'system'
+                ? t('settings.roles.action_view_permissions')
+                : t('settings.roles.action_edit')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
     </TableRow>
   );
