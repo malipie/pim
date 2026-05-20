@@ -8,6 +8,8 @@ use App\Identity\Application\PermissionResolverInterface;
 use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\ApiTokenRepositoryInterface;
+use DateTimeInterface;
+use InvalidArgumentException;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -58,7 +60,7 @@ final readonly class RevokeApiTokenController
 
         try {
             $uuid = Uuid::fromString($id);
-        } catch (\InvalidArgumentException) {
+        } catch (InvalidArgumentException) {
             return $this->problem(Response::HTTP_NOT_FOUND, 'Not Found', 'Token not found.');
         }
 
@@ -89,7 +91,7 @@ final readonly class RevokeApiTokenController
         return new JsonResponse([
             'id' => $token->getId()->toRfc4122(),
             'status' => 'revoked',
-            'revoked_at' => $token->getRevokedAt()?->format(\DateTimeInterface::ATOM),
+            'revoked_at' => $token->getRevokedAt()?->format(DateTimeInterface::ATOM),
         ]);
     }
 
