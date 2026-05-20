@@ -9,6 +9,7 @@ use App\Catalog\Domain\Entity\ObjectCategory;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use InvalidArgumentException;
 use JsonException;
@@ -68,6 +69,7 @@ final class ProductCategoryAssignmentController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function list(string $id): JsonResponse
     {
         $product = $this->mustFindProduct($id);
@@ -82,6 +84,7 @@ final class ProductCategoryAssignmentController
         methods: ['PUT'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'edit')]
     public function replace(string $id, Request $request): JsonResponse
     {
         $product = $this->mustFindProduct($id);
@@ -154,6 +157,7 @@ final class ProductCategoryAssignmentController
         methods: ['POST'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'edit')]
     public function add(string $id, Request $request): JsonResponse
     {
         $product = $this->mustFindProduct($id);
@@ -221,6 +225,7 @@ final class ProductCategoryAssignmentController
         methods: ['DELETE'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'edit')]
     public function detach(string $id, string $categoryId): JsonResponse
     {
         $product = $this->mustFindProduct($id);

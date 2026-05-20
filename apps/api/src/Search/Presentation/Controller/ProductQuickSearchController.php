@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Search\Presentation\Controller;
 
 use App\Catalog\Domain\ObjectKind;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Search\Application\CatalogSearchService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -47,6 +48,7 @@ final class ProductQuickSearchController
      */
     #[Route('/api/products/quick-search', name: 'pim_products_quick_search', methods: ['GET'], priority: 200)]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function __invoke(Request $request): JsonResponse
     {
         $query = trim($request->query->getString('q', ''));

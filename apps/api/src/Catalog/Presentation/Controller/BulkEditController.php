@@ -8,6 +8,7 @@ use App\Catalog\Domain\Entity\BulkEditJob;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -62,6 +63,7 @@ final class BulkEditController
         priority: 200,
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'bulk_operations')]
     public function bulkEdit(Request $request): JsonResponse
     {
         $tenant = $this->tenantContext->get();
@@ -141,6 +143,7 @@ final class BulkEditController
         priority: 200,
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'bulk_operations')]
     public function show(string $id): JsonResponse
     {
         $job = $this->em->getRepository(BulkEditJob::class)->find(Uuid::fromString($id));

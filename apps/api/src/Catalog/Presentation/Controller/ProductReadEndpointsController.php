@@ -12,6 +12,7 @@ use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Infrastructure\Audit\CursorCodec;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
@@ -78,6 +79,7 @@ final class ProductReadEndpointsController
         priority: 200,
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function auditLog(string $id, Request $request): JsonResponse
     {
         $product = $this->mustFindProduct($id);
@@ -150,6 +152,7 @@ final class ProductReadEndpointsController
         priority: 200,
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function channelsStatus(string $id): JsonResponse
     {
         $product = $this->mustFindProduct($id);
@@ -174,6 +177,7 @@ final class ProductReadEndpointsController
         priority: 200,
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function effectiveAttributeGroups(string $id): JsonResponse
     {
         $product = $this->mustFindProduct($id);

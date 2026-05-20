@@ -14,6 +14,7 @@ use App\Catalog\Domain\Provenance;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -96,6 +97,7 @@ final class GenerateVariantsController
         priority: 200,
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'add')]
     public function __invoke(string $master_id, Request $request): JsonResponse
     {
         // Generation can stamp dozens of ObjectValue rows per combination;
