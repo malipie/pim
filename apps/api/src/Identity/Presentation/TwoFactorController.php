@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation;
 
 use App\Identity\Application\TotpEnrolmentService;
+use App\Identity\Domain\Attribute\NoPermissionRequired;
 use App\Identity\Domain\Entity\User;
 use DateTimeInterface;
 use JsonException;
@@ -123,6 +124,81 @@ final readonly class TwoFactorController
         $this->enrolment->disable($user);
 
         return new JsonResponse(['enabled' => false]);
+    }
+
+    /**
+     * RBAC-P5-013 (#703) — current MFA state for Profile → Security.
+     *
+     *   GET /api/me/mfa/status
+     *   { enabled: bool, enabled_at: ATOM|null, backup_codes_remaining: int,
+     *     enrolment_pending: bool }
+     *
+     * `enrolment_pending` is true when a secret has been minted but the
+     * first authenticator code has not been verified yet — UI shows
+     * "Resume enrolment" instead of "Enable" in that state.
+     */
+    #[Route(path: '/api/me/mfa/status', methods: ['GET'], name: 'api_me_mfa_status')]
+    #[NoPermissionRequired(reason: 'Caller reads their own MFA state — `getUser()` enforces auth, no cross-user access.')]
+    public function status(): Response
+    {
+        $user = self::requireUser($this->security);
+        if ($user instanceof Response) {
+            return $user;
+        }
+
+        return new JsonResponse([
+            'enabled' => $user->isTotpEnabled(),
+            'enabled_at' => $user->getTotpEnabledAt()?->format(DateTimeInterface::ATOM),
+            'backup_codes_remaining' => \count($user->getTotpBackupCodes()),
+            'enrolment_pending' => null !== $user->getTotpSecret() && !$user->isTotpEnabled(),
+        ]);
+    }
+
+    /**
+     * RBAC-P5-013 (#703) — rotate one-shot recovery codes for an
+     * already-enrolled user. Body must include `code` (TOTP or
+     * surviving backup code) to prove possession; the rotation
+     * invalidates every previous code so a stolen list can't be reused.
+     *
+     *   POST /api/me/mfa/recovery-codes/regenerate
+     *   { "code": "123456" }
+     *
+     * Response surfaces the new cleartext codes ONCE — same shape as
+     * the `enrol` payload.
+     */
+    #[Route(
+        path: '/api/me/mfa/recovery-codes/regenerate',
+        methods: ['POST'],
+        name: 'api_me_mfa_recovery_codes_regenerate',
+    )]
+    #[NoPermissionRequired(reason: 'Caller rotates their own recovery codes — TOTP/backup code proves possession.')]
+    public function regenerateRecoveryCodes(Request $request): Response
+    {
+        $user = self::requireUser($this->security);
+        if ($user instanceof Response) {
+            return $user;
+        }
+
+        if (!$user->isTotpEnabled()) {
+            return self::problem(
+                Response::HTTP_CONFLICT,
+                'TOTP not active',
+                '2FA must be enabled before rotating recovery codes.',
+            );
+        }
+
+        $code = self::readCode($request);
+        if (null === $code || !$this->enrolment->verify($user, $code)) {
+            return self::problem(
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+                'Invalid verification code',
+                'A valid TOTP or backup code is required to rotate recovery codes.',
+            );
+        }
+
+        $newCodes = $this->enrolment->rotateBackupCodes($user);
+
+        return new JsonResponse(['backup_codes' => $newCodes]);
     }
 
     private static function requireUser(Security $security): User|Response
