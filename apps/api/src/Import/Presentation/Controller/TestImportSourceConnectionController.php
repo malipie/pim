@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Application\Service\HealthCheckService;
 use App\Import\Domain\Entity\ImportSource;
@@ -38,6 +39,7 @@ final class TestImportSourceConnectionController
         requirements: ['id' => '[0-9a-fA-F-]{36}'],
         methods: ['POST'],
     )]
+    #[RequiresPermission(module: 'import_source', action: 'read')]
     public function __invoke(string $id): JsonResponse
     {
         $user = $this->security->getUser();

@@ -12,6 +12,7 @@ use App\Export\Domain\Enum\ExportSource;
 use App\Export\Domain\Enum\ExportTargetScope;
 use App\Export\Domain\Message\RunExportMessage;
 use App\Export\Domain\Repository\ExportSessionRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
 use DateTimeImmutable;
@@ -71,6 +72,7 @@ final class SyncExportController
         methods: ['POST'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'exports', action: 'run')]
     public function __invoke(Request $request): Response
     {
         $user = $this->security->getUser();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Import\Application\Service\MappingDictionaryService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,6 +27,7 @@ final class DictionaryController
         name: 'imports_dictionary',
         methods: ['GET'],
     )]
+    #[RequiresPermission(module: 'import_session', action: 'read')]
     public function __invoke(): JsonResponse
     {
         $response = new JsonResponse(

@@ -6,6 +6,7 @@ namespace App\Import\Presentation\Controller;
 
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Application\Handler\ImportRunHandler;
 use App\Import\Domain\Entity\ImportProfile;
@@ -69,6 +70,7 @@ final class StartImportController
         name: 'imports_start',
         methods: ['POST'],
     )]
+    #[RequiresPermission(module: 'imports', action: 'run')]
     public function __invoke(Request $request): JsonResponse
     {
         $user = $this->security->getUser();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Application\Service\ImportRollbackService;
 use App\Import\Domain\Entity\ImportSession;
@@ -43,6 +44,7 @@ final class RollbackImportController
         requirements: ['id' => '[0-9a-fA-F-]{36}'],
         methods: ['POST'],
     )]
+    #[RequiresPermission(module: 'import_session', action: 'admin')]
     public function __invoke(string $id): JsonResponse
     {
         $session = $this->loadOwned($id);

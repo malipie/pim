@@ -6,6 +6,7 @@ namespace App\Export\Presentation\Controller;
 
 use App\Export\Domain\Entity\ExportProfile;
 use App\Export\Domain\Repository\ExportProfileRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
 use DateTimeInterface;
@@ -60,6 +61,7 @@ final class ExportProfileController
         methods: ['GET'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'exports', action: 'view_all')]
     public function list(Request $request): JsonResponse
     {
         [$tenant, $userId] = $this->resolveTenantAndUser();
@@ -77,6 +79,7 @@ final class ExportProfileController
         methods: ['POST'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'integration', action: 'admin')]
     public function create(Request $request): JsonResponse
     {
         [$tenant, $userId] = $this->resolveTenantAndUser();
@@ -109,6 +112,7 @@ final class ExportProfileController
         methods: ['GET'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'exports', action: 'view_all')]
     public function get(string $id): JsonResponse
     {
         $profile = $this->loadOwnedOrFail($id);
@@ -123,6 +127,7 @@ final class ExportProfileController
         methods: ['PATCH'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'integration', action: 'admin')]
     public function patch(string $id, Request $request): JsonResponse
     {
         $profile = $this->loadOwnedOrFail($id);
@@ -162,6 +167,7 @@ final class ExportProfileController
         methods: ['DELETE'],
     )]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'integration', action: 'admin')]
     public function delete(string $id): Response
     {
         $profile = $this->loadOwnedOrFail($id);

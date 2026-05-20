@@ -7,6 +7,7 @@ namespace App\ApiConfigurator\Presentation\Controller;
 use ApiPlatform\OpenApi\Factory\OpenApiFactoryInterface;
 use App\ApiConfigurator\Domain\Entity\ApiProfile;
 use App\ApiConfigurator\Domain\Repository\ApiProfileRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use stdClass;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -49,6 +50,7 @@ final class ProfileTestController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'api_profile', action: 'read')]
     public function test(string $code): JsonResponse
     {
         $profile = $this->loadProfile($code);
@@ -69,6 +71,7 @@ final class ProfileTestController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'api_profile', action: 'read')]
     public function openapi(string $code): JsonResponse
     {
         $profile = $this->loadProfile($code);

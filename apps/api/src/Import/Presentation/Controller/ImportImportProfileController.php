@@ -6,6 +6,7 @@ namespace App\Import\Presentation\Controller;
 
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Enum\ImportImageSource;
@@ -49,6 +50,7 @@ final class ImportImportProfileController
         name: 'imports_profile_import',
         methods: ['POST'],
     )]
+    #[RequiresPermission(module: 'import_profile', action: 'write')]
     public function __invoke(Request $request): JsonResponse
     {
         $user = $this->security->getUser();

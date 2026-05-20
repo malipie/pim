@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Repository\ImportProfileRepositoryInterface;
@@ -42,6 +43,7 @@ final class ExportImportProfileController
         requirements: ['id' => '[0-9a-fA-F-]{36}'],
         methods: ['GET'],
     )]
+    #[RequiresPermission(module: 'import_profile', action: 'read')]
     public function __invoke(string $id): JsonResponse
     {
         $user = $this->security->getUser();
