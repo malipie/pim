@@ -1630,5 +1630,30 @@
       "guidance": "Skorzystaj z transferu właścicielstwa (Settings → Tenant) zamiast przypisywać Owner po raz drugi.",
       "close": "Zamknij"
     }
+  },
+  "accept_invitation": {
+    "verifying": "Sprawdzam zaproszenie...",
+    "invalid_title": "Niepoprawne zaproszenie",
+    "invalid_body_malformed": "Link zaproszenia jest nieprawidłowy. Sprawdź, czy skopiowałeś cały URL z emaila.",
+    "invalid_body_not_found": "To zaproszenie nie istnieje. Mogło zostać już zaakceptowane lub wycofane.",
+    "expired_title": "Zaproszenie wygasło",
+    "expired_body": "Zaproszenie dla {{email}} wygasło. Poproś {{tenant_name}} o nowe zaproszenie.",
+    "revoked_title": "Zaproszenie zostało wycofane",
+    "revoked_body": "Administrator wycofał zaproszenie dla {{email}}. Skontaktuj się z {{tenant_name}}, jeśli to pomyłka.",
+    "accepted_title": "Zaproszenie już zaakceptowane",
+    "accepted_body": "Konto {{email}} już istnieje. Zaloguj się normalnie używając hasła ustawionego wcześniej.",
+    "valid_title": "Dołącz do {{tenant_name}}",
+    "valid_body": "Ustaw hasło dla {{email}} — używaj go przy każdym logowaniu.",
+    "field_new": "Nowe hasło (min 12 znaków)",
+    "field_confirm": "Powtórz hasło",
+    "submit": "Aktywuj konto i zaloguj",
+    "submitting": "Aktywuję konto...",
+    "error_too_short": "Hasło musi mieć co najmniej {{min}} znaków.",
+    "error_mismatch": "Hasła nie są identyczne.",
+    "error_validation": "Wprowadzone dane nie przeszły walidacji backendu.",
+    "error_generic": "Nie udało się aktywować konta. Spróbuj ponownie.",
+    "go_login": "Przejdź do logowania",
+    "toast_success": "Konto aktywowane. Witaj!",
+    "toast_accepted_login_required": "Konto aktywowane. Zaloguj się, żeby kontynuować."
   }
 }

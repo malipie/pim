@@ -74,6 +74,10 @@ security:
         # /api/invitations/{token}/accept matches the path below; the
         # token character class is enforced at the controller route level.
         - { path: '^/api/invitations/[a-f0-9]+/accept$', roles: PUBLIC_ACCESS }
+        # RBAC-P5-017 (#707) — accept invitation page calls verify before
+        # showing the password form. Same auth model as /accept: the
+        # token IS the auth factor; account does not exist yet.
+        - { path: '^/api/invitations/[a-f0-9]+/verify$', roles: PUBLIC_ACCESS }
         - { path: '^/api/auth/password-reset/(request|confirm)$', roles: PUBLIC_ACCESS }
         # RBAC-P2-012/013/014 SSO callback endpoints — provider's OAuth/SAML
         # assertion IS the auth factor; no PIM session required.
