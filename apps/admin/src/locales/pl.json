@@ -74,7 +74,19 @@
       "empty": "Brak tenantów pasujących do filtrów.",
       "error_loading": "Nie udało się załadować listy tenantów.",
       "forbidden_title": "Tylko Super Admin",
-      "forbidden_description": "Operator panel jest dostępny wyłącznie dla użytkowników z rolą Super Admin. Skontaktuj się z administratorem platformy."
+      "forbidden_description": "Operator panel jest dostępny wyłącznie dla użytkowników z rolą Super Admin. Skontaktuj się z administratorem platformy.",
+      "detail": {
+        "back": "Wróć do listy tenantów",
+        "loading": "Wczytywanie...",
+        "not_found": "Nie znaleziono tenanta o tym ID.",
+        "field_plan": "Plan",
+        "field_users": "Aktywni użytkownicy",
+        "field_users_hint": "Liczy tylko konta ze statusem `active`. Deaktywowane są pominięte.",
+        "field_created": "Data utworzenia",
+        "field_locales": "Locales",
+        "field_locales_hint": "Primary locale: {{primary}}. Pozostałe są secondary.",
+        "crud_deferred": "Zmiana planu / suspend / delete tenanta dochodzą w #711. Storage usage + bandwidth metrics gdy backend wystawi telemetry endpoint."
+      }
     }
   },
   "settings": {

@@ -1,12 +1,16 @@
 import { Building2, Loader2, ShieldAlert, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 
 import { Input } from '@/components/ui/input';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
+import { AdminTenantShowPage } from './AdminTenantShowPage';
 import type { AdminTenantSummary } from './types';
+
+export { AdminTenantShowPage };
 
 interface ListResponse {
   member: AdminTenantSummary[];
@@ -181,8 +185,8 @@ function TenantRow({ tenant }: { tenant: AdminTenantSummary }) {
   return (
     <tr className="border-t hover:bg-muted/20">
       <td className="px-4 py-2.5">
-        <div className="space-y-0.5">
-          <div className="text-sm font-medium">{tenant.name}</div>
+        <Link to={`/admin/tenants/${tenant.id}`} className="block">
+          <div className="text-sm font-medium hover:underline">{tenant.name}</div>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <span className="font-mono">{tenant.code}</span>
             {tenant.domain ? (
@@ -192,7 +196,7 @@ function TenantRow({ tenant }: { tenant: AdminTenantSummary }) {
               </>
             ) : null}
           </div>
-        </div>
+        </Link>
       </td>
       <td className="px-4 py-2.5">
         <PlanBadge plan={tenant.plan} />

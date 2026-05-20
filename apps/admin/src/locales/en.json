@@ -72,7 +72,19 @@
       "empty": "No tenants match the current filters.",
       "error_loading": "Could not load tenants list.",
       "forbidden_title": "Super Admin only",
-      "forbidden_description": "The operator panel is restricted to users with the Super Admin role. Contact your platform administrator."
+      "forbidden_description": "The operator panel is restricted to users with the Super Admin role. Contact your platform administrator.",
+      "detail": {
+        "back": "Back to tenant list",
+        "loading": "Loading...",
+        "not_found": "No tenant found with this ID.",
+        "field_plan": "Plan",
+        "field_users": "Active users",
+        "field_users_hint": "Counts only accounts with status `active`. Deactivated accounts are excluded.",
+        "field_created": "Created",
+        "field_locales": "Locales",
+        "field_locales_hint": "Primary locale: {{primary}}. The rest are secondary.",
+        "crud_deferred": "Plan change / suspend / delete land in #711. Storage usage + bandwidth metrics once the backend exposes a telemetry endpoint."
+      }
     }
   },
   "settings": {
