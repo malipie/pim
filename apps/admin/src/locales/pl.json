@@ -64,6 +64,7 @@
       "channels": "Kanały",
       "users": "Użytkownicy",
       "roles": "Role",
+      "api_tokens": "Tokeny API",
       "security": "Polityka Haseł, 2FA",
       "billing": "Subskrypcja",
       "ai": "Konfiguracja AI"
@@ -110,6 +111,33 @@
         "fair": "Średnie",
         "good": "Dobre",
         "strong": "Silne"
+      }
+    },
+    "api_tokens": {
+      "title": "Tokeny API",
+      "intro": "Programowe tokeny dla integracji i CLI. Token plaintext widoczny tylko raz przy tworzeniu — zapisz go natychmiast.",
+      "create_cta": "Utwórz token",
+      "create_pending_hint": "Kreator tokenów dochodzi w #700.",
+      "scope_own": "Moje tokeny",
+      "scope_tenant": "Wszystkie (tenant)",
+      "col_name": "Nazwa",
+      "col_owner": "Właściciel",
+      "col_scopes": "Uprawnienia",
+      "col_status": "Status",
+      "col_last_used": "Ostatnio użyty",
+      "col_expires": "Wygasa",
+      "col_actions": "Akcje",
+      "no_scopes": "brak",
+      "last_used_never": "nigdy",
+      "expires_never": "bez daty wygaśnięcia",
+      "row_actions": "Akcje wiersza",
+      "actions_pending_hint": "Revoke + szczegóły dochodzą w #701.",
+      "empty": "Brak tokenów. Utwórz pierwszy klikając „Utwórz token” (wkrótce).",
+      "error_loading": "Nie udało się załadować listy tokenów.",
+      "status": {
+        "active": "Aktywny",
+        "expired": "Wygasł",
+        "revoked": "Odwołany"
       }
     },
     "billing": {

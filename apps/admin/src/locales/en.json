@@ -62,6 +62,7 @@
       "channels": "Channels",
       "users": "Users",
       "roles": "Roles",
+      "api_tokens": "API tokens",
       "security": "Password policy, 2FA",
       "billing": "Subscription",
       "ai": "AI configuration"
@@ -108,6 +109,33 @@
         "fair": "Fair",
         "good": "Good",
         "strong": "Strong"
+      }
+    },
+    "api_tokens": {
+      "title": "API tokens",
+      "intro": "Programmatic tokens for integrations and the CLI. The plaintext token is shown exactly once on creation — copy it immediately.",
+      "create_cta": "Create token",
+      "create_pending_hint": "Token wizard lands in #700.",
+      "scope_own": "My tokens",
+      "scope_tenant": "All (tenant)",
+      "col_name": "Name",
+      "col_owner": "Owner",
+      "col_scopes": "Scopes",
+      "col_status": "Status",
+      "col_last_used": "Last used",
+      "col_expires": "Expires",
+      "col_actions": "Actions",
+      "no_scopes": "none",
+      "last_used_never": "never",
+      "expires_never": "no expiry",
+      "row_actions": "Row actions",
+      "actions_pending_hint": "Revoke + details land in #701.",
+      "empty": "No tokens yet. Click „Create token” once it lands (#700).",
+      "error_loading": "Could not load API tokens.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "revoked": "Revoked"
       }
     },
     "billing": {
