@@ -2,6 +2,28 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z Phase 5 closure polish (2026-05-20, #847 + #848 shipped)
+
+### Patterns to Follow
+
+1. **Inline operator design questions jako pre-flight checklist** — przy #711 zadałem 5 pytań architektonicznych operatorowi *(suspend semantyka? delete typ? create defaults? plan→billing cascade? quota?)* w jednym message przed implementacją. Operator odpowiedział YES/NO + 3 enums w ~10s. Bez tego utknąłbym w "what does suspend mean?" rabbit hole w środku PR-a. Pattern: **before non-trivial ticket — produce a binary decision tree z defaults, operator akceptuje lub flipuje per option**. Lepsze niż long-form pytania.
+
+2. **Sections-as-Cards beats Tabs dla form-heavy editors** — gdy mockup pokazuje grouped sections (PRD §5.3) na jednej scrollable page, nie wymuszaj `<Tabs>`. Cards z header + body dają tą samą wizualną hierarchię + zachowują context (wszystko widoczne jednocześnie, dirty indicators per section nie wymagają tab-switching). Pattern: `<SectionCard title=... description=... meta=...>` jako simple wrapper, sticky bottom action bar dla single save.
+
+3. **Pull-state-up dla composable form sections** — `AttributePermissionsTab` (self-contained z own state + own save) → `AttributePermissionsSection` (presentational, state owned by parent). Parent's submit hits both PATCH role + PUT attribute-perms w sequence; rolls back na Promise rejection. Jeden Save, jeden dirty indicator, jeden rollback path. Cost: 50 lines parent state code. Win: no ref forwarding, no callback callbacks, no save-half-fails-leave-mixed-state.
+
+4. **Discriminated union dla mixed list types** — Users list teraz pokazuje *Users + Invitations* jako jeden table. Wire shape: `kind: 'user' | 'invitation'`, common fields shared, kind-specific fields nullable. FE branches per kind w renderowaniu + akcjach. Pattern repeatable: tenant list (active + suspended + deleted), API tokens list (own + tenant-wide w scope toggle), itp.
+
+5. **Relative-time z fallback do absolute past N days** — "2 min ago" / "yesterday" są human-friendly do 14 dni, potem `toLocaleDateString` wraca do absolute. Helper bez zewnętrznego dep (date-fns) ~30 linii. Pattern: i18n keys per range (just_now / minutes_ago / hours_ago / yesterday / days_ago) z pluralizacją.
+
+### Patterns to Avoid
+
+1. **NIE assume Tabs gdy mockup pokazuje sections** — moja pierwsza propozycja dla role editor polish była "<Tabs> z Radix dla unified save". PRD §5.3 mockup pokazuje flat sections z border boxes. Tabs byłyby over-engineered + ukryły kontekst. Wzór: **przeczytaj mockup ASCII art DOKŁADNIE przed proposem komponentów**. ASCII boxy `┌─┐ ... └─┘` z headers = Cards, nie Tabs.
+
+2. **NIE assume backend nie istnieje** — w marathon-3 myślałem że trzeba shipnąć Phase 4 #659/#660 MFA backend. Quick `grep "class.*Totp"` w 30s pokazał że `TotpEnrolmentService` + `TwoFactorController` istnieją z `#0.11.1` (3 miesiące temu). Marathon-3 dorobił tylko status + regenerate endpoints + UI. Pattern: **30-second reconnaissance grep przed Plan Mode estymatą** — szuka `class.*<Feature>`, `interface.*<Feature>Repository`, `function get<Feature>`.
+
+3. **NIE używaj `ADD CONSTRAINT IF NOT EXISTS` na CHECK constraintach** — to PG14+. CI's Postgres 13 image rejects syntax. Wzór: zawsze użyj `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='X') THEN ALTER TABLE ... ADD CONSTRAINT X CHECK (...); END IF; END $$;` dla CHECK constraints. Dla tables/indexes `CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS` działa od PG 9.5.
+
 ## Lessons z Phase 5 marathon-2 final-final (2026-05-20, #709/#710 shipped na koniec)
 
 ### Patterns to Follow

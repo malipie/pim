@@ -1,5 +1,40 @@
 # Current Status
 
+## 2026-05-20: ✅ Phase 5 RBAC — ZAMKNIĘTA (22/22 + 2 polish PRs)
+
+**Status:** Phase 5 RBAC closed. Następna agent session zaczyna **Phase 6 RBAC retrofit + hardening** (milestone [#14](../../milestone/14) — backlog ticketów #714-#722 dostępny w `Project Plan/13-rbac-tickets-phase-6.md`).
+
+**Scope ukończony (pełen Phase 5 + 2 polish PRs):**
+
+22 functional tickets (#691, #692, #693, #694, #695, #696, #697, #698, #699, #700, #701, #702, #703, #704, #705, #706, #707, #708, #709, #710, #711, #712) + 2 UI polish PRs (#847 role editor + list, #848 users list + invitations) zaprojektowane wg PRD §5.3 + §5.4 mockupów.
+
+**Marathon-3 końcówka (2026-05-20):**
+
+| Ticket | PR | Scope | Status |
+|---|---|---|---|
+| #711 Tenant lifecycle CRUD | [#845](../../pull/845) | Schema (status/suspended_at/deleted_at) + TenantUserChecker login block + write endpoints (create/patch/suspend/reactivate/delete) + `pim:tenants:purge-deleted` cron + FE list filter + create modal + per-row CRUD menu | ✅ merged |
+| #847 Role editor + list polish | [#849](../../pull/849) | `roles.description` column + 5-card section layout (Identity / Advanced / Matrix / Field-level / Locale scope) + sticky bottom action bar + unified save (PATCH + PUT in one submit) + dirty tracking + list toolbar (search + type filter + counter footer + clickable rows) | 🟡 PR open |
+| #848 Users list + invitations polish | [#850](../../pull/850) | Pending invitations as inline `kind:'invitation'` rows + `status:'invited'` with amber badge + relative-time "Last login" + per-row resend/revoke actions + `POST /api/invitations/{id}/revoke|resend` endpoints + "Showing X of Y" footer per §5.4 | 🟡 PR open |
+
+**Faza 5 deliverables (per PRD-PIM-rbac):**
+
+- ✅ Users list + invite + edit + deactivate + Invited inline + resend/revoke
+- ✅ Roles list + custom builder z 5 sekcjami + restrictions + scope placeholder
+- ✅ API tokens list + create wizard + revoke + plaintext-once
+- ✅ Profile MFA enable/disable + recovery codes regenerate + password change
+- ✅ SSO config UI (Google + Microsoft + SAML — secret masking)
+- ✅ Tenant config (Owner) + danger zone placeholder
+- ✅ Billing placeholder (Faza 1 podsumowanie)
+- ✅ Accept invitation page (4-state card)
+- ✅ 403 page + LastAdminGuard + OwnerUniquenessModal
+- ✅ Super Admin operator panel (tenant list + detail + CRUD + lifecycle + break-glass UI z MFA + rate limit + audit)
+
+**Phase 6 (next session) — backlog summary:**
+
+10 ticketów (#714-#722) z milestone [#14](../../milestone/14): RBAC retrofit (~60 endpointów pre-RBAC dostają `#[RequiresPermission]`), CI gates lockdown (strict mode w EndpointGuardListener), Prometheus/Grafana RBAC dashboards, Semgrep custom rules, security checklist + threat model docs.
+
+---
+
 ## 2026-05-20: 🏁 Phase 5 RBAC marathon-2 (final-final) — 20/22 ticketów shipped lub w CI
 
 **Sesja 2026-05-20 zaszipowała 9 ticketów (8 RBAC + 1 docs):**
