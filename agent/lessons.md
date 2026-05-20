@@ -2,6 +2,30 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z Phase 5 marathon-3 (2026-05-20 końcówka, #689/#703/#711/#712 shipped — pełen 22/22)
+
+### Patterns to Follow
+
+1. **Sprawdź czy backend nie istnieje już przed buildem Phase 4** — w marathon-3 myślałem że #659/#660 MFA backend trzeba shipnąć. Quick grep `class.*Totp` znalazł `TotpEnrolmentService` + `TwoFactorController` z `#0.11.1` (~3 miesiące temu). Brak było tylko status + regenerate endpoints + UI. Skróciło scope z 8-10h do 4-5h. Pattern: PRZED Plan Mode zrób 3-4 minute reconnaissance grep za istniejącymi entities/services/controllers w obszarze. Wzór nazewnictwa: `class.*<Feature>Service|class.*<Feature>Controller`.
+
+2. **Operator decision tree dla Plan Mode ADR-light** — gdy operator pyta "co potrzebujesz?", nie list pytań open-ended. Sformułuj 5 binarnych pytań z domyślną opcją w nawiasie. Operator odpowie szybko jednolinijkowymi YES/NO i marathon leci dalej. Dla #711 dostarczyłem: suspend=login block? (Y/N), suspend=read-only? (Y/N), delete=soft (30d)? (Y/N), itd. Operator odpowiedział 5×YES/NO + 3 enum w ~10s. Bez decision tree zostałbym z otwartym pytaniem "what does suspend mean?" → architectural rabbit hole.
+
+3. **TenantUserChecker decorator pattern dla auth-side filtering** — `decorates: security.user_checker` w services.yaml + `inner: '@security.user_checker'` jako konstruktor argument. Wrap default Symfony UserChecker so user-level flags (locked/expired) still trigger, then layer tenant-level checks on top. Trigger on BOTH `checkPreAuth` and `checkPostAuth` so active JWT sessions get blocked when tenant flips (worst case = JWT TTL window). Per-firewall wiring via `user_checker:` key w security.yaml.
+
+4. **Soft delete + scheduled hard delete + recovery clock w jednym column** — `deleted_at TIMESTAMP NULL`. NULL = nie soft-deleted. Set = soft-deleted at that timestamp. Scheduled command WHERE `deleted_at < NOW() - INTERVAL '30 days'` = hard delete candidates. Idempotent na re-runs (zaakceptowane przez sweep), recovery przez setting `deleted_at = NULL` (operator decision later). 30 dni to operator-chosen retention window for tenant lifecycle.
+
+5. **Idempotent suspend (don't bump timestamp on re-suspend)** — `if ($this->isSuspended()) return;` przed setting `suspended_at`. Re-suspending = no-op zamiast clean overwrite. Cleaner audit chain — pierwszy suspend timestamp jest authoritative.
+
+6. **Mfa enrol → verify → use w jednym smoke session** — żeby przetestować `/api/admin/break-glass` na live stack potrzebowałem MFA enabled na admin user. Sequence: POST /enrol → otrzymaj secret → PHP CLI `OTPHP\TOTP::createFromSecret(\$secret)->now()` → POST /verify z tym kodem → enabled. Następnie używaj OTPHP::now() przy każdym TOTP-gated endpoint. Pattern wykryty: `docker compose exec api php -r "..."` jest minimalistycznym CLI dla manual TOTP generation w smoke tests.
+
+### Patterns to Avoid
+
+1. **NIE polegaj na `--memory-limit=512M` dla local PHPStan** — z 512MB parallel workers mogą zabraknąć budget'u i bail out z "Some parallel worker jobs have not finished" które wygląda jak prawdziwy error ale jest false positive infrastrukturalne. Wzór: dla local dev użyj `--memory-limit=1G` jako default. CI ma 512MB ale uses GitHub Actions runner z 7GB RAM dla całego container — różny baseline. Drugi vector: `phpstan clear-result-cache` jeśli widzisz dziwne "Ignored error pattern was not matched" → przeważnie cache flake.
+
+2. **NIE zostawiaj unused konstanty po refactor** — `SuperAdminTenantWriteController::DEFAULT_LOCALE = 'pl'` zostało po refactorze gdzie ostatecznie default'y wzięłem z Tenant entity constructor. PHPStan max łapie unused constants jako error. Wzór: po każdym signature change, sprawdź czy class-level consts dalej są używane.
+
+3. **NIE `git push` przed pre-commit hooks** — push trafia do remote nawet gdy pre-commit failed (Husky uruchamia hooks dopiero przy commit, push to osobny step). Result: branch na remote bez nowych commits, lokalny working tree z uncommitted changes. Wzór: zawsze sprawdź `git log --oneline -3` przed push jeśli commit pokazał błąd.
+
 ## Lessons z Phase 5 marathon-2 final-final (2026-05-20, #709/#710 shipped na koniec)
 
 ### Patterns to Follow
