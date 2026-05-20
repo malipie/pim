@@ -27,6 +27,11 @@ export interface RoleDetail {
   id: string;
   code: string;
   name: string;
+  /**
+   * Multi-line operator note explaining why the role exists (PRD §5.3).
+   * NULL on seeded system roles created before the column was added.
+   */
+  description: string | null;
   type: RoleListType;
   is_built_in: boolean;
   tenant_id: string | null;

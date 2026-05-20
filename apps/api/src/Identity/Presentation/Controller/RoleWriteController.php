@@ -95,6 +95,13 @@ final readonly class RoleWriteController
         if (\array_key_exists('auto_grant_new_object_types', $payload)) {
             $role->setAutoGrantNewObjectTypes((bool) $payload['auto_grant_new_object_types']);
         }
+        if (\array_key_exists('description', $payload)) {
+            $descriptionRaw = $payload['description'];
+            if (null !== $descriptionRaw && !\is_string($descriptionRaw)) {
+                return $this->problem(Response::HTTP_BAD_REQUEST, 'Bad Request', '`description` must be a string or null.');
+            }
+            $role->setDescription($descriptionRaw);
+        }
         $this->roles->save($role);
 
         return new JsonResponse($this->builder->buildOne($role), Response::HTTP_CREATED);
@@ -161,6 +168,14 @@ final readonly class RoleWriteController
 
         if (\array_key_exists('auto_grant_new_object_types', $payload)) {
             $role->setAutoGrantNewObjectTypes((bool) $payload['auto_grant_new_object_types']);
+        }
+
+        if (\array_key_exists('description', $payload)) {
+            $descriptionRaw = $payload['description'];
+            if (null !== $descriptionRaw && !\is_string($descriptionRaw)) {
+                return $this->problem(Response::HTTP_BAD_REQUEST, 'Bad Request', '`description` must be a string or null.');
+            }
+            $role->setDescription($descriptionRaw);
         }
 
         $this->roles->save($role);

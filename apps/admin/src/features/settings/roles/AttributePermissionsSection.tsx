@@ -1,16 +1,13 @@
-import { ChevronDown, ChevronRight, Save, Search, ShieldCheck } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight, Search, ShieldCheck } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from '@/components/ui/toast';
-import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 export type AttributePermissionLevel = 'view' | 'edit' | 'restricted' | null;
 
-interface ApiAttribute {
+export interface AttributePermsApiAttribute {
   id: string;
   code: string;
   label: Record<string, string>;
@@ -20,176 +17,68 @@ interface ApiAttribute {
   permission_level: AttributePermissionLevel;
 }
 
-interface ApiGroup {
+export interface AttributePermsApiGroup {
   group_id: string | null;
   group_code: string | null;
   group_label: Record<string, string> | null;
-  attributes: ApiAttribute[];
-}
-
-interface ApiResponse {
-  role_id: string;
-  groups: ApiGroup[];
+  attributes: AttributePermsApiAttribute[];
 }
 
 type FilterMode = 'all' | 'view' | 'edit' | 'restricted' | 'overridden';
 
-interface AttributePermissionsTabProps {
-  roleId: string | null;
-  /** Disable inputs while the parent form is mid-submit. */
+interface AttributePermissionsSectionProps {
+  /** Catalogue loaded from backend (one render = one snapshot). */
+  groups: AttributePermsApiGroup[];
+  /** Current draft state keyed by attribute id. */
+  draft: Record<string, AttributePermissionLevel>;
+  onChange: (next: Record<string, AttributePermissionLevel>) => void;
+  loading?: boolean;
   disabled?: boolean;
 }
 
 /**
- * RBAC-P5-007 (#697) — "Uprawnienia per atrybut" tab inside the role
- * editor.
+ * Role editor polish (marathon-3 / #847) — presentational variant of
+ * the per-attribute permission override grid. State lives in the
+ * parent `RoleEditorPage`, which calls both `PATCH /api/roles/{id}`
+ * and `PUT /api/roles/{id}/attribute-permissions` from a single
+ * submit handler. The standalone "Tab" with its own save button is
+ * gone — the polish ticket asked for unified save.
  *
- * The tab is independent of the matrix grid (#696) — the resolver
- * consults it as a per-attribute override that takes precedence over
- * the module-level grant. `permission_level: null` means "no override,
- * fall back to the matrix"; explicit `restricted` denies even when the
- * matrix would grant.
- *
- * Save model: own button (separate from the role-editor save) because
- * loading + writing the overrides goes through a dedicated endpoint
- * (`PUT /api/roles/{id}/attribute-permissions`) and a bulk replace
- * inside the role-editor submit would silently widen the audit trail.
- *
- * Scope intentionally trimmed for this MVP:
- *   - Per-attribute 3-state segmented control (the spec's hero UI).
- *   - Per-group bulk-apply button (sets every visible attribute in the
- *     group to the chosen level).
- *   - Search box (case-insensitive substring on code + every locale
- *     label).
- *   - Filter chips for current state.
- *
- * Deferred (flagged inline):
- *   - Cross-tab badges back into the matrix tab (#696) — needs Mercure
- *     SSE or a shared store; tracked as follow-up.
- *   - "Preview changes" modal for bulk apply > 5 attributes.
- *   - Virtualized list for 200+ attributes — current implementation
- *     paints all rows; perf measured fine at 32 attrs in the demo
- *     tenant, revisit when a real fixture pushes past ~150.
+ * Search + filter chips + bulk-apply per-group + 3-state segmented
+ * control per row stay identical to the previous tab implementation;
+ * the only structural change is who owns the draft (now parent).
  */
-export function AttributePermissionsTab({
-  roleId,
+export function AttributePermissionsSection({
+  groups,
+  draft,
+  onChange,
+  loading = false,
   disabled = false,
-}: AttributePermissionsTabProps) {
+}: AttributePermissionsSectionProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
-
-  const [groups, setGroups] = useState<ApiGroup[]>([]);
-  const [original, setOriginal] = useState<Record<string, AttributePermissionLevel>>({});
-  const [draft, setDraft] = useState<Record<string, AttributePermissionLevel>>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState<FilterMode>('all');
   const [search, setSearch] = useState('');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!roleId) return;
-    let cancelled = false;
-    setLoading(true);
-    jsonFetch<ApiResponse>(`/api/roles/${roleId}/attribute-permissions`, { method: 'GET' })
-      .then((data) => {
-        if (cancelled) return;
-        setGroups(data.groups);
-        const seeded: Record<string, AttributePermissionLevel> = {};
-        for (const group of data.groups) {
-          for (const attr of group.attributes) {
-            seeded[attr.id] = attr.permission_level;
-          }
-        }
-        setOriginal(seeded);
-        setDraft(seeded);
-        // Auto-expand groups that have ANY override so the operator
-        // sees what's already configured without clicking through.
-        const expandKeys = new Set<string>();
-        for (const group of data.groups) {
-          if (group.attributes.some((a) => a.permission_level !== null)) {
-            expandKeys.add(group.group_id ?? '__ungrouped__');
-          }
-        }
-        setExpanded(expandKeys);
-      })
-      .catch(() => {
-        if (!cancelled) toast.error(t('settings.roles.attr_perms.error_load'));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [roleId, t]);
-
-  const dirty = useMemo(() => {
-    for (const id in draft) {
-      if (draft[id] !== (original[id] ?? null)) return true;
+  const [expanded, setExpanded] = useState<Set<string>>(() => {
+    const keys = new Set<string>();
+    for (const group of groups) {
+      if (group.attributes.some((a) => a.permission_level !== null)) {
+        keys.add(group.group_id ?? '__ungrouped__');
+      }
     }
-    for (const id in original) {
-      if (!(id in draft)) return true;
-    }
-    return false;
-  }, [draft, original]);
+    return keys;
+  });
 
   const setLevel = (attrId: string, level: AttributePermissionLevel) => {
-    setDraft((prev) => ({ ...prev, [attrId]: level }));
+    onChange({ ...draft, [attrId]: level });
   };
 
-  const applyToGroup = (group: ApiGroup, level: AttributePermissionLevel) => {
-    setDraft((prev) => {
-      const next = { ...prev };
-      for (const attr of visibleAttributes(group, search, filter, draft)) {
-        next[attr.id] = level;
-      }
-      return next;
-    });
-  };
-
-  const handleReset = () => {
-    setDraft(original);
-  };
-
-  const handleSave = async () => {
-    if (!roleId || saving) return;
-    setSaving(true);
-    try {
-      const payload = {
-        attribute_permissions: Object.entries(draft)
-          .filter(([, level]) => level !== null)
-          .map(([attribute_id, permission_level]) => ({ attribute_id, permission_level })),
-      };
-      const result = await jsonFetch<ApiResponse>(`/api/roles/${roleId}/attribute-permissions`, {
-        method: 'PUT',
-        body: payload,
-        accept: 'application/json',
-        contentType: 'application/json',
-      });
-      setGroups(result.groups);
-      const fresh: Record<string, AttributePermissionLevel> = {};
-      for (const group of result.groups) {
-        for (const attr of group.attributes) {
-          fresh[attr.id] = attr.permission_level;
-        }
-      }
-      setOriginal(fresh);
-      setDraft(fresh);
-      toast.success(t('settings.roles.attr_perms.toast_saved'));
-    } catch (error: unknown) {
-      const status = (error as { status?: number; body?: { detail?: string } })?.status;
-      const body = (error as { body?: { detail?: string } })?.body;
-      if (status === 400) {
-        toast.error(body?.detail ?? t('settings.roles.attr_perms.error_validation'));
-      } else if (status === 403) {
-        toast.error(t('settings.roles.attr_perms.error_forbidden'));
-      } else {
-        toast.error(t('settings.roles.attr_perms.error_generic'));
-      }
-    } finally {
-      setSaving(false);
+  const applyToGroup = (group: AttributePermsApiGroup, level: AttributePermissionLevel) => {
+    const next = { ...draft };
+    for (const attr of visibleAttributes(group, search, filter, draft)) {
+      next[attr.id] = level;
     }
+    onChange(next);
   };
 
   const overrideCount = useMemo(
@@ -197,18 +86,14 @@ export function AttributePermissionsTab({
     [draft],
   );
 
-  if (!roleId) {
-    return (
-      <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-        {t('settings.roles.attr_perms.create_first')}
-      </div>
-    );
+  if (loading) {
+    return <div className="h-48 animate-pulse rounded-md border bg-muted/30" />;
   }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[240px]">
+        <div className="relative min-w-[240px] flex-1">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
@@ -227,72 +112,47 @@ export function AttributePermissionsTab({
         </span>
       </div>
 
-      <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
-        {t('settings.roles.attr_perms.cross_tab_deferred')}
-      </div>
-
-      {loading ? (
-        <div className="h-64 animate-pulse rounded-lg border bg-muted/30" />
-      ) : (
-        <div className="space-y-2">
-          {groups.map((group) => {
-            const visible = visibleAttributes(group, search, filter, draft);
-            if (visible.length === 0) return null;
-            const groupKey = group.group_id ?? '__ungrouped__';
-            const isExpanded = expanded.has(groupKey);
-            return (
-              <GroupPanel
-                key={groupKey}
-                group={group}
-                visible={visible}
-                draft={draft}
-                onChangeLevel={setLevel}
-                onBulkApply={(level) => applyToGroup(group, level)}
-                isExpanded={isExpanded}
-                onToggle={() => {
-                  setExpanded((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(groupKey)) next.delete(groupKey);
-                    else next.add(groupKey);
-                    return next;
-                  });
-                }}
-                locale={locale}
-                disabled={disabled || saving}
-              />
-            );
-          })}
-        </div>
-      )}
-
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleReset}
-          disabled={!dirty || disabled || saving}
-        >
-          {t('settings.roles.attr_perms.reset')}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          onClick={handleSave}
-          disabled={!dirty || disabled || saving}
-          className="gap-1.5"
-        >
-          <Save className="size-4" aria-hidden="true" />
-          {saving ? t('settings.roles.attr_perms.saving') : t('settings.roles.attr_perms.save')}
-        </Button>
+      <div className="space-y-2">
+        {groups.map((group) => {
+          const visible = visibleAttributes(group, search, filter, draft);
+          if (visible.length === 0) return null;
+          const groupKey = group.group_id ?? '__ungrouped__';
+          const isExpanded = expanded.has(groupKey);
+          return (
+            <GroupPanel
+              key={groupKey}
+              group={group}
+              visible={visible}
+              draft={draft}
+              onChangeLevel={setLevel}
+              onBulkApply={(level) => applyToGroup(group, level)}
+              isExpanded={isExpanded}
+              onToggle={() => {
+                setExpanded((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(groupKey)) next.delete(groupKey);
+                  else next.add(groupKey);
+                  return next;
+                });
+              }}
+              locale={locale}
+              disabled={disabled}
+            />
+          );
+        })}
+        {groups.length === 0 ? (
+          <div className="rounded-md border border-dashed bg-muted/20 px-3 py-6 text-center text-xs text-muted-foreground">
+            {t('settings.roles.attr_perms.empty_catalogue')}
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
 interface GroupPanelProps {
-  group: ApiGroup;
-  visible: ApiAttribute[];
+  group: AttributePermsApiGroup;
+  visible: AttributePermsApiAttribute[];
   draft: Record<string, AttributePermissionLevel>;
   onChangeLevel: (attrId: string, level: AttributePermissionLevel) => void;
   onBulkApply: (level: AttributePermissionLevel) => void;
@@ -403,15 +263,19 @@ function GroupPanel({
   );
 }
 
-interface AttributeRowProps {
-  attr: ApiAttribute;
+function AttributeRow({
+  attr,
+  level,
+  onChange,
+  locale,
+  disabled,
+}: {
+  attr: AttributePermsApiAttribute;
   level: AttributePermissionLevel;
   onChange: (level: AttributePermissionLevel) => void;
   locale: string;
   disabled: boolean;
-}
-
-function AttributeRow({ attr, level, onChange, locale, disabled }: AttributeRowProps) {
+}) {
   const { t } = useTranslation();
   const label = attr.label[locale] ?? attr.label.en ?? attr.code;
   return (
@@ -506,11 +370,11 @@ function FilterChips({
 }
 
 function visibleAttributes(
-  group: ApiGroup,
+  group: AttributePermsApiGroup,
   search: string,
   filter: FilterMode,
   draft: Record<string, AttributePermissionLevel>,
-): ApiAttribute[] {
+): AttributePermsApiAttribute[] {
   const needle = search.trim().toLowerCase();
   return group.attributes.filter((attr) => {
     const level = draft[attr.id] ?? null;

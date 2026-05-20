@@ -1,5 +1,13 @@
 import { useList } from '@refinedev/core';
-import { MoreHorizontal, Pencil, Plus, ShieldCheck } from 'lucide-react';
+import {
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  ShieldCheck,
+  Users as UsersIcon,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
@@ -10,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -21,26 +30,26 @@ import {
 import { cn } from '@/lib/utils';
 
 import { RoleTypeBadge } from './RoleTypeBadge';
-import type { RoleListItem } from './types';
+import type { RoleListItem, RoleListType } from './types';
+
+type TypeFilter = 'all' | RoleListType;
 
 /**
- * RBAC-P5-005 (#695) — Settings → Roles list. Surfaces every seeded
- * system role plus the caller tenant's custom roles, each annotated
- * with the in-tenant user count. Action affordances (View permissions,
- * Edit, Duplicate, Delete) ship as visually disabled stubs until the
- * dedicated tickets land:
- *   - #696 — custom role builder UI (Create / Edit),
- *   - #697 — per-attribute permissions tab,
- *   - #698 — auto-grant + scope panel.
+ * Role list polish (marathon-3 / #847) — pixel-perfect-ish to PRD-PIM-rbac
+ * §5.3 + §5.4 surrounding context. Adds a toolbar (search + type filter),
+ * a clickable row (entire row → editor), a footer count, and uses
+ * `<RoleTypeBadge>` for system/custom discrimination.
  *
- * Delete is permanently disabled for system roles per PRD §3.2 macierz
- * (seeded templates are immutable code). For custom roles delete will
- * unlock once the backend gains the soft-delete + last-role-protection
- * guarantees expected by #696.
+ * The PRD doesn't dedicate a separate "role list" mockup but it sits next
+ * to the §5.4 users list visually — toolbar layout + footer count + row
+ * affordances mirror that one so the Settings → Users and Settings →
+ * Roles surfaces feel consistent.
  */
 export function RolesListView() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
 
   const { result, query: listQuery } = useList<RoleListItem>({
     resource: 'roles',
@@ -49,6 +58,17 @@ export function RolesListView() {
   const isLoading = listQuery.isLoading;
   const isError = listQuery.isError;
   const roles: RoleListItem[] = result?.data ?? [];
+
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return roles.filter((role) => {
+      if (typeFilter !== 'all' && role.type !== typeFilter) return false;
+      if (needle.length > 0) {
+        if (!`${role.code} ${role.name}`.toLowerCase().includes(needle)) return false;
+      }
+      return true;
+    });
+  }, [roles, search, typeFilter]);
 
   return (
     <div className="space-y-4">
@@ -64,6 +84,42 @@ export function RolesListView() {
           {t('settings.roles.create_cta')}
         </Button>
       </header>
+
+      <div className="rounded-lg border bg-background p-3 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('settings.roles.search_placeholder')}
+              className="pl-9"
+            />
+          </div>
+          <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            <span>{t('settings.roles.filter_type')}:</span>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+            >
+              <option value="all">{t('settings.roles.filter_type_all')}</option>
+              <option value="system">{t('settings.roles.type.system')}</option>
+              <option value="custom">{t('settings.roles.type.custom')}</option>
+            </select>
+          </label>
+          <div className="text-xs text-muted-foreground sm:ml-auto">
+            {t('settings.roles.showing_count', {
+              shown: filtered.length,
+              total: roles.length,
+            })}
+          </div>
+        </div>
+      </div>
 
       <div className="overflow-hidden rounded-lg border bg-background shadow-sm">
         <Table>
@@ -84,15 +140,15 @@ export function RolesListView() {
                 </TableCell>
               </TableRow>
             )}
-            {!isError && isLoading && roles.length === 0 && <SkeletonRows />}
-            {!isError && !isLoading && roles.length === 0 && (
+            {!isError && isLoading && filtered.length === 0 && <SkeletonRows />}
+            {!isError && !isLoading && filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="py-12 text-center text-sm text-muted-foreground">
-                  {t('settings.roles.empty')}
+                <TableCell colSpan={5} className="py-12 text-center">
+                  <EmptyState />
                 </TableCell>
               </TableRow>
             )}
-            {roles.map((role) => (
+            {filtered.map((role) => (
               <RoleRow
                 key={role.id}
                 role={role}
@@ -120,18 +176,30 @@ function RoleRow({
   const createdAt = new Date(role.created_at).toLocaleDateString(locale);
 
   return (
-    <TableRow>
+    <TableRow
+      className="cursor-pointer transition-colors hover:bg-muted/30"
+      onClick={(e) => {
+        // Avoid hijacking clicks on the row actions menu.
+        if ((e.target as HTMLElement).closest('button, [role="menu"]')) return;
+        onEdit();
+      }}
+    >
       <TableCell className="pl-5">
         <div className="flex items-center gap-3">
           <span
-            className="inline-grid size-8 place-items-center rounded-md bg-accent-violet/10 text-accent-violet"
+            className={cn(
+              'inline-grid size-8 place-items-center rounded-md',
+              role.type === 'system'
+                ? 'bg-slate-100 text-slate-600'
+                : 'bg-accent-violet/10 text-accent-violet',
+            )}
             aria-hidden="true"
           >
             <ShieldCheck className="size-4" />
           </span>
           <div className="min-w-0">
-            <div className="text-sm font-medium">{role.name}</div>
-            <div className="font-mono text-[11px] text-muted-foreground">{role.code}</div>
+            <div className="truncate text-sm font-medium">{role.name}</div>
+            <div className="truncate font-mono text-[11px] text-muted-foreground">{role.code}</div>
           </div>
         </div>
       </TableCell>
@@ -143,7 +211,10 @@ function RoleRow({
       </TableCell>
       <TableCell className="text-xs text-muted-foreground">
         <div className="flex flex-col">
-          <span className="text-sm text-foreground">{role.user_count}</span>
+          <span className="inline-flex items-center gap-1 text-sm text-foreground">
+            <UsersIcon className="size-3" aria-hidden="true" />
+            {role.user_count}
+          </span>
           <span className={cn(0 === role.user_count && 'text-muted-foreground/70')}>
             {t('settings.roles.created_at', { date: createdAt })}
           </span>
@@ -167,6 +238,19 @@ function RoleRow({
         </DropdownMenu>
       </TableCell>
     </TableRow>
+  );
+}
+
+function EmptyState() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 text-center">
+      <ShieldCheck className="size-8 text-muted-foreground" aria-hidden="true" />
+      <div className="text-sm font-medium">{t('settings.roles.empty_title')}</div>
+      <div className="max-w-md text-xs text-muted-foreground">
+        {t('settings.roles.empty_description')}
+      </div>
+    </div>
   );
 }
 
