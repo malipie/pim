@@ -10,6 +10,7 @@ on:
       - "docs/api-spec/**"
       - "scripts/lint-raw-sql.sh"
       - ".github/workflows/quality-php.yml"
+      - ".semgrep/**"
   push:
     branches: [main]
     paths:
@@ -17,6 +18,7 @@ on:
       - "docs/api-spec/**"
       - "scripts/lint-raw-sql.sh"
       - ".github/workflows/quality-php.yml"
+      - ".semgrep/**"
 
 concurrency:
   group: quality-php-${{ github.ref }}
