@@ -1,5 +1,29 @@
 # Current Status
 
+## 2026-05-20: 🏁🏁 Phase 5 RBAC marathon-3 — 22/22 ticketów shipped (100% scope, mixed Phase 4+5)
+
+**Marathon-3 (Phase 4 backend MFA → Phase 5 #703/#712 + Phase 5 #711):**
+
+Operator wybrał Opcję A: extend scope sesji o Phase 4 backend MFA + answered 5 architectural questions dla #711 tenant lifecycle. Sesja dostarczyła w jednym ciągu:
+
+| Ticket | PR | Scope | Status |
+|---|---|---|---|
+| #689 + #703 MFA stack | [#843](../../pull/843) | `GET /api/me/mfa/status` + recovery codes regenerate endpoint + `TotpEnrolmentService::rotateBackupCodes()` + MfaSection w Profile→Security (wizard z TOTP secret display + verify, disable with possession proof, regenerate). Phase 4 MFA backend (`/api/auth/2fa/enrol|verify|disable`) was ALREADY in `TwoFactorController` from #0.11.1 — marathon-3 added the missing endpoints + the entire wizard UI. | ✅ merged |
+| #712 Break-glass UI + backend | [#844](../../pull/844) | HTTP twin of `cortex:rescue-admin` CLI: `POST /api/admin/break-glass` z MFA verify + rate limit 5/24h (failed attempts count) + audit `SUPER_ADMIN_RECOVERY` flag. `GET /api/admin/break-glass/usage` z recent invocations. `/admin/break-glass` page z rate-limit cards + form + recent invocations table. | ✅ merged |
+| #711 Tenant CRUD (lifecycle) | [#845](../../pull/845) | Schema `tenants.status` + `suspended_at` + `deleted_at` migration. Tenant entity: status enum + suspend/reactivate/softDelete. `TenantUserChecker` decorates default UserChecker na login + api firewalls (suspended tenant = login block). `SuperAdminTenantWriteController`: POST create (auto-seed PRD roles + invitation Owner email), PATCH name/plan/domain, POST suspend/reactivate, DELETE soft. `pim:tenants:purge-deleted` CLI dla 30d retention sweep. UI: status column + filter + create modal + per-row 3-dot menu (suspend/reactivate/delete). | 🟡 CI in progress |
+
+**Phase 5: 22/22 tickets shipped (~100%).** Mixed Phase 4 dependency unblocked w trakcie tej sesji (TotpEnrolmentService już istniał z #0.11.1 — tylko status/regenerate endpoints + UI były missing).
+
+**Architectural decisions captured w PR #845 body (#711):**
+
+1. **Suspend** = status flag → login blocked (no reads, no writes, scheduled tasks też refuse to run via TenantUserChecker)
+2. **Delete** = soft delete with `deleted_at` + 30-day recovery (hard delete via `pim:tenants:purge-deleted` cron)
+3. **Create defaults**: plan=`starter`, locales=`['pl','en']`, primary=`'pl'`, owner email = manual operator input → InvitationService email flow
+4. **Plan change** = column flip only (no billing cascade, no quota enforcement — placeholder until Faza 1 billing)
+5. **Quota limits** = nothing dla now (operator decision)
+
+---
+
 ## 2026-05-20: 🏁 Phase 5 RBAC marathon-2 (final-final) — 20/22 ticketów shipped lub w CI
 
 **Sesja 2026-05-20 zaszipowała 9 ticketów (8 RBAC + 1 docs):**
