@@ -2,6 +2,7 @@ import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { GatedButton } from '@/components/identity';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -68,10 +69,15 @@ export function AssetBulkActionsBar({
           <Button variant="ghost" size="sm" onClick={onClearSelection}>
             {t('assets.upload.cancel')}
           </Button>
-          <Button variant="destructive" size="sm" onClick={() => setConfirmOpen(true)}>
+          <GatedButton
+            permission="asset.delete"
+            variant="destructive"
+            size="sm"
+            onClick={() => setConfirmOpen(true)}
+          >
             <Trash2 className="mr-2 size-4" />
             {t('assets.bulk.delete')}
-          </Button>
+          </GatedButton>
         </div>
       </section>
 

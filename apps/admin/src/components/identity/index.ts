@@ -1,6 +1,12 @@
 /**
  * RBAC Phase 4 — public surface for identity-aware components.
  */
+export {
+  GatedAction,
+  type GatedActionProps,
+  GatedButton,
+  type GatedButtonProps,
+} from './GatedAction';
 export { LastAdminProtectionModal } from './LastAdminProtectionModal';
 export { OwnerUniquenessModal } from './OwnerUniquenessModal';
 export { PermissionGate, type PermissionGateProps } from './PermissionGate';

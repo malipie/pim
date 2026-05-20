@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
+import { GatedButton } from '@/components/identity';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -79,10 +80,15 @@ export function RolesListView() {
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">{t('settings.roles.intro')}</p>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => navigate('/settings/roles/new')}>
+        <GatedButton
+          permission="role.write"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => navigate('/settings/roles/new')}
+        >
           <Plus className="size-4" aria-hidden="true" />
           {t('settings.roles.create_cta')}
-        </Button>
+        </GatedButton>
       </header>
 
       <div className="rounded-lg border bg-background p-3 shadow-sm">
