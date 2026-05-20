@@ -1,5 +1,46 @@
 # Current Status
 
+## 2026-05-21: 🏁🏁🏁 Phase 5 RBAC CLOSED — 22/22 functional + 2 polish, milestone fully closed
+
+**Phase 5 ZAMKNIĘTY end-to-end.** Wszystkie 22 functional tickety + 2 UI polish PR-y zaszipowane do main, **wszystkie 22 GitHub Issues zamknięte z live-stack smoke-test proofami** (per CLOSED MEANS CLOSED RULE).
+
+**Co domknięto w tej sesji (2026-05-21):**
+
+| Akcja | PR / Issue | Wynik |
+|---|---|---|
+| Merge `#847 role list + editor polish` | [#849](../../pull/849) | ✅ merged (CI: PHPStan/Biome/PHPUnit/Playwright/Deptrac green) |
+| Merge `#848 users list + invitations polish` | [#850](../../pull/850) | ✅ merged po Playwright re-run (Alpine apk infra flake → green retry) |
+| Merge `Phase 5 marathon-3 docs final` | [#846](../../pull/846) | ✅ merged |
+| Close `mark Phase 5 CLOSED` (superseded) | [#851](../../pull/851) | ❌ closed — superseded by direct closure z proofami w issue comments |
+| Smoke-test 12 issues na pim.localhost | #693/696/697/698/703/704/709/710/711/712 + #847/#848 | ✅ wszystkie HTTP 200/201/204 z attached JSON body |
+| Close 10 Phase 5 functional issues z proofami | #693, #696, #697, #698, #703, #704, #709, #710, #711, #712 | ✅ wszystkie closed z `gh issue close --comment` zawierającym HTTP code + JSON body |
+| Add proofs do auto-closed polish issues | #847, #848 | ✅ proofy attached jako comment dla audit trail |
+
+**Milestone RBAC Phase 5 (#13): `closed=22 open=0`.**
+
+**Smoke-test fingerprint (wszystkie na admin@demo.localhost na tenant `demo`):**
+
+```
+#693 PATCH /api/users/{id}                                     → 200 (role assignment) / 409 (self-edit)
+#696 GET /api/permissions; POST/DELETE /api/roles              → 200 (124 perms / 42 modules) / 201 / 204
+#697 GET/PUT /api/roles/{id}/attribute-permissions             → 200 / 200 (3-state override)
+#698 PATCH /api/roles/{id} {auto_grant_new_object_types: true} → 200
+#703 GET /api/me/mfa/status                                    → 200 (enabled, 10 backup codes)
+#704 GET /api/sso/providers                                    → 200
+#709 GET /api/admin/tenants                                    → 200 (3 tenants, cross-tenant bypass)
+#710 GET /api/admin/tenants/{id}                               → 200 (privacy boundary OK)
+#711 POST + suspend + reactivate + DELETE /api/admin/tenants   → 201 / 200 / 200 / 200 (soft delete)
+#712 GET /api/admin/break-glass/usage                          → 200 (used 3/5 in 24h window)
+#847 GET /api/roles (description field present)                → 200 (13 roles, description column non-null for seeded roles)
+#848 GET /api/users (kind discriminator)                       → 200 (users + invitations unified) / POST /revoke → 200
+```
+
+**Lekcja źródłowa (2026-05-21)**: Po marathon-3 zostały 4 open PR-y + 10 open issues mimo że PR-y były merged. Korzeń: marathon-3 zamknął ticket-by-PR ale operator-side decision (CLOSED MEANS CLOSED) wymagał osobnego live-stack smoke-test passa zanim issue idzie do `closed`. Skutek: kolejna sesja musiała ożywić stack, restart kontenera (po nowych migracjach), odkryć drobne mismatche między oczekiwaną a faktyczną kształtem payload (#711 wymagało `owner_email`, #697 PUT wymagało `attribute_permissions` zamiast `items`, MFA jest pod `/api/me/mfa/*` a nie `/api/profile/mfa/*`) i naprawdę przewalidować że feature działa zanim zamknięto issue. **Praktyka pojawiająca się dla Phase 6**: smoke-test JEST częścią ticketu, nie follow-up — agent ma odpalić curl przeciw realnemu API i wkleić HTTP+JSON do PR description PRZED merge'em, żeby closure był automatyczny.
+
+**Phase 6 startuje teraz** (Phase 6 RBAC — milestone #14: Refactor + Hardening) — 10 ticketów (#713-#722), pełen autonomiczny marathon per CLAUDE.md EPIK MARATHON RULE.
+
+---
+
 ## 2026-05-20: 🏁🏁 Phase 5 RBAC marathon-3 — 22/22 ticketów shipped (100% scope, mixed Phase 4+5)
 
 **Marathon-3 (Phase 4 backend MFA → Phase 5 #703/#712 + Phase 5 #711):**
