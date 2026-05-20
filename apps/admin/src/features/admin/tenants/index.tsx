@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { GatedButton } from '@/components/identity';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -127,10 +128,15 @@ export function AdminTenantsListPage() {
           </div>
           <p className="max-w-2xl text-sm text-muted-foreground">{t('admin.tenants.intro')}</p>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
+        <GatedButton
+          permission="platform.tenants.manage"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setCreateOpen(true)}
+        >
           <Plus className="size-4" aria-hidden="true" />
           {t('admin.tenants.create_cta')}
-        </Button>
+        </GatedButton>
       </header>
 
       <div className="rounded-md border border-dashed bg-amber-50 px-3 py-2 text-xs text-amber-900">

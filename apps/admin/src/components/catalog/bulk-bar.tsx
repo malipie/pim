@@ -11,6 +11,7 @@ import {
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { PermissionGate } from '@/components/identity';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -114,130 +115,136 @@ export function BulkBar({
     }
   };
 
+  // RBAC-P6-005 (#717) — bulk action surface is gated behind
+  // `products.bulk_operations`. Roles without that permission still see
+  // checkboxes on the underlying list (Phase 4 visibility) but the
+  // mutation bar never renders. Backend 403 toast is the fallback.
   return (
-    <div className="fixed bottom-6 left-0 right-0 z-40 flex justify-center pointer-events-none">
-      <section
-        aria-label={t('products.bulk.aria_region', { defaultValue: 'Akcje masowe' })}
-        className="pointer-events-auto bg-zinc-900 text-white rounded-3xl shadow-xl px-6 py-3 flex items-center gap-5 animate-in fade-in slide-in-from-bottom-2 duration-200"
-        data-testid="bulk-bar"
-      >
-        <div className="flex items-center gap-2">
-          <span className="h-7 w-7 rounded-xl bg-white/10 grid place-items-center text-[12px] font-semibold tabular-nums">
-            {selectedIds.length}
-          </span>
-          <span className="text-[13px] font-medium">
-            {t('products.bulk.selected_label', { defaultValue: 'zaznaczonych produktów' })}
-          </span>
-        </div>
+    <PermissionGate code="products.bulk_operations">
+      <div className="fixed bottom-6 left-0 right-0 z-40 flex justify-center pointer-events-none">
+        <section
+          aria-label={t('products.bulk.aria_region', { defaultValue: 'Akcje masowe' })}
+          className="pointer-events-auto bg-zinc-900 text-white rounded-3xl shadow-xl px-6 py-3 flex items-center gap-5 animate-in fade-in slide-in-from-bottom-2 duration-200"
+          data-testid="bulk-bar"
+        >
+          <div className="flex items-center gap-2">
+            <span className="h-7 w-7 rounded-xl bg-white/10 grid place-items-center text-[12px] font-semibold tabular-nums">
+              {selectedIds.length}
+            </span>
+            <span className="text-[13px] font-medium">
+              {t('products.bulk.selected_label', { defaultValue: 'zaznaczonych produktów' })}
+            </span>
+          </div>
 
-        <span className="h-6 w-px bg-white/15" aria-hidden="true" />
+          <span className="h-6 w-px bg-white/15" aria-hidden="true" />
 
-        <button
-          type="button"
-          onClick={onOpenWizard ?? placeholder('VIEW-05.2')}
-          className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
-        >
-          <Pencil className="size-3.5" aria-hidden="true" />
-          {t('products.bulk.edit_attribute', { defaultValue: 'Edytuj atrybut' })}
-        </button>
-        <button
-          type="button"
-          onClick={onOpenCategoryModal ?? placeholder('VIEW-05.3')}
-          className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
-        >
-          <FolderTree className="size-3.5" aria-hidden="true" />
-          {t('products.bulk.change_category', { defaultValue: 'Zmień kategorię' })}
-        </button>
-        <button
-          type="button"
-          onClick={onOpenExportModal ?? placeholder('VIEW-05.4')}
-          className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
-        >
-          <Download className="size-3.5" aria-hidden="true" />
-          {t('products.bulk.export', { defaultValue: 'Eksport' })}
-        </button>
-        <button
-          type="button"
-          onClick={onOpenCmdK ?? placeholder('VIEW-05.5')}
-          className={cn(
-            'text-[13px] font-medium px-3 py-1.5 rounded-xl bg-violet-500 hover:bg-violet-400 inline-flex items-center gap-1.5',
-            'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
-          )}
-        >
-          <Sparkles className="size-3.5" aria-hidden="true" />
-          {t('products.bulk.delegate_agent', { defaultValue: 'Zleć agentowi (⌘K)' })}
-        </button>
+          <button
+            type="button"
+            onClick={onOpenWizard ?? placeholder('VIEW-05.2')}
+            className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
+          >
+            <Pencil className="size-3.5" aria-hidden="true" />
+            {t('products.bulk.edit_attribute', { defaultValue: 'Edytuj atrybut' })}
+          </button>
+          <button
+            type="button"
+            onClick={onOpenCategoryModal ?? placeholder('VIEW-05.3')}
+            className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
+          >
+            <FolderTree className="size-3.5" aria-hidden="true" />
+            {t('products.bulk.change_category', { defaultValue: 'Zmień kategorię' })}
+          </button>
+          <button
+            type="button"
+            onClick={onOpenExportModal ?? placeholder('VIEW-05.4')}
+            className="text-[13px] font-medium text-white/90 hover:text-white inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
+          >
+            <Download className="size-3.5" aria-hidden="true" />
+            {t('products.bulk.export', { defaultValue: 'Eksport' })}
+          </button>
+          <button
+            type="button"
+            onClick={onOpenCmdK ?? placeholder('VIEW-05.5')}
+            className={cn(
+              'text-[13px] font-medium px-3 py-1.5 rounded-xl bg-violet-500 hover:bg-violet-400 inline-flex items-center gap-1.5',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+            )}
+          >
+            <Sparkles className="size-3.5" aria-hidden="true" />
+            {t('products.bulk.delegate_agent', { defaultValue: 'Zleć agentowi (⌘K)' })}
+          </button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label={t('products.bulk.more_actions', { defaultValue: 'Więcej akcji' })}
-              disabled={isPending}
-              className="text-white/70 hover:text-white inline-flex items-center justify-center size-7 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-50"
-            >
-              <MoreHorizontal className="size-4" aria-hidden="true" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onSelect={() => {
-                void runToggleEnabled(true);
-              }}
-            >
-              {t('products.bulk.enable', { defaultValue: 'Włącz' })}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                void runToggleEnabled(false);
-              }}
-            >
-              {t('products.bulk.disable', { defaultValue: 'Wyłącz' })}
-            </DropdownMenuItem>
-            {onOpenPublishModal ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('products.bulk.more_actions', { defaultValue: 'Więcej akcji' })}
+                disabled={isPending}
+                className="text-white/70 hover:text-white inline-flex items-center justify-center size-7 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-50"
+              >
+                <MoreHorizontal className="size-4" aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
               <DropdownMenuItem
                 onSelect={() => {
-                  onOpenPublishModal();
+                  void runToggleEnabled(true);
                 }}
               >
-                <Globe className="mr-2 size-3.5" aria-hidden="true" />
-                {t('products.bulk.publish_channels', { defaultValue: 'Publikuj na kanałach' })}
+                {t('products.bulk.enable', { defaultValue: 'Włącz' })}
               </DropdownMenuItem>
-            ) : null}
-            {onOpenDuplicateModal ? (
               <DropdownMenuItem
                 onSelect={() => {
-                  onOpenDuplicateModal();
+                  void runToggleEnabled(false);
                 }}
               >
-                <Copy className="mr-2 size-3.5" aria-hidden="true" />
-                {t('products.bulk.duplicate', { defaultValue: 'Duplikuj' })}
+                {t('products.bulk.disable', { defaultValue: 'Wyłącz' })}
               </DropdownMenuItem>
-            ) : null}
-            {onOpenDeleteModal ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  onOpenDeleteModal();
-                }}
-                className="text-rose-700 focus:bg-rose-50 focus:text-rose-700"
-              >
-                <Trash2 className="mr-2 size-3.5" aria-hidden="true" />
-                {t('products.bulk.delete', { defaultValue: 'Usuń' })}
-              </DropdownMenuItem>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              {onOpenPublishModal ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    onOpenPublishModal();
+                  }}
+                >
+                  <Globe className="mr-2 size-3.5" aria-hidden="true" />
+                  {t('products.bulk.publish_channels', { defaultValue: 'Publikuj na kanałach' })}
+                </DropdownMenuItem>
+              ) : null}
+              {onOpenDuplicateModal ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    onOpenDuplicateModal();
+                  }}
+                >
+                  <Copy className="mr-2 size-3.5" aria-hidden="true" />
+                  {t('products.bulk.duplicate', { defaultValue: 'Duplikuj' })}
+                </DropdownMenuItem>
+              ) : null}
+              {onOpenDeleteModal ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    onOpenDeleteModal();
+                  }}
+                  className="text-rose-700 focus:bg-rose-50 focus:text-rose-700"
+                >
+                  <Trash2 className="mr-2 size-3.5" aria-hidden="true" />
+                  {t('products.bulk.delete', { defaultValue: 'Usuń' })}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-        <span className="h-6 w-px bg-white/15" aria-hidden="true" />
+          <span className="h-6 w-px bg-white/15" aria-hidden="true" />
 
-        <button
-          type="button"
-          onClick={onClear}
-          className="text-[13px] text-white/60 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
-        >
-          {t('products.bulk.clear', { defaultValue: 'Wyczyść' })}
-        </button>
-      </section>
-    </div>
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-[13px] text-white/60 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
+          >
+            {t('products.bulk.clear', { defaultValue: 'Wyczyść' })}
+          </button>
+        </section>
+      </div>
+    </PermissionGate>
   );
 }

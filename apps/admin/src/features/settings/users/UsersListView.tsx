@@ -15,6 +15,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { GatedButton } from '@/components/identity';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -196,10 +197,15 @@ export function UsersListView() {
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">{t('settings.users.intro')}</p>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => setInviteOpen(true)}>
+        <GatedButton
+          permission="user.write"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setInviteOpen(true)}
+        >
           <UserPlus className="size-4" aria-hidden="true" />
           {t('settings.users.invite_cta')}
-        </Button>
+        </GatedButton>
       </header>
 
       <div className="rounded-lg border bg-background p-3 shadow-sm">
