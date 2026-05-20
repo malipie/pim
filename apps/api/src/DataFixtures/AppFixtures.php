@@ -15,13 +15,18 @@ use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Channel\Domain\Entity\Currency;
 use App\Channel\Domain\Entity\Locale;
+use App\DataFixtures\Identity\PrdPermissionFixtures;
 use App\Identity\Application\RbacSeeder;
+use App\Identity\Application\SeedTenantPrdRolesService;
+use App\Identity\Domain\Entity\Permission;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
+use App\Identity\Domain\Repository\PermissionRepositoryInterface;
 use App\Identity\Domain\Repository\RoleRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
@@ -35,8 +40,20 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
  * alongside #33's data migration; demo products now live in `objects`
  * with their data folded into `attributes_indexed` per ADR-006 hybrid.
  */
-class AppFixtures extends Fixture
+class AppFixtures extends Fixture implements DependentFixtureInterface
 {
+    /**
+     * AppFixtures runs after `PrdPermissionFixtures` so the PRD §3.2
+     * permission codes exist when `SeedTenantPrdRolesService` resolves
+     * them while attaching the 9 tenant-level role templates.
+     *
+     * @return array<int, class-string<\Doctrine\Common\DataFixtures\FixtureInterface>>
+     */
+    public function getDependencies(): array
+    {
+        return [PrdPermissionFixtures::class];
+    }
+
     private const string DEFAULT_ADMIN_PASSWORD = 'changeme';
 
     public function __construct(
@@ -44,6 +61,8 @@ class AppFixtures extends Fixture
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly RbacSeeder $rbacSeeder,
         private readonly RoleRepositoryInterface $roleRepository,
+        private readonly PermissionRepositoryInterface $permissionRepository,
+        private readonly SeedTenantPrdRolesService $tenantPrdRolesSeeder,
         private readonly BuiltInObjectTypeSeeder $builtInSeeder,
         private readonly BuiltInAssociationTypeSeeder $associationTypeSeeder,
         private readonly BuiltInSystemAttributesSeeder $systemAttributesSeeder,
@@ -93,6 +112,14 @@ class AppFixtures extends Fixture
         $superAdmin = $this->roleRepository->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);
         \assert(null !== $superAdmin, 'RbacSeeder must create the super_admin role.');
 
+        // Grant super_admin every PRD §3.2 permission so platform-level
+        // admins can drive the Settings UI without a Phase 6 retrofit
+        // gap (the retrofit consolidates Voters onto PRD codes but the
+        // grant matrix should be permissive on the platform tier from
+        // day one — Super Admin is by definition the most privileged
+        // role).
+        $this->grantAllPermissionsToSuperAdmin($superAdmin);
+
         // Per-tenant: built-in ObjectTypes (#33) → admin user → demo
         // catalog rows. The seeder is idempotent — `pim:db:reset` re-runs
         // are safe.
@@ -107,6 +134,11 @@ class AppFixtures extends Fixture
             // VIEW-08 (#427): seed the default sidebar layout (8 items
             // matching the legacy hard-coded sidebar minus Services).
             $this->defaultMenuSeeder->seed($tenant);
+            // RBAC-P1-007 (#646) — seed the 9 PRD-PIM-rbac §3.2 tenant-level
+            // role templates (tenant_owner / admin / catalog_manager / …).
+            // Without this, the demo admin lands without `settings.*.manage`
+            // PRD codes and the Settings → Users / Roles UI 403s.
+            $this->tenantPrdRolesSeeder->seed($tenant);
         }
 
         // VIEW-09 (#535): 5 built-in Smart Filter Presets are system-shipped
@@ -129,6 +161,17 @@ class AppFixtures extends Fixture
                 [],
             );
             $admin->addRole($superAdmin);
+            // Per-tenant `tenant_owner` role seeded by
+            // SeedTenantPrdRolesService above. Attaching it here gives
+            // the demo admin every PRD §3.2 tenant-level permission
+            // (`settings.users.manage`, `settings.roles.manage`,
+            // `products.bulk_operations`, etc.) on top of the legacy
+            // RbacMatrix codes that ride with super_admin. Two roles
+            // are the cleanest way to surface both permission graphs
+            // until Phase 6 consolidates them.
+            $tenantOwner = $this->roleRepository->findByCode('tenant_owner', $tenant);
+            \assert(null !== $tenantOwner, 'SeedTenantPrdRolesService must create tenant_owner per tenant.');
+            $admin->addRole($tenantOwner);
             $manager->persist($admin);
         }
         $manager->flush();
@@ -164,5 +207,29 @@ class AppFixtures extends Fixture
         $manager->flush();
 
         $this->tenantContext->clear();
+    }
+
+    /**
+     * Attach every permission row (legacy RbacMatrix + PRD §3.2 codes
+     * loaded by PrdPermissionFixtures) to the global super_admin role so
+     * the demo admin user holds the union of both permission graphs.
+     *
+     * Idempotent: only the permissions not yet on the role are added,
+     * so re-running fixtures (or extending PRD codes later) keeps the
+     * grant complete without duplicates.
+     */
+    private function grantAllPermissionsToSuperAdmin(\App\Identity\Domain\Entity\Role $superAdmin): void
+    {
+        $existingCodes = [];
+        foreach ($superAdmin->getPermissions() as $existing) {
+            $existingCodes[] = $existing->getCode();
+        }
+
+        foreach ($this->permissionRepository->findAllOrdered() as $permission) {
+            if (\in_array($permission->getCode(), $existingCodes, true)) {
+                continue;
+            }
+            $superAdmin->getPermissions()->add($permission);
+        }
     }
 }
