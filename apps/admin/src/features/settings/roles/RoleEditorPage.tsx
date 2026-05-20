@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/toast';
 import { jsonFetch } from '@/lib/http';
 
+import { AttributePermissionsTab } from './AttributePermissionsTab';
 import { type PermissionGroup, PermissionMatrix } from './PermissionMatrix';
 import type { RoleDetail } from './types';
 
@@ -342,6 +343,17 @@ export function RoleEditorPage() {
             disabled={submitting || deleting}
           />
         )}
+      </div>
+
+      {/* RBAC-P5-007 (#697) — per-attribute overrides. Lives as its
+          own section with its own save button: loading + writing goes
+          through a dedicated endpoint and a bulk replace inside the
+          role-editor submit would silently widen the audit trail. */}
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between">
+          <Label>{t('settings.roles.attr_perms.section_title')}</Label>
+        </div>
+        <AttributePermissionsTab roleId={role?.id ?? null} disabled={submitting || deleting} />
       </div>
     </form>
   );

@@ -28,4 +28,14 @@ interface AttributeRepositoryInterface
      * @return list<string>
      */
     public function filterableCodes(): array;
+
+    /**
+     * RBAC-P5-007 (#697) — every attribute on the given tenant, ordered
+     * by attribute-group sequence then attribute code so the role
+     * editor's "Uprawnienia per atrybut" tab can render the grouped
+     * list in PRD §3.5 layout without a follow-up query per group.
+     *
+     * @return list<Attribute>
+     */
+    public function findAllByTenant(Tenant $tenant): array;
 }
