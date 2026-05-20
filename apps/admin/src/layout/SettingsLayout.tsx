@@ -1,4 +1,5 @@
 import {
+  Building2,
   CreditCard,
   Key,
   KeyRound,
@@ -29,6 +30,7 @@ const SETTINGS_NAV: readonly SettingsNavItem[] = [
   { to: '/settings/roles', icon: ShieldCheck, label: 'settings.nav.roles' },
   { to: '/settings/api-tokens', icon: Key, label: 'settings.nav.api_tokens' },
   { to: '/settings/security', icon: KeyRound, label: 'settings.nav.security' },
+  { to: '/settings/tenant', icon: Building2, label: 'settings.nav.tenant' },
   { to: '/settings/billing', icon: CreditCard, label: 'settings.nav.billing' },
   { to: '/settings/ai', icon: Sparkles, label: 'settings.nav.ai' },
 ] as const;
