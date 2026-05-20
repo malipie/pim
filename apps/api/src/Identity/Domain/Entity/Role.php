@@ -28,6 +28,13 @@ class Role
     private string $name;
 
     /**
+     * Role editor polish (marathon-3) — multi-line explanation visible
+     * in the custom-role builder (PRD-PIM-rbac §5.3 mockup). NULL on
+     * seeded system roles for backwards compatibility.
+     */
+    private ?string $description = null;
+
+    /**
      * RBAC-P5-008 (#698) — when set, the ObjectType creation flow
      * (epik 0.4) auto-grants the new type's `view + edit` permissions
      * to this role at flush time. False on every seeded role so the
@@ -75,6 +82,22 @@ class Role
     public function rename(string $name): void
     {
         $this->name = $name;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(?string $description): void
+    {
+        if (null === $description) {
+            $this->description = null;
+
+            return;
+        }
+        $trimmed = trim($description);
+        $this->description = '' === $trimmed ? null : $trimmed;
     }
 
     public function getTenant(): ?Tenant

@@ -26,6 +26,7 @@
 
         <field name="code" type="string" length="64"/>
         <field name="name" type="string" length="255"/>
+        <field name="description" type="text" nullable="true"/>
         <field name="autoGrantNewObjectTypes" type="boolean" column="auto_grant_new_object_types">
             <options>
                 <option name="default">false</option>
