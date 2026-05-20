@@ -43,4 +43,15 @@ class DoctrineTenantRepository extends ServiceEntityRepository implements Tenant
         $em->remove($tenant);
         $em->flush();
     }
+
+    public function findAllOrderedByCode(): array
+    {
+        /** @var list<Tenant> $result */
+        $result = $this->createQueryBuilder('t')
+            ->orderBy('t.code', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $result;
+    }
 }

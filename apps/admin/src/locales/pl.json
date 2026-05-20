@@ -55,6 +55,28 @@
     "active_modules_count_many": "{{count}} modułów aktywnych",
     "active_modules_count_other": "{{count}} modułów aktywnych"
   },
+  "admin": {
+    "tenants": {
+      "title": "Tenants (Super Admin)",
+      "intro": "Cross-tenant lista wszystkich tenantów na platformie. Tylko metadata (nazwa, plan, użytkownicy, lokalizacje, data utworzenia). Każde wejście stamps `cross_tenant_access=true` w audit log.",
+      "privacy_boundary_notice": "Privacy boundary (PRD §11): Super Admin widzi wyłącznie metadata tenantów. Dane domenowe (Products, Attributes, Values) są niedostępne — kontrola na poziomie API endpointów, nie tylko UI.",
+      "search_placeholder": "Szukaj tenanta po nazwie, kodzie lub domenie...",
+      "filter_plan": "Plan",
+      "filter_plan_all": "Wszystkie plany",
+      "count_one": "{{count}} tenant",
+      "count_other": "{{count}} tenantów",
+      "count": "{{count}} tenantów",
+      "col_tenant": "Tenant",
+      "col_plan": "Plan",
+      "col_users": "Aktywni",
+      "col_locales": "Locales",
+      "col_created": "Utworzony",
+      "empty": "Brak tenantów pasujących do filtrów.",
+      "error_loading": "Nie udało się załadować listy tenantów.",
+      "forbidden_title": "Tylko Super Admin",
+      "forbidden_description": "Operator panel jest dostępny wyłącznie dla użytkowników z rolą Super Admin. Skontaktuj się z administratorem platformy."
+    }
+  },
   "settings": {
     "page_title": "Ustawienia",
     "subnav_aria": "Sekcje ustawień",
