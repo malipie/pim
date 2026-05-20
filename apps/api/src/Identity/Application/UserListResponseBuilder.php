@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
+use App\Identity\Domain\Entity\Invitation;
+use App\Identity\Domain\Entity\Role;
 use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\RoleRepositoryInterface;
 use DateTimeInterface;
 
 use const MB_CASE_TITLE;
@@ -22,11 +25,18 @@ use const MB_CASE_TITLE;
  */
 final class UserListResponseBuilder
 {
+    public function __construct(
+        private readonly RoleRepositoryInterface $roles,
+    ) {
+    }
+
     /**
-     * @param iterable<User> $users
+     * @param iterable<User>       $users
+     * @param iterable<Invitation> $pendingInvitations
      *
      * @return list<array{
      *     id: string,
+     *     kind: string,
      *     email: string,
      *     display_name: string,
      *     avatar_initial: string,
@@ -34,15 +44,24 @@ final class UserListResponseBuilder
      *     roles: list<array{id: string, code: string, name: string}>,
      *     last_login_at: ?string,
      *     mfa_enabled: bool,
-     *     created_at: string
+     *     created_at: string,
+     *     invitation_id: ?string,
+     *     invitation_expires_at: ?string
      * }>
      */
-    public function buildList(iterable $users): array
+    public function buildList(iterable $users, iterable $pendingInvitations = []): array
     {
         $out = [];
         foreach ($users as $user) {
             $out[] = $this->buildOne($user);
         }
+        foreach ($pendingInvitations as $invitation) {
+            $out[] = $this->buildInvitation($invitation);
+        }
+
+        // Deterministic order: by email so the row position is stable
+        // across renders + matches the operator's mental model.
+        usort($out, static fn (array $a, array $b): int => strcmp($a['email'], $b['email']));
 
         return $out;
     }
@@ -50,6 +69,7 @@ final class UserListResponseBuilder
     /**
      * @return array{
      *     id: string,
+     *     kind: string,
      *     email: string,
      *     display_name: string,
      *     avatar_initial: string,
@@ -57,7 +77,9 @@ final class UserListResponseBuilder
      *     roles: list<array{id: string, code: string, name: string}>,
      *     last_login_at: ?string,
      *     mfa_enabled: bool,
-     *     created_at: string
+     *     created_at: string,
+     *     invitation_id: ?string,
+     *     invitation_expires_at: ?string
      * }
      */
     public function buildOne(User $user): array
@@ -76,6 +98,7 @@ final class UserListResponseBuilder
 
         return [
             'id' => $user->getId()->toRfc4122(),
+            'kind' => 'user',
             'email' => $email,
             'display_name' => $displayName,
             'avatar_initial' => $this->avatarInitial($displayName, $email),
@@ -84,6 +107,65 @@ final class UserListResponseBuilder
             'last_login_at' => $user->getLastLoginAt()?->format(DateTimeInterface::ATOM),
             'mfa_enabled' => $user->isTotpEnabled(),
             'created_at' => $user->getCreatedAt()->format(DateTimeInterface::ATOM),
+            'invitation_id' => null,
+            'invitation_expires_at' => null,
+        ];
+    }
+
+    /**
+     * Project a pending invitation as a virtual list row (status =
+     * `invited`). The id field carries the invitation uuid so the FE
+     * 3-dot menu can target the invitation (resend / revoke) instead
+     * of a user that does not exist yet.
+     *
+     * @return array{
+     *     id: string,
+     *     kind: string,
+     *     email: string,
+     *     display_name: string,
+     *     avatar_initial: string,
+     *     status: string,
+     *     roles: list<array{id: string, code: string, name: string}>,
+     *     last_login_at: ?string,
+     *     mfa_enabled: bool,
+     *     created_at: string,
+     *     invitation_id: ?string,
+     *     invitation_expires_at: ?string
+     * }
+     */
+    public function buildInvitation(Invitation $invitation): array
+    {
+        $email = $invitation->getEmail();
+        $displayName = $this->deriveDisplayName($email);
+
+        $role = $this->roles->findById($invitation->getRoleId());
+        $rolesProjection = null === $role ? [] : [self::projectRole($role)];
+
+        return [
+            'id' => $invitation->getId()->toRfc4122(),
+            'kind' => 'invitation',
+            'email' => $email,
+            'display_name' => $displayName,
+            'avatar_initial' => $this->avatarInitial($displayName, $email),
+            'status' => 'invited',
+            'roles' => $rolesProjection,
+            'last_login_at' => null,
+            'mfa_enabled' => false,
+            'created_at' => $invitation->getCreatedAt()->format(DateTimeInterface::ATOM),
+            'invitation_id' => $invitation->getId()->toRfc4122(),
+            'invitation_expires_at' => $invitation->getExpiresAt()->format(DateTimeInterface::ATOM),
+        ];
+    }
+
+    /**
+     * @return array{id: string, code: string, name: string}
+     */
+    private static function projectRole(Role $role): array
+    {
+        return [
+            'id' => $role->getId()->toRfc4122(),
+            'code' => $role->getCode(),
+            'name' => $role->getName(),
         ];
     }
 

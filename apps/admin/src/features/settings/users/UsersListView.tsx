@@ -2,6 +2,7 @@ import { useList } from '@refinedev/core';
 import {
   ChevronLeft,
   ChevronRight,
+  Mail,
   MoreHorizontal,
   Pencil,
   Search,
@@ -9,6 +10,7 @@ import {
   UserCheck,
   UserMinus,
   UserPlus,
+  X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -37,6 +39,7 @@ import { cn } from '@/lib/utils';
 import { DeactivateUserModal } from './DeactivateUserModal';
 import { EditUserModal } from './EditUserModal';
 import { InviteUserModal } from './InviteUserModal';
+import { invitationValidity, relativeTime } from './relativeTime';
 import { StatusBadge } from './StatusBadge';
 import type { UserListItem, UserStatus } from './types';
 import { UserAvatar } from './UserAvatar';
@@ -131,6 +134,39 @@ export function UsersListView() {
     }
   };
 
+  const handleResendInvitation = async (user: UserListItem) => {
+    if (!user.invitation_id) return;
+    try {
+      await jsonFetch(`/api/invitations/${user.invitation_id}/resend`, {
+        method: 'POST',
+        accept: 'application/json',
+      });
+      toast.success(t('settings.users.invitation_actions.toast_resent', { email: user.email }));
+      void refetch();
+    } catch {
+      toast.error(t('settings.users.invitation_actions.error_resend'));
+    }
+  };
+
+  const handleRevokeInvitation = async (user: UserListItem) => {
+    if (!user.invitation_id) return;
+    if (
+      !window.confirm(t('settings.users.invitation_actions.confirm_revoke', { email: user.email }))
+    ) {
+      return;
+    }
+    try {
+      await jsonFetch(`/api/invitations/${user.invitation_id}/revoke`, {
+        method: 'POST',
+        accept: 'application/json',
+      });
+      toast.success(t('settings.users.invitation_actions.toast_revoked', { email: user.email }));
+      void refetch();
+    } catch {
+      toast.error(t('settings.users.invitation_actions.error_revoke'));
+    }
+  };
+
   // Reset to page 1 whenever any filter changes — pager must not point at
   // a stale offset that no longer exists in the narrowed result set.
   useEffect(() => {
@@ -189,6 +225,7 @@ export function UsersListView() {
             options={[
               { value: 'all', label: t('settings.users.filter_status_all') },
               { value: 'active', label: t('settings.users.status.active') },
+              { value: 'invited', label: t('settings.users.status.invited') },
               { value: 'disabled', label: t('settings.users.status.disabled') },
             ]}
           />
@@ -201,7 +238,7 @@ export function UsersListView() {
             disabledHint={t('settings.users.filter_role_pending_hint')}
           />
           <div className="text-xs text-muted-foreground sm:ml-auto">
-            {t('settings.users.count', { count: total })}
+            {t('settings.users.showing_count', { shown: users.length, total })}
           </div>
         </div>
       </div>
@@ -240,6 +277,8 @@ export function UsersListView() {
                 onEdit={openEdit}
                 onDeactivate={openDeactivate}
                 onReactivate={handleReactivate}
+                onResendInvitation={handleResendInvitation}
+                onRevokeInvitation={handleRevokeInvitation}
               />
             ))}
           </TableBody>
@@ -308,21 +347,37 @@ interface UserRowProps {
   onEdit: (user: UserListItem) => void;
   onDeactivate: (user: UserListItem) => void;
   onReactivate: (user: UserListItem) => void;
+  onResendInvitation: (user: UserListItem) => void;
+  onRevokeInvitation: (user: UserListItem) => void;
 }
 
-function UserRow({ user, onEdit, onDeactivate, onReactivate }: UserRowProps) {
+function UserRow({
+  user,
+  onEdit,
+  onDeactivate,
+  onReactivate,
+  onResendInvitation,
+  onRevokeInvitation,
+}: UserRowProps) {
   const { t, i18n } = useTranslation();
-  const lastLogin = user.last_login_at
-    ? new Date(user.last_login_at).toLocaleString(i18n.language)
-    : t('settings.users.last_login_never');
+  const isInvitation = user.kind === 'invitation';
+  const isDisabled = user.status === 'disabled';
+  const lastLogin = isInvitation
+    ? t('settings.users.last_login_n_a')
+    : relativeTime(t, i18n.language, user.last_login_at);
+  const invitationValidLabel = isInvitation
+    ? invitationValidity(t, user.invitation_expires_at)
+    : null;
 
   return (
-    <TableRow className={cn(user.status === 'disabled' && 'opacity-60')}>
+    <TableRow
+      className={cn((isDisabled || isInvitation) && 'opacity-90', isDisabled && 'opacity-60')}
+    >
       <TableCell className="pl-5">
         <div className="flex items-center gap-3">
           <UserAvatar initial={user.avatar_initial} seed={user.email} />
           <div className="min-w-0">
-            <div className="text-sm font-medium">{user.display_name}</div>
+            <div className="truncate text-sm font-medium">{user.display_name}</div>
             <div className="truncate text-xs text-muted-foreground">{user.email}</div>
           </div>
         </div>
@@ -339,7 +394,12 @@ function UserRow({ user, onEdit, onDeactivate, onReactivate }: UserRowProps) {
         )}
       </TableCell>
       <TableCell>
-        <StatusBadge status={user.status} />
+        <div className="space-y-0.5">
+          <StatusBadge status={user.status} />
+          {invitationValidLabel ? (
+            <div className="text-[10px] text-muted-foreground">{invitationValidLabel}</div>
+          ) : null}
+        </div>
       </TableCell>
       <TableCell className="text-xs text-muted-foreground">{lastLogin}</TableCell>
       <TableCell className="pr-5 text-right">
@@ -350,23 +410,41 @@ function UserRow({ user, onEdit, onDeactivate, onReactivate }: UserRowProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => onEdit(user)}>
-              <Pencil className="mr-2 size-4" aria-hidden="true" />
-              {t('settings.users.action_edit')}
-            </DropdownMenuItem>
-            {user.status === 'active' ? (
-              <DropdownMenuItem
-                onSelect={() => onDeactivate(user)}
-                className="text-rose-600 focus:text-rose-700"
-              >
-                <UserMinus className="mr-2 size-4" aria-hidden="true" />
-                {t('settings.users.action_deactivate')}
-              </DropdownMenuItem>
+            {isInvitation ? (
+              <>
+                <DropdownMenuItem onSelect={() => onResendInvitation(user)}>
+                  <Mail className="mr-2 size-4" aria-hidden="true" />
+                  {t('settings.users.invitation_actions.resend')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => onRevokeInvitation(user)}
+                  className="text-rose-600 focus:text-rose-700"
+                >
+                  <X className="mr-2 size-4" aria-hidden="true" />
+                  {t('settings.users.invitation_actions.revoke')}
+                </DropdownMenuItem>
+              </>
             ) : (
-              <DropdownMenuItem onSelect={() => onReactivate(user)}>
-                <UserCheck className="mr-2 size-4" aria-hidden="true" />
-                {t('settings.users.action_reactivate')}
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem onSelect={() => onEdit(user)}>
+                  <Pencil className="mr-2 size-4" aria-hidden="true" />
+                  {t('settings.users.action_edit')}
+                </DropdownMenuItem>
+                {user.status === 'active' ? (
+                  <DropdownMenuItem
+                    onSelect={() => onDeactivate(user)}
+                    className="text-rose-600 focus:text-rose-700"
+                  >
+                    <UserMinus className="mr-2 size-4" aria-hidden="true" />
+                    {t('settings.users.action_deactivate')}
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onSelect={() => onReactivate(user)}>
+                    <UserCheck className="mr-2 size-4" aria-hidden="true" />
+                    {t('settings.users.action_reactivate')}
+                  </DropdownMenuItem>
+                )}
+              </>
             )}
           </DropdownMenuContent>
         </DropdownMenu>

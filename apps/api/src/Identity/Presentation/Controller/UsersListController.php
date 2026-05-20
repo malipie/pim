@@ -6,8 +6,11 @@ namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\UserListResponseBuilder;
 use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Domain\Entity\Invitation;
 use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\InvitationRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use DateTimeImmutable;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,10 +45,12 @@ final readonly class UsersListController
     private const int MAX_PER_PAGE = 50;
     private const int DEFAULT_PER_PAGE = 50;
     private const array ALLOWED_STATUSES = [User::STATUS_ACTIVE, User::STATUS_DISABLED];
+    private const string STATUS_INVITED = 'invited';
 
     public function __construct(
         private Security $security,
         private UserRepositoryInterface $users,
+        private InvitationRepositoryInterface $invitations,
         private UserListResponseBuilder $builder,
     ) {
     }
@@ -75,7 +80,15 @@ final readonly class UsersListController
         $perPage = max(1, min(self::MAX_PER_PAGE, $perPageRaw));
 
         $status = $request->query->get('status');
-        if (null !== $status && !\in_array($status, self::ALLOWED_STATUSES, true)) {
+        // The polish (#848) introduces a virtual status `invited` for
+        // pending invitation rows. Honour it as a separate axis — when
+        // selected we skip the users fetch entirely and surface only
+        // invitations.
+        $invitedOnly = self::STATUS_INVITED === $status;
+        if (null !== $status && !$invitedOnly && !\in_array($status, self::ALLOWED_STATUSES, true)) {
+            $status = null;
+        }
+        if ($invitedOnly) {
             $status = null;
         }
 
@@ -96,20 +109,65 @@ final readonly class UsersListController
         }
         $roleIds = [] === $roleIds ? null : $roleIds;
 
-        $users = $this->users->findAllByTenantPaginated($tenant, $status, $roleIds, $search, $page, $perPage);
-        $total = $this->users->countByTenant($tenant, $status, $roleIds, $search);
-        $totalPages = (int) ceil($total / $perPage);
+        $users = $invitedOnly
+            ? []
+            : $this->users->findAllByTenantPaginated($tenant, $status, $roleIds, $search, $page, $perPage);
+        $userTotal = $invitedOnly
+            ? 0
+            : $this->users->countByTenant($tenant, $status, $roleIds, $search);
+
+        // Polish (#848): pending invitations surface inline as virtual
+        // rows with status="invited". Included on page 1 either when:
+        //   - no other status filter selected (mixed view)
+        //   - `invited` status explicitly chosen (invitations-only view)
+        // Role filter never applies (invitation has one role assigned
+        // by the inviter — orthogonal to the user-side roles M2M).
+        $pendingInvitations = [];
+        $shouldIncludeInvitations =
+            1 === $page
+            && null === $roleIds
+            && (null === $status || $invitedOnly);
+        if ($shouldIncludeInvitations) {
+            $now = new DateTimeImmutable();
+            foreach ($this->invitations->findByTenant($tenant->getId()) as $invitation) {
+                if ($this->isPending($invitation, $now)) {
+                    if (null !== $search && !str_contains(strtolower($invitation->getEmail()), strtolower($search))) {
+                        continue;
+                    }
+                    $pendingInvitations[] = $invitation;
+                }
+            }
+        }
+
+        $totalPages = (int) ceil($userTotal / $perPage);
         $totalPages = max(1, $totalPages);
 
         return new JsonResponse([
-            'member' => $this->builder->buildList($users),
-            'totalItems' => $total,
+            'member' => $this->builder->buildList($users, $pendingInvitations),
+            'totalItems' => $userTotal + \count($pendingInvitations),
             'meta' => [
                 'page' => $page,
                 'per_page' => $perPage,
                 'total_pages' => $totalPages,
+                'users_total' => $userTotal,
+                'pending_invitations' => \count($pendingInvitations),
             ],
         ]);
+    }
+
+    private function isPending(Invitation $invitation, DateTimeImmutable $now): bool
+    {
+        if (null !== $invitation->getAcceptedAt()) {
+            return false;
+        }
+        if (null !== $invitation->getRevokedAt()) {
+            return false;
+        }
+        if ($invitation->getExpiresAt() <= $now) {
+            return false;
+        }
+
+        return true;
     }
 
     private function unauthorized(): JsonResponse
