@@ -48,6 +48,42 @@ final readonly class LastAdminGuard
         }
     }
 
+    /**
+     * RBAC-P5-003 (#693) — refuse a role re-assignment that strips the
+     * Administrator grant from the last admin on the tenant.
+     *
+     * @param list<string> $newRoleCodes role codes the subject will hold
+     *                                   after the edit (resolved by the
+     *                                   controller from the requested
+     *                                   role IDs)
+     *
+     * @throws LastAdminProtectionException when the new role set drops
+     *                                      every admin grant AND no other
+     *                                      active admin exists in the tenant
+     */
+    public function ensureRoleChangeKeepsAdmin(User $subject, array $newRoleCodes): void
+    {
+        if (!$this->isAdminInTenant($subject)) {
+            return;
+        }
+
+        $stillAdmin = false;
+        foreach ($newRoleCodes as $code) {
+            if (\in_array($code, self::ADMIN_ROLE_CODES, true)) {
+                $stillAdmin = true;
+                break;
+            }
+        }
+        if ($stillAdmin) {
+            return;
+        }
+
+        $adminsLeft = $this->countOtherAdminsInTenant($subject);
+        if ($adminsLeft <= 0) {
+            throw LastAdminProtectionException::removingLastAdminRole($subject);
+        }
+    }
+
     private function isAdminInTenant(User $subject): bool
     {
         foreach ($subject->getAssignedRoles() as $role) {

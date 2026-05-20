@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
+  Pencil,
   Search,
   ShieldCheck,
   UserCheck,
@@ -34,6 +35,7 @@ import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { cn } from '@/lib/utils';
 
 import { DeactivateUserModal } from './DeactivateUserModal';
+import { EditUserModal } from './EditUserModal';
 import { InviteUserModal } from './InviteUserModal';
 import { StatusBadge } from './StatusBadge';
 import type { UserListItem, UserStatus } from './types';
@@ -103,6 +105,15 @@ export function UsersListView() {
   const openDeactivate = (user: UserListItem) => {
     setDeactivateTarget(user);
     setDeactivateOpen(true);
+  };
+
+  // Edit flow state — shares the same list-level lifetime so opening a
+  // second row's modal does not flash stale form data from the previous one.
+  const [editTarget, setEditTarget] = useState<UserListItem | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const openEdit = (user: UserListItem) => {
+    setEditTarget(user);
+    setEditOpen(true);
   };
 
   const handleReactivate = async (user: UserListItem) => {
@@ -226,6 +237,7 @@ export function UsersListView() {
               <UserRow
                 key={user.id}
                 user={user}
+                onEdit={openEdit}
                 onDeactivate={openDeactivate}
                 onReactivate={handleReactivate}
               />
@@ -238,6 +250,15 @@ export function UsersListView() {
         user={deactivateTarget}
         open={deactivateOpen}
         onOpenChange={setDeactivateOpen}
+        onSuccess={() => {
+          void refetch();
+        }}
+      />
+
+      <EditUserModal
+        user={editTarget}
+        open={editOpen}
+        onOpenChange={setEditOpen}
         onSuccess={() => {
           void refetch();
         }}
@@ -284,11 +305,12 @@ export function UsersListView() {
 
 interface UserRowProps {
   user: UserListItem;
+  onEdit: (user: UserListItem) => void;
   onDeactivate: (user: UserListItem) => void;
   onReactivate: (user: UserListItem) => void;
 }
 
-function UserRow({ user, onDeactivate, onReactivate }: UserRowProps) {
+function UserRow({ user, onEdit, onDeactivate, onReactivate }: UserRowProps) {
   const { t, i18n } = useTranslation();
   const lastLogin = user.last_login_at
     ? new Date(user.last_login_at).toLocaleString(i18n.language)
@@ -328,6 +350,10 @@ function UserRow({ user, onDeactivate, onReactivate }: UserRowProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => onEdit(user)}>
+              <Pencil className="mr-2 size-4" aria-hidden="true" />
+              {t('settings.users.action_edit')}
+            </DropdownMenuItem>
             {user.status === 'active' ? (
               <DropdownMenuItem
                 onSelect={() => onDeactivate(user)}
