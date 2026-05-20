@@ -1,0 +1,216 @@
+rules:
+  # ---------------------------------------------------------------------------
+  # RBAC-P6-010 (#722) — Cortex-specific Semgrep rules.
+  #
+  # These rules catch the same classes of mistakes as the PHPStan rule
+  # RequiresPermissionAnnotationRule (RBAC-P1-010) plus a handful of
+  # patterns that PHPStan cannot see because they live below the type
+  # system (raw SQL, magic strings, plaintext secrets in YAML).
+  #
+  # Run locally with:
+  #   docker run --rm -v "$PWD:/src" semgrep/semgrep:latest \
+  #     semgrep --config /src/.semgrep/cortex-rbac.yml /src/apps/api/src
+  # ---------------------------------------------------------------------------
+
+  - id: cortex-entity-missing-tenant-id
+    languages: [php]
+    severity: ERROR
+    message: >-
+      Entity class is missing a `private string|UuidInterface $tenantId`
+      property. Every domain entity must carry its tenant scope from day 1
+      per CLAUDE.md "Multi-tenancy → każda tabela domenowa ma tenant_id
+      UUID NOT NULL od dnia 1". Add the property + `TenantAware` interface
+      so `TenantAssignmentListener` can stamp it on save.
+    patterns:
+      - pattern: |
+          #[ORM\Entity(...)]
+          $... class $C { ... }
+      - pattern-not-inside: |
+          class $X { ... private $TYPE $tenantId$REST; ... }
+      - pattern-not-inside: |
+          class $X { ... private $TYPE $tenant$REST; ... }
+      - pattern-not-inside: |
+          abstract class $X { ... }
+      # Allow infra-only entities listed in INFRA_TABLES — they inherit
+      # tenant scope through their parent FK (or are inherently platform-
+      # global like Locale / Currency / refresh_tokens).
+      - pattern-not-regex: |
+          (?s)(class\s+(Locale|Currency|RefreshToken|RoleAttributePermission|RoleAttributeGroupPermission|ObjectCategory|ObjectValue|ObjectTypeAttribute|ObjectTypeAttributeGroup|AttributeOption|UserRole|UserAuditLog|UserApiToken|SuperAdminAudit|InvitationToken|PasswordResetToken|TotpBackupCode|BulkLog|BulkEditJob|TenantAuditLog|PendingChange|SyncJobLog|ImportSourceLog|ImportScheduleRun|ExportSession)\b)
+    paths:
+      include:
+        - "apps/api/src/**/Domain/Entity/**/*.php"
+
+  - id: cortex-no-direct-role-string-check
+    languages: [php]
+    severity: ERROR
+    message: >-
+      Direct role-string check (`hasRole('admin')` / `getRoles() === ['X']`)
+      bypasses the RBAC permission engine. Use
+      `$security->isGranted('PRD_permission_code')` or
+      `#[RequiresPermission(module: ..., action: ...)]` so the matrix from
+      PRD-PIM-rbac §3.2 is the single source of truth. Direct role checks
+      drift silently when permissions move between roles during workflow
+      refactors.
+    patterns:
+      - pattern-either:
+          - pattern: $USER->hasRole($X)
+          - pattern: in_array($X, $USER->getRoles())
+          - pattern: in_array($X, $USER->getRoles(), ...)
+      - pattern-not-inside: |
+          class $C { ... function getRoles(...) { ... } ... }
+    paths:
+      include:
+        - "apps/api/src/**/*.php"
+      exclude:
+        - "apps/api/src/Identity/**"
+        - "apps/api/tests/**"
+
+  - id: cortex-raw-sql-missing-tenant-filter
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Raw SQL `WHERE` without an explicit `tenant_id` predicate. Doctrine
+      filters do not apply to DBAL Connection queries; cross-tenant reads
+      are then possible. Add `WHERE tenant_id = :tenant` (or document the
+      exemption with a "// infra-only" comment if querying an INFRA_TABLE).
+    patterns:
+      - pattern-either:
+          - pattern: $CONN->fetchAllAssociative($SQL, ...)
+          - pattern: $CONN->fetchAssociative($SQL, ...)
+          - pattern: $CONN->fetchOne($SQL, ...)
+          - pattern: $CONN->executeQuery($SQL, ...)
+      - metavariable-regex:
+          metavariable: $SQL
+          regex: "(?is).*WHERE(?!.*tenant_id).*"
+      - pattern-not-regex: |
+          (?i)//\s*infra-only
+    paths:
+      include:
+        - "apps/api/src/**/*.php"
+      exclude:
+        - "apps/api/src/Shared/Infrastructure/Audit/**"
+        - "apps/api/src/Identity/**/SuperAdmin*"
+        - "apps/api/src/Identity/**/BreakGlass*"
+        - "apps/api/tests/**"
+
+  - id: cortex-no-plaintext-shopify-token
+    languages: [yaml, json, php, dotenv]
+    severity: ERROR
+    message: >-
+      Plaintext Shopify access token (`shpat_*` / `shpss_*`) committed to
+      the repo. Move to Symfony Secrets Vault (`bin/console secrets:set
+      SHOPIFY_TOKEN`) or `.env.local` (gitignored). Never commit the token
+      itself.
+    patterns:
+      - pattern-regex: |
+          (shpat_|shpss_|shppa_|shpca_)[A-Za-z0-9_]{20,}
+    paths:
+      exclude:
+        - "**/.env.local"
+        - "**/.env.local.*"
+        - "**/secrets/**"
+        - "**/*.test.*"
+
+  - id: cortex-no-plaintext-baselinker-token
+    languages: [yaml, json, php, dotenv]
+    severity: ERROR
+    message: >-
+      Plaintext BaseLinker token committed to the repo. Move to Symfony
+      Secrets Vault. Never commit raw API tokens.
+    patterns:
+      - pattern-regex: |
+          ['"]X-BLToken['"]\s*[:=]\s*['"][A-Za-z0-9]{30,}['"]
+    paths:
+      exclude:
+        - "**/.env.local"
+        - "**/*.test.*"
+
+  - id: cortex-no-superglobals
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Direct superglobal access (`$_GET` / `$_POST` / `$_REQUEST` /
+      `$_COOKIE` / `$_SERVER`). Use Symfony's `Request` object
+      (`$request->query`, `$request->request`, `$request->headers`,
+      `$request->cookies`) so middleware, validation, and serialization
+      can wrap the input.
+    patterns:
+      - pattern-either:
+          - pattern: $_GET[...]
+          - pattern: $_POST[...]
+          - pattern: $_REQUEST[...]
+          - pattern: $_COOKIE[...]
+      # $_SERVER is allowed for KERNEL/CLI boot stages where Request is
+      # not yet available. The rule fires when the access happens inside
+      # a Controller / Listener / Voter / Service.
+    paths:
+      include:
+        - "apps/api/src/**/*.php"
+      exclude:
+        - "apps/api/src/Kernel.php"
+        - "apps/api/bin/**"
+        - "apps/api/public/**"
+
+  - id: cortex-sql-injection-string-interpolation
+    languages: [php]
+    severity: ERROR
+    message: >-
+      SQL string interpolation detected — high SQL-injection risk. Use
+      parameterised queries with placeholders (`:name` or `?`) and pass
+      values via the second argument array. DBAL prepared statements are
+      the contract; never concatenate user input into the SQL itself.
+    patterns:
+      - pattern-either:
+          - pattern: $CONN->executeQuery("$...{$X}$...")
+          - pattern: $CONN->executeQuery("$... $X $...")
+          - pattern: $CONN->fetchAllAssociative("$...{$X}$...")
+          - pattern: $CONN->fetchAssociative("$...{$X}$...")
+          - pattern: $CONN->fetchOne("$...{$X}$...")
+      - metavariable-pattern:
+          metavariable: $X
+          patterns:
+            - pattern-not: $request->query->get(...)
+            - pattern-not: $C::$Y
+    paths:
+      include:
+        - "apps/api/src/**/*.php"
+
+  - id: cortex-requires-permission-attribute-missing
+    languages: [php]
+    severity: ERROR
+    message: >-
+      Controller method carries `#[Route(...)]` but no
+      `#[RequiresPermission(...)]` or `#[NoPermissionRequired(...)]`
+      attribute. PHPStan rule RequiresPermissionAnnotationRule
+      (RBAC-P1-010) catches this at PR-time; Semgrep catches the same
+      pattern earlier (pre-commit hook) and provides a faster feedback
+      loop. Add a permission attribute or explicitly mark the endpoint
+      public.
+    patterns:
+      - pattern: |
+          #[Route(...)]
+          public function $METHOD(...) { ... }
+      - pattern-not: |
+          #[Route(...)]
+          #[RequiresPermission(...)]
+          public function $METHOD(...) { ... }
+      - pattern-not: |
+          #[Route(...)]
+          #[NoPermissionRequired(...)]
+          public function $METHOD(...) { ... }
+      - pattern-not: |
+          #[Route(...)]
+          #[IsGranted(...)]
+          #[RequiresPermission(...)]
+          public function $METHOD(...) { ... }
+      - pattern-not: |
+          #[Route(...)]
+          #[IsGranted(...)]
+          #[NoPermissionRequired(...)]
+          public function $METHOD(...) { ... }
+    paths:
+      include:
+        - "apps/api/src/**/Presentation/**/*Controller.php"
+        - "apps/api/src/**/Presentation/*Controller.php"
+      exclude:
+        - "apps/api/src/**/Internal/Test*Controller.php"
