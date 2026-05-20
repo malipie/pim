@@ -64,6 +64,7 @@
       "roles": "Roles",
       "api_tokens": "API tokens",
       "security": "Password policy, 2FA",
+      "tenant": "Tenant",
       "billing": "Subscription",
       "ai": "AI configuration"
     },
@@ -137,6 +138,30 @@
         "expired": "Expired",
         "revoked": "Revoked"
       }
+    },
+    "tenant": {
+      "title": "Tenant configuration",
+      "intro": "Name, primary locale and operational metadata. Channels live in Settings → Channels. Full scope (channels CRUD, locale enable/disable, danger zone) lands in follow-up tickets.",
+      "identity_title": "Identity",
+      "identity_intro": "Code is immutable (set at onboarding). Plan changes go through support.",
+      "field_code": "Code",
+      "code_hint": "Code does not change — it's part of URLs and API keys.",
+      "field_plan": "Plan",
+      "field_name": "Tenant name",
+      "locales_title": "Locales",
+      "locales_intro": "Pick the primary locale from the enabled ones. Activating new locales ships in a follow-up.",
+      "field_primary_locale": "Primary locale",
+      "locales_pending_hint": "Editing enabled_locales requires reviewing role scope arrays — UI ships with #698.",
+      "save": "Save changes",
+      "saving": "Saving...",
+      "toast_saved": "Tenant configuration saved.",
+      "error_loading": "Could not load tenant configuration.",
+      "error_validation": "Backend validation rejected the submission.",
+      "error_primary_not_enabled": "The selected primary locale is not enabled.",
+      "error_generic": "Could not save tenant configuration.",
+      "forbidden_title": "Access denied",
+      "forbidden_description": "Only the tenant Owner sees the configuration. Reach out to your administrator if you need access.",
+      "danger_zone_pending": "Tenant deletion (created {{date}}) is parked behind a separate hard-confirm flow — lands in a follow-up ticket."
     },
     "billing": {
       "title": "Subscription",

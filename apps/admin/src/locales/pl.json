@@ -66,6 +66,7 @@
       "roles": "Role",
       "api_tokens": "Tokeny API",
       "security": "Polityka Haseł, 2FA",
+      "tenant": "Tenant",
       "billing": "Subskrypcja",
       "ai": "Konfiguracja AI"
     },
@@ -139,6 +140,30 @@
         "expired": "Wygasł",
         "revoked": "Odwołany"
       }
+    },
+    "tenant": {
+      "title": "Konfiguracja tenanta",
+      "intro": "Nazwa, locale primary i metadane operacyjne. Kanały edytujesz w sekcji Settings → Kanały. Pełen scope (channels CRUD, enable/disable locales, danger zone) doejdzie w kolejnych ticketach.",
+      "identity_title": "Identyfikacja",
+      "identity_intro": "Code jest immutable (utworzony przy onboardingu). Plan zmienia support kontaktem.",
+      "field_code": "Kod",
+      "code_hint": "Kod nie zmienia się — jest częścią URL-i i kluczy API.",
+      "field_plan": "Plan",
+      "field_name": "Nazwa tenanta",
+      "locales_title": "Locale",
+      "locales_intro": "Wybierz primary locale spośród aktywowanych. Aktywacja nowych locale dojdzie w follow-up tickecie.",
+      "field_primary_locale": "Primary locale",
+      "locales_pending_hint": "Edycja enabled_locales wymaga rewizji scope ról — UI dojdzie razem z #698.",
+      "save": "Zapisz zmiany",
+      "saving": "Zapisuję...",
+      "toast_saved": "Konfiguracja tenanta zapisana.",
+      "error_loading": "Nie udało się załadować konfiguracji tenanta.",
+      "error_validation": "Wprowadzone dane nie przeszły walidacji backendu.",
+      "error_primary_not_enabled": "Wybrany primary locale nie jest aktywowany.",
+      "error_generic": "Nie udało się zapisać konfiguracji tenanta.",
+      "forbidden_title": "Brak dostępu",
+      "forbidden_description": "Tylko Owner tenanta widzi konfigurację. Skontaktuj się z administratorem, jeśli potrzebujesz dostępu.",
+      "danger_zone_pending": "Usuwanie tenanta (utworzonego {{date}}) zostało przeniesione do osobnego flow z hard-confirm — dochodzi w follow-up."
     },
     "billing": {
       "title": "Subskrypcja",

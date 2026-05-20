@@ -211,6 +211,10 @@ const ApiTokensSettingsPage = lazyPage(
   () => import('@/features/settings/api-tokens'),
   'ApiTokensSettingsPage',
 );
+const TenantSettingsPage = lazyPage(
+  () => import('@/features/settings/tenant'),
+  'TenantSettingsPage',
+);
 
 /**
  * Suspense fallback shown while a route chunk loads. Discreet — the
@@ -440,6 +444,7 @@ function App() {
                   <Route path="api-tokens" element={<ApiTokensSettingsPage />} />
                   <Route path="security" element={<SecuritySettingsPage />} />
                   <Route path="billing" element={<BillingSettingsPage />} />
+                  <Route path="tenant" element={<TenantSettingsPage />} />
                   <Route path="ai" element={<AiSettingsPage />} />
                 </Route>
                 {/* Top-level Integracje hub — łączy Imports MVP (epik 0.13)
