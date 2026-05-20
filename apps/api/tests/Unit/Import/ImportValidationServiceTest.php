@@ -139,6 +139,11 @@ final class InMemoryAttributeRepository implements AttributeRepositoryInterface
 
         return $codes;
     }
+
+    public function findAllByTenant(Tenant $tenant): array
+    {
+        return array_values($this->byCode);
+    }
 }
 
 /**

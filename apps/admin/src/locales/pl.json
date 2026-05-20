@@ -374,6 +374,48 @@
         "system": "System",
         "custom": "Custom"
       },
+      "attr_perms": {
+        "section_title": "Uprawnienia per atrybut (override)",
+        "search_placeholder": "Szukaj atrybutów...",
+        "override_count": "{{count}} aktywnych override'ów",
+        "create_first": "Zapisz rolę przed edycją uprawnień per-atrybut.",
+        "cross_tab_deferred": "Cross-tab badge counters w macierzy + sticky info banner deferowane — pojawią się po wdrożeniu Mercure SSE sync (osobny ticket).",
+        "group_ungrouped": "Bez grupy",
+        "attribute_count_one": "{{count}} atrybut",
+        "attribute_count_other": "{{count}} atrybutów",
+        "attribute_count": "{{count}} atrybutów",
+        "mixed": "Mieszane",
+        "localizable": "i18n",
+        "required": "Wymagany",
+        "level": {
+          "view": "Podgląd",
+          "edit": "Edycja",
+          "restricted": "Zablokowane",
+          "inherit": "Domyślne",
+          "inherit_hint": "Bez override — używa grantu z macierzy roli"
+        },
+        "filter": {
+          "all": "Wszystkie",
+          "overridden": "Z override'em",
+          "view": "Podgląd",
+          "edit": "Edycja",
+          "restricted": "Zablokowane"
+        },
+        "bulk_view": "Podgląd dla wszystkich",
+        "bulk_edit": "Edycja dla wszystkich",
+        "bulk_restricted": "Zablokuj wszystkie",
+        "bulk_clear": "Wyczyść",
+        "bulk_hint": "Ustaw {{level}} dla widocznych atrybutów w grupie",
+        "bulk_clear_hint": "Usuń override dla widocznych atrybutów — wraca do macierzy",
+        "reset": "Cofnij zmiany",
+        "save": "Zapisz override'y",
+        "saving": "Zapisuję...",
+        "toast_saved": "Override'y per-atrybut zapisane.",
+        "error_load": "Nie udało się załadować override'ów per-atrybut.",
+        "error_validation": "Backend odrzucił dane.",
+        "error_forbidden": "Brak uprawnień.",
+        "error_generic": "Nie udało się zapisać override'ów."
+      },
       "editor": {
         "back": "Wróć do listy ról",
         "title_create": "Nowa rola customowa",

@@ -148,6 +148,7 @@ parameters:
 
         Identity_Internals:
             - Identity_Contracts
+            - Catalog_Contracts
             - Shared
         Identity_Contracts:
             - Shared

@@ -62,4 +62,20 @@ class DoctrineAttributeRepository extends ServiceEntityRepository implements Att
 
         return $codes;
     }
+
+    public function findAllByTenant(Tenant $tenant): array
+    {
+        /** @var list<Attribute> $result */
+        $result = $this->createQueryBuilder('a')
+            ->leftJoin('a.group', 'g')
+            ->where('a.tenant = :tenant')
+            ->setParameter('tenant', $tenant)
+            ->orderBy('g.position', 'ASC')
+            ->addOrderBy('g.id', 'ASC')
+            ->addOrderBy('a.code', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $result;
+    }
 }

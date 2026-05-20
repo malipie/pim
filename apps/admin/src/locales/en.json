@@ -372,6 +372,48 @@
         "system": "System",
         "custom": "Custom"
       },
+      "attr_perms": {
+        "section_title": "Per-attribute permissions (override)",
+        "search_placeholder": "Search attributes...",
+        "override_count": "{{count}} active override(s)",
+        "create_first": "Save the role before editing per-attribute permissions.",
+        "cross_tab_deferred": "Cross-tab badge counters on the matrix + sticky info banner deferred — they land once Mercure SSE sync is wired (separate ticket).",
+        "group_ungrouped": "Ungrouped",
+        "attribute_count_one": "{{count}} attribute",
+        "attribute_count_other": "{{count}} attributes",
+        "attribute_count": "{{count}} attributes",
+        "mixed": "Mixed",
+        "localizable": "i18n",
+        "required": "Required",
+        "level": {
+          "view": "View",
+          "edit": "Edit",
+          "restricted": "Restricted",
+          "inherit": "Inherit",
+          "inherit_hint": "No override — falls back to the role matrix grant"
+        },
+        "filter": {
+          "all": "All",
+          "overridden": "Overridden",
+          "view": "View",
+          "edit": "Edit",
+          "restricted": "Restricted"
+        },
+        "bulk_view": "View for all",
+        "bulk_edit": "Edit for all",
+        "bulk_restricted": "Restrict all",
+        "bulk_clear": "Clear",
+        "bulk_hint": "Set {{level}} on the visible attributes in this group",
+        "bulk_clear_hint": "Remove overrides on the visible attributes — falls back to the matrix",
+        "reset": "Reset changes",
+        "save": "Save overrides",
+        "saving": "Saving...",
+        "toast_saved": "Per-attribute overrides saved.",
+        "error_load": "Could not load per-attribute overrides.",
+        "error_validation": "Backend rejected the submission.",
+        "error_forbidden": "You don't have permission.",
+        "error_generic": "Could not save overrides."
+      },
       "editor": {
         "back": "Back to roles",
         "title_create": "New custom role",

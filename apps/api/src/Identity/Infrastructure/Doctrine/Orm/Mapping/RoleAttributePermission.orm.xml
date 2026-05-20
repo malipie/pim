@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Identity\Domain\Entity\RoleAttributePermission"
+            table="role_attribute_permissions"
+            repository-class="App\Identity\Infrastructure\Doctrine\Repository\DoctrineRoleAttributePermissionRepository">
+
+        <unique-constraints>
+            <unique-constraint name="role_attribute_permissions_role_attr_uniq" columns="role_id,attribute_id"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="role_attribute_permissions_role_idx" columns="role_id"/>
+            <index name="role_attribute_permissions_attr_idx" columns="attribute_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <field name="roleId" type="uuid" column="role_id"/>
+        <field name="attributeId" type="uuid" column="attribute_id"/>
+        <field name="permissionLevel" type="string" length="16" column="permission_level"/>
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+        <field name="updatedAt" type="datetime_immutable" column="updated_at"/>
+
+    </entity>
+
+</doctrine-mapping>
