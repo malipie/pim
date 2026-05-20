@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation;
 
 use App\Identity\Application\RefreshTokenService;
+use App\Identity\Domain\Attribute\NoPermissionRequired;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -30,6 +31,7 @@ final readonly class LogoutController
     }
 
     #[Route(path: '/api/auth/logout', methods: ['POST'], name: 'api_auth_logout')]
+    #[NoPermissionRequired(reason: 'Logout revokes the caller\'s own refresh token — no permission gate beyond presenting a valid cookie.')]
     public function __invoke(Request $request): Response
     {
         $cookieValue = $request->cookies->get($this->cookies->getCookieName());

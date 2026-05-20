@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Controller;
 
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\CannotDisablePrimaryLocaleException;
 use App\Shared\Domain\Exception\InvalidLocaleException;
@@ -56,6 +57,7 @@ final class WorkspaceController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
     public function get(): JsonResponse
     {
         $tenant = $this->tenantContext->get();
@@ -79,6 +81,7 @@ final class WorkspaceController
         methods: ['POST'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
     public function addLocale(Request $request): JsonResponse
     {
         $tenant = $this->tenantContext->get();
@@ -114,6 +117,7 @@ final class WorkspaceController
         methods: ['DELETE'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
     public function removeLocale(string $locale): JsonResponse
     {
         $tenant = $this->tenantContext->get();
@@ -153,6 +157,7 @@ final class WorkspaceController
         methods: ['PATCH'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
     public function patch(Request $request): JsonResponse
     {
         $tenant = $this->tenantContext->get();
