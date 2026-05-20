@@ -1,5 +1,28 @@
 # Current Status
 
+## 2026-05-20: 🚧 Phase 5 RBAC marathon-2 — 17/22 ticketów shipped lub w CI
+
+**Sesja 2026-05-20 zaszipowała 5 dodatkowych ticketów:**
+
+| Ticket | PR | Scope | Status |
+|---|---|---|---|
+| #701 Revoke token | [#831](../../pull/831) | RevokeTokenModal + `POST /api/api-tokens/{id}/revoke` z hard-confirm | ✅ merged |
+| #700 Create token wizard | [#832](../../pull/832) | CreateTokenWizard + `POST /api/api-tokens` z plaintext-once + scope templates + TTL | ✅ merged |
+| #693 Edit user | [#833](../../pull/833) | EditUserModal + `PATCH /api/users/{id}` z self-edit block + LastAdminGuard `ensureRoleChangeKeepsAdmin()` | ✅ merged |
+| #696 Custom role builder | [#834](../../pull/834) | PermissionMatrix UI + `GET /api/permissions` + role CRUD endpoints (POST/PATCH/DELETE /api/roles) | 🟡 CI in progress (PHPUnit pending) |
+| #698 Auto-grant + scope | [#835](../../pull/835) | `roles.auto_grant_new_object_types` BOOLEAN + toggle w RoleEditorPage. **Stacked na #834.** Locale/channel scope deferred do #697. | 🟡 PR open, waits #834 |
+
+**5 ticketów pozostaje otwartych z hard blockers:**
+
+| Ticket | Blocker | Plan |
+|---|---|---|
+| #697 attribute permissions tab | Cross-context schema decision — `role_attribute_permissions` (3-state) + `role_attribute_group_permissions` (mixed-state) + cross-tab sync z #696 matrix badges. 12-18h. **Wymaga Plan Mode + decyzję architektoniczną.** | Dedykowana sesja. ADR pre-decision na 3-state grant semantykę + indeks per (role, attribute) + sync strategy. |
+| #703 MFA UI | Phase 4 #689 (MFA wizard) nie merged. | Po unblock #689. |
+| #704 SSO config UI | Wymaga Okta dev account credentials + 8-12h scope (3 tabs Google/MS/SAML + XML metadata upload + test connection). | Operator decision na Okta tenant + testing. |
+| #709-712 SA panel | Wymagają `admin.cortex.pl` subdomain + Caddy config. Super-admin operator panel = osobny deployment topology. | Operator decision + infra task. |
+
+---
+
 ## 2026-05-19/20: 🚧 Phase 5 RBAC w trakcie — 4/22 ticketów shipped, marathon bypass
 
 **Tryb:** AUTONOMOUS_MODE: ON w CLAUDE.md + bypass mode w sesji per operator instruction. EPIK MARATHON RULE — każdy ticket dostaje własny branch + PR + CI + merge, bez bundlingu.

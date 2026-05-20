@@ -2,6 +2,34 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z Phase 5 marathon-2 (2026-05-20, #693/#696/#698/#700/#701 shipped)
+
+### Patterns to Follow
+
+1. **Dziel duże tickety (12-18h estymata) na świadome slice'y z deferred AC list w PR body** — #696 z 12 AC dostarczył 7 z full UX wiring + 5 deferred do #697/#698 z explicit rationale ("depends on schema X", "needs Y backend"). Operatorowi widać co zostało nieshipped i dlaczego. Lepsze niż "minimum viable" bez wzmianki o deferred scope.
+
+2. **Stacked PR-y dla zależnych ticketów** — #698 zbudowany na branchu #696 (PR #835 `--base feat/rbac-p5-006-custom-role-builder`) zamiast czekać na merge. `gh pr edit --base <branch>` zmienia bazę PR-a, GitHub auto-pokazuje tylko commits dodane przez stacked PR. Po merge bazy, stacked PR automatycznie targetuje main.
+
+3. **Doctrine XML mapping default value via `<options>` child element** — `<field ... options="default: false"/>` rzuca PHPStan "Internal error: libxml error: attribute 'options' is not allowed". Wzór: `<field name="x" type="boolean" column="x"><options><option name="default">false</option></options></field>`.
+
+4. **Manual `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` via psql jako fallback gdy doctrine:migrations:migrate failuje** — dev DB ma tabele z fixtures (nie via migrations), więc migration tracking table jest pusty + nowe migrations próbują re-create istniejące tabele. Solution: bezpośredni `docker compose exec -T database psql -U pim -d pim -c "ALTER TABLE ..."` + `doctrine:migrations:version --add` dla nowej. CI startuje z czystej DB więc migrations runnują czysto.
+
+5. **Live-stack smoke test PRZED commit (CLOSED MEANS CLOSED RULE)** — dla każdego ticketu: curl POST/GET/PATCH/DELETE flow + zapisanie odpowiedzi do PR comment jako proof. Self-edit guard, last_admin guard, duplicate_code conflict, role_in_use conflict — wszystkie tested live. Bez smoke nie ma "działa" w PR description.
+
+6. **Permission catalogue grupowane client-side po `module` prefix (split code na ostatniej kropce)** — backend zwraca raw PRD codes; FE robi `module = code.substring(0, code.lastIndexOf('.'))` żeby pogrupować. Dodawanie nowych perm codes do seedera = zero FE deploy needed. Module labels w i18n + fallback do humanised slug = robust to backend additions.
+
+7. **Action verb priority list dla matrix UI** — `view → view_own → add → edit → delete → run → approve → bulk → schema → manage → ...` curated lista w PermissionMatrix.tsx + alphabetical fallback. Matrix reads left-to-right zgodnie z PRD §3.2 mockup. Bez tej priority listy `delete` ląduje przed `add` (alphabetical), co dezorientuje.
+
+### Patterns to Avoid
+
+1. **NIE reset --hard branch po zacommitowaniu na innej feature branch** — przełączyłem się z #693 na #698 branch, `git reset --hard origin/feat/rbac-p5-006-custom-role-builder` żeby stack — straciłem unstaged Role.orm.xml + Role.php edits. Wzór: commituj WSZYSTKO przed branch-switch albo `git stash` najpierw.
+
+2. **NIE zostawiaj auto-regenerated `apps/api/config/reference.php` w commit** — Symfony config dump regeneruje się czasem na restart, ma noise diff (URL hints reorder). `git checkout apps/api/config/reference.php` przed commit jeśli nie dotykasz config.
+
+3. **NIE testuj last_admin guard live z 2 użytkownikami w tenanci** — last_admin trigger wymaga 3 active admin users + caller != target (gdzie target jest sole admin po edycji). Setup za drogi do live smoke. Unit test pokrywa.
+
+4. **NIE `git checkout <branch> -- <file>` gdy masz unstaged changes na current branch tego pliku** — wcześniejsze unstaged edits zostały zniszczone gdy `git checkout feat/rbac-p5-008-... -- agent/...` pobrał wersje z #698 branch (które były bez moich edits, bo edytowałem tylko working tree #698). Wzór: stash przed checkout (nawet partial path checkout), albo commit edits gdziekolwiek przed branch-cross-pollination.
+
 ## Lessons z Phase 5 Wave 1 (2026-05-19/20, #691/#695/#706/#708 shipped)
 
 ### Patterns to Follow
