@@ -1,3 +1,4 @@
+import { RoleEditorPage } from './RoleEditorPage';
 import { RolesListView } from './RolesListView';
 
 /**
@@ -7,4 +8,13 @@ import { RolesListView } from './RolesListView';
  */
 export function RolesSettingsPage() {
   return <RolesListView />;
+}
+
+/**
+ * RBAC-P5-006 (#696) — entry point for both `/settings/roles/new`
+ * (create) and `/settings/roles/:id/edit` (edit) since the editor
+ * page handles the mode switch from `useParams().id`.
+ */
+export function RolesEditorRoute() {
+  return <RoleEditorPage />;
 }

@@ -201,6 +201,7 @@ const LocalesSettingsPage = lazyPage(
 );
 const MenuSettingsPage = lazyPage(() => import('@/features/settings/menu'), 'MenuSettingsPage');
 const RolesSettingsPage = lazyPage(() => import('@/features/settings/roles'), 'RolesSettingsPage');
+const RolesEditorRoute = lazyPage(() => import('@/features/settings/roles'), 'RolesEditorRoute');
 const SettingsIndex = lazyPage(() => import('@/features/settings/SettingsIndex'), 'SettingsIndex');
 const SecuritySettingsPage = lazyPage(
   () => import('@/features/settings/security'),
@@ -441,6 +442,8 @@ function App() {
                   <Route path="channels/:id/edit" element={<ChannelEditPage />} />
                   <Route path="users" element={<UsersSettingsPage />} />
                   <Route path="roles" element={<RolesSettingsPage />} />
+                  <Route path="roles/new" element={<RolesEditorRoute />} />
+                  <Route path="roles/:id/edit" element={<RolesEditorRoute />} />
                   <Route path="api-tokens" element={<ApiTokensSettingsPage />} />
                   <Route path="security" element={<SecuritySettingsPage />} />
                   <Route path="billing" element={<BillingSettingsPage />} />

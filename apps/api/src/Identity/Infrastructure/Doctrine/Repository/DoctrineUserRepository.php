@@ -77,6 +77,17 @@ class DoctrineUserRepository extends ServiceEntityRepository implements UserRepo
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
+    public function countAssignedToRole(Uuid $roleId): int
+    {
+        $qb = $this->createQueryBuilder('u')
+            ->select('COUNT(DISTINCT u.id)')
+            ->innerJoin('u.assignedRoles', 'r')
+            ->where('r.id = :roleId')
+            ->setParameter('roleId', $roleId);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
     /**
      * @param list<string>|null $roleIds
      */
