@@ -7,6 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Application\Bulk\BulkRollbackHandler;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -49,6 +50,7 @@ final class BulkSessionsController
      */
     #[Route('/api/bulk-sessions', name: 'pim_bulk_session_list', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'bulk_operations')]
     public function list(Request $request): JsonResponse
     {
         $tenant = $this->tenantContext->get();
@@ -101,6 +103,7 @@ final class BulkSessionsController
 
     #[Route('/api/bulk-sessions/{id}', name: 'pim_bulk_session_show', requirements: ['id' => self::UUID_REGEX], methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'bulk_operations')]
     public function show(string $id): JsonResponse
     {
         $session = $this->loadSession($id);
@@ -142,6 +145,7 @@ final class BulkSessionsController
 
     #[Route('/api/bulk-sessions/{id}/rollback', name: 'pim_bulk_session_rollback', requirements: ['id' => self::UUID_REGEX], methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'bulk_operations')]
     public function rollback(string $id): JsonResponse
     {
         $session = $this->loadSession($id);

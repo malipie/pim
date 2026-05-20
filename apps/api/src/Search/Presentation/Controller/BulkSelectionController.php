@@ -8,6 +8,7 @@ use App\Catalog\Application\Filter\FilterDslResolver;
 use App\Catalog\Application\Filter\FilterUrlSerializer;
 use App\Catalog\Domain\Entity\SmartFilterPreset;
 use App\Catalog\Domain\ObjectKind;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Search\Application\CatalogSearchService;
 use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
@@ -50,6 +51,7 @@ final class BulkSelectionController
 
     #[Route('/api/products/select-all-matching', name: 'pim_bulk_select_all_matching', methods: ['POST'])]
     #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function selectAllMatching(Request $request): JsonResponse
     {
         /** @var array<string, mixed> $body */

@@ -19,6 +19,7 @@ use App\Catalog\Application\Bulk\BulkSetAttributeHandler;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
 use DateTimeInterface;
@@ -68,6 +69,7 @@ final class BulkActionsController
 
     #[Route('/api/products/bulk-actions/preview', name: 'pim_bulk_actions_preview', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'bulk_operations')]
     public function preview(Request $request): JsonResponse
     {
         /** @var array<string, mixed> $body */
@@ -257,6 +259,7 @@ final class BulkActionsController
 
     #[Route('/api/products/bulk-actions/{actionType}', name: 'pim_bulk_actions_apply', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'bulk_operations')]
     public function apply(string $actionType, Request $request): JsonResponse
     {
         $tenant = $this->tenantContext->get();
