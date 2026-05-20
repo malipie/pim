@@ -39,7 +39,7 @@ final class Version20260520090000 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $this->addSql(<<<'SQL'
-            CREATE TABLE role_attribute_permissions (
+            CREATE TABLE IF NOT EXISTS role_attribute_permissions (
                 id UUID NOT NULL,
                 role_id UUID NOT NULL,
                 attribute_id UUID NOT NULL,
@@ -54,15 +54,15 @@ final class Version20260520090000 extends AbstractMigration
             )
         SQL);
         $this->addSql(<<<'SQL'
-            CREATE UNIQUE INDEX role_attribute_permissions_role_attr_uniq
+            CREATE UNIQUE INDEX IF NOT EXISTS role_attribute_permissions_role_attr_uniq
                 ON role_attribute_permissions (role_id, attribute_id)
         SQL);
         $this->addSql(<<<'SQL'
-            CREATE INDEX role_attribute_permissions_role_idx
+            CREATE INDEX IF NOT EXISTS role_attribute_permissions_role_idx
                 ON role_attribute_permissions (role_id)
         SQL);
         $this->addSql(<<<'SQL'
-            CREATE INDEX role_attribute_permissions_attr_idx
+            CREATE INDEX IF NOT EXISTS role_attribute_permissions_attr_idx
                 ON role_attribute_permissions (attribute_id)
         SQL);
     }
