@@ -2,6 +2,34 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z Phase 5 closure session (2026-05-21, 10 issues closed z proofami + Phase 6 start)
+
+### Patterns to Follow
+
+1. **Smoke-test JEST częścią ticketu, nie follow-up** — marathon-3 zaszipował 22/22 PR-ów ale zostawił 10 issues `open` mimo merge'u, bo CLOSED MEANS CLOSED RULE wymaga live-stack smoke-test proofu w close comment. Wzór: PRZED `gh pr merge` wykonaj curl przeciw running stack, wklej HTTP code + JSON body do PR description + use `Closes #N` syntax — wtedy auto-close pociągnie proof razem z merge'em. Bez tego closure jest manualnym chore'em dla następnej sesji który łatwo zignorować.
+
+2. **OPcache cleanup po nowej migracji + entity change** — PR #849 dodało `Role::setDescription()` + migration `Version20260520110000`. Plik na disk był OK, ale `pim-api` container nadal trzymał OLD Role classmap w PHP opcache. `docker compose restart api` (FrankenPHP worker reload) wystarczyło. Wzór: po merge'u zawierającym nowe entity methods + migration, restart api kontenera przed smoke-testem (nie wystarczy `cache:clear`).
+
+3. **Endpoint discovery przez grep gdy przewidywany path zwraca 404** — najpierw zgadywałem MFA path: `/api/profile/mfa/*`, `/api/auth/mfa/*` (404). Quick grep `Route.*mfa` znalazł rzeczywisty `TwoFactorController` z `/api/me/mfa/status` + `/api/auth/2fa/enrol|verify|disable` + `/api/me/mfa/recovery-codes/regenerate`. Wzór: jeśli 3 zgadywanki path zwracają 404, switch to `grep -rn "Route" src/.../Controller/ | grep -i <feature>` zamiast więcej zgadywać.
+
+4. **Required-field discovery dla POST endpoints przez 400 + source read** — POST /api/admin/tenants zwróciło `400 Missing fields: code, name, owner_email`. Grep `SuperAdminTenantWriteController` ujawnił że `owner_email` jest wymagany. Wzór: HTTP 400 z RFC 7807 detail field zwykle podaje brakujące pola explicitly — czytaj detail PRZED guess'em.
+
+5. **Branch revert dla stale auto-generated files** — `apps/api/config/reference.php` zmieniał się sam (kolejność komentarzy w PSALM-type definitions). Auto-generated Symfony config dumper artifact. `git checkout -- apps/api/config/reference.php` przed rebase zlikwidowało noise. Wzór: jeśli `git status` pokazuje pliki które ty nie tknąłeś — sprawdź czy są auto-generated (dump-extension, swagger-export, deptrac-cache) i odrzuć je explicite z `checkout --`.
+
+### Patterns to Avoid
+
+1. **NIE forsuj `gh pr merge --auto` jeśli mergeStateStatus jest UNSTABLE** — PR #850 miał Playwright FAILURE (Alpine apk infra flake), więc auto-merge nigdy by nie odpalił. Lepiej `gh run rerun <run_id> --failed` najpierw, sprawdzić czy retry jest green, dopiero potem `gh pr merge --squash --delete-branch` direct. Auto-merge ma sens tylko dla CLEAN PR-ów które jeszcze nie miały approve'u.
+
+2. **NIE rebase docs PR na zmienione main jeśli oba dotykają tych samych narrative docs** — #851 (`mark Phase 5 CLOSED`) i #846 (`Phase 5 marathon-3 final 22/22`) oba edytowały `agent/current_status.md` + `agent/lessons.md` z różnych snapshotów. Rebase #851 wygenerował konflikty na obu plikach. Rozwiązanie: closure docs PR jest superseded jeśli equivalent narrative idzie do main w jednym z merged PR-ów. Wzór: trzymaj docs/narrative changes na SAMYM końcu epiku, w jednym PR'ze, po merge'u wszystkich functional PR-ów.
+
+3. **NIE używaj `head -c -N` na macOS** (BSD head) — `head: illegal byte count -- -10`. Use `sed 's/__HTTP__.*//'` lub `awk '/^__HTTP__/{exit}1'` lub piping. Dla cross-platform shell scripts trzymaj się POSIX-safe utilities.
+
+### Decyzje świadome
+
+1. **Direct issue close zamiast forsowania docs PR #851** — po merge'u #846 conflict na current_status.md zaczął wymagać manual rebase, ale rzeczywista narrative i tak miała iść do następnego commitu (z proofami + Phase 6 kickoff). Decyzja: `gh pr close 851 --comment "superseded"`, branch deleted, narrative idzie w fresh commit. Mniej friction niż "ratuj PR za wszelką cenę".
+
+2. **Polish ticket'y #847/#848 mają milestone=null mimo `phase-5` label** — auto-closed przez `Closes #847` / `Closes #848` w PR description. Milestone count (closed=22, open=0) odzwierciedla pierwotne 22 scope tickety, polish jest accountowany przez label. Audit trail kompletny: PR + Issue + 2 comments z proofami.
+
 ## Lessons z Phase 5 marathon-3 (2026-05-20 końcówka, #689/#703/#711/#712 shipped — pełen 22/22)
 
 ### Patterns to Follow
