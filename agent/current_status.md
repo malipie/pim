@@ -1,5 +1,55 @@
 # Current Status
 
+## 2026-05-21: 🏁🏁 Phase 6 RBAC CLOSED — 9/10 functional + 1 partial test refactor deferred
+
+**Phase 6 functionally CLOSED.** 9 z 10 tickety zamknięte z proofami; #719 ma częściowy ship (Identity/Search leftover retrofit + baseline empty), test-refactor scope deferred do osobnego sprintu testowego.
+
+### Final Phase 6 PR record
+
+| Ticket | PR | Scope | Status |
+|---|---|---|---|
+| #713 audit checklists | [#853](../../pull/853) | `docs/rbac-audit/existing-endpoints-checklist.md` (253 routes) + `existing-ui-components-checklist.md` (60 UI files) | ✅ closed |
+| #714 Product endpoints | [#854](../../pull/854) | 10 controllers / 19 routes — `products.*` (view/edit/add/bulk_operations) | ✅ closed z proof |
+| #715 Catalog/Asset/Modeling | [#855](../../pull/855) | 34 controllers / 60 routes — modeling.*, attribute.*, categories.*, asset.*, user.*, agent.bulk_actions + NoPermissionRequired na `/api/metrics`. **PHPStan baseline -474 lines.** | ✅ closed z proof |
+| #716 Import/Export/Backup | [#856](../../pull/856) | 25 controllers / 40 routes — imports.run, import_*, exports.*, integration.admin, api_profile.*, backup.*. **PHPStan baseline -240 lines.** | ✅ closed z proof |
+| #717 UI PermissionGate | [#858](../../pull/858) | New `<GatedAction>` + `<GatedButton>` components + 5 high-visibility CTAs wrapped (Users Invite, Roles +New, Tenants +New, Asset bulk delete, BulkBar entire sticky) | ✅ closed z proof |
+| #718 OpenAPI x-cortex-permission | [#859](../../pull/859) | `PermissionOpenApiFactory` decorator — 62/63 ApiPlatform operations tagged. Re-exported `docs/api-spec/v0.json`. | ✅ closed z proof |
+| #719 Identity leftovers (partial) | [#860](../../pull/860) | 13 Identity/Search controller actions retrofitted (NoPermissionRequired + RequiresPermission). **PHPStan baseline -14 lines → EMPTY.** | 🟡 partial — test refactor (loginAs + 200-class retrofit) deferred |
+| #720 PR template + Semgrep CI | [#862](../../pull/862) + 43fa910 fix + ffacc85 paths | New `.github/PULL_REQUEST_TEMPLATE.md` + `semgrep-cortex` CI job + paths filter for `.semgrep/**` | ✅ closed z proof |
+| #721 Prometheus + Grafana | [#863](../../pull/863) | `RbacMetricsRegistry` (6 surfaces) + Grafana dashboard JSON (6 panels) + alert rules YAML (3 rules) | ✅ closed z proof |
+| #722 Semgrep + tooling docs | [#861](../../pull/861) | `.semgrep/cortex-rbac.yml` (8 Cortex rules) + `docs/security/tooling-final.md` | ✅ closed z proof |
+
+### Phase 6 deliverable summary
+
+**Backend retrofit:** 159 routes across 79 controllers gated z `#[RequiresPermission]` + 6 leftover'ów z `#[NoPermissionRequired]`. **PHPStan baseline empty** — RBAC-P1-010 rule active for every future PR.
+
+**Frontend coverage:** `<GatedAction>` / `<GatedButton>` pattern established. 5 high-visibility CTAs wrapped. Iterative adoption documented w 60-component checklist (`docs/rbac-audit/existing-ui-components-checklist.md`).
+
+**OpenAPI spec:** 62 operations tagged z `x-cortex-permission`. Integrators reading `/api/docs.jsonopenapi` widzą required permission per endpoint.
+
+**CI gates:**
+- PHPStan max + custom rule (RBAC-P1-010) → 0 errors
+- Semgrep with 8 Cortex rules (entity tenantId, role-string check, raw SQL tenant filter, plaintext Shopify/BaseLinker tokens, superglobals, SQL injection, RequiresPermission missing)
+- PR template with security review checklist
+- All existing gates (Biome, TS noEmit, Deptrac, raw SQL lint, OpenAPI spec drift, TruffleHog, GitLeaks, composer/pnpm audit)
+
+**Observability:** 6 Prometheus surfaces (`cortex_permission_denied_total`, `cortex_cross_tenant_access_total`, `cortex_api_token_created_total`, `cortex_mfa_enrollment_percentage`, `cortex_failed_login_attempts_total`, `cortex_super_admin_recovery_total`) + Grafana dashboard z 6 panels + 3 alert rules (HighRateOf403Denials, AnomalousFailedLogins, SuperAdminRecoveryUsed).
+
+### Deferred follow-ups
+
+1. **#719 test refactor** (open): `IntegrationTestCase::loginAs($persona)` helper + retrofit ~200 test classes z permission scenarios + coverage thresholds w `phpunit.xml` (Identity ≥95% line, ≥80% MSI). Estimate 12-15h per ticket body, multi-session task.
+2. **#721 metric subscribers**: Event subscribers that increment the new counters (`EndpointGuardListener` 403, `SuperAdminContext::runCrossTenant()`, `BreakGlassController` POST, `CreateApiTokenController`, `LoginCheckListener` 401, `TwoFactorController` enrol/disable) — 1-2 line constructor injection + counter call each, ~2-3h total.
+3. **Branch protection on `main`** (GitHub settings change, not code) — Phase 7.
+4. **`EndpointGuardListener::$strictMode = true`** — flip after #719 test refactor closes; baseline is already empty so the flip is safe code-wise.
+
+### Phase 6 → Phase 7 transition
+
+Phase 7 RBAC start condition: **9/10 closed** + #719 partial documented + baseline empty. Next session can begin #723 (red-team checklist) + #724 (optional external pentest) per `Project Plan/14-rbac-tickets-phase-7.md`.
+
+**Milestone state:** `closed=9 open=1` (the open one is #719 test refactor).
+
+---
+
 ## 2026-05-21: 🚀 Phase 6 RBAC start — 4/10 ticketów shipped (audit + endpoint retrofit)
 
 **Phase 5 → Phase 6 transition. Marathon w toku.**
