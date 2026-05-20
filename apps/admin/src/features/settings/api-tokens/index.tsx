@@ -186,14 +186,14 @@ function TokenRow({
         </div>
       </TableCell>
       {scope === 'tenant' ? (
-        <TableCell className="text-xs text-muted-foreground">
-          {token.owner_email ?? '—'}
-        </TableCell>
+        <TableCell className="text-xs text-muted-foreground">{token.owner_email ?? '—'}</TableCell>
       ) : null}
       <TableCell>
         <div className="flex flex-wrap gap-1">
           {token.scopes.length === 0 ? (
-            <span className="text-xs text-muted-foreground">{t('settings.api_tokens.no_scopes')}</span>
+            <span className="text-xs text-muted-foreground">
+              {t('settings.api_tokens.no_scopes')}
+            </span>
           ) : (
             token.scopes.map((s) => (
               <span
