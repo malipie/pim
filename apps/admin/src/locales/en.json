@@ -485,6 +485,7 @@
       "count_one": "{{count}} user",
       "count_other": "{{count}} users",
       "count": "{{count}} users",
+      "showing_count": "Showing {{shown}} of {{total}} users",
       "col_user": "User",
       "col_roles": "Roles",
       "col_status": "Status",
@@ -495,6 +496,35 @@
       "action_edit": "Edit",
       "action_deactivate": "Deactivate",
       "action_reactivate": "Reactivate",
+      "last_login_n_a": "—",
+      "invitation_valid_days_one": "(link valid {{count}}d)",
+      "invitation_valid_days_other": "(link valid {{count}}d)",
+      "invitation_valid_days": "(link valid {{count}}d)",
+      "invitation_valid_hours_one": "(link valid {{count}}h)",
+      "invitation_valid_hours_other": "(link valid {{count}}h)",
+      "invitation_valid_hours": "(link valid {{count}}h)",
+      "relative": {
+        "just_now": "just now",
+        "minutes_ago_one": "{{count}} min ago",
+        "minutes_ago_other": "{{count}} min ago",
+        "minutes_ago": "{{count}} min ago",
+        "hours_ago_one": "{{count}} hour ago",
+        "hours_ago_other": "{{count}} hours ago",
+        "hours_ago": "{{count}} hours ago",
+        "yesterday": "yesterday",
+        "days_ago_one": "{{count}} day ago",
+        "days_ago_other": "{{count}} days ago",
+        "days_ago": "{{count}} days ago"
+      },
+      "invitation_actions": {
+        "resend": "Resend invitation",
+        "revoke": "Revoke invitation",
+        "confirm_revoke": "Revoke invitation for {{email}}? The accept link stops working immediately.",
+        "toast_resent": "Invitation resent to {{email}}.",
+        "toast_revoked": "Invitation for {{email}} revoked.",
+        "error_resend": "Could not resend invitation.",
+        "error_revoke": "Could not revoke invitation."
+      },
       "edit": {
         "title": "Edit user",
         "section_roles": "Roles",
@@ -535,6 +565,7 @@
       "pagination_next": "Next page",
       "status": {
         "active": "Active",
+        "invited": "Invited",
         "disabled": "Deactivated"
       }
     },

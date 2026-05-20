@@ -487,6 +487,7 @@
       "count_one": "{{count}} użytkownik",
       "count_other": "{{count}} użytkowników",
       "count": "{{count}} użytkowników",
+      "showing_count": "Pokazuję {{shown}} z {{total}} użytkowników",
       "col_user": "Użytkownik",
       "col_roles": "Role",
       "col_status": "Status",
@@ -497,6 +498,35 @@
       "action_edit": "Edytuj",
       "action_deactivate": "Dezaktywuj",
       "action_reactivate": "Reaktywuj",
+      "last_login_n_a": "—",
+      "invitation_valid_days_one": "(link {{count}} d ważny)",
+      "invitation_valid_days_other": "(link {{count}} d ważny)",
+      "invitation_valid_days": "(link {{count}} d ważny)",
+      "invitation_valid_hours_one": "(link {{count}} h ważny)",
+      "invitation_valid_hours_other": "(link {{count}} h ważny)",
+      "invitation_valid_hours": "(link {{count}} h ważny)",
+      "relative": {
+        "just_now": "przed chwilą",
+        "minutes_ago_one": "{{count}} min temu",
+        "minutes_ago_other": "{{count}} min temu",
+        "minutes_ago": "{{count}} min temu",
+        "hours_ago_one": "{{count}} h temu",
+        "hours_ago_other": "{{count}} h temu",
+        "hours_ago": "{{count}} h temu",
+        "yesterday": "wczoraj",
+        "days_ago_one": "{{count}} dni temu",
+        "days_ago_other": "{{count}} dni temu",
+        "days_ago": "{{count}} dni temu"
+      },
+      "invitation_actions": {
+        "resend": "Wyślij ponownie",
+        "revoke": "Unieważnij zaproszenie",
+        "confirm_revoke": "Na pewno unieważnić zaproszenie dla {{email}}? Link akceptacyjny przestanie działać natychmiast.",
+        "toast_resent": "Wysłano zaproszenie ponownie do {{email}}.",
+        "toast_revoked": "Zaproszenie dla {{email}} unieważnione.",
+        "error_resend": "Nie udało się wysłać zaproszenia ponownie.",
+        "error_revoke": "Nie udało się unieważnić zaproszenia."
+      },
       "edit": {
         "title": "Edytuj użytkownika",
         "section_roles": "Role",
@@ -537,6 +567,7 @@
       "pagination_next": "Następna strona",
       "status": {
         "active": "Aktywny",
+        "invited": "Zaproszony",
         "disabled": "Dezaktywowany"
       }
     },
