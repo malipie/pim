@@ -121,6 +121,29 @@ jobs:
       - name: Lint raw SQL escape hatches
         run: bash scripts/lint-raw-sql.sh
 
+  semgrep-cortex:
+    # RBAC-P6-008 / #720 — Cortex-specific Semgrep rules (the static-
+    # analysis companion to PHPStan's RequiresPermissionAnnotationRule).
+    # Catches plaintext secrets, raw SQL without tenant filter,
+    # superglobals, hasRole() bypass of the permission engine, and the
+    # same missing #[RequiresPermission] shape PHPStan blocks at PR time.
+    # Pre-commit hook locally; CI runs on every PR.
+    name: Semgrep (Cortex RBAC rules)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    container:
+      image: semgrep/semgrep:latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Semgrep scan (.semgrep/cortex-rbac.yml)
+        run: |
+          semgrep --config .semgrep/cortex-rbac.yml \
+            --error --strict --no-rewrite-rule-ids \
+            apps/api/src apps/admin/src
+
   php-cs-fixer:
     name: PHP-CS-Fixer (dry-run)
     runs-on: ubuntu-latest
