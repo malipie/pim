@@ -1,25 +1,27 @@
 # Current Status
 
-## 2026-05-20: 🚧 Phase 5 RBAC marathon-2 — 17/22 ticketów shipped lub w CI
+## 2026-05-20: 🚧 Phase 5 RBAC marathon-2 (final) — 19/22 ticketów shipped lub w CI
 
-**Sesja 2026-05-20 zaszipowała 5 dodatkowych ticketów:**
+**Sesja 2026-05-20 zaszipowała 7 dodatkowych ticketów:**
 
 | Ticket | PR | Scope | Status |
 |---|---|---|---|
 | #701 Revoke token | [#831](../../pull/831) | RevokeTokenModal + `POST /api/api-tokens/{id}/revoke` z hard-confirm | ✅ merged |
 | #700 Create token wizard | [#832](../../pull/832) | CreateTokenWizard + `POST /api/api-tokens` z plaintext-once + scope templates + TTL | ✅ merged |
 | #693 Edit user | [#833](../../pull/833) | EditUserModal + `PATCH /api/users/{id}` z self-edit block + LastAdminGuard `ensureRoleChangeKeepsAdmin()` | ✅ merged |
-| #696 Custom role builder | [#834](../../pull/834) | PermissionMatrix UI + `GET /api/permissions` + role CRUD endpoints (POST/PATCH/DELETE /api/roles) | 🟡 CI in progress (PHPUnit pending) |
-| #698 Auto-grant + scope | [#835](../../pull/835) | `roles.auto_grant_new_object_types` BOOLEAN + toggle w RoleEditorPage. **Stacked na #834.** Locale/channel scope deferred do #697. | 🟡 PR open, waits #834 |
+| #696 Custom role builder | [#834](../../pull/834) | PermissionMatrix UI + `GET /api/permissions` + role CRUD endpoints (POST/PATCH/DELETE /api/roles) | ✅ merged |
+| #698 Auto-grant + scope | [#836](../../pull/836) | `roles.auto_grant_new_object_types` BOOLEAN + toggle w RoleEditorPage. Locale/channel scope deferred do #697. | ✅ merged |
+| #697 Attribute permissions | [#838](../../pull/838) | `role_attribute_permissions` table (3-state) + `GET/PUT /api/roles/{id}/attribute-permissions` + AttributePermissionsTab z bulk per-group + filtry + search. Cross-BC: `AttributeCatalogReader` w Catalog_Contracts (deptrac extension). | 🟡 CI in progress |
+| #704 SSO config UI | [#839](../../pull/839) | `/api/sso/providers` CRUD + Settings → SSO z 3 kartami (Google/MS/SAML) + JSON config + secret masking + masked-secret round-trip merge. | 🟡 CI in progress |
 
-**5 ticketów pozostaje otwartych z hard blockers:**
+**3 tickety pozostają otwarte z hard external blockers:**
 
 | Ticket | Blocker | Plan |
 |---|---|---|
-| #697 attribute permissions tab | Cross-context schema decision — `role_attribute_permissions` (3-state) + `role_attribute_group_permissions` (mixed-state) + cross-tab sync z #696 matrix badges. 12-18h. **Wymaga Plan Mode + decyzję architektoniczną.** | Dedykowana sesja. ADR pre-decision na 3-state grant semantykę + indeks per (role, attribute) + sync strategy. |
-| #703 MFA UI | Phase 4 #689 (MFA wizard) nie merged. | Po unblock #689. |
-| #704 SSO config UI | Wymaga Okta dev account credentials + 8-12h scope (3 tabs Google/MS/SAML + XML metadata upload + test connection). | Operator decision na Okta tenant + testing. |
-| #709-712 SA panel | Wymagają `admin.cortex.pl` subdomain + Caddy config. Super-admin operator panel = osobny deployment topology. | Operator decision + infra task. |
+| #703 MFA UI | Phase 4 #689 (MFA wizard) nie merged — który sam jest blocked przez Phase 4 #659+#660 (backend MFA endpoints). User entity ma fields (`totpSecret`/`totpEnabledAt`/`totpBackupCodes`) ale brak routes. | Po unblock #659/#660/#689 (Phase 4). |
+| #709-712 Super Admin panel (4 tickety) | Wymagają `admin.cortex.pl` subdomain + Caddy config + separate JWT cookie scope + Super Admin backend endpoints (#677). Pełna deployment topology change — operator decision + infra task. | Dedykowana sesja po decyzji operatora o subdomenie + completion #677. |
+
+Phase 5: **19/22 shipped lub w CI (~86%)**. Stop legitimate per EPIK MARATHON RULE punkt (d) external credentials/access blockers.
 
 ---
 
