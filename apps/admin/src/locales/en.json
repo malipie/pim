@@ -1571,5 +1571,30 @@
       "guidance": "Use the ownership transfer flow (Settings → Tenant) instead of assigning Owner twice.",
       "close": "Close"
     }
+  },
+  "accept_invitation": {
+    "verifying": "Verifying invitation...",
+    "invalid_title": "Invalid invitation",
+    "invalid_body_malformed": "The invitation link is malformed. Make sure you copied the whole URL from the email.",
+    "invalid_body_not_found": "This invitation does not exist. It may have already been accepted or revoked.",
+    "expired_title": "Invitation expired",
+    "expired_body": "The invitation for {{email}} has expired. Ask {{tenant_name}} for a fresh invite.",
+    "revoked_title": "Invitation revoked",
+    "revoked_body": "An administrator revoked the invitation for {{email}}. Contact {{tenant_name}} if this is a mistake.",
+    "accepted_title": "Invitation already accepted",
+    "accepted_body": "The account for {{email}} already exists. Sign in normally with the password you set earlier.",
+    "valid_title": "Join {{tenant_name}}",
+    "valid_body": "Set a password for {{email}} — you'll use it on every sign-in.",
+    "field_new": "New password (min 12 chars)",
+    "field_confirm": "Confirm password",
+    "submit": "Activate account and sign in",
+    "submitting": "Activating account...",
+    "error_too_short": "Password must be at least {{min}} characters long.",
+    "error_mismatch": "Passwords do not match.",
+    "error_validation": "Backend validation rejected the submission.",
+    "error_generic": "Could not activate the account. Please try again.",
+    "go_login": "Go to sign in",
+    "toast_success": "Account activated. Welcome!",
+    "toast_accepted_login_required": "Account activated. Please sign in to continue."
   }
 }

@@ -103,4 +103,28 @@ final class InvitationController extends AbstractController
             'status' => 'accepted',
         ], 201);
     }
+
+    /**
+     * RBAC-P5-017 (#707) — read-only inspect for the magic-link accept
+     * page. The FE calls this before showing the password form so the
+     * operator never types a password into a form that will fail on
+     * submit (expired / revoked / already-accepted token).
+     *
+     * Public route — token IS the auth factor.
+     */
+    #[Route(path: '/api/invitations/{token}/verify', methods: ['GET'], name: 'api_invitations_verify', requirements: ['token' => '[a-f0-9]{64}'])]
+    #[\App\Identity\Domain\Attribute\NoPermissionRequired(reason: 'Magic-link verify is open by design — token IS the auth factor; account does not exist yet.')]
+    public function verify(string $token): JsonResponse
+    {
+        $snapshot = $this->invitations->verify($token);
+        $status = $snapshot['status'];
+
+        $httpStatus = match ($status) {
+            'valid' => 200,
+            'accepted', 'expired', 'revoked' => 410,
+            default => 404,
+        };
+
+        return new JsonResponse($snapshot, $httpStatus);
+    }
 }

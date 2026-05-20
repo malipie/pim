@@ -24,6 +24,8 @@ use Symfony\Component\Mime\Address;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid;
 
+use const DATE_ATOM;
+
 /**
  * RBAC-P2-008 (#657) — magic-link invitation orchestrator.
  *
@@ -179,6 +181,59 @@ final class InvitationService
         $this->invitations->save($invitation);
 
         return $user;
+    }
+
+    /**
+     * RBAC-P5-017 (#707) — read-only inspect for the magic-link accept
+     * page. Returns a snapshot of the invitation state so the FE can
+     * branch between "show password form" / "already accepted" /
+     * "revoked or expired" without leaking enough metadata to enumerate
+     * other invitations: only `status`, the target email and the
+     * inviting tenant's display name make it across.
+     *
+     * Always returns a status — null token / no match collapses into
+     * `not_found` so the controller surface stays uniform.
+     *
+     * @return array{
+     *     status: 'valid'|'expired'|'accepted'|'revoked'|'not_found',
+     *     email?: string,
+     *     tenant_name?: string,
+     *     expires_at?: string
+     * }
+     */
+    public function verify(string $plaintextToken): array
+    {
+        if ('' === $plaintextToken) {
+            return ['status' => 'not_found'];
+        }
+
+        $tokenHash = $this->tokenHasher->hash($plaintextToken);
+        $invitation = $this->invitations->findByHash($tokenHash);
+        if (null === $invitation) {
+            return ['status' => 'not_found'];
+        }
+
+        /** @var Tenant|null $tenant */
+        $tenant = $this->em->find(Tenant::class, $invitation->getTenantId()->toRfc4122());
+        $tenantName = null !== $tenant ? $tenant->getName() : '';
+
+        $base = [
+            'email' => $invitation->getEmail(),
+            'tenant_name' => $tenantName,
+            'expires_at' => $invitation->getExpiresAt()->format(DATE_ATOM),
+        ];
+
+        if ($invitation->isAccepted()) {
+            return ['status' => 'accepted', ...$base];
+        }
+        if ($invitation->isRevoked()) {
+            return ['status' => 'revoked', ...$base];
+        }
+        if ($invitation->getExpiresAt() < new DateTimeImmutable()) {
+            return ['status' => 'expired', ...$base];
+        }
+
+        return ['status' => 'valid', ...$base];
     }
 
     public function revoke(Uuid $invitationId): void

@@ -10,6 +10,7 @@ import { ToastProvider } from '@/components/ui/toast';
 // landing screen. Each route gets its own chunk; revisits hit the
 // HTTP cache after the first lazy load.
 import { DashboardPage } from '@/features/dashboard/page';
+import { AcceptInvitationPage } from '@/features/identity/accept-invitation/AcceptInvitationPage';
 import { LoginPage } from '@/features/identity/auth/login';
 import { AppLayout } from '@/layout/AppLayout';
 import { SettingsLayout } from '@/layout/SettingsLayout';
@@ -339,6 +340,7 @@ function App() {
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
               <Route
                 element={
                   <AuthedRoute>
