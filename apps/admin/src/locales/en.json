@@ -129,7 +129,21 @@
       "last_used_never": "never",
       "expires_never": "no expiry",
       "row_actions": "Row actions",
-      "actions_pending_hint": "Revoke + details land in #701.",
+      "action_revoke": "Revoke token",
+      "actions_pending_hint": "Token detail lands in a follow-up.",
+      "revoke": {
+        "title": "Revoke API token",
+        "body": "Once revoked, any integration using „{{name}}” starts getting 401s immediately. This action is irreversible.",
+        "warning": "⚠ Verify this won't break a production integration — the token may be used by CI, a scheduler or a B2B partner.",
+        "confirm_label": "Type „{{name}}” to confirm",
+        "cancel": "Cancel",
+        "confirm": "Revoke token",
+        "submitting": "Revoking...",
+        "toast_success": "Token „{{name}}” has been revoked.",
+        "error_forbidden": "You do not have permission to revoke this token.",
+        "error_not_found": "Token not found or belongs to another tenant.",
+        "error_generic": "Could not revoke the token."
+      },
       "empty": "No tokens yet. Click „Create token” once it lands (#700).",
       "error_loading": "Could not load API tokens.",
       "status": {

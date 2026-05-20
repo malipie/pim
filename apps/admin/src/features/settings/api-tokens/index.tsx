@@ -1,9 +1,15 @@
 import { useList } from '@refinedev/core';
-import { KeyRound, Plus, ShieldOff } from 'lucide-react';
+import { KeyRound, MoreHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -14,6 +20,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
+import { RevokeTokenModal } from './RevokeTokenModal';
 import type { ApiTokenListItem } from './types';
 
 type Scope = 'own' | 'tenant';
@@ -46,6 +53,14 @@ export function ApiTokensSettingsPage() {
   const tokens: ApiTokenListItem[] = result?.data ?? [];
   const isLoading = query.isLoading;
   const isError = query.isError;
+  const refetch = query.refetch;
+
+  const [revokeTarget, setRevokeTarget] = useState<ApiTokenListItem | null>(null);
+  const [revokeOpen, setRevokeOpen] = useState(false);
+  const openRevoke = (token: ApiTokenListItem) => {
+    setRevokeTarget(token);
+    setRevokeOpen(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -118,11 +133,26 @@ export function ApiTokensSettingsPage() {
               </TableRow>
             )}
             {tokens.map((token) => (
-              <TokenRow key={token.id} token={token} scope={scope} locale={i18n.language} />
+              <TokenRow
+                key={token.id}
+                token={token}
+                scope={scope}
+                locale={i18n.language}
+                onRevoke={openRevoke}
+              />
             ))}
           </TableBody>
         </Table>
       </div>
+
+      <RevokeTokenModal
+        token={revokeTarget}
+        open={revokeOpen}
+        onOpenChange={setRevokeOpen}
+        onSuccess={() => {
+          void refetch();
+        }}
+      />
     </div>
   );
 }
@@ -154,10 +184,12 @@ function TokenRow({
   token,
   scope,
   locale,
+  onRevoke,
 }: {
   token: ApiTokenListItem;
   scope: Scope;
   locale: string;
+  onRevoke: (token: ApiTokenListItem) => void;
 }) {
   const { t } = useTranslation();
   const lastUsed = token.last_used_at
@@ -212,16 +244,26 @@ function TokenRow({
       <TableCell className="text-xs text-muted-foreground">{lastUsed}</TableCell>
       <TableCell className="text-xs text-muted-foreground">{expires}</TableCell>
       <TableCell className="pr-5 text-right">
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled
-          aria-disabled="true"
-          aria-label={t('settings.api_tokens.row_actions')}
-          title={t('settings.api_tokens.actions_pending_hint')}
-        >
-          <ShieldOff className="size-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('settings.api_tokens.row_actions')}
+              disabled={token.status !== 'active'}
+            >
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={() => onRevoke(token)}
+              className="text-rose-600 focus:text-rose-700"
+            >
+              {t('settings.api_tokens.action_revoke')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
     </TableRow>
   );

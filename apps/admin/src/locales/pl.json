@@ -131,7 +131,21 @@
       "last_used_never": "nigdy",
       "expires_never": "bez daty wygaśnięcia",
       "row_actions": "Akcje wiersza",
-      "actions_pending_hint": "Revoke + szczegóły dochodzą w #701.",
+      "action_revoke": "Odwołaj token",
+      "actions_pending_hint": "Szczegóły tokenu dochodzą w follow-up.",
+      "revoke": {
+        "title": "Odwołaj token API",
+        "body": "Po odwołaniu, integracje używające „{{name}}” natychmiast zaczną otrzymywać 401. Operacja jest nieodwracalna.",
+        "warning": "⚠ Sprawdź, czy nie zepsujesz produkcyjnej integracji — token może być w użyciu przez CI, scheduler lub partnera B2B.",
+        "confirm_label": "Wpisz „{{name}}” aby potwierdzić",
+        "cancel": "Anuluj",
+        "confirm": "Odwołaj token",
+        "submitting": "Odwołuję...",
+        "toast_success": "Token „{{name}}” został odwołany.",
+        "error_forbidden": "Brak uprawnień do odwołania tego tokenu.",
+        "error_not_found": "Token nie istnieje lub należy do innego tenanta.",
+        "error_generic": "Nie udało się odwołać tokenu."
+      },
       "empty": "Brak tokenów. Utwórz pierwszy klikając „Utwórz token” (wkrótce).",
       "error_loading": "Nie udało się załadować listy tokenów.",
       "status": {
