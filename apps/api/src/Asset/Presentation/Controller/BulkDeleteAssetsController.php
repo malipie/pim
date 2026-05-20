@@ -6,6 +6,7 @@ namespace App\Asset\Presentation\Controller;
 
 use App\Asset\Application\AssetDeleter;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -33,6 +34,7 @@ final readonly class BulkDeleteAssetsController
     }
 
     #[Route(path: '/api/assets/bulk-delete', name: 'pim_assets_bulk_delete', methods: ['POST'], format: 'json')]
+    #[RequiresPermission(module: 'asset', action: 'delete')]
     public function __invoke(Request $request): JsonResponse
     {
         $payload = json_decode($request->getContent(), true);

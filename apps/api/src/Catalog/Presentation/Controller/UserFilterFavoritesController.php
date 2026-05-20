@@ -7,6 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\UserFilterFavorite;
 use App\Catalog\Domain\Repository\UserFilterFavoriteRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\UserIdentityAware;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -46,6 +47,7 @@ final class UserFilterFavoritesController
 
     #[Route('/api/users/me/filter-favorites', name: 'pim_user_filter_favorites_show', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'user', action: 'read')]
     public function show(): JsonResponse
     {
         $userId = $this->requireUserId();
@@ -66,6 +68,7 @@ final class UserFilterFavoritesController
 
     #[Route('/api/users/me/filter-favorites', name: 'pim_user_filter_favorites_replace', methods: ['PUT', 'PATCH'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'user', action: 'write')]
     public function replace(Request $request): JsonResponse
     {
         $userId = $this->requireUserId();

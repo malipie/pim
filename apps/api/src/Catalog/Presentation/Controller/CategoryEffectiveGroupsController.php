@@ -8,6 +8,7 @@ use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -56,6 +57,7 @@ final class CategoryEffectiveGroupsController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'categories', action: 'view')]
     public function __invoke(string $id, Request $request): JsonResponse
     {
         $kindParam = $request->query->get('objectTypeKind');

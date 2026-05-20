@@ -7,6 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Application\Command\BulkAttachAttributesToGroup\BulkAttachAttributesToGroupCommand;
 use App\Catalog\Application\Command\DetachAttributeFromGroup\DetachAttributeFromGroupCommand;
 use App\Catalog\Application\Command\ReorderGroupAttributes\ReorderGroupAttributesCommand;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -54,6 +55,7 @@ final class AttributeGroupMembershipController
         methods: ['POST'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.attribute_groups', action: 'add_edit')]
     public function bulkAttach(string $groupId, Request $request): JsonResponse
     {
         $body = json_decode($request->getContent(), true);
@@ -98,6 +100,7 @@ final class AttributeGroupMembershipController
         methods: ['DELETE'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.attribute_groups', action: 'add_edit')]
     public function detach(string $groupId, string $attributeId): Response
     {
         $this->dispatch(new DetachAttributeFromGroupCommand(
@@ -125,6 +128,7 @@ final class AttributeGroupMembershipController
         methods: ['POST'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.attribute_groups', action: 'add_edit')]
     public function reorder(string $groupId, Request $request): Response
     {
         $body = json_decode($request->getContent(), true);

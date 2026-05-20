@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Infrastructure\Metrics;
 
+use App\Identity\Domain\Attribute\NoPermissionRequired;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -30,6 +31,7 @@ final readonly class MetricsController
     }
 
     #[Route(path: '/api/metrics', name: 'app_metrics', methods: ['GET'])]
+    #[NoPermissionRequired(reason: 'Prometheus scrape endpoint — authenticated upstream by network ACL / Caddy basic-auth, not RBAC.')]
     public function __invoke(): Response
     {
         $resident = \memory_get_usage(true);

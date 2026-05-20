@@ -7,6 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Application\Service\MoveCategoryService;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use InvalidArgumentException;
 use JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -52,6 +53,7 @@ final class CategoryMoveController
         methods: ['PATCH'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'categories', action: 'add_edit')]
     public function __invoke(string $id, Request $request): JsonResponse
     {
         $category = $this->catalogObjects->findById(Uuid::fromString($id));

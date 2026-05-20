@@ -8,6 +8,7 @@ use App\Catalog\Application\ObjectTypeService;
 use App\Catalog\Domain\Exception\DisabledFeatureException;
 use App\Catalog\Domain\Exception\ObjectTypeCodeConflictException;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -45,6 +46,7 @@ final class DuplicateObjectTypeController
         methods: ['POST'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.object_types', action: 'add')]
     public function __invoke(string $id, Request $request): JsonResponse
     {
         $tenant = $this->tenantContext->get();

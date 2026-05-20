@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Application\Command\UpdateAttributeGroupAttribute\UpdateAttributeGroupAttributeCommand;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -54,6 +55,7 @@ final class AttributeGroupAttributeController
         methods: ['PATCH'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.attribute_groups', action: 'add_edit')]
     public function patch(string $groupId, string $attributeId, Request $request): JsonResponse
     {
         $body = json_decode($request->getContent(), true);

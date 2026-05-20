@@ -7,6 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Application\Lock\AttributeLockReader;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -40,6 +41,7 @@ final class AttributeLocksController
 
     #[Route('/api/products/{id}/locks', name: 'pim_products_locks_show', requirements: ['id' => self::UUID_REGEX], methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function show(string $id): JsonResponse
     {
         $product = $this->loadProduct($id);
@@ -49,6 +51,7 @@ final class AttributeLocksController
 
     #[Route('/api/products/{id}/locks', name: 'pim_products_locks_replace', requirements: ['id' => self::UUID_REGEX], methods: ['PATCH', 'PUT'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'edit')]
     public function replace(string $id, Request $request): JsonResponse
     {
         $product = $this->loadProduct($id);

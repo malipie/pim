@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Application\Agent\CmdKPlanner;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -40,6 +41,7 @@ final class CmdKController
 
     #[Route('/api/agent/cmd-k', name: 'pim_cmd_k_plan', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'agent', action: 'bulk_actions')]
     public function plan(Request $request): JsonResponse
     {
         /** @var array<string, mixed> $body */

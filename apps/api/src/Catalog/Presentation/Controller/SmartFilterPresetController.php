@@ -6,6 +6,7 @@ namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Application\Filter\FilterDslResolver;
 use App\Catalog\Domain\Entity\SmartFilterPreset;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
 use DateTimeInterface;
@@ -57,6 +58,7 @@ final class SmartFilterPresetController
 
     #[Route('/api/smart-filter-presets', name: 'pim_smart_filter_presets_list', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function list(Request $request): JsonResponse
     {
         $tenant = $this->tenantContext->get();
@@ -96,6 +98,7 @@ final class SmartFilterPresetController
 
     #[Route('/api/smart-filter-presets', name: 'pim_smart_filter_presets_create', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function create(Request $request): JsonResponse
     {
         $tenant = $this->tenantContext->get();
@@ -137,6 +140,7 @@ final class SmartFilterPresetController
 
     #[Route('/api/smart-filter-presets/{id}', name: 'pim_smart_filter_presets_patch', requirements: ['id' => self::UUID_REGEX], methods: ['PATCH'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function patch(string $id, Request $request): JsonResponse
     {
         $preset = $this->mustFindOwned($id);
@@ -164,6 +168,7 @@ final class SmartFilterPresetController
 
     #[Route('/api/smart-filter-presets/{id}', name: 'pim_smart_filter_presets_delete', requirements: ['id' => self::UUID_REGEX], methods: ['DELETE'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
     public function delete(string $id): Response
     {
         $preset = $this->mustFindOwned($id);

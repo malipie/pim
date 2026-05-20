@@ -6,6 +6,7 @@ namespace App\Asset\Presentation\Controller;
 
 use App\Asset\Application\AssetDeleter;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -28,6 +29,7 @@ final readonly class DeleteAssetController
     }
 
     #[Route(path: '/api/assets/{id}', name: 'pim_assets_delete', methods: ['DELETE'], format: 'json')]
+    #[RequiresPermission(module: 'asset', action: 'delete')]
     public function __invoke(string $id): JsonResponse
     {
         $assetId = Uuid::fromString($id);

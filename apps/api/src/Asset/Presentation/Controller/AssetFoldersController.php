@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Asset\Presentation\Controller;
 
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use Doctrine\DBAL\Connection;
 use RuntimeException;
@@ -33,6 +34,7 @@ final readonly class AssetFoldersController
     }
 
     #[Route(path: '/api/asset-folders', name: 'pim_asset_folders', methods: ['GET'], format: 'json')]
+    #[RequiresPermission(module: 'asset', action: 'read')]
     public function __invoke(): JsonResponse
     {
         $tenant = $this->tenantContext->get();

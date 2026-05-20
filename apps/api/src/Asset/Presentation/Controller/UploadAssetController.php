@@ -9,6 +9,7 @@ use App\Asset\Application\Exception\DuplicateAssetException;
 use App\Asset\Application\MimeTypeWhitelist;
 use App\Asset\Domain\Entity\Asset;
 use App\Catalog\Contracts\Service\ProductAssetLinker;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -56,6 +57,7 @@ final class UploadAssetController
     }
 
     #[Route(path: '/api/assets/upload', name: 'pim_assets_upload', methods: ['POST'], format: 'json')]
+    #[RequiresPermission(module: 'asset', action: 'write')]
     public function __invoke(Request $request): JsonResponse
     {
         if (!$this->authorisation->isGranted('CREATE', Asset::class)) {

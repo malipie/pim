@@ -6,6 +6,7 @@ namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -53,6 +54,7 @@ final class CategoryUsageController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'categories', action: 'view')]
     public function __invoke(string $id): JsonResponse
     {
         $category = $this->catalogObjects->findById(Uuid::fromString($id));

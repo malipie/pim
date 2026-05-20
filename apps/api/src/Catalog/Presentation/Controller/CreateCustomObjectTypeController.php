@@ -9,6 +9,7 @@ use App\Catalog\Domain\Exception\DisabledFeatureException;
 use App\Catalog\Domain\Exception\ObjectTypeCodeConflictException;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -56,6 +57,7 @@ final class CreateCustomObjectTypeController
         priority: 200,
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.object_types', action: 'add')]
     public function __invoke(Request $request): JsonResponse
     {
         $tenant = $this->tenantContext->get();

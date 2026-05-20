@@ -8,6 +8,7 @@ use App\Catalog\Application\Query\Usage\UsageQueryService;
 use App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -45,6 +46,7 @@ final class UsageController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'attribute', action: 'read')]
     public function attribute(string $id): JsonResponse
     {
         $attribute = $this->attributes->findById(Uuid::fromString($id));
@@ -62,6 +64,7 @@ final class UsageController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'attribute_group', action: 'read')]
     public function attributeGroup(string $id): JsonResponse
     {
         $group = $this->attributeGroups->findById(Uuid::fromString($id));
@@ -79,6 +82,7 @@ final class UsageController
         methods: ['GET'],
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'object_type', action: 'read')]
     public function objectType(string $id): JsonResponse
     {
         $type = $this->objectTypes->findById(Uuid::fromString($id));

@@ -8,6 +8,7 @@ use App\Asset\Application\AssetMetadataUpdater;
 use App\Asset\Domain\Entity\Asset;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
 use App\Catalog\Contracts\Service\CatalogAssetSync;
+use App\Identity\Domain\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -41,6 +42,7 @@ final readonly class PatchAssetController
     }
 
     #[Route(path: '/api/assets/{id}', name: 'pim_assets_patch', methods: ['PATCH'], format: 'json')]
+    #[RequiresPermission(module: 'asset', action: 'write')]
     public function __invoke(Request $request, string $id): JsonResponse
     {
         $assetId = Uuid::fromString($id);
