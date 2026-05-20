@@ -47,4 +47,15 @@ class DoctrinePermissionRepository extends ServiceEntityRepository implements Pe
         $em->remove($entity);
         $em->flush();
     }
+
+    public function findAllOrdered(): array
+    {
+        /** @var list<Permission> $result */
+        $result = $this->createQueryBuilder('p')
+            ->orderBy('p.code', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $result;
+    }
 }
