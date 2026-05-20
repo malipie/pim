@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
+import { CreateTokenWizard } from './CreateTokenWizard';
 import { RevokeTokenModal } from './RevokeTokenModal';
 import type { ApiTokenListItem } from './types';
 
@@ -61,6 +62,7 @@ export function ApiTokensSettingsPage() {
     setRevokeTarget(token);
     setRevokeOpen(true);
   };
+  const [createOpen, setCreateOpen] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -73,13 +75,7 @@ export function ApiTokensSettingsPage() {
             {t('settings.api_tokens.intro')}
           </p>
         </div>
-        <Button
-          size="sm"
-          className="gap-1.5"
-          disabled
-          aria-disabled="true"
-          title={t('settings.api_tokens.create_pending_hint')}
-        >
+        <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
           <Plus className="size-4" aria-hidden="true" />
           {t('settings.api_tokens.create_cta')}
         </Button>
@@ -149,6 +145,14 @@ export function ApiTokensSettingsPage() {
         token={revokeTarget}
         open={revokeOpen}
         onOpenChange={setRevokeOpen}
+        onSuccess={() => {
+          void refetch();
+        }}
+      />
+
+      <CreateTokenWizard
+        open={createOpen}
+        onOpenChange={setCreateOpen}
         onSuccess={() => {
           void refetch();
         }}
