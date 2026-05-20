@@ -34,6 +34,7 @@ import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { cn } from '@/lib/utils';
 
 import { DeactivateUserModal } from './DeactivateUserModal';
+import { InviteUserModal } from './InviteUserModal';
 import { StatusBadge } from './StatusBadge';
 import type { UserListItem, UserStatus } from './types';
 import { UserAvatar } from './UserAvatar';
@@ -137,6 +138,7 @@ export function UsersListView() {
   const total = result?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const users: UserListItem[] = result?.data ?? [];
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -147,7 +149,7 @@ export function UsersListView() {
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">{t('settings.users.intro')}</p>
         </div>
-        <Button size="sm" className="gap-1.5" disabled aria-disabled="true">
+        <Button size="sm" className="gap-1.5" onClick={() => setInviteOpen(true)}>
           <UserPlus className="size-4" aria-hidden="true" />
           {t('settings.users.invite_cta')}
         </Button>
@@ -236,6 +238,14 @@ export function UsersListView() {
         user={deactivateTarget}
         open={deactivateOpen}
         onOpenChange={setDeactivateOpen}
+        onSuccess={() => {
+          void refetch();
+        }}
+      />
+
+      <InviteUserModal
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
         onSuccess={() => {
           void refetch();
         }}
