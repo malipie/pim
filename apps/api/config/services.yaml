@@ -276,6 +276,19 @@ services:
         arguments:
             $decorated: '@.inner'
 
+    # RBAC-P6-006 (#718) — surface #[RequiresPermission] / #[NoPermissionRequired]
+    # on every API Platform OpenAPI operation as `x-cortex-permission`. The
+    # decorator iterates the router once per spec export and matches
+    # (path, method) against the inner factory's output. Integrators reading
+    # `/api/docs.jsonopenapi` (or the versioned `docs/api-spec/v0.json`)
+    # see the required permission per endpoint without cross-referencing
+    # PRD §3.2 macierz uprawnień by hand.
+    App\Identity\OpenApi\PermissionOpenApiFactory:
+        decorates: 'api_platform.openapi.factory'
+        arguments:
+            $decorated: '@.inner'
+            $router: '@router'
+
     # Idempotent CREATE EXTENSION IF NOT EXISTS ltree on every kernel boot.
     # Migrations create the extension, but Zenstruck Foundry's ResetDatabase
     # rebuilds the test schema from ORM metadata bypassing migrations —
