@@ -39,10 +39,20 @@ final class Version20260520100000 extends AbstractMigration
                 ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL,
                 ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL
         SQL);
+        // ADD CONSTRAINT IF NOT EXISTS lands in PostgreSQL 14+. CI's
+        // Postgres 13 image rejects the syntax, so we guard the create
+        // through information_schema lookup — safe for all versions
+        // and idempotent on re-runs.
         $this->addSql(<<<'SQL'
-            ALTER TABLE tenants
-                ADD CONSTRAINT IF NOT EXISTS tenants_status_check
-                    CHECK (status IN ('active', 'suspended', 'deleted'))
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'tenants_status_check'
+                ) THEN
+                    ALTER TABLE tenants
+                        ADD CONSTRAINT tenants_status_check
+                            CHECK (status IN ('active', 'suspended', 'deleted'));
+                END IF;
+            END $$;
         SQL);
         $this->addSql('CREATE INDEX IF NOT EXISTS tenants_status_idx ON tenants (status)');
         $this->addSql('CREATE INDEX IF NOT EXISTS tenants_deleted_at_idx ON tenants (deleted_at) WHERE deleted_at IS NOT NULL');
