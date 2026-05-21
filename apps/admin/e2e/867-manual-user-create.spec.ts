@@ -6,6 +6,18 @@ const SCREENSHOT_DIR = '/tmp/867';
 
 test.describe.configure({ mode: 'serial' });
 
+// CI: skip the manual-user-create screenshot spec because it consumes
+// 3 of the 5 per-IP / 15-min auth_login rate-limit tokens (admin login
+// + new user login + new user re-login). When this spec runs in CI the
+// shared bucket runs out before the later settings-* smoke specs
+// finish, and Playwright reports timeouts there. This spec exists for
+// PR-description screenshots — run locally with `pnpm exec playwright
+// test 867-manual-user-create.spec.ts` and inspect /tmp/867-*.png.
+test.skip(
+  !!process.env.CI,
+  'CI: 867 screenshot spec eats login budget — run locally for screenshots',
+);
+
 /**
  * Manual user creation (#867) — walks the full happy path:
  *   1. Admin opens /settings/users, clicks "Dodaj ręcznie" toolbar button.
