@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Channel\Presentation\Controller;
 
+use App\Channel\Application\Locale\LocaleFallbackCycleDetector;
 use App\Channel\Domain\Entity\Locale;
 use App\Channel\Domain\Entity\TenantLocale;
 use App\Channel\Domain\Repository\LocaleRepositoryInterface;
@@ -63,6 +64,7 @@ final class TenantLocaleController
         private readonly LocaleRepositoryInterface $locales,
         private readonly EntityManagerInterface $em,
         private readonly Connection $connection,
+        private readonly LocaleFallbackCycleDetector $cycleDetector,
     ) {
     }
 
@@ -327,7 +329,8 @@ final class TenantLocaleController
 
     /**
      * Resolves a fallback locale by code, validating it exists for this
-     * tenant, is active, is not self, and would not create a 2-cycle.
+     * tenant, is active, is not self, and would not create any N-cycle
+     * (delegates the chain walk to LocaleFallbackCycleDetector #872).
      */
     private function resolveFallback(Tenant $tenant, Locale $for, mixed $fallbackCode): ?Locale
     {
@@ -357,14 +360,9 @@ final class TenantLocaleController
             throw new UnprocessableEntityHttpException('Locale cannot fall back to itself.');
         }
 
-        // Cycle detection (simple 2-cycle for LOC-03; LOC-04 #872 widens this
-        // to N-cycle chain walking with a Redis cache).
-        $fallbackOfFallback = $fallbackTenantLocale->getFallback();
-        if (null !== $fallbackOfFallback && $fallbackOfFallback->getId()->equals($for->getId())) {
+        if ($this->cycleDetector->wouldCreateCycle($for->getCode(), $fallbackCode, $tenant)) {
             throw new UnprocessableEntityHttpException(\sprintf(
-                'Setting "%s" as fallback would create a cycle (%s → %s → %s).',
-                $fallbackCode,
-                $for->getCode(),
+                'Setting "%s" as fallback would create a cycle reachable from %s.',
                 $fallbackCode,
                 $for->getCode(),
             ));
