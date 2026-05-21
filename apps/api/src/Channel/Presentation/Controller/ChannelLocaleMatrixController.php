@@ -10,6 +10,7 @@ use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\DBAL\Connection;
+use JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -17,6 +18,9 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Throwable;
+
+use const JSON_THROW_ON_ERROR;
 
 /**
  * Locales feature (#874, LOC-06) — channel ↔ locale binding matrix.
@@ -172,7 +176,7 @@ final class ChannelLocaleMatrixController
             }
 
             $this->connection->commit();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->connection->rollBack();
             throw $e;
         }
@@ -201,14 +205,20 @@ final class ChannelLocaleMatrixController
         }
         try {
             $decoded = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
+        } catch (JsonException $e) {
             throw new BadRequestHttpException('Body must be valid JSON: '.$e->getMessage());
         }
         if (!\is_array($decoded)) {
             throw new BadRequestHttpException('Body must be a JSON object.');
         }
 
-        /** @var array<string, mixed> $decoded */
-        return $decoded;
+        $normalized = [];
+        foreach ($decoded as $key => $value) {
+            if (\is_string($key)) {
+                $normalized[$key] = $value;
+            }
+        }
+
+        return $normalized;
     }
 }
