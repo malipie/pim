@@ -25,6 +25,8 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
+use const JSON_THROW_ON_ERROR;
+
 /**
  * Locales feature (#871, LOC-03) — `/api/tenant-locales` CRUD endpoints.
  *
