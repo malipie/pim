@@ -162,7 +162,15 @@ jobs:
         # queries the `tenants` table — so migrations have to run before the rest
         # of the stack waits for api healthy. Fixtures stay coupled to migrations
         # because the admin user the E2E suite logs in as is seeded here.
+        #
+        # `cache:clear` runs first because the api container's named volume
+        # pim_api_var persists /app/var/cache/dev across CI runs. Without
+        # the clear, Symfony reads a stale container.xml — config tweaks in
+        # apps/api/config/packages/dev/*.yaml (e.g. #867 auth_login limit
+        # bump from 50 → 200) are ignored until the cache is invalidated.
         run: |
+          docker compose exec -T api php bin/console cache:clear --env=dev --no-warmup
+          docker compose exec -T api php bin/console cache:warmup --env=dev
           docker compose exec -T api php bin/console doctrine:migrations:migrate --no-interaction --env=dev
           docker compose exec -T api php bin/console doctrine:fixtures:load --no-interaction --env=dev
 
