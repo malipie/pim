@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 
 import { AddLocaleModal } from './AddLocaleModal';
+import { ChannelLocaleMatrix } from './ChannelLocaleMatrix';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -222,6 +223,8 @@ export function LocalesSettingsPage() {
           void refetch();
         }}
       />
+
+      <ChannelLocaleMatrix activeLocales={rows ?? []} />
     </div>
   );
 }
