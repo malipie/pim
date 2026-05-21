@@ -47,7 +47,7 @@ final class DeleteObjectTypeController
         priority: 200,
     )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    #[RequiresPermission(module: 'modeling.delete_custom', action: 'view')]
+    #[RequiresPermission(module: 'modeling', action: 'delete_custom')]
     public function __invoke(string $id): JsonResponse
     {
         $objectType = $this->objectTypes->findById(Uuid::fromString($id));
