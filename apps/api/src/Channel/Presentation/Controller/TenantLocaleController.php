@@ -300,8 +300,14 @@ final class TenantLocaleController
             throw new BadRequestHttpException('Body must be a JSON object.');
         }
 
-        /* @var array<string, mixed> $decoded */
-        return $decoded;
+        $normalized = [];
+        foreach ($decoded as $key => $value) {
+            if (\is_string($key)) {
+                $normalized[$key] = $value;
+            }
+        }
+
+        return $normalized;
     }
 
     /**
