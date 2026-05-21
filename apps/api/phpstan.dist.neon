@@ -106,6 +106,7 @@ parameters:
               - src/Identity/Domain/Entity/TenantAgentConfig.php
               - src/Catalog/Domain/Entity/MenuConfiguration.php
               - src/Import/Domain/Entity/ImportSession.php
+              - src/Import/Domain/Entity/ImportProfile.php
               - src/Import/Domain/Entity/ImportSource.php
               - src/Import/Domain/Entity/ImportSourceLog.php
               - src/Import/Domain/Entity/ImportSchedule.php
