@@ -1,17 +1,19 @@
 {
   "app": {
-    "title": "PIM Admin",
+    "title": "Pim",
     "logout": "Wyloguj",
     "loading": "Ładowanie...",
     "toggle_nav": "Przełącz menu",
     "close": "Zamknij",
     "cancel": "Anuluj",
-    "save": "Zapisz"
+    "save": "Zapisz",
+    "brand_subtitle_fallback": "Workspace"
   },
   "user_menu": {
     "aria_label": "Menu użytkownika",
     "account": "Konto",
-    "tenant": "Najemca"
+    "tenant": "Najemca",
+    "settings": "Ustawienia konta"
   },
   "language": {
     "aria_label": "Zmień język",
@@ -53,7 +55,8 @@
     "active_modules_count_one": "{{count}} moduł aktywny",
     "active_modules_count_few": "{{count}} moduły aktywne",
     "active_modules_count_many": "{{count}} modułów aktywnych",
-    "active_modules_count_other": "{{count}} modułów aktywnych"
+    "active_modules_count_other": "{{count}} modułów aktywnych",
+    "add_custom_module": "Dodaj własny moduł"
   },
   "admin": {
     "tenants": {
@@ -180,18 +183,28 @@
   },
   "settings": {
     "page_title": "Ustawienia",
+    "page_subtitle": "Ustawienia · administracja workspace",
     "subnav_aria": "Sekcje ustawień",
+    "nav_group_account": "Twoje konto",
+    "nav_group_workspace": "Workspace",
+    "nav_group_tenant": "Tenant",
+    "owner_only_badge": "owner",
+    "owner_only_tooltip": "Tylko Tenant Owner",
+    "audit_card_title": "Audyt zmian",
+    "audit_card_body": "Każda zmiana w Ustawieniach jest logowana z user_id, IP, old/new value.",
+    "audit_card_link": "Zobacz audit log",
+    "audit_card_coming_soon_tooltip": "Audit log UI dochodzi w Phase 7 (#724).",
     "nav": {
       "menu": "Ustawienia Menu",
       "locales": "Wersje językowe",
       "channels": "Kanały",
       "users": "Użytkownicy",
-      "roles": "Role",
-      "api_tokens": "Tokeny API",
-      "sso": "SSO",
-      "security": "Polityka Haseł, 2FA",
-      "tenant": "Tenant",
-      "billing": "Subskrypcja",
+      "roles": "Role i uprawnienia",
+      "api_tokens": "API tokens",
+      "sso": "SSO / SAML",
+      "security": "Bezpieczeństwo",
+      "tenant": "Konfiguracja tenant",
+      "billing": "Rozliczenia i plan",
       "ai": "Konfiguracja AI"
     },
     "placeholder": {

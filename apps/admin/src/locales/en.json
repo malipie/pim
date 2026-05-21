@@ -1,17 +1,19 @@
 {
   "app": {
-    "title": "PIM Admin",
+    "title": "Pim",
     "logout": "Sign out",
     "loading": "Loading...",
     "toggle_nav": "Toggle navigation",
     "close": "Close",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "brand_subtitle_fallback": "Workspace"
   },
   "user_menu": {
     "aria_label": "User menu",
     "account": "Account",
-    "tenant": "Tenant"
+    "tenant": "Tenant",
+    "settings": "Account settings"
   },
   "language": {
     "aria_label": "Switch language",
@@ -51,7 +53,8 @@
     "soon": "Soon",
     "workspace_label": "Workspace",
     "active_modules_count_one": "{{count}} active module",
-    "active_modules_count_other": "{{count}} active modules"
+    "active_modules_count_other": "{{count}} active modules",
+    "add_custom_module": "Add custom module"
   },
   "admin": {
     "tenants": {
@@ -178,18 +181,28 @@
   },
   "settings": {
     "page_title": "Settings",
+    "page_subtitle": "Settings · workspace administration",
     "subnav_aria": "Settings sections",
+    "nav_group_account": "Your account",
+    "nav_group_workspace": "Workspace",
+    "nav_group_tenant": "Tenant",
+    "owner_only_badge": "owner",
+    "owner_only_tooltip": "Tenant Owner only",
+    "audit_card_title": "Audit log",
+    "audit_card_body": "Every change in Settings is logged with user_id, IP, old/new value.",
+    "audit_card_link": "View audit log",
+    "audit_card_coming_soon_tooltip": "Audit log UI lands in Phase 7 (#724).",
     "nav": {
-      "menu": "Menu settings",
-      "locales": "Languages",
+      "menu": "Menu",
+      "locales": "Locales",
       "channels": "Channels",
       "users": "Users",
-      "roles": "Roles",
+      "roles": "Roles & permissions",
       "api_tokens": "API tokens",
-      "sso": "SSO",
-      "security": "Password policy, 2FA",
-      "tenant": "Tenant",
-      "billing": "Subscription",
+      "sso": "SSO / SAML",
+      "security": "Security",
+      "tenant": "Tenant config",
+      "billing": "Billing & plan",
       "ai": "AI configuration"
     },
     "placeholder": {

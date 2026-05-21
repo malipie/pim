@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
-import { AgentSearch } from './agent-search';
 import { AppFooter } from './app-footer';
 import { AuditLogStatus } from './audit-log-status';
 import { BulkSessionsPopover } from './bulk-sessions-popover';
@@ -22,13 +21,13 @@ export function AppLayout() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="flex min-h-screen bg-muted/30">
-        <aside className="hidden w-60 shrink-0 border-r bg-background md:flex md:flex-col">
+      <div className="flex min-h-screen bg-[#fafaf9]">
+        <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col px-4 py-5 md:flex">
           <SidebarNav />
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 items-center gap-3 border-b bg-background px-3 md:px-6">
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-zinc-100 bg-white/80 px-3 backdrop-blur md:px-6">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
                 <Button
@@ -42,7 +41,7 @@ export function AppLayout() {
               </SheetTrigger>
               <SheetContent
                 side="left"
-                className="w-72 p-0"
+                className="w-[260px] bg-[#fafaf9] p-4"
                 closeLabel={t('app.close', { defaultValue: 'Close' })}
               >
                 <SheetTitle className="sr-only">{t('app.title')}</SheetTitle>
@@ -59,9 +58,6 @@ export function AppLayout() {
             </div>
 
             <div className="ml-auto flex items-center gap-2">
-              <div className="hidden md:block">
-                <AgentSearch />
-              </div>
               <LanguageSwitcher />
               <BulkSessionsPopover />
               <NotificationsBell />
