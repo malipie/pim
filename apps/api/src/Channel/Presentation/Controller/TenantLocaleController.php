@@ -15,6 +15,7 @@ use App\Shared\Domain\Tenant;
 use DateTimeInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -324,7 +325,7 @@ final class TenantLocaleController
         }
         try {
             $decoded = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
+        } catch (JsonException $e) {
             throw new BadRequestHttpException('Body must be valid JSON: '.$e->getMessage());
         }
         if (!\is_array($decoded)) {
