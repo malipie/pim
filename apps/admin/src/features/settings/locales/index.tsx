@@ -3,8 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-
-import { AddLocaleModal } from './AddLocaleModal';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +29,7 @@ import { toast } from '@/components/ui/toast';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
+import { AddLocaleModal } from './AddLocaleModal';
 import type { TenantLocaleListItem, TenantLocaleListResponse } from './types';
 
 /**

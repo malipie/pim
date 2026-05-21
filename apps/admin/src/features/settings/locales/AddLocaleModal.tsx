@@ -30,7 +30,6 @@ interface CatalogLocaleListItem {
 
 interface HydraCollection<T> {
   member?: T[];
-  ['hydra:member']?: T[];
 }
 
 interface AddLocaleModalProps {
@@ -80,8 +79,7 @@ export function AddLocaleModal({
         const response = await jsonFetch<HydraCollection<CatalogLocaleListItem>>('/api/locales', {
           accept: 'application/ld+json',
         });
-        const members = response.member ?? response['hydra:member'] ?? [];
-        setCatalog(members);
+        setCatalog(response.member ?? []);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Failed to load locale catalog.');
       } finally {
