@@ -11,6 +11,7 @@ use App\Channel\Domain\Repository\TenantLocaleRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
+use DateTimeInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -249,11 +250,13 @@ final class TenantLocaleController
             throw new ConflictHttpException('Default locale cannot be purged.');
         }
 
+        // tenant-safe: explicit tenant_id filter in WHERE
         // Clear inbound fallback references first to avoid FK SET NULL noise.
         $this->connection->executeStatement(
             'UPDATE tenant_locales SET fallback_locale_id = NULL WHERE tenant_id = :tenant AND fallback_locale_id = :loc',
             ['tenant' => $tenant->getId()->toRfc4122(), 'loc' => $tl->getLocale()->getId()->toRfc4122()],
         );
+        // tenant-safe: explicit tenant_id filter in WHERE
         $this->connection->executeStatement(
             'DELETE FROM object_values WHERE tenant_id = :tenant AND locale = :code',
             ['tenant' => $tenant->getId()->toRfc4122(), 'code' => $code],
@@ -399,7 +402,7 @@ final class TenantLocaleController
             'fallbackCode' => null === $fallback ? null : $fallback->getCode(),
             'sortOrder' => $tl->getSortOrder(),
             'isActive' => $tl->isActive(),
-            'createdAt' => $tl->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            'createdAt' => $tl->getCreatedAt()->format(DateTimeInterface::ATOM),
         ];
     }
 }
