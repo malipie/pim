@@ -102,9 +102,10 @@ final class UserCreateControllerTest extends ApiTestCase
         $roles = $body['roles'] ?? null;
         self::assertIsArray($roles);
         self::assertCount(1, $roles);
-        // PHPStan: $roles is mixed[] after assertIsArray; explicit array
-        // access through a typed local keeps `[0]['code']` traversal
-        // checkable without a //@phpstan-ignore-next-line.
+        // After assertIsArray() $roles is array<mixed, mixed>. PHPStan
+        // refuses [0]['code'] on mixed; an extra assertIsArray on the
+        // first entry plus a PHPDoc-typed local lets the traversal stay
+        // checkable end-to-end.
         self::assertIsArray($roles[0] ?? null);
         /** @var array<string, mixed> $firstRole */
         $firstRole = $roles[0];
