@@ -1,12 +1,14 @@
 framework:
     rate_limiter:
-        # Dev/CI override (#455 / IMP-14). The Playwright E2E suite issues
-        # ~10 fresh logins per run from a single IP (each spec file logs
-        # in once; multi-tenant isolation hits both demo and acme). Prod
-        # keeps the 5/15min anti-bruteforce limit (config/packages/framework.yaml);
+        # Dev/CI override (#455 / IMP-14 / #867). The Playwright E2E suite
+        # grew past the original 10-login estimate — current suite ships
+        # 51 tests, several do multiple logins (auth.spec retries the
+        # form path; refresh-token specs hit fresh sessions). Prod keeps
+        # the 5/15min anti-bruteforce limit (config/packages/framework.yaml);
         # this override only relaxes the limit when APP_ENV=dev so the
         # suite can grow without the limiter becoming the gate.
+        # Bumped 50 → 200 after #867 surfaced settings-users-list flake.
         auth_login:
             policy: 'fixed_window'
-            limit: 50
+            limit: 200
             interval: '15 minutes'
