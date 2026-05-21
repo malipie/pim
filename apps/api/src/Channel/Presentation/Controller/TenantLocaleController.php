@@ -52,9 +52,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * chain-walking resolver that handles longer cycles and adds a Redis cache
  * for read-path resolution.
  *
- * Permission gate uses `settings.tenant.manage` as a placeholder — LOC-10
- * (#878) introduces the dedicated `settings.locales.manage` permission and
- * retrofits this controller to consume it.
+ * Permission gate is `settings.locales.manage` (introduced by LOC-10 #878).
  */
 final class TenantLocaleController
 {
@@ -70,7 +68,7 @@ final class TenantLocaleController
 
     #[Route('/api/tenant-locales', name: 'pim_tenant_locales_list', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
+    #[RequiresPermission(module: 'settings.locales', action: 'manage')]
     public function list(Request $request): JsonResponse
     {
         $tenant = $this->requireTenant();
@@ -87,7 +85,7 @@ final class TenantLocaleController
 
     #[Route('/api/tenant-locales/preview-impact', name: 'pim_tenant_locales_preview_impact', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
+    #[RequiresPermission(module: 'settings.locales', action: 'manage')]
     public function previewImpact(Request $request): JsonResponse
     {
         $tenant = $this->requireTenant();
@@ -117,7 +115,7 @@ final class TenantLocaleController
 
     #[Route('/api/tenant-locales/{code}', name: 'pim_tenant_locales_get', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
+    #[RequiresPermission(module: 'settings.locales', action: 'manage')]
     public function get(string $code): JsonResponse
     {
         $tenant = $this->requireTenant();
@@ -131,7 +129,7 @@ final class TenantLocaleController
 
     #[Route('/api/tenant-locales', name: 'pim_tenant_locales_create', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
+    #[RequiresPermission(module: 'settings.locales', action: 'manage')]
     public function create(Request $request): JsonResponse
     {
         $tenant = $this->requireTenant();
@@ -167,7 +165,7 @@ final class TenantLocaleController
 
     #[Route('/api/tenant-locales/{code}', name: 'pim_tenant_locales_patch', methods: ['PATCH'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
+    #[RequiresPermission(module: 'settings.locales', action: 'manage')]
     public function patch(string $code, Request $request): JsonResponse
     {
         $tenant = $this->requireTenant();
@@ -223,7 +221,7 @@ final class TenantLocaleController
 
     #[Route('/api/tenant-locales/{code}', name: 'pim_tenant_locales_delete', methods: ['DELETE'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
+    #[RequiresPermission(module: 'settings.locales', action: 'manage')]
     public function delete(string $code): JsonResponse
     {
         $tenant = $this->requireTenant();
@@ -244,7 +242,7 @@ final class TenantLocaleController
 
     #[Route('/api/tenant-locales/{code}/reactivate', name: 'pim_tenant_locales_reactivate', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
+    #[RequiresPermission(module: 'settings.locales', action: 'manage')]
     public function reactivate(string $code): JsonResponse
     {
         $tenant = $this->requireTenant();
@@ -261,7 +259,7 @@ final class TenantLocaleController
 
     #[Route('/api/tenant-locales/{code}/purge', name: 'pim_tenant_locales_purge', methods: ['DELETE'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
+    #[RequiresPermission(module: 'settings.locales', action: 'manage')]
     public function purge(string $code, Request $request): JsonResponse
     {
         $confirm = $request->headers->get('X-Confirm-Purge');
