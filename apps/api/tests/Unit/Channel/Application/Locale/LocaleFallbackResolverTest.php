@@ -48,13 +48,12 @@ final class LocaleFallbackResolverTest extends TestCase
         $en = new Locale('en_US', 'English');
         $de = new Locale('de_DE', 'Deutsch');
 
-        $enRow = new TenantLocale($en, true, true, null, 0, $tenant);
-        $enRow->deactivate();
-        // Need to flip default off first; for test setup we craft a non-default deactivated row.
+        // en_US is non-default so it can be deactivated.
         $enRow = new TenantLocale($en, false, true, null, 0, $tenant);
         $enRow->deactivate();
 
-        $deRow = new TenantLocale($de, true, true, $en, 1, $tenant);
+        // de_DE is the chain root; we fallback to the deactivated en_US.
+        $deRow = new TenantLocale($de, false, false, $en, 1, $tenant);
 
         $repo = $this->stubRepo([
             'en_US' => $enRow,
