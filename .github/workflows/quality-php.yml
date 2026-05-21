@@ -148,9 +148,15 @@ jobs:
         # queries trip it). Operators can still see INFO findings by
         # running semgrep locally without the filter; CI surfaces only
         # what is actionable.
+        #
+        # --strict is intentionally NOT passed: it treats the
+        # severity-filtered-out INFO rule as a parse-only-warning and
+        # exits non-zero even with 0 findings. --error alone is enough
+        # for the intended gate (non-zero exit when blocking findings
+        # are reported).
         run: |
           semgrep --config .semgrep/cortex-rbac.yml \
-            --error --strict --no-rewrite-rule-ids \
+            --error --no-rewrite-rule-ids \
             --severity ERROR --severity WARNING \
             apps/api/src apps/admin/src
 
