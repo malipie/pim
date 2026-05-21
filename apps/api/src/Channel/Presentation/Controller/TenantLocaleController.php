@@ -300,7 +300,7 @@ final class TenantLocaleController
             throw new BadRequestHttpException('Body must be a JSON object.');
         }
 
-        /** @var array<string, mixed> $decoded */
+        /* @var array<string, mixed> $decoded */
         return $decoded;
     }
 
