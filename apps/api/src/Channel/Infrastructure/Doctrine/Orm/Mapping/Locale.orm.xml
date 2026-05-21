@@ -12,12 +12,25 @@
             <unique-constraint name="locales_code_uniq" columns="code"/>
         </unique-constraints>
 
+        <indexes>
+            <index name="locales_is_popular_idx" columns="is_popular"/>
+            <index name="locales_language_idx" columns="language"/>
+        </indexes>
+
         <id name="id" type="uuid" column="id">
             <generator strategy="NONE"/>
         </id>
 
         <field name="code" type="string" length="16"/>
         <field name="label" type="string" length="64"/>
+        <field name="language" type="string" length="8"/>
+        <field name="region" type="string" length="8" nullable="true"/>
+        <field name="displayName" column="display_name" type="json">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <field name="isPopular" column="is_popular" type="boolean"/>
 
     </entity>
 

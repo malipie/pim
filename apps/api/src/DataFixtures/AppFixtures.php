@@ -15,6 +15,7 @@ use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Channel\Domain\Entity\Currency;
 use App\Channel\Domain\Entity\Locale;
+use App\Channel\Domain\Entity\TenantLocale;
 use App\DataFixtures\Identity\PrdPermissionFixtures;
 use App\Identity\Application\RbacSeeder;
 use App\Identity\Application\SeedTenantPrdRolesService;
@@ -76,14 +77,24 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
     public function load(ObjectManager $manager): void
     {
         // Global infrastructure: locales + currencies. The seed migration
-        // (Version20260429064833) inserts these on fresh schema, but
+        // (Version20260429064833 + #869) inserts these on fresh schema, but
         // `doctrine:fixtures:load` purges the database first — re-seed
-        // here so post-fixtures DB has the same baseline.
-        foreach ([
-            ['pl_PL', 'Polski (Polska)'],
-            ['en_US', 'English (United States)'],
-        ] as [$code, $label]) {
-            $manager->persist(new Locale($code, $label));
+        // the 14 popular CEE+DACH locales here so post-fixtures DB has the
+        // same baseline as a migrated-from-scratch schema (with the popular
+        // subset matching the `is_popular=true` flag in the catalog seed).
+        $localesByCode = [];
+        foreach (self::POPULAR_LOCALES as $entry) {
+            $locale = new Locale(
+                $entry['code'],
+                $entry['displayName']['pl'],
+                null,
+                $entry['language'],
+                $entry['region'],
+                $entry['displayName'],
+                true,
+            );
+            $manager->persist($locale);
+            $localesByCode[$entry['code']] = $locale;
         }
         foreach ([
             ['PLN', 'zł', 'Polish złoty'],
@@ -146,6 +157,19 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
         // inlines these on fresh schema, but fixtures-load purges the
         // database first — re-seed here so the post-fixtures DB matches.
         $this->smartFilterPresetsSeeder->seed();
+
+        // Locales feature (#869, LOC-01): seed each tenant's activated locales.
+        // pl_PL = default + mandatory, en_US = mandatory with fallback=pl_PL.
+        // Mirrors the channel/tenant configuration #705 used to keep on
+        // `tenants.locales` array; LOC-02 (#870) will migrate that legacy
+        // column into these rows for any production tenant that has data.
+        $plPL = $localesByCode['pl_PL'];
+        $enUS = $localesByCode['en_US'];
+        foreach ($tenants as $tenant) {
+            $manager->persist(new TenantLocale($plPL, true, true, null, 0, $tenant));
+            $manager->persist(new TenantLocale($enUS, false, true, $plPL, 1, $tenant));
+        }
+        $manager->flush();
 
         $admins = [
             'demo' => 'admin@demo.localhost',
@@ -232,4 +256,24 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
             $superAdmin->getPermissions()->add($permission);
         }
     }
+
+    /**
+     * @var list<array{code:string,language:string,region:string,displayName:array<string,string>}>
+     */
+    private const POPULAR_LOCALES = [
+        ['code' => 'pl_PL', 'language' => 'pl', 'region' => 'PL', 'displayName' => ['pl' => 'Polski (Polska)', 'en' => 'Polish (Poland)']],
+        ['code' => 'en_US', 'language' => 'en', 'region' => 'US', 'displayName' => ['pl' => 'Angielski (USA)', 'en' => 'English (United States)']],
+        ['code' => 'en_GB', 'language' => 'en', 'region' => 'GB', 'displayName' => ['pl' => 'Angielski (Wielka Brytania)', 'en' => 'English (United Kingdom)']],
+        ['code' => 'de_DE', 'language' => 'de', 'region' => 'DE', 'displayName' => ['pl' => 'Niemiecki (Niemcy)', 'en' => 'German (Germany)']],
+        ['code' => 'de_AT', 'language' => 'de', 'region' => 'AT', 'displayName' => ['pl' => 'Niemiecki (Austria)', 'en' => 'German (Austria)']],
+        ['code' => 'de_CH', 'language' => 'de', 'region' => 'CH', 'displayName' => ['pl' => 'Niemiecki (Szwajcaria)', 'en' => 'German (Switzerland)']],
+        ['code' => 'fr_FR', 'language' => 'fr', 'region' => 'FR', 'displayName' => ['pl' => 'Francuski (Francja)', 'en' => 'French (France)']],
+        ['code' => 'it_IT', 'language' => 'it', 'region' => 'IT', 'displayName' => ['pl' => 'Włoski (Włochy)', 'en' => 'Italian (Italy)']],
+        ['code' => 'es_ES', 'language' => 'es', 'region' => 'ES', 'displayName' => ['pl' => 'Hiszpański (Hiszpania)', 'en' => 'Spanish (Spain)']],
+        ['code' => 'cs_CZ', 'language' => 'cs', 'region' => 'CZ', 'displayName' => ['pl' => 'Czeski (Czechy)', 'en' => 'Czech (Czechia)']],
+        ['code' => 'sk_SK', 'language' => 'sk', 'region' => 'SK', 'displayName' => ['pl' => 'Słowacki (Słowacja)', 'en' => 'Slovak (Slovakia)']],
+        ['code' => 'hu_HU', 'language' => 'hu', 'region' => 'HU', 'displayName' => ['pl' => 'Węgierski (Węgry)', 'en' => 'Hungarian (Hungary)']],
+        ['code' => 'ro_RO', 'language' => 'ro', 'region' => 'RO', 'displayName' => ['pl' => 'Rumuński (Rumunia)', 'en' => 'Romanian (Romania)']],
+        ['code' => 'nl_NL', 'language' => 'nl', 'region' => 'NL', 'displayName' => ['pl' => 'Holenderski (Holandia)', 'en' => 'Dutch (Netherlands)']],
+    ];
 }
