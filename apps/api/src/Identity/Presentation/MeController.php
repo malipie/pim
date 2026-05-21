@@ -89,6 +89,12 @@ final readonly class MeController
                 'plan' => $tenant->getPlan(),
             ],
             'last_login_at' => $user->getLastLoginAt()?->format(DateTimeInterface::ATOM),
+            // Manual user creation (#867) — TRUE when an admin set the
+            // password via POST /api/users. AuthedRoute on FE consumes this
+            // flag and redirects to /first-login-password, blocking
+            // navigation to the rest of the SPA until the user replaces
+            // the admin-set password. Cleared by the change-password call.
+            'password_change_required' => $user->isPasswordChangeRequired(),
             'permissions' => $permissions->getCodes(),
             'locale_scope' => $permissions->getLocaleScope(),
             'channel_scope' => $permissions->getChannelScope(),

@@ -87,6 +87,17 @@ final readonly class ChangePasswordController
 
         $newHash = $this->hasher->hashPassword($principal, $next);
         $principal->changePassword($newHash);
+
+        // Manual user creation (#867) — admins flag accounts they created
+        // with `password_change_required = true` so the user must replace
+        // the admin-set password on first login. Clearing it here closes
+        // the loop: any successful change-password call (whether driven
+        // by the force-flow on /first-login-password OR a normal change
+        // from /settings/security) takes the flag down so subsequent
+        // logins skip the redirect.
+        if ($principal->isPasswordChangeRequired()) {
+            $principal->clearPasswordChangeRequired();
+        }
         $this->users->save($principal);
 
         return new Response(null, Response::HTTP_NO_CONTENT);

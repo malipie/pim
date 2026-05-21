@@ -60,6 +60,15 @@
 
         <field name="createdAt" type="datetime_immutable" column="created_at"/>
 
+        <!-- Manual user creation (#867). TRUE when an admin set the password
+             via POST /api/users; cleared on first successful change-password.
+             AuthedRoute on FE blocks navigation while TRUE. -->
+        <field name="passwordChangeRequired" type="boolean" column="password_change_required">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+
     </entity>
 
 </doctrine-mapping>
