@@ -153,13 +153,21 @@ parameters:
         Identity_Contracts:
             - Shared
 
-        Shared: ~
+        Shared:
+            # Shared is normally a leaf. The exception is the RBAC attribute
+            # contract — MetricsController carries #[NoPermissionRequired]
+            # so the EndpointGuardListener can let the Prometheus scrape
+            # through without RBAC. Identity_Contracts holds only the two
+            # attribute classes (RequiresPermission + NoPermissionRequired),
+            # which are pure metadata with zero runtime coupling.
+            - Identity_Contracts
 
         Search:
             - Shared
             - Catalog_Contracts
             - Catalog_Internals
             - Channel_Contracts
+            - Identity_Contracts
             - Identity_Internals
 
         Integration:
