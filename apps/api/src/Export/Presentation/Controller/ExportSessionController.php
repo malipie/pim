@@ -13,7 +13,7 @@ use App\Export\Domain\Message\RunExportMessage;
 use App\Export\Domain\Repository\ExportLogRepositoryInterface;
 use App\Export\Domain\Repository\ExportProfileRepositoryInterface;
 use App\Export\Domain\Repository\ExportSessionRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
 use DateTimeInterface;

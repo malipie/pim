@@ -8,7 +8,7 @@ use App\Catalog\Domain\Entity\BulkEditJob;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;

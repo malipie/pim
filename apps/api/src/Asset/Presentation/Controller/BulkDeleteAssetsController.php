@@ -6,7 +6,7 @@ namespace App\Asset\Presentation\Controller;
 
 use App\Asset\Application\AssetDeleter;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

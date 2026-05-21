@@ -8,7 +8,7 @@ use App\Asset\Application\AssetMetadataUpdater;
 use App\Asset\Domain\Entity\Asset;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
 use App\Catalog\Contracts\Service\CatalogAssetSync;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;

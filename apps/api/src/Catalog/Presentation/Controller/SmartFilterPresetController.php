@@ -6,7 +6,7 @@ namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Application\Filter\FilterDslResolver;
 use App\Catalog\Domain\Entity\SmartFilterPreset;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
 use DateTimeInterface;

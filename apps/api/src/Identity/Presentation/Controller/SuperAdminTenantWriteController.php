@@ -8,7 +8,7 @@ use App\Identity\Application\InvitationService;
 use App\Identity\Application\SeedTenantPrdRolesService;
 use App\Identity\Application\SuperAdmin\SuperAdminContext;
 use App\Identity\Application\SuperAdmin\SuperAdminTenantResponseBuilder;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
 use App\Shared\Domain\Repository\TenantRepositoryInterface;

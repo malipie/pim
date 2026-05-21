@@ -10,7 +10,7 @@ use App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\CategoryAttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use InvalidArgumentException;
 use JsonException;

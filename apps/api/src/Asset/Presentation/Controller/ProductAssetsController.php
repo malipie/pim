@@ -7,7 +7,7 @@ namespace App\Asset\Presentation\Controller;
 use App\Asset\Domain\Entity\Asset;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
 use App\Catalog\Contracts\Service\ProductAssetLinker;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

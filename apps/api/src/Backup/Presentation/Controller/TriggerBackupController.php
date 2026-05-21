@@ -8,7 +8,7 @@ use App\Backup\Domain\Entity\Backup;
 use App\Backup\Domain\Enum\BackupTriggerAction;
 use App\Backup\Domain\Message\BackupSnapshotMessage;
 use App\Backup\Domain\Repository\BackupRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Shared\Application\TenantContext;
 use DateTimeInterface;

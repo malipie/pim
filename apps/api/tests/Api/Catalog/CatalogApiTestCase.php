@@ -7,7 +7,9 @@ namespace App\Tests\Api\Catalog;
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
 use App\Catalog\Domain\ObjectKind;
+use App\DataFixtures\Identity\PrdPermissionFixtures;
 use App\Identity\Application\RbacSeeder;
+use App\Identity\Application\SeedTenantPrdRolesService;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
 use App\Identity\Domain\Repository\RoleRepositoryInterface;
@@ -43,6 +45,16 @@ abstract class CatalogApiTestCase extends ApiTestCase
 
         $em = $this->em();
         self::getContainer()->get(RbacSeeder::class)->seed();
+        // RBAC-P6-005/006/007 retrofit — Phase 6 retrofit gates every
+        // controller method with PRD §3.2 granular codes (products.add,
+        // modeling.attribute_groups.add_edit, etc.). RbacSeeder only
+        // emits the legacy RbacMatrix 4-action × 19-resource set, so
+        // these tests need the PRD permission catalogue + tenant_owner
+        // role assigned to the test admin to clear EndpointGuardListener.
+        $prdPermissions = new PrdPermissionFixtures();
+        $prdPermissions->load($em);
+        $em->flush();
+
         $superAdmin = self::getContainer()->get(RoleRepositoryInterface::class)
             ->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);
         \assert(null !== $superAdmin);
@@ -51,10 +63,16 @@ abstract class CatalogApiTestCase extends ApiTestCase
         $em->persist($tenant);
         $em->flush();
 
+        self::getContainer()->get(SeedTenantPrdRolesService::class)->seed($tenant);
+        $tenantOwner = self::getContainer()->get(RoleRepositoryInterface::class)
+            ->findByCode('tenant_owner', $tenant);
+        \assert(null !== $tenantOwner);
+
         $hasher = self::getContainer()->get(UserPasswordHasherInterface::class);
         $stub = new User($tenant, self::ADMIN_EMAIL, '', ['ROLE_USER']);
         $admin = new User($tenant, self::ADMIN_EMAIL, $hasher->hashPassword($stub, 'changeme'), ['ROLE_USER']);
         $admin->addRole($superAdmin);
+        $admin->addRole($tenantOwner);
         $em->persist($admin);
         $em->flush();
 

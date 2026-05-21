@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Asset\Presentation\Controller;
 
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use Doctrine\DBAL\Connection;
 use RuntimeException;

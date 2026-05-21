@@ -7,7 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Application\Command\BulkAttachAttributesToGroup\BulkAttachAttributesToGroupCommand;
 use App\Catalog\Application\Command\DetachAttributeFromGroup\DetachAttributeFromGroupCommand;
 use App\Catalog\Application\Command\ReorderGroupAttributes\ReorderGroupAttributesCommand;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\PasswordResetService;
-use App\Identity\Domain\Attribute\NoPermissionRequired;
+use App\Identity\Contracts\Attribute\NoPermissionRequired;
 use LogicException;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

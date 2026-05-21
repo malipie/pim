@@ -6,7 +6,7 @@ namespace App\Import\Presentation\Controller;
 
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Import\Application\Service\ImportValidationService;
 use App\Import\Domain\Enum\FileEncoding;
 use App\Import\Domain\Exception\InvalidImportFileException;

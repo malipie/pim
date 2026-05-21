@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Application\Agent\CmdKPlanner;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;

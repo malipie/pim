@@ -7,7 +7,7 @@ namespace App\Asset\Presentation\Controller;
 use App\Asset\Domain\Entity\AssetVariant;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
 use App\Asset\Domain\ThumbnailsStatus;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;

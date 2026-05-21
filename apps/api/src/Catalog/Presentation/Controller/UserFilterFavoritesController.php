@@ -7,7 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\UserFilterFavorite;
 use App\Catalog\Domain\Repository\UserFilterFavoriteRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\UserIdentityAware;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;

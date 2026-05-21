@@ -7,7 +7,7 @@ namespace App\ApiConfigurator\Presentation\Controller;
 use ApiPlatform\OpenApi\Factory\OpenApiFactoryInterface;
 use App\ApiConfigurator\Domain\Entity\ApiProfile;
 use App\ApiConfigurator\Domain\Repository\ApiProfileRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use stdClass;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
