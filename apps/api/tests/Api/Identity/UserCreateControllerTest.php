@@ -99,9 +99,16 @@ final class UserCreateControllerTest extends ApiTestCase
         self::assertSame('ada@example.com', $body['email'] ?? null);
         self::assertSame('user', $body['kind'] ?? null);
         self::assertSame('active', $body['status'] ?? null);
-        self::assertIsArray($body['roles'] ?? null);
-        self::assertCount(1, $body['roles']);
-        self::assertSame('catalog_manager', $body['roles'][0]['code'] ?? null);
+        $roles = $body['roles'] ?? null;
+        self::assertIsArray($roles);
+        self::assertCount(1, $roles);
+        // PHPStan: $roles is mixed[] after assertIsArray; explicit array
+        // access through a typed local keeps `[0]['code']` traversal
+        // checkable without a //@phpstan-ignore-next-line.
+        self::assertIsArray($roles[0] ?? null);
+        /** @var array<string, mixed> $firstRole */
+        $firstRole = $roles[0];
+        self::assertSame('catalog_manager', $firstRole['code'] ?? null);
 
         // Verify password_change_required persisted by logging in as the
         // new user and reading /api/auth/me.
