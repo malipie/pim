@@ -57,10 +57,21 @@ class Tenant
      * default. The CHECK constraint on `tenants` guarantees `primaryLocale`
      * is always in this list.
      *
+     * @deprecated since the Locales feature (#869–#878); use the
+     *     `tenant_locales` table instead. This array stays as a read-only
+     *     legacy projection until LOC-07 (#875) migrates `/settings/tenant`
+     *     to read from `tenant_locales`. LOC-02 (#870) backfilled
+     *     `tenant_locales` from this column; production data in the legacy
+     *     column stays consistent until removal in a follow-up ticket.
+     *
      * @var list<string>
      */
     private array $enabledLocales = ['pl', 'en'];
 
+    /**
+     * @deprecated since the Locales feature (#869–#878); use the
+     *     `tenant_locales.is_default = true` row instead.
+     */
     private string $primaryLocale = 'pl';
 
     public function __construct(
