@@ -6,6 +6,7 @@ namespace App\Tests\Api\Catalog;
 
 use App\Catalog\Application\BuiltInSmartFilterPresetsSeeder;
 use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\RoleRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -268,9 +269,18 @@ final class SmartFilterPresetsApiTest extends CatalogApiTestCase
         $em->persist($tenantB);
         $em->flush();
 
+        // RBAC-P6 retrofit — seed PRD roles + assign tenant_owner so admin-b
+        // can hit /api/smart-filter-presets (products.view permission). Same
+        // pattern as CatalogApiTestCase::setUp for the primary admin.
+        self::getContainer()->get(\App\Identity\Application\SeedTenantPrdRolesService::class)->seed($tenantB);
+        $tenantBOwner = self::getContainer()->get(RoleRepositoryInterface::class)
+            ->findByCode('tenant_owner', $tenantB);
+        \assert(null !== $tenantBOwner);
+
         $hasher = self::getContainer()->get(UserPasswordHasherInterface::class);
         $stubB = new User($tenantB, 'admin-b@demo.localhost', '', ['ROLE_USER']);
         $adminB = new User($tenantB, 'admin-b@demo.localhost', $hasher->hashPassword($stubB, 'changeme'), ['ROLE_USER']);
+        $adminB->addRole($tenantBOwner);
         $em->persist($adminB);
         $em->flush();
 
