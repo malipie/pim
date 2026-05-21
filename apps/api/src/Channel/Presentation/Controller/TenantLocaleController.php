@@ -117,7 +117,8 @@ final class TenantLocaleController
 
         $isDefault = (bool) ($body['isDefault'] ?? false);
         $isMandatory = (bool) ($body['isMandatory'] ?? $isDefault);
-        $sortOrder = (int) ($body['sortOrder'] ?? $this->nextSortOrder($tenant));
+        $sortOrderRaw = $body['sortOrder'] ?? $this->nextSortOrder($tenant);
+        $sortOrder = \is_int($sortOrderRaw) ? $sortOrderRaw : (int) (\is_string($sortOrderRaw) ? $sortOrderRaw : 0);
         $fallback = $this->resolveFallback($tenant, $locale, $body['fallbackCode'] ?? null);
 
         $tenantLocale = new TenantLocale($locale, $isDefault, $isMandatory, $fallback, $sortOrder, $tenant);
@@ -175,7 +176,11 @@ final class TenantLocaleController
         }
 
         if (\array_key_exists('sortOrder', $body)) {
-            $tl->setSortOrder((int) $body['sortOrder']);
+            $sortOrderRaw = $body['sortOrder'];
+            if (!\is_int($sortOrderRaw) && !(\is_string($sortOrderRaw) && ctype_digit($sortOrderRaw))) {
+                throw new BadRequestHttpException('`sortOrder` must be an integer.');
+            }
+            $tl->setSortOrder((int) $sortOrderRaw);
         }
 
         $this->em->flush();

@@ -19,29 +19,27 @@ use PHPUnit\Framework\Attributes\Test;
  */
 final class TenantLocalesApiTest extends ChannelApiTestCase
 {
-    private Locale $pl;
-    private Locale $en;
-    private Locale $de;
-
     protected function setUp(): void
     {
         parent::setUp();
 
         $em = $this->em();
-        $this->pl = $em->getRepository(Locale::class)->findOneBy(['code' => 'pl_PL']);
-        $this->en = $em->getRepository(Locale::class)->findOneBy(['code' => 'en_US']);
+        $pl = $em->getRepository(Locale::class)->findOneBy(['code' => 'pl_PL']);
+        $en = $em->getRepository(Locale::class)->findOneBy(['code' => 'en_US']);
+        \assert($pl instanceof Locale, 'pl_PL must be seeded by ChannelApiTestCase::setUp.');
+        \assert($en instanceof Locale, 'en_US must be seeded by ChannelApiTestCase::setUp.');
 
         // Catalog rows for the activation flow.
-        $em->persist($this->de = new Locale('de_DE', 'Niemiecki (Niemcy)', null, 'de', 'DE', ['pl' => 'Niemiecki (Niemcy)', 'en' => 'German (Germany)'], true));
+        $em->persist(new Locale('de_DE', 'Niemiecki (Niemcy)', null, 'de', 'DE', ['pl' => 'Niemiecki (Niemcy)', 'en' => 'German (Germany)'], true));
         $em->persist(new Locale('fr_FR', 'Francuski (Francja)', null, 'fr', 'FR', ['pl' => 'Francuski (Francja)', 'en' => 'French (France)'], true));
         $em->persist(new Locale('cs_CZ', 'Czeski (Czechy)', null, 'cs', 'CZ', ['pl' => 'Czeski (Czechy)', 'en' => 'Czech (Czechia)'], true));
 
         $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
-        \assert(null !== $tenant);
+        \assert($tenant instanceof Tenant);
 
         // pl_PL default+mandatory, en_US mandatory+fallback=pl_PL.
-        $em->persist(new TenantLocale($this->pl, true, true, null, 0, $tenant));
-        $em->persist(new TenantLocale($this->en, false, true, $this->pl, 1, $tenant));
+        $em->persist(new TenantLocale($pl, true, true, null, 0, $tenant));
+        $em->persist(new TenantLocale($en, false, true, $pl, 1, $tenant));
         $em->flush();
     }
 
@@ -56,10 +54,14 @@ final class TenantLocalesApiTest extends ChannelApiTestCase
         $items = $payload['items'];
         \assert(\is_array($items));
         self::assertCount(2, $items);
-        self::assertSame('pl_PL', $items[0]['code']);
-        self::assertTrue($items[0]['isDefault']);
-        self::assertSame('en_US', $items[1]['code']);
-        self::assertSame('pl_PL', $items[1]['fallbackCode']);
+        $first = $items[0];
+        \assert(\is_array($first));
+        $second = $items[1];
+        \assert(\is_array($second));
+        self::assertSame('pl_PL', $first['code']);
+        self::assertTrue($first['isDefault']);
+        self::assertSame('en_US', $second['code']);
+        self::assertSame('pl_PL', $second['fallbackCode']);
     }
 
     #[Test]
@@ -72,7 +74,9 @@ final class TenantLocalesApiTest extends ChannelApiTestCase
         $payload = $response->toArray();
         self::assertSame('en_US', $payload['code']);
         self::assertSame('en', $payload['language']);
-        self::assertSame('English (United States)', $payload['displayName']['en']);
+        $displayName = $payload['displayName'];
+        \assert(\is_array($displayName));
+        self::assertSame('English (United States)', $displayName['en']);
     }
 
     #[Test]
@@ -156,12 +160,15 @@ final class TenantLocalesApiTest extends ChannelApiTestCase
 
         // The previous default (pl_PL) must have its flag cleared.
         $listResponse = $client->request('GET', '/api/tenant-locales');
-        $list = $listResponse->toArray()['items'];
+        $listPayload = $listResponse->toArray();
+        $list = $listPayload['items'];
         \assert(\is_array($list));
         $byCode = [];
         foreach ($list as $item) {
             \assert(\is_array($item));
-            $byCode[$item['code']] = $item;
+            $code = $item['code'];
+            \assert(\is_string($code));
+            $byCode[$code] = $item;
         }
         self::assertFalse($byCode['pl_PL']['isDefault']);
         self::assertTrue($byCode['en_US']['isDefault']);
