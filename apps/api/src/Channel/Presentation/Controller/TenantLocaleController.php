@@ -25,6 +25,8 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
+use const JSON_THROW_ON_ERROR;
+
 /**
  * Locales feature (#871, LOC-03) — `/api/tenant-locales` CRUD endpoints.
  *
@@ -94,16 +96,18 @@ final class TenantLocaleController
         $code = $this->requireStringField($body, 'code');
 
         // tenant-safe: explicit tenant_id filter in WHERE
-        $productCount = (int) $this->connection->fetchOne(
+        $productCountRaw = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM objects WHERE tenant_id = :tenant AND kind = 'product' AND deleted_at IS NULL",
             ['tenant' => $tenant->getId()->toRfc4122()],
         );
+        $productCount = \is_numeric($productCountRaw) ? (int) $productCountRaw : 0;
 
         // tenant-safe: explicit tenant_id filter in WHERE
-        $valuesWithCode = (int) $this->connection->fetchOne(
+        $valuesWithCodeRaw = $this->connection->fetchOne(
             'SELECT COUNT(DISTINCT object_id) FROM object_values WHERE tenant_id = :tenant AND locale = :code',
             ['tenant' => $tenant->getId()->toRfc4122(), 'code' => $code],
         );
+        $valuesWithCode = \is_numeric($valuesWithCodeRaw) ? (int) $valuesWithCodeRaw : 0;
 
         return new JsonResponse([
             'code' => $code,
