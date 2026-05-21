@@ -69,5 +69,15 @@ export interface RoleDetail {
    * /api/roles surfaces an editor.
    */
   auto_grant_new_object_types: boolean;
+  /**
+   * UI re-align (#865) — optional flags backend exposes after the
+   * delta-Backend follow-up. Frontend renders them when present and
+   * degrades gracefully when omitted (e.g. RoleEditorPage header
+   * `unique · max 1` badge).
+   */
+  is_unique?: boolean;
+  mfa_required?: boolean;
+  scope?: RoleScope;
+  persona?: string | null;
   created_at: string;
 }

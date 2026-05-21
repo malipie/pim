@@ -43,7 +43,12 @@ export function UserMenu() {
     });
   };
 
-  const handleSettings = (): void => navigate('/settings/profile');
+  const handleSettings = (): void => {
+    // react-router 7's navigate() returns `void | Promise<void>`; wrap so
+    // the implicit return doesn't leak through into the explicit `void`
+    // signature TypeScript checks against onClick handlers.
+    void navigate('/settings/profile');
+  };
 
   const name = identity?.name ?? t('user_menu.account');
   const subtitle = identity?.email ?? '';
