@@ -187,6 +187,7 @@ Legenda: **✓ = ma uprawnienie**, **✗ = nie ma uprawnienia**. Bez wyjątków,
 | **Settings — Users (manage_users)** | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | **Settings — Roles (manage_roles, CRUD custom roles)** | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | **Settings — Tenant config (manage_tenant)** | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| **Settings — Locales (settings.locales.manage)** | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | **Settings — Billing (manage_billing)** | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | **Settings — Integrations (manage_integrations)** | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | **Settings — Integration secrets (read tokens)** | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
