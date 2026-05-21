@@ -87,6 +87,8 @@ final class LocaleFallbackResolver
      * is empty. Pure-function-style helper used by read sites that
      * need to fall back across locales (e.g. ObjectValue rendering at
      * /api endpoint serialisation time once LOC-05 (#873) wires it up).
+     *
+     * @param callable(string): bool $hasValue
      */
     public function pickFirstAvailable(string $code, Tenant $tenant, callable $hasValue): ?string
     {
