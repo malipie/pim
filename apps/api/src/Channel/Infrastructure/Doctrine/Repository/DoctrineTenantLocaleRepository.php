@@ -37,7 +37,8 @@ class DoctrineTenantLocaleRepository extends ServiceEntityRepository implements 
 
     public function findByTenantAndCode(Tenant $tenant, string $code): ?TenantLocale
     {
-        return $this->createQueryBuilder('tl')
+        /** @var TenantLocale|null $row */
+        $row = $this->createQueryBuilder('tl')
             ->innerJoin('tl.locale', 'l')
             ->where('tl.tenant = :tenant')
             ->andWhere('l.code = :code')
@@ -45,6 +46,8 @@ class DoctrineTenantLocaleRepository extends ServiceEntityRepository implements 
             ->setParameter('code', $code)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $row;
     }
 
     public function findActiveForTenant(Tenant $tenant): array

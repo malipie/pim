@@ -18,12 +18,12 @@ interface TenantLocaleRepositoryInterface
     public function findByTenantAndCode(Tenant $tenant, string $code): ?TenantLocale;
 
     /**
-     * @return list<TenantLocale> ordered by sortOrder ASC.
+     * @return list<TenantLocale> ordered by sortOrder ASC
      */
     public function findActiveForTenant(Tenant $tenant): array;
 
     /**
-     * @return list<TenantLocale> active + inactive, ordered by sortOrder ASC.
+     * @return list<TenantLocale> active + inactive, ordered by sortOrder ASC
      */
     public function findAllForTenant(Tenant $tenant): array;
 

@@ -114,3 +114,4 @@ parameters:
               - src/Export/Domain/Entity/ExportSession.php
               - src/Export/Domain/Entity/ExportProfile.php
               - src/Backup/Domain/Entity/Backup.php
+              - src/Channel/Domain/Entity/TenantLocale.php

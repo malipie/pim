@@ -35,7 +35,7 @@ class Locale
 
     /**
      * @var array<string,string> two-letter UI-locale ⇒ native display name,
-     *     e.g. {"pl":"Polski (Polska)","en":"Polish (Poland)"}.
+     *                           e.g. {"pl":"Polski (Polska)","en":"Polish (Poland)"}.
      */
     private array $displayName = [];
 

@@ -6,6 +6,8 @@ namespace App\Channel\Domain\Entity;
 
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
+use DateTimeImmutable;
+use DomainException;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 
@@ -45,7 +47,7 @@ class TenantLocale implements TenantScoped
 
     private bool $isActive = true;
 
-    private \DateTimeImmutable $createdAt;
+    private DateTimeImmutable $createdAt;
 
     public function __construct(
         Locale $locale,
@@ -63,7 +65,7 @@ class TenantLocale implements TenantScoped
         $this->isMandatory = $isMandatory || $isDefault;
         $this->fallback = $fallback;
         $this->sortOrder = $sortOrder;
-        $this->createdAt = new \DateTimeImmutable();
+        $this->createdAt = new DateTimeImmutable();
     }
 
     public function getId(): Uuid
@@ -117,7 +119,7 @@ class TenantLocale implements TenantScoped
         return $this->isActive;
     }
 
-    public function getCreatedAt(): \DateTimeImmutable
+    public function getCreatedAt(): DateTimeImmutable
     {
         return $this->createdAt;
     }
@@ -137,7 +139,7 @@ class TenantLocale implements TenantScoped
     public function setMandatory(bool $mandatory): void
     {
         if ($this->isDefault && !$mandatory) {
-            throw new \DomainException('Default locale must remain mandatory.');
+            throw new DomainException('Default locale must remain mandatory.');
         }
         $this->isMandatory = $mandatory;
     }
@@ -145,7 +147,7 @@ class TenantLocale implements TenantScoped
     public function setFallback(?Locale $fallback): void
     {
         if (null !== $fallback && $fallback->getId()->equals($this->locale->getId())) {
-            throw new \DomainException('Locale cannot fall back to itself.');
+            throw new DomainException('Locale cannot fall back to itself.');
         }
         $this->fallback = $fallback;
     }
@@ -158,7 +160,7 @@ class TenantLocale implements TenantScoped
     public function deactivate(): void
     {
         if ($this->isDefault) {
-            throw new \DomainException('Default locale cannot be deactivated.');
+            throw new DomainException('Default locale cannot be deactivated.');
         }
         $this->isActive = false;
     }
