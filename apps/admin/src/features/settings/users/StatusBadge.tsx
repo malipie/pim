@@ -31,8 +31,8 @@ export function StatusBadge({ status }: StatusBadgeProps) {
       labelKey: 'settings.users.status.invited',
     },
     disabled: {
-      cls: 'bg-rose-50 text-rose-700 ring-rose-200',
-      dot: 'bg-rose-500',
+      cls: 'bg-zinc-100 text-zinc-600 ring-zinc-200',
+      dot: 'bg-zinc-400',
       labelKey: 'settings.users.status.disabled',
     },
   };
