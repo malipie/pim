@@ -147,9 +147,7 @@ export function LocalesSettingsPage() {
           <h2 className="display text-xl font-semibold tracking-tight">
             {t('settings.locales.title')}
           </h2>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            {t('settings.locales.intro')}
-          </p>
+          <p className="max-w-2xl text-sm text-muted-foreground">{t('settings.locales.intro')}</p>
         </div>
       </header>
 
@@ -261,16 +259,16 @@ function LocaleRow({
             className="size-4 rounded border-input"
           />
           <span className="text-xs text-muted-foreground">
-            {row.isMandatory ? t('settings.locales.mandatory_on') : t('settings.locales.mandatory_off')}
+            {row.isMandatory
+              ? t('settings.locales.mandatory_on')
+              : t('settings.locales.mandatory_off')}
           </span>
         </label>
       </TableCell>
       <TableCell>
         <Select
           value={row.fallbackCode ?? '__none__'}
-          onValueChange={(value) =>
-            onChangeFallback(row, value === '__none__' ? null : value)
-          }
+          onValueChange={(value) => onChangeFallback(row, value === '__none__' ? null : value)}
           disabled={!row.isActive}
         >
           <SelectTrigger className="h-8 w-[140px] text-xs">
