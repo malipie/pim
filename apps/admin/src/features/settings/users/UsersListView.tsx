@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 
 import { GatedButton } from '@/components/identity';
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,6 @@ import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { cn } from '@/lib/utils';
 
 import { DeactivateUserModal } from './DeactivateUserModal';
-import { EditUserModal } from './EditUserModal';
 import { InviteUserModal } from './InviteUserModal';
 import { RoleChip } from './RoleChip';
 import { invitationValidity, relativeTime } from './relativeTime';
@@ -114,13 +114,6 @@ export function UsersListView() {
   const openDeactivate = (user: UserListItem) => {
     setDeactivateTarget(user);
     setDeactivateOpen(true);
-  };
-
-  const [editTarget, setEditTarget] = useState<UserListItem | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const openEdit = (user: UserListItem) => {
-    setEditTarget(user);
-    setEditOpen(true);
   };
 
   const handleReactivate = async (user: UserListItem) => {
@@ -286,7 +279,6 @@ export function UsersListView() {
               <UserRow
                 key={user.id}
                 user={user}
-                onEdit={openEdit}
                 onDeactivate={openDeactivate}
                 onReactivate={handleReactivate}
                 onResendInvitation={handleResendInvitation}
@@ -301,15 +293,6 @@ export function UsersListView() {
         user={deactivateTarget}
         open={deactivateOpen}
         onOpenChange={setDeactivateOpen}
-        onSuccess={() => {
-          void refetch();
-        }}
-      />
-
-      <EditUserModal
-        user={editTarget}
-        open={editOpen}
-        onOpenChange={setEditOpen}
         onSuccess={() => {
           void refetch();
         }}
@@ -356,7 +339,6 @@ export function UsersListView() {
 
 interface UserRowProps {
   user: UserListItem;
-  onEdit: (user: UserListItem) => void;
   onDeactivate: (user: UserListItem) => void;
   onReactivate: (user: UserListItem) => void;
   onResendInvitation: (user: UserListItem) => void;
@@ -365,7 +347,6 @@ interface UserRowProps {
 
 function UserRow({
   user,
-  onEdit,
   onDeactivate,
   onReactivate,
   onResendInvitation,
@@ -483,13 +464,12 @@ function UserRow({
       <td className="py-3 pr-5">
         <div className="flex items-center justify-end gap-1">
           {!isInvitation ? (
-            <button
-              type="button"
-              onClick={() => onEdit(user)}
-              className="h-8 rounded-lg border border-zinc-200 px-2.5 text-[12px] font-medium text-zinc-700 transition hover:bg-zinc-100"
+            <Link
+              to={`/settings/users/${user.id}`}
+              className="inline-flex h-8 items-center rounded-lg border border-zinc-200 px-2.5 text-[12px] font-medium text-zinc-700 transition hover:bg-zinc-100"
             >
               {t('settings.users.action_edit')}
-            </button>
+            </Link>
           ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

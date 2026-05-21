@@ -1,3 +1,4 @@
+import { UserDetailPage } from './UserDetailPage';
 import { UsersListView } from './UsersListView';
 
 /**
@@ -7,4 +8,13 @@ import { UsersListView } from './UsersListView';
  */
 export function UsersSettingsPage() {
   return <UsersListView />;
+}
+
+/**
+ * UI re-align (#865) — entry point for `/settings/users/:id`. Full-page
+ * detail view replacing the legacy EditUserModal per design source
+ * `Zrodla/Front_Claude_Design/PIM-nowoczesny/settings/users.jsx`.
+ */
+export function UserDetailRoute() {
+  return <UserDetailPage />;
 }
