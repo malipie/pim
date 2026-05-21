@@ -35,7 +35,16 @@
     "submitting": "Logowanie...",
     "invalid_credentials": "Nieprawidłowy e-mail lub hasło.",
     "login_failed": "Nie udało się zalogować. Spróbuj ponownie.",
-    "session_expired": "Sesja wygasła. Zaloguj się ponownie."
+    "session_expired": "Sesja wygasła. Zaloguj się ponownie.",
+    "first_login_password": {
+      "title": "Pierwsze logowanie — zmień hasło",
+      "intro": "Administrator ustawił dla Ciebie tymczasowe hasło. Wybierz nowe, zanim przejdziesz dalej.",
+      "submit": "Zmień hasło i wejdź",
+      "submitting": "Zmieniam...",
+      "success_toast": "Hasło zmienione",
+      "error_wrong_password": "Nieprawidłowe obecne hasło.",
+      "error_generic": "Nie udało się zmienić hasła."
+    }
   },
   "nav": {
     "dashboard": "Pulpit",
@@ -470,6 +479,35 @@
       "title": "Użytkownicy",
       "intro": "Zarządzaj kontami w obrębie tenanta. Zaproszenia magic link, MFA i przypisanie ról dochodzą w kolejnych ticketach.",
       "invite_cta": "Zaproś użytkownika",
+      "add_manually": {
+        "cta": "Dodaj ręcznie",
+        "title": "Dodaj użytkownika ręcznie",
+        "intro": "Tworzysz konto bez magic-link — admin podaje hasło bezpośrednio. Użytkownik staje się aktywny od razu; jeśli wymusisz zmianę hasła, przy pierwszym logowaniu pójdzie na ekran zmiany hasła.",
+        "field_email": "E-mail",
+        "field_display_name": "Nazwa wyświetlana (opcjonalne)",
+        "field_role": "Rola",
+        "field_password": "Hasło",
+        "field_password_placeholder": "Min. 12 znaków",
+        "field_password_hint_one": "Min. {{count}} znak. Hasło przekażesz użytkownikowi osobno.",
+        "field_password_hint_few": "Min. {{count}} znaki. Hasło przekażesz użytkownikowi osobno.",
+        "field_password_hint_many": "Min. {{count}} znaków. Hasło przekażesz użytkownikowi osobno.",
+        "field_password_hint_other": "Min. {{count}} znaków. Hasło przekażesz użytkownikowi osobno.",
+        "field_password_hint": "Min. {{count}} znaków. Hasło przekażesz użytkownikowi osobno.",
+        "password_show": "Pokaż hasło",
+        "password_hide": "Ukryj hasło",
+        "force_password_change_label": "Wymagaj zmiany hasła przy 1. logowaniu",
+        "force_password_change_hint": "Domyślnie włączone — użytkownik zobaczy ekran zmiany hasła zaraz po zalogowaniu i nie przejdzie dalej, dopóki nie ustawi własnego hasła.",
+        "send_welcome_email_label": "Wyślij welcome e-mail",
+        "send_welcome_email_hint": "Bez hasła w treści (best practice). Mail zawiera link do logowania + informację, że hasło dostarczysz osobno.",
+        "submit": "Utwórz konto",
+        "submitting": "Tworzę...",
+        "cancel": "Anuluj",
+        "success_toast": "Utworzono konto dla {{email}}",
+        "error_duplicate": "Użytkownik z tym adresem już istnieje.",
+        "error_validation": "Nieprawidłowe dane wejściowe.",
+        "error_forbidden": "Brak uprawnień do tworzenia użytkowników.",
+        "error_generic": "Nie udało się utworzyć użytkownika."
+      },
       "invite": {
         "title": "Zaproś użytkownika",
         "intro": "Wyślemy link magic-link na podany adres email. Użytkownik ustawi hasło i opcjonalnie MFA przy pierwszym logowaniu.",

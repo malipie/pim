@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router'
 
 import { AuthedRoute } from '@/components/AuthedRoute';
 import { ToastProvider } from '@/components/ui/toast';
+import { FirstLoginChangePasswordPage } from '@/features/auth/FirstLoginChangePasswordPage';
 // HARD-08 — only the login + dashboard pages and the always-mounted
 // layout shells stay eager. Every other route is React.lazy()-ed so
 // the initial bundle drops from ~2.1 MB to roughly the shell + the
@@ -371,6 +372,20 @@ function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+              {/* Manual user creation (#867) — force-password-change gate.
+                  Sits inside <AuthedRoute> (JWT required to call
+                  /api/me/change-password) but outside <AppLayout> so the
+                  page renders as a standalone centred card, no sidebar.
+                  AuthedRoute's redirect skips this path so the loop is
+                  broken (see `FIRST_LOGIN_PATH` constant there). */}
+              <Route
+                path="/first-login-password"
+                element={
+                  <AuthedRoute>
+                    <FirstLoginChangePasswordPage />
+                  </AuthedRoute>
+                }
+              />
               <Route
                 element={
                   <AuthedRoute>

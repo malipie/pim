@@ -17,6 +17,14 @@ export interface MeResponse {
   roles: string[];
   tenant: { id: string; code: string; name: string; plan?: string } | null;
   last_login_at: string | null;
+  /**
+   * Manual user creation (#867) — TRUE when an admin set the user's
+   * password via POST /api/users. AuthedRoute redirects to
+   * `/first-login-password` while the flag is on and blocks the rest of
+   * the SPA until the user picks a personal password. Cleared by the
+   * change-password endpoint server-side.
+   */
+  password_change_required: boolean;
   /** PRD §3.2 permission codes — flat strings like `products.view`. */
   permissions: string[];
   /** PRD §3.6 locale narrowing. */
@@ -39,6 +47,8 @@ export interface Identity {
   roles: string[];
   tenant: { id: string; code: string; name: string; plan?: string } | null;
   lastLoginAt: string | null;
+  /** See {@link MeResponse.password_change_required}. */
+  passwordChangeRequired: boolean;
   permissions: ReadonlySet<string>;
   localeScope: string[];
   channelScope: string[];
@@ -60,6 +70,7 @@ export function hydrateIdentity(response: MeResponse): Identity {
     roles: response.roles,
     tenant: response.tenant,
     lastLoginAt: response.last_login_at,
+    passwordChangeRequired: response.password_change_required ?? false,
     permissions: new Set(response.permissions),
     localeScope: response.locale_scope,
     channelScope: response.channel_scope,
