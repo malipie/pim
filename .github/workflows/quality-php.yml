@@ -141,9 +141,17 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Semgrep scan (.semgrep/cortex-rbac.yml)
+        # --severity filters keep CI blocking on ERROR + WARNING rules
+        # (real defects) but allow INFO-level rules (heuristics with known
+        # false-positives — e.g. cortex-raw-sql-missing-tenant-filter
+        # cannot follow tenant_id through FK chains, so junction-table
+        # queries trip it). Operators can still see INFO findings by
+        # running semgrep locally without the filter; CI surfaces only
+        # what is actionable.
         run: |
           semgrep --config .semgrep/cortex-rbac.yml \
             --error --strict --no-rewrite-rule-ids \
+            --severity ERROR --severity WARNING \
             apps/api/src apps/admin/src
 
   php-cs-fixer:

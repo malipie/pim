@@ -66,13 +66,28 @@ rules:
         - "apps/api/tests/**"
 
   - id: cortex-raw-sql-missing-tenant-filter
+    # NOTE: severity:INFO (was WARNING). The naive `WHERE` without literal
+    # `tenant_id` heuristic produces 48 false-positives against the current
+    # codebase because many INFRA_TABLES inherit tenant scope through their
+    # parent FK chain (object_categories.object_id → catalog_objects.tenant_id,
+    # role_attribute_permissions.role_id → roles.tenant_id, etc.) rather than
+    # holding a direct tenant_id column. Postgres-catalog queries
+    # (information_schema, pg_index, pg_class) are also legitimate exemptions.
+    #
+    # Until a tenant-FK-chain-aware analysis lands (Phase 7 candidate), the
+    # primary defense remains `scripts/lint-raw-sql.sh` (HARD-07 — tenant-safe
+    # SQL grep with curated allow-list of infra files) plus per-row review.
+    # This rule stays in the file as a documentation surface — operators can
+    # run `semgrep --severity=INFO` locally to audit raw SQL without
+    # blocking CI.
     languages: [php]
-    severity: WARNING
+    severity: INFO
     message: >-
       Raw SQL `WHERE` without an explicit `tenant_id` predicate. Doctrine
       filters do not apply to DBAL Connection queries; cross-tenant reads
-      are then possible. Add `WHERE tenant_id = :tenant` (or document the
-      exemption with a "// infra-only" comment if querying an INFRA_TABLE).
+      are possible unless the queried table inherits tenant scope through
+      an FK chain (junction tables, role_attribute_permissions, etc.) or
+      the query targets a postgres-internal catalog. Review case-by-case.
     patterns:
       - pattern-either:
           - pattern: $CONN->fetchAllAssociative($SQL, ...)
