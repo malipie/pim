@@ -28,7 +28,8 @@ import {
   type AttributePermsApiGroup,
 } from './AttributePermissionsSection';
 import { resolveRoleColor } from './colors';
-import { type PermissionGroup, PermissionMatrix } from './PermissionMatrix';
+import type { PermissionGroup } from './PermissionMatrix';
+import { PermissionMatrixAccordion } from './PermissionMatrixAccordion';
 import { resolveRoleScope } from './scope';
 import type { RoleDetail, RoleListItem } from './types';
 
@@ -610,10 +611,21 @@ export function RoleEditorPage() {
               {loading ? (
                 <div className="h-64 animate-pulse rounded-md border bg-muted/30" />
               ) : (
-                <PermissionMatrix
+                <PermissionMatrixAccordion
                   groups={groups}
                   selectedCodes={selected}
                   onToggle={togglePermission}
+                  onToggleGroup={(group, allOn) => {
+                    setSelected((prev) => {
+                      const next = new Set(prev);
+                      if (allOn) {
+                        for (const p of group.permissions) next.delete(p.code);
+                      } else {
+                        for (const p of group.permissions) next.add(p.code);
+                      }
+                      return next;
+                    });
+                  }}
                   disabled={submitting || deleting}
                 />
               )}

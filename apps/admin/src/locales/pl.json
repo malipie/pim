@@ -717,6 +717,8 @@
         "preset_applied_catalog_manager_few": "Skopiowano {{count}} uprawnienia z Catalog Manager.",
         "preset_applied_catalog_manager_many": "Skopiowano {{count}} uprawnień z Catalog Manager.",
         "preset_applied_catalog_manager_other": "Skopiowano {{count}} uprawnień z Catalog Manager.",
+        "group_all_on": "Wszystko ✓",
+        "group_select_all": "Zaznacz wszystko",
         "section_identity": "Identyfikacja",
         "section_identity_intro": "Nazwa wyświetlana, kod (slug) i opcjonalny opis dla audytu.",
         "section_advanced": "Zaawansowane",

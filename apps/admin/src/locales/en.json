@@ -709,6 +709,8 @@
         "preset_no_catalog_manager": "Catalog Manager role not found in the catalogue.",
         "preset_applied_catalog_manager_one": "Copied {{count}} permission from Catalog Manager.",
         "preset_applied_catalog_manager_other": "Copied {{count}} permissions from Catalog Manager.",
+        "group_all_on": "All ✓",
+        "group_select_all": "Select all",
         "section_identity": "Identity",
         "section_identity_intro": "Display name, code (slug), and optional description for the audit trail.",
         "section_advanced": "Advanced",
