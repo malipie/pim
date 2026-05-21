@@ -127,17 +127,24 @@ export function AddUserManuallyModal({ open, onOpenChange, onSuccess }: AddUserM
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="max-w-md">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
+      {/* DialogContent default has no height ceiling; the 6-field form +
+          intro + 2 checkboxes + footer can outgrow viewports under 800px
+          (≈half of laptop screens). Constrain to 90vh + push the form
+          into a flex column so the body scrolls while header / footer
+          stay pinned. */}
+      <DialogContent className="flex max-h-[90vh] max-w-md flex-col overflow-hidden p-0">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <DialogHeader className="px-6 pb-2 pt-6">
             <div className="mb-2 inline-grid size-10 place-items-center rounded-full bg-zinc-900 text-white">
               <UserPlus className="size-5" aria-hidden />
             </div>
             <DialogTitle>{t('settings.users.add_manually.title')}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">{t('settings.users.add_manually.intro')}</p>
+          <p className="px-6 text-sm text-muted-foreground">
+            {t('settings.users.add_manually.intro')}
+          </p>
 
-          <div className="space-y-3 py-3">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-6 py-3">
             <div className="space-y-1.5">
               <Label htmlFor="add-email">{t('settings.users.add_manually.field_email')}</Label>
               <Input
@@ -274,7 +281,10 @@ export function AddUserManuallyModal({ open, onOpenChange, onSuccess }: AddUserM
             </label>
           </div>
 
-          <DialogFooter>
+          {/* Sticky footer — DialogFooter has no border by default, so add
+              a top border + background to visually anchor it once the body
+              starts scrolling. */}
+          <DialogFooter className="shrink-0 border-t bg-background px-6 py-4">
             <Button
               type="button"
               variant="outline"
