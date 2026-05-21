@@ -12,3 +12,15 @@ framework:
             policy: 'fixed_window'
             limit: 200
             interval: '15 minutes'
+
+        # auth_refresh is the actual bottleneck on CI — every page reload
+        # in Playwright fires authProvider.check() → /api/auth/refresh
+        # before identity loads. 51 tests with multiple page.goto() each
+        # easily exceeds the 30/h prod cap; settings-users-list (last in
+        # alphabetic order) was timing out on the resulting 429s. Bumped
+        # 30 → 600 with the same 1h window — way past anything the suite
+        # will throw at it.
+        auth_refresh:
+            policy: 'sliding_window'
+            limit: 600
+            interval: '1 hour'
