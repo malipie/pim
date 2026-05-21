@@ -7,6 +7,14 @@
 
 export type RoleListType = 'system' | 'custom';
 
+/**
+ * UI re-align (#865) — scope distinction surfaced in the §5.3 mockup.
+ * Backend hasn't exposed this column yet (introduced in delta Backend
+ * follow-up); meanwhile the frontend resolves it from `role.code` via
+ * {@link import('./scope').resolveRoleScope}.
+ */
+export type RoleScope = 'platform' | 'tenant';
+
 export interface RoleListItem {
   id: string;
   code: string;
@@ -16,6 +24,24 @@ export interface RoleListItem {
   is_built_in: boolean;
   created_at: string;
   permissions_count: number;
+  /** Optional — backend exposes after #865 backend extension. */
+  scope?: RoleScope;
+  /** Optional — short operator description (RoleDetail.description) when included. */
+  description?: string | null;
+  /** Optional — persona string (`Tomasz · właściciel firmy`) once backend ships it. */
+  persona?: string | null;
+  /** When true, only one assignment is allowed (Tenant Owner). */
+  is_unique?: boolean;
+  /** When true, MFA is mandated for assignees of this role. */
+  mfa_required?: boolean;
+  /** Auto-grant flag (#698) — also present on RoleDetail. */
+  auto_grant_new_object_types?: boolean;
+  /**
+   * Optional per-module permission coverage map. Each entry: { covered, total, pct }
+   * keyed by module code (`platform / produkty / kategorie / multimedia / ...`).
+   * Exposed by backend after the §5.3 coverage strip ships server-side.
+   */
+  permission_coverage?: Record<string, { covered: number; total: number; pct: number }>;
 }
 
 /**
