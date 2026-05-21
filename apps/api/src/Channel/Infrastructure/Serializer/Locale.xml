@@ -18,5 +18,21 @@
             <group>locale:read</group>
             <group>admin:read</group>
         </attribute>
+        <attribute name="language">
+            <group>locale:read</group>
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="region">
+            <group>locale:read</group>
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="displayName">
+            <group>locale:read</group>
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="popular">
+            <group>locale:read</group>
+            <group>admin:read</group>
+        </attribute>
     </class>
 </serializer>

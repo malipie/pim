@@ -12,8 +12,9 @@ use Symfony\Component\Validator\Constraints as Assert;
  *
  * Locales are global infrastructure rows — every tenant references the
  * same `pl_PL` row rather than carrying its own copy. The seeded set in
- * the migration covers the MVP-supported locales; tenants opt-in to a
- * subset via the Channel ↔ Locale M2M.
+ * the migration covers the ISO 639-1 + ISO 3166 catalog used by Cortex
+ * (~45 entries today, 14 of them `is_popular=true` for the CEE+DACH
+ * dropdown shortlist).
  *
  * No TenantScoped: the table sits on the audit allowlist as global
  * infrastructure, like `permissions` and the global RBAC roles.
@@ -28,11 +29,37 @@ class Locale
 
     private string $label;
 
-    public function __construct(string $code, string $label, ?Uuid $id = null)
-    {
+    private string $language = '';
+
+    private ?string $region = null;
+
+    /**
+     * @var array<string,string> two-letter UI-locale ⇒ native display name,
+     *     e.g. {"pl":"Polski (Polska)","en":"Polish (Poland)"}.
+     */
+    private array $displayName = [];
+
+    private bool $isPopular = false;
+
+    /**
+     * @param array<string,string> $displayName
+     */
+    public function __construct(
+        string $code,
+        string $label,
+        ?Uuid $id = null,
+        string $language = '',
+        ?string $region = null,
+        array $displayName = [],
+        bool $isPopular = false,
+    ) {
         $this->id = $id ?? Uuid::v7();
         $this->code = $code;
         $this->label = $label;
+        $this->language = $language;
+        $this->region = $region;
+        $this->displayName = $displayName;
+        $this->isPopular = $isPopular;
     }
 
     public function getId(): Uuid
@@ -53,5 +80,39 @@ class Locale
     public function rename(string $label): void
     {
         $this->label = $label;
+    }
+
+    public function getLanguage(): string
+    {
+        return $this->language;
+    }
+
+    public function getRegion(): ?string
+    {
+        return $this->region;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    public function getDisplayName(): array
+    {
+        return $this->displayName;
+    }
+
+    public function isPopular(): bool
+    {
+        return $this->isPopular;
+    }
+
+    /**
+     * @param array<string,string> $displayName
+     */
+    public function updateMetadata(string $language, ?string $region, array $displayName, bool $isPopular): void
+    {
+        $this->language = $language;
+        $this->region = $region;
+        $this->displayName = $displayName;
+        $this->isPopular = $isPopular;
     }
 }
