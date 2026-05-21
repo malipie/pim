@@ -12,7 +12,7 @@ use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Infrastructure\Audit\CursorCodec;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;

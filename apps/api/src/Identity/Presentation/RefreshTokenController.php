@@ -6,7 +6,7 @@ namespace App\Identity\Presentation;
 
 use App\Identity\Application\Exception\RefreshTokenException;
 use App\Identity\Application\RefreshTokenService;
-use App\Identity\Domain\Attribute\NoPermissionRequired;
+use App\Identity\Contracts\Attribute\NoPermissionRequired;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Identity\Domain\Attribute;
+namespace App\Identity\Contracts\Attribute;
 
 use Attribute;
 

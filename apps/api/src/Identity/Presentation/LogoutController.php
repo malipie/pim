@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation;
 
 use App\Identity\Application\RefreshTokenService;
-use App\Identity\Domain\Attribute\NoPermissionRequired;
+use App\Identity\Contracts\Attribute\NoPermissionRequired;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;

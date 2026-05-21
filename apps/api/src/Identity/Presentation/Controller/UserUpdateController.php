@@ -6,7 +6,7 @@ namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\LastAdminGuard;
 use App\Identity\Application\UserListResponseBuilder;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\Role;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Exception\LastAdminProtectionException;

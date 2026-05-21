@@ -7,7 +7,7 @@ namespace App\Catalog\Presentation\Controller;
 use App\Catalog\Application\Bulk\BulkRollbackHandler;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use DateTimeImmutable;
 use DateTimeInterface;

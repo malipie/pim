@@ -6,7 +6,7 @@ namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\ApiTokenListResponseBuilder;
 use App\Identity\Application\PermissionResolverInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\ApiTokenRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;

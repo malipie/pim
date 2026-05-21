@@ -8,7 +8,7 @@ use App\Identity\Application\Sso\GoogleAuthProvider;
 use App\Identity\Application\Sso\MicrosoftAuthProvider;
 use App\Identity\Application\Sso\SamlAuthProvider;
 use App\Identity\Application\Sso\SsoUserResolver;
-use App\Identity\Domain\Attribute\NoPermissionRequired;
+use App\Identity\Contracts\Attribute\NoPermissionRequired;
 use App\Shared\Domain\Repository\TenantRepositoryInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use RuntimeException;

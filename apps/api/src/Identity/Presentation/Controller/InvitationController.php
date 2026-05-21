@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\InvitationService;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Shared\Application\TenantContext;
 use LogicException;
@@ -80,7 +80,7 @@ final class InvitationController extends AbstractController
     }
 
     #[Route(path: '/api/invitations/{token}/accept', methods: ['POST'], name: 'api_invitations_accept', requirements: ['token' => '[a-f0-9]{64}'])]
-    #[\App\Identity\Domain\Attribute\NoPermissionRequired(reason: 'Magic-link accept is open by design — token IS the auth factor; account does not exist yet.')]
+    #[\App\Identity\Contracts\Attribute\NoPermissionRequired(reason: 'Magic-link accept is open by design — token IS the auth factor; account does not exist yet.')]
     public function accept(string $token, Request $request): JsonResponse
     {
         /** @var array{password?: string} $payload */
@@ -113,7 +113,7 @@ final class InvitationController extends AbstractController
      * Public route — token IS the auth factor.
      */
     #[Route(path: '/api/invitations/{token}/verify', methods: ['GET'], name: 'api_invitations_verify', requirements: ['token' => '[a-f0-9]{64}'])]
-    #[\App\Identity\Domain\Attribute\NoPermissionRequired(reason: 'Magic-link verify is open by design — token IS the auth factor; account does not exist yet.')]
+    #[\App\Identity\Contracts\Attribute\NoPermissionRequired(reason: 'Magic-link verify is open by design — token IS the auth factor; account does not exist yet.')]
     public function verify(string $token): JsonResponse
     {
         $snapshot = $this->invitations->verify($token);

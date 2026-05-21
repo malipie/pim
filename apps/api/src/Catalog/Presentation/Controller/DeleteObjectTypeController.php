@@ -8,7 +8,7 @@ use App\Catalog\Application\ObjectTypeService;
 use App\Catalog\Domain\Exception\BuiltInObjectTypeException;
 use App\Catalog\Domain\Exception\ObjectTypeHasInstancesException;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;

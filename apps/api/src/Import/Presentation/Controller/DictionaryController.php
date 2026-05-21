@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Import\Application\Service\MappingDictionaryService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;

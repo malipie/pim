@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Controller;
 
-use App\Identity\Domain\Attribute\NoPermissionRequired;
+use App\Identity\Contracts\Attribute\NoPermissionRequired;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Symfony\Bundle\SecurityBundle\Security;

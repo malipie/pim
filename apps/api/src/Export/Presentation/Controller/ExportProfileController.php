@@ -6,7 +6,7 @@ namespace App\Export\Presentation\Controller;
 
 use App\Export\Domain\Entity\ExportProfile;
 use App\Export\Domain\Repository\ExportProfileRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
 use DateTimeInterface;

@@ -9,7 +9,7 @@ use App\Asset\Application\Exception\DuplicateAssetException;
 use App\Asset\Application\MimeTypeWhitelist;
 use App\Asset\Domain\Entity\Asset;
 use App\Catalog\Contracts\Service\ProductAssetLinker;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;

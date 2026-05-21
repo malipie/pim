@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Controller\Internal;
 
-use App\Identity\Domain\Attribute\NoPermissionRequired;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\NoPermissionRequired;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;

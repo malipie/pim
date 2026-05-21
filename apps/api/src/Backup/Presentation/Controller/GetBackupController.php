@@ -6,7 +6,7 @@ namespace App\Backup\Presentation\Controller;
 
 use App\Backup\Domain\Entity\Backup;
 use App\Backup\Domain\Repository\BackupRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use DateTimeInterface;
 use InvalidArgumentException;
 use Symfony\Bundle\SecurityBundle\Security;

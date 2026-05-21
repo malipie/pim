@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\SsoProviderResponseBuilder;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\SsoProvider;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\SsoProviderRepositoryInterface;

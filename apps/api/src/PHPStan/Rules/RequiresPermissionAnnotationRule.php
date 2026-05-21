@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\PHPStan\Rules;
 
-use App\Identity\Domain\Attribute\NoPermissionRequired;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\NoPermissionRequired;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use PhpParser\Node;
 use PhpParser\Node\Stmt\ClassMethod;
 use PHPStan\Analyser\Scope;

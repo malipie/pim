@@ -9,7 +9,7 @@ use App\Catalog\Application\Migration\AttributeMigrationPlan;
 use App\Catalog\Application\Migration\AttributeMigrationPlanner;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;

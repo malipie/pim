@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation;
 
 use App\Identity\Application\TotpEnrolmentService;
-use App\Identity\Domain\Attribute\NoPermissionRequired;
+use App\Identity\Contracts\Attribute\NoPermissionRequired;
 use App\Identity\Domain\Entity\User;
 use DateTimeInterface;
 use JsonException;

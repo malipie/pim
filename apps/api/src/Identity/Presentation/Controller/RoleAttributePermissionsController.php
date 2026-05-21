@@ -6,7 +6,7 @@ namespace App\Identity\Presentation\Controller;
 
 use App\Catalog\Contracts\Service\AttributeCatalogReader;
 use App\Identity\Application\RoleAttributePermissionResponseBuilder;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\Role;
 use App\Identity\Domain\Entity\RoleAttributePermission;
 use App\Identity\Domain\Entity\User;

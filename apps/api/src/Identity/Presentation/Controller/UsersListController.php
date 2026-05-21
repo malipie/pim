@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\UserListResponseBuilder;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\Invitation;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\InvitationRepositoryInterface;

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Identity\Infrastructure\Http;
 
 use App\Identity\Application\PermissionResolverInterface;
-use App\Identity\Domain\Attribute\NoPermissionRequired;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\NoPermissionRequired;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Exception\PermissionDeniedException;
 use App\Identity\Domain\Rbac\PermissionSet;

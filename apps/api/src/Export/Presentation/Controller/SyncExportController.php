@@ -12,7 +12,7 @@ use App\Export\Domain\Enum\ExportSource;
 use App\Export\Domain\Enum\ExportTargetScope;
 use App\Export\Domain\Message\RunExportMessage;
 use App\Export\Domain\Repository\ExportSessionRepositoryInterface;
-use App\Identity\Domain\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
 use DateTimeImmutable;
