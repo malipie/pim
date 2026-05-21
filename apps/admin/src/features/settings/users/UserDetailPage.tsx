@@ -25,10 +25,6 @@ interface RefineIdentity {
   lastLoginAt: string | null;
 }
 
-interface UserGetResponse {
-  data: UserListItem;
-}
-
 const SUPPORTED_LOCALES = ['pl', 'en', 'de', 'cs', 'sk'] as const;
 const SUPPORTED_CHANNELS = ['shopify', 'allegro', 'baselinker', 'magento', 'idosell'] as const;
 
@@ -96,46 +92,43 @@ export function UserDetailPage() {
     [rolesResult?.data],
   );
 
+  // `/api/users` returns the same `UserListItem` projection as the list view,
+  // so we fetch the catalogue once and pick the target by id. Backend has not
+  // shipped GET /api/users/{id} yet (delta Backend follow-up) — this keeps
+  // the detail page working without that endpoint.
+  const { result: usersResult, query: usersQuery } = useList<UserListItem>({
+    resource: 'users',
+    pagination: { mode: 'off' },
+  });
+
   useEffect(() => {
     if (!params.id) return;
-    let cancelled = false;
-    setLoading(true);
-    setLoadError(false);
-    jsonFetch<UserGetResponse | UserListItem>(`/api/users/${params.id}`, {
-      method: 'GET',
-      accept: 'application/json',
-    })
-      .then((res) => {
-        if (cancelled) return;
-        const fetched =
-          'data' in (res as object) ? (res as UserGetResponse).data : (res as UserListItem);
-        setUser(fetched);
-        const roleIds = new Set(fetched.roles.map((r) => r.id));
-        const locale =
-          fetched.scope_locale && fetched.scope_locale.length > 0
-            ? [...fetched.scope_locale]
-            : ['*'];
-        const channel =
-          fetched.scope_channel && fetched.scope_channel.length > 0
-            ? [...fetched.scope_channel]
-            : ['*'];
-        setSelectedRoleIds(roleIds);
-        setLocaleScope(locale);
-        setChannelScope(channel);
-        setInitialSnapshot({ roleIds, locale: [...locale], channel: [...channel] });
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLoadError(true);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [params.id]);
+    if (usersQuery.isLoading) return;
+    if (usersQuery.isError) {
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
+    const fetched = (usersResult?.data ?? []).find((u) => u.id === params.id) ?? null;
+    if (!fetched) {
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
+    setUser(fetched);
+    const roleIds = new Set(fetched.roles.map((r) => r.id));
+    const locale =
+      fetched.scope_locale && fetched.scope_locale.length > 0 ? [...fetched.scope_locale] : ['*'];
+    const channel =
+      fetched.scope_channel && fetched.scope_channel.length > 0
+        ? [...fetched.scope_channel]
+        : ['*'];
+    setSelectedRoleIds(roleIds);
+    setLocaleScope(locale);
+    setChannelScope(channel);
+    setInitialSnapshot({ roleIds, locale: [...locale], channel: [...channel] });
+    setLoading(false);
+  }, [params.id, usersResult?.data, usersQuery.isLoading, usersQuery.isError]);
 
   const isSelf = Boolean(user && identity && user.id === identity.id);
   const isOwner = user?.roles.some((r) => r.code === 'tenant_owner') ?? false;
