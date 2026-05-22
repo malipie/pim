@@ -37,11 +37,7 @@ interface ChannelLocaleMatrixResponse {
  * Server-side transaction means a single invalid entry rolls everything
  * back, so partial-save anomalies are not possible.
  */
-export function ChannelLocaleMatrix({
-  activeLocales,
-}: {
-  activeLocales: TenantLocaleListItem[];
-}) {
+export function ChannelLocaleMatrix({ activeLocales }: { activeLocales: TenantLocaleListItem[] }) {
   const { t } = useTranslation();
   const [rows, setRows] = useState<ChannelLocaleMatrixRow[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -131,7 +127,9 @@ export function ChannelLocaleMatrix({
   if (error) {
     return (
       <section className="rounded-lg border bg-background p-6">
-        <p className="text-sm text-rose-600">{t('settings.locales.channel_matrix.error_loading')}</p>
+        <p className="text-sm text-rose-600">
+          {t('settings.locales.channel_matrix.error_loading')}
+        </p>
       </section>
     );
   }
@@ -148,9 +146,7 @@ export function ChannelLocaleMatrix({
   if (rows !== null && rows.length === 0) {
     return (
       <section className="rounded-lg border bg-background p-6">
-        <h3 className="text-sm font-semibold">
-          {t('settings.locales.channel_matrix.title')}
-        </h3>
+        <h3 className="text-sm font-semibold">{t('settings.locales.channel_matrix.title')}</h3>
         <p className="mt-2 text-sm text-muted-foreground">
           {t('settings.locales.channel_matrix.empty')}
         </p>
