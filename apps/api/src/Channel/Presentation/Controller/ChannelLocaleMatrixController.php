@@ -109,7 +109,10 @@ final class ChannelLocaleMatrixController
             'SELECT id FROM channels WHERE tenant_id = :tenant',
             ['tenant' => $tenant->getId()->toRfc4122()],
         );
-        $tenantChannels = array_flip(array_map('strval', $tenantChannelIds));
+        $tenantChannels = [];
+        foreach ($tenantChannelIds as $id) {
+            $tenantChannels[(string) $id] = true;
+        }
 
         $activeLocalesByCode = [];
         foreach ($this->tenantLocales->findActiveForTenant($tenant) as $tl) {
