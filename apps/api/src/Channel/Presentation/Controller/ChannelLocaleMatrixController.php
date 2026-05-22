@@ -94,7 +94,7 @@ final class ChannelLocaleMatrixController
 
     #[Route('/api/channel-locales', name: 'pim_channel_locales_put', methods: ['PUT'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
+    #[RequiresPermission(module: 'settings.locales', action: 'manage')]
     public function put(Request $request): JsonResponse
     {
         $tenant = $this->requireTenant();
