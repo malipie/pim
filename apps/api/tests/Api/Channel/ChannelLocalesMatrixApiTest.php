@@ -149,7 +149,7 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
                 continue;
             }
             if ($item['channelCode'] === $code) {
-                /** @var array<string, mixed> $item */
+                /* @var array<string, mixed> $item */
                 return $item;
             }
         }
@@ -162,8 +162,10 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
     private function sortChain(mixed $codes): array
     {
         \assert(\is_array($codes));
-        /** @var list<string> $sortable */
-        $sortable = array_values(array_map('strval', $codes));
+        $sortable = [];
+        foreach ($codes as $code) {
+            $sortable[] = \is_string($code) ? $code : (string) $code;
+        }
         sort($sortable);
 
         return $sortable;
