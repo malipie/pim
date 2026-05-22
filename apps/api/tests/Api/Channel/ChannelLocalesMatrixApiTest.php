@@ -69,7 +69,7 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
             $byCode[$code] = $item;
         }
 
-        self::assertSame(['pl_PL', 'en_US'], array_values($this->sortChain($byCode['shopify_pl']['localeCodes'])));
+        self::assertSame(['en_US', 'pl_PL'], $this->sortChain($byCode['shopify_pl']['localeCodes']));
         self::assertSame([], $byCode['allegro_pl']['localeCodes']);
     }
 
@@ -136,6 +136,7 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
 
     /**
      * @param list<array<string, mixed>> $items
+     *
      * @return array<string, mixed>
      */
     private function findByCode(array $items, string $code): array
@@ -149,7 +150,6 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
     }
 
     /**
-     * @param mixed $codes
      * @return list<string>
      */
     private function sortChain(mixed $codes): array

@@ -60,15 +60,15 @@ final class ChannelLocaleMatrixController
 
         $byChannel = [];
         foreach ($rows as $row) {
-            $cid = (string) $row['channel_id'];
+            $cid = \is_string($row['channel_id']) ? $row['channel_id'] : '';
             if (!isset($byChannel[$cid])) {
                 $byChannel[$cid] = [
                     'channelId' => $cid,
-                    'channelCode' => (string) $row['channel_code'],
+                    'channelCode' => \is_string($row['channel_code']) ? $row['channel_code'] : '',
                     'localeCodes' => [],
                 ];
             }
-            $byChannel[$cid]['localeCodes'][] = (string) $row['locale_code'];
+            $byChannel[$cid]['localeCodes'][] = \is_string($row['locale_code']) ? $row['locale_code'] : '';
         }
 
         // tenant-safe: explicit tenant_id filter in WHERE
@@ -77,11 +77,11 @@ final class ChannelLocaleMatrixController
             ['tenant' => $tenant->getId()->toRfc4122()],
         );
         foreach ($allChannels as $channel) {
-            $cid = (string) $channel['id'];
+            $cid = \is_string($channel['id']) ? $channel['id'] : '';
             if (!isset($byChannel[$cid])) {
                 $byChannel[$cid] = [
                     'channelId' => $cid,
-                    'channelCode' => (string) $channel['code'],
+                    'channelCode' => \is_string($channel['code']) ? $channel['code'] : '',
                     'localeCodes' => [],
                 ];
             }
