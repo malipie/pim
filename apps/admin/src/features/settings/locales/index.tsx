@@ -300,7 +300,9 @@ function LocaleRow({
             )}
             aria-hidden="true"
           />
-          {row.isActive ? t('settings.locales.status_active') : t('settings.locales.status_inactive')}
+          {row.isActive
+            ? t('settings.locales.status_active')
+            : t('settings.locales.status_inactive')}
         </span>
       </TableCell>
       <TableCell className="pr-5 text-right">
