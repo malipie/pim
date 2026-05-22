@@ -96,11 +96,7 @@ export function AddLocaleModal({
   const filtered = useMemo(() => {
     if (debounced === '') return catalog;
     return catalog.filter((row) => {
-      const haystack = [
-        row.code,
-        row.label,
-        ...Object.values(row.displayName ?? {}),
-      ]
+      const haystack = [row.code, row.label, ...Object.values(row.displayName ?? {})]
         .join(' ')
         .toLowerCase();
       return haystack.includes(debounced);
