@@ -209,6 +209,7 @@ const SecuritySettingsPage = lazyPage(
   'SecuritySettingsPage',
 );
 const UsersSettingsPage = lazyPage(() => import('@/features/settings/users'), 'UsersSettingsPage');
+const UserDetailRoute = lazyPage(() => import('@/features/settings/users'), 'UserDetailRoute');
 const ApiTokensSettingsPage = lazyPage(
   () => import('@/features/settings/api-tokens'),
   'ApiTokensSettingsPage',
@@ -454,6 +455,7 @@ function App() {
                   <Route path="channels/:id" element={<ChannelShowPage />} />
                   <Route path="channels/:id/edit" element={<ChannelEditPage />} />
                   <Route path="users" element={<UsersSettingsPage />} />
+                  <Route path="users/:id" element={<UserDetailRoute />} />
                   <Route path="roles" element={<RolesSettingsPage />} />
                   <Route path="roles/new" element={<RolesEditorRoute />} />
                   <Route path="roles/:id/edit" element={<RolesEditorRoute />} />

@@ -1,4 +1,16 @@
-import { ArrowLeft, ShieldCheck, ShieldPlus, Trash2 } from 'lucide-react';
+import { useList } from '@refinedev/core';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  FileText,
+  Info,
+  Layers,
+  Lock,
+  Settings,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
@@ -15,8 +27,11 @@ import {
   AttributePermissionsSection,
   type AttributePermsApiGroup,
 } from './AttributePermissionsSection';
-import { type PermissionGroup, PermissionMatrix } from './PermissionMatrix';
-import type { RoleDetail } from './types';
+import { resolveRoleColor } from './colors';
+import type { PermissionGroup } from './PermissionMatrix';
+import { PermissionMatrixAccordion } from './PermissionMatrixAccordion';
+import { resolveRoleScope } from './scope';
+import type { RoleDetail, RoleListItem } from './types';
 
 interface PermissionsResponse {
   member: PermissionGroup[];
@@ -34,33 +49,42 @@ interface ApiProblem {
   user_count?: number;
 }
 
+type TabId = 'matrix' | 'attrs' | 'scope' | 'meta';
+
+const TABS: ReadonlyArray<{
+  id: TabId;
+  labelKey: string;
+  icon: typeof ShieldCheck;
+}> = [
+  { id: 'matrix', labelKey: 'settings.roles.editor.tab_matrix', icon: ShieldCheck },
+  { id: 'attrs', labelKey: 'settings.roles.editor.tab_attrs', icon: Lock },
+  { id: 'scope', labelKey: 'settings.roles.editor.tab_scope', icon: Layers },
+  { id: 'meta', labelKey: 'settings.roles.editor.tab_meta', icon: Settings },
+];
+
 /**
- * Role editor polish (marathon-3 / #847) — pixel-perfect to PRD-PIM-rbac §5.3.
+ * UI re-align (#865) — Settings → Role i uprawnienia → /:id editor per
+ * `Zrodla/Front_Claude_Design/PIM-nowoczesny/settings/roles.jsx`
+ * §RoleEditorPage.
  *
- * Layout is one form with four card sections stacked vertically, plus
- * a sticky bottom action bar (Cancel + primary). NOT tabs — the PRD
- * mockup shows sections grouped by visual cards on one scrollable page.
+ * Structure shift vs #847:
+ *   - 4 tabs (`Macierz uprawnień / Uprawnienia per atrybut / Locale &
+ *     Channel scope / Metadane`) in a single `rounded-3xl` card body
+ *     INSTEAD of 5 flat stacked card sections.
+ *   - Header surfaces breadcrumb + title + system/platform/unique/user-count
+ *     badges + role color dot.
+ *   - System-template notice and platform-level warning render above the
+ *     tab card when applicable.
+ *   - Matrix tab body wraps the existing PermissionMatrix with quick-start
+ *     preset buttons (`Wyzeruj wszystko / Tylko read-only / Skopiuj z
+ *     Catalog Manager`) — presets call into local state, do not touch backend.
+ *   - Sticky bottom action bar adds the "System template — nie można usunąć"
+ *     hint per design + delete (custom) + cancel + save.
  *
- * Sections:
- *   1. Identity (name + code + description + system notice)
- *   2. Advanced (auto-grant + deferred scope notice)
- *   3. Permissions matrix (module × action grid from #696)
- *   4. Field-level restrictions (per-attribute overrides from #697)
- *   5. Locale & Channel Scope (deferred placeholder pointing at #693
- *      per-assignment scope follow-up)
- *
- * Single submit pipeline:
- *   1. PATCH /api/roles/{id} — name + description + permission_codes
- *      + auto_grant_new_object_types
- *   2. PUT /api/roles/{id}/attribute-permissions — replacement set
- *   Both fire in sequence; failure on either rolls the toast back to
- *   error and leaves draft state intact so the operator can retry
- *   without re-filling the form.
- *
- * Dirty tracking: matrix toggle, attribute level, description edit,
- * auto-grant toggle, name rename, code edit all feed `isDirty` which
- * gates the Save button. Reset reverts every section to the loaded
- * server snapshot.
+ * Save pipeline preserved verbatim from #847:
+ *   1. PATCH /api/roles/{id} (identity + permission_codes + auto-grant)
+ *   2. PUT /api/roles/{id}/attribute-permissions (replacement set)
+ * Both run in sequence; failure leaves draft intact for retry.
  */
 export function RoleEditorPage() {
   const { t } = useTranslation();
@@ -69,6 +93,7 @@ export function RoleEditorPage() {
   const isEdit = Boolean(params.id);
 
   const [role, setRole] = useState<RoleDetail | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>('matrix');
 
   // Identity section state
   const [name, setName] = useState('');
@@ -76,7 +101,7 @@ export function RoleEditorPage() {
   const [codeTouched, setCodeTouched] = useState(false);
   const [description, setDescription] = useState('');
 
-  // Advanced section state
+  // Advanced state (auto-grant flag)
   const [autoGrant, setAutoGrant] = useState(false);
 
   // Matrix state
@@ -98,6 +123,14 @@ export function RoleEditorPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Catalogue of all roles — used by Matrix tab "Skopiuj z Catalog Manager"
+  // preset and for surfacing the role's user count badge in the header.
+  const { result: rolesResult } = useList<RoleListItem>({
+    resource: 'roles',
+    pagination: { mode: 'off' },
+  });
+  const rolesCatalogue: RoleListItem[] = rolesResult?.data ?? [];
 
   // Load catalogue + role detail + attribute permissions in parallel.
   useEffect(() => {
@@ -169,17 +202,63 @@ export function RoleEditorPage() {
 
   const isSystem = role?.type === 'system';
   const isCustom = role?.type === 'custom';
+  const scope = role ? resolveRoleScope(role) : 'tenant';
+  const color = resolveRoleColor(role?.code ?? '');
 
   const togglePermission = (permissionCode: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(permissionCode)) {
-        next.delete(permissionCode);
-      } else {
-        next.add(permissionCode);
-      }
+      if (next.has(permissionCode)) next.delete(permissionCode);
+      else next.add(permissionCode);
       return next;
     });
+  };
+
+  const applyPreset = (preset: 'deny_all' | 'read_only' | 'from_catalog_manager') => {
+    if (preset === 'deny_all') {
+      setSelected(new Set());
+      return;
+    }
+    if (preset === 'read_only') {
+      const next = new Set<string>();
+      for (const group of groups) {
+        for (const perm of group.permissions) {
+          if (
+            perm.code.endsWith('.view') ||
+            perm.code.endsWith('.view_own') ||
+            perm.code === 'audit.own' ||
+            perm.code === 'tokens.own'
+          ) {
+            next.add(perm.code);
+          }
+        }
+      }
+      setSelected(next);
+      return;
+    }
+    // from_catalog_manager — copy permission_codes via /api/roles/{id} fetch
+    const cm = rolesCatalogue.find((r) => r.code === 'catalog_manager');
+    if (!cm) {
+      toast.error(
+        t('settings.roles.editor.preset_no_catalog_manager', {
+          defaultValue: 'Brak roli Catalog Manager w katalogu.',
+        }),
+      );
+      return;
+    }
+    jsonFetch<RoleDetail>(`/api/roles/${cm.id}`, { method: 'GET' })
+      .then((cmDetail) => {
+        setSelected(new Set(cmDetail.permission_codes));
+        toast.success(
+          t('settings.roles.editor.preset_applied_catalog_manager', {
+            count: cmDetail.permission_codes.length,
+            defaultValue: 'Skopiowano {{count}} uprawnień z Catalog Manager.',
+          }),
+        );
+      })
+      .catch(() => {
+        toast.error(t('settings.roles.editor.error_load_role'));
+      });
   };
 
   const counts = useMemo(() => {
@@ -193,15 +272,14 @@ export function RoleEditorPage() {
     [attrDraft],
   );
 
-  // Dirty tracking — Save disabled unless something actually changed.
   const isDirty = useMemo(() => {
     if (!isEdit) return name.trim().length > 0;
     if (name !== originalIdentity.name) return true;
     if ((description ?? '') !== originalIdentity.description) return true;
     if (autoGrant !== originalAutoGrant) return true;
     if (selected.size !== originalPermissions.size) return true;
-    for (const code of selected) {
-      if (!originalPermissions.has(code)) return true;
+    for (const c of selected) {
+      if (!originalPermissions.has(c)) return true;
     }
     const draftKeys = Object.keys(attrDraft);
     const origKeys = Object.keys(originalAttrDraft);
@@ -240,15 +318,12 @@ export function RoleEditorPage() {
       const permissionCodes = Array.from(selected);
 
       if (isEdit && role) {
-        // 1. PATCH role identity + permissions
         const body: Record<string, unknown> = {
           permission_codes: permissionCodes,
           auto_grant_new_object_types: autoGrant,
           description: description.trim() || null,
         };
-        if (isCustom) {
-          body.name = name.trim();
-        }
+        if (isCustom) body.name = name.trim();
         await jsonFetch(`/api/roles/${role.id}`, {
           method: 'PATCH',
           body,
@@ -256,7 +331,6 @@ export function RoleEditorPage() {
           contentType: 'application/json',
         });
 
-        // 2. PUT attribute permissions
         const attrPayload = Object.entries(attrDraft)
           .filter(([, level]) => level !== null)
           .map(([attribute_id, permission_level]) => ({ attribute_id, permission_level }));
@@ -267,7 +341,6 @@ export function RoleEditorPage() {
           contentType: 'application/json',
         });
 
-        // Refresh originals
         setOriginalIdentity({ name: name.trim(), description: description.trim() });
         setOriginalAutoGrant(autoGrant);
         setOriginalPermissions(new Set(permissionCodes));
@@ -330,198 +403,378 @@ export function RoleEditorPage() {
     }
   };
 
+  const userCount = useMemo(() => {
+    if (!role) return null;
+    const fromCatalogue = rolesCatalogue.find((r) => r.id === role.id);
+    return fromCatalogue?.user_count ?? null;
+  }, [role, rolesCatalogue]);
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 pb-24">
-      <header>
-        <Button
+    <form onSubmit={handleSubmit} className="pb-24">
+      <header className="mb-6 flex items-start gap-4">
+        <button
           type="button"
-          variant="ghost"
-          size="sm"
           onClick={() => navigate('/settings/roles')}
-          className="-ml-2 mb-1 gap-1.5 text-muted-foreground"
+          className="mt-1 grid size-9 shrink-0 place-items-center rounded-xl bg-white text-zinc-600 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)] transition hover:bg-zinc-50 hover:text-zinc-900"
+          aria-label={t('settings.roles.editor.back')}
         >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          {t('settings.roles.editor.back')}
-        </Button>
-        <h2 className="display flex items-center gap-2 text-2xl font-semibold tracking-tight">
-          {isEdit ? (
-            <ShieldCheck className="size-6 text-accent-violet" aria-hidden="true" />
-          ) : (
-            <ShieldPlus className="size-6 text-accent-violet" aria-hidden="true" />
-          )}
-          {isEdit
-            ? t('settings.roles.editor.title_edit', { name: role?.name ?? '...' })
-            : t('settings.roles.editor.title_create')}
-        </h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          {t('settings.roles.editor.intro')}
-        </p>
+          <ArrowLeft className="size-4" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 text-[11.5px] text-zinc-500">
+            <button
+              type="button"
+              onClick={() => navigate('/settings/roles')}
+              className="hover:text-zinc-900"
+            >
+              {t('settings.roles.title')}
+            </button>
+            <span className="mx-1.5 text-zinc-300">/</span>
+            <span className="text-zinc-700">
+              {isEdit
+                ? (role?.name ?? '...')
+                : t('settings.roles.editor.title_create_short', {
+                    defaultValue: 'Nowa custom role',
+                  })}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {role ? <span className={cn('size-2.5 rounded-full', color.dot)} aria-hidden /> : null}
+            {isEdit && isSystem ? (
+              <h2 className="text-[24px] font-semibold tracking-tight text-zinc-900">
+                {role?.name ?? '...'}
+              </h2>
+            ) : (
+              <Input
+                value={name}
+                disabled={isSystem || loading}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t('settings.roles.editor.field_name_placeholder')}
+                className="h-auto min-w-[320px] border-0 border-b border-zinc-200 bg-transparent p-0 px-1 text-[24px] font-semibold tracking-tight focus-visible:border-zinc-900 focus-visible:ring-0"
+              />
+            )}
+            {isSystem ? (
+              <span className="inline-flex items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[10.5px] font-medium text-zinc-600">
+                <Lock className="size-2.5" aria-hidden />
+                {t('settings.roles.badge_system', { defaultValue: 'system' })}
+              </span>
+            ) : null}
+            {scope === 'platform' ? (
+              <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">
+                {t('settings.roles.editor.badge_platform_cross_tenant', {
+                  defaultValue: 'platform · cross-tenant',
+                })}
+              </span>
+            ) : null}
+            {role?.is_unique ? (
+              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                {t('settings.roles.badge_unique', { defaultValue: 'unique · max 1' })}
+              </span>
+            ) : null}
+            {userCount !== null ? (
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10.5px] text-zinc-500">
+                {t('settings.roles.editor.user_count', {
+                  count: userCount,
+                  defaultValue: '{{count}} użytkowników',
+                })}
+              </span>
+            ) : null}
+          </div>
+          {description ? (
+            <p className="mt-2 max-w-2xl text-[12.5px] text-zinc-500">{description}</p>
+          ) : null}
+        </div>
       </header>
 
-      <SectionCard
-        title={t('settings.roles.editor.section_identity')}
-        description={t('settings.roles.editor.section_identity_intro')}
-      >
-        {isSystem ? (
-          <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            {t('settings.roles.editor.system_notice')}
-          </div>
-        ) : null}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="role-name">{t('settings.roles.editor.field_name')}</Label>
-            <Input
-              id="role-name"
-              required
-              value={name}
-              disabled={isSystem || loading}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('settings.roles.editor.field_name_placeholder')}
-              maxLength={80}
-              autoComplete="off"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="role-code">{t('settings.roles.editor.field_code')}</Label>
-            <Input
-              id="role-code"
-              value={code}
-              disabled={isSystem || isEdit || loading}
-              onChange={(e) => {
-                setCodeTouched(true);
-                setCode(e.target.value);
-              }}
-              placeholder={t('settings.roles.editor.field_code_placeholder')}
-              maxLength={64}
-              autoComplete="off"
-              className="font-mono"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              {t('settings.roles.editor.field_code_hint')}
-            </p>
-          </div>
-        </div>
-        <div className="mt-3 space-y-1.5">
-          <Label htmlFor="role-description">{t('settings.roles.editor.field_description')}</Label>
-          <textarea
-            id="role-description"
-            value={description}
-            disabled={isSystem || loading}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-            maxLength={500}
-            placeholder={t('settings.roles.editor.field_description_placeholder')}
-            className="w-full rounded-md border border-input bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          <p className="text-[11px] text-muted-foreground">
-            {t('settings.roles.editor.field_description_hint')}
-          </p>
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        title={t('settings.roles.editor.section_advanced')}
-        description={t('settings.roles.editor.section_advanced_intro')}
-      >
-        <label className="flex items-start gap-3 rounded-md border bg-background px-3 py-2 text-sm">
-          <input
-            type="checkbox"
-            className="mt-0.5 size-4"
-            checked={autoGrant}
-            disabled={loading || submitting}
-            onChange={(e) => setAutoGrant(e.target.checked)}
-          />
-          <div className="flex-1 space-y-0.5">
-            <div className="font-medium">{t('settings.roles.editor.auto_grant_label')}</div>
-            <p className="text-[11px] text-muted-foreground">
-              {t('settings.roles.editor.auto_grant_hint')}
-            </p>
-          </div>
-        </label>
-      </SectionCard>
-
-      <SectionCard
-        title={t('settings.roles.editor.matrix_title')}
-        description={t('settings.roles.editor.matrix_intro')}
-        meta={t('settings.roles.editor.matrix_count', {
-          selected: counts.selected,
-          total: counts.total,
-        })}
-      >
-        {loading ? (
-          <div className="h-64 animate-pulse rounded-md border bg-muted/30" />
-        ) : (
-          <PermissionMatrix
-            groups={groups}
-            selectedCodes={selected}
-            onToggle={togglePermission}
-            disabled={submitting || deleting}
-          />
-        )}
-      </SectionCard>
-
-      <SectionCard
-        title={t('settings.roles.editor.section_field_restrictions')}
-        description={t('settings.roles.editor.section_field_restrictions_intro')}
-        meta={t('settings.roles.attr_perms.override_count', { count: attrOverrideCount })}
-      >
-        {isEdit ? (
-          <AttributePermissionsSection
-            groups={attrGroups}
-            draft={attrDraft}
-            onChange={setAttrDraft}
-            loading={loading}
-            disabled={submitting || deleting}
-          />
-        ) : (
-          <div className="rounded-md border border-dashed bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
-            {t('settings.roles.attr_perms.create_first')}
-          </div>
-        )}
-      </SectionCard>
-
-      <SectionCard
-        title={t('settings.roles.editor.section_locale_channel_scope')}
-        description={t('settings.roles.editor.section_locale_channel_scope_intro')}
-      >
-        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
-          {t('settings.roles.editor.scope_deferred_notice')}
-        </div>
-      </SectionCard>
-
-      {/* Sticky bottom action bar — single save + cancel/reset per
-          PRD §5.3 mockup (no top-header save button). */}
-      <div className="sticky bottom-0 -mx-4 mt-2 border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={cn('text-xs', isDirty ? 'text-amber-700' : 'text-muted-foreground')}
-            aria-live="polite"
-          >
-            {isDirty
-              ? t('settings.roles.editor.dirty_indicator')
-              : t('settings.roles.editor.clean_indicator')}
+      {isSystem ? (
+        <div className="mb-4 flex items-start gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-[12px] text-zinc-700">
+          <Info className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+          <span>
+            <span className="font-medium text-zinc-900">
+              {t('settings.roles.editor.system_notice_title', {
+                defaultValue: 'System template:',
+              })}{' '}
+            </span>
+            {t('settings.roles.editor.system_notice_body', {
+              defaultValue:
+                'nazwa i kod są read-only, ale możesz dostosowywać permissions, restrykcje atrybutów, locale & channel scope. Roli nie można usunąć.',
+            })}
           </span>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            {isCustom ? (
-              <Button
+        </div>
+      ) : null}
+
+      {scope === 'platform' ? (
+        <div className="mb-4 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] text-rose-800">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>
+            <span className="font-medium">
+              {t('settings.roles.editor.platform_notice_title', {
+                defaultValue: 'Platform-level role.',
+              })}{' '}
+            </span>
+            {t('settings.roles.editor.platform_notice_body', {
+              defaultValue:
+                'Edycja wymaga uprawnień Cortex operator + MFA re-auth. Każda zmiana logowana jako SUPER_ADMIN_RECOVERY.',
+            })}
+          </span>
+        </div>
+      ) : null}
+
+      <div className="overflow-hidden rounded-3xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)]">
+        <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-100 px-5 pt-3">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            const meta =
+              tab.id === 'matrix'
+                ? `${counts.selected}/${counts.total}`
+                : tab.id === 'attrs' && attrOverrideCount > 0
+                  ? String(attrOverrideCount)
+                  : null;
+            return (
+              <button
+                key={tab.id}
                 type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleDelete}
-                disabled={submitting || deleting}
-                className="gap-1.5 text-rose-700 hover:bg-rose-50"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'relative flex h-11 shrink-0 items-center gap-1.5 px-3.5 text-[12.5px] font-medium transition',
+                  active ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900',
+                )}
               >
-                <Trash2 className="size-4" aria-hidden="true" />
-                {t('settings.roles.editor.delete')}
-              </Button>
-            ) : null}
+                <Icon className={cn('size-3.5', active ? 'text-zinc-900' : 'text-zinc-400')} />
+                {t(tab.labelKey)}
+                {meta ? (
+                  <span
+                    className={cn(
+                      'rounded-md px-1.5 py-0.5 font-mono text-[10.5px]',
+                      active
+                        ? 'bg-zinc-900 text-white'
+                        : tab.id === 'attrs'
+                          ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-200'
+                          : 'bg-zinc-100 text-zinc-500',
+                    )}
+                  >
+                    {meta}
+                  </span>
+                ) : null}
+                {active ? (
+                  <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-t bg-zinc-900" />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="px-5 py-6">
+          {activeTab === 'matrix' ? (
+            <div className="space-y-4">
+              {!isSystem || scope !== 'platform' ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-[11.5px] text-zinc-500">
+                    {t('settings.roles.editor.quick_start_label', {
+                      defaultValue: 'Szybki start:',
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset('deny_all')}
+                    disabled={loading}
+                    className="h-7 rounded-lg border border-zinc-200 bg-white px-2.5 text-[11.5px] text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
+                  >
+                    {t('settings.roles.editor.preset_deny_all', {
+                      defaultValue: 'Wyzeruj wszystko',
+                    })}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset('read_only')}
+                    disabled={loading}
+                    className="h-7 rounded-lg border border-zinc-200 bg-white px-2.5 text-[11.5px] text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
+                  >
+                    {t('settings.roles.editor.preset_read_only', {
+                      defaultValue: 'Tylko read-only',
+                    })}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset('from_catalog_manager')}
+                    disabled={loading || rolesCatalogue.length === 0}
+                    className="h-7 rounded-lg border border-zinc-200 bg-white px-2.5 text-[11.5px] text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
+                  >
+                    {t('settings.roles.editor.preset_catalog_manager', {
+                      defaultValue: 'Skopiuj z Catalog Manager',
+                    })}
+                  </button>
+                </div>
+              ) : null}
+
+              {loading ? (
+                <div className="h-64 animate-pulse rounded-md border bg-muted/30" />
+              ) : (
+                <PermissionMatrixAccordion
+                  groups={groups}
+                  selectedCodes={selected}
+                  onToggle={togglePermission}
+                  onToggleGroup={(group, allOn) => {
+                    setSelected((prev) => {
+                      const next = new Set(prev);
+                      if (allOn) {
+                        for (const p of group.permissions) next.delete(p.code);
+                      } else {
+                        for (const p of group.permissions) next.add(p.code);
+                      }
+                      return next;
+                    });
+                  }}
+                  disabled={submitting || deleting}
+                />
+              )}
+            </div>
+          ) : null}
+
+          {activeTab === 'attrs' ? (
+            isEdit ? (
+              <AttributePermissionsSection
+                groups={attrGroups}
+                draft={attrDraft}
+                onChange={setAttrDraft}
+                loading={loading}
+                disabled={submitting || deleting}
+              />
+            ) : (
+              <div className="rounded-md border border-dashed bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
+                {t('settings.roles.attr_perms.create_first')}
+              </div>
+            )
+          ) : null}
+
+          {activeTab === 'scope' ? (
+            <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50 p-6 text-center">
+              <Layers className="mx-auto mb-2 size-6 text-zinc-400" aria-hidden />
+              <div className="text-[13px] font-medium text-zinc-900">
+                {t('settings.roles.editor.scope_tab_title', {
+                  defaultValue: 'Locale & Channel scope',
+                })}
+              </div>
+              <p className="mt-1 text-[12px] text-zinc-500">
+                {t('settings.roles.editor.scope_deferred_notice')}
+              </p>
+            </div>
+          ) : null}
+
+          {activeTab === 'meta' ? (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="role-name">{t('settings.roles.editor.field_name')}</Label>
+                  <Input
+                    id="role-name"
+                    required
+                    value={name}
+                    disabled={isSystem || loading}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={t('settings.roles.editor.field_name_placeholder')}
+                    maxLength={80}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="role-code">{t('settings.roles.editor.field_code')}</Label>
+                  <Input
+                    id="role-code"
+                    value={code}
+                    disabled={isSystem || isEdit || loading}
+                    onChange={(e) => {
+                      setCodeTouched(true);
+                      setCode(e.target.value);
+                    }}
+                    placeholder={t('settings.roles.editor.field_code_placeholder')}
+                    maxLength={64}
+                    autoComplete="off"
+                    className="font-mono"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    {t('settings.roles.editor.field_code_hint')}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="role-description">
+                  {t('settings.roles.editor.field_description')}
+                </Label>
+                <textarea
+                  id="role-description"
+                  value={description}
+                  disabled={isSystem || loading}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  placeholder={t('settings.roles.editor.field_description_placeholder')}
+                  className="w-full rounded-md border border-input bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {t('settings.roles.editor.field_description_hint')}
+                </p>
+              </div>
+              <label className="flex items-start gap-3 rounded-md border bg-background px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4"
+                  checked={autoGrant}
+                  disabled={loading || submitting}
+                  onChange={(e) => setAutoGrant(e.target.checked)}
+                />
+                <div className="flex-1 space-y-0.5">
+                  <div className="font-medium">{t('settings.roles.editor.auto_grant_label')}</div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t('settings.roles.editor.auto_grant_hint')}
+                  </p>
+                </div>
+              </label>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur md:left-[260px] md:px-8">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-2">
+          {isCustom ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleDelete}
+              disabled={submitting || deleting}
+              className="h-10 gap-1.5 rounded-xl px-3 text-[13px] text-rose-700 hover:bg-rose-50"
+            >
+              <Trash2 className="size-4" aria-hidden />
+              {t('settings.roles.editor.delete')}
+            </Button>
+          ) : null}
+          {isSystem ? (
+            <div className="flex items-center gap-1.5 text-[11.5px] text-zinc-500">
+              <Lock className="size-3.5" aria-hidden />
+              {t('settings.roles.editor.system_template_cannot_delete', {
+                defaultValue: 'System template — nie można usunąć',
+              })}
+            </div>
+          ) : null}
+          <div className="ml-2 hidden text-[11.5px] text-zinc-500 sm:inline-flex sm:items-center sm:gap-1">
+            <FileText className="size-3.5" aria-hidden />
+            {t('settings.roles.editor.cache_invalidation_note', {
+              defaultValue:
+                'Zmiana macierzy permissions invalidates cache wszystkich userów z tą rolą (Mercure SSE event).',
+            })}
+          </div>
+          <div className="ml-auto flex items-center gap-2">
             {isEdit ? (
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={handleReset}
                 disabled={!isDirty || submitting || deleting}
+                className="h-10 rounded-xl px-4 text-[13px] text-zinc-700 hover:bg-zinc-100"
               >
                 {t('settings.roles.editor.reset')}
               </Button>
@@ -532,6 +785,7 @@ export function RoleEditorPage() {
               size="sm"
               onClick={() => navigate('/settings/roles')}
               disabled={submitting}
+              className="h-10 rounded-xl px-4 text-[13px] text-zinc-700 hover:bg-zinc-100"
             >
               {t('settings.roles.editor.cancel')}
             </Button>
@@ -539,7 +793,14 @@ export function RoleEditorPage() {
               type="submit"
               size="sm"
               disabled={submitting || deleting || name.trim().length === 0 || (isEdit && !isDirty)}
+              className={cn(
+                'h-10 rounded-xl px-4 text-[13px] font-medium',
+                isDirty && name.trim().length > 0 && !submitting
+                  ? 'bg-zinc-900 text-white hover:bg-zinc-800'
+                  : 'bg-zinc-200 text-zinc-400',
+              )}
             >
+              <Check className="mr-1.5 size-4" aria-hidden />
               {submitting
                 ? t('settings.roles.editor.saving')
                 : isEdit
@@ -550,33 +811,6 @@ export function RoleEditorPage() {
         </div>
       </div>
     </form>
-  );
-}
-
-function SectionCard({
-  title,
-  description,
-  meta,
-  children,
-}: {
-  title: string;
-  description?: string;
-  meta?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-lg border bg-background shadow-sm">
-      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b bg-muted/30 px-4 py-3">
-        <div className="space-y-0.5">
-          <h3 className="text-sm font-semibold">{title}</h3>
-          {description ? (
-            <p className="max-w-2xl text-[11px] text-muted-foreground">{description}</p>
-          ) : null}
-        </div>
-        {meta ? <span className="text-xs text-muted-foreground">{meta}</span> : null}
-      </header>
-      <div className="p-4">{children}</div>
-    </section>
   );
 }
 
