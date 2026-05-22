@@ -87,6 +87,14 @@ class User extends AggregateRoot implements UserInterface, PasswordAuthenticated
     private DateTimeImmutable $createdAt;
 
     /**
+     * Manual user creation (#867). TRUE means the admin set the password
+     * via `POST /api/users` and the user must replace it on first login —
+     * AuthedRoute blocks navigation away from `/first-login-password`
+     * until the flag is cleared by a successful change-password call.
+     */
+    private bool $passwordChangeRequired;
+
+    /**
      * @param list<string> $roles
      */
     public function __construct(
@@ -95,6 +103,7 @@ class User extends AggregateRoot implements UserInterface, PasswordAuthenticated
         string $passwordHash,
         array $roles = ['ROLE_USER'],
         ?Uuid $id = null,
+        bool $passwordChangeRequired = false,
     ) {
         $this->id = $id ?? Uuid::v7();
         $this->tenant = $tenant;
@@ -108,6 +117,7 @@ class User extends AggregateRoot implements UserInterface, PasswordAuthenticated
         $this->totpEnabledAt = null;
         $this->totpBackupCodes = [];
         $this->createdAt = new DateTimeImmutable();
+        $this->passwordChangeRequired = $passwordChangeRequired;
     }
 
     public function getId(): Uuid
@@ -305,5 +315,20 @@ class User extends AggregateRoot implements UserInterface, PasswordAuthenticated
             $this->totpBackupCodes,
             static fn (string $hash): bool => $hash !== $usedHash,
         ));
+    }
+
+    public function isPasswordChangeRequired(): bool
+    {
+        return $this->passwordChangeRequired;
+    }
+
+    public function markPasswordChangeRequired(): void
+    {
+        $this->passwordChangeRequired = true;
+    }
+
+    public function clearPasswordChangeRequired(): void
+    {
+        $this->passwordChangeRequired = false;
     }
 }

@@ -35,7 +35,16 @@
     "submitting": "Signing in...",
     "invalid_credentials": "Invalid email or password.",
     "login_failed": "Sign-in failed. Please try again.",
-    "session_expired": "Your session has expired. Please sign in again."
+    "session_expired": "Your session has expired. Please sign in again.",
+    "first_login_password": {
+      "title": "First sign-in — change your password",
+      "intro": "An administrator set a temporary password for you. Pick a new one before you continue.",
+      "submit": "Change password & continue",
+      "submitting": "Changing...",
+      "success_toast": "Password changed",
+      "error_wrong_password": "Wrong current password.",
+      "error_generic": "Failed to change the password."
+    }
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -520,6 +529,33 @@
       "title": "Users",
       "intro": "Manage user accounts inside this tenant. Magic-link invitations, MFA and role assignment land in follow-up tickets.",
       "invite_cta": "Invite user",
+      "add_manually": {
+        "cta": "Add manually",
+        "title": "Add user manually",
+        "intro": "Create the account without a magic-link — the admin sets the password directly. The user is active immediately; if you keep the force-change flag on, they hit the change-password screen on first sign-in.",
+        "field_email": "Email",
+        "field_display_name": "Display name (optional)",
+        "field_role": "Role",
+        "field_password": "Password",
+        "field_password_placeholder": "Min. 12 characters",
+        "field_password_hint_one": "Min. {{count}} character. Share the password with the user out-of-band.",
+        "field_password_hint_other": "Min. {{count}} characters. Share the password with the user out-of-band.",
+        "field_password_hint": "Min. {{count}} characters. Share the password with the user out-of-band.",
+        "password_show": "Show password",
+        "password_hide": "Hide password",
+        "force_password_change_label": "Require password change on first sign-in",
+        "force_password_change_hint": "Default on — the user lands on the change-password screen right after sign-in and cannot proceed until they pick their own password.",
+        "send_welcome_email_label": "Send welcome email",
+        "send_welcome_email_hint": "No password in the body (best practice). The email contains the sign-in URL + a note that the password will be delivered separately.",
+        "submit": "Create account",
+        "submitting": "Creating...",
+        "cancel": "Cancel",
+        "success_toast": "Created account for {{email}}",
+        "error_duplicate": "A user with this email already exists.",
+        "error_validation": "Invalid input.",
+        "error_forbidden": "You don't have permission to create users.",
+        "error_generic": "Failed to create the user."
+      },
       "invite": {
         "title": "Invite user",
         "intro": "We'll send a magic-link to the given email. The user picks a password and optionally enables MFA on first sign-in.",

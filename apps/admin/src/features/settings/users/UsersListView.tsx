@@ -29,6 +29,7 @@ import { jsonFetch } from '@/lib/http';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { cn } from '@/lib/utils';
 
+import { AddUserManuallyModal } from './AddUserManuallyModal';
 import { DeactivateUserModal } from './DeactivateUserModal';
 import { InviteUserModal } from './InviteUserModal';
 import { RoleChip } from './RoleChip';
@@ -181,6 +182,11 @@ export function UsersListView() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const users: UserListItem[] = result?.data ?? [];
   const [inviteOpen, setInviteOpen] = useState(false);
+  // Manual user creation (#867) — admin alternative to magic-link invite.
+  // State sits next to inviteOpen so both modals share the same list-level
+  // lifetime + refetch path; UsersListView is mounted once and never
+  // remounts between flows.
+  const [addManualOpen, setAddManualOpen] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -231,6 +237,16 @@ export function UsersListView() {
         <div className="font-mono text-[11.5px] text-zinc-500">
           {t('settings.users.showing_count', { shown: users.length, total })}
         </div>
+        <GatedButton
+          permission="user.write"
+          variant="outline"
+          size="sm"
+          className="h-9 gap-1.5 rounded-xl border-zinc-200 px-3.5 text-[12.5px] font-medium text-zinc-700 hover:bg-zinc-100"
+          onClick={() => setAddManualOpen(true)}
+        >
+          <UserPlus className="size-4" aria-hidden />
+          {t('settings.users.add_manually.cta')}
+        </GatedButton>
         <GatedButton
           permission="user.write"
           size="sm"
@@ -293,6 +309,14 @@ export function UsersListView() {
         user={deactivateTarget}
         open={deactivateOpen}
         onOpenChange={setDeactivateOpen}
+        onSuccess={() => {
+          void refetch();
+        }}
+      />
+
+      <AddUserManuallyModal
+        open={addManualOpen}
+        onOpenChange={setAddManualOpen}
         onSuccess={() => {
           void refetch();
         }}
