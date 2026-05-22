@@ -23,6 +23,7 @@ import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 import { AddLocaleModal } from './AddLocaleModal';
+import { ChannelLocaleMatrix } from './ChannelLocaleMatrix';
 import type { TenantLocaleListItem, TenantLocaleListResponse } from './types';
 
 /**
@@ -212,6 +213,8 @@ export function LocalesSettingsPage() {
           void refetch();
         }}
       />
+
+      <ChannelLocaleMatrix activeLocales={rows ?? []} />
     </div>
   );
 }

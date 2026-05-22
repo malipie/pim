@@ -490,6 +490,17 @@
         "activating": "Activating…",
         "cancel": "Cancel",
         "toast_activated": "{{code}} activated."
+      },
+      "channel_matrix": {
+        "title": "Channel assignment",
+        "intro": "Pick which locales are active on which distribution channel. Affects feed publishing and sync.",
+        "col_channel": "Channel",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "discard": "Discard",
+        "empty": "No channels yet. Configure them first in Settings → Channels.",
+        "error_loading": "Could not load the matrix.",
+        "toast_saved": "Channel assignments updated."
       }
     },
     "users": {

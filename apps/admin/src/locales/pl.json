@@ -492,6 +492,17 @@
         "activating": "Aktywuję…",
         "cancel": "Anuluj",
         "toast_activated": "{{code}} aktywowany."
+      },
+      "channel_matrix": {
+        "title": "Przypisanie do kanałów",
+        "intro": "Wybierz, które locale są aktywne na którym kanale dystrybucji. Zmiany dotyczą publikacji i synchronizacji feedów.",
+        "col_channel": "Kanał",
+        "save": "Zapisz zmiany",
+        "saving": "Zapisuję…",
+        "discard": "Odrzuć",
+        "empty": "Brak kanałów. Skonfiguruj je najpierw w Ustawienia → Kanały.",
+        "error_loading": "Nie udało się załadować macierzy.",
+        "toast_saved": "Przypisania zaktualizowane."
       }
     },
     "users": {
