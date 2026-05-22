@@ -145,13 +145,17 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
     private function findByCode(array $items, string $code): array
     {
         foreach ($items as $item) {
-            if (!\is_array($item)) {
+            if (!\is_array($item) || ($item['channelCode'] ?? null) !== $code) {
                 continue;
             }
-            if ($item['channelCode'] === $code) {
-                /* @var array<string, mixed> $item */
-                return $item;
+            $normalized = [];
+            foreach ($item as $key => $value) {
+                if (\is_string($key)) {
+                    $normalized[$key] = $value;
+                }
             }
+
+            return $normalized;
         }
         self::fail("Channel $code not present in matrix.");
     }
