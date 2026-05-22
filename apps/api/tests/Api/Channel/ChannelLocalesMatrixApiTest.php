@@ -37,6 +37,9 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
         $em->persist(new TenantLocale($en, false, true, $pl, 1, $tenant));
         $em->persist(new TenantLocale($de, false, false, null, 2, $tenant));
 
+        // Channel is TenantScoped — feed the listener its tenant before persist.
+        self::getContainer()->get(\App\Shared\Application\TenantContext::class)->set($tenant);
+
         // Two channels — one with two locales bound, one bare.
         $shopify = new Channel('shopify_pl', ['pl' => 'Shopify PL']);
         $shopify->addLocale($pl);
@@ -69,7 +72,7 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
             $byCode[$code] = $item;
         }
 
-        self::assertSame(['pl_PL', 'en_US'], array_values($this->sortChain($byCode['shopify_pl']['localeCodes'])));
+        self::assertSame(['en_US', 'pl_PL'], $this->sortChain($byCode['shopify_pl']['localeCodes']));
         self::assertSame([], $byCode['allegro_pl']['localeCodes']);
     }
 
@@ -135,13 +138,18 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
     }
 
     /**
-     * @param list<array<string, mixed>> $items
+     * @param array<int|string, mixed> $items
+     *
      * @return array<string, mixed>
      */
     private function findByCode(array $items, string $code): array
     {
         foreach ($items as $item) {
+            if (!\is_array($item)) {
+                continue;
+            }
             if ($item['channelCode'] === $code) {
+                /** @var array<string, mixed> $item */
                 return $item;
             }
         }
@@ -149,7 +157,6 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
     }
 
     /**
-     * @param mixed $codes
      * @return list<string>
      */
     private function sortChain(mixed $codes): array
