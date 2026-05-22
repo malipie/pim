@@ -88,6 +88,38 @@ final class TenantLocaleController
         ]);
     }
 
+    #[Route('/api/tenant-locales/preview-impact', name: 'pim_tenant_locales_preview_impact', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'settings.tenant', action: 'manage')]
+    public function previewImpact(Request $request): JsonResponse
+    {
+        $tenant = $this->requireTenant();
+        $body = $this->decodeBody($request);
+
+        $code = $this->requireStringField($body, 'code');
+
+        // tenant-safe: explicit tenant_id filter in WHERE
+        $productCountRaw = $this->connection->fetchOne(
+            "SELECT COUNT(*) FROM objects WHERE tenant_id = :tenant AND kind = 'product' AND enabled = true",
+            ['tenant' => $tenant->getId()->toRfc4122()],
+        );
+        $productCount = \is_numeric($productCountRaw) ? (int) $productCountRaw : 0;
+
+        // tenant-safe: explicit tenant_id filter in WHERE
+        $valuesWithCodeRaw = $this->connection->fetchOne(
+            'SELECT COUNT(DISTINCT object_id) FROM object_values WHERE tenant_id = :tenant AND locale = :code',
+            ['tenant' => $tenant->getId()->toRfc4122(), 'code' => $code],
+        );
+        $valuesWithCode = \is_numeric($valuesWithCodeRaw) ? (int) $valuesWithCodeRaw : 0;
+
+        return new JsonResponse([
+            'code' => $code,
+            'productsInTenant' => $productCount,
+            'objectsWithValuesInLocale' => $valuesWithCode,
+            'objectsMissingValuesInLocale' => max(0, $productCount - $valuesWithCode),
+        ]);
+    }
+
     #[Route('/api/tenant-locales/{code}', name: 'pim_tenant_locales_get', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     #[RequiresPermission(module: 'settings.tenant', action: 'manage')]

@@ -263,4 +263,21 @@ final class TenantLocalesApiTest extends ChannelApiTestCase
         $followup = $client->request('GET', '/api/tenant-locales/de_DE');
         self::assertSame(404, $followup->getStatusCode());
     }
+
+    #[Test]
+    public function previewImpactReturnsProductCounts(): void
+    {
+        $client = $this->authenticatedClient();
+        $response = $client->request('POST', '/api/tenant-locales/preview-impact', [
+            'json' => ['code' => 'pl_PL'],
+        ]);
+
+        self::assertSame(200, $response->getStatusCode());
+        $payload = $response->toArray();
+        self::assertSame('pl_PL', $payload['code']);
+        self::assertIsInt($payload['productsInTenant']);
+        self::assertIsInt($payload['objectsWithValuesInLocale']);
+        self::assertIsInt($payload['objectsMissingValuesInLocale']);
+        self::assertGreaterThanOrEqual(0, $payload['objectsMissingValuesInLocale']);
+    }
 }
