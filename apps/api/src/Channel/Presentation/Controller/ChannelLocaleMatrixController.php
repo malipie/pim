@@ -47,13 +47,13 @@ final class ChannelLocaleMatrixController
     {
         $tenant = $this->requireTenant();
 
-        // tenant-safe: explicit tenant_id filter in WHERE
+        // tenant-safe: explicit tenant_id filter via channels FK chain
         $rows = $this->connection->fetchAllAssociative(
             'SELECT c.id AS channel_id, c.code AS channel_code, l.code AS locale_code
              FROM channel_locales cl
              JOIN channels c ON c.id = cl.channel_id
              JOIN locales l ON l.id = cl.locale_id
-             WHERE cl.tenant_id = :tenant
+             WHERE c.tenant_id = :tenant
              ORDER BY c.code, l.code',
             ['tenant' => $tenant->getId()->toRfc4122()],
         );
@@ -158,20 +158,20 @@ final class ChannelLocaleMatrixController
 
         $this->connection->beginTransaction();
         try {
-            // tenant-safe: explicit tenant_id filter in WHERE
+            // tenant-safe: scope DELETE by channel_id list pre-filtered to the tenant
             $this->connection->executeStatement(
-                'DELETE FROM channel_locales WHERE tenant_id = :tenant',
+                'DELETE FROM channel_locales
+                 WHERE channel_id IN (SELECT id FROM channels WHERE tenant_id = :tenant)',
                 ['tenant' => $tenant->getId()->toRfc4122()],
             );
 
             foreach ($plan as $channelId => $resolved) {
                 foreach ($resolved as $locale) {
-                    // tenant-safe: junction inherits tenant via FK chain — tenant_id supplied explicitly
+                    // tenant-safe: junction inherits tenant via FK chain on channels
                     $this->connection->executeStatement(
-                        'INSERT INTO channel_locales (tenant_id, channel_id, locale_id)
-                         VALUES (:tenant, :channel, :locale)',
+                        'INSERT INTO channel_locales (channel_id, locale_id)
+                         VALUES (:channel, :locale)',
                         [
-                            'tenant' => $tenant->getId()->toRfc4122(),
                             'channel' => $channelId,
                             'locale' => $locale->getId()->toRfc4122(),
                         ],
