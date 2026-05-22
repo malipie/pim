@@ -166,7 +166,6 @@ final class ChannelLocaleMatrixController
 
             foreach ($plan as $channelId => $resolved) {
                 foreach ($resolved as $locale) {
-                    \assert($locale instanceof Locale);
                     // tenant-safe: junction inherits tenant via FK chain — tenant_id supplied explicitly
                     $this->connection->executeStatement(
                         'INSERT INTO channel_locales (tenant_id, channel_id, locale_id)
