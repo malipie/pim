@@ -11,13 +11,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Table,
   TableBody,
   TableCell,
@@ -266,23 +259,23 @@ function LocaleRow({
         </label>
       </TableCell>
       <TableCell>
-        <Select
+        <select
           value={row.fallbackCode ?? '__none__'}
-          onValueChange={(value) => onChangeFallback(row, value === '__none__' ? null : value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            onChangeFallback(row, next === '__none__' ? null : next);
+          }}
           disabled={!row.isActive}
+          aria-label={t('settings.locales.col_fallback')}
+          className="h-8 w-[140px] rounded-md border border-input bg-background px-2 text-xs"
         >
-          <SelectTrigger className="h-8 w-[140px] text-xs">
-            <SelectValue placeholder={t('settings.locales.fallback_none')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">{t('settings.locales.fallback_none')}</SelectItem>
-            {availableFallbacks.map((code) => (
-              <SelectItem key={code} value={code} className="font-mono">
-                {code}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <option value="__none__">{t('settings.locales.fallback_none')}</option>
+          {availableFallbacks.map((code) => (
+            <option key={code} value={code} className="font-mono">
+              {code}
+            </option>
+          ))}
+        </select>
       </TableCell>
       <TableCell>
         <span
