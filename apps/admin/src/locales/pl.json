@@ -453,6 +453,32 @@
         "enterprise": "Enterprise"
       }
     },
+    "locales": {
+      "title": "Wersje językowe",
+      "intro": "Wybierz, w jakich językach pracujesz na tenancie. Każdy locale ma flagę domyślności, wymagalność dla completeness oraz opcjonalny fallback do innego locale.",
+      "col_locale": "Locale",
+      "col_default": "Domyślny",
+      "col_mandatory": "Wymagany",
+      "col_fallback": "Fallback",
+      "col_status": "Status",
+      "col_actions": "Akcje",
+      "badge_default": "Domyślny",
+      "mandatory_on": "Tak",
+      "mandatory_off": "Nie",
+      "fallback_none": "Brak",
+      "status_active": "Aktywny",
+      "status_inactive": "Wyłączony",
+      "row_actions": "Akcje wiersza",
+      "action_set_default": "Ustaw jako domyślny",
+      "action_deactivate": "Wyłącz",
+      "action_reactivate": "Włącz ponownie",
+      "empty": "Brak aktywnych locali. Dodaj pierwszy z biblioteki ISO.",
+      "error_loading": "Nie udało się załadować locali. Spróbuj odświeżyć.",
+      "toast": {
+        "default_changed": "{{code}} jest teraz domyślnym locale.",
+        "deactivated": "{{code}} wyłączony — dane zachowane."
+      }
+    },
     "users": {
       "title": "Użytkownicy",
       "intro": "Zarządzaj kontami w obrębie tenanta. Zaproszenia magic link, MFA i przypisanie ról dochodzą w kolejnych ticketach.",
