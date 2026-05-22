@@ -42,7 +42,7 @@ final class ChannelLocaleMatrixController
 
     #[Route('/api/channel-locales', name: 'pim_channel_locales_get', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    #[RequiresPermission(module: 'channel', action: 'read')]
+    #[RequiresPermission(module: 'publications', action: 'view')]
     public function get(): JsonResponse
     {
         $tenant = $this->requireTenant();
@@ -111,7 +111,9 @@ final class ChannelLocaleMatrixController
         );
         $tenantChannels = [];
         foreach ($tenantChannelIds as $id) {
-            $tenantChannels[(string) $id] = true;
+            if (\is_string($id)) {
+                $tenantChannels[$id] = true;
+            }
         }
 
         $activeLocalesByCode = [];
