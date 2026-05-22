@@ -108,6 +108,7 @@ final class PrdPermissionFixtures extends Fixture
         'settings.users.manage',
         'settings.roles.manage',
         'settings.tenant.manage',
+        'settings.locales.manage',
         'settings.billing.manage',
         'settings.integrations.manage',
         'settings.integration_secrets.read',

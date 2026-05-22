@@ -473,6 +473,58 @@
         "enterprise": "Enterprise"
       }
     },
+    "locales": {
+      "title": "Languages",
+      "intro": "Pick which languages this tenant works in. Each locale carries a default flag, a mandatory flag that feeds completeness, and an optional fallback to another locale.",
+      "col_locale": "Locale",
+      "col_default": "Default",
+      "col_mandatory": "Mandatory",
+      "col_fallback": "Fallback",
+      "col_status": "Status",
+      "col_actions": "Actions",
+      "badge_default": "Default",
+      "mandatory_on": "Yes",
+      "mandatory_off": "No",
+      "fallback_none": "None",
+      "status_active": "Active",
+      "status_inactive": "Disabled",
+      "row_actions": "Row actions",
+      "action_set_default": "Set as default",
+      "action_deactivate": "Disable",
+      "action_reactivate": "Reactivate",
+      "add_cta": "Add locale",
+      "empty": "No locales activated. Add one from the ISO catalog.",
+      "error_loading": "Could not load locales. Try refreshing.",
+      "toast": {
+        "default_changed": "{{code}} is now the default locale.",
+        "deactivated": "{{code}} disabled — data retained."
+      },
+      "add_modal": {
+        "title": "Add locale",
+        "intro": "Pick a locale from the ISO catalog. The Popular section lists the 14 CEE+DACH defaults; the full catalog follows.",
+        "search_placeholder": "Search language, region or code (e.g. de, pl_PL)…",
+        "section_popular": "Popular",
+        "section_all": "All",
+        "no_results": "No matches in the catalog.",
+        "mandatory_label": "Mark as mandatory (affects completeness)",
+        "impact_hint": "{{code}}: {{missing}} of {{total}} products have no value in this locale yet.",
+        "already_active": "Already active",
+        "activating": "Activating…",
+        "cancel": "Cancel",
+        "toast_activated": "{{code}} activated."
+      },
+      "channel_matrix": {
+        "title": "Channel assignment",
+        "intro": "Pick which locales are active on which distribution channel. Affects feed publishing and sync.",
+        "col_channel": "Channel",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "discard": "Discard",
+        "empty": "No channels yet. Configure them first in Settings → Channels.",
+        "error_loading": "Could not load the matrix.",
+        "toast_saved": "Channel assignments updated."
+      }
+    },
     "users": {
       "title": "Users",
       "intro": "Manage user accounts inside this tenant. Magic-link invitations, MFA and role assignment land in follow-up tickets.",

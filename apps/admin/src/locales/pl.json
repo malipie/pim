@@ -475,6 +475,58 @@
         "enterprise": "Enterprise"
       }
     },
+    "locales": {
+      "title": "Wersje językowe",
+      "intro": "Wybierz, w jakich językach pracujesz na tenancie. Każdy locale ma flagę domyślności, wymagalność dla completeness oraz opcjonalny fallback do innego locale.",
+      "col_locale": "Locale",
+      "col_default": "Domyślny",
+      "col_mandatory": "Wymagany",
+      "col_fallback": "Fallback",
+      "col_status": "Status",
+      "col_actions": "Akcje",
+      "badge_default": "Domyślny",
+      "mandatory_on": "Tak",
+      "mandatory_off": "Nie",
+      "fallback_none": "Brak",
+      "status_active": "Aktywny",
+      "status_inactive": "Wyłączony",
+      "row_actions": "Akcje wiersza",
+      "action_set_default": "Ustaw jako domyślny",
+      "action_deactivate": "Wyłącz",
+      "action_reactivate": "Włącz ponownie",
+      "add_cta": "Dodaj lokalizację",
+      "empty": "Brak aktywnych locali. Dodaj pierwszy z biblioteki ISO.",
+      "error_loading": "Nie udało się załadować locali. Spróbuj odświeżyć.",
+      "toast": {
+        "default_changed": "{{code}} jest teraz domyślnym locale.",
+        "deactivated": "{{code}} wyłączony — dane zachowane."
+      },
+      "add_modal": {
+        "title": "Dodaj lokalizację",
+        "intro": "Wybierz locale z katalogu ISO. Sekcja Popularne zawiera 14 typowych dla rynku CEE+DACH; pełna lista jest niżej.",
+        "search_placeholder": "Szukaj języka, regionu lub kodu (np. de, pl_PL)…",
+        "section_popular": "Popularne",
+        "section_all": "Wszystkie",
+        "no_results": "Brak dopasowań w katalogu.",
+        "mandatory_label": "Oznacz jako wymagany (wpływa na completeness)",
+        "impact_hint": "{{code}}: {{missing}} z {{total}} produktów nie ma jeszcze wartości w tym locale.",
+        "already_active": "Już aktywny",
+        "activating": "Aktywuję…",
+        "cancel": "Anuluj",
+        "toast_activated": "{{code}} aktywowany."
+      },
+      "channel_matrix": {
+        "title": "Przypisanie do kanałów",
+        "intro": "Wybierz, które locale są aktywne na którym kanale dystrybucji. Zmiany dotyczą publikacji i synchronizacji feedów.",
+        "col_channel": "Kanał",
+        "save": "Zapisz zmiany",
+        "saving": "Zapisuję…",
+        "discard": "Odrzuć",
+        "empty": "Brak kanałów. Skonfiguruj je najpierw w Ustawienia → Kanały.",
+        "error_loading": "Nie udało się załadować macierzy.",
+        "toast_saved": "Przypisania zaktualizowane."
+      }
+    },
     "users": {
       "title": "Użytkownicy",
       "intro": "Zarządzaj kontami w obrębie tenanta. Zaproszenia magic link, MFA i przypisanie ról dochodzą w kolejnych ticketach.",
