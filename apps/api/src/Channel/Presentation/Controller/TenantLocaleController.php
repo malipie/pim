@@ -100,7 +100,7 @@ final class TenantLocaleController
 
         // tenant-safe: explicit tenant_id filter in WHERE
         $productCountRaw = $this->connection->fetchOne(
-            "SELECT COUNT(*) FROM objects WHERE tenant_id = :tenant AND kind = 'product' AND deleted_at IS NULL",
+            "SELECT COUNT(*) FROM objects WHERE tenant_id = :tenant AND kind = 'product' AND enabled = true",
             ['tenant' => $tenant->getId()->toRfc4122()],
         );
         $productCount = \is_numeric($productCountRaw) ? (int) $productCountRaw : 0;
