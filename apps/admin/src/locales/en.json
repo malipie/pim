@@ -470,11 +470,26 @@
       "action_set_default": "Set as default",
       "action_deactivate": "Disable",
       "action_reactivate": "Reactivate",
+      "add_cta": "Add locale",
       "empty": "No locales activated. Add one from the ISO catalog.",
       "error_loading": "Could not load locales. Try refreshing.",
       "toast": {
         "default_changed": "{{code}} is now the default locale.",
         "deactivated": "{{code}} disabled — data retained."
+      },
+      "add_modal": {
+        "title": "Add locale",
+        "intro": "Pick a locale from the ISO catalog. The Popular section lists the 14 CEE+DACH defaults; the full catalog follows.",
+        "search_placeholder": "Search language, region or code (e.g. de, pl_PL)…",
+        "section_popular": "Popular",
+        "section_all": "All",
+        "no_results": "No matches in the catalog.",
+        "mandatory_label": "Mark as mandatory (affects completeness)",
+        "impact_hint": "{{code}}: {{missing}} of {{total}} products have no value in this locale yet.",
+        "already_active": "Already active",
+        "activating": "Activating…",
+        "cancel": "Cancel",
+        "toast_activated": "{{code}} activated."
       }
     },
     "users": {

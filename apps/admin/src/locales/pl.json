@@ -472,11 +472,26 @@
       "action_set_default": "Ustaw jako domyślny",
       "action_deactivate": "Wyłącz",
       "action_reactivate": "Włącz ponownie",
+      "add_cta": "Dodaj lokalizację",
       "empty": "Brak aktywnych locali. Dodaj pierwszy z biblioteki ISO.",
       "error_loading": "Nie udało się załadować locali. Spróbuj odświeżyć.",
       "toast": {
         "default_changed": "{{code}} jest teraz domyślnym locale.",
         "deactivated": "{{code}} wyłączony — dane zachowane."
+      },
+      "add_modal": {
+        "title": "Dodaj lokalizację",
+        "intro": "Wybierz locale z katalogu ISO. Sekcja Popularne zawiera 14 typowych dla rynku CEE+DACH; pełna lista jest niżej.",
+        "search_placeholder": "Szukaj języka, regionu lub kodu (np. de, pl_PL)…",
+        "section_popular": "Popularne",
+        "section_all": "Wszystkie",
+        "no_results": "Brak dopasowań w katalogu.",
+        "mandatory_label": "Oznacz jako wymagany (wpływa na completeness)",
+        "impact_hint": "{{code}}: {{missing}} z {{total}} produktów nie ma jeszcze wartości w tym locale.",
+        "already_active": "Już aktywny",
+        "activating": "Aktywuję…",
+        "cancel": "Anuluj",
+        "toast_activated": "{{code}} aktywowany."
       }
     },
     "users": {

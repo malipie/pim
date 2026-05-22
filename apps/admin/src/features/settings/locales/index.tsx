@@ -1,4 +1,4 @@
-import { Languages, MoreHorizontal, Star } from 'lucide-react';
+import { Languages, MoreHorizontal, Plus, Star } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -22,6 +22,7 @@ import { toast } from '@/components/ui/toast';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
+import { AddLocaleModal } from './AddLocaleModal';
 import type { TenantLocaleListItem, TenantLocaleListResponse } from './types';
 
 /**
@@ -66,6 +67,13 @@ export function LocalesSettingsPage() {
     () => rows?.filter((r) => r.isActive).map((r) => r.code) ?? [],
     [rows],
   );
+
+  const activatedCodes = useMemo(() => new Set(rows?.map((r) => r.code) ?? []), [rows]);
+  const nextSortOrder = useMemo(() => {
+    if (!rows || rows.length === 0) return 0;
+    return Math.max(...rows.map((r) => r.sortOrder)) + 1;
+  }, [rows]);
+  const [addOpen, setAddOpen] = useState(false);
 
   const onSetDefault = async (code: string) => {
     try {
@@ -142,6 +150,10 @@ export function LocalesSettingsPage() {
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">{t('settings.locales.intro')}</p>
         </div>
+        <Button size="sm" className="gap-1.5" onClick={() => setAddOpen(true)}>
+          <Plus className="size-4" aria-hidden="true" />
+          {t('settings.locales.add_cta')}
+        </Button>
       </header>
 
       <div className="overflow-hidden rounded-lg border bg-background shadow-sm">
@@ -190,6 +202,16 @@ export function LocalesSettingsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <AddLocaleModal
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        activatedCodes={activatedCodes}
+        nextSortOrder={nextSortOrder}
+        onSuccess={() => {
+          void refetch();
+        }}
+      />
     </div>
   );
 }
