@@ -168,7 +168,9 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
         \assert(\is_array($codes));
         $sortable = [];
         foreach ($codes as $code) {
-            $sortable[] = \is_string($code) ? $code : (string) $code;
+            if (\is_string($code)) {
+                $sortable[] = $code;
+            }
         }
         sort($sortable);
 
