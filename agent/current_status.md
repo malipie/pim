@@ -1,5 +1,22 @@
 # Current Status
 
+## 2026-05-23: post-smoke fix #1 — kategoria + dynamiczne atrybuty + modal warning
+
+**Faza drobnych poprawek po manual smoke teście operatora.** Pierwszy bug ticket [#891](../../issues/891) → PR [#892](../../pull/892).
+
+**Process kick-off:** stworzony skill `SKILL-BUG-FIX-TICKET` w `.claude/skills/` (local-only, .claude gitignored) — 10-krokowy workflow: research → Plan Mode (10 sekcji) → GitHub Issue → impl marathon → quality gates → PR → CI → merge → live-stack smoke z proofem → raport. Skill triggered automatycznie przy zgłoszeniach „bug:" / „popraw X" / „nie działa X" operatora.
+
+**Fix scope:**
+- BE: extend POST `/api/products` o `categoryIds` + `primaryCategoryId` (opcjonalne dla BC) z atomic assignment w `CreateCatalogObjectHandler`. Nowy `POST /api/object_types/{id}/effective-attribute-groups/preview` dla create flow. `EffectiveAttributeGroupResolver::resolveForCategoryList()` extracted.
+- FE: refactor `useEffect+jsonFetch` → `useQuery` w `product-detail-page.tsx` — to core fix dla „kategoria nie implikuje atrybutów" bo invalidation z `CategoriesTab` teraz triggers refetch. Nowy `<CategorySelectorCard>` w prawym sidebar (nad `SyncStatusCard`, per UX request operatora) + nowy `<CategoryChangeWarningDialog>` z preview diff.
+- Soft-hide policy: wartości w `attributes_indexed` JSONB nie są kasowane, re-attach kategorii je odsłania.
+
+**Quality gates:** PHPStan 0, Biome 0, PHPUnit Catalog Api 203/203, TypeScript 0, build OK, OpenAPI snapshot +21 linii.
+
+**Świadome odejścia:** Playwright e2e specs (operator robi manual smoke), wire warning do CategoriesTab.handleDetach (sidebar primary, tab secondary), EN i18n translations (defaultValue PL fallback per CLAUDE.md MVP pattern), hard delete attrs (soft-hide wybrany).
+
+**Następna iteracja:** czekam na manual smoke operatora. Jak coś znaleziono → kolejny bug ticket per SKILL-BUG-FIX-TICKET workflow.
+
 ## 2026-05-21: 🏁🏁 Phase 6 RBAC CLOSED — 9/10 functional + 1 partial test refactor deferred
 
 **Phase 6 functionally CLOSED.** 9 z 10 tickety zamknięte z proofami; #719 ma częściowy ship (Identity/Search leftover retrofit + baseline empty), test-refactor scope deferred do osobnego sprintu testowego.

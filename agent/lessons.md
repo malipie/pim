@@ -2,6 +2,48 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z post-smoke fix #1 (2026-05-23, #891 — kategoria + dynamiczne atrybuty + modal warning)
+
+### Patterns to Follow
+
+1. **`useEffect+jsonFetch` → `useQuery` żeby invalidation działała** — `product-detail-page.tsx:153-173` ładował effective groups przez `useEffect` z `[id, isEditMode, objectTypeId]` deps. `CategoriesTab.refresh()` invalidował `['products', id, 'effective-attribute-groups']` query key — ale to nie była useQuery, więc invalidation była no-op. Refactor na `useQuery` (z `placeholderData: prev` żeby uniknąć flicker pustej karty) sprawił że invalidation z dowolnej części UI faktycznie triggers refetch. Pattern: jeśli widzisz `useEffect + jsonFetch + useState(data)` w komponencie którego dane są edytowane gdzie indziej w drzewie i tam jest `queryClient.invalidateQueries()` — to defekt do naprawy refaktorem na useQuery. Pattern fault sygnalizowany przez bug operatora „X nie odświeża się po zmianie Y".
+
+2. **Atomic POST z `categoryIds` zamiast follow-up PUT** — PCAT-06b miało two-step flow: POST `/api/products` → potem PUT `/api/products/{id}/categories`. To race condition (jeśli PUT failuje, produkt zostaje bez kategorii) + dodatkowa sieciówka. Atomic POST z `categoryIds` w body (validation + assignment w jednym `EntityManager::flush()`) jest cleaner. Pattern: gdy widzisz „create X, then create assignment to X" jako dwie sieciówki, sprawdź czy backend może to zrobić atomic w jednym handlerze.
+
+3. **CategoryPickerDialog controlled mode (`productId=""` + `onSelect`)** — istniejący dialog autosaved przez PUT, ale create flow nie ma jeszcze productId. Zamiast dorabiać duplikat komponentu, dorobiłem opcjonalny `onSelect?: (ids, primaryId) => void` callback. Gdy `productId === ''`, dialog skip PUT i woła `onSelect` — caller zarządza state. Pattern: gdy potrzebujesz tego samego picker UI w dwóch trybach (autosave vs controlled), dodaj minimalny tryb przełącznik (`productId` pusty + `onSelect`) zamiast pisać duplikat.
+
+4. **Soft-hide values po zmianie kategorii** — backend pamięta wartości w `attributes_indexed` JSONB nawet jeśli atrybut nie jest już visible przez `effective-attribute-groups`. Ponowne przypisanie kategorii odsłania wartość z zachowanym stanem. Modal warning explicit informuje operatora „wartości pozostaną zachowane w bazie — wrócą po ponownym przypisaniu kategorii". Reduces fear of accidental clicks. Pattern: dla destruktywnych UI flows, jeśli backend wspiera soft-hide vs hard delete — wybierz soft-hide jako default, jeden modal copy zmienia friction operatora z „boję się kliknąć" na „klikam świadomie".
+
+5. **PHPStan baseline cleanup przy okazji** — przy commitowaniu PHPStan zgłosił „Ignored error pattern doctrine.associationType in path /app/src/Asset/Domain/Entity/Asset.php was not matched in reported errors". Pre-existing stale entry. Usunąłem Asset.php z ignored paths listy w `phpstan.dist.neon`. Pattern: gdy PHPStan zgłasza stale ignored pattern dla pliku którego nie touchowałeś, sprawdź czy to pre-existing (git diff main) i usuń przy okazji — to maintenance fix który blocked CI na nicht.
+
+### Patterns to Avoid
+
+1. **NIE robić `git stash` żeby porównać main do swoich zmian gdy masz untracked files** — `git stash` domyślnie NIE stashuje untracked files. Mój nowy preview controller został na disk podczas stasha, więc PHPStan analizował go bez nowych metod resolvera → 18 fałszywych errorów typu `Cannot call method on mixed`. Pattern: do porównań z main użyj `git diff origin/main -- <files>` zamiast stash. Albo `git stash -u` jeśli musisz pełen reset (ale wtedy też restore-test by recover po stash pop).
+
+2. **NIE zostawiaj `is_string()` defensive checks na polach z PHPDoc `list<string>`** — PHPStan max widzi już że pole jest stringiem, runtime check `is_string($x)` zawsze evaluate true → PHPStan blue. Albo usuń check, albo zaprzecz typowi w PHPDoc (np. `array<mixed>`). Pattern: traktuj PHPDoc-narrowed types jako runtime guarantee w PHPStan max environment.
+
+3. **NIE forsuj e2e Playwright dla każdego małego bug fixa** — SKILL-BUG-FIX-TICKET workflow w „skróconych AC non-functional" pozwala na 1 Playwright spec albo manual smoke. Dla tego ticketu pominąłem Playwright bo operator robi manual smoke per CLAUDE.md SMOKE TEST RULE — i to jest świadoma decyzja zapisana w PR body („wymaga smoke test przed claim 'działa'"). Pattern: skill rule shortcut akceptowalny dla drobnych fixów, ale ZAWSZE explicit w PR body że smoke test pending.
+
+### Package Quirks
+
+1. **TypeScript memory limit dla `tsc -b --noEmit`** — `pnpm --filter admin typecheck` failed z `JavaScript heap out of memory` (default 512MB). Fix: `NODE_OPTIONS="--max-old-space-size=4096"` w docker exec. Pattern: dla TS noEmit + project references (`-b`), default node heap może nie wystarczyć. Jeśli typecheck failuje z OOM przed reportowaniem rzeczywistych errors → bump heap.
+
+2. **PHP-CS-Fixer pre-commit hook fail blokuje commit + nie auto-fixuje** — pre-commit zgłosił 3 pliki potrzebujące cs-fix. Hook tylko skanuje, nie poprawia. Run `composer cs-fix` ręcznie + re-add + commit. Pattern: jeśli pre-commit hook PHP-CS-Fixer fail z listą plików, run `docker compose exec -T api composer cs-fix` + `git add <same files>` + retry commit.
+
+### Decyzje świadome
+
+1. **CategoryChangeWarningDialog tylko na chip detach, nie na CategoryPickerDialog full-replace** — picker = explicit operator action, znacie zmianę. Chip × może być accidental. Warning na chip = lower-friction protection bez denerwowania user'a przy świadomym edycie. Follow-up jeśli operator chce parity (wire warning też w picker save). Documentacji w PR body.
+
+2. **i18n EN translations follow-up** — wszystkie nowe klucze używają `defaultValue` fallback PL. EN translations to follow-up zgodnie z CLAUDE.md MVP pattern. Powód: PR scope tight, EN translations bez wpływu na PL operator flow.
+
+3. **BE walidacja required kategorii via OPTIONAL field** — `categoryIds` jest opcjonalne w `CatalogObjectInput` (backward compat z istniejącymi integracjami POST bez kategorii). FE wymusza w UI. Hard BE requirement → follow-up. Tradeoff świadomy: defense in depth deferred dla MVP shipping speed.
+
+### Toolchain quirks (zaobserwowane po raz pierwszy)
+
+1. **`gh issue create` body z `Closes #<NR>` w body NIE auto-zamyka issue przy PR merge** — auto-close trigger to PR body, NIE issue body. Issue body może mieć „Closes #" jako reference, ale nie powoduje auto-close. Pattern: zawsze w PR body, nie w issue body.
+
+2. **Stack-up + cache:clear test env wymagany przed PHPUnit Api/* tests** — per memory `feedback_phpunit_dev_db_collision.md`. W tej sesji robiłem `cache:clear --env=test --no-warmup` przed `bin/phpunit tests/Api/Catalog` — 203/203 zielone bez wpływu na dev DB. Wzór dla każdej kolejnej sesji.
+
 ## Lessons z Phase 6 marathon (2026-05-21, 9/10 closed + 1 partial — full RBAC retrofit + observability)
 
 ### Patterns to Follow
