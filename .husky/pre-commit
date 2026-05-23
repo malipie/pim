@@ -5,6 +5,20 @@
 
 pnpm exec lint-staged
 
+# Test DB isolation guard — block commits that uncomment DATABASE_URL in
+# apps/api/.env.test. The dbname_suffix trick in config/packages/doctrine.yaml
+# only works when DATABASE_URL is inherited from .env; a hard override in
+# .env.test makes Foundry's ResetDatabase target the wrong DB. See
+# tests/bootstrap.php and feedback_phpunit_dev_db_collision.md.
+if git diff --cached --name-only | grep -qx 'apps/api/.env.test'; then
+    if git show ":apps/api/.env.test" | grep -Eq '^[[:space:]]*DATABASE_URL[[:space:]]*='; then
+        echo "❌ apps/api/.env.test has an uncommented DATABASE_URL line." >&2
+        echo "   This breaks the '_test' suffix trick and lets PHPUnit wipe the dev DB." >&2
+        echo "   Comment it out or remove the line. See tests/bootstrap.php for context." >&2
+        exit 1
+    fi
+fi
+
 # RBAC-P1-001 (#640) — local secrets-leak guard.
 # Skip if trufflehog is not installed locally; CI catches it anyway.
 # Install instructions: docs/security/tooling.md

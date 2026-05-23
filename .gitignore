@@ -26,6 +26,9 @@ agent_sample/
 # Lokalne backupy (pg_dump + MinIO snapshoty) — zostają na Synology, nie w repo
 /backups/
 
+# Lokalne snapshoty DB (pnpm db:snapshot — szybki rollback przed sesją testową)
+.local/
+
 # Lokalne źródła referencyjne (Akeneo, Pimcore extracts) — nie wysyłamy na repo
 Zrodla/
 
