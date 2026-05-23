@@ -124,6 +124,42 @@ final readonly class EffectiveAttributeGroupResolver
     }
 
     /**
+     * #891 — multi-category preview for the products/new flow. Walks each
+     * supplied category's ancestor chain (including the category itself),
+     * unions the IDs, and merges declared groups targeting the requested
+     * ObjectType. Categories from a different kind are silently dropped —
+     * the controller layer guards against cross-kind UUIDs upstream.
+     *
+     * @param list<CatalogObject> $categoryAnchors
+     *
+     * @return list<AttributeGroup>
+     */
+    public function resolveForCategoryList(ObjectType $type, array $categoryAnchors): array
+    {
+        $groups = $this->loadObjectTypeGroups($type);
+
+        if ([] === $categoryAnchors) {
+            return array_values($groups);
+        }
+
+        $ancestorMap = [];
+        foreach ($categoryAnchors as $anchor) {
+            if (ObjectKind::Category !== $anchor->getKind()) {
+                continue;
+            }
+            foreach ($this->collectCategoryAncestorIds($anchor, includeSelf: true) as $id) {
+                $ancestorMap[$id->toRfc4122()] = $id;
+            }
+        }
+
+        if ([] !== $ancestorMap) {
+            $this->mergeCategoryGroups($groups, array_values($ancestorMap), $type);
+        }
+
+        return array_values($groups);
+    }
+
+    /**
      * @return array<string, AttributeGroup> keyed by group UUID for dedup
      */
     private function loadObjectTypeGroups(ObjectType $type): array

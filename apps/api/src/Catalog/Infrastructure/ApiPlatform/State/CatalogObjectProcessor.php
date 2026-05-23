@@ -17,6 +17,7 @@ use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectInput;
 use App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectPatchInput;
+use InvalidArgumentException;
 use LogicException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -85,12 +86,32 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
             throw new LogicException('CatalogObjectProcessor expects CatalogObjectInput on Post.');
         }
 
+        $categoryIds = null;
+        if (null !== $data->categoryIds) {
+            $categoryIds = [];
+            foreach ($data->categoryIds as $rawId) {
+                if ('' === $rawId) {
+                    throw new UnprocessableEntityHttpException('Each entry of "categoryIds" must be a non-empty UUID string.');
+                }
+                try {
+                    $categoryIds[] = Uuid::fromString($rawId);
+                } catch (InvalidArgumentException $e) {
+                    throw new UnprocessableEntityHttpException(\sprintf('"%s" is not a valid UUID.', $rawId), $e);
+                }
+            }
+        }
+        $primaryCategoryId = null !== $data->primaryCategoryId && '' !== $data->primaryCategoryId
+            ? Uuid::fromString($data->primaryCategoryId)
+            : null;
+
         $command = new CreateCatalogObjectCommand(
             objectTypeId: Uuid::fromString($data->objectTypeId),
             code: $data->code,
             expectedKind: $this->kindOrFail($operation),
             parentId: null !== $data->parentId ? Uuid::fromString($data->parentId) : null,
             attributes: $data->attributes ?? [],
+            categoryIds: $categoryIds,
+            primaryCategoryId: $primaryCategoryId,
         );
 
         $envelope = $this->dispatch($command);

@@ -19,9 +19,18 @@ use Symfony\Component\Uid\Uuid;
 final readonly class CreateCatalogObjectCommand
 {
     /**
-     * @param array<string, mixed> $attributes per-attribute payload
-     *                                         (`{code => value}`); empty
-     *                                         array = no attributes upserted
+     * @param array<string, mixed> $attributes        per-attribute payload
+     *                                                (`{code => value}`); empty
+     *                                                array = no attributes upserted
+     * @param list<Uuid>|null      $categoryIds       #891 atomic category assignment
+     *                                                for `kind=product` creates.
+     *                                                `null` = legacy behavior, no
+     *                                                assignment. Empty list = 422.
+     *                                                Each id must be a tenant-scoped
+     *                                                `kind=category`.
+     * @param Uuid|null            $primaryCategoryId required when
+     *                                                $categoryIds non-empty;
+     *                                                must appear in the list
      */
     public function __construct(
         public Uuid $objectTypeId,
@@ -29,6 +38,8 @@ final readonly class CreateCatalogObjectCommand
         public ObjectKind $expectedKind,
         public ?Uuid $parentId = null,
         public array $attributes = [],
+        public ?array $categoryIds = null,
+        public ?Uuid $primaryCategoryId = null,
     ) {
     }
 }

@@ -8,6 +8,7 @@ use App\Catalog\Application\ObjectAttributesUpserter;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
@@ -34,6 +35,7 @@ final readonly class CreateCatalogObjectHandler
         private CatalogObjectRepositoryInterface $catalogObjects,
         private ObjectTypeRepositoryInterface $objectTypes,
         private ObjectAttributesUpserter $attributesUpserter,
+        private ObjectCategoryRepositoryInterface $objectCategories,
     ) {
     }
 
@@ -90,6 +92,44 @@ final readonly class CreateCatalogObjectHandler
 
         if ([] !== $command->attributes) {
             $this->attributesUpserter->upsert($object, $command->attributes);
+        }
+
+        // #891 — atomic category assignment for product creates. Validate
+        // every id resolves to a tenant-scoped `kind=category` BEFORE the
+        // junction write so the row never lands partially populated.
+        if (ObjectKind::Product === $command->expectedKind && null !== $command->categoryIds) {
+            if ([] === $command->categoryIds) {
+                throw new UnprocessableEntityHttpException('"categoryIds" must contain at least one category.');
+            }
+            if (null === $command->primaryCategoryId) {
+                throw new UnprocessableEntityHttpException('"primaryCategoryId" is required when "categoryIds" is non-empty.');
+            }
+            $primaryInList = false;
+            foreach ($command->categoryIds as $categoryId) {
+                if ($categoryId->equals($command->primaryCategoryId)) {
+                    $primaryInList = true;
+                    break;
+                }
+            }
+            if (!$primaryInList) {
+                throw new UnprocessableEntityHttpException('"primaryCategoryId" must appear in "categoryIds".');
+            }
+            foreach ($command->categoryIds as $categoryId) {
+                $category = $this->catalogObjects->findById($categoryId);
+                if (null === $category) {
+                    throw new UnprocessableEntityHttpException(\sprintf(
+                        'Category "%s" was not found.',
+                        $categoryId->toRfc4122(),
+                    ));
+                }
+                if (ObjectKind::Category !== $category->getKind()) {
+                    throw new UnprocessableEntityHttpException(\sprintf(
+                        'Object "%s" is not a category.',
+                        $categoryId->toRfc4122(),
+                    ));
+                }
+            }
+            $this->objectCategories->replaceForProduct($object, $command->categoryIds, $command->primaryCategoryId);
         }
 
         return $object->getId();

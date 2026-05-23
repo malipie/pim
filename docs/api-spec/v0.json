@@ -7853,6 +7853,27 @@
                                 "null"
                             ]
                         }
+                    },
+                    "categoryIds": {
+                        "description": "#891 \u2014 atomic category assignment for product creation. When the\nsugar path is `/api/products` and this list is non-empty, the\nhandler creates the product AND its `ObjectCategory` assignments\nin the same UnitOfWork so the UI flow on `/products/new` can\nenforce \"category required\" without a follow-up PUT.",
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "primaryCategoryId": {
+                        "format": "uuid",
+                        "description": "#891 \u2014 id of the \"primary\" category among `$categoryIds`. The\npartial unique index `WHERE is_primary = true` enforces that at\nmost one assignment per product carries the primary flag. When\n`$categoryIds` is provided and non-empty, `$primaryCategoryId`\nMUST be one of those ids (validated in the handler).",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     }
                 }
             },

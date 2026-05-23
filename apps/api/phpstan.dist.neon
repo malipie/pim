@@ -100,7 +100,6 @@ parameters:
               - src/Catalog/Domain/Entity/SavedView.php
               - src/Catalog/Domain/Entity/BulkSession.php
               - src/Channel/Domain/Entity/Channel.php
-              - src/Asset/Domain/Entity/Asset.php
               - src/ApiConfigurator/Domain/Entity/ApiProfile.php
               - src/ApiConfigurator/Domain/Entity/ApiKey.php
               - src/Identity/Domain/Entity/TenantAgentConfig.php
