@@ -136,7 +136,15 @@ jobs:
       run:
         working-directory: .
     container:
-      image: semgrep/semgrep:latest
+      # Pin Semgrep — `latest` (>=1.130) broke parser support for the
+      # `#[ORM\Entity(...)]` / `#[Route(...)]` PHP attribute patterns
+      # used by cortex-entity-missing-tenant-id and
+      # cortex-requires-permission-attribute-missing, and rejected the
+      # mixed-language array `[yaml, json, php, generic]` on the token
+      # rules. Last green run on `main` was 2026-05-22 on a 1.11x image;
+      # this pin restores it. Bump together with rule pattern updates
+      # when revisiting Semgrep upgrades (#891 follow-up).
+      image: semgrep/semgrep:1.116.0
     steps:
       - uses: actions/checkout@v5
 

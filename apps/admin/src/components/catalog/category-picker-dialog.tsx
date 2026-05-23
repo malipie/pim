@@ -29,11 +29,25 @@ export interface CurrentAssignment {
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * When non-empty, the dialog autosaves via `PUT /api/products/{id}/categories`
+   * and bursts the related query cache. When empty, the dialog runs in
+   * controlled mode: nothing hits the API; the caller receives the new
+   * selection through {@link onSelect} and is responsible for persisting
+   * it (e.g. as part of a POST `/api/products` payload for create flows).
+   */
   productId: string;
   /** Current assignments — used to seed the picker state when the dialog opens. */
   currentAssignments: CurrentAssignment[];
   /** Called after a successful PUT so the caller can refresh the chip list + effective groups. */
   onSaved: () => void;
+  /**
+   * #891 — controlled-mode callback fired in place of the PUT when
+   * {@link productId} is the empty string. Receives the chosen
+   * categories + the picked primary so the caller can stash them in
+   * local state until the parent POST is fired.
+   */
+  onSelect?: (categoryIds: string[], primaryCategoryId: string | null) => void;
 }
 
 /**
@@ -57,6 +71,7 @@ export function CategoryPickerDialog({
   productId,
   currentAssignments,
   onSaved,
+  onSelect,
 }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -161,6 +176,17 @@ export function CategoryPickerDialog({
     try {
       const categoryIds = Array.from(selected);
       const primary = selected.size === 0 ? null : primaryId;
+
+      // #891 — controlled mode: when no product exists yet (create flow)
+      // the caller owns persistence. Emit the selection, dismiss the
+      // dialog, and skip the autosave PUT entirely.
+      if (productId === '') {
+        if (onSelect) onSelect(categoryIds, primary);
+        onSaved();
+        onOpenChange(false);
+        return;
+      }
+
       await jsonFetch(`/api/products/${productId}/categories`, {
         method: 'PUT',
         contentType: 'application/json',

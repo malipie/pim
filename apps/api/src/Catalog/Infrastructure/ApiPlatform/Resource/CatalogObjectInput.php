@@ -65,4 +65,34 @@ final class CatalogObjectInput
      */
     #[Groups(['object:create'])]
     public ?array $attributes = null;
+
+    /**
+     * #891 — atomic category assignment for product creation. When the
+     * sugar path is `/api/products` and this list is non-empty, the
+     * handler creates the product AND its `ObjectCategory` assignments
+     * in the same UnitOfWork so the UI flow on `/products/new` can
+     * enforce "category required" without a follow-up PUT.
+     *
+     * Optional for backward compatibility: existing integrations that
+     * POST without these fields continue to land a category-less product
+     * (legacy behavior). The new admin UI always populates both fields.
+     *
+     * Each entry must be the UUID of a tenant-scoped `kind=category`
+     * CatalogObject. Cross-kind or cross-tenant UUIDs raise 422.
+     *
+     * @var list<string>|null
+     */
+    #[Groups(['object:create'])]
+    public ?array $categoryIds = null;
+
+    /**
+     * #891 — id of the "primary" category among `$categoryIds`. The
+     * partial unique index `WHERE is_primary = true` enforces that at
+     * most one assignment per product carries the primary flag. When
+     * `$categoryIds` is provided and non-empty, `$primaryCategoryId`
+     * MUST be one of those ids (validated in the handler).
+     */
+    #[Assert\Uuid(versions: [Assert\Uuid::V7_MONOTONIC])]
+    #[Groups(['object:create'])]
+    public ?string $primaryCategoryId = null;
 }

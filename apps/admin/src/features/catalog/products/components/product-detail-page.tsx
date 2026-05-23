@@ -1,4 +1,5 @@
 import { useOne } from '@refinedev/core';
+import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Clock,
@@ -35,6 +36,7 @@ import { AgentSuggestionsCard } from './agent-suggestions-card';
 import { AttrGroupCard } from './attr-group-card';
 import { AttrRow } from './attr-row';
 import { CategoriesTab } from './categories-tab';
+import { CategorySelectorCard } from './category-selector-card';
 import { CompletenessRing } from './completeness-ring';
 import { DuplicateButton } from './duplicate-button';
 import { EffectiveModelCard } from './effective-model-card';
@@ -130,7 +132,6 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
 
   const { objectTypeId } = useDefaultObjectType('product');
 
-  const [groups, setGroups] = useState<GroupMeta[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
   const [locale, setLocale] = useState<ProductLocale>('pl');
   const [channel, setChannel] = useState<ProductChannel | null>(null);
@@ -141,6 +142,44 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
+  // #891 create-mode category selection. POST `/api/products` carries
+  // this so the product + assignments land atomically — the previous
+  // PCAT-06b follow-up PUT is removed.
+  const [createCategoryIds, setCreateCategoryIds] = useState<string[]>(
+    () => prePopulatedCategoryIds,
+  );
+  const [createPrimaryId, setCreatePrimaryId] = useState<string | null>(
+    () => prePopulatedPrimaryId,
+  );
+
+  // Resolve the category codes for chip rendering in create mode. Same
+  // query key as `CategoryPickerDialog` so opening the picker hits the
+  // shared cache — and so the sidebar updates the moment the picker
+  // commits a new selection.
+  const categoriesListQuery = useQuery({
+    queryKey: ['categories', 'picker'],
+    queryFn: () =>
+      jsonFetch<{
+        'hydra:member'?: Array<{ id: string; code: string }>;
+        member?: Array<{ id: string; code: string }>;
+      }>('/api/categories?itemsPerPage=200'),
+    enabled: mode === 'create' && createCategoryIds.length > 0,
+    staleTime: 60_000,
+  });
+
+  const createCategoriesSummaries = useMemo(() => {
+    if (mode !== 'create') return [] as { categoryId: string; code: string; isPrimary: boolean }[];
+    const rows =
+      categoriesListQuery.data?.['hydra:member'] ?? categoriesListQuery.data?.member ?? [];
+    const codeById = new Map<string, string>();
+    for (const row of rows) codeById.set(row.id, row.code);
+    return createCategoryIds.map((cid) => ({
+      categoryId: cid,
+      code: codeById.get(cid) ?? cid.slice(0, 8),
+      isPrimary: cid === createPrimaryId,
+    }));
+  }, [mode, createCategoryIds, createPrimaryId, categoriesListQuery.data]);
+
   const product = isEditMode ? result : null;
   const attrs = useMemo(
     () =>
@@ -148,29 +187,60 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     [product?.attributesIndexed],
   );
 
-  // Load effective groups (in create mode we still want the schema to
-  // know which attributes to render under which group).
-  useEffect(() => {
-    let cancelled = false;
-    const path =
+  // #891 — fetch effective groups via useQuery so CategoriesTab cache
+  // invalidation actually triggers refetch (the previous useEffect was
+  // immune to invalidation). In create mode the query keys flip between
+  // the preview endpoint (when categories are selected) and the bare
+  // ObjectType endpoint (when none are selected yet).
+  const groupsQuery = useQuery<{ groups: GroupMeta[] }>({
+    queryKey:
       isEditMode && id !== ''
-        ? `/api/products/${id}/effective-attribute-groups`
-        : objectTypeId !== null
-          ? `/api/object_types/${objectTypeId}/effective-attribute-groups`
-          : null;
-    if (path === null) return;
-    jsonFetch<{ groups: GroupMeta[] }>(path)
-      .then((body) => {
-        if (cancelled) return;
-        setGroups(body.groups);
-        // Default expand all groups (mockup screenshot shows every section open).
-        setExpandedGroups(new Set(body.groups.map((g) => g.id)));
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [id, isEditMode, objectTypeId]);
+        ? ['products', id, 'effective-attribute-groups']
+        : [
+            'object-types',
+            objectTypeId,
+            'effective-attribute-groups',
+            createCategoryIds.length > 0 ? [...createCategoryIds].sort() : 'base',
+          ],
+    queryFn: async () => {
+      if (isEditMode && id !== '') {
+        return jsonFetch<{ groups: GroupMeta[] }>(`/api/products/${id}/effective-attribute-groups`);
+      }
+      if (objectTypeId === null) {
+        return { groups: [] };
+      }
+      if (createCategoryIds.length > 0) {
+        return jsonFetch<{ groups: GroupMeta[] }>(
+          `/api/object_types/${objectTypeId}/effective-attribute-groups/preview`,
+          {
+            method: 'POST',
+            contentType: 'application/json',
+            accept: 'application/json',
+            body: { categoryIds: createCategoryIds },
+          },
+        );
+      }
+      return jsonFetch<{ groups: GroupMeta[] }>(
+        `/api/object_types/${objectTypeId}/effective-attribute-groups`,
+      );
+    },
+    enabled: isEditMode ? id !== '' : objectTypeId !== null,
+    staleTime: 5_000,
+    placeholderData: (prev) => prev,
+  });
+
+  const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data]);
+
+  // Default expand all groups once they first arrive (mockup shows every
+  // section open). Refetches after the first success keep the operator's
+  // chosen expand/collapse state intact.
+  const [didExpandInitial, setDidExpandInitial] = useState(false);
+  useEffect(() => {
+    if (didExpandInitial) return;
+    if (groups.length === 0) return;
+    setExpandedGroups(new Set(groups.map((g) => g.id)));
+    setDidExpandInitial(true);
+  }, [didExpandInitial, groups]);
 
   const toggleGroup = (groupId: string): void => {
     setExpandedGroups((prev) => {
@@ -215,43 +285,33 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
           setIsSaving(false);
           return;
         }
+        // #891 — kategoria wymagana dla nowych produktów.
+        if (createCategoryIds.length === 0) {
+          toast.error(
+            t('products.detail.validation.categories_required', {
+              defaultValue: 'Przypisz przynajmniej jedną kategorię',
+            }),
+          );
+          setIsSaving(false);
+          return;
+        }
+        const primary =
+          createPrimaryId !== null && createCategoryIds.includes(createPrimaryId)
+            ? createPrimaryId
+            : createCategoryIds[0];
         const attributes = stripAttributes(dirtyFields);
-        const body: Record<string, unknown> = { code: sku, objectTypeId };
+        const body: Record<string, unknown> = {
+          code: sku,
+          objectTypeId,
+          categoryIds: createCategoryIds,
+          primaryCategoryId: primary,
+        };
         if (Object.keys(attributes).length > 0) body.attributes = attributes;
         const created = await jsonFetch<{ id: string }>('/api/products', {
           method: 'POST',
           contentType: 'application/ld+json',
           body,
         });
-        // PCAT-06b: apply pre-populated category assignment if "+ Create
-        // test object" navigated us in with categories/primary in the URL.
-        if (prePopulatedCategoryIds.length > 0) {
-          try {
-            const validPrimary =
-              prePopulatedPrimaryId !== null &&
-              prePopulatedCategoryIds.includes(prePopulatedPrimaryId)
-                ? prePopulatedPrimaryId
-                : prePopulatedCategoryIds[0];
-            await jsonFetch(`/api/products/${created.id}/categories`, {
-              method: 'PUT',
-              contentType: 'application/json',
-              accept: 'application/json',
-              body: {
-                primaryCategoryId: validPrimary,
-                categoryIds: prePopulatedCategoryIds,
-              },
-            });
-          } catch {
-            // Non-fatal: product is created; operator can re-assign in the
-            // Kategorie tab. Toast surfaces the partial success.
-            toast.error(
-              t('products.detail.create.category_apply_failed', {
-                defaultValue:
-                  'Produkt utworzony, ale nie udało się przypisać kategorii — przypisz ręcznie w zakładce Kategorie.',
-              }),
-            );
-          }
-        }
         toast.success(
           t('products.detail.create.success', {
             defaultValue: 'Utworzono produkt {{code}}',
@@ -645,33 +705,50 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
             <OtherTabs activeTab={activeTab} productId={id} />
           ) : null}
 
-          {mode === 'create' ? (
+          {mode === 'create' && createCategoryIds.length === 0 ? (
             <p className="px-1 text-[12px] text-muted-foreground">
               {t('products.detail.create.hint', {
                 defaultValue:
-                  'Po utworzeniu produktu pojawią się pozostałe zakładki, sidebar oraz wskaźniki kompletności.',
+                  'Wybierz kategorię w panelu po prawej aby zobaczyć dziedziczone grupy atrybutów.',
               })}
             </p>
           ) : null}
         </div>
 
-        {mode === 'edit' && id !== '' ? (
-          <aside
-            className="space-y-3"
-            aria-label={t('products.detail.sidebar.aria', {
-              defaultValue: 'Panel boczny produktu',
-            })}
-          >
-            <SyncStatusCard productId={id} />
-            <VariantsListCard
-              masterProductId={id}
-              onSelectVariant={(variantId) => navigate(`/products/${variantId}`)}
-              onCreateVariant={() => setActiveTab('variants')}
-            />
-            <EffectiveModelCard groups={groups} objectTypeName={objectTypeName ?? 'Product'} />
-            <AgentSuggestionsCard />
-          </aside>
-        ) : null}
+        <aside
+          className="space-y-3"
+          aria-label={t('products.detail.sidebar.aria', {
+            defaultValue: 'Panel boczny produktu',
+          })}
+        >
+          <CategorySelectorCard
+            {...(mode === 'edit' && id !== ''
+              ? { mode: 'edit', productId: id, objectTypeId }
+              : {
+                  mode: 'create',
+                  selectedCategoryIds: createCategoryIds,
+                  primaryCategoryId: createPrimaryId,
+                  selectedCategories: createCategoriesSummaries,
+                  onChange: (ids, primary) => {
+                    setCreateCategoryIds(ids);
+                    setCreatePrimaryId(primary);
+                  },
+                  objectTypeId,
+                })}
+          />
+          {mode === 'edit' && id !== '' ? (
+            <>
+              <SyncStatusCard productId={id} />
+              <VariantsListCard
+                masterProductId={id}
+                onSelectVariant={(variantId) => navigate(`/products/${variantId}`)}
+                onCreateVariant={() => setActiveTab('variants')}
+              />
+              <EffectiveModelCard groups={groups} objectTypeName={objectTypeName ?? 'Product'} />
+              <AgentSuggestionsCard />
+            </>
+          ) : null}
+        </aside>
       </div>
 
       <Dialog

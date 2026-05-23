@@ -158,4 +158,116 @@ final class ProductsApiTest extends CatalogApiTestCase
         $client->request('GET', '/api/products/'.$id);
         self::assertResponseStatusCodeSame(404);
     }
+
+    #[Test]
+    public function postWithCategoryIdsCreatesAssignmentsAtomically(): void
+    {
+        $client = $this->authenticatedClient();
+
+        // Seed two categories — both tenant-scoped.
+        $catA = $client->request('POST', '/api/categories', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'cat_a_891',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+        $catB = $client->request('POST', '/api/categories', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'cat_b_891',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+        $catAId = $catA['id'] ?? null;
+        $catBId = $catB['id'] ?? null;
+        \assert(\is_string($catAId) && \is_string($catBId));
+
+        // POST product with both categories + primary = catA.
+        $product = $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'SKU-891-ATOMIC',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
+                'categoryIds' => [$catAId, $catBId],
+                'primaryCategoryId' => $catAId,
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+        self::assertResponseStatusCodeSame(201);
+        $productId = $product['id'] ?? null;
+        \assert(\is_string($productId));
+
+        // Verify assignments via the existing GET endpoint.
+        $assignments = $client->request('GET', '/api/products/'.$productId.'/categories', [
+            'headers' => ['accept' => 'application/json'],
+        ])->toArray();
+        self::assertResponseIsSuccessful();
+        self::assertSame($catAId, $assignments['primaryCategoryId'] ?? null);
+        $rows = $assignments['assignments'] ?? [];
+        \assert(\is_array($rows));
+        self::assertCount(2, $rows);
+    }
+
+    #[Test]
+    public function postWithPrimaryCategoryIdNotInListReturns422(): void
+    {
+        $client = $this->authenticatedClient();
+        $catA = $client->request('POST', '/api/categories', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'cat_primary_orphan_891',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+        $catB = $client->request('POST', '/api/categories', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'cat_primary_orphan_b_891',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+        $catAId = $catA['id'] ?? null;
+        $catBId = $catB['id'] ?? null;
+        \assert(\is_string($catAId) && \is_string($catBId));
+
+        $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'SKU-891-ORPHAN',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
+                'categoryIds' => [$catAId],
+                'primaryCategoryId' => $catBId,
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    #[Test]
+    public function postWithProductAsCategoryReturns422(): void
+    {
+        $client = $this->authenticatedClient();
+
+        // Mis-use a kind=product UUID as a "categoryId" → handler must
+        // reject before any assignment row lands.
+        $bogusProduct = $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'SKU-891-BOGUS-CAT',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+        $bogusId = $bogusProduct['id'] ?? null;
+        \assert(\is_string($bogusId));
+
+        $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'SKU-891-REJECTED',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
+                'categoryIds' => [$bogusId],
+                'primaryCategoryId' => $bogusId,
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertResponseStatusCodeSame(422);
+    }
 }
