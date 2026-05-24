@@ -1162,6 +1162,68 @@ Asymetria zysków vs koszt jest klasyczna i sprawdzona w ADR-003 (multi-tenant r
 - ADR-009 (generic ObjectType z built-in Product/Category/Asset) — sprawdzony pattern *„infrastruktura full-scope, UX zoptymalizowany pod MVP"*.
 - ADR-006 (hybrid attribute model) — RBAC field-level filtering operuje na `object_values JSONB` zgodnie z ADR-006; per-attribute 3-state permissions parametryzują serialization context.
 
+### ADR-014: Model dystrybucji atrybutów (primary category overlay) + relacje obiekt↔obiekt
+
+**Status:** Zaakceptowany (2026-05-23)
+
+**Rewiduje:** ADR-012 w trzech punktach (patrz Konsekwencje). Reszta ADR-012 (AttributeGroup jako first-class entity, M:N junctions, `EffectiveAttributeGroupResolver`) pozostaje w mocy.
+
+**Kontekst:**
+Przy ~60% ukończenia systemu, w sesji burzy mózgów (2026-05-23) wykryto cztery nieścisłości w module Modelowanie, które okazały się **jednym problemem architektonicznym** — niespójnym modelem dystrybucji atrybutów:
+
+1. **Marka jako built-in ObjectType bez uzasadnienia.** ADR-012 (Konsekwencje, *„Brand jako 4-ty built-in ObjectType"*) wprowadził Brand do puli built-in obok Product/Category/Asset. W praktyce: Brand nie renderuje się w widoku edycji Produktu (brak wpięcia jako atrybut ani relacja), a built-in status nie ma uzasadnienia — marka jest decyzją biznesową tenanta (jeden chce `select`, inny osobny ObjectType).
+2. **Brak modelu relacji obiekt↔obiekt.** Tenant tworzy ObjectType (np. Up-Selling, Marka) i chce powiązać go z innym obiektem (Pimcore-style). Brak UX, brak logiki, brak typu atrybutu obsługującego referencję.
+3. **ObjectType-Category ma zdefiniowane atrybuty, ale formularz instancji ich nie renderuje** (objaw zgłoszony jako #3-#28). Root cause: form renderer szuka atrybutów *przez kategorię obiektu*, a Category nie ma „swojej kategorii" → atrybuty bazowe ObjectType są ignorowane.
+4. **Niejasność czy każdy ObjectType jest kategoryzowany.** Select „Object Type" w `/modeling/categories` zakłada że każdy ObjectType wiąże się z kategorią. Nie ma to sensu dla ObjectType nie-kategoryzowanych (Brand, Asset).
+
+Root cause: system zahardkodował **kategorię jako jedyny mechanizm dystrybucji atrybutów**. Działa dla Produktu (kategoryzowany), łamie się dla wszystkiego innego. ADR-012 model (`EffectiveAttributeGroupResolver` z 4 źródłami) był poprawny kierunkowo, ale implementacja go nie realizuje, a sam ADR-012 nie rozróżniał kategorii primary vs secondary i nie adresował relacji.
+
+**Rozważane opcje (model dystrybucji atrybutów):**
+- **(X) Czysty ObjectType-driven (Pimcore Class).** ObjectType definiuje wszystkie atrybuty, kategoria = wyłącznie drzewo klasyfikacji, zero wpływu na atrybuty. Odrzucony — eliminuje *„różne atrybuty dla różnych grup produktów"* (telewizor `przekątna` vs pralka `pojemność_bębna`), co jest realnym wymaganiem PIM mid-market.
+- **(Y) Hybrid: ObjectType base + primary category overlay (cumulative po drzewie).** ObjectType daje bazę atrybutów (zawsze, każda instancja). ObjectType z `is_categorizable=true` ma dodatkowo **jedną kategorię główną (primary)**, która przez swoją ścieżkę w drzewie kategorii dodaje kontekstowe atrybuty kumulatywnie (root→leaf). Pozostałe kategorie (secondary, N) służą wyłącznie klasyfikacji. **Wybrany.**
+- **(Z) Family-based (Akeneo).** Osobny byt `Family` jako attribute-driver, Category czysto klasyfikacyjna. Odrzucony jako zbyt ciężki — dodatkowy byt domenowy, dodatkowy CRUD, dodatkowy concept dla operatora. Primary category osiąga 90% wartości Family bez nowego bytu.
+
+**Decyzja:** Opcja (Y) + sześć doprecyzowań:
+
+1. **Capability flags na `ObjectType`:** `expose_to_main_menu` (czy ObjectType ma pozycję w sidebar — istniejąca kolumna z VIEW-08 / #427, reused; w mini-specu i wcześniejszych draftach pojawiała się jako `show_in_main_menu`) i `is_categorizable` (czy instancje mają kategorię główną przydzielającą atrybuty — dodane w MOD-01 / #893). Brak flagi `is_relation_target` — **każdy ObjectType może być celem relacji domyślnie**.
+2. **Primary + secondary categories.** Instancja kategoryzowalnego ObjectType ma dokładnie 1 kategorię główną (`is_primary=true` w junction obiekt↔kategoria) + N kategorii dodatkowych. Tylko primary uczestniczy w dystrybucji atrybutów; secondary = klasyfikacja/nawigacja.
+3. **Cumulative resolution po ścieżce drzewa.** Produkt z primary category liść `Elektronika > RTV > Telewizory` dostaje sumę grup atrybutów przypisanych do każdego węzła ścieżki (`Elektronika` + `RTV` + `Telewizory`). Wspólne atrybuty definiowane wysoko w drzewie, specyficzne nisko. `EffectiveAttributeGroupResolver` (ADR-012) zachowany, ale parametryzowany **primary category path**, nie zbiorem wszystkich kategorii obiektu.
+4. **Relacja = typ atrybutu `relation`.** Atrybut typu `relation` z konfiguracją: `target_object_type` (jeden lub wiele), `cardinality` (one/many), `advanced` (relacja z metadanymi — własne pola na powiązaniu). Reverse relations auto-generowane (obiekt-target widzi read-only sekcję *„powiązania zwrotne"*). Brak osobnego bytu „Association" — relacja mieści się w istniejącym modelu atrybutów. Typ `asset` pozostaje osobny (specjalizowany UX: DAM picker, miniaturka, kadrowanie) — nie ujednolicany z `relation`.
+5. **Kody atrybutów globalnie unikalne w obrębie ObjectType.** Atrybut jest albo bazowy (ObjectType), albo kontekstowy (kategoria) — nigdy oba. Walidacja w Modelowaniu blokuje duplikat kodu. Konwencja nazewnicza dla atrybutów kontekstowych: sufiks kategorii (`opis_telewizory`, `opis_buty`) — zapobiega kolizjom i czyni model czytelnym.
+6. **Brand NIE jest built-in.** Built-in ObjectType zostają wyłącznie `Product`, `Category`, `Asset` (zgodnie z pierwotnym ADR-009). Brand → custom ObjectType lub atrybut `select`, decyzja tenanta.
+
+**Uzasadnienie:**
+Opcja (Y) zachowuje killer feature ADR-012 (dziedziczenie grup atrybutów po drzewie kategorii — czego Akeneo/Pimcore nie mają natywnie), ale naprawia jego trzy luki: brak rozróżnienia primary/secondary (produkt w wielu kategoriach miał ambiguous attribute set), brak modelu relacji, błędny built-in Brand. Primary category jako attribute-driver świadomie *„miesza dwie role"* kategorii (klasyfikacja + dystrybucja atrybutów) — to zaakceptowany trade-off: prostota (brak bytu Family) kosztem czystości (reorganizacja drzewa ma side-effect na atrybuty produktów; mityguje to ostrzeżenie UI + orphaned values handling). Relacja jako typ atrybutu (nie osobny byt Association) trzyma spójność z ADR-006/009 — wszystko jest atrybutem na `object_values JSONB`.
+
+**Konsekwencje:**
+
+*Rewizja ADR-012:*
+- **REVERT „Brand jako 4-ty built-in ObjectType"** (ADR-012 Konsekwencje, linia o `#UI-08.2`). Built-in = Product/Category/Asset. Rozszerzenie `object_types` o `is_built_in/code_immutable/deletable/icon/color` zostaje, ale Brand nie jest seedowany jako built-in.
+- **`category_attribute_groups` (ADR-012)** — semantyka doprecyzowana: junction działa tylko dla **primary category** obiektu, nie dla zbioru wszystkich kategorii. `EffectiveAttributeGroupResolver` źródło (3) *„dziedziczone po drzewie root→leaf"* parametryzowane primary category path.
+- **`EffectiveAttributeGroupResolver` źródło (2) *„globalne dla ObjectType"*** musi zwracać atrybuty bazowe **dla każdego ObjectType, niezależnie od kategoryzacji** — to naprawia objaw #3-#28 (Category-jako-ObjectType renderuje swoje atrybuty bazowe).
+
+*Nowe elementy schematu:*
+- `object_types` + kolumna `is_categorizable BOOLEAN` (MOD-01 / #893). `expose_to_main_menu BOOLEAN` (ekwiwalent semantyczny `show_in_main_menu`) już istniał od VIEW-08 / #427 — reused, brak rename.
+- Junction obiekt↔kategoria (`object_categories`) + kolumna `is_primary BOOLEAN`; partial unique index gwarantuje dokładnie 1 primary per obiekt kategoryzowalny. *(Już istnieje od PCAT-01 / `Version20260510221123` — MOD-01 nie dotyka schematu junction'a.)*
+- `attributes` + obsługa typu `relation`: kolumny `relation_target_object_type_ids JSONB`, `relation_cardinality VARCHAR(8) CHECK IN ('one','many')`, `relation_advanced BOOLEAN` (MOD-01 / #893). `AttributeType::Relation` enum case już istniał — brak migracji enum.
+- Tabela powiązań `object_relations` (`source_object_id`, `target_object_id`, `attribute_id`, `position`, `metadata JSONB` dla advanced) — **zastępuje** `object_associations` z ADR-009 (MOD-02 / #894). Hardcoded enum typów ADR-009 (`cross_sell`, `up_sell`, `related`, `alternative`, `accessory`) był MVP-placeholderem; ADR-014 go generalizuje: każdy typ asocjacji staje się seedowanym built-in atrybutem typu `relation` na ObjectType Product. Migracja: 5 typów → 5 atrybutów `relation`, przepisanie wierszy `object_associations.type` → `object_relations.attribute_id`, DROP `object_associations`.
+- Orphaned values: wartości atrybutu który zniknął z modelu (zmiana primary category) **pozostają w `object_values`** ukryte i nieedytowalne; powrót do kategorii przywraca widoczność.
+
+*Naprawa objawów:*
+- #1 (Marka) — usunięcie Brand z built-in + migracja istniejącej „Marki" (custom ObjectType lub atrybut, per stan tenanta).
+- #2 (relacje) — typ atrybutu `relation` + zakładka „Powiązania" (AttributeGroup) + reverse relations.
+- #3-#28 (Category nie renderuje atrybutów) — fix wiring `EffectiveAttributeGroupResolver` źródło (2).
+- #4 (każdy ObjectType kategoryzowany) — flaga `is_categorizable`; `/modeling/categories` select „Object Type" filtruje tylko do ObjectType z `is_categorizable=true`.
+
+*Sequencing:* Rewizja Modelowania jest blokująca dla dalszych prac w epiku UI-08. Capability flags + primary category + relacje wchodzą przed dalszym CRUD-em obiektów. Szczegółowy kontrakt: `Project Plan/UI/feature-modeling-data-model.md`.
+
+**Referencje:**
+- `Project Plan/UI/feature-modeling-data-model.md` — mini-spec implementacyjny (model, schema delta, UX, migracja, API, user stories, estymacja).
+- ADR-012 (AttributeGroup first-class) — ADR-014 rewiduje 3 punkty, zachowuje resztę.
+- ADR-009 (generic ObjectType) — ADR-014 respektuje; built-in = Product/Category/Asset zgodnie z pierwotnym ADR-009.
+- ADR-006 (hybrid attribute model) — relacja jako typ atrybutu operuje na `object_values JSONB` zgodnie z ADR-006.
+- `Project Plan/UI/epik-08-modelowanie.md` — epik UI-08, do aktualizacji o capability flags + relacje + primary category.
+
 ## 14. Roadmap rozwoju
 
 Roadmap fazowa, wysokopoziomowa. Szczegółowy backlog i estymacje w dokumencie `02-plan-projektu-pim.md`.

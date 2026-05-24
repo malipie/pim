@@ -78,6 +78,10 @@ final readonly class BuiltInObjectTypeSeeder
                     // VIEW-08 (#427): seed Product as exposed-to-menu so the
                     // default sidebar reproduces the legacy "Produkty" entry.
                     $type->setExposeToMainMenu(true);
+                    // ADR-014 / MOD-01 (#893): Product is the only built-in
+                    // ObjectType whose instances participate in primary-
+                    // category-driven attribute distribution.
+                    $type->setCategorizable(true);
                 } elseif (ObjectKind::Category === $kind) {
                     $type->setHierarchical(true);
                 }

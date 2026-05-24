@@ -75,6 +75,11 @@
                 <option name="default">false</option>
             </options>
         </field>
+        <field name="isCategorizable" type="boolean" column="is_categorizable">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
         <field name="allowedParentTypeIds" type="json" column="allowed_parent_type_ids">
             <options>
                 <option name="jsonb">true</option>

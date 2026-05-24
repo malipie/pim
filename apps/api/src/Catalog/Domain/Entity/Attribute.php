@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Domain\Entity;
 
 use App\Catalog\Domain\AttributeType;
+use App\Catalog\Domain\RelationCardinality;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
@@ -79,6 +80,30 @@ class Attribute implements TenantScoped
      * @var array<string, mixed>
      */
     private array $validationRules = [];
+
+    /**
+     * ADR-014 / MOD-01 (#893) — config for attributes of type `relation`.
+     *
+     * `relationTargetObjectTypeIds` — UUID list of ObjectTypes accepted as
+     * link targets. Empty list (default) on a non-relation attribute; on a
+     * relation attribute, empty means the editor must constrain at write
+     * time (MOD-05 validation).
+     *
+     * `relationCardinality` — `one` or `many`; NULL for non-relation
+     * attributes. Stored as VARCHAR(8) in Postgres with a CHECK constraint
+     * limiting values to the enum cases.
+     *
+     * `relationAdvanced` — when TRUE, every `object_relations` row for
+     * this attribute carries metadata fields (`object_relations.metadata
+     * JSONB`); MOD-08 wires the metadata schema.
+     *
+     * @var list<string>
+     */
+    private array $relationTargetObjectTypeIds = [];
+
+    private ?RelationCardinality $relationCardinality = null;
+
+    private bool $relationAdvanced = false;
 
     private int $position = 0;
     private DateTimeImmutable $createdAt;
@@ -272,5 +297,41 @@ class Attribute implements TenantScoped
     public function usesOptions(): bool
     {
         return $this->type->usesOptions();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRelationTargetObjectTypeIds(): array
+    {
+        return $this->relationTargetObjectTypeIds;
+    }
+
+    /**
+     * @param list<string> $ids
+     */
+    public function setRelationTargetObjectTypeIds(array $ids): void
+    {
+        $this->relationTargetObjectTypeIds = array_values(array_unique($ids));
+    }
+
+    public function getRelationCardinality(): ?RelationCardinality
+    {
+        return $this->relationCardinality;
+    }
+
+    public function setRelationCardinality(?RelationCardinality $cardinality): void
+    {
+        $this->relationCardinality = $cardinality;
+    }
+
+    public function isRelationAdvanced(): bool
+    {
+        return $this->relationAdvanced;
+    }
+
+    public function setRelationAdvanced(bool $advanced): void
+    {
+        $this->relationAdvanced = $advanced;
     }
 }

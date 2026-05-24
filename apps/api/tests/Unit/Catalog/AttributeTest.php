@@ -8,6 +8,7 @@ use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\AttributeGroup;
 use App\Catalog\Domain\Entity\AttributeOption;
+use App\Catalog\Domain\RelationCardinality;
 use App\Shared\Domain\Tenant;
 use LogicException;
 use PHPUnit\Framework\Attributes\Test;
@@ -105,5 +106,50 @@ final class AttributeTest extends TestCase
         self::assertSame($color, $option->getAttribute());
         self::assertSame('red', $option->getCode());
         self::assertSame(1, $option->getPosition());
+    }
+
+    #[Test]
+    public function relationConfigDefaultsAreUnsetForNonRelationAttribute(): void
+    {
+        $name = new Attribute('name', ['pl' => 'Nazwa'], AttributeType::Text);
+
+        self::assertSame([], $name->getRelationTargetObjectTypeIds());
+        self::assertNull($name->getRelationCardinality());
+        self::assertFalse($name->isRelationAdvanced());
+    }
+
+    #[Test]
+    public function relationConfigStoresTargetCardinalityAdvanced(): void
+    {
+        $upSell = new Attribute('up_sell', ['pl' => 'Up-sell'], AttributeType::Relation);
+
+        $upSell->setRelationTargetObjectTypeIds([
+            '11111111-1111-7111-8111-111111111111',
+            '11111111-1111-7111-8111-111111111111',
+            '22222222-2222-7222-8222-222222222222',
+        ]);
+        $upSell->setRelationCardinality(RelationCardinality::Many);
+        $upSell->setRelationAdvanced(true);
+
+        self::assertSame(
+            [
+                '11111111-1111-7111-8111-111111111111',
+                '22222222-2222-7222-8222-222222222222',
+            ],
+            $upSell->getRelationTargetObjectTypeIds(),
+        );
+        self::assertSame(RelationCardinality::Many, $upSell->getRelationCardinality());
+        self::assertTrue($upSell->isRelationAdvanced());
+    }
+
+    #[Test]
+    public function relationCardinalityCanBeReset(): void
+    {
+        $brand = new Attribute('brand', ['pl' => 'Marka'], AttributeType::Relation);
+
+        $brand->setRelationCardinality(RelationCardinality::One);
+        $brand->setRelationCardinality(null);
+
+        self::assertNull($brand->getRelationCardinality());
     }
 }

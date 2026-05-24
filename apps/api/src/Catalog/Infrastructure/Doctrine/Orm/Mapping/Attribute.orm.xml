@@ -72,6 +72,18 @@
                 <option name="default">{}</option>
             </options>
         </field>
+        <field name="relationTargetObjectTypeIds" type="json" column="relation_target_object_type_ids">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">[]</option>
+            </options>
+        </field>
+        <field name="relationCardinality" type="string" length="8" column="relation_cardinality" nullable="true" enum-type="App\Catalog\Domain\RelationCardinality"/>
+        <field name="relationAdvanced" type="boolean" column="relation_advanced">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
         <field name="position" type="integer">
             <options>
                 <option name="default">0</option>
