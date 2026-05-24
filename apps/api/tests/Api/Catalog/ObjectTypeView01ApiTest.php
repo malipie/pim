@@ -210,6 +210,9 @@ final class ObjectTypeView01ApiTest extends CatalogApiTestCase
             self::assertArrayHasKey('system', $first);
             self::assertArrayHasKey('attrsCount', $first);
             self::assertArrayHasKey('attrsPreview', $first);
+            // MODR-04 (#926) — `displayMode` exposed for the wizard segmented control.
+            self::assertArrayHasKey('displayMode', $first);
+            self::assertContains($first['displayMode'], ['tab', 'stacked']);
         }
     }
 
