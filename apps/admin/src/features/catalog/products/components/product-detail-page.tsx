@@ -7,7 +7,6 @@ import {
   MoreHorizontal,
   Pencil,
   Save,
-  ShoppingBag,
   Sparkles,
   Trash2,
 } from 'lucide-react';
@@ -43,6 +42,7 @@ import { EffectiveModelCard } from './effective-model-card';
 import { LocaleChannelToolbar } from './locale-channel-toolbar';
 import { PreviewButton } from './preview-button';
 import { ProductMultimediaTab } from './product-multimedia-tab';
+import { RelationsTab } from './relations-tab';
 import { SyncStatusCard } from './sync-status-card';
 import type {
   AttributeMeta,
@@ -855,49 +855,10 @@ function resolveProvenance(
 function OtherTabs({ activeTab, productId }: { activeTab: TabKey; productId: string }) {
   if (activeTab === 'multimedia') return <ProductMultimediaTab productId={productId} />;
   if (activeTab === 'categories') return <CategoriesTab productId={productId} />;
-  if (activeTab === 'relations') return <RelationsStub />;
+  if (activeTab === 'relations') return <RelationsTab productId={productId} />;
   if (activeTab === 'history') return <HistoryStub />;
   if (activeTab === 'variants') return <VariantsTabHost productId={productId} />;
   return null;
-}
-
-function RelationsStub() {
-  const types: Array<{ kind: string; label: string; count: number }> = [
-    { kind: 'cross-sell', label: 'Cross-sell', count: 4 },
-    { kind: 'up-sell', label: 'Up-sell', count: 2 },
-    { kind: 'related', label: 'Powiązane', count: 6 },
-  ];
-
-  return (
-    <MockBadge
-      variant="overlay"
-      tooltip="MOCK · Powiązania — foundation ADR-014/MOD-02 (#894) shipped; UI wiring czeka na MOD-12 (#904)"
-    >
-      <div className="space-y-3">
-        {types.map((rel) => (
-          <div
-            key={rel.kind}
-            className="flex items-center justify-between rounded-2xl border border-line bg-surface p-4 soft-shadow"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-accent-blue/10 text-accent-blue">
-                <ShoppingBag className="size-4" />
-              </span>
-              <div>
-                <p className="text-[13.5px] font-semibold text-ink">{rel.label}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {rel.count} produktów powiązanych
-                </p>
-              </div>
-            </div>
-            <Button type="button" variant="ghost" size="sm" disabled>
-              Edytuj
-            </Button>
-          </div>
-        ))}
-      </div>
-    </MockBadge>
-  );
 }
 
 function HistoryStub() {
