@@ -126,6 +126,7 @@ final readonly class ObjectTypeService
         ?array $allowedParentTypeIds = null,
         ?array $completenessRules = null,
         ?bool $exposeToMainMenu = null,
+        ?bool $isCategorizable = null,
     ): ObjectType {
         $isBuiltIn = $objectType->isBuiltIn();
 
@@ -180,6 +181,22 @@ final readonly class ObjectTypeService
                 );
             }
             $objectType->setExposeToMainMenu($exposeToMainMenu);
+        }
+        if (null !== $isCategorizable) {
+            // ADR-014 / MOD-11 (#903): operator-driven toggle. Reused
+            // ObjectKind::Category exclusion — a category that participates
+            // in its own attribute overlay creates a circular dependency
+            // with the resolver. Other kinds (Product, Asset, custom) are
+            // free to flip; built-in `is_built_in=true` ObjectTypes do NOT
+            // lock this flag because the operator may want Asset to become
+            // categorizable in the future (today: AC blocks via UI hint,
+            // not by service-layer 422).
+            if ($isCategorizable && ObjectKind::Category === $objectType->getKind()) {
+                throw new LogicException(
+                    'Category ObjectType cannot be flagged as categorizable — categories drive the overlay, they don\'t consume it.',
+                );
+            }
+            $objectType->setCategorizable($isCategorizable);
         }
 
         $this->em->flush();

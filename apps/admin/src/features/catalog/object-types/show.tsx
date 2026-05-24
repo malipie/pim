@@ -44,6 +44,7 @@ interface ObjectTypeDetail {
   allowedParentTypeIds?: string[];
   completenessRules?: Record<string, unknown> | null;
   exposeToMainMenu?: boolean;
+  isCategorizable?: boolean;
 }
 
 interface ObjectTypeUsage {
@@ -677,6 +678,34 @@ export function ObjectTypeShowPage() {
                 {t('object_types.setting_expose_menu_asset_locked', {
                   defaultValue:
                     'Asset używa dedykowanego widoku /assets — zarządzaj kolejnością przez system item Multimedia.',
+                })}
+              </div>
+            ) : null}
+          </div>
+          {/* ADR-014 / MOD-11 (#903) — `is_categorizable` toggle. When ON
+              the operator MUST pick a primary category when creating
+              instances; the form layout is then driven by the primary's
+              root→leaf attribute-group overlay (MOD-03). Category kind is
+              locked because categories drive the overlay, they don't
+              consume it. */}
+          <div className="border-t border-zinc-100 pt-5">
+            <SettingToggleRow
+              label={t('object_types.setting_categorizable_label', {
+                defaultValue: 'Wymaga primary category',
+              })}
+              description={t('object_types.setting_categorizable_desc', {
+                defaultValue:
+                  'Po włączeniu instancje tego ObjectType muszą wybrać kategorię główną przy tworzeniu — jej ścieżka root→leaf w drzewie kategorii dodaje atrybuty kumulatywnie (ADR-014). Wyłącz, by formularz pokazywał tylko bazowe atrybuty ObjectType.',
+              })}
+              checked={Boolean(objectType.isCategorizable)}
+              locked={objectType.kind === 'category'}
+              onChange={(next) => void handlePatch({ isCategorizable: next })}
+            />
+            {objectType.kind === 'category' ? (
+              <div className="mt-2 text-[11.5px] text-zinc-500">
+                {t('object_types.setting_categorizable_category_locked', {
+                  defaultValue:
+                    'Kategoria sama definiuje warstwę overlay — nie może być jej konsumentem.',
                 })}
               </div>
             ) : null}
