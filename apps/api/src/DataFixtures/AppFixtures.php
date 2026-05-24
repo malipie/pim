@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\DataFixtures;
 
-use App\Catalog\Application\BuiltInAssociationTypeSeeder;
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
+use App\Catalog\Application\BuiltInProductRelationAttributesSeeder;
 use App\Catalog\Application\BuiltInSmartFilterPresetsSeeder;
 use App\Catalog\Application\BuiltInSystemAttributesSeeder;
 use App\Catalog\Application\DefaultMenuSeeder;
@@ -65,8 +65,8 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
         private readonly PermissionRepositoryInterface $permissionRepository,
         private readonly SeedTenantPrdRolesService $tenantPrdRolesSeeder,
         private readonly BuiltInObjectTypeSeeder $builtInSeeder,
-        private readonly BuiltInAssociationTypeSeeder $associationTypeSeeder,
         private readonly BuiltInSystemAttributesSeeder $systemAttributesSeeder,
+        private readonly BuiltInProductRelationAttributesSeeder $productRelationAttributesSeeder,
         private readonly ObjectTypeRepositoryInterface $objectTypeRepository,
         private readonly DemoCatalogSeeder $demoCatalogSeeder,
         private readonly DefaultMenuSeeder $defaultMenuSeeder,
@@ -136,12 +136,15 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
         // are safe.
         foreach ($tenants as $tenant) {
             $this->builtInSeeder->seed($tenant);
-            $this->associationTypeSeeder->seed($tenant);
             // System attributes + audit group must be seeded *after* the
             // built-in ObjectTypes so the AutoAttachAuditGroupListener can
             // wire any future ObjectType to the existing audit group.
             // Existing ObjectTypes are back-filled by the migration.
             $this->systemAttributesSeeder->seed($tenant);
+            // ADR-014 / MOD-02 (#894): seed the 5 built-in `relation`
+            // attributes on Product ObjectType + the "Powiązania" group
+            // that hosts them. Replaces BuiltInAssociationTypeSeeder.
+            $this->productRelationAttributesSeeder->seed($tenant);
             // VIEW-08 (#427): seed the default sidebar layout (8 items
             // matching the legacy hard-coded sidebar minus Services).
             $this->defaultMenuSeeder->seed($tenant);

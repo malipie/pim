@@ -65,10 +65,8 @@ final readonly class PermissionOpenApiFactory implements OpenApiFactoryInterface
             'GET' => 'asset.read', 'POST' => 'asset.write',
             'PATCH' => 'asset.write', 'PUT' => 'asset.write', 'DELETE' => 'asset.delete',
         ],
-        'Association' => [
-            'GET' => 'association.read', 'POST' => 'association.write',
-            'PATCH' => 'association.write', 'PUT' => 'association.write', 'DELETE' => 'association.delete',
-        ],
+        // ADR-014 / MOD-02 (#894): Association resource removed — replaced by
+        // `relation`-typed attributes (covered by the `attribute.*` codes).
         'Attribute' => [
             'GET' => 'attribute.read', 'POST' => 'modeling.attributes.add_edit',
             'PATCH' => 'modeling.attributes.add_edit', 'PUT' => 'modeling.attributes.add_edit', 'DELETE' => 'attribute.delete',

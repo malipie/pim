@@ -36,13 +36,13 @@ final class AuditLogTest extends KernelTestCase
 
     private const array EXPECTED_AUDIT_TABLES = [
         // Catalog schema — see dh_auditor.yaml note on why catalog DATA
-        // tables (objects, object_values, object_associations) are
-        // intentionally absent here.
+        // tables (objects, object_values, object_relations) are
+        // intentionally absent here. ADR-014 / MOD-02 (#894) dropped the
+        // AssociationType entity, so `association_types_audit` is gone too.
         'object_types_audit',
         'attributes_audit',
         'attribute_groups_audit',
         'attribute_options_audit',
-        'association_types_audit',
         'channels_audit',
         'assets_audit',
         'users_audit',
