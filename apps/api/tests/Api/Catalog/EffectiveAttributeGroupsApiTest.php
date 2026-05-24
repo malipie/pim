@@ -106,6 +106,64 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function exposesDisplayModePerGroupAndSyntheticGroupIsStacked(): void
+    {
+        // MODR-03 (#925) — every group in the payload carries a
+        // `display_mode`. Audit (real group) is `stacked` after the
+        // MODR-03 data migration; the synthetic "default" bucket is
+        // always `stacked` so it never spawns a tab on the frontend.
+        $client = $this->authenticatedClient();
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+
+        $productType = self::getContainer()
+            ->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert(null !== $productType);
+
+        // Seed the audit system group + attach one loose attribute so
+        // both an audit (stacked) and a synthetic default (stacked)
+        // group appear in the response.
+        self::getContainer()->get(BuiltInSystemAttributesSeeder::class)->seed($tenant);
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenantContext->set($tenant);
+        $brandAttr = new Attribute('modr03_brand', ['pl' => 'Marka', 'en' => 'Brand'], AttributeType::Text);
+        $em = $this->em();
+        $em->persist($brandAttr);
+        $em->flush();
+        self::getContainer()->get(ObjectTypeService::class)
+            ->assignAttribute($productType, $brandAttr, required: false, sortOrder: 0);
+        $tenantContext->clear();
+
+        $created = $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'MODR03-DM',
+                'objectTypeId' => $productType->getId()->toRfc4122(),
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+        $id = $created['id'] ?? null;
+        \assert(\is_string($id));
+
+        $body = $client->request('GET', '/api/products/'.$id.'/effective-attribute-groups')->toArray();
+        $groups = $body['groups'] ?? [];
+        \assert(\is_array($groups));
+
+        $modesByCode = [];
+        foreach ($groups as $g) {
+            \assert(\is_array($g));
+            self::assertArrayHasKey('display_mode', $g, 'Group missing display_mode: '.json_encode($g));
+            self::assertContains($g['display_mode'], ['tab', 'stacked']);
+            $code = $g['code'] ?? null;
+            \assert(\is_string($code));
+            $modesByCode[$code] = $g['display_mode'];
+        }
+
+        self::assertSame('stacked', $modesByCode['audit'] ?? null, 'audit group must be stacked post-MODR-03 migration');
+        self::assertSame('stacked', $modesByCode['default'] ?? null, 'synthetic default group must be stacked');
+    }
+
+    #[Test]
     public function omitsDefaultGroupWhenEveryAttributeBelongsToAGroup(): void
     {
         $client = $this->authenticatedClient();

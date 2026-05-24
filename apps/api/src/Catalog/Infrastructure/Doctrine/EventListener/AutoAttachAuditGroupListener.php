@@ -66,7 +66,12 @@ final class AutoAttachAuditGroupListener
         }
 
         $em = $event->getObjectManager();
-        $junction = new ObjectTypeAttributeGroup($entity, $auditGroup, position: 999);
+        $junction = new ObjectTypeAttributeGroup(
+            $entity,
+            $auditGroup,
+            position: 999,
+            displayMode: ObjectTypeAttributeGroup::DISPLAY_MODE_STACKED,
+        );
 
         $this->attaching = true;
         try {

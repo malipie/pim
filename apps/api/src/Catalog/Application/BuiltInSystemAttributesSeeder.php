@@ -157,7 +157,12 @@ final readonly class BuiltInSystemAttributesSeeder
                 if (\in_array($objectType->getId()->toRfc4122(), $alreadyAttached, true)) {
                     continue;
                 }
-                $this->em->persist(new ObjectTypeAttributeGroup($objectType, $auditGroup, position: 999));
+                $this->em->persist(new ObjectTypeAttributeGroup(
+                    $objectType,
+                    $auditGroup,
+                    position: 999,
+                    displayMode: ObjectTypeAttributeGroup::DISPLAY_MODE_STACKED,
+                ));
             }
             $this->em->flush();
 
