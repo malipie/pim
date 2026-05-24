@@ -56,7 +56,8 @@ final class ObjectTypeAttachedGroupsController
             <<<'SQL'
                     SELECT g.id, g.code, g.label, g.icon, g.color,
                            g.is_system_group AS system,
-                           j.position
+                           j.position,
+                           j.display_mode
                     FROM object_type_attribute_groups j
                     JOIN attribute_groups g ON g.id = j.attribute_group_id
                     WHERE j.object_type_id = :ot
@@ -89,6 +90,7 @@ final class ObjectTypeAttachedGroupsController
                 }
             }
 
+            $displayMode = self::stringify($row['display_mode'] ?? 'tab');
             $entries[] = [
                 'id' => $groupId,
                 'code' => self::stringify($row['code'] ?? ''),
@@ -98,6 +100,7 @@ final class ObjectTypeAttachedGroupsController
                 'system' => (bool) $row['system'],
                 'attrsCount' => \count($attrs),
                 'attrsPreview' => \array_slice($attrs, 0, self::ATTRS_PREVIEW_LIMIT),
+                'displayMode' => '' !== $displayMode ? $displayMode : 'tab',
             ];
         }
 

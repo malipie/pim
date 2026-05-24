@@ -10,6 +10,7 @@ import { ColorPicker, DEFAULT_WIZARD_COLORS } from '@/components/modeling/color-
 import { CreateAttributeForObjectTypeDialog } from '@/components/modeling/create-attribute-for-object-type-dialog';
 import { CreateGroupInlineDialog } from '@/components/modeling/create-group-inline-dialog';
 import { DeclareObjectTypeAttributeGroupDialog } from '@/components/modeling/declare-object-type-attribute-group-dialog';
+import { DisplayModeSegmented } from '@/components/modeling/group-card';
 import { DEFAULT_WIZARD_ICONS, IconPicker } from '@/components/modeling/icon-picker';
 import { LocaleTabsField } from '@/components/modeling/locale-tabs-field';
 import { ObjectTypeIcon } from '@/components/modeling/object-type-icon';
@@ -86,6 +87,12 @@ export function ObjectTypeWizard() {
   const [abstractFlag, setAbstractFlag] = useState(false);
   const [exposeToMainMenu, setExposeToMainMenu] = useState(false);
   const [pickedGroupIds, setPickedGroupIds] = useState<Set<string>>(new Set());
+  // MODR-04 (#926) — display_mode per picked group. Defaults to 'tab'
+  // (matching the DB column default from MODR-01); the user can flip
+  // any row to 'stacked' via the segmented control on step 2.
+  const [pickedGroupDisplayModes, setPickedGroupDisplayModes] = useState<
+    Record<string, 'tab' | 'stacked'>
+  >({});
   const [pickedAttributeIds, setPickedAttributeIds] = useState<Set<string>>(new Set());
   const [declareGroupOpen, setDeclareGroupOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
@@ -133,6 +140,14 @@ export function ObjectTypeWizard() {
       next.delete(id);
       return next;
     });
+    setPickedGroupDisplayModes((prev) => {
+      const { [id]: _removed, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const setGroupDisplayMode = (id: string, mode: 'tab' | 'stacked') => {
+    setPickedGroupDisplayModes((prev) => ({ ...prev, [id]: mode }));
   };
 
   const removeAttribute = (id: string) => {
@@ -211,6 +226,19 @@ export function ObjectTypeWizard() {
           await jsonFetch(`/api/object_types/${created.id}/groups/${groupId}`, {
             method: 'POST',
           });
+          // MODR-04 (#926) — apply the chosen display_mode only when it
+          // differs from the column default ('tab'). Failures here are
+          // surfaced via the same failedGroups bucket — the junction
+          // exists with default placement, the operator can re-toggle
+          // from the detail page.
+          const mode = pickedGroupDisplayModes[groupId];
+          if (mode && mode !== 'tab') {
+            await jsonFetch(`/api/object_types/${created.id}/groups/${groupId}`, {
+              method: 'PATCH',
+              contentType: 'application/json',
+              body: { display_mode: mode },
+            });
+          }
         } catch {
           failedGroups.push(groupId);
         }
@@ -512,6 +540,7 @@ export function ObjectTypeWizard() {
                   <div className="space-y-1.5">
                     {pickedGroupRows.map((g) => {
                       const labelText = resolveGroupLabel(g.label, i18n.language) || g.code;
+                      const displayMode = pickedGroupDisplayModes[g.id] ?? 'tab';
                       return (
                         <div
                           key={g.id}
@@ -535,6 +564,20 @@ export function ObjectTypeWizard() {
                               {g.code}
                             </div>
                           </div>
+                          <DisplayModeSegmented
+                            value={displayMode}
+                            onChange={(next) => setGroupDisplayMode(g.id, next)}
+                            labelTab={t('object_type_wizard.group_display_mode_tab', {
+                              defaultValue: 'Zakładka',
+                            })}
+                            labelStacked={t('object_type_wizard.group_display_mode_stacked', {
+                              defaultValue: 'Inline',
+                            })}
+                            tooltip={t('object_type_wizard.group_display_mode_hint', {
+                              defaultValue:
+                                'Zakładka — własny tab. Inline — sekcja w karcie atrybutów.',
+                            })}
+                          />
                           <button
                             type="button"
                             aria-label={t('object_type_wizard.remove_group', {

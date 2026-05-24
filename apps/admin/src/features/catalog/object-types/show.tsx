@@ -15,7 +15,11 @@ import { CreateGroupInlineDialog } from '@/components/modeling/create-group-inli
 import { DangerZoneCard } from '@/components/modeling/danger-zone-card';
 import { DeclareObjectTypeAttributeGroupDialog } from '@/components/modeling/declare-object-type-attribute-group-dialog';
 import { FieldDisplay } from '@/components/modeling/field-display';
-import { type AttachedGroup, GroupCard } from '@/components/modeling/group-card';
+import {
+  type AttachedGroup,
+  GroupCard,
+  type GroupDisplayMode,
+} from '@/components/modeling/group-card';
 import { IconPicker } from '@/components/modeling/icon-picker';
 import { LocaleTabsField } from '@/components/modeling/locale-tabs-field';
 import { ObjectTypeIcon } from '@/components/modeling/object-type-icon';
@@ -161,6 +165,23 @@ export function ObjectTypeShowPage() {
       if (group.id.length > 0) {
         await jsonFetch(`/api/object_types/${id}/groups/${group.id}`, { method: 'POST' });
       }
+      await refreshGroups();
+    } catch (e) {
+      setError(e instanceof HttpError ? `${e.status}` : e instanceof Error ? e.message : 'unknown');
+    }
+  };
+
+  // MODR-04 (#926) — PATCH the junction's display_mode in-place. The
+  // table cache is invalidated so the segmented control reflects the
+  // persisted value on the next render; an error reverts the visible
+  // state by leaving the cache untouched.
+  const handleDisplayModeChange = async (group: AttachedGroup, next: GroupDisplayMode) => {
+    setError(null);
+    try {
+      await jsonFetch(`/api/object_types/${id}/groups/${group.id}`, {
+        method: 'PATCH',
+        body: { display_mode: next },
+      });
       await refreshGroups();
     } catch (e) {
       setError(e instanceof HttpError ? `${e.status}` : e instanceof Error ? e.message : 'unknown');
@@ -446,7 +467,13 @@ export function ObjectTypeShowPage() {
           ) : (
             <div className="space-y-2">
               {builtInGroups.map((g) => (
-                <GroupCard key={g.id} group={g} language={i18n.language} locked />
+                <GroupCard
+                  key={g.id}
+                  group={g}
+                  language={i18n.language}
+                  locked
+                  onDisplayModeChange={handleDisplayModeChange}
+                />
               ))}
             </div>
           )}
@@ -507,6 +534,7 @@ export function ObjectTypeShowPage() {
                   group={g}
                   language={i18n.language}
                   onEdit={() => navigate(`/modeling/attribute-groups/${g.id}`)}
+                  onDisplayModeChange={handleDisplayModeChange}
                 />
               ))}
             </div>
