@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Presentation\Controller;
 
+use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
@@ -288,6 +289,14 @@ final class ObjectTypeEffectiveGroupsPreviewController
 
         if ($attribute->getType()->usesOptions()) {
             $payload['options'] = $optionsByAttributeId[$attribute->getId()->toRfc4122()] ?? [];
+        }
+
+        // MODR-05 (#927) — mirror the relation metadata exposed by the
+        // persisted endpoint so the create form's preview renders the
+        // same link icon + tooltip.
+        if (AttributeType::Relation === $attribute->getType()) {
+            $payload['relation_target_object_type_ids'] = $attribute->getRelationTargetObjectTypeIds();
+            $payload['relation_cardinality'] = $attribute->getRelationCardinality()?->value;
         }
 
         return $payload;
