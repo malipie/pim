@@ -21,6 +21,11 @@ import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { CreateGroupInlineDialog } from '@/components/modeling/create-group-inline-dialog';
 import { PickGroupsForAttributeDialog } from '@/components/modeling/pick-groups-for-attribute-dialog';
+import {
+  type RelationAdvancedField,
+  RelationConfigPanel,
+  type RelationConfigValue,
+} from '@/components/modeling/relation-config-panel';
 import { WhereUsedList } from '@/components/modeling/where-used-list';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -44,6 +49,11 @@ interface AttributeDetail {
   unique?: boolean;
   filterable?: boolean;
   system?: boolean;
+  // ADR-014 / MOD-05 (#897) relation config fields surfaced by the API.
+  relationTargetObjectTypeIds?: string[];
+  relationCardinality?: 'one' | 'many' | null;
+  relationAdvanced?: boolean;
+  validationRules?: Record<string, unknown> | null;
 }
 
 /**
@@ -125,10 +135,70 @@ function Editor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ADR-014 / MOD-13 (#905) — relation config state, hydrated from the
+  // attribute payload. Initial JSONB shape: validation_rules.advanced_fields.
+  const initialRelationFields: RelationAdvancedField[] = ((): RelationAdvancedField[] => {
+    const rules = attribute.validationRules;
+    if (!rules || typeof rules !== 'object') return [];
+    const raw = (rules as Record<string, unknown>).advanced_fields;
+    if (!Array.isArray(raw)) return [];
+    const out: RelationAdvancedField[] = [];
+    for (const entry of raw) {
+      if (typeof entry !== 'object' || entry === null) continue;
+      const e = entry as Record<string, unknown>;
+      const code = typeof e.code === 'string' ? e.code : '';
+      const type =
+        e.type === 'text' || e.type === 'number' || e.type === 'boolean' ? e.type : 'text';
+      const label =
+        typeof e.label === 'object' && e.label !== null ? (e.label as Record<string, string>) : {};
+      const required = Boolean(e.required);
+      if (code !== '') out.push({ code, type, label, required });
+    }
+    return out;
+  })();
+  const [relationConfig, setRelationConfig] = useState<RelationConfigValue>({
+    targetObjectTypeIds: attribute.relationTargetObjectTypeIds ?? [],
+    cardinality: (attribute.relationCardinality as 'one' | 'many') ?? 'many',
+    advanced: attribute.relationAdvanced ?? false,
+    advancedFields: initialRelationFields,
+  });
+
+  // Fetch tenant ObjectTypes for the multi-select. Cheap query, cached.
+  const objectTypesQuery = useQuery<
+    Array<{
+      id: string;
+      code: string;
+      kind: string;
+      label?: Record<string, string> | string | null;
+    }>
+  >({
+    queryKey: ['relation-config', 'object_types'],
+    queryFn: () =>
+      jsonFetch<
+        Array<{
+          id: string;
+          code: string;
+          kind: string;
+          label?: Record<string, string> | string | null;
+        }>
+      >('/api/object_types', { accept: 'application/json' }),
+    staleTime: 60_000,
+    enabled: attribute.type === 'relation',
+  });
+
   // Reset form when attribute changes (id-keyed Editor remounts on different id).
   useEffect(() => {
     setError(null);
   }, [attribute.id]);
+
+  const initialRelationSnapshot = JSON.stringify({
+    targetObjectTypeIds: attribute.relationTargetObjectTypeIds ?? [],
+    cardinality: (attribute.relationCardinality as 'one' | 'many') ?? 'many',
+    advanced: attribute.relationAdvanced ?? false,
+    advancedFields: initialRelationFields,
+  });
+  const relationDirty =
+    attribute.type === 'relation' && JSON.stringify(relationConfig) !== initialRelationSnapshot;
 
   const dirtyFields = [
     labelPl !== (initialLabel.pl ?? '') || labelEn !== (initialLabel.en ?? ''),
@@ -137,6 +207,7 @@ function Editor({
     scopable !== (attribute.scopable ?? false),
     unique !== (attribute.unique ?? false),
     filterable !== (attribute.filterable ?? false),
+    relationDirty,
   ].filter(Boolean).length;
   const dirty = dirtyFields > 0;
 
@@ -169,6 +240,18 @@ function Editor({
         if (scopable !== (attribute.scopable ?? false)) body.scopable = scopable;
         if (unique !== (attribute.unique ?? false)) body.required = unique; // BE has no `unique` flag yet
         if (filterable !== (attribute.filterable ?? false)) body.filterable = filterable;
+      }
+      if (attribute.type === 'relation' && relationDirty) {
+        body.relationTargetObjectTypeIds = relationConfig.targetObjectTypeIds;
+        body.relationCardinality = relationConfig.cardinality;
+        body.relationAdvanced = relationConfig.advanced;
+        // MOD-08 schema lives in validation_rules.advanced_fields. Strip
+        // empty-code rows defensively (the validator would 422 them but the
+        // UX is friendlier when we drop them upfront).
+        const fields = relationConfig.advancedFields.filter((f) => f.code.trim() !== '');
+        body.validationRules = relationConfig.advanced
+          ? { ...(attribute.validationRules ?? {}), advanced_fields: fields }
+          : { ...(attribute.validationRules ?? {}), advanced_fields: [] };
       }
       await jsonFetch(`/api/attributes/${attribute.id}`, {
         method: 'PATCH',
@@ -398,6 +481,15 @@ function Editor({
         </Card>
 
         <AttachedGroupsCard attribute={attribute} locale={locale} />
+
+        {attribute.type === 'relation' ? (
+          <RelationConfigPanel
+            value={relationConfig}
+            objectTypes={objectTypesQuery.data ?? []}
+            disabled={isSystem || saving}
+            onChange={setRelationConfig}
+          />
+        ) : null}
 
         <WhereUsedList resource="attributes" id={attribute.id} />
       </div>
