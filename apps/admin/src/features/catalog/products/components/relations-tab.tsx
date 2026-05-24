@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { jsonFetch } from '@/lib/http';
+import { HttpError, jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 /**
