@@ -84,10 +84,14 @@ final class ObjectKindRouter
      * built-in kinds so it can stamp one `#[ApiResource]` declaration per
      * kind without hardcoding the list.
      *
+     * ADR-014 / MOD-10 (#902) — Brand was removed from the built-in pool.
+     * The kind enum case stays for tenants that converted Brand to
+     * custom, but it no longer gets a dedicated sugar path.
+     *
      * @return list<ObjectKind>
      */
     public static function builtInKinds(): array
     {
-        return [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset, ObjectKind::Brand];
+        return [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset];
     }
 }
