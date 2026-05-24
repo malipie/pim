@@ -61,6 +61,10 @@
             <group>admin:read</group>
             <group>integration:read</group>
         </attribute>
+        <attribute name="isCategorizable">
+            <group>admin:read</group>
+            <group>integration:read</group>
+        </attribute>
         <attribute name="allowedParentTypeIds">
             <group>admin:read</group>
         </attribute>
