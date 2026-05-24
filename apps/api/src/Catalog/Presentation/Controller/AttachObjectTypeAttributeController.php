@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Application\ObjectTypeService;
+use App\Catalog\Domain\Entity\Attribute as CatalogAttribute;
+use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Catalog\Domain\Validator\AttributeCodeUniquenessValidator;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -42,6 +46,7 @@ final class AttachObjectTypeAttributeController
         private readonly AttributeRepositoryInterface $attributes,
         private readonly ObjectTypeService $service,
         private readonly Connection $connection,
+        private readonly AttributeCodeUniquenessValidator $codeUniqueness,
     ) {
     }
 
@@ -64,6 +69,8 @@ final class AttachObjectTypeAttributeController
         if (null === $attribute) {
             throw new NotFoundHttpException(\sprintf('Attribute "%s" was not found.', $attributeId));
         }
+
+        $this->guardCodeUniqueness($objectType, $attribute);
 
         $sortOrder = $this->nextSortOrder($id);
         $this->service->assignAttribute($objectType, $attribute, false, $sortOrder);
@@ -130,6 +137,7 @@ final class AttachObjectTypeAttributeController
             if (null === $attribute) {
                 throw new NotFoundHttpException(\sprintf('Attribute "%s" was not found.', $rawId));
             }
+            $this->guardCodeUniqueness($objectType, $attribute);
             $this->service->assignAttribute($objectType, $attribute, false, $sortOrder);
             ++$sortOrder;
         }
@@ -150,5 +158,36 @@ final class AttachObjectTypeAttributeController
         );
 
         return \is_scalar($raw) ? (int) $raw : 0;
+    }
+
+    /**
+     * ADR-014 / MOD-04 (#896) — reject attach when the attribute's code is
+     * already present in the target ObjectType's effective model (base or
+     * category-distributed) via a *different* attribute row. Same-attribute
+     * idempotent re-attach is allowed (validator excludes the attribute
+     * being attached, so the ObjectTypeService::assignAttribute upsert path
+     * keeps working).
+     */
+    private function guardCodeUniqueness(ObjectType $objectType, CatalogAttribute $attribute): void
+    {
+        $conflict = $this->codeUniqueness->validate(
+            $attribute->getCode(),
+            $objectType,
+            excludeAttribute: $attribute,
+        );
+
+        if (null === $conflict) {
+            return;
+        }
+
+        throw new HttpException(
+            422,
+            \sprintf(
+                'Attribute code "%s" already exists in ObjectType "%s" model (location: %s).',
+                $conflict->code,
+                $objectType->getCode(),
+                $conflict->existingLocation,
+            ),
+        );
     }
 }
