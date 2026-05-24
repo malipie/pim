@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\DataFixtures;
 
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
+use App\Catalog\Application\BuiltInProductMediaAttributesSeeder;
 use App\Catalog\Application\BuiltInProductRelationAttributesSeeder;
 use App\Catalog\Application\BuiltInSmartFilterPresetsSeeder;
 use App\Catalog\Application\BuiltInSystemAttributesSeeder;
@@ -67,6 +68,7 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
         private readonly BuiltInObjectTypeSeeder $builtInSeeder,
         private readonly BuiltInSystemAttributesSeeder $systemAttributesSeeder,
         private readonly BuiltInProductRelationAttributesSeeder $productRelationAttributesSeeder,
+        private readonly BuiltInProductMediaAttributesSeeder $productMediaAttributesSeeder,
         private readonly ObjectTypeRepositoryInterface $objectTypeRepository,
         private readonly DemoCatalogSeeder $demoCatalogSeeder,
         private readonly DefaultMenuSeeder $defaultMenuSeeder,
@@ -145,6 +147,11 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
             // attributes on Product ObjectType + the "Powiązania" group
             // that hosts them. Replaces BuiltInAssociationTypeSeeder.
             $this->productRelationAttributesSeeder->seed($tenant);
+            // ADR-014 / MODR-02 (#924): seed the built-in "Multimedia"
+            // AttributeGroup on Product so it stops being a hardcoded
+            // tab. Empty in MVP — `asset`-typed attributes wired through
+            // Modelowanie in follow-up tickets.
+            $this->productMediaAttributesSeeder->seed($tenant);
             // VIEW-08 (#427): seed the default sidebar layout (8 items
             // matching the legacy hard-coded sidebar minus Services).
             $this->defaultMenuSeeder->seed($tenant);
