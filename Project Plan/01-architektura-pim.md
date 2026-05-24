@@ -1219,10 +1219,13 @@ Opcja (Y) zachowuje killer feature ADR-012 (dziedziczenie grup atrybutów po drz
 
 **Referencje:**
 - `Project Plan/UI/feature-modeling-data-model.md` — mini-spec implementacyjny (model, schema delta, UX, migracja, API, user stories, estymacja).
+- `Project Plan/UI/feature-modeling-relations-ux-tickets.md` — batch ticketów MODR-01..11 (#923..#933) rozstrzygający Opcję 2 §3.5.
 - ADR-012 (AttributeGroup first-class) — ADR-014 rewiduje 3 punkty, zachowuje resztę.
 - ADR-009 (generic ObjectType) — ADR-014 respektuje; built-in = Product/Category/Asset zgodnie z pierwotnym ADR-009.
 - ADR-006 (hybrid attribute model) — relacja jako typ atrybutu operuje na `object_values JSONB` zgodnie z ADR-006.
 - `Project Plan/UI/epik-08-modelowanie.md` — epik UI-08, do aktualizacji o capability flags + relacje + primary category.
+
+**Uzupełnienie 2026-05-24 (Opcja 2, batch MODR-01..11):** Placement atrybutów na karcie obiektu rozstrzygnięty przez `display_mode` na junction `object_type_attribute_groups` (`'tab'|'stacked'`, default `'tab'`, MODR-01 #923). Relacja jest **zwykłym atrybutem** — placement po grupie, widget po typie. Multimedia i Powiązania to seedowane `is_system_group=true` AttributeGroups (MODR-02 #924) — niczym nieuprzywilejowane wobec innych grup poza built-in flagą. Audit pozostaje `display_mode='stacked'` po data-migration (MODR-03 #925). Zakładka „Powiązania" widoczna gdy grupa ma atrybuty LUB obiekt ma reverse links (MODR-06 #928 → `GET /api/objects/{id}/relations/reverse/count`). Rich preview card + inline expand/edit operują przez `POST /api/objects/summaries` (batch fetch z `version`) i `PATCH /api/{kind-path}/{id}` z `expectedVersion` na `objects.version` (Doctrine `@Version`, MODR-08/MODR-10 #930/#932). Świadomie odrzucone alternatywy udokumentowane w `feature-modeling-data-model.md` §12.1.
 
 ## 14. Roadmap rozwoju
 

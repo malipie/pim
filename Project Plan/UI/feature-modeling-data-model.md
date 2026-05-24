@@ -88,7 +88,15 @@ Typ atrybutu `asset` pozostaje **odrębny** od `relation`. Asset ma specjalizowa
 
 ### 3.5 Zakładka „Powiązania"
 
-Atrybuty typu `relation` wpadają do AttributeGroup (jak każdy atrybut). Domyślnie grupa „Powiązania" → renderuje się jako zakładka w formularzu edycji. *(Decyzja Marcina: wszystkie relacje w jednej fixed zakładce „Powiązania". Uwaga implementacyjna: technicznie relacja jest zwykłym atrybutem w grupie — „fixed" oznacza seed grupy „Powiązania" jako domyślny target dla atrybutów `relation`, nie hardcoded osobny mechanizm.)*
+**Decyzja (ADR-014, Opcja 2 — MODR-01..10):** Atrybut typu `relation` to **zwykły atrybut**. Placement na karcie obiektu (zakładka vs. sekcja inline) wynika wyłącznie z `AttributeGroup` + jej `display_mode` na junction `object_type_attribute_groups` (kolumna `display_mode VARCHAR(8) NOT NULL DEFAULT 'tab' CHECK IN ('tab','stacked')` — MODR-01 #923). **Widget dobierany jest po typie atrybutu** (`relation` → picker + grid + preview card; `text` → input), ale samo umiejscowienie idzie po grupie. Brak hardcoded ścieżki dla typu `relation`.
+
+Zakładka „Powiązania" = render seedowanej grupy `relations` (`is_system_group=true`, `display_mode='tab'`, MODR-02 #924) — operator może w wizardzie / detalu ObjectType (MODR-04 #926) przerzucić ją na `stacked`, wtedy renderuje się jako sekcja inline pod zakładką „Atrybuty". Tak samo działa zaktualizowana seedowana grupa `media` (MODR-02 #924) — wcześniej Multimedia była hardcoded jako osobna zakładka, teraz jest standardową AttributeGroup. Audit pozostaje `display_mode='stacked'` (MODR-03 #925 + migracja `Version20260524160000`) by zachować historyczny układ.
+
+**Edge case widoczności zakładki „Powiązania"** (MODR-06 #928): tab jest widoczna gdy *(a)* seedowana grupa `relations` ma ≥ 1 atrybut **LUB** *(b)* obiekt ma ≥ 1 powiązanie **zwrotne** (`object_relations.target_object_id = ten obiekt`). Lekka probowa-flaga: `GET /api/objects/{id}/relations/reverse/count` → `{hasReverse: bool, count: int}`. Jeśli zakładka pojawia się wyłącznie z powodu reverse, renderuje wyłącznie read-only sekcję „Powiązania zwrotne".
+
+**Konfigurator atrybutu `relation`** (MODR-07 #929) pre-zaznacza grupę `relations` jako domyślny target — leniwa ścieżka skupia relacje w jednej zakładce, świadoma ścieżka pozwala umieścić atrybut w dowolnej grupie (np. `producent` → grupa „Tożsamość").
+
+**Rich preview card + inline edit** (MODR-08 #930 + MODR-10 #932): widget relacji renderuje powiązane obiekty jako karty (`code + name + ObjectType chip`), z batchowym fetchem `POST /api/objects/summaries`. Operator może rozwinąć kartę i edytować pola targetu w miejscu (`PATCH /api/{products|categories|assets}/{id}` z `expectedVersion` → 409 przy stale data; `objects.version` + Doctrine `@Version`).
 
 ## 4. Schema (delta)
 
@@ -111,6 +119,17 @@ ALTER TABLE attributes ADD CONSTRAINT attributes_relation_cardinality_chk
     CHECK (relation_cardinality IS NULL OR relation_cardinality IN ('one', 'many'));
 ALTER TABLE attributes ADD COLUMN relation_advanced BOOLEAN NOT NULL DEFAULT false;
 -- type='relation' już istnieje w enumie AttributeType (AttributeType.php:36) od #31
+
+-- Placement grupy atrybutów per ObjectType (MODR-01 / #923)
+ALTER TABLE object_type_attribute_groups
+    ADD COLUMN display_mode VARCHAR(8) NOT NULL DEFAULT 'tab'
+    CHECK (display_mode IN ('tab', 'stacked'));
+
+-- Preview fields dla rich preview card relacji (MODR-08 / #930)
+ALTER TABLE attributes ADD COLUMN relation_preview_fields JSONB NOT NULL DEFAULT '[]'::JSONB;
+
+-- Optimistic locking dla inline-edit z relation widget (MODR-10 / #932)
+ALTER TABLE objects ADD COLUMN version INTEGER NOT NULL DEFAULT 1;
 
 -- Powiązania obiekt↔obiekt
 CREATE TABLE object_relations (
@@ -227,6 +246,14 @@ ObjectType **nie-kategoryzowalny** (Brand, Service bez kategorii) — modal pomi
 - ❌ **`visible_when` reguły composite** dla relacji — proste tak/nie z ADR-012, composite Faza 1.
 - ❌ **Multi-tab dla relacji** (osobne „Powiązania handlowe" / „techniczne") — MVP: jedna zakładka „Powiązania". *(Uwaga: technicznie relacja jest atrybutem w grupie — rozszerzenie do wielu zakładek to zmiana seedu grup, nie architektury.)*
 
+### 12.1 Świadomie odrzucone alternatywy ADR-014 / batch MODR-01..10 (rozstrzygnięte 2026-05-24)
+
+- ❌ **Warstwa „Object Template"** (dodatkowa abstrakcja między ObjectType a Object) — model `EffectiveAttributeGroupResolver` + primary category + ad-hoc groups na obiekcie pokrywają potrzeby bez kolejnego pojęcia. Resolver pozostaje czystą abstrakcją źródeł nakładki.
+- ❌ **Osobny krok „Objekty" w wizardzie ObjectType** — wizard tworzy *typ*, instancje powstają na własnej karcie create (MOD-11). Mieszanie typu i instancji w jednym wizardzie zaciemnia model.
+- ❌ **Reguła „relacja zawsze zakładka"** — odrzucona przez MODR-01..03 (Opcja 2). Placement to wyłącznie `display_mode` na junction; relacja zachowuje się jak każdy atrybut, widget dobierany po typie. Jedyny default to seedowana grupa `relations` (MODR-02 #924) z `display_mode='tab'`, którą operator może świadomie zmienić.
+- ❌ **Mechanizm embed / kompozycja (composition vs. association)** — odłożony. Trigger powrotu: byt, który **nigdy nie jest współdzielony** i nie ma własnej tożsamości (np. wewnętrzne pole adresowe z 3 sub-polami) — wtedy embed kontra normalne ObjectType+relation. Dziś każdy byt jest ObjectType + asocjacja.
+- ❌ **Families à la Akeneo / Pimcore-classes** (równoległa warstwa „rodzina = predefiniowany zestaw atrybutów na ObjectType") — odrzucone. Resolver MODR'owy + primary category + ad-hoc grupy na ObjectType pokrywają tę samą semantykę bez wprowadzenia osobnej tabeli „families". Warunek powrotu: gdyby resolver przestał być czystą abstrakcją źródeł nakładki, można rozważyć families jako trzecie źródło (priorytet między ObjectType-global a category-overlay).
+
 ## 13. Estymacja
 
 | Element | Estymacja |
@@ -255,6 +282,10 @@ ObjectType **nie-kategoryzowalny** (Brand, Service bez kategorii) — modal pomi
 4. Migracja „Marki" — audyt stanu w bazie przed napisaniem migration script.
 5. Wireframes — modal create (krok kategoria), zakładka „Powiązania" (picker/grid/reverse), konfigurator relacji.
 6. Rozpisanie ticketów (~12-15) gdy decyzja o starcie implementacji — analogicznie do RBAC backlog.
+
+---
+
+**Cross-reference (MODR-11 #933):** Batch ticketów rozstrzygający §3.5 (Opcja 2) — [`feature-modeling-relations-ux-tickets.md`](feature-modeling-relations-ux-tickets.md) (MODR-01 #923 .. MODR-11 #933). Status: zaimplementowane 2026-05-24.
 
 ---
 
