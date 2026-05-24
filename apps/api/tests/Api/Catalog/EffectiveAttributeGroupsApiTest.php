@@ -154,7 +154,9 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
             \assert(\is_array($g));
             self::assertArrayHasKey('display_mode', $g, 'Group missing display_mode: '.json_encode($g));
             self::assertContains($g['display_mode'], ['tab', 'stacked']);
-            $modesByCode[$g['code']] = $g['display_mode'];
+            $code = $g['code'] ?? null;
+            \assert(\is_string($code));
+            $modesByCode[$code] = $g['display_mode'];
         }
 
         self::assertSame('stacked', $modesByCode['audit'] ?? null, 'audit group must be stacked post-MODR-03 migration');
