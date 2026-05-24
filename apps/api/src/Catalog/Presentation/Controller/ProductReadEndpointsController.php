@@ -361,6 +361,9 @@ final class ProductReadEndpointsController
         if (AttributeType::Relation === $attribute->getType()) {
             $payload['relation_target_object_type_ids'] = $attribute->getRelationTargetObjectTypeIds();
             $payload['relation_cardinality'] = $attribute->getRelationCardinality()?->value;
+            // MODR-08 (#930) — list of target attribute codes the rich
+            // preview card surfaces. Empty list = default card layout.
+            $payload['relation_preview_fields'] = $attribute->getRelationPreviewFields();
         }
 
         return $payload;

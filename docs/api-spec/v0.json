@@ -7144,6 +7144,16 @@
                             "boolean",
                             "null"
                         ]
+                    },
+                    "relationPreviewFields": {
+                        "description": "MODR-08 (#930) \u2014 list of target attribute codes shown inside the\nrelation widget's preview card. Empty list keeps the default\n(target object code + name). Meaningful only for relation\nattributes.",
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 }
             },

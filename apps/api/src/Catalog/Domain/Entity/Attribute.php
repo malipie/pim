@@ -105,6 +105,16 @@ class Attribute implements TenantScoped
 
     private bool $relationAdvanced = false;
 
+    /**
+     * MODR-08 (#930) — list of target attribute codes to surface in the
+     * relation widget's preview card. Empty list (default) → preview
+     * falls back to target object code + name. Meaningful only when
+     * `$type === AttributeType::Relation`.
+     *
+     * @var list<string>
+     */
+    private array $relationPreviewFields = [];
+
     private int $position = 0;
     private DateTimeImmutable $createdAt;
 
@@ -333,5 +343,31 @@ class Attribute implements TenantScoped
     public function setRelationAdvanced(bool $advanced): void
     {
         $this->relationAdvanced = $advanced;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRelationPreviewFields(): array
+    {
+        return $this->relationPreviewFields;
+    }
+
+    /**
+     * @param list<string> $fields
+     */
+    public function setRelationPreviewFields(array $fields): void
+    {
+        $normalized = [];
+        foreach ($fields as $field) {
+            if ('' === $field) {
+                continue;
+            }
+            if (\in_array($field, $normalized, true)) {
+                continue;
+            }
+            $normalized[] = $field;
+        }
+        $this->relationPreviewFields = $normalized;
     }
 }

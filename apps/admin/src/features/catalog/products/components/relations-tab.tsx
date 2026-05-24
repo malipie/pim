@@ -271,6 +271,34 @@ function RelationGroupCard({
 
   const targetIds = attributeQuery.data?.relationTargetObjectTypeIds ?? [];
 
+  // MODR-08 (#930) — batch-fetch a summary (code + name + ObjectType code)
+  // for every currently linked target so the preview cards render in a
+  // single round trip instead of N parallel GET /api/objects/{id} calls.
+  const linkedTargetIds = useMemo(
+    () =>
+      Array.from(new Set(group.relations.map((r) => r.targetObjectId)))
+        .sort()
+        .filter((v) => v.length > 0),
+    [group.relations],
+  );
+  const summariesQuery = useQuery<RelationTargetSummary[]>({
+    queryKey: ['objects', 'summaries', linkedTargetIds],
+    queryFn: () =>
+      jsonFetch<RelationTargetSummary[]>('/api/objects/summaries', {
+        method: 'POST',
+        contentType: 'application/json',
+        accept: 'application/json',
+        body: { ids: linkedTargetIds },
+      }),
+    enabled: linkedTargetIds.length > 0,
+    staleTime: 30_000,
+  });
+  const summariesById = useMemo(() => {
+    const map = new Map<string, RelationTargetSummary>();
+    for (const s of summariesQuery.data ?? []) map.set(s.id, s);
+    return map;
+  }, [summariesQuery.data]);
+
   const handleAdd = (newTargetId: string) => {
     const existing = group.relations.map((r) => ({
       id: r.targetObjectId,
@@ -332,6 +360,7 @@ function RelationGroupCard({
               row={row}
               advanced={attribute.advanced}
               advancedFields={extractAdvancedFields(attributeQuery.data?.validationRules)}
+              summary={summariesById.get(row.targetObjectId)}
               onRemove={() => deleteMutation.mutate(row.targetObjectId)}
               onMetadataChange={(next) => handleMetadataChange(row.targetObjectId, next)}
               disabled={writeMutation.isPending || deleteMutation.isPending}
@@ -352,10 +381,18 @@ function RelationGroupCard({
   );
 }
 
+interface RelationTargetSummary {
+  id: string;
+  code: string;
+  name: string | null;
+  objectType: { id: string; code: string; kind: string };
+}
+
 function RelationRowItem({
   row,
   advanced,
   advancedFields,
+  summary,
   onRemove,
   onMetadataChange,
   disabled,
@@ -368,28 +405,39 @@ function RelationRowItem({
     label: Record<string, string>;
     required: boolean;
   }>;
+  /**
+   * MODR-08 (#930) — pre-fetched summary from the batch endpoint
+   * (`POST /api/objects/summaries`). When absent, the card falls back
+   * to the target UUID's first 8 characters.
+   */
+  summary?: RelationTargetSummary;
   onRemove: () => void;
   onMetadataChange: (next: Record<string, unknown>) => void;
   disabled: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'pl' ? 'pl' : 'en';
-  const targetQuery = useQuery<{ id: string; code: string }>({
-    queryKey: ['objects', row.targetObjectId, 'minimal'],
-    queryFn: () =>
-      jsonFetch<{ id: string; code: string }>(`/api/objects/${row.targetObjectId}`, {
-        accept: 'application/json',
-      }),
-    staleTime: 60_000,
-  });
 
   const targetMetadata = normaliseMetadata(row.metadata);
+  const displayCode = summary?.code ?? row.targetObjectId.slice(0, 8);
+  const displayName = summary?.name ?? null;
+  const objectTypeCode = summary?.objectType.code ?? null;
 
   return (
     <div className="rounded-xl border border-line bg-background p-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-mono">
-          {targetQuery.data?.code ?? row.targetObjectId.slice(0, 8)}
+        <div className="min-w-0">
+          {displayName !== null ? (
+            <div className="truncate text-sm font-semibold tracking-tight">{displayName}</div>
+          ) : null}
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="font-mono">{displayCode}</span>
+            {objectTypeCode ? (
+              <span className="rounded bg-muted px-1.5 py-0.5 font-mono uppercase tracking-wide">
+                {objectTypeCode}
+              </span>
+            ) : null}
+          </div>
         </div>
         <Button
           type="button"

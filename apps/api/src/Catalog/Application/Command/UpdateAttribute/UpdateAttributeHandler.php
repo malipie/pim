@@ -118,6 +118,13 @@ final readonly class UpdateAttributeHandler
             $attribute->setRelationAdvanced($resolvedAdvanced);
         }
 
+        // MODR-08 (#930) — preview field list can be edited independently
+        // of the rest of the relation config; the entity setter normalises
+        // duplicates and empty strings.
+        if (null !== $command->relationPreviewFields) {
+            $attribute->setRelationPreviewFields($command->relationPreviewFields);
+        }
+
         $this->repository->save($attribute);
     }
 }
