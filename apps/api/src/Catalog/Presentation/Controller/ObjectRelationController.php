@@ -1,0 +1,211 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Catalog\Presentation\Controller;
+
+use App\Catalog\Application\ObjectRelationService;
+use App\Catalog\Domain\Entity\ObjectTypeAttribute;
+use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
+use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Shared\Application\TenantContext;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Uid\Uuid;
+
+/**
+ * ADR-014 / MOD-06 (#898) — REST endpoints exposing the object↔object
+ * link junction (`object_relations`) created in MOD-02.
+ *
+ *   GET    /api/objects/{id}/relations
+ *   PUT    /api/objects/{id}/relations/{attributeCode}
+ *   DELETE /api/objects/{id}/relations/{attributeCode}/{targetId}
+ *
+ * Tenant scope: every read goes through TenantFilter-bound repositories,
+ * so a cross-tenant source id returns 404 immediately. The PUT body
+ * carries a list of target `id` strings (with optional `metadata` once
+ * MOD-08 lands; ignored for now).
+ *
+ * Cardinality + target ObjectType validation lives in
+ * {@see ObjectRelationService}; this controller is a thin HTTP veneer.
+ */
+final class ObjectRelationController
+{
+    private const string UUID_REGEX = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+
+    private const string CODE_REGEX = '[a-z][a-z0-9_]{0,63}';
+
+    public function __construct(
+        private readonly CatalogObjectRepositoryInterface $objects,
+        private readonly AttributeRepositoryInterface $attributes,
+        private readonly ObjectRelationService $service,
+        private readonly TenantContext $tenantContext,
+        private readonly EntityManagerInterface $em,
+    ) {
+    }
+
+    #[Route(
+        '/api/objects/{id}/relations',
+        name: 'pim_objects_relations_list',
+        requirements: ['id' => self::UUID_REGEX],
+        methods: ['GET'],
+    )]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
+    public function list(string $id): JsonResponse
+    {
+        $source = $this->fetchObject($id);
+
+        // We don't have a "find all relation attributes for an ObjectType"
+        // shortcut here, so we walk the effective list of attributes via the
+        // object_type_attributes junction (relation type only). For each
+        // attribute, ask the service for its rows. The shape mirrors the FE
+        // grouping in the MOD-12 tab.
+        $relationAttributes = $this->relationAttributesForSource($source);
+
+        $groups = [];
+        foreach ($relationAttributes as $attribute) {
+            $rows = $this->service->listForSource($source, $attribute);
+            $groups[] = [
+                'attribute' => [
+                    'id' => $attribute->getId()->toRfc4122(),
+                    'code' => $attribute->getCode(),
+                    'label' => $attribute->getLabel(),
+                    'cardinality' => $attribute->getRelationCardinality()?->value,
+                    'advanced' => $attribute->isRelationAdvanced(),
+                ],
+                'relations' => array_map(
+                    static fn ($row): array => [
+                        'id' => $row->getId()->toRfc4122(),
+                        'targetObjectId' => $row->getTarget()->getId()->toRfc4122(),
+                        'position' => $row->getPosition(),
+                        'metadata' => $row->getMetadata(),
+                    ],
+                    $rows,
+                ),
+            ];
+        }
+
+        return new JsonResponse([
+            'sourceObjectId' => $source->getId()->toRfc4122(),
+            'relationAttributes' => $groups,
+        ]);
+    }
+
+    #[Route(
+        '/api/objects/{id}/relations/{attributeCode}',
+        name: 'pim_objects_relations_put',
+        requirements: ['id' => self::UUID_REGEX, 'attributeCode' => self::CODE_REGEX],
+        methods: ['PUT'],
+    )]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'edit')]
+    public function put(string $id, string $attributeCode, Request $request): JsonResponse
+    {
+        $source = $this->fetchObject($id);
+        $attribute = $this->fetchAttribute($attributeCode);
+
+        $payload = json_decode($request->getContent(), true);
+        if (!\is_array($payload)) {
+            throw new BadRequestHttpException('Body must be a JSON object.');
+        }
+        $rawTargets = $payload['targets'] ?? null;
+        if (!\is_array($rawTargets)) {
+            throw new BadRequestHttpException('Field "targets" must be an array of `{id}` objects (or UUID strings).');
+        }
+
+        $targetIds = [];
+        foreach ($rawTargets as $entry) {
+            $rawId = \is_array($entry) ? ($entry['id'] ?? null) : $entry;
+            if (!\is_string($rawId) || !Uuid::isValid($rawId)) {
+                throw new BadRequestHttpException('Each target must carry a valid UUID `id`.');
+            }
+            $targetIds[] = Uuid::fromString($rawId);
+        }
+
+        $this->service->replaceForSourceAndAttribute($source, $attribute, $targetIds);
+
+        return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    #[Route(
+        '/api/objects/{id}/relations/{attributeCode}/{targetId}',
+        name: 'pim_objects_relations_delete',
+        requirements: [
+            'id' => self::UUID_REGEX,
+            'attributeCode' => self::CODE_REGEX,
+            'targetId' => self::UUID_REGEX,
+        ],
+        methods: ['DELETE'],
+    )]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'edit')]
+    public function delete(string $id, string $attributeCode, string $targetId): JsonResponse
+    {
+        $source = $this->fetchObject($id);
+        $attribute = $this->fetchAttribute($attributeCode);
+        $target = $this->fetchObject($targetId);
+
+        // Idempotent: missing row is success (204). Matches the rest of
+        // the catalog DELETE conventions.
+        $this->service->removeOne($source, $attribute, $target);
+
+        return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    private function fetchObject(string $rawId): \App\Catalog\Domain\Entity\CatalogObject
+    {
+        $object = $this->objects->findById(Uuid::fromString($rawId));
+        if (null === $object) {
+            throw new NotFoundHttpException(\sprintf('Object "%s" was not found.', $rawId));
+        }
+
+        return $object;
+    }
+
+    private function fetchAttribute(string $code): \App\Catalog\Domain\Entity\Attribute
+    {
+        $tenant = $this->tenantContext->get();
+        if (null === $tenant) {
+            throw new NotFoundHttpException('Tenant context not set.');
+        }
+        $attribute = $this->attributes->findByCode($code, $tenant);
+        if (null === $attribute) {
+            throw new NotFoundHttpException(\sprintf('Attribute "%s" was not found.', $code));
+        }
+
+        return $attribute;
+    }
+
+    /**
+     * @return list<\App\Catalog\Domain\Entity\Attribute>
+     */
+    private function relationAttributesForSource(\App\Catalog\Domain\Entity\CatalogObject $source): array
+    {
+        // Lightweight inline query — the FE grouping needs only the
+        // attributes of type=relation attached to the source's ObjectType
+        // via the object_type_attributes junction. CategoryAttributeGroup
+        // distribution adds more in MOD-12 once the resolver wiring
+        // ships; for now base-only is the documented MVP.
+        /** @var list<\App\Catalog\Domain\Entity\Attribute> $rows */
+        $rows = $this->em
+            ->createQuery(
+                'SELECT a FROM '.\App\Catalog\Domain\Entity\Attribute::class.' a'
+                .' JOIN '.ObjectTypeAttribute::class.' j WITH j.attribute = a'
+                .' WHERE j.objectType = :type AND a.type = :type_value'
+                .' ORDER BY j.sortOrder ASC, a.code ASC'
+            )
+            ->setParameter('type', $source->getObjectType())
+            ->setParameter('type_value', \App\Catalog\Domain\AttributeType::Relation->value)
+            ->getResult();
+
+        return $rows;
+    }
+}
