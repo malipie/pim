@@ -83,6 +83,9 @@ final readonly class AttributeProcessor implements ProcessorInterface
             validationRules: $data->validationRules,
             position: $data->position,
             attachToGroups: $data->attachToGroups,
+            relationTargetObjectTypeIds: $data->relationTargetObjectTypeIds,
+            relationCardinality: $data->relationCardinality,
+            relationAdvanced: $data->relationAdvanced,
         );
 
         $envelope = $this->dispatch($command);
@@ -127,6 +130,9 @@ final readonly class AttributeProcessor implements ProcessorInterface
             filterable: $data->filterable,
             validationRules: $data->validationRules,
             position: $data->position,
+            relationTargetObjectTypeIds: $data->relationTargetObjectTypeIds,
+            relationCardinality: $data->relationCardinality,
+            relationAdvanced: $data->relationAdvanced,
         );
         $this->dispatch($command);
 

@@ -11,6 +11,7 @@ final readonly class CreateAttributeCommand
      * @param array<string, string>|null $help
      * @param array<string, mixed>       $validationRules
      * @param list<string>               $attachToGroups
+     * @param list<string>               $relationTargetObjectTypeIds
      */
     public function __construct(
         public string $code,
@@ -24,6 +25,9 @@ final readonly class CreateAttributeCommand
         public array $validationRules = [],
         public int $position = 0,
         public array $attachToGroups = [],
+        public array $relationTargetObjectTypeIds = [],
+        public ?string $relationCardinality = null,
+        public bool $relationAdvanced = false,
     ) {
     }
 }

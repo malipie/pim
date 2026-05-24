@@ -81,6 +81,34 @@ final class AttributeInput
     public int $position = 0;
 
     /**
+     * ADR-014 / MOD-05 (#897) — list of ObjectType UUIDs that are valid
+     * targets for `type=relation` links. Ignored / coerced to `[]` for
+     * any other attribute type.
+     *
+     * @var list<string>
+     */
+    #[Assert\Type('array')]
+    #[Assert\All([new Assert\Uuid()])]
+    #[Groups(['attribute:create'])]
+    public array $relationTargetObjectTypeIds = [];
+
+    /**
+     * ADR-014 / MOD-05 (#897) — `one` (max single link per source) or
+     * `many` (ordered list). NULL for non-relation attributes.
+     */
+    #[Assert\Choice(choices: ['one', 'many'])]
+    #[Groups(['attribute:create'])]
+    public ?string $relationCardinality = null;
+
+    /**
+     * ADR-014 / MOD-05 (#897) — flips metadata fields on per-link rows
+     * (object_relations.metadata JSONB). Schema for the metadata payload
+     * lands in MOD-08.
+     */
+    #[Groups(['attribute:create'])]
+    public bool $relationAdvanced = false;
+
+    /**
      * VIEW-03 (#375) — popup „Stwórz nowy" in AttributeGroup detail
      * (groups-categories.jsx:813–953) creates the attribute and
      * attaches it to one or more groups atomically in the same request.
