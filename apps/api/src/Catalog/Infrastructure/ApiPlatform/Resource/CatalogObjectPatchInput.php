@@ -60,4 +60,14 @@ final class CatalogObjectPatchInput
      */
     #[Groups(['object:patch'])]
     public ?array $attributes = null;
+
+    /**
+     * MODR-10 (#932) — optimistic-lock guard. The relation widget's
+     * inline-edit panel reads `version` from the object payload and sends
+     * it back here; the handler compares against the current row and
+     * rejects with 409 Conflict on a mismatch ("stale data, refresh").
+     */
+    #[Assert\PositiveOrZero]
+    #[Groups(['object:patch'])]
+    public ?int $expectedVersion = null;
 }

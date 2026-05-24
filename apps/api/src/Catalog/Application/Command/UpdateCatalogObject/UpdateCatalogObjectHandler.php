@@ -6,6 +6,8 @@ namespace App\Catalog\Application\Command\UpdateCatalogObject;
 
 use App\Catalog\Application\ObjectAttributesUpserter;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use Doctrine\ORM\OptimisticLockException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -25,6 +27,19 @@ final readonly class UpdateCatalogObjectHandler
             throw new NotFoundHttpException(\sprintf(
                 'CatalogObject "%s" was not found.',
                 $command->id->toRfc4122(),
+            ));
+        }
+
+        // MODR-10 (#932) — optimistic-lock guard. Pre-flight check against
+        // the in-memory version covers the common case (a stale tab); the
+        // Doctrine `@Version` flush below also throws OptimisticLockException
+        // if a concurrent write slipped between our load + save.
+        if (null !== $command->expectedVersion && $command->expectedVersion !== $object->getVersion()) {
+            throw new ConflictHttpException(\sprintf(
+                'CatalogObject "%s" was modified by another user (expected v%d, current v%d). Refresh and try again.',
+                $command->id->toRfc4122(),
+                $command->expectedVersion,
+                $object->getVersion(),
             ));
         }
 
@@ -54,7 +69,14 @@ final readonly class UpdateCatalogObjectHandler
             $object->attachToPath($command->path);
         }
 
-        $this->catalogObjects->save($object);
+        try {
+            $this->catalogObjects->save($object);
+        } catch (OptimisticLockException $e) {
+            throw new ConflictHttpException(\sprintf(
+                'CatalogObject "%s" was modified by another user during save. Refresh and try again.',
+                $command->id->toRfc4122(),
+            ), $e);
+        }
 
         if (null !== $command->attributes && [] !== $command->attributes) {
             $this->attributesUpserter->upsert($object, $command->attributes);

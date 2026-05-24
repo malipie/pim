@@ -133,6 +133,14 @@ class CatalogObject extends AggregateRoot implements TenantScoped
     private DateTimeImmutable $createdAt;
     private DateTimeImmutable $updatedAt;
 
+    /**
+     * MODR-10 (#932) — optimistic-lock counter bumped by Doctrine via the
+     * `@Version` ORM mapping. Every UPDATE adds 1; clients who PATCH
+     * with a stale `expectedVersion` are rejected via 409 in
+     * {@see \App\Catalog\Application\Command\UpdateCatalogObject\UpdateCatalogObjectHandler}.
+     */
+    private int $version = 1;
+
     public function __construct(
         ObjectType $objectType,
         string $code,
@@ -377,6 +385,15 @@ class CatalogObject extends AggregateRoot implements TenantScoped
     public function getUpdatedAt(): DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    /**
+     * MODR-10 (#932) — optimistic-lock counter; auto-incremented by
+     * Doctrine on every flush of a mutated row.
+     */
+    public function getVersion(): int
+    {
+        return $this->version;
     }
 
     public function getImportSessionId(): ?Uuid

@@ -36,6 +36,13 @@ final readonly class UpdateCatalogObjectCommand
         public ?string $path = null,
         public bool $clearPath = false,
         public ?array $attributes = null,
+        /**
+         * MODR-10 (#932) — optimistic-lock guard. NULL = caller does not
+         * care about concurrency (backward compat with pre-MODR-10
+         * clients). Non-null = handler compares to current `version` and
+         * throws 409 on mismatch.
+         */
+        public ?int $expectedVersion = null,
     ) {
     }
 }

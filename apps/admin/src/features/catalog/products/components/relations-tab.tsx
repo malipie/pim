@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDownLeft, Link2, Plus, Search, Trash2, X } from 'lucide-react';
+import {
+  ArrowDownLeft,
+  ChevronDown,
+  ChevronUp,
+  Link2,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -8,6 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { Input } from '@/components/ui/input';
 import { HttpError, jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
+
+import { RelationInlineEditPanel } from './relation-inline-edit-panel';
 
 /**
  * ADR-014 / MOD-12 (#904) — „Powiązania" tab on the product detail page.
@@ -220,6 +231,9 @@ function RelationGroupCard({
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // MODR-10 (#932) — only one card may be expanded inside a group at a
+  // time; clicking the chevron again or expanding another row closes it.
+  const [expandedTargetId, setExpandedTargetId] = useState<string | null>(null);
   const attribute = group.attribute as AttributeFull;
   const cardinality = attribute.cardinality ?? 'many';
 
@@ -361,6 +375,12 @@ function RelationGroupCard({
               advanced={attribute.advanced}
               advancedFields={extractAdvancedFields(attributeQuery.data?.validationRules)}
               summary={summariesById.get(row.targetObjectId)}
+              isExpanded={expandedTargetId === row.targetObjectId}
+              onToggleExpand={() =>
+                setExpandedTargetId((prev) =>
+                  prev === row.targetObjectId ? null : row.targetObjectId,
+                )
+              }
               onRemove={() => deleteMutation.mutate(row.targetObjectId)}
               onMetadataChange={(next) => handleMetadataChange(row.targetObjectId, next)}
               disabled={writeMutation.isPending || deleteMutation.isPending}
@@ -393,6 +413,8 @@ function RelationRowItem({
   advanced,
   advancedFields,
   summary,
+  isExpanded,
+  onToggleExpand,
   onRemove,
   onMetadataChange,
   disabled,
@@ -411,6 +433,9 @@ function RelationRowItem({
    * to the target UUID's first 8 characters.
    */
   summary?: RelationTargetSummary;
+  /** MODR-10 (#932) — true when this card has been expanded to edit. */
+  isExpanded: boolean;
+  onToggleExpand: () => void;
   onRemove: () => void;
   onMetadataChange: (next: Record<string, unknown>) => void;
   disabled: boolean;
@@ -439,17 +464,37 @@ function RelationRowItem({
             ) : null}
           </div>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onRemove}
-          disabled={disabled}
-          aria-label={t('relations.remove_link', { defaultValue: 'Usuń powiązanie' })}
-        >
-          <Trash2 className="size-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onToggleExpand}
+            aria-expanded={isExpanded}
+            aria-label={
+              isExpanded
+                ? t('relations.collapse_card', { defaultValue: 'Zwiń szczegóły' })
+                : t('relations.expand_card', { defaultValue: 'Rozwiń szczegóły' })
+            }
+          >
+            {isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onRemove}
+            disabled={disabled}
+            aria-label={t('relations.remove_link', { defaultValue: 'Usuń powiązanie' })}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
       </div>
+
+      {isExpanded ? (
+        <RelationInlineEditPanel targetId={row.targetObjectId} onClose={onToggleExpand} />
+      ) : null}
 
       {advanced && advancedFields.length > 0 ? (
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
