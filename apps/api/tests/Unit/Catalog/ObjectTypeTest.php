@@ -135,4 +135,24 @@ final class ObjectTypeTest extends TestCase
             $type->getAllowedParentTypeIds(),
         );
     }
+
+    #[Test]
+    public function isCategorizableDefaultsToFalse(): void
+    {
+        $type = new ObjectType('subscription', ObjectKind::Custom, ['pl' => 'Subskrypcja']);
+
+        self::assertFalse($type->isCategorizable());
+        self::assertFalse($type->getIsCategorizable());
+    }
+
+    #[Test]
+    public function setCategorizableTogglesFlag(): void
+    {
+        $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
+
+        $type->setCategorizable(true);
+
+        self::assertTrue($type->isCategorizable());
+        self::assertTrue($type->getIsCategorizable());
+    }
 }

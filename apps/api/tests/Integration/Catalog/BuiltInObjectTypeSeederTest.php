@@ -41,6 +41,30 @@ final class BuiltInObjectTypeSeederTest extends KernelTestCase
     }
 
     #[Test]
+    public function isCategorizableFlagIsTrueOnlyForProduct(): void
+    {
+        $tenant = $this->createTenant('demo');
+
+        $this->seeder()->seed($tenant);
+
+        $repo = $this->repository();
+        $product = $repo->findBuiltInByKind(ObjectKind::Product, $tenant);
+        $category = $repo->findBuiltInByKind(ObjectKind::Category, $tenant);
+        $asset = $repo->findBuiltInByKind(ObjectKind::Asset, $tenant);
+        $brand = $repo->findBuiltInByKind(ObjectKind::Brand, $tenant);
+
+        self::assertNotNull($product);
+        self::assertNotNull($category);
+        self::assertNotNull($asset);
+        self::assertNotNull($brand);
+
+        self::assertTrue($product->isCategorizable(), 'Product is the only built-in that opts into primary-category overlay');
+        self::assertFalse($category->isCategorizable(), 'Category itself is not categorized — only base attributes apply');
+        self::assertFalse($asset->isCategorizable(), 'Asset has its own DAM workflow, not category-driven');
+        self::assertFalse($brand->isCategorizable(), 'Brand is flat, no category overlay');
+    }
+
+    #[Test]
     public function seedIsIdempotent(): void
     {
         $tenant = $this->createTenant('demo');

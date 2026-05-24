@@ -89,8 +89,30 @@ class ObjectType implements TenantScoped
      * default sidebar reproduces the legacy hard-coded "Produkty" entry.
      * `kind=Asset` is rejected at the service level (`/assets` DAM has its
      * own dedicated page; the generic listing route would 404 in MVP).
+     *
+     * ADR-014 / MOD-01 (#893): this is the canonical "show in main menu"
+     * capability flag; the ADR's `show_in_main_menu` name maps to this
+     * existing column (no rename).
      */
     private bool $exposeToMainMenu = false;
+
+    /**
+     * ADR-014 / MOD-01 (#893) — gates participation in primary-category
+     * driven attribute distribution. When TRUE, an instance of this
+     * ObjectType:
+     *   - is required to have exactly one primary `ObjectCategory` link;
+     *   - inherits attribute groups cumulatively from the root→leaf path
+     *     of that primary category (per `EffectiveAttributeGroupResolver`
+     *     after MOD-03);
+     *   - appears in `/modeling/categories` ObjectType filter.
+     * When FALSE, instances bypass category overlay entirely — only the
+     * ObjectType's base attribute groups apply.
+     *
+     * Seeded `true` for `kind=product`; `false` for category/asset and any
+     * future built-in kinds. Custom ObjectTypes default to `false` and the
+     * tenant flips it explicitly in the Settings card.
+     */
+    private bool $isCategorizable = false;
 
     /**
      * UUID list of ObjectTypes allowed as parent. Plain JSONB list (not a
@@ -341,6 +363,26 @@ class ObjectType implements TenantScoped
     public function setExposeToMainMenu(bool $value): void
     {
         $this->exposeToMainMenu = $value;
+        $this->touch();
+    }
+
+    public function isCategorizable(): bool
+    {
+        return $this->isCategorizable;
+    }
+
+    /**
+     * Symfony PropertyAccess accessor alias — `getIsCategorizable()` exposes
+     * the property as `isCategorizable` in serialized JSON output.
+     */
+    public function getIsCategorizable(): bool
+    {
+        return $this->isCategorizable;
+    }
+
+    public function setCategorizable(bool $value): void
+    {
+        $this->isCategorizable = $value;
         $this->touch();
     }
 
