@@ -7,7 +7,6 @@ namespace App\Tests\Api\Catalog;
 use App\Catalog\Application\BuiltInProductRelationAttributesSeeder;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use PHPUnit\Framework\Attributes\Test;
@@ -52,10 +51,14 @@ final class ObjectRelationsCrudApiTest extends CatalogApiTestCase
         $body = $listResp->toArray();
         self::assertSame($source->getId()->toRfc4122(), $body['sourceObjectId']);
 
-        $crossSell = $this->groupForCode($body['relationAttributes'], 'cross_sell');
-        self::assertCount(2, $crossSell['relations']);
-        self::assertSame($a->getId()->toRfc4122(), $crossSell['relations'][0]['targetObjectId']);
-        self::assertSame($b->getId()->toRfc4122(), $crossSell['relations'][1]['targetObjectId']);
+        /** @var list<array<string, mixed>> $relationAttributes */
+        $relationAttributes = $body['relationAttributes'];
+        $crossSell = $this->groupForCode($relationAttributes, 'cross_sell');
+        /** @var list<array{targetObjectId: string, position: int}> $relations */
+        $relations = $crossSell['relations'];
+        self::assertCount(2, $relations);
+        self::assertSame($a->getId()->toRfc4122(), $relations[0]['targetObjectId']);
+        self::assertSame($b->getId()->toRfc4122(), $relations[1]['targetObjectId']);
     }
 
     #[Test]
@@ -81,7 +84,9 @@ final class ObjectRelationsCrudApiTest extends CatalogApiTestCase
         self::assertSame(204, $deleteResp->getStatusCode(), $deleteResp->getContent(false));
 
         $listResp = $client->request('GET', '/api/objects/'.$source->getId()->toRfc4122().'/relations');
-        $related = $this->groupForCode($listResp->toArray()['relationAttributes'], 'related');
+        /** @var list<array<string, mixed>> $relationAttributes */
+        $relationAttributes = $listResp->toArray()['relationAttributes'];
+        $related = $this->groupForCode($relationAttributes, 'related');
         self::assertSame([], $related['relations']);
     }
 
@@ -109,9 +114,9 @@ final class ObjectRelationsCrudApiTest extends CatalogApiTestCase
     private function groupForCode(array $groups, string $code): array
     {
         foreach ($groups as $group) {
-            \assert(\is_array($group));
-            \assert(\is_array($group['attribute']));
-            if ($code === $group['attribute']['code']) {
+            /** @var array{code: string} $attribute */
+            $attribute = $group['attribute'];
+            if ($code === $attribute['code']) {
                 return $group;
             }
         }
@@ -135,10 +140,5 @@ final class ObjectRelationsCrudApiTest extends CatalogApiTestCase
         $em->flush();
 
         return $object;
-    }
-
-    private function attributeRepository(): AttributeRepositoryInterface
-    {
-        return self::getContainer()->get(AttributeRepositoryInterface::class);
     }
 }
