@@ -152,6 +152,7 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
             path: $data->path,
             clearPath: false,
             attributes: $data->attributes,
+            expectedVersion: $data->expectedVersion,
         );
         $this->dispatch($command);
 

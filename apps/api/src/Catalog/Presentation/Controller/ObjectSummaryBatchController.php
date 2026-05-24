@@ -114,6 +114,10 @@ final class ObjectSummaryBatchController
                     'code' => $type->getCode(),
                     'kind' => $type->getKind()->value,
                 ],
+                // MODR-10 (#932) — current optimistic-lock version so the
+                // relation inline-edit panel can echo it back as
+                // `expectedVersion` on PATCH.
+                'version' => $obj->getVersion(),
             ];
         }
 

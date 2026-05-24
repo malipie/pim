@@ -99,6 +99,13 @@
         <field name="createdAt" type="datetime_immutable" column="created_at"/>
         <field name="updatedAt" type="datetime_immutable" column="updated_at"/>
 
+        <!-- MODR-10 (#932) — optimistic locking. Doctrine increments on every UPDATE. -->
+        <field name="version" type="integer" column="version" version="true">
+            <options>
+                <option name="default">1</option>
+            </options>
+        </field>
+
     </entity>
 
 </doctrine-mapping>

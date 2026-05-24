@@ -7801,6 +7801,14 @@
                                 "null"
                             ]
                         }
+                    },
+                    "expectedVersion": {
+                        "minimum": 0,
+                        "description": "MODR-10 (#932) \u2014 optimistic-lock guard. The relation widget's\ninline-edit panel reads `version` from the object payload and sends\nit back here; the handler compares against the current row and\nrejects with 409 Conflict on a mismatch (\"stale data, refresh\").",
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
                     }
                 }
             },
