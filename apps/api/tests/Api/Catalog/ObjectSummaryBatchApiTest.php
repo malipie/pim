@@ -31,15 +31,19 @@ final class ObjectSummaryBatchApiTest extends CatalogApiTestCase
         ])->toArray();
 
         self::assertCount(2, $body);
-        $codes = array_map(static fn (array $r): string => $r['code'], $body);
-        sort($codes);
-        self::assertSame(['SUM-A', 'SUM-B'], $codes);
+        $codes = [];
         foreach ($body as $row) {
+            \assert(\is_array($row));
             self::assertArrayHasKey('id', $row);
             self::assertArrayHasKey('name', $row);
             self::assertArrayHasKey('objectType', $row);
+            \assert(\is_array($row['objectType']));
             self::assertSame('product', $row['objectType']['code']);
+            \assert(\is_string($row['code']));
+            $codes[] = $row['code'];
         }
+        sort($codes);
+        self::assertSame(['SUM-A', 'SUM-B'], $codes);
     }
 
     #[Test]
@@ -53,6 +57,7 @@ final class ObjectSummaryBatchApiTest extends CatalogApiTestCase
         ])->toArray();
 
         self::assertCount(1, $body);
+        \assert(\is_array($body[0]));
         self::assertSame('SUM-OK', $body[0]['code']);
     }
 
