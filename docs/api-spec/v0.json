@@ -7021,6 +7021,29 @@
                         "default": 0,
                         "type": "integer"
                     },
+                    "relationTargetObjectTypeIds": {
+                        "description": "ADR-014 / MOD-05 (#897) \u2014 list of ObjectType UUIDs that are valid\ntargets for `type=relation` links. Ignored / coerced to `[]` for\nany other attribute type.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "relationCardinality": {
+                        "enum": [
+                            "one",
+                            "many"
+                        ],
+                        "description": "ADR-014 / MOD-05 (#897) \u2014 `one` (max single link per source) or\n`many` (ordered list). NULL for non-relation attributes.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "relationAdvanced": {
+                        "description": "ADR-014 / MOD-05 (#897) \u2014 flips metadata fields on per-link rows\n(object_relations.metadata JSONB). Schema for the metadata payload\nlands in MOD-08.",
+                        "default": false,
+                        "type": "boolean"
+                    },
                     "attachToGroups": {
                         "description": "VIEW-03 (#375) \u2014 popup \u201eStw\u00f3rz nowy\" in AttributeGroup detail\n(groups-categories.jsx:813\u2013953) creates the attribute and\nattaches it to one or more groups atomically in the same request.",
                         "type": "array",
@@ -7093,6 +7116,32 @@
                         "minimum": 0,
                         "type": [
                             "integer",
+                            "null"
+                        ]
+                    },
+                    "relationTargetObjectTypeIds": {
+                        "description": "ADR-014 / MOD-05 (#897) \u2014 replaces the target ObjectType list on a\nrelation attribute. Only meaningful when the existing attribute is\nof type `relation`; ignored otherwise.",
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "relationCardinality": {
+                        "enum": [
+                            "one",
+                            "many"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "relationAdvanced": {
+                        "type": [
+                            "boolean",
                             "null"
                         ]
                     }
