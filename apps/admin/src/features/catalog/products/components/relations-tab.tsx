@@ -512,6 +512,18 @@ function ObjectPickerDialog({
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
+  // MODR-09 (#931) — inline-create state. When the operator clicks
+  // "+ Nowy <ObjectType>" the picker switches into a small create form
+  // (no navigation away). On success we feed the new id back through
+  // `onPick` so the parent's existing auto-link path applies.
+  const [creating, setCreating] = useState(false);
+  const [createCode, setCreateCode] = useState('');
+  const [createName, setCreateName] = useState('');
+  const [createObjectTypeId, setCreateObjectTypeId] = useState<string | null>(
+    allowedObjectTypeIds.length === 1 ? (allowedObjectTypeIds[0] ?? null) : null,
+  );
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createBusy, setCreateBusy] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query), 200);
@@ -530,6 +542,23 @@ function ObjectPickerDialog({
     },
   });
 
+  // MODR-09 — resolve the kinds of allowed ObjectTypes so the "+ Nowy …"
+  // button picks the right REST sugar path. The list endpoint is cheap
+  // enough that we don't bother caching per-id.
+  const allowedTypesQuery = useQuery<AllowedObjectTypeRow[]>({
+    queryKey: ['object_types', 'picker-allowed', allowedObjectTypeIds.join(',')],
+    queryFn: async () => {
+      const data = await jsonFetch<{ member?: AllowedObjectTypeRow[] }>(
+        '/api/object_types?itemsPerPage=200',
+      );
+      return (data.member ?? []).filter((row) => allowedObjectTypeIds.includes(row.id));
+    },
+    enabled: allowedObjectTypeIds.length > 0,
+    staleTime: 60_000,
+  });
+  const allowedTypes = allowedTypesQuery.data ?? [];
+  const activeCreateType = allowedTypes.find((t) => t.id === createObjectTypeId) ?? null;
+
   const items = useMemo(() => {
     const raw = candidatesQuery.data?.['hydra:member'] ?? candidatesQuery.data?.member ?? [];
     return raw.filter((item) => {
@@ -544,6 +573,57 @@ function ObjectPickerDialog({
     e.preventDefault();
   };
 
+  const handleCreate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (createObjectTypeId === null || activeCreateType === null) {
+      return;
+    }
+    if (createCode.trim() === '' || createName.trim() === '') {
+      setCreateError(
+        t('relations.picker_create_required', {
+          defaultValue: 'Code i nazwa są wymagane.',
+        }),
+      );
+      return;
+    }
+    setCreateError(null);
+    setCreateBusy(true);
+    try {
+      const path = sugarPathForKind(activeCreateType.kind);
+      const created = await jsonFetch<{ id?: string }>(`/api/${path}`, {
+        method: 'POST',
+        contentType: 'application/ld+json',
+        accept: 'application/ld+json',
+        body: {
+          code: createCode.trim(),
+          objectTypeId: createObjectTypeId,
+          attributes: { name: createName.trim() },
+        },
+      });
+      const newId = typeof created.id === 'string' ? created.id : '';
+      if (newId === '') {
+        throw new Error('Backend returned no id');
+      }
+      onPick(newId);
+    } catch (err) {
+      if (err instanceof HttpError) {
+        const detail =
+          err.body && typeof err.body === 'object' && 'detail' in err.body
+            ? String((err.body as Record<string, unknown>).detail)
+            : null;
+        setCreateError(detail ?? `HTTP ${err.status}`);
+      } else {
+        setCreateError(
+          t('relations.picker_create_failed', {
+            defaultValue: 'Nie udało się utworzyć obiektu.',
+          }),
+        );
+      }
+    } finally {
+      setCreateBusy(false);
+    }
+  };
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-h-[80vh] max-w-2xl overflow-hidden">
@@ -553,49 +633,173 @@ function ObjectPickerDialog({
             defaultValue: 'Wpisz kod obiektu — wyszukiwanie zawęża listę kandydatów.',
           })}
         </DialogDescription>
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <Search className="size-4 text-muted-foreground" />
-          <Input
-            autoFocus
-            placeholder={t('relations.picker_search', { defaultValue: 'Szukaj po kodzie…' })}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </form>
-        <ul className="mt-3 max-h-[55vh] space-y-1 overflow-y-auto">
-          {candidatesQuery.isLoading ? (
-            <li className="text-xs text-muted-foreground">{t('app.loading')}</li>
-          ) : null}
-          {items.length === 0 && !candidatesQuery.isLoading ? (
-            <li className="text-xs text-muted-foreground">
-              {t('relations.picker_no_matches', { defaultValue: 'Brak dopasowań.' })}
-            </li>
-          ) : null}
-          {items.map((item) => (
-            <li key={item.id}>
-              <button
+        {creating ? (
+          <form onSubmit={handleCreate} className="space-y-3">
+            {allowedTypes.length > 1 ? (
+              <div className="flex flex-wrap gap-2">
+                {allowedTypes.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setCreateObjectTypeId(t.id)}
+                    className={cn(
+                      'rounded-md border px-2 py-1 text-xs font-mono uppercase tracking-wide',
+                      createObjectTypeId === t.id
+                        ? 'border-zinc-900 bg-zinc-900 text-white'
+                        : 'border-zinc-200 bg-white text-muted-foreground hover:bg-zinc-50',
+                    )}
+                  >
+                    {t.code}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {activeCreateType?.isCategorizable ? (
+              <p className="rounded-md bg-amber-50 px-3 py-2 text-[12px] text-amber-700">
+                {t('relations.picker_create_categorizable_hint', {
+                  defaultValue:
+                    'Ten typ wymaga primary category — do MOD-11 użyj pełnego ekranu "Nowy {{name}}".',
+                  name: activeCreateType.code,
+                })}
+              </p>
+            ) : null}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input
+                autoFocus
+                placeholder={t('relations.picker_create_code_placeholder', {
+                  defaultValue: 'Code (snake_case)',
+                })}
+                value={createCode}
+                onChange={(e) => setCreateCode(e.target.value)}
+                className="font-mono"
+              />
+              <Input
+                placeholder={t('relations.picker_create_name_placeholder', {
+                  defaultValue: 'Nazwa PL',
+                })}
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+              />
+            </div>
+            {createError !== null ? (
+              <p className="text-xs text-destructive">{createError}</p>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button
                 type="button"
-                onClick={() => onPick(item.id)}
-                className={cn(
-                  'flex w-full items-center justify-between rounded-md border border-transparent px-3 py-2 text-left',
-                  'hover:border-zinc-200 hover:bg-zinc-50',
-                )}
+                variant="ghost"
+                size="sm"
+                onClick={() => setCreating(false)}
+                disabled={createBusy}
               >
-                <span className="font-mono text-sm">{item.code}</span>
-                <Plus className="size-4 text-muted-foreground" />
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-2 flex justify-end">
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-            <X className="size-4" />
-            {t('app.cancel')}
-          </Button>
-        </div>
+                {t('app.cancel')}
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={
+                  createBusy ||
+                  createObjectTypeId === null ||
+                  Boolean(activeCreateType?.isCategorizable)
+                }
+              >
+                {t('relations.picker_create_submit', {
+                  defaultValue: 'Utwórz i podepnij',
+                })}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit} className="flex items-center gap-2">
+              <Search className="size-4 text-muted-foreground" />
+              <Input
+                autoFocus
+                placeholder={t('relations.picker_search', { defaultValue: 'Szukaj po kodzie…' })}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </form>
+            <ul className="mt-3 max-h-[55vh] space-y-1 overflow-y-auto">
+              {candidatesQuery.isLoading ? (
+                <li className="text-xs text-muted-foreground">{t('app.loading')}</li>
+              ) : null}
+              {items.length === 0 && !candidatesQuery.isLoading ? (
+                <li className="text-xs text-muted-foreground">
+                  {t('relations.picker_no_matches', { defaultValue: 'Brak dopasowań.' })}
+                </li>
+              ) : null}
+              {items.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => onPick(item.id)}
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-md border border-transparent px-3 py-2 text-left',
+                      'hover:border-zinc-200 hover:bg-zinc-50',
+                    )}
+                  >
+                    <span className="font-mono text-sm">{item.code}</span>
+                    <Plus className="size-4 text-muted-foreground" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 flex items-center justify-between">
+              {allowedTypes.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCreating(true)}
+                  disabled={createBusy}
+                >
+                  <Plus className="size-4" />
+                  {t('relations.picker_create_new', {
+                    defaultValue:
+                      allowedTypes.length === 1
+                        ? `Nowy ${allowedTypes[0]?.code ?? ''}`
+                        : 'Nowy obiekt',
+                  })}
+                </Button>
+              ) : (
+                <span />
+              )}
+              <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+                <X className="size-4" />
+                {t('app.cancel')}
+              </Button>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
+}
+
+interface AllowedObjectTypeRow {
+  id: string;
+  code: string;
+  kind: string;
+  isCategorizable?: boolean;
+}
+
+/**
+ * MODR-09 (#931) — pick the REST sugar path for a given ObjectType kind.
+ * Falls back to the generic `/objects` collection which only the API
+ * tolerates for unknown kinds; the FE never hits this branch in MVP.
+ */
+function sugarPathForKind(kind: string): string {
+  switch (kind) {
+    case 'product':
+      return 'products';
+    case 'category':
+      return 'categories';
+    case 'asset':
+      return 'assets';
+    default:
+      return 'objects';
+  }
 }
 
 function normaliseMetadata(raw: unknown): Record<string, unknown> {
