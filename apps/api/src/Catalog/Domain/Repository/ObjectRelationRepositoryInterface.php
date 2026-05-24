@@ -38,4 +38,12 @@ interface ObjectRelationRepositoryInterface
      * @return list<ObjectRelation>
      */
     public function findByTarget(CatalogObject $target): array;
+
+    /**
+     * MODR-06 (#928) — lightweight `count(*)` of incoming links. The
+     * product detail page uses this to decide whether to surface the
+     * "Powiązania" tab when the object has no forward relation attributes
+     * (e.g. a Category that is only ever referenced from products).
+     */
+    public function countByTarget(CatalogObject $target): int;
 }

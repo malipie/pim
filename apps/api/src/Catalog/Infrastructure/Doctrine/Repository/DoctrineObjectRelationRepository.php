@@ -72,4 +72,16 @@ final class DoctrineObjectRelationRepository extends ServiceEntityRepository imp
 
         return $rows;
     }
+
+    public function countByTarget(CatalogObject $target): int
+    {
+        $result = $this->createQueryBuilder('r')
+            ->select('COUNT(r.id)')
+            ->andWhere('r.target = :target')
+            ->setParameter('target', $target)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return (int) $result;
+    }
 }

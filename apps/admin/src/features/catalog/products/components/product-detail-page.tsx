@@ -245,16 +245,42 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     () => groups.filter((g) => (g.display_mode ?? 'tab') === 'stacked'),
     [groups],
   );
+
+  // MODR-06 (#928) — lightweight probe for incoming links so the
+  // "Powiązania" tab can surface even when the object has no forward
+  // relation attributes (e.g. a Category referenced from products).
+  const reverseRelationsQuery = useQuery<{ hasReverse: boolean; count: number }>({
+    queryKey: ['objects', id, 'relations', 'reverse', 'count'],
+    queryFn: () =>
+      jsonFetch<{ hasReverse: boolean; count: number }>(
+        `/api/objects/${id}/relations/reverse/count`,
+      ),
+    enabled: isEditMode && id !== '',
+    staleTime: 30_000,
+  });
+  const hasReverseRelations = reverseRelationsQuery.data?.hasReverse ?? false;
+  const hasForwardRelationsGroup = useMemo(
+    () => groups.some((g) => g.code === 'relations'),
+    [groups],
+  );
+  const shouldSurfaceRelationsTab = hasForwardRelationsGroup || hasReverseRelations;
+
   const visibleTabs: readonly TabKey[] = useMemo(() => {
     if (mode === 'create') return ['attributes'];
+    const fromGroups = tabModeGroups.map((g) => g.code);
+    // MODR-06 (#928) — inject a synthetic `relations` tab when the
+    // object has reverse links but no forward `relations` AttributeGroup.
+    const ensureRelations =
+      shouldSurfaceRelationsTab && !fromGroups.includes('relations') ? ['relations'] : [];
     return [
       'attributes' as const,
-      ...tabModeGroups.map((g) => g.code),
+      ...fromGroups,
+      ...ensureRelations,
       'categories' as const,
       'history' as const,
       'variants' as const,
     ];
-  }, [mode, tabModeGroups]);
+  }, [mode, tabModeGroups, shouldSurfaceRelationsTab]);
 
   // Keep activeTab valid as group set changes (e.g. groups data arrives
   // after first render or a tab→stacked switch in the wizard).
@@ -752,6 +778,15 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                 return <RelationsTab productId={id} />;
               }
               return renderStackedGroup(tabGroup);
+            }
+
+            // MODR-06 (#928) — synthetic `relations` tab for the
+            // reverse-only case (object has no forward AttributeGroup
+            // but is pointed at from elsewhere). RelationsTab already
+            // gracefully renders just the reverse panel when forward
+            // groups are empty.
+            if (activeTab === 'relations' && mode === 'edit') {
+              return <RelationsTab productId={id} />;
             }
 
             if (mode === 'edit' && isSpecialTab(activeTab)) {

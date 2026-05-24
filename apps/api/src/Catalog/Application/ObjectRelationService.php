@@ -65,6 +65,14 @@ final class ObjectRelationService
     }
 
     /**
+     * MODR-06 (#928) — count of incoming links for the tab-visibility check.
+     */
+    public function countByTarget(CatalogObject $target): int
+    {
+        return $this->relations->countByTarget($target);
+    }
+
+    /**
      * Atomically replace the relations under `(source, attribute)` with the
      * supplied target object list. Idempotent: when the new list equals the
      * existing one, the function still touches each row (position update)
