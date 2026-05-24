@@ -53,6 +53,28 @@ final class ObjectFormSchemaApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function getFormSchemaExposesDisplayModePerGroup(): void
+    {
+        // MODR-01 (#923) — every group in `effectiveGroups` carries the
+        // `display_mode` field; seeded audit junction defaults to 'tab'.
+        $product = $this->seedProduct('SKU-FS-DM-001');
+        $client = $this->authenticatedClient();
+
+        $response = $client->request('GET', '/api/objects/'.$product->getId()->toRfc4122().'/form-schema');
+
+        self::assertSame(200, $response->getStatusCode());
+        $payload = $response->toArray();
+        $groups = $payload['effectiveGroups'];
+        self::assertIsArray($groups);
+        self::assertNotEmpty($groups);
+        foreach ($groups as $group) {
+            self::assertIsArray($group);
+            self::assertArrayHasKey('display_mode', $group);
+            self::assertContains($group['display_mode'], ['tab', 'stacked']);
+        }
+    }
+
+    #[Test]
     public function getFormSchemaReturnsNotFoundForUnknownId(): void
     {
         $client = $this->authenticatedClient();

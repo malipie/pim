@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Catalog\Domain\Entity;
 
+use InvalidArgumentException;
+
 /**
  * Junction connecting an AttributeGroup to an ObjectType (M:N) per ADR-012.
  *
@@ -22,18 +24,28 @@ namespace App\Catalog\Domain\Entity;
  */
 class ObjectTypeAttributeGroup
 {
+    public const string DISPLAY_MODE_TAB = 'tab';
+    public const string DISPLAY_MODE_STACKED = 'stacked';
+
+    /** @var list<string> */
+    public const array DISPLAY_MODES = [self::DISPLAY_MODE_TAB, self::DISPLAY_MODE_STACKED];
+
     private ObjectType $objectType;
     private AttributeGroup $attributeGroup;
     private int $position = 0;
+    private string $displayMode = self::DISPLAY_MODE_TAB;
 
     public function __construct(
         ObjectType $objectType,
         AttributeGroup $attributeGroup,
         int $position = 0,
+        string $displayMode = self::DISPLAY_MODE_TAB,
     ) {
         $this->objectType = $objectType;
         $this->attributeGroup = $attributeGroup;
         $this->position = $position;
+        $this->assertDisplayMode($displayMode);
+        $this->displayMode = $displayMode;
     }
 
     public function getObjectType(): ObjectType
@@ -54,5 +66,27 @@ class ObjectTypeAttributeGroup
     public function reorder(int $position): void
     {
         $this->position = $position;
+    }
+
+    public function getDisplayMode(): string
+    {
+        return $this->displayMode;
+    }
+
+    public function changeDisplayMode(string $displayMode): void
+    {
+        $this->assertDisplayMode($displayMode);
+        $this->displayMode = $displayMode;
+    }
+
+    private function assertDisplayMode(string $value): void
+    {
+        if (!\in_array($value, self::DISPLAY_MODES, true)) {
+            throw new InvalidArgumentException(\sprintf(
+                'Invalid display_mode "%s" — expected one of: %s.',
+                $value,
+                implode(', ', self::DISPLAY_MODES),
+            ));
+        }
     }
 }

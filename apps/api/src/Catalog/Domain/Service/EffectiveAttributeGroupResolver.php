@@ -338,6 +338,34 @@ readonly class EffectiveAttributeGroupResolver
     }
 
     /**
+     * MODR-01 (#923) — returns the `display_mode` for each AttributeGroup
+     * as declared on the `object_type_attribute_groups` junction for the
+     * given ObjectType. Groups not present on the junction (e.g. inherited
+     * from a category) fall back to the default `tab` mode at the caller.
+     *
+     * @return array<string, string> keyed by group UUID, value is 'tab' or 'stacked'
+     */
+    public function loadObjectTypeGroupDisplayModes(ObjectType $type): array
+    {
+        /** @var list<ObjectTypeAttributeGroup> $junctions */
+        $junctions = $this->em
+            ->createQuery(
+                'SELECT j, g FROM '.ObjectTypeAttributeGroup::class.' j'
+                .' JOIN j.attributeGroup g'
+                .' WHERE j.objectType = :type'
+            )
+            ->setParameter('type', $type)
+            ->getResult();
+
+        $modes = [];
+        foreach ($junctions as $junction) {
+            $modes[$junction->getAttributeGroup()->getId()->toRfc4122()] = $junction->getDisplayMode();
+        }
+
+        return $modes;
+    }
+
+    /**
      * Eager-load the AttributeGroupAttribute junctions for a list of
      * groups in one query. Keeps the form-schema endpoint to two round
      * trips (groups + attributes) regardless of the number of groups.

@@ -79,10 +79,17 @@ final readonly class GetObjectFormSchemaHandler
         $type = $object->getObjectType();
         $groups = $this->resolver->resolve($object);
         $byGroup = $this->resolver->loadGroupAttributes($groups);
+        $displayModes = $this->resolver->loadObjectTypeGroupDisplayModes($type);
 
         $effective = [];
         foreach ($groups as $position => $group) {
-            $effective[] = $this->projectGroup($group, $byGroup[$group->getId()->toRfc4122()] ?? [], $position);
+            $key = $group->getId()->toRfc4122();
+            $effective[] = $this->projectGroup(
+                $group,
+                $byGroup[$key] ?? [],
+                $position,
+                $displayModes[$key] ?? 'tab',
+            );
         }
 
         return new ObjectFormSchema(
@@ -102,7 +109,7 @@ final readonly class GetObjectFormSchemaHandler
      *
      * @return array<string, mixed>
      */
-    private function projectGroup(AttributeGroup $group, array $junctions, int $position): array
+    private function projectGroup(AttributeGroup $group, array $junctions, int $position, string $displayMode): array
     {
         $attributes = [];
         foreach ($junctions as $junction) {
@@ -134,6 +141,7 @@ final readonly class GetObjectFormSchemaHandler
             'is_system_group' => $group->isSystemGroup(),
             'auto_attached' => $group->isAutoAttached(),
             'position' => $position,
+            'display_mode' => $displayMode,
             'attributes' => $attributes,
         ];
     }
