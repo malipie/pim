@@ -145,6 +145,35 @@ final class ObjectRelationController
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }
 
+    /**
+     * MODR-06 (#928) — lightweight count of reverse relations. Returned
+     * alongside a boolean so the frontend can decide whether to show the
+     * "Powiązania" tab when an object has no forward relation attributes
+     * but is still pointed-at from elsewhere. The route is declared
+     * *before* the heavy `reverse` route below so the more specific path
+     * wins in the Symfony router.
+     */
+    #[Route(
+        '/api/objects/{id}/relations/reverse/count',
+        name: 'pim_objects_relations_reverse_count',
+        requirements: ['id' => self::UUID_REGEX],
+        methods: ['GET'],
+        priority: 10,
+    )]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
+    public function reverseCount(string $id): JsonResponse
+    {
+        $target = $this->fetchObject($id);
+        $count = $this->service->countByTarget($target);
+
+        return new JsonResponse([
+            'targetObjectId' => $target->getId()->toRfc4122(),
+            'count' => $count,
+            'hasReverse' => $count > 0,
+        ]);
+    }
+
     #[Route(
         '/api/objects/{id}/relations/reverse',
         name: 'pim_objects_relations_reverse',

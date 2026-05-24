@@ -77,6 +77,44 @@ final class ObjectRelationsReverseApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function reverseCountReturnsZeroForOrphan(): void
+    {
+        $client = $this->authenticatedClient();
+        $orphan = $this->makeProduct('REV-COUNT-EMPTY');
+
+        $body = $client->request(
+            'GET',
+            '/api/objects/'.$orphan->getId()->toRfc4122().'/relations/reverse/count',
+        )->toArray();
+        self::assertSame($orphan->getId()->toRfc4122(), $body['targetObjectId']);
+        self::assertSame(0, $body['count']);
+        self::assertFalse($body['hasReverse']);
+    }
+
+    #[Test]
+    public function reverseCountReflectsIncomingLinks(): void
+    {
+        $client = $this->authenticatedClient();
+        $target = $this->makeProduct('REV-COUNT-TGT');
+        $sourceA = $this->makeProduct('REV-COUNT-A');
+        $sourceB = $this->makeProduct('REV-COUNT-B');
+
+        $client->request('PUT', '/api/objects/'.$sourceA->getId()->toRfc4122().'/relations/cross_sell', [
+            'json' => ['targets' => [['id' => $target->getId()->toRfc4122()]]],
+        ]);
+        $client->request('PUT', '/api/objects/'.$sourceB->getId()->toRfc4122().'/relations/up_sell', [
+            'json' => ['targets' => [['id' => $target->getId()->toRfc4122()]]],
+        ]);
+
+        $body = $client->request(
+            'GET',
+            '/api/objects/'.$target->getId()->toRfc4122().'/relations/reverse/count',
+        )->toArray();
+        self::assertSame(2, $body['count']);
+        self::assertTrue($body['hasReverse']);
+    }
+
+    #[Test]
     public function reverseReturns404ForUnknownObjectId(): void
     {
         $client = $this->authenticatedClient();
