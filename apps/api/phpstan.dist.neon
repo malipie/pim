@@ -114,3 +114,17 @@ parameters:
               - src/Export/Domain/Entity/ExportProfile.php
               - src/Backup/Domain/Entity/Backup.php
               - src/Channel/Domain/Entity/TenantLocale.php
+        # Tenant aggregate exposes legacy `$enabledLocales` + `$primaryLocale`
+        # marked `@deprecated` by #870 (LOC-02) until LOC-07 (#875) migrates
+        # `/settings/tenant` to consume `tenant_locales`. The Tenant class
+        # itself still mutates them through `enableLocale()` /
+        # `disableLocale()` / `changePrimaryLocale()` to keep
+        # `WorkspaceController` and `TenantConfigController` functional —
+        # treat in-class access as the supported migration path.
+        # `reportUnmatched: false` tolerates the local Docker PHPStan cache
+        # that sometimes fails to see the @deprecated annotation; CI is
+        # canonical (always emits the errors against a fresh checkout).
+        - identifier: property.deprecated
+          paths:
+              - src/Shared/Domain/Tenant.php
+          reportUnmatched: false
