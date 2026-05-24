@@ -73,6 +73,7 @@ final class UpdateObjectTypeController
                 allowedParentTypeIds: $this->idListOrNull($body['allowedParentTypeIds'] ?? null),
                 completenessRules: $this->mapOrNull($body['completenessRules'] ?? null),
                 exposeToMainMenu: $this->boolOrNull($body['exposeToMainMenu'] ?? null),
+                isCategorizable: $this->boolOrNull($body['isCategorizable'] ?? null),
             );
         } catch (BuiltInObjectTypeException $e) {
             throw new HttpException(Response::HTTP_FORBIDDEN, $e->getMessage(), $e);
@@ -94,6 +95,7 @@ final class UpdateObjectTypeController
             'allowedParentTypeIds' => $objectType->getAllowedParentTypeIds(),
             'completenessRules' => $objectType->getCompletenessRules(),
             'exposeToMainMenu' => $objectType->isExposedToMainMenu(),
+            'isCategorizable' => $objectType->isCategorizable(),
             'schemaVersion' => $objectType->getSchemaVersion(),
         ]);
     }
