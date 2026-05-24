@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Presentation\Controller;
 
+use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\AttributeOption;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -350,6 +351,16 @@ final class ProductReadEndpointsController
         // the field, and we want the payload to stay tight.
         if ($attribute->getType()->usesOptions()) {
             $payload['options'] = $optionsByAttributeId[$attribute->getId()->toRfc4122()] ?? [];
+        }
+
+        // MODR-05 (#927) — ship the relation target ObjectType codes so the
+        // detail page can render the link icon + a "links to: X, Y" tooltip
+        // without a follow-up fetch. The codes already live on the
+        // Attribute entity; the FE resolves them to display labels via the
+        // ObjectType cache (codes are stable identifiers in MVP).
+        if (AttributeType::Relation === $attribute->getType()) {
+            $payload['relation_target_object_type_ids'] = $attribute->getRelationTargetObjectTypeIds();
+            $payload['relation_cardinality'] = $attribute->getRelationCardinality()?->value;
         }
 
         return $payload;

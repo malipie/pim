@@ -1,4 +1,4 @@
-import { Copy, Lock } from 'lucide-react';
+import { Copy, Link2, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WysiwygEditor } from '@/components/catalog/wysiwyg-editor';
 import { type Provenance, ProvenanceBadge } from '@/components/provenance-badge';
@@ -63,6 +63,16 @@ export function AttrRow({
     >
       <div className="flex items-center gap-1.5 pt-1.5 text-[13px] font-medium text-zinc-600">
         <span>{label}</span>
+        {attribute.type === 'relation' ? (
+          <span
+            role="img"
+            aria-label={relationTooltip(attribute, t)}
+            title={relationTooltip(attribute, t)}
+            className="inline-flex size-3.5 items-center justify-center text-sky-500"
+          >
+            <Link2 className="size-3" aria-hidden />
+          </span>
+        ) : null}
         {localeChip ? (
           <span
             title={t('products.detail.field.locale_aria', {
@@ -207,6 +217,28 @@ export function AttrRow({
       </div>
     </div>
   );
+}
+
+/**
+ * MODR-05 (#927) — short text shown next to the link icon on relation
+ * attributes. Resolves to a list of target ObjectType IDs (codes are
+ * not yet on `AttributeMeta`; the ID list is enough for a defensible
+ * tooltip until MODR-08 adds richer target metadata).
+ */
+function relationTooltip(
+  attribute: AttributeMeta,
+  t: (key: string, options?: { defaultValue?: string; count?: number }) => string,
+): string {
+  const ids = attribute.relation_target_object_type_ids ?? [];
+  if (ids.length === 0) {
+    return t('products.detail.relation_tooltip_generic', {
+      defaultValue: 'Pole linkuje do innych obiektów',
+    });
+  }
+  return t('products.detail.relation_tooltip_with_count', {
+    defaultValue: 'Pole linkuje do obiektów ({{count}} typ(y))',
+    count: ids.length,
+  });
 }
 
 function isLocaleScoped(attribute: AttributeMeta): boolean {

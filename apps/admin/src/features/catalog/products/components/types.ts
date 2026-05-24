@@ -63,6 +63,13 @@ export interface AttributeMeta {
    * input".
    */
   options?: AttributeOptionMeta[];
+  /**
+   * MODR-05 (#927) — populated only when `type === 'relation'`. The
+   * detail page uses the target ObjectType UUIDs to render the link
+   * icon + tooltip listing the linked ObjectTypes.
+   */
+  relation_target_object_type_ids?: string[];
+  relation_cardinality?: 'one' | 'many' | null;
 }
 
 export interface GroupMeta {
