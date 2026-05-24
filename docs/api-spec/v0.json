@@ -7119,6 +7119,28 @@
                             ]
                         }
                     },
+                    "relationTargetObjectTypeIds": {
+                        "description": "ADR-014 / MOD-01 (#893) \u2014 config for attributes of type `relation`.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "relationCardinality": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "one",
+                            "many",
+                            null
+                        ]
+                    },
+                    "relationAdvanced": {
+                        "default": false,
+                        "type": "boolean"
+                    },
                     "position": {
                         "readOnly": true,
                         "default": 0,
@@ -7382,6 +7404,28 @@
                                         "null"
                                     ]
                                 }
+                            },
+                            "relationTargetObjectTypeIds": {
+                                "description": "ADR-014 / MOD-01 (#893) \u2014 config for attributes of type `relation`.",
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "relationCardinality": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "one",
+                                    "many",
+                                    null
+                                ]
+                            },
+                            "relationAdvanced": {
+                                "default": false,
+                                "type": "boolean"
                             },
                             "position": {
                                 "readOnly": true,
@@ -10331,6 +10375,12 @@
                         "default": false,
                         "type": "boolean"
                     },
+                    "isCategorizable": {
+                        "readOnly": true,
+                        "description": "ADR-014 / MOD-01 (#893) \u2014 gates participation in primary-category\ndriven attribute distribution. When TRUE, an instance of this\nObjectType:\n  - is required to have exactly one primary `ObjectCategory` link;\n  - inherits attribute groups cumulatively from the root\u2192leaf path\n    of that primary category (per `EffectiveAttributeGroupResolver`\n    after MOD-03);\n  - appears in `/modeling/categories` ObjectType filter.",
+                        "default": false,
+                        "type": "boolean"
+                    },
                     "allowedParentTypeIds": {
                         "description": "UUID list of ObjectTypes allowed as parent. Plain JSONB list (not a\njunction) \u2014 N stays small (\u2264 5 typical), and the only consumer is the\ndetail view's Allowed parent types chip strip. A junction would cost\nus a roundtrip per detail page load for no gain at this cardinality.",
                         "type": "array",
@@ -10469,6 +10519,12 @@
                             },
                             "exposeToMainMenu": {
                                 "description": "VIEW-08 (#427) \u2014 gating flag for main menu candidacy. When TRUE, the\nObjectType appears as a candidate in `/settings/menu` (Available\nsection) and can be promoted to Visible via `MenuConfiguration`. The\nactual ordering and per-tenant visible flag lives in\n`menu_configurations.items`, not here.",
+                                "default": false,
+                                "type": "boolean"
+                            },
+                            "isCategorizable": {
+                                "readOnly": true,
+                                "description": "ADR-014 / MOD-01 (#893) \u2014 gates participation in primary-category\ndriven attribute distribution. When TRUE, an instance of this\nObjectType:\n  - is required to have exactly one primary `ObjectCategory` link;\n  - inherits attribute groups cumulatively from the root\u2192leaf path\n    of that primary category (per `EffectiveAttributeGroupResolver`\n    after MOD-03);\n  - appears in `/modeling/categories` ObjectType filter.",
                                 "default": false,
                                 "type": "boolean"
                             },

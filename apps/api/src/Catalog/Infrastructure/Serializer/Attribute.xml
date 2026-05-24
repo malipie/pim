@@ -62,6 +62,21 @@
             <group>admin:read</group>
             <group>admin:write</group>
         </attribute>
+        <attribute name="relationTargetObjectTypeIds">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="relationCardinality">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+        </attribute>
+        <attribute name="relationAdvanced">
+            <group>admin:read</group>
+            <group>admin:write</group>
+            <group>integration:read</group>
+        </attribute>
         <attribute name="position">
             <group>admin:read</group>
             <group>admin:write</group>
