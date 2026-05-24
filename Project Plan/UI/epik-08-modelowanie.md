@@ -1,8 +1,82 @@
 # Epik 08 — Modelowanie
 
-## Status: 🟢 szczegół (in progress)
+## Status: 🟢 szczegół (in progress) — **rewizja ADR-014 z 2026-05-24** w sekcji 0 poniżej
 
 > **Flagowy epik UI** — definiuje schemat danych całego systemu. Bez Modelowania klient nie zacznie używać PIM-u (każdy klient definiuje minimum 1-2 custom Object Types lub Attribute Groups specyficzne dla swojej branży).
+
+---
+
+## 0. Aktualizacja ADR-014 (2026-05-24) — co się zmieniło względem reszty dokumentu
+
+[ADR-014](../01-architektura-pim.md) wprowadza spójny model dystrybucji atrybutów i relacji obiekt↔obiekt po wykryciu 4 nieścisłości przy ~60% systemu. Mini-spec: [`feature-modeling-data-model.md`](feature-modeling-data-model.md). Backlog: [`feature-modeling-data-model-tickets.md`](feature-modeling-data-model-tickets.md) (MOD-01..MOD-14).
+
+### 0.1 Model dwuwarstwowy atrybutów
+
+Każda instancja ObjectType dostaje atrybuty z dwóch warstw:
+
+1. **Base** — atrybuty / grupy przypisane bezpośrednio do `ObjectType` (`object_type_attributes` + `object_type_attribute_groups`). Działa dla każdego ObjectType (Product / Category / Asset / custom). **Naprawia bug #3-#28** (Category renderuje teraz swoje base attrs).
+2. **Primary-category overlay** — *gated* przez flagę `ObjectType.is_categorizable`. Dla obiektów kategoryzowalnych: instancja ma dokładnie 1 kategorię główną (`object_categories.is_primary = true`), której ścieżka root→leaf w drzewie dodaje grupy atrybutów **kumulatywnie**. Sekundarne kategorie (klasyfikacja) ignorowane w resolverze.
+
+Implementacja: [`EffectiveAttributeGroupResolver`](../../apps/api/src/Catalog/Domain/Service/EffectiveAttributeGroupResolver.php) po MOD-03 (#895).
+
+### 0.2 Capability flags na ObjectType
+
+| Flaga | Znaczenie | Default | Edytowalna w UI |
+|---|---|---|---|
+| `expose_to_main_menu` *(ADR-014 / MOD-01 nazywa to "show_in_main_menu" — reuse istniejącej kolumny z VIEW-08 / #427)* | Czy ObjectType ma pozycję w sidebar admina | `false`, `true` dla Product | Tak (MOD-11) |
+| `is_categorizable` | Czy instancje mają primary category przydzielającą atrybuty | `false`, `true` dla Product | Tak (MOD-11) |
+
+**Brak flagi `is_relation_target`** — każdy ObjectType może być celem relacji domyślnie.
+
+### 0.3 Relacje obiekt↔obiekt jako typ atrybutu
+
+ADR-014 **NIE wprowadza** osobnego bytu `Association`. Relacja = typ atrybutu `relation` (obok `text`, `select`, `asset`…) z konfiguracją:
+
+| Pole config | Znaczenie |
+|---|---|
+| `relation_target_object_type_ids` (JSONB list of UUID) | 1+ ObjectType valid jako target linka |
+| `relation_cardinality` (`one` / `many`) | Single picker vs lista |
+| `relation_advanced` (bool) | Czy powiązanie ma własne pola metadanych (MOD-08) |
+
+Tabela `object_relations` (`source_object_id`, `target_object_id`, `attribute_id`, `position`, `metadata JSONB`) zastępuje `object_associations` z ADR-009 (MOD-02).
+
+**Reverse relations** (read-only): obiekt-target widzi w zakładce „Powiązania" sekcję *„powiązania zwrotne"* generowaną z `object_relations` w odwrotnym kierunku (MOD-07).
+
+**Advanced relations**: dla `advanced=true` każdy wiersz `object_relations.metadata` zawiera wartości pól zdefiniowanych w `Attribute.validation_rules.advanced_fields` (kod / typ / label / required). Walidator: `RelationMetadataValidator` (MOD-08).
+
+### 0.4 Built-in pool — Brand REMOVED
+
+Pre-ADR-014: Product / Category / Asset / Brand. **Po ADR-014 / MOD-10 (#902)**: Product / Category / Asset. Brand wraca do tenant-territory:
+- Jako `select` attribute (najczęstsza opcja dla małych katalogów)
+- Jako custom ObjectType (jeśli tenant ma własną złożoną domenę Brand)
+- Z integracji zewnętrznej (Akeneo / SAP)
+
+Pozostałe wzmianki *„brand jako built-in"* niżej w dokumencie (sekcja 3.4, schema seed w sekcji 12.X) są **historyczne** — aktualny stan: brak w built-in pool.
+
+### 0.5 Orphaned values
+
+Zmiana primary category → atrybuty spoza nowego efektywnego modelu znikają z formularza, ale wartości **pozostają** w `object_values` (zachowane). Powrót do poprzedniej primary category → wartości wracają widoczne. Orphaned values NIE liczą się do completeness (MOD-09).
+
+### 0.6 Walidacja unikalności kodów
+
+Walidator `AttributeCodeUniquenessValidator` (MOD-04 / #896) sprawdza unikalność kodu atrybutu w **efektywnym modelu target ObjectType** (base + grupy kategorii dystrybuujących). Atrybut może być albo bazowy, albo kontekstowy — nigdy oba. Sufiks kategorii sugerowany dla atrybutów kontekstowych: `opis_telewizory`, `opis_buty`.
+
+### 0.7 Linki do MOD-NN
+
+- MOD-01 (#893) schema delta (is_categorizable + relation config columns)
+- MOD-02 (#894) object_relations + drop object_associations
+- MOD-03 (#895) resolver fix: base layer + primary overlay
+- MOD-04 (#896) AttributeCodeUniquenessValidator
+- MOD-05 (#897) relation attribute config CRUD
+- MOD-06 (#898) object_relations CRUD endpoints
+- MOD-07 (#899) reverse relations endpoint
+- MOD-08 (#900) advanced relations metadata
+- MOD-09 (#901) orphaned values completeness exclusion
+- MOD-10 (#902) Brand demotion
+- MOD-11 (#903) frontend modal create + capability toggles
+- MOD-12 (#904) frontend „Powiązania" tab (picker / grid / advanced / reverse)
+- MOD-13 (#905) frontend relation attribute config editor
+- MOD-14 (#906) **TEN ticket** — docs sync
 
 ---
 
@@ -62,11 +136,12 @@ W naszym Modelowaniu te trzy wymiary mają **osobne sub-zakładki** (Tab 1, 2, 4
 
 ### 3.4 Built-in vs Custom Object Types
 
-**Built-in** (`is_built_in=true`, `code_immutable=true`, `deletable=false`):
+**Built-in** (`is_built_in=true`, `code_immutable=true`, `deletable=false`) — **po ADR-014 / MOD-10** (#902, sekcja 0.4 powyżej):
 - `product` — fundament PIM-u, integracje go nazywają wprost (`/api/products`, mapping SAP/Edito).
 - `category` — hierarchia jako mechanizm domeny, `is_hierarchical=true`, specjalna zdolność deklarowania attribute groups.
 - `asset` — DAM ma szczególne potrzeby (metadata EXIF, transformacje, CDN URLs).
-- `brand` — marka jako 4-ty predefiniowany ObjectType (decyzja PRD § 4 + ADR-009 update).
+
+~~`brand` — marka jako 4-ty predefiniowany ObjectType~~ — **usunięte z built-in pool przez ADR-014 / MOD-10**. Brand wraca do tenant-territory (`select` attribute / custom ObjectType / integracja zewnętrzna), patrz sekcja 0.4.
 
 **Custom** (`is_built_in=false`):
 - `service`, `location`, `event`, `subscription`, `bundle`, `person`, dowolne.
