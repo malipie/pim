@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Api\Identity;
 
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use App\Tests\Api\Catalog\CatalogApiTestCase;
@@ -50,7 +49,10 @@ final class MenuConfigurationApiTest extends CatalogApiTestCase
     #[Test]
     public function effectiveExposesProductInVisibleAndOthersInAvailable(): void
     {
-        $this->markBrandAsExposed();
+        // ADR-014 / MOD-10 (#902): Brand is no longer a built-in ObjectType.
+        // Provision a custom OT (`vendor`) instead and flip its
+        // `exposeToMainMenu` to exercise the same code path.
+        $vendorId = $this->provisionCustomExposedObjectType('vendor');
 
         $client = $this->authenticatedClient();
         $response = $client->request('GET', '/api/menu_configuration/effective');
@@ -66,7 +68,7 @@ final class MenuConfigurationApiTest extends CatalogApiTestCase
         /** @var list<array{id: string}> $available */
         $available = $payload['available'];
         $availableRefs = array_column($available, 'id');
-        self::assertContains('object_type:'.$this->brandId(), $availableRefs);
+        self::assertContains('object_type:'.$vendorId, $availableRefs);
     }
 
     #[Test]
@@ -171,8 +173,11 @@ final class MenuConfigurationApiTest extends CatalogApiTestCase
     {
         $client = $this->authenticatedClient();
 
-        $brand = $this->brandId();
-        $response = $client->request('PATCH', '/api/object_types/'.$brand, [
+        // ADR-014 / MOD-10 (#902): Brand demoted from built-in. Provision a
+        // custom OT (`supplier`) with the toggle initially off and exercise
+        // the PATCH → /effective flow that used to ride on Brand.
+        $supplierId = $this->provisionCustomObjectType('supplier');
+        $response = $client->request('PATCH', '/api/object_types/'.$supplierId, [
             'json' => ['exposeToMainMenu' => true],
             'headers' => ['Content-Type' => 'application/merge-patch+json'],
         ]);
@@ -180,12 +185,12 @@ final class MenuConfigurationApiTest extends CatalogApiTestCase
         $body = $response->toArray();
         self::assertTrue($body['exposeToMainMenu']);
 
-        // After the toggle, /effective lists Brand as available.
+        // After the toggle, /effective lists the custom OT as available.
         $effective = $client->request('GET', '/api/menu_configuration/effective')->toArray();
         /** @var list<array{id: string}> $availableItems */
         $availableItems = $effective['available'];
         $availableRefs = array_column($availableItems, 'id');
-        self::assertContains('object_type:'.$brand, $availableRefs);
+        self::assertContains('object_type:'.$supplierId, $availableRefs);
     }
 
     #[Test]
@@ -216,24 +221,56 @@ final class MenuConfigurationApiTest extends CatalogApiTestCase
         return $this->objectTypeIdFor(ObjectKind::Asset);
     }
 
-    private function brandId(): string
-    {
-        return $this->objectTypeIdFor(ObjectKind::Brand);
-    }
-
-    private function markBrandAsExposed(): void
+    /**
+     * ADR-014 / MOD-10 (#902): replacement for the legacy `brandId()` —
+     * provisions a custom ObjectType with the operator-driven
+     * `expose_to_main_menu=false` default. Returns the UUID for use in
+     * /api/object_types/{id} flows. Tenant context is set so the
+     * `TenantAssignmentListener` can stamp it.
+     */
+    private function provisionCustomObjectType(string $code): string
     {
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
         \assert($tenant instanceof Tenant);
         $tenantContext = self::getContainer()->get(TenantContext::class);
         $tenantContext->set($tenant);
 
-        $brand = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
-            ->findBuiltInByKind(ObjectKind::Brand, $tenant);
-        \assert(null !== $brand);
-        $brand->setExposeToMainMenu(true);
+        $type = new \App\Catalog\Domain\Entity\ObjectType(
+            $code,
+            ObjectKind::Custom,
+            ['pl' => ucfirst($code), 'en' => ucfirst($code)],
+        );
+        $this->em()->persist($type);
         $this->em()->flush();
 
         $tenantContext->clear();
+
+        return $type->getId()->toRfc4122();
+    }
+
+    /**
+     * Like {@see provisionCustomObjectType} but flips `exposeToMainMenu`
+     * to TRUE in the same transaction — used by the "browse /effective"
+     * test that needs the OT to already be available.
+     */
+    private function provisionCustomExposedObjectType(string $code): string
+    {
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenantContext->set($tenant);
+
+        $type = new \App\Catalog\Domain\Entity\ObjectType(
+            $code,
+            ObjectKind::Custom,
+            ['pl' => ucfirst($code), 'en' => ucfirst($code)],
+        );
+        $type->setExposeToMainMenu(true);
+        $this->em()->persist($type);
+        $this->em()->flush();
+
+        $tenantContext->clear();
+
+        return $type->getId()->toRfc4122();
     }
 }
