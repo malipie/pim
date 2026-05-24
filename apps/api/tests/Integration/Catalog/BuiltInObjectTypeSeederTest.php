@@ -20,15 +20,18 @@ final class BuiltInObjectTypeSeederTest extends KernelTestCase
     use ResetDatabase;
 
     #[Test]
-    public function seedCreatesFourBuiltInObjectTypesForTenant(): void
+    public function seedCreatesThreeBuiltInObjectTypesForTenant(): void
     {
+        // ADR-014 / MOD-10 (#902) — Brand was demoted from built-in to
+        // tenant-territory. The seeder emits exactly Product / Category /
+        // Asset; Brand is no longer in the DEFINITIONS map.
         $tenant = $this->createTenant('demo');
 
         $created = $this->seeder()->seed($tenant);
 
-        self::assertSame(4, $created);
+        self::assertSame(3, $created);
         $repo = $this->repository();
-        foreach ([ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset, ObjectKind::Brand] as $kind) {
+        foreach ([ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset] as $kind) {
             $type = $repo->findBuiltInByKind($kind, $tenant);
             self::assertNotNull($type, $kind->value);
             self::assertTrue($type->isBuiltIn());
@@ -38,6 +41,11 @@ final class BuiltInObjectTypeSeederTest extends KernelTestCase
             self::assertNotNull($type->getColor(), $kind->value);
             self::assertSame($kind, $type->getKind());
         }
+
+        self::assertNull(
+            $repo->findBuiltInByKind(ObjectKind::Brand, $tenant),
+            'Brand MUST NOT be seeded as a built-in ObjectType (ADR-014 / MOD-10).',
+        );
     }
 
     #[Test]
@@ -51,17 +59,14 @@ final class BuiltInObjectTypeSeederTest extends KernelTestCase
         $product = $repo->findBuiltInByKind(ObjectKind::Product, $tenant);
         $category = $repo->findBuiltInByKind(ObjectKind::Category, $tenant);
         $asset = $repo->findBuiltInByKind(ObjectKind::Asset, $tenant);
-        $brand = $repo->findBuiltInByKind(ObjectKind::Brand, $tenant);
 
         self::assertNotNull($product);
         self::assertNotNull($category);
         self::assertNotNull($asset);
-        self::assertNotNull($brand);
 
         self::assertTrue($product->isCategorizable(), 'Product is the only built-in that opts into primary-category overlay');
         self::assertFalse($category->isCategorizable(), 'Category itself is not categorized — only base attributes apply');
         self::assertFalse($asset->isCategorizable(), 'Asset has its own DAM workflow, not category-driven');
-        self::assertFalse($brand->isCategorizable(), 'Brand is flat, no category overlay');
     }
 
     #[Test]
@@ -70,7 +75,7 @@ final class BuiltInObjectTypeSeederTest extends KernelTestCase
         $tenant = $this->createTenant('demo');
         $seeder = $this->seeder();
 
-        self::assertSame(4, $seeder->seed($tenant));
+        self::assertSame(3, $seeder->seed($tenant));
         self::assertSame(0, $seeder->seed($tenant), 'second run should be a no-op');
     }
 

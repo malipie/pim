@@ -96,7 +96,10 @@ final class SystemAttributesAuditGroupTest extends KernelTestCase
             ->setParameter('g', $auditGroup)
             ->getResult();
 
-        self::assertCount(4, $junctions, 'Audit group must be attached to all 4 built-in ObjectTypes (product/category/asset/brand).');
+        // ADR-014 / MOD-10 (#902): Brand removed from built-in pool — three
+        // built-ins remain (product/category/asset), each gets the audit
+        // group auto-attached.
+        self::assertCount(3, $junctions, 'Audit group must be attached to all 3 built-in ObjectTypes (product/category/asset).');
         foreach ($junctions as $junction) {
             self::assertInstanceOf(ObjectTypeAttributeGroup::class, $junction);
             self::assertSame(999, $junction->getPosition());

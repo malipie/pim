@@ -49,12 +49,14 @@ final class ObjectKindRouterTest extends TestCase
     }
 
     #[Test]
-    public function builtInKindsListMatchesAdr009AndAdr012(): void
+    public function builtInKindsListMatchesAdr009AndAdr014(): void
     {
-        // ADR-009 ships product / category / asset; ADR-012 (#257 / UI-08.2)
-        // adds brand as 4-th built-in.
+        // ADR-009 ships product / category / asset. ADR-012 (#257 /
+        // UI-08.2) briefly added `brand` as a 4-th built-in, reverted
+        // by ADR-014 / MOD-10 (#902). The built-in pool is back to the
+        // pre-ADR-012 three kinds.
         self::assertSame(
-            [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset, ObjectKind::Brand],
+            [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset],
             ObjectKindRouter::builtInKinds(),
         );
     }

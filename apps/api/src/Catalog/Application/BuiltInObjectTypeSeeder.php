@@ -12,19 +12,26 @@ use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * Idempotent per-tenant seeder for the four built-in ObjectTypes:
- * `product`, `category`, `asset`, `brand`. Each seeded row carries
+ * Idempotent per-tenant seeder for the three built-in ObjectTypes:
+ * `product`, `category`, `asset`. Each seeded row carries
  * `is_built_in=true` so {@see ObjectTypeService::delete} blocks deletion,
  * plus `code_immutable=true` + `deletable=false` from UI-08.2.
  *
  * The seeder is the runtime counterpart of the inline INSERTs in
- * migrations `Version20260428222056` (product/category/asset) and
- * `Version20260501110000` (brand). The migrations handle existing
+ * migration `Version20260428222056`. The migration handles existing
  * tenants once; this service handles future tenants and fixtures —
  * `pim:db:reset --with-fixtures` purges the database, so without a
  * runtime seeder the built-in rows would vanish on every reset.
  *
- * Idempotent: re-runs are no-ops once the four rows exist.
+ * MOD-10 (#902): `brand` was previously seeded as a 4-th built-in
+ * (`Version20260501110000`). ADR-014 reverts that — Brand becomes a
+ * tenant-side decision (`select` attribute, custom ObjectType, or
+ * external integration), no longer platform-owned. Existing Brand rows
+ * in production tenants are converted to custom (`is_built_in=false`)
+ * or deleted when unused by the matching MOD-10 migration; the seeder
+ * just stops emitting them.
+ *
+ * Idempotent: re-runs are no-ops once the three rows exist.
  */
 final readonly class BuiltInObjectTypeSeeder
 {
@@ -35,7 +42,6 @@ final readonly class BuiltInObjectTypeSeeder
         'product' => [ObjectKind::Product, ['pl' => 'Produkt', 'en' => 'Product'], 'Package', '#3B82F6'],
         'category' => [ObjectKind::Category, ['pl' => 'Kategoria', 'en' => 'Category'], 'FolderTree', '#10B981'],
         'asset' => [ObjectKind::Asset, ['pl' => 'Zasób', 'en' => 'Asset'], 'Image', '#8B5CF6'],
-        'brand' => [ObjectKind::Brand, ['pl' => 'Marka', 'en' => 'Brand'], 'Tag', '#F59E0B'],
     ];
 
     public function __construct(
