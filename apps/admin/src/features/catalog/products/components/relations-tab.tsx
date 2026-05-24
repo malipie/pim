@@ -12,6 +12,7 @@ import {
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { CategoryPickerDialog } from '@/components/catalog/category-picker-dialog';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -569,6 +570,12 @@ function ObjectPickerDialog({
   );
   const [createError, setCreateError] = useState<string | null>(null);
   const [createBusy, setCreateBusy] = useState(false);
+  // MODR-09 FU-1 — operator picks categories + primary on the fly when
+  // the target ObjectType is categorizable. Stashed locally and bundled
+  // into the POST `/api/{kind}` payload alongside `code`/`attributes`.
+  const [createCategoryIds, setCreateCategoryIds] = useState<string[]>([]);
+  const [createPrimaryCategoryId, setCreatePrimaryCategoryId] = useState<string | null>(null);
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query), 200);
@@ -631,19 +638,39 @@ function ObjectPickerDialog({
       );
       return;
     }
+    // MODR-09 FU-1 — categorizable ObjectType requires a primary
+    // category before POST; mirrors the contract baked into
+    // `CatalogObjectInput::primaryCategoryId` (#891).
+    if (
+      activeCreateType.isCategorizable === true &&
+      (createCategoryIds.length === 0 || createPrimaryCategoryId === null)
+    ) {
+      setCreateError(
+        t('relations.picker_create_primary_required', {
+          defaultValue:
+            'Ten ObjectType wymaga primary category — wybierz kategorie i oznacz primary przed zapisem.',
+        }),
+      );
+      return;
+    }
     setCreateError(null);
     setCreateBusy(true);
     try {
       const path = sugarPathForKind(activeCreateType.kind);
+      const body: Record<string, unknown> = {
+        code: createCode.trim(),
+        objectTypeId: createObjectTypeId,
+        attributes: { name: createName.trim() },
+      };
+      if (activeCreateType.isCategorizable === true) {
+        body.categoryIds = createCategoryIds;
+        body.primaryCategoryId = createPrimaryCategoryId;
+      }
       const created = await jsonFetch<{ id?: string }>(`/api/${path}`, {
         method: 'POST',
         contentType: 'application/ld+json',
         accept: 'application/ld+json',
-        body: {
-          code: createCode.trim(),
-          objectTypeId: createObjectTypeId,
-          attributes: { name: createName.trim() },
-        },
+        body,
       });
       const newId = typeof created.id === 'string' ? created.id : '';
       if (newId === '') {
@@ -700,13 +727,48 @@ function ObjectPickerDialog({
               </div>
             ) : null}
             {activeCreateType?.isCategorizable ? (
-              <p className="rounded-md bg-amber-50 px-3 py-2 text-[12px] text-amber-700">
-                {t('relations.picker_create_categorizable_hint', {
-                  defaultValue:
-                    'Ten typ wymaga primary category — do MOD-11 użyj pełnego ekranu "Nowy {{name}}".',
-                  name: activeCreateType.code,
-                })}
-              </p>
+              <div className="space-y-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11.5px] font-medium uppercase tracking-wider text-zinc-500">
+                    {t('relations.picker_create_categories_label', {
+                      defaultValue: 'Kategorie (wymagane)',
+                    })}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCategoryPickerOpen(true)}
+                    disabled={createBusy}
+                  >
+                    {createCategoryIds.length === 0
+                      ? t('relations.picker_create_categories_pick', {
+                          defaultValue: 'Wybierz',
+                        })
+                      : t('relations.picker_create_categories_change', {
+                          defaultValue: 'Zmień',
+                        })}
+                  </Button>
+                </div>
+                {createCategoryIds.length === 0 ? (
+                  <p className="text-[12px] text-amber-700">
+                    {t('relations.picker_create_categories_empty', {
+                      defaultValue: 'Brak kategorii. Wybierz przynajmniej jedną i zaznacz primary.',
+                    })}
+                  </p>
+                ) : (
+                  <p className="text-[12px] text-zinc-600">
+                    {t('relations.picker_create_categories_count', {
+                      defaultValue: '{{count}} kategorii · primary: {{primaryShort}}',
+                      count: createCategoryIds.length,
+                      primaryShort:
+                        createPrimaryCategoryId !== null
+                          ? createPrimaryCategoryId.slice(0, 8)
+                          : '—',
+                    })}
+                  </p>
+                )}
+              </div>
             ) : null}
             <div className="grid gap-2 sm:grid-cols-2">
               <Input
@@ -745,7 +807,8 @@ function ObjectPickerDialog({
                 disabled={
                   createBusy ||
                   createObjectTypeId === null ||
-                  Boolean(activeCreateType?.isCategorizable)
+                  (activeCreateType?.isCategorizable === true &&
+                    (createCategoryIds.length === 0 || createPrimaryCategoryId === null))
                 }
               >
                 {t('relations.picker_create_submit', {
@@ -818,6 +881,20 @@ function ObjectPickerDialog({
           </>
         )}
       </DialogContent>
+      <CategoryPickerDialog
+        open={categoryPickerOpen}
+        onOpenChange={setCategoryPickerOpen}
+        productId=""
+        currentAssignments={createCategoryIds.map((id) => ({
+          categoryId: id,
+          isPrimary: id === createPrimaryCategoryId,
+        }))}
+        onSaved={() => setCategoryPickerOpen(false)}
+        onSelect={(ids, primary) => {
+          setCreateCategoryIds(ids);
+          setCreatePrimaryCategoryId(primary);
+        }}
+      />
     </Dialog>
   );
 }
