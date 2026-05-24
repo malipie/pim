@@ -6,6 +6,7 @@ namespace App\Catalog\Application;
 
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectValue;
+use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -33,6 +34,7 @@ final readonly class AttributesIndexedRebuilder
 {
     public function __construct(
         private EntityManagerInterface $em,
+        private EffectiveAttributeGroupResolver $resolver,
     ) {
     }
 
@@ -61,6 +63,26 @@ final readonly class AttributesIndexedRebuilder
         // Completeness: required-list / present-count. Empty rules → 100.
         $rules = $object->getObjectType()->getCompletenessRules();
         $required = \is_array($rules['required'] ?? null) ? $rules['required'] : [];
+
+        // ADR-014 / MOD-09 (#901) — orphaned values (codes present in
+        // attributes_indexed but absent from the effective model) MUST
+        // NOT participate in completeness. Likewise, `required` entries
+        // that point at attributes outside the current effective model
+        // are ignored (a Telewizory-only `przekatna` requirement does
+        // not penalise a Pralki primary).
+        //
+        // Fallback: when the effective model is empty (e.g. an ObjectType
+        // with no group attachments yet, the early-bootstrap path on
+        // fixtures, or unit tests with a stub resolver) we keep the
+        // legacy contract — `required` counts as-is.
+        $effectiveCodes = $this->effectiveAttributeCodes($object);
+        if ([] !== $effectiveCodes) {
+            $required = array_values(array_filter(
+                $required,
+                static fn (mixed $code): bool => \is_string($code) && \in_array($code, $effectiveCodes, true),
+            ));
+        }
+
         if ([] === $required) {
             $object->recordCompleteness(['global' => 100]);
 
@@ -75,5 +97,26 @@ final readonly class AttributesIndexedRebuilder
         }
         $pct = (int) round(100 * $present / \count($required));
         $object->recordCompleteness(['global' => $pct]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function effectiveAttributeCodes(CatalogObject $object): array
+    {
+        $groups = $this->resolver->resolve($object);
+        if ([] === $groups) {
+            return [];
+        }
+        $byGroup = $this->resolver->loadGroupAttributes($groups);
+
+        $codes = [];
+        foreach ($byGroup as $junctions) {
+            foreach ($junctions as $junction) {
+                $codes[$junction->getAttribute()->getCode()] = true;
+            }
+        }
+
+        return array_keys($codes);
     }
 }

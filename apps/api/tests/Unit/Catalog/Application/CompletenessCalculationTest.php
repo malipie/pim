@@ -11,6 +11,7 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -117,8 +118,16 @@ final class CompletenessCalculationTest extends TestCase
         array $present,
         int $expectedPct,
     ): void {
+        // Resolver stub returns empty effective groups — the rebuilder's
+        // MOD-09 effective-model filter is bypassed (empty effective set
+        // falls back to the legacy `required` count), so this unit test
+        // still exercises the raw math invariants.
+        $resolver = $this->createStub(EffectiveAttributeGroupResolver::class);
+        $resolver->method('resolve')->willReturn([]);
+        $resolver->method('loadGroupAttributes')->willReturn([]);
         $rebuilder = new AttributesIndexedRebuilder(
             $this->createStub(EntityManagerInterface::class),
+            $resolver,
         );
 
         $tenant = self::tenantStub();
@@ -141,8 +150,16 @@ final class CompletenessCalculationTest extends TestCase
     #[Test]
     public function emptyValuesListWithNoRulesYieldsHundredAndEmptyAttributesIndexed(): void
     {
+        // Resolver stub returns empty effective groups — the rebuilder's
+        // MOD-09 effective-model filter is bypassed (empty effective set
+        // falls back to the legacy `required` count), so this unit test
+        // still exercises the raw math invariants.
+        $resolver = $this->createStub(EffectiveAttributeGroupResolver::class);
+        $resolver->method('resolve')->willReturn([]);
+        $resolver->method('loadGroupAttributes')->willReturn([]);
         $rebuilder = new AttributesIndexedRebuilder(
             $this->createStub(EntityManagerInterface::class),
+            $resolver,
         );
 
         $tenant = self::tenantStub();
