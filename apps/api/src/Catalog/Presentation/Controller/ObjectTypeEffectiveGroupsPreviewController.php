@@ -297,6 +297,7 @@ final class ObjectTypeEffectiveGroupsPreviewController
         if (AttributeType::Relation === $attribute->getType()) {
             $payload['relation_target_object_type_ids'] = $attribute->getRelationTargetObjectTypeIds();
             $payload['relation_cardinality'] = $attribute->getRelationCardinality()?->value;
+            $payload['relation_preview_fields'] = $attribute->getRelationPreviewFields();
         }
 
         return $payload;

@@ -133,6 +133,7 @@ final readonly class AttributeProcessor implements ProcessorInterface
             relationTargetObjectTypeIds: $data->relationTargetObjectTypeIds,
             relationCardinality: $data->relationCardinality,
             relationAdvanced: $data->relationAdvanced,
+            relationPreviewFields: $data->relationPreviewFields,
         );
         $this->dispatch($command);
 

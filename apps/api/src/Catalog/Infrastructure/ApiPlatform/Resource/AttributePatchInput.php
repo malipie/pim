@@ -78,4 +78,17 @@ final class AttributePatchInput
 
     #[Groups(['attribute:patch'])]
     public ?bool $relationAdvanced = null;
+
+    /**
+     * MODR-08 (#930) — list of target attribute codes shown inside the
+     * relation widget's preview card. Empty list keeps the default
+     * (target object code + name). Meaningful only for relation
+     * attributes.
+     *
+     * @var list<string>|null
+     */
+    #[Assert\Type('array')]
+    #[Assert\All([new Assert\Type('string'), new Assert\NotBlank()])]
+    #[Groups(['attribute:patch'])]
+    public ?array $relationPreviewFields = null;
 }

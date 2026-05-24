@@ -84,6 +84,12 @@
                 <option name="default">false</option>
             </options>
         </field>
+        <field name="relationPreviewFields" type="json" column="relation_preview_fields">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">[]</option>
+            </options>
+        </field>
         <field name="position" type="integer">
             <options>
                 <option name="default">0</option>
