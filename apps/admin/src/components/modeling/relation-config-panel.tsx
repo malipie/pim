@@ -17,6 +17,13 @@ export interface RelationConfigValue {
   cardinality: 'one' | 'many';
   advanced: boolean;
   advancedFields: RelationAdvancedField[];
+  /**
+   * MODR-08 (#930) — list of target attribute codes surfaced inside the
+   * relation widget's preview card. Empty list keeps the default
+   * (target object code + name). Persisted as `relation_preview_fields`
+   * on the Attribute entity; PATCH plumbing wired since MODR-08.
+   */
+  previewFields: string[];
 }
 
 interface RelationConfigPanelProps {
@@ -318,7 +325,102 @@ export function RelationConfigPanel({
             </div>
           ) : null}
         </div>
+
+        {/* MODR-08 (#930) — preview fields editor. Drives the rich
+            preview card layout inside the relation widget. Empty list =
+            default (target object code + name). */}
+        <div className="border-t border-zinc-100 pt-5">
+          <PreviewFieldsEditor
+            value={value.previewFields}
+            disabled={disabled}
+            onChange={(next) => onChange({ ...value, previewFields: next })}
+          />
+        </div>
       </CardContent>
     </Card>
+  );
+}
+
+function PreviewFieldsEditor({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string[];
+  disabled: boolean;
+  onChange: (next: string[]) => void;
+}) {
+  const { t } = useTranslation();
+  const update = (idx: number, code: string) => {
+    if (disabled) return;
+    const next = [...value];
+    next[idx] = code;
+    onChange(next);
+  };
+  const add = () => {
+    if (disabled) return;
+    onChange([...value, '']);
+  };
+  const remove = (idx: number) => {
+    if (disabled) return;
+    onChange(value.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="text-[13px] font-medium text-zinc-700">
+          {t('attributes.relation_preview_fields_label', {
+            defaultValue: 'Pola podglądu w karcie powiązania',
+          })}
+        </div>
+        <div className="mt-0.5 text-[12px] text-muted-foreground">
+          {t('attributes.relation_preview_fields_desc', {
+            defaultValue:
+              'Kody atrybutów obiektu docelowego (np. „sku", „price") wyświetlanych w karcie. Pusta lista — pokazuje sam code + name.',
+          })}
+        </div>
+      </div>
+      {value.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-3 text-[12px] text-muted-foreground">
+          {t('attributes.relation_preview_fields_empty', {
+            defaultValue: 'Brak pól — klik „+ Pole" doda wiersz z kodem atrybutu targetu.',
+          })}
+        </div>
+      ) : null}
+      {value.map((code, idx) => (
+        <div
+          // biome-ignore lint/suspicious/noArrayIndexKey: append-only editor with idx-based mutations
+          key={idx}
+          className="grid grid-cols-[1fr,auto] items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
+        >
+          <Input
+            placeholder={t('attributes.relation_preview_fields_placeholder', {
+              defaultValue: 'kod atrybutu (np. price, sku)',
+            })}
+            value={code}
+            disabled={disabled}
+            onChange={(e) => update(idx, e.target.value)}
+            className="font-mono"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            disabled={disabled}
+            onClick={() => remove(idx)}
+            aria-label={t('attributes.relation_preview_fields_remove', {
+              defaultValue: 'Usuń pole podglądu',
+            })}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      ))}
+      <Button variant="ghost" size="sm" type="button" disabled={disabled} onClick={add}>
+        <Plus className="size-4" />
+        {t('attributes.relation_preview_fields_add', { defaultValue: '+ Pole' })}
+      </Button>
+    </div>
   );
 }

@@ -53,6 +53,9 @@ interface AttributeDetail {
   relationTargetObjectTypeIds?: string[];
   relationCardinality?: 'one' | 'many' | null;
   relationAdvanced?: boolean;
+  // MODR-08 (#930) — list of target attribute codes shown in the
+  // relation widget's preview card. Empty list → default name+code.
+  relationPreviewFields?: string[];
   validationRules?: Record<string, unknown> | null;
 }
 
@@ -161,7 +164,38 @@ function Editor({
     cardinality: (attribute.relationCardinality as 'one' | 'many') ?? 'many',
     advanced: attribute.relationAdvanced ?? false,
     advancedFields: initialRelationFields,
+    previewFields: attribute.relationPreviewFields ?? [],
   });
+
+  // MODR-08 follow-up — fetch `relationPreviewFields` from a dedicated
+  // endpoint because ApiPlatform's GET /api/attributes/{id} omits the
+  // property from its JSON-LD response (PropertyInfo discovery quirk —
+  // see AttributeRelationPreviewFieldsController for context).
+  const previewFieldsQuery = useQuery<{
+    attributeId: string;
+    relationPreviewFields: string[];
+  }>({
+    queryKey: ['attributes', attribute.id, 'relation_preview_fields'],
+    queryFn: () =>
+      jsonFetch<{ attributeId: string; relationPreviewFields: string[] }>(
+        `/api/attributes/${attribute.id}/relation_preview_fields`,
+        { accept: 'application/json' },
+      ),
+    enabled: attribute.type === 'relation',
+    staleTime: 30_000,
+  });
+  useEffect(() => {
+    if (previewFieldsQuery.data === undefined) return;
+    setRelationConfig((prev) => {
+      if (
+        prev.previewFields.length === previewFieldsQuery.data?.relationPreviewFields.length &&
+        prev.previewFields.every((v, i) => v === previewFieldsQuery.data?.relationPreviewFields[i])
+      ) {
+        return prev;
+      }
+      return { ...prev, previewFields: previewFieldsQuery.data.relationPreviewFields };
+    });
+  }, [previewFieldsQuery.data]);
 
   // Fetch tenant ObjectTypes for the multi-select. Cheap query, cached.
   const objectTypesQuery = useQuery<
@@ -196,6 +230,7 @@ function Editor({
     cardinality: (attribute.relationCardinality as 'one' | 'many') ?? 'many',
     advanced: attribute.relationAdvanced ?? false,
     advancedFields: initialRelationFields,
+    previewFields: previewFieldsQuery.data?.relationPreviewFields ?? [],
   });
   const relationDirty =
     attribute.type === 'relation' && JSON.stringify(relationConfig) !== initialRelationSnapshot;
@@ -252,6 +287,11 @@ function Editor({
         body.validationRules = relationConfig.advanced
           ? { ...(attribute.validationRules ?? {}), advanced_fields: fields }
           : { ...(attribute.validationRules ?? {}), advanced_fields: [] };
+        // MODR-08 follow-up — preview fields list. Strip empty rows;
+        // backend setter dedups anyway but a clean payload reads better.
+        body.relationPreviewFields = relationConfig.previewFields
+          .map((c) => c.trim())
+          .filter((c) => c !== '');
       }
       await jsonFetch(`/api/attributes/${attribute.id}`, {
         method: 'PATCH',
