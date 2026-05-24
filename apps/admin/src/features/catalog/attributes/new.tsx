@@ -1,5 +1,5 @@
 import { useInvalidate } from '@refinedev/core';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check, FolderPlus, FolderTree, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,10 @@ import { Link, useNavigate } from 'react-router';
 
 import { CreateGroupInlineDialog } from '@/components/modeling/create-group-inline-dialog';
 import { PickGroupsForAttributeDialog } from '@/components/modeling/pick-groups-for-attribute-dialog';
+import {
+  RelationConfigPanel,
+  type RelationConfigValue,
+} from '@/components/modeling/relation-config-panel';
 import { SettingToggleRow } from '@/components/modeling/setting-toggle-row';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -64,6 +68,27 @@ const EMPTY: CreatePayload = {
   filterable: false,
 };
 
+/**
+ * Default relation config (#949) — operator picks targets + cardinality
+ * inline via `RelationConfigPanel`. `many` is the most common shape
+ * (cross_sell, related, accessory all default to many on the seeded
+ * built-in relation attributes).
+ */
+const DEFAULT_RELATION_CONFIG: RelationConfigValue = {
+  targetObjectTypeIds: [],
+  cardinality: 'many',
+  advanced: false,
+  advancedFields: [],
+  previewFields: [],
+};
+
+interface ObjectTypePickerRow {
+  id: string;
+  code: string;
+  kind: string;
+  label?: Record<string, string> | string | null;
+}
+
 const TYPES = [
   'text',
   'number',
@@ -94,6 +119,25 @@ export function AttributeCreatePage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
 
+  // #949 — relation attribute config (only meaningful when type=relation).
+  // Backend validator (RelationAttributeConfigValidator) rejects POST with
+  // 422 if `relationCardinality` is null on a relation attribute; we now
+  // render `RelationConfigPanel` inline so the operator can pick targets +
+  // cardinality before submit.
+  const [relationConfig, setRelationConfig] =
+    useState<RelationConfigValue>(DEFAULT_RELATION_CONFIG);
+  const objectTypesQuery = useQuery<ObjectTypePickerRow[]>({
+    queryKey: ['relation-config', 'object_types'],
+    queryFn: async () => {
+      const data = await jsonFetch<{ member?: ObjectTypePickerRow[] }>(
+        '/api/object_types?itemsPerPage=200',
+      );
+      return data.member ?? [];
+    },
+    staleTime: 60_000,
+    enabled: values.type === 'relation',
+  });
+
   const handleSubmit = async () => {
     setError(null);
     setSubmitting(true);
@@ -111,6 +155,22 @@ export function AttributeCreatePage() {
       // when the BE adds it. For now keep it form-only so the FE matches
       // the mockup; submit-side stays no-op.
       // `indexed` is similarly form-only (no `is_indexed` BE column yet).
+
+      // #949 — relation config fields go through the same POST. Filter
+      // empty advanced-field rows (the validator 422s them; the UX is
+      // friendlier when we drop them upfront).
+      if (values.type === 'relation') {
+        body.relationTargetObjectTypeIds = relationConfig.targetObjectTypeIds;
+        body.relationCardinality = relationConfig.cardinality;
+        body.relationAdvanced = relationConfig.advanced;
+        if (relationConfig.advanced) {
+          body.validationRules = {
+            advanced_fields: relationConfig.advancedFields.filter((f) => f.code.trim() !== ''),
+          };
+        }
+        const preview = relationConfig.previewFields.map((c) => c.trim()).filter((c) => c !== '');
+        if (preview.length > 0) body.relationPreviewFields = preview;
+      }
 
       const response = await jsonFetch<{ id?: string }>('/api/attributes', {
         method: 'POST',
@@ -176,7 +236,10 @@ export function AttributeCreatePage() {
     }
   };
 
-  const valid = values.code.trim().length > 0 && values.labelPl.trim().length > 0;
+  const valid =
+    values.code.trim().length > 0 &&
+    values.labelPl.trim().length > 0 &&
+    (values.type !== 'relation' || relationConfig.targetObjectTypeIds.length > 0);
 
   return (
     <div className="space-y-6">
@@ -320,6 +383,32 @@ export function AttributeCreatePage() {
               </p>
             ) : null}
           </Section>
+
+          {/* #949 — relation config inline. The backend validator requires
+              `relationCardinality` + at least one target ObjectType on POST
+              for `type=relation`, so we surface the same controls the edit
+              page uses (MOD-13 #905) right after type pick. */}
+          {values.type === 'relation' ? (
+            <Section
+              title={t('attributes.relation_config_section', {
+                defaultValue: 'Konfiguracja relacji',
+              })}
+            >
+              <RelationConfigPanel
+                value={relationConfig}
+                objectTypes={objectTypesQuery.data ?? []}
+                disabled={submitting}
+                onChange={setRelationConfig}
+              />
+              {relationConfig.targetObjectTypeIds.length === 0 ? (
+                <p className="mt-2 text-[12px] text-amber-600">
+                  {t('attributes.relation_targets_required_hint', {
+                    defaultValue: 'Wybierz co najmniej jeden ObjectType celu relacji.',
+                  })}
+                </p>
+              ) : null}
+            </Section>
+          ) : null}
 
           <Section title={t('attributes.validation_title', { defaultValue: 'Walidacja i flagi' })}>
             <div className="space-y-3">

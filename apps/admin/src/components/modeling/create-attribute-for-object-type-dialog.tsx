@@ -1,15 +1,38 @@
 import { useInvalidate } from '@refinedev/core';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, GripVertical, Info, X, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import {
+  RelationConfigPanel,
+  type RelationConfigValue,
+} from '@/components/modeling/relation-config-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { HttpError, jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
+
+/**
+ * Default relation config (#949) — operator picks targets + cardinality
+ * inline via `RelationConfigPanel` before POST.
+ */
+const DEFAULT_RELATION_CONFIG: RelationConfigValue = {
+  targetObjectTypeIds: [],
+  cardinality: 'many',
+  advanced: false,
+  advancedFields: [],
+  previewFields: [],
+};
+
+interface ObjectTypePickerRow {
+  id: string;
+  code: string;
+  kind: string;
+  label?: Record<string, string> | string | null;
+}
 
 const TYPES = [
   'text',
@@ -78,6 +101,9 @@ export function CreateAttributeForObjectTypeDialog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeLocale, setActiveLocale] = useState<'pl' | 'en'>('pl');
+  // #949 — relation config inline.
+  const [relationConfig, setRelationConfig] =
+    useState<RelationConfigValue>(DEFAULT_RELATION_CONFIG);
 
   useEffect(() => {
     if (open) {
@@ -91,12 +117,29 @@ export function CreateAttributeForObjectTypeDialog({
       setLocalizable(false);
       setError(null);
       setActiveLocale('pl');
+      setRelationConfig(DEFAULT_RELATION_CONFIG);
     }
   }, [open]);
 
+  // #949 — ObjectTypes list for the relation panel's target multi-select.
+  const objectTypesQuery = useQuery<ObjectTypePickerRow[]>({
+    queryKey: ['relation-config', 'object_types'],
+    queryFn: async () => {
+      const data = await jsonFetch<{ member?: ObjectTypePickerRow[] }>(
+        '/api/object_types?itemsPerPage=200',
+      );
+      return data.member ?? [];
+    },
+    staleTime: 60_000,
+    enabled: open && type === 'relation',
+  });
+
   const showUnit = type === 'number' || type === 'price' || type === 'metric';
   const showOptionsBanner = type === 'select' || type === 'multiselect';
-  const valid = code.trim().length > 0 && namePl.trim().length > 0;
+  const valid =
+    code.trim().length > 0 &&
+    namePl.trim().length > 0 &&
+    (type !== 'relation' || relationConfig.targetObjectTypeIds.length > 0);
 
   const submit = async () => {
     if (!valid) return;
@@ -113,6 +156,22 @@ export function CreateAttributeForObjectTypeDialog({
         required,
       };
       if (unit.trim().length > 0) body.unit = unit.trim();
+
+      // #949 — relation config fields go through the same POST body.
+      // Backend validator requires `relationCardinality` + targets on POST
+      // for `type=relation`. Non-relation types skip these entirely.
+      if (type === 'relation') {
+        body.relationTargetObjectTypeIds = relationConfig.targetObjectTypeIds;
+        body.relationCardinality = relationConfig.cardinality;
+        body.relationAdvanced = relationConfig.advanced;
+        if (relationConfig.advanced) {
+          body.validationRules = {
+            advanced_fields: relationConfig.advancedFields.filter((f) => f.code.trim() !== ''),
+          };
+        }
+        const preview = relationConfig.previewFields.map((c) => c.trim()).filter((c) => c !== '');
+        if (preview.length > 0) body.relationPreviewFields = preview;
+      }
 
       const created = await jsonFetch<CreatedAttributeResponse>('/api/attributes', {
         method: 'POST',
@@ -313,6 +372,31 @@ export function CreateAttributeForObjectTypeDialog({
                     mógł zdefiniować wartości (z tłumaczeniami) w widoku „Zarządzaj wartościami".
                   </div>
                 </div>
+              ) : null}
+            </Section>
+          ) : null}
+
+          {/* #949 — relation config inline. Required so the backend
+              validator doesn't 422 on POST for `type=relation`. */}
+          {type === 'relation' ? (
+            <Section
+              title={t('attributes.relation_config_section', {
+                defaultValue: 'Konfiguracja relacji',
+              })}
+              divider
+            >
+              <RelationConfigPanel
+                value={relationConfig}
+                objectTypes={objectTypesQuery.data ?? []}
+                disabled={submitting}
+                onChange={setRelationConfig}
+              />
+              {relationConfig.targetObjectTypeIds.length === 0 ? (
+                <p className="mt-2 text-[12px] text-amber-600">
+                  {t('attributes.relation_targets_required_hint', {
+                    defaultValue: 'Wybierz co najmniej jeden ObjectType celu relacji.',
+                  })}
+                </p>
               ) : null}
             </Section>
           ) : null}
