@@ -28,6 +28,12 @@
             </options>
         </field>
 
+        <field name="displayMode" column="display_mode" type="string" length="8">
+            <options>
+                <option name="default">tab</option>
+            </options>
+        </field>
+
     </entity>
 
 </doctrine-mapping>

@@ -11,7 +11,9 @@ use App\Identity\Contracts\Attribute\RequiresPermission;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -105,6 +107,61 @@ final class AttachObjectTypeAttributeGroupController
             'DELETE FROM object_type_attribute_groups WHERE object_type_id = ? AND attribute_group_id = ?',
             [$id, $groupId],
         );
+
+        return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * MODR-01 (#923) — `PATCH /api/object_types/{id}/groups/{groupId}` updates
+     * the `display_mode` of an existing junction without recreating it.
+     * Body shape: `{ "display_mode": "tab"|"stacked" }`.
+     */
+    #[Route(
+        '/api/object_types/{id}/groups/{groupId}',
+        name: 'pim_object_types_patch_group_assignment',
+        requirements: ['id' => self::UUID_REGEX, 'groupId' => self::UUID_REGEX],
+        methods: ['PATCH'],
+    )]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'modeling.object_types', action: 'add')]
+    public function patch(string $id, string $groupId, Request $request): JsonResponse
+    {
+        $objectType = $this->objectTypes->findById(Uuid::fromString($id));
+        if (null === $objectType) {
+            throw new NotFoundHttpException(\sprintf('ObjectType "%s" was not found.', $id));
+        }
+
+        $group = $this->attributeGroups->findById(Uuid::fromString($groupId));
+        if (null === $group) {
+            throw new NotFoundHttpException(\sprintf('AttributeGroup "%s" was not found.', $groupId));
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        if (!\is_array($payload) || !\array_key_exists('display_mode', $payload)) {
+            throw new BadRequestHttpException('Body must contain `display_mode`.');
+        }
+        $displayMode = $payload['display_mode'];
+        if (!\is_string($displayMode) || !\in_array($displayMode, ObjectTypeAttributeGroup::DISPLAY_MODES, true)) {
+            throw new BadRequestHttpException(\sprintf(
+                'display_mode must be one of: %s.',
+                implode(', ', ObjectTypeAttributeGroup::DISPLAY_MODES),
+            ));
+        }
+
+        $junction = $this->em->find(ObjectTypeAttributeGroup::class, [
+            'objectType' => $objectType,
+            'attributeGroup' => $group,
+        ]);
+        if (!$junction instanceof ObjectTypeAttributeGroup) {
+            throw new NotFoundHttpException(\sprintf(
+                'AttributeGroup "%s" is not attached to ObjectType "%s".',
+                $groupId,
+                $id,
+            ));
+        }
+
+        $junction->changeDisplayMode($displayMode);
+        $this->em->flush();
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }
