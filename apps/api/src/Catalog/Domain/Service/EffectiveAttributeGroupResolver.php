@@ -54,7 +54,7 @@ use Symfony\Component\Uid\Uuid;
  * via the modeling cache pool. The resolver itself never caches — it
  * remains the source of truth for tests + invalidation paths.
  */
-final readonly class EffectiveAttributeGroupResolver
+readonly class EffectiveAttributeGroupResolver
 {
     public function __construct(
         private EntityManagerInterface $em,
