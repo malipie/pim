@@ -118,15 +118,16 @@ final class EffectiveAttributeGroupResolverProductTest extends KernelTestCase
     }
 
     #[Test]
-    public function resolveDeduplicatesGroupsAcrossOverlappingAssignments(): void
+    public function resolveIgnoresSecondaryCategoryAssignments(): void
     {
         $em = $this->em();
         $productType = $this->productType();
 
-        // Two sibling categories under the same root. Each declares its
-        // own group, plus the shared root declares a shared group. A
-        // product assigned to BOTH siblings must see the root group only
-        // once (dedup by AttributeGroup id).
+        // ADR-014 / MOD-03: only the primary category contributes to the
+        // attribute overlay. Sibling categories under the same root each
+        // declare their own group; assigning the product to BOTH but
+        // marking only the left as primary must yield the left chain
+        // (shared-root + left-group) without right-group.
         $root = $this->makeCategory('shared-root', 'shared');
         $left = $this->makeCategory('left', 'shared.left', parent: $root);
         $right = $this->makeCategory('right', 'shared.right', parent: $root);
@@ -146,12 +147,39 @@ final class EffectiveAttributeGroupResolverProductTest extends KernelTestCase
         $groups = $this->resolver()->resolve($product);
         $codes = array_map(static fn (AttributeGroup $g): string => $g->getCode(), $groups);
 
-        self::assertContains('shared-group', $codes);
-        self::assertContains('left-group', $codes);
-        self::assertContains('right-group', $codes);
-        // Each code appears at most once even though the root is in both
-        // ancestor chains.
+        self::assertContains('shared-group', $codes, 'primary ancestor chain contributes');
+        self::assertContains('left-group', $codes, 'primary itself contributes');
+        self::assertNotContains('right-group', $codes, 'secondary categories MUST NOT contribute');
+        // Dedup invariant still holds.
         self::assertSame(\count($codes), \count(array_unique($codes)));
+    }
+
+    #[Test]
+    public function resolveReturnsBaseGroupsForNonCategorizableObjectType(): void
+    {
+        // ADR-014 / MOD-03 — Category itself has is_categorizable=false,
+        // so its instance form must show its own base AttributeGroups
+        // (the audit group seeded by BuiltInSystemAttributesSeeder) and
+        // skip the category overlay entirely. Fixes #3-#28.
+        $category = $this->makeCategory('telewizory', 'elektronika.tv');
+
+        $groups = $this->resolver()->resolve($category);
+        $codes = array_map(static fn (AttributeGroup $g): string => $g->getCode(), $groups);
+
+        self::assertContains('audit', $codes, 'Category instance must render its own base audit group');
+    }
+
+    #[Test]
+    public function resolveSkipsOverlayWhenCategorizableButNoPrimaryAssignment(): void
+    {
+        $product = $this->makeProduct('sku-no-primary');
+
+        $groups = $this->resolver()->resolve($product);
+        $codes = array_map(static fn (AttributeGroup $g): string => $g->getCode(), $groups);
+
+        // Only the base ObjectType layer applies — same as before any
+        // assignment lands.
+        self::assertSame(['audit'], $codes);
     }
 
     #[Test]

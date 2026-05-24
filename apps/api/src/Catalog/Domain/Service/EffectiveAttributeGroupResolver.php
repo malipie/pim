@@ -65,39 +65,46 @@ final readonly class EffectiveAttributeGroupResolver
     /**
      * Resolve effective groups for an existing object's form.
      *
+     * ADR-014 / MOD-03 (#895) — two layers:
+     *
+     * 1. **Base** — `loadObjectTypeGroups($type)` always returns the
+     *    ObjectType's directly attached groups. Applies to every kind
+     *    (Product, Category, Asset, custom) and fixes #3-#28: a Category
+     *    instance now renders its own base groups instead of an empty
+     *    form when no parent categories carry declared groups.
+     *
+     * 2. **Primary-category overlay** — only when `ObjectType.is_categorizable
+     *    = true` and the object has a primary `ObjectCategory` assignment.
+     *    The primary's ancestor chain (root → leaf, including the primary
+     *    itself) is walked and `CategoryAttributeGroup` rows targeting this
+     *    ObjectType are merged into the result. Secondary category
+     *    assignments are intentionally ignored — they classify the object,
+     *    not its attribute set.
+     *
+     * For non-categorizable ObjectTypes (Category, Asset, custom kinds with
+     * `is_categorizable=false`) layer 2 is skipped entirely. For
+     * categorizable objects without a primary the result is just the base
+     * layer (no overlay until the operator picks one).
+     *
      * @return list<AttributeGroup>
      */
     public function resolve(CatalogObject $object): array
     {
         $type = $object->getObjectType();
-
         $groups = $this->loadObjectTypeGroups($type);
 
-        if (ObjectKind::Category === $object->getKind()) {
-            // Walk the object's own ancestor chain to gather declared groups
-            // targeting category itself (preview semantics: "groups visible
-            // when editing a category sitting on this branch").
-            $ancestorIds = $this->collectCategoryAncestorIds($object);
+        if (!$type->isCategorizable()) {
+            return array_values($groups);
+        }
+
+        $primary = $this->productCategories->findPrimary($object);
+        if (null === $primary) {
+            return array_values($groups);
+        }
+
+        $ancestorIds = $this->collectCategoryAncestorIds($primary->getCategory(), includeSelf: true);
+        if ([] !== $ancestorIds) {
             $this->mergeCategoryGroups($groups, $ancestorIds, $type);
-        } elseif (ObjectKind::Product === $object->getKind()) {
-            // PCAT-03: for each assigned category, gather its ancestor
-            // chain (including the category itself) and merge declared
-            // groups targeting this product's ObjectType. Deduplication
-            // by UUID happens inside mergeCategoryGroups so multi-category
-            // products don't double-count shared ancestors (e.g. two
-            // assignments under the same root category).
-            $assignments = $this->productCategories->findByProduct($object);
-            if ([] !== $assignments) {
-                $ancestorMap = [];
-                foreach ($assignments as $assignment) {
-                    foreach ($this->collectCategoryAncestorIds($assignment->getCategory(), includeSelf: true) as $id) {
-                        $ancestorMap[$id->toRfc4122()] = $id;
-                    }
-                }
-                if ([] !== $ancestorMap) {
-                    $this->mergeCategoryGroups($groups, array_values($ancestorMap), $type);
-                }
-            }
         }
 
         return array_values($groups);
