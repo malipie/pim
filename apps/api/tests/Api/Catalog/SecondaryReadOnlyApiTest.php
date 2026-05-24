@@ -22,7 +22,8 @@ final class SecondaryReadOnlyApiTest extends CatalogApiTestCase
         yield '/api/object_types' => ['/api/object_types'];
         yield '/api/attributes' => ['/api/attributes'];
         yield '/api/attribute_groups' => ['/api/attribute_groups'];
-        yield '/api/associations' => ['/api/associations'];
+        // /api/associations removed in MOD-02 (#894) — see ObjectRelation;
+        // the CRUD surface for relations lands in MOD-06 (#898).
         yield '/api/channels' => ['/api/channels'];
         yield '/api/asset_storage' => ['/api/asset_storage'];
     }
