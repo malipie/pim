@@ -11,6 +11,7 @@ use App\Catalog\Domain\Entity\ObjectRelation;
 use App\Catalog\Domain\RelationCardinality;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface;
+use App\Catalog\Domain\Validator\RelationMetadataValidator;
 use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -39,6 +40,7 @@ final class ObjectRelationService
         private readonly CatalogObjectRepositoryInterface $objects,
         private readonly TenantContext $tenantContext,
         private readonly EntityManagerInterface $em,
+        private readonly RelationMetadataValidator $metadataValidator,
     ) {
     }
 
@@ -69,19 +71,24 @@ final class ObjectRelationService
      * but introduces no schema delta. Cardinality `one` allows at most one
      * target — extra entries reject with 422.
      *
-     * @param list<Uuid> $targetObjectIds
+     * MOD-08 (#900): each entry MAY carry a per-link metadata payload that
+     * gets validated against the attribute's advanced-fields schema. For
+     * `advanced=false` attributes metadata MUST be empty.
+     *
+     * @param list<array{id: Uuid, metadata?: array<string, mixed>}> $targets
      */
     public function replaceForSourceAndAttribute(
         CatalogObject $source,
         Attribute $attribute,
-        array $targetObjectIds,
+        array $targets,
     ): void {
         $this->guardAttribute($attribute);
-        $this->guardCardinality($attribute, $targetObjectIds);
+        $this->guardCardinality($attribute, $targets);
 
         $tenant = $this->tenantContext->get();
-        $resolvedTargets = [];
-        foreach ($targetObjectIds as $position => $targetId) {
+        $resolved = [];
+        foreach ($targets as $position => $entry) {
+            $targetId = $entry['id'];
             $target = $this->objects->findById($targetId);
             if (null === $target) {
                 throw new NotFoundHttpException(\sprintf(
@@ -101,22 +108,29 @@ final class ObjectRelationService
                 );
             }
             $this->guardTargetObjectType($attribute, $target);
-            $resolvedTargets[] = $target;
+
+            $metadata = $this->metadataValidator->validateAndNormalise(
+                $attribute,
+                $entry['metadata'] ?? [],
+            );
+
+            $resolved[] = ['target' => $target, 'metadata' => $metadata];
         }
 
         // Atomic replace: drop existing → insert new. One transaction.
-        $this->em->wrapInTransaction(function () use ($source, $attribute, $resolvedTargets): void {
+        $this->em->wrapInTransaction(function () use ($source, $attribute, $resolved): void {
             foreach ($this->relations->findBySourceAndAttribute($source, $attribute) as $existing) {
                 $this->relations->remove($existing);
             }
             $this->em->flush();
 
-            foreach ($resolvedTargets as $position => $target) {
+            foreach ($resolved as $position => $entry) {
                 $row = new ObjectRelation(
                     source: $source,
-                    target: $target,
+                    target: $entry['target'],
                     attribute: $attribute,
                     position: $position,
+                    metadata: $entry['metadata'],
                 );
                 $this->relations->add($row);
             }
@@ -142,11 +156,11 @@ final class ObjectRelationService
     }
 
     /**
-     * @param list<Uuid> $targetObjectIds
+     * @param list<array{id: Uuid, metadata?: array<string, mixed>}> $targets
      */
-    private function guardCardinality(Attribute $attribute, array $targetObjectIds): void
+    private function guardCardinality(Attribute $attribute, array $targets): void
     {
-        if (RelationCardinality::One === $attribute->getRelationCardinality() && \count($targetObjectIds) > 1) {
+        if (RelationCardinality::One === $attribute->getRelationCardinality() && \count($targets) > 1) {
             throw new UnprocessableEntityHttpException(\sprintf(
                 'Attribute "%s" has cardinality=one; only a single target is allowed.',
                 $attribute->getCode(),
