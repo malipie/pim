@@ -838,177 +838,6 @@
                 "x-cortex-permission": "asset.read"
             }
         },
-        "/api/associations": {
-            "get": {
-                "operationId": "api_associations_get_collection",
-                "tags": [
-                    "Association"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Association collection",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "type": "object",
-                                    "description": "Association.jsonld-admin.read collection.",
-                                    "allOf": [
-                                        {
-                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
-                                        },
-                                        {
-                                            "type": "object",
-                                            "required": [
-                                                "member"
-                                            ],
-                                            "properties": {
-                                                "member": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/Association.jsonld-admin.read"
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    ]
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/Association-admin.read"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    }
-                },
-                "summary": "Retrieves the collection of Association resources.",
-                "description": "Retrieves the collection of Association resources.",
-                "parameters": [
-                    {
-                        "name": "page",
-                        "in": "query",
-                        "description": "The collection page number",
-                        "required": false,
-                        "deprecated": false,
-                        "schema": {
-                            "type": "integer",
-                            "default": 1
-                        },
-                        "style": "form",
-                        "explode": true
-                    }
-                ],
-                "x-cortex-permission": "association.read"
-            }
-        },
-        "/api/associations/{id}": {
-            "get": {
-                "operationId": "api_associations_id_get",
-                "tags": [
-                    "Association"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Association resource",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Association.jsonld-admin.read"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Association-admin.read"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    },
-                    "404": {
-                        "description": "Not found",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    }
-                },
-                "summary": "Retrieves a Association resource.",
-                "description": "Retrieves a Association resource.",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Association identifier",
-                        "required": true,
-                        "deprecated": false,
-                        "schema": {
-                            "type": "string"
-                        },
-                        "style": "simple",
-                        "explode": false
-                    }
-                ],
-                "x-cortex-permission": "association.read"
-            }
-        },
         "/api/attributes": {
             "get": {
                 "operationId": "api_attributes_get_collection",
@@ -6987,71 +6816,9 @@
             "AssetVariant.jsonld-admin.read": {
                 "type": "object"
             },
-            "Association-admin.read": {
-                "type": "object",
-                "description": "One-way relation between two {@see CatalogObject} rows under a given\n{@see AssociationType} (e.g. SKU-X \u2192 SKU-Y as `cross_sell`).\n\nPer ADR-009 the link is generic across `kind` \u2014 products \u2192 categories,\ncategories \u2192 assets, products \u2192 products. Schema enforces:\n\n  - no self-loop (`source_object_id != target_object_id`) at the\n    application layer; the migration adds a CHECK constraint;\n  - one row per (source, target, type) triple via UNIQUE index with\n    `NULLS NOT DISTINCT` (no nulls here, but the convention matches\n    the rest of the catalog).\n\nReverse direction is NOT auto-mirrored \u2014 admin UI / agent decides\nwhether (A\u2192B cross_sell) implies (B\u2192A cross_sell). Keeping rows\none-way leaves room for asymmetric semantics like \"this product\n * replaces that one\".",
-                "properties": {
-                    "id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "uuid"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/CatalogObject-admin.read"
-                    },
-                    "target": {
-                        "$ref": "#/components/schemas/CatalogObject-admin.read"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/AssociationType-admin.read"
-                    },
-                    "position": {
-                        "type": "integer"
-                    }
-                }
-            },
-            "Association.jsonld-admin.read": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/HydraItemBaseSchema"
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "id": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ],
-                                "format": "uuid"
-                            },
-                            "source": {
-                                "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
-                            },
-                            "target": {
-                                "$ref": "#/components/schemas/CatalogObject.jsonld-admin.read"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/AssociationType.jsonld-admin.read"
-                            },
-                            "position": {
-                                "type": "integer"
-                            }
-                        }
-                    }
-                ],
-                "description": "One-way relation between two {@see CatalogObject} rows under a given\n{@see AssociationType} (e.g. SKU-X \u2192 SKU-Y as `cross_sell`).\n\nPer ADR-009 the link is generic across `kind` \u2014 products \u2192 categories,\ncategories \u2192 assets, products \u2192 products. Schema enforces:\n\n  - no self-loop (`source_object_id != target_object_id`) at the\n    application layer; the migration adds a CHECK constraint;\n  - one row per (source, target, type) triple via UNIQUE index with\n    `NULLS NOT DISTINCT` (no nulls here, but the convention matches\n    the rest of the catalog).\n\nReverse direction is NOT auto-mirrored \u2014 admin UI / agent decides\nwhether (A\u2192B cross_sell) implies (B\u2192A cross_sell). Keeping rows\none-way leaves room for asymmetric semantics like \"this product\n * replaces that one\"."
-            },
-            "AssociationType-admin.read": {
-                "type": "object"
-            },
-            "AssociationType.jsonld-admin.read": {
-                "type": "object"
-            },
             "Attribute-admin.read": {
                 "type": "object",
+                "description": "A single tenant-scoped attribute definition.\n\nAttributes describe the shape of `Object` values (per ADR-009 generic\nObjectType model). One attribute can be reused across many ObjectTypes\nvia the `object_type_attributes` junction (added in #32) \u2014 e.g. `name`\non every kind, `seo_title` on `product` + `category`.\n\n`validation_rules` is plain JSONB in #31. The per-type interpreter that\nenforces \"min/max for `number`\", \"max_length for `text`\", etc. lands in\n#39 (0.3.9). Until then it is a structured payload the entity stores\nverbatim \u2014 admins can already configure it; nothing on the server side\ntrips on out-of-range values yet.\n\n`group_id` FK is nullable + ON DELETE SET NULL \u2014 removing an attribute\ngroup leaves its members ungrouped rather than deleting them.",
                 "properties": {
                     "id": {
                         "type": [
@@ -7750,6 +7517,7 @@
             },
             "CatalogObject-admin.read": {
                 "type": "object",
+                "description": "Generic catalog object exposed via three sugar paths per ObjectKind. /api/products + /api/categories + /api/assets share the same backing table (objects), discriminator column kind, and ApiResource \u2014 the per-kind operation extraProperties.kind drives State Processor + query extensions.",
                 "properties": {
                     "id": {
                         "type": [
@@ -10591,10 +10359,6 @@
         }
     ],
     "tags": [
-        {
-            "name": "Association",
-            "description": "One-way relation between two {@see CatalogObject} rows under a given\n{@see AssociationType} (e.g. SKU-X \u2192 SKU-Y as `cross_sell`).\n\nPer ADR-009 the link is generic across `kind` \u2014 products \u2192 categories,\ncategories \u2192 assets, products \u2192 products. Schema enforces:\n\n  - no self-loop (`source_object_id != target_object_id`) at the\n    application layer; the migration adds a CHECK constraint;\n  - one row per (source, target, type) triple via UNIQUE index with\n    `NULLS NOT DISTINCT` (no nulls here, but the convention matches\n    the rest of the catalog).\n\nReverse direction is NOT auto-mirrored \u2014 admin UI / agent decides\nwhether (A\u2192B cross_sell) implies (B\u2192A cross_sell). Keeping rows\none-way leaves room for asymmetric semantics like \"this product\n * replaces that one\"."
-        },
         {
             "name": "Attribute",
             "description": "A single tenant-scoped attribute definition.\n\nAttributes describe the shape of `Object` values (per ADR-009 generic\nObjectType model). One attribute can be reused across many ObjectTypes\nvia the `object_type_attributes` junction (added in #32) \u2014 e.g. `name`\non every kind, `seo_title` on `product` + `category`.\n\n`validation_rules` is plain JSONB in #31. The per-type interpreter that\nenforces \"min/max for `number`\", \"max_length for `text`\", etc. lands in\n#39 (0.3.9). Until then it is a structured payload the entity stores\nverbatim \u2014 admins can already configure it; nothing on the server side\ntrips on out-of-range values yet.\n\n`group_id` FK is nullable + ON DELETE SET NULL \u2014 removing an attribute\ngroup leaves its members ungrouped rather than deleting them."

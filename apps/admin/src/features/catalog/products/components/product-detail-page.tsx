@@ -869,7 +869,10 @@ function RelationsStub() {
   ];
 
   return (
-    <MockBadge variant="overlay" tooltip="MOCK · Powiązania wymagają AssociationController (#TBD)">
+    <MockBadge
+      variant="overlay"
+      tooltip="MOCK · Powiązania — foundation ADR-014/MOD-02 (#894) shipped; UI wiring czeka na MOD-12 (#904)"
+    >
       <div className="space-y-3">
         {types.map((rel) => (
           <div

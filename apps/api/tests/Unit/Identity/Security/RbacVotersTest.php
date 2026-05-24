@@ -9,8 +9,6 @@ use App\ApiConfigurator\Domain\Entity\ApiProfile;
 use App\ApiConfigurator\Domain\Enum\OutputFormat;
 use App\Asset\Domain\Entity\Asset;
 use App\Catalog\Domain\AttributeType;
-use App\Catalog\Domain\Entity\Association;
-use App\Catalog\Domain\Entity\AssociationType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\AttributeGroup;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -23,7 +21,6 @@ use App\Identity\Domain\Entity\User;
 use App\Identity\Infrastructure\Security\ApiKeyVoter;
 use App\Identity\Infrastructure\Security\ApiProfileVoter;
 use App\Identity\Infrastructure\Security\AssetVoter;
-use App\Identity\Infrastructure\Security\AssociationVoter;
 use App\Identity\Infrastructure\Security\AttributeGroupVoter;
 use App\Identity\Infrastructure\Security\AttributeVoter;
 use App\Identity\Infrastructure\Security\CatalogObjectVoter;
@@ -156,28 +153,10 @@ final class RbacVotersTest extends TestCase
         );
     }
 
-    #[Test]
-    public function associationVoterRoutesToAssociationResource(): void
-    {
-        $tenant = new Tenant('alpha', 'Alpha');
-        $type = new ObjectType('product', ObjectKind::Product, ['en' => 'Product']);
-        $sourceObject = new CatalogObject($type, 'SKU-A');
-        $targetObject = new CatalogObject($type, 'SKU-B');
-        $sourceObject->assignTenant($tenant);
-        $targetObject->assignTenant($tenant);
-        $assocType = new AssociationType('cross_sell', ['en' => 'Cross-sell']);
-        $assocType->assignTenant($tenant);
-
-        $assoc = new Association($sourceObject, $targetObject, $assocType);
-        $assoc->assignTenant($tenant);
-
-        $user = $this->userWithPermission($tenant, 'association', 'write');
-
-        self::assertSame(
-            VoterInterface::ACCESS_GRANTED,
-            new AssociationVoter()->vote($this->token($user), $assoc, ['CREATE']),
-        );
-    }
+    // ADR-014 / MOD-02 (#894): Association voter was removed alongside the
+    // dormant `object_associations` table. Relation links now run through
+    // `ObjectRelation` (which inherits permissions from the parent objects
+    // via CatalogObjectVoter + AttributeVoter).
 
     #[Test]
     public function channelVoterRoutesToChannelResource(): void

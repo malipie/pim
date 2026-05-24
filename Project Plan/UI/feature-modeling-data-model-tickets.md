@@ -101,9 +101,14 @@ ALTER TABLE attributes ADD COLUMN relation_advanced BOOLEAN NOT NULL DEFAULT fal
 
 **Dependencies:** Blocks MOD-05, MOD-06. Blocked by — brak (foundation, równolegle z MOD-01).
 
+**Scope adjustment (2026-05-24, plan-mode reconciliation):**
+- **Skip data migration** — pre-flight grep wykazał ZERO consumerów Association infrastructure (brak controllerów, serwisów, frontend ma tylko MockBadge tooltip). Tabele `object_associations` + `association_types` są dormant od #35; brak danych do back-portu. Migracja drop'uje bez data preservation.
+- **Cleanup ripple:** usunięto 12 plików (Association/AssociationType entities + repos + interfaces + Doctrine impls + ORM XML + ApiPlatform Resource + Serializer + voter + 2 testy + seeder), zaktualizowano 5 plików (AppFixtures, RbacMatrix, PermissionOpenApiFactory, dh_auditor.yaml, AuditLogTest).
+
 **Risk flags:**
-- **Migracja danych** — istniejące wiersze `object_associations` z hardcoded `type` muszą być przepisane. Brak migracji = utrata powiązań.
-- `object_associations` DROP — destrukcyjne. Migracja musi najpierw przepisać, potem DROP, z rollback path.
+- ~~**Migracja danych**~~ — N/A, brak danych do migracji (potwierdzone pre-flight).
+- `object_associations` DROP — operacja destrukcyjna ale na pustych tabelach.
+- **RbacMatrix `'association'` resource removed** — clean break, permissions `association.*` znikają z matrix. Phase 6 retrofit DB sync usunie orphan permissions na deploy.
 
 **Cel:** Utworzyć `object_relations` (per ADR-014) zastępujące `object_associations`. Hardcoded enum typów → seedowane built-in atrybuty `relation`.
 

@@ -33,10 +33,16 @@ final class RbacMatrix
     /**
      * Resources known to the matrix. Order is alphabetic.
      */
+    /**
+     * Resources known to the matrix. Order is alphabetic.
+     *
+     * ADR-014 / MOD-02 (#894): `association` removed — Association infra was
+     * dormant (no controllers, no consumers) and ADR-014 replaces it with
+     * `relation`-typed Attributes covered by `attribute.*` permissions.
+     */
     private const array RESOURCES = [
         'api_profile',
         'asset',
-        'association',
         'attribute',
         'attribute_group',
         'backup',
@@ -93,7 +99,7 @@ final class RbacMatrix
                 name: 'Catalog Manager',
                 permissionCodes: [
                     ...self::permissionsFor(
-                        resources: ['object', 'object_type', 'attribute', 'attribute_group', 'association', 'category', 'asset', 'brand'],
+                        resources: ['object', 'object_type', 'attribute', 'attribute_group', 'category', 'asset', 'brand'],
                         actions: [self::ACTION_READ, self::ACTION_WRITE, self::ACTION_DELETE],
                     ),
                     // IMP-01/02 — Catalog Manager is the primary persona for
