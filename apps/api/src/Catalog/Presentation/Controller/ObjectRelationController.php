@@ -121,16 +121,26 @@ final class ObjectRelationController
             throw new BadRequestHttpException('Field "targets" must be an array of `{id}` objects (or UUID strings).');
         }
 
-        $targetIds = [];
+        /** @var list<array{id: Uuid, metadata: array<string, mixed>}> $targets */
+        $targets = [];
         foreach ($rawTargets as $entry) {
             $rawId = \is_array($entry) ? ($entry['id'] ?? null) : $entry;
             if (!\is_string($rawId) || !Uuid::isValid($rawId)) {
                 throw new BadRequestHttpException('Each target must carry a valid UUID `id`.');
             }
-            $targetIds[] = Uuid::fromString($rawId);
+            $metadata = [];
+            if (\is_array($entry) && isset($entry['metadata'])) {
+                $rawMetadata = $entry['metadata'];
+                if (!\is_array($rawMetadata)) {
+                    throw new BadRequestHttpException('Field "metadata" must be a JSON object.');
+                }
+                /** @var array<string, mixed> $rawMetadata */
+                $metadata = $rawMetadata;
+            }
+            $targets[] = ['id' => Uuid::fromString($rawId), 'metadata' => $metadata];
         }
 
-        $this->service->replaceForSourceAndAttribute($source, $attribute, $targetIds);
+        $this->service->replaceForSourceAndAttribute($source, $attribute, $targets);
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }
