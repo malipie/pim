@@ -284,7 +284,22 @@ export function AttributeCreatePage() {
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setValues({ ...values, type })}
+                  onClick={() => {
+                    setValues({ ...values, type });
+                    // MODR-07 (#929) — picking `relation` pre-selects the
+                    // built-in "Powiązania" group as the default home for
+                    // the new attribute. Operator can still remove it from
+                    // the picker below; the choice is a leniwa ścieżka, not
+                    // a constraint.
+                    if (type === 'relation') {
+                      setPickedGroupCodes((prev) => {
+                        if (prev.has('relations')) return prev;
+                        const next = new Set(prev);
+                        next.add('relations');
+                        return next;
+                      });
+                    }
+                  }}
                   className={cn(
                     'h-10 rounded-xl font-mono text-[12px] font-medium transition',
                     values.type === type
@@ -296,6 +311,14 @@ export function AttributeCreatePage() {
                 </button>
               ))}
             </div>
+            {values.type === 'relation' ? (
+              <p className="mt-2 text-[11.5px] text-muted-foreground">
+                {t('attributes.relation_default_group_hint', {
+                  defaultValue:
+                    'Domyślnie w zakładce Powiązania; możesz przenieść do dowolnej grupy poniżej.',
+                })}
+              </p>
+            ) : null}
           </Section>
 
           <Section title={t('attributes.validation_title', { defaultValue: 'Walidacja i flagi' })}>
