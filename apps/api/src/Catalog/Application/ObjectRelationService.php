@@ -51,6 +51,18 @@ final class ObjectRelationService
     }
 
     /**
+     * MOD-07 (#899) — reverse view: every row pointing AT `$target`.
+     * Returned in `created_at` order so the read-only "Powiązania
+     * zwrotne" panel renders stable groupings.
+     *
+     * @return list<ObjectRelation>
+     */
+    public function findByTarget(CatalogObject $target): array
+    {
+        return $this->relations->findByTarget($target);
+    }
+
+    /**
      * Atomically replace the relations under `(source, attribute)` with the
      * supplied target object list. Idempotent: when the new list equals the
      * existing one, the function still touches each row (position update)

@@ -136,6 +136,55 @@ final class ObjectRelationController
     }
 
     #[Route(
+        '/api/objects/{id}/relations/reverse',
+        name: 'pim_objects_relations_reverse',
+        requirements: ['id' => self::UUID_REGEX],
+        methods: ['GET'],
+    )]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
+    public function reverse(string $id): JsonResponse
+    {
+        $target = $this->fetchObject($id);
+        $rows = $this->service->findByTarget($target);
+
+        // Group by (source ObjectType, attribute) — UI renders read-only
+        // "powiązania zwrotne" panel split by section.
+        $groups = [];
+        foreach ($rows as $row) {
+            $attribute = $row->getAttribute();
+            $source = $row->getSource();
+            $key = $source->getObjectType()->getId()->toRfc4122().':'.$attribute->getId()->toRfc4122();
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'sourceObjectType' => [
+                        'id' => $source->getObjectType()->getId()->toRfc4122(),
+                        'code' => $source->getObjectType()->getCode(),
+                        'kind' => $source->getObjectType()->getKind()->value,
+                    ],
+                    'attribute' => [
+                        'id' => $attribute->getId()->toRfc4122(),
+                        'code' => $attribute->getCode(),
+                        'label' => $attribute->getLabel(),
+                    ],
+                    'sources' => [],
+                ];
+            }
+            $groups[$key]['sources'][] = [
+                'id' => $source->getId()->toRfc4122(),
+                'code' => $source->getCode(),
+                'relationId' => $row->getId()->toRfc4122(),
+                'position' => $row->getPosition(),
+            ];
+        }
+
+        return new JsonResponse([
+            'targetObjectId' => $target->getId()->toRfc4122(),
+            'reverseRelations' => array_values($groups),
+        ]);
+    }
+
+    #[Route(
         '/api/objects/{id}/relations/{attributeCode}/{targetId}',
         name: 'pim_objects_relations_delete',
         requirements: [
