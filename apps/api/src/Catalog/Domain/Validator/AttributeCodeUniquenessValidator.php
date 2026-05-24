@@ -10,6 +10,7 @@ use App\Catalog\Domain\Entity\CategoryAttributeGroup;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use Doctrine\ORM\EntityManagerInterface;
+use LogicException;
 
 /**
  * ADR-014 / MOD-04 (#896) — checks that an Attribute code is unique within
@@ -100,22 +101,29 @@ final readonly class AttributeCodeUniquenessValidator
         if ([] !== $rows) {
             $row = $rows[0];
 
-            $categoryId = $row['category_id'];
-            $categoryToken = $categoryId instanceof \Symfony\Component\Uid\Uuid
-                ? $categoryId->toRfc4122()
-                : (string) $categoryId;
-            $attributeId = $row['a_id'];
-            $conflictingId = $attributeId instanceof \Symfony\Component\Uid\Uuid
-                ? $attributeId
-                : \Symfony\Component\Uid\Uuid::fromString((string) $attributeId);
-
             return new AttributeCodeConflict(
                 code: $code,
-                existingLocation: 'category:'.$categoryToken,
-                conflictingAttributeId: $conflictingId,
+                existingLocation: 'category:'.$this->toUuidString($row['category_id']),
+                conflictingAttributeId: \Symfony\Component\Uid\Uuid::fromString($this->toUuidString($row['a_id'])),
             );
         }
 
         return null;
+    }
+
+    /**
+     * `getArrayResult` returns Doctrine's `uuid` type as `Uuid` on local
+     * hydration but as a string under CI's stricter PHPStan analysis.
+     * Normalise both paths to RFC-4122 string.
+     */
+    private function toUuidString(mixed $raw): string
+    {
+        if ($raw instanceof \Symfony\Component\Uid\Uuid) {
+            return $raw->toRfc4122();
+        }
+        if (\is_string($raw)) {
+            return $raw;
+        }
+        throw new LogicException('Expected Uuid or string from Doctrine array result, got '.\get_debug_type($raw).'.');
     }
 }
