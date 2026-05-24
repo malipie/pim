@@ -184,6 +184,7 @@ final class ProductReadEndpointsController
 
         $groups = $this->resolver->resolve($product);
         $byGroup = $this->resolver->loadGroupAttributes($groups);
+        $displayModes = $this->resolver->loadObjectTypeGroupDisplayModes($product->getObjectType());
 
         // Pre-pass: collect every select / multiselect Attribute reachable
         // from this product so we can ship its `AttributeOption` list in the
@@ -235,6 +236,7 @@ final class ProductReadEndpointsController
                 'color' => $group->getColor(),
                 'is_system_group' => $group->isSystemGroup(),
                 'position' => $position,
+                'display_mode' => $displayModes[$group->getId()->toRfc4122()] ?? 'tab',
                 'attributes' => $attributes,
             ];
         }
@@ -279,6 +281,7 @@ final class ProductReadEndpointsController
                 'is_system_group' => false,
                 'is_synthetic' => true,
                 'position' => \count($effective),
+                'display_mode' => 'stacked',
                 'attributes' => $defaultAttributes,
             ];
         }

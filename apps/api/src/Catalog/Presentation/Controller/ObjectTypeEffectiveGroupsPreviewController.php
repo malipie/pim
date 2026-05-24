@@ -123,6 +123,7 @@ final class ObjectTypeEffectiveGroupsPreviewController
 
         $groups = $this->resolver->resolveForCategoryList($objectType, $categories);
         $byGroup = $this->resolver->loadGroupAttributes($groups);
+        $displayModes = $this->resolver->loadObjectTypeGroupDisplayModes($objectType);
 
         /** @var array<string, Attribute> $optionsAttrs */
         $optionsAttrs = [];
@@ -166,6 +167,7 @@ final class ObjectTypeEffectiveGroupsPreviewController
                 'color' => $group->getColor(),
                 'is_system_group' => $group->isSystemGroup(),
                 'position' => $position,
+                'display_mode' => $displayModes[$group->getId()->toRfc4122()] ?? 'tab',
                 'attributes' => $attributes,
             ];
         }
@@ -202,6 +204,7 @@ final class ObjectTypeEffectiveGroupsPreviewController
                 'is_system_group' => false,
                 'is_synthetic' => true,
                 'position' => \count($effective),
+                'display_mode' => 'stacked',
                 'attributes' => $defaultAttributes,
             ];
         }

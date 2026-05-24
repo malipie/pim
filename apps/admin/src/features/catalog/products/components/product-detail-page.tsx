@@ -55,15 +55,16 @@ import type {
 import { VariantsListCard } from './variants-list-card';
 import { VariantsTabHost } from './variants-tab-host';
 
-const TABS = [
-  'attributes',
-  'multimedia',
-  'categories',
-  'relations',
-  'history',
-  'variants',
-] as const;
-type TabKey = (typeof TABS)[number];
+/**
+ * MODR-03 (#925) — special-purpose tabs that are NOT driven by
+ * `effectiveGroups`. `attributes` hosts every `display_mode='stacked'`
+ * group as inline sections; the rest are bespoke views (categories
+ * picker, audit log, variants tree). Tab-mode groups become tabs
+ * dynamically — see `useDynamicTabs`.
+ */
+const SPECIAL_TABS = ['attributes', 'categories', 'history', 'variants'] as const;
+type SpecialTabKey = (typeof SPECIAL_TABS)[number];
+type TabKey = SpecialTabKey | string;
 
 const GROUP_ICONS: Record<string, string> = {
   identification: '🔑',
@@ -230,6 +231,38 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   });
 
   const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data]);
+
+  // MODR-03 (#925) — tab list derived dynamically from `groups`:
+  // every group with `display_mode='tab'` becomes its own tab; groups
+  // with `display_mode='stacked'` (and the synthetic "default" bucket)
+  // collect into the single `attributes` tab. Hooks must live above
+  // the loading early-return below to obey rules-of-hooks.
+  const tabModeGroups = useMemo(
+    () => groups.filter((g) => (g.display_mode ?? 'tab') === 'tab'),
+    [groups],
+  );
+  const stackedGroups = useMemo(
+    () => groups.filter((g) => (g.display_mode ?? 'tab') === 'stacked'),
+    [groups],
+  );
+  const visibleTabs: readonly TabKey[] = useMemo(() => {
+    if (mode === 'create') return ['attributes'];
+    return [
+      'attributes' as const,
+      ...tabModeGroups.map((g) => g.code),
+      'categories' as const,
+      'history' as const,
+      'variants' as const,
+    ];
+  }, [mode, tabModeGroups]);
+
+  // Keep activeTab valid as group set changes (e.g. groups data arrives
+  // after first render or a tab→stacked switch in the wizard).
+  useEffect(() => {
+    if (!visibleTabs.includes(activeTab)) {
+      setActiveTab('attributes');
+    }
+  }, [activeTab, visibleTabs]);
 
   // Default expand all groups once they first arrive (mockup shows every
   // section open). Refetches after the first success keep the operator's
@@ -401,8 +434,6 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     typeof attrs.category === 'string' && attrs.category !== ''
       ? attrs.category
       : (objectTypeName ?? '—');
-
-  const visibleTabs: readonly TabKey[] = mode === 'create' ? (['attributes'] as const) : TABS;
 
   return (
     <div className="bg-zinc-50 -mx-6 -mt-6 min-h-[calc(100vh-3rem)]">
@@ -605,6 +636,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
           >
             {visibleTabs.map((tab) => {
               const isActive = activeTab === tab;
+              const badge = tabBadge(tab, groups, stackedGroups, product);
               return (
                 <button
                   key={tab}
@@ -617,17 +649,15 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                     isActive ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-800',
                   )}
                 >
-                  {t(`products.detail.tabs.${tab}`, {
-                    defaultValue: TAB_DEFAULT_LABELS[tab],
-                  })}
-                  {tabBadge(tab, groups, product) !== null ? (
+                  {tabLabel(tab, groups, lang, t)}
+                  {badge !== null ? (
                     <span
                       className={cn(
                         'num rounded px-1.5 py-0.5 text-[10.5px]',
                         isActive ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-500',
                       )}
                     >
-                      {tabBadge(tab, groups, product)}
+                      {badge}
                     </span>
                   ) : null}
                   {isActive ? (
@@ -654,56 +684,82 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
       {/* Body */}
       <div className="grid grid-cols-1 gap-5 px-7 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-3">
-          {activeTab === 'attributes' ? (
-            <>
-              {groups.map((group) => (
-                <AttrGroupCard
-                  key={group.id}
-                  id={group.id}
-                  title={group.label[lang] ?? group.code}
-                  icon={GROUP_ICONS[group.code]}
-                  filledCount={countFilled(group, fieldValue)}
-                  totalCount={group.attributes.length}
-                  expanded={expandedGroups.has(group.id)}
-                  onToggle={() => toggleGroup(group.id)}
-                  isSystem={group.code === 'audit'}
-                >
-                  {group.attributes.map((attr) => (
-                    <AttrRow
-                      key={attr.id}
-                      attribute={attr}
-                      value={fieldValue(attr.code)}
-                      provenance={resolveProvenance(attr, product)}
-                      locale={locale}
-                      isEditing={isEditing}
-                      isLocked={attr.is_system}
-                      onChange={(next) => setFieldValue(attr.code, next)}
-                    />
-                  ))}
-                </AttrGroupCard>
-              ))}
-              <button
-                type="button"
-                onClick={() =>
-                  toast.info(
-                    t('products.detail.add_attribute_group.unavailable', {
-                      defaultValue: 'Custom grupy ad-hoc — follow-up',
-                    }),
-                  )
-                }
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 text-[13px] font-medium text-zinc-500 hover:bg-white hover:text-zinc-900"
+          {(() => {
+            // MODR-03 (#925) — content area dispatch based on active tab.
+            // 'attributes' hosts every stacked group as inline AttrGroupCard
+            // sections; a tab-mode group code renders that single group;
+            // 'categories'/'history'/'variants' delegate to bespoke components.
+            const renderStackedGroup = (group: GroupMeta) => (
+              <AttrGroupCard
+                key={group.id}
+                id={group.id}
+                title={group.label[lang] ?? group.code}
+                icon={GROUP_ICONS[group.code]}
+                filledCount={countFilled(group, fieldValue)}
+                totalCount={group.attributes.length}
+                expanded={expandedGroups.has(group.id)}
+                onToggle={() => toggleGroup(group.id)}
+                isSystem={group.code === 'audit'}
               >
-                +{' '}
-                {t('products.detail.add_attribute_group.label', {
-                  defaultValue: 'Dodaj grupę atrybutów ad-hoc',
-                })}
-              </button>
-            </>
-          ) : null}
+                {group.attributes.map((attr) => (
+                  <AttrRow
+                    key={attr.id}
+                    attribute={attr}
+                    value={fieldValue(attr.code)}
+                    provenance={resolveProvenance(attr, product)}
+                    locale={locale}
+                    isEditing={isEditing}
+                    isLocked={attr.is_system}
+                    onChange={(next) => setFieldValue(attr.code, next)}
+                  />
+                ))}
+              </AttrGroupCard>
+            );
 
-          {activeTab !== 'attributes' && mode === 'edit' ? (
-            <OtherTabs activeTab={activeTab} productId={id} />
-          ) : null}
+            if (activeTab === 'attributes') {
+              return (
+                <>
+                  {stackedGroups.map(renderStackedGroup)}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      toast.info(
+                        t('products.detail.add_attribute_group.unavailable', {
+                          defaultValue: 'Custom grupy ad-hoc — follow-up',
+                        }),
+                      )
+                    }
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 text-[13px] font-medium text-zinc-500 hover:bg-white hover:text-zinc-900"
+                  >
+                    +{' '}
+                    {t('products.detail.add_attribute_group.label', {
+                      defaultValue: 'Dodaj grupę atrybutów ad-hoc',
+                    })}
+                  </button>
+                </>
+              );
+            }
+
+            // Tab-mode AttributeGroup → render only that group, with
+            // bespoke components for media/relations that retain their
+            // legacy data flow (m2m assets, relation links endpoint).
+            const tabGroup = tabModeGroups.find((g) => g.code === activeTab);
+            if (tabGroup && mode === 'edit') {
+              if (tabGroup.code === 'media' || tabGroup.code === 'multimedia') {
+                return <ProductMultimediaTab productId={id} />;
+              }
+              if (tabGroup.code === 'relations') {
+                return <RelationsTab productId={id} />;
+              }
+              return renderStackedGroup(tabGroup);
+            }
+
+            if (mode === 'edit' && isSpecialTab(activeTab)) {
+              return <OtherTabs activeTab={activeTab} productId={id} />;
+            }
+
+            return null;
+          })()}
 
           {mode === 'create' && createCategoryIds.length === 0 ? (
             <p className="px-1 text-[12px] text-muted-foreground">
@@ -790,31 +846,55 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   );
 }
 
-const TAB_DEFAULT_LABELS: Record<TabKey, string> = {
+const SPECIAL_TAB_DEFAULT_LABELS: Record<SpecialTabKey, string> = {
   attributes: 'Atrybuty',
-  multimedia: 'Multimedia',
   categories: 'Kategorie',
-  relations: 'Powiązania',
   history: 'Historia',
   variants: 'Warianty',
 };
 
+function tabLabel(
+  tab: TabKey,
+  groups: GroupMeta[],
+  lang: 'pl' | 'en',
+  t: (key: string, options?: { defaultValue?: string }) => string,
+): string {
+  if (isSpecialTab(tab)) {
+    return t(`products.detail.tabs.${tab}`, {
+      defaultValue: SPECIAL_TAB_DEFAULT_LABELS[tab],
+    });
+  }
+  const group = groups.find((g) => g.code === tab);
+  if (!group) return tab;
+  const i18nKey = `products.detail.tabs.group_${group.code}`;
+  const fallback = group.label[lang] ?? group.code;
+  return t(i18nKey, { defaultValue: fallback });
+}
+
+function isSpecialTab(tab: TabKey): tab is SpecialTabKey {
+  return (SPECIAL_TABS as readonly string[]).includes(tab);
+}
+
 function tabBadge(
   tab: TabKey,
   groups: GroupMeta[],
+  stackedGroups: GroupMeta[],
   product: CatalogObjectDto | null | undefined,
 ): number | null {
-  if (tab === 'attributes') return groups.length === 0 ? null : groups.length;
-  if (tab === 'multimedia') return null;
+  if (tab === 'attributes') {
+    return stackedGroups.length === 0 ? null : stackedGroups.length;
+  }
   if (tab === 'categories') return null;
-  if (tab === 'relations') return null;
   if (tab === 'history') return null;
   if (tab === 'variants') {
     const count = (product?.attributesIndexed as { variantsCount?: number } | undefined)
       ?.variantsCount;
     return typeof count === 'number' ? count : null;
   }
-  return null;
+  // Tab-mode AttributeGroup → badge shows the attribute count when > 0.
+  const group = groups.find((g) => g.code === tab);
+  if (!group) return null;
+  return group.attributes.length === 0 ? null : group.attributes.length;
 }
 
 function stripAttributes(dirty: Record<string, unknown>): Record<string, unknown> {
@@ -852,10 +932,12 @@ function resolveProvenance(
   return 'manual';
 }
 
-function OtherTabs({ activeTab, productId }: { activeTab: TabKey; productId: string }) {
-  if (activeTab === 'multimedia') return <ProductMultimediaTab productId={productId} />;
+function OtherTabs({ activeTab, productId }: { activeTab: SpecialTabKey; productId: string }) {
+  // MODR-03 (#925) — multimedia/relations branches removed; those tabs
+  // are now derived from `effectiveGroups` (display_mode='tab') and
+  // dispatched inline in the renderer (Media+Relations groups keep
+  // their bespoke components for the legacy m2m/links data flow).
   if (activeTab === 'categories') return <CategoriesTab productId={productId} />;
-  if (activeTab === 'relations') return <RelationsTab productId={productId} />;
   if (activeTab === 'history') return <HistoryStub />;
   if (activeTab === 'variants') return <VariantsTabHost productId={productId} />;
   return null;

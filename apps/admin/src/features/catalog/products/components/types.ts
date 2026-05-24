@@ -70,6 +70,13 @@ export interface GroupMeta {
   code: string;
   label: { pl?: string; en?: string };
   position: number;
+  /**
+   * MODR-01 (#923) — `tab` renders the group as its own tab on the
+   * product detail page; `stacked` renders it as an inline section under
+   * the default "Attributes" tab. Falls back to `tab` when the backend
+   * predates the column.
+   */
+  display_mode?: 'tab' | 'stacked';
   attributes: AttributeMeta[];
 }
 
