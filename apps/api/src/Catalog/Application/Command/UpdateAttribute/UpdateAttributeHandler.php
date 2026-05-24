@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Catalog\Application\Command\UpdateAttribute;
 
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
+use App\Catalog\Domain\Validator\RelationAttributeConfigValidator;
+use App\Shared\Application\TenantContext;
+use LogicException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -24,6 +27,8 @@ final readonly class UpdateAttributeHandler
 {
     public function __construct(
         private AttributeRepositoryInterface $repository,
+        private RelationAttributeConfigValidator $relationConfigValidator,
+        private TenantContext $tenantContext,
     ) {
     }
 
@@ -82,6 +87,35 @@ final readonly class UpdateAttributeHandler
         }
         if (null !== $command->validationRules) {
             $attribute->updateValidationRules($command->validationRules);
+        }
+
+        // ADR-014 / MOD-05 (#897) — relation config can be edited on
+        // existing relation attributes. Non-relation attributes coerce
+        // the validator to throw if any relation field is non-null.
+        $touchesRelationConfig = null !== $command->relationTargetObjectTypeIds
+            || null !== $command->relationCardinality
+            || null !== $command->relationAdvanced;
+        if ($touchesRelationConfig) {
+            $tenant = $this->tenantContext->get();
+            if (null === $tenant) {
+                throw new LogicException('Cannot update relation config without an authenticated tenant.');
+            }
+
+            $targetIds = $command->relationTargetObjectTypeIds ?? $attribute->getRelationTargetObjectTypeIds();
+            $cardinality = $command->relationCardinality ?? $attribute->getRelationCardinality()?->value;
+            $advanced = $command->relationAdvanced ?? $attribute->isRelationAdvanced();
+
+            [$resolvedTargets, $resolvedCardinality, $resolvedAdvanced] = $this->relationConfigValidator->validateAndNormalise(
+                $attribute->getType(),
+                $targetIds,
+                $cardinality,
+                $advanced,
+                $tenant,
+            );
+
+            $attribute->setRelationTargetObjectTypeIds($resolvedTargets);
+            $attribute->setRelationCardinality($resolvedCardinality);
+            $attribute->setRelationAdvanced($resolvedAdvanced);
         }
 
         $this->repository->save($attribute);

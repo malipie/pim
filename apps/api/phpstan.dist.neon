@@ -87,6 +87,14 @@ parameters:
         # by the listener tests and at INSERT time by the database. New
         # TenantScoped entities should be added here as they land.
         - identifier: doctrine.associationType
+          # `reportUnmatched: false` — local Docker PHPStan sometimes
+          # short-circuits before evaluating the @var doc-block on a
+          # TenantScoped property (cache state); CI on a fresh checkout
+          # consistently does. The ignore is needed for the union write
+          # window (new entity → TenantAssignmentListener) on every
+          # entity below; tolerating an unmatched ignore lets local
+          # iteration stay green even when the cache is hot.
+          reportUnmatched: false
           paths:
               - src/Catalog/Domain/Entity/Attribute.php
               - src/Catalog/Domain/Entity/AttributeGroup.php

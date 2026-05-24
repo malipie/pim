@@ -12,6 +12,7 @@ final readonly class UpdateAttributeCommand
      * @param array<string, string>|null $label
      * @param array<string, string>|null $help
      * @param array<string, mixed>|null  $validationRules
+     * @param list<string>|null          $relationTargetObjectTypeIds
      */
     public function __construct(
         public Uuid $id,
@@ -23,6 +24,9 @@ final readonly class UpdateAttributeCommand
         public ?bool $filterable = null,
         public ?array $validationRules = null,
         public ?int $position = null,
+        public ?array $relationTargetObjectTypeIds = null,
+        public ?string $relationCardinality = null,
+        public ?bool $relationAdvanced = null,
     ) {
     }
 }

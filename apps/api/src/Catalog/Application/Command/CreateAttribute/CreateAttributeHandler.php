@@ -9,6 +9,7 @@ use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\AttributeGroupAttribute;
 use App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
+use App\Catalog\Domain\Validator\RelationAttributeConfigValidator;
 use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
 use LogicException;
@@ -37,6 +38,7 @@ final readonly class CreateAttributeHandler
         private AttributeGroupRepositoryInterface $groupRepository,
         private EntityManagerInterface $em,
         private TenantContext $tenantContext,
+        private RelationAttributeConfigValidator $relationConfigValidator,
     ) {
     }
 
@@ -67,10 +69,24 @@ final readonly class CreateAttributeHandler
             $groups[] = $group;
         }
 
+        $type = AttributeType::from($command->type);
+
+        // ADR-014 / MOD-05 (#897) — relation-type attributes carry three
+        // extra config columns. Validator enforces target ObjectType
+        // existence, cardinality required, and coerces away half-set
+        // payloads on non-relation types.
+        [$relationTargetIds, $relationCardinality, $relationAdvanced] = $this->relationConfigValidator->validateAndNormalise(
+            $type,
+            $command->relationTargetObjectTypeIds,
+            $command->relationCardinality,
+            $command->relationAdvanced,
+            $tenant,
+        );
+
         $attribute = new Attribute(
             code: $command->code,
             label: $command->label,
-            type: AttributeType::from($command->type),
+            type: $type,
         );
         $attribute->updateHelp($command->help);
         $attribute->changeLocalizable($command->localizable);
@@ -79,6 +95,9 @@ final readonly class CreateAttributeHandler
         $attribute->changeFilterable($command->filterable);
         $attribute->updateValidationRules($command->validationRules);
         $attribute->reorder($command->position);
+        $attribute->setRelationTargetObjectTypeIds($relationTargetIds);
+        $attribute->setRelationCardinality($relationCardinality);
+        $attribute->setRelationAdvanced($relationAdvanced);
 
         $this->repository->save($attribute);
 

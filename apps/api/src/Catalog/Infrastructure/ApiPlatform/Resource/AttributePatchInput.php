@@ -59,4 +59,23 @@ final class AttributePatchInput
     #[Assert\PositiveOrZero]
     #[Groups(['attribute:patch'])]
     public ?int $position = null;
+
+    /**
+     * ADR-014 / MOD-05 (#897) — replaces the target ObjectType list on a
+     * relation attribute. Only meaningful when the existing attribute is
+     * of type `relation`; ignored otherwise.
+     *
+     * @var list<string>|null
+     */
+    #[Assert\Type('array')]
+    #[Assert\All([new Assert\Uuid()])]
+    #[Groups(['attribute:patch'])]
+    public ?array $relationTargetObjectTypeIds = null;
+
+    #[Assert\Choice(choices: ['one', 'many'])]
+    #[Groups(['attribute:patch'])]
+    public ?string $relationCardinality = null;
+
+    #[Groups(['attribute:patch'])]
+    public ?bool $relationAdvanced = null;
 }
