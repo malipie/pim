@@ -351,6 +351,40 @@
                     </values>
                 </denormalizationContext>
             </operation>
+
+            <!-- Poly-kind PATCH (UP-01 #1016) — mirror of the per-kind sugar
+                 PATCH (`/api/products/{id}` etc.) without an `extraProperties.kind`
+                 lock. Kind is derived per-instance: the loaded CatalogObject
+                 already carries its kind on the entity, and `CatalogObjectProcessor`
+                 reuses the per-kind validation/listener chain the sugar paths use.
+                 Enables `UniversalDetailPage` (UP-07) to PATCH any kind via a
+                 single endpoint without dispatching on the sugar path. -->
+            <operation class="ApiPlatform\Metadata\Patch"
+                       uriTemplate="/objects/{id}{._format}"
+                       name="objects_patch"
+                       input="App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectPatchInput"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectProcessor"
+                       security="is_granted('UPDATE', object)">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>object:patch</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <!-- Poly-kind DELETE (UP-01 #1016) — same rationale as PATCH.
+                 `CatalogObjectProcessor` handles the per-kind cleanup
+                 (variant cascade, category un-link, audit emit) — kind is
+                 read off the loaded entity. -->
+            <operation class="ApiPlatform\Metadata\Delete"
+                       uriTemplate="/objects/{id}{._format}"
+                       name="objects_delete"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectProcessor"
+                       security="is_granted('DELETE', object)"/>
         </operations>
     </resource>
 </resources>
