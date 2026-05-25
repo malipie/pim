@@ -2,6 +2,32 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z Epiku UP (2026-05-25, Universal Page Parity — extraction zamiast parallel MVP)
+
+### Patterns to Follow
+
+1. **Multiple `#[Route]` attributes na jednej metodzie kontrolera** (Symfony 7.x) → poly-kind endpoints bez duplikowania handlera. Wzorzec użyty w UP-02 (`BulkActionsController::preview/apply` z drugim Route na `/api/objects/bulk-actions/*`), UP-04 (`GenerateVariantsController` z `/api/objects/{master}/generate-variants`), UP-07a (`ProductReadEndpointsController::effectiveAttributeGroups` z `/api/objects/{id}/effective-attribute-groups`). Tańsze niż osobny controller per `/api/objects/*` mirror i niższe ryzyko regresji w istniejących product routes. Wymagana zmiana: helper `mustFindObject()` bez kind-gate obok istniejącego `mustFindProduct()`.
+
+2. **Capability gate via flag zamiast kind check** — UP-04 zamiast `ObjectKind::Product !== $master->getKind()` używa `!$master->getObjectType()->hasVariants()`. UP-03 używa `!$object->getObjectType()->isCategorizable()`. Wzór: gdy zachowanie zależy od capability per ObjectType, gate na flagę boolean (412/422), NIE hard-code kind w controller. Operatorka może odznaczyć/zaznaczyć capability w modeling wizard bez code change.
+
+3. **Optional `panelAttrs?: ReadonlyArray<PanelAttr>` prop z legacy default** — UP-09 ekstrakcji hardcoded `PANEL_ATTRS` przez nowy prop. Brak prop = legacy list (backward compatible). Pattern dla wszystkich uniwersalnych komponentów: optional prop z legacy fallback chroni stare wywołania (`/products` nieraz przekazuje undefined) podczas marathon refactoringu.
+
+4. **Dual maintenance safety net w cutover ticketach** — UP-10 dodał `/products/legacy` route dla starego `ProductListPage` na 1 sprint. Operator dostaje toggle do A/B porównania w trakcie sprintu adopcji. Po sprint follow-up ticket usuwa legacy. Pattern dla każdego gold-standard view refactor: cutover ticket nie usuwa legacy, dodaje równoległą route + dokumentuje cleanup follow-up.
+
+### Patterns to Avoid
+
+1. **Anti-pattern: parallel MVP zamiast extraction istniejącego komponentu** — UI-08 (ULV epik) zbudował parallel `ObjectListView` od zera zamiast wydzielić istniejący `ProductListPage`. Po manual smoke operator słusznie odrzucił jako "półśrodek": custom kindy second-class citizens, dwa kody do utrzymania, drift inevitable. Cytat operatora: "jak to możliwe, że on jest inny niż w produktach, to znaczy, że tamten jest hardcoded?". Lesson: gdy operator gold-standard view istnieje, ZAWSZE extract zamiast budować równoległy MVP. ULV-06 startowy plan był błędny; UP-06 spłacił dług. Reguła: jeśli operator-facing widok ma "rich features", to NIE robimy MVP równoległy — wydzielamy.
+
+### Package Quirks
+
+1. **FrankenPHP worker mode caches routes w pamięci** — po dodaniu nowej `#[Route]`, `composer cache:clear` nie wystarczy żeby route dotarł do live workerów. Smoke test zwraca 404 mimo że `php bin/console debug:router` widzi route. Workaround: `docker compose exec api kill -USR1 1` (graceful restart workerów) LUB `docker compose restart api`. Pattern: po dodaniu/zmianie Route attribute na żywym dev stacku, ALWAYS restart workerów przed smoke testem.
+
+### Decyzje świadome
+
+- **UniversalDetailPage (UP-07) NIE klonuje wszystkich product-specific features** — variants tab, multimedia tab, sync status, duplicate, preview, agent suggestions zostają na `/products/{id}` legacy route. Cytat operatora: "Edycja Objektu - wyrenderowane jak w produkacah, tj. zakłądki, dodawanie atrybutów - wszystko". Świadomie shipped attribute editing + tabs + delete; reszta jako "follow-up po universal CategoryPicker refactor". Dual maintenance UP-10 (`/products/{id}` legacy) chroni przed regresją w product detail.
+- **UP-08 UniversalCreatePage POSTuje `/api/objects` bez category pre-selection** — `/products/new` ma rich wizard z category-driven attribute overlay (przez `effective-attribute-groups/preview` POST z `categoryIds`). UniversalCreatePage MVP używa pustego payload — operator po utworzeniu obiektu może edytować przez UniversalDetailPage. Acceptable bo CategoryPicker dialog jest product-specific (UP-07 follow-up).
+
+
 ## Lessons z post-smoke fix #1 (2026-05-23, #891 — kategoria + dynamiczne atrybuty + modal warning)
 
 ### Patterns to Follow
