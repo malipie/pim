@@ -1081,6 +1081,8 @@ Rdzeń elastyczności już istnieje w ADR-006 (`attributes` + EAV `*_values JSON
 - ADR-006 (hybrid attribute model — `attributes` + `*_values JSONB` + `attributes_indexed`) — generalizacja respektuje, nie zmienia.
 - `06-sprint-0-findings.md` §2 (rewizja zakresu MVP 2026-04-27) — finansowanie kosztu generalizacji ze zwolnionego budżetu epiku 0.7.
 
+**Konsekwencja UX/UI (epik UI-08 ULV, 2026-05-25):** widok listy instancji jest uniwersalny per ObjectType — jeden komponent `ObjectListView` sparametryzowany `objectTypeId` zastępuje per-kind admin pages. `/products` / `/categories` / `/assets` zostają jako aliasy/sugar paths obok generycznego `/objects/{slug}` (slug = `ObjectType.code`). Backend strona: `GET /api/objects?objectType={id}` (poly-kind GetCollection + ULV-03 ObjectTypeFilter), `GET /api/object_types/{id}/list-schema` (system + show_in_list kolumn), `POST /api/objects/bulk` (delete; pozostałe akcje follow-up), pojedynczy Meilisearch indeks `objects` z facetem `object_type_id`. Pełna spec: [`Project Plan/UI/feature-universal-object-list.md`](UI/feature-universal-object-list.md) — 13 ticketów ULV-01..ULV-12 (z 04 split na 04a/04b), milestone [Epik UI-08 Universal Object List View](https://github.com/malipie/PIM/milestone/16). RBAC dochodzi w wariantach: legacy per-kind voters dalej działają, nowy generic `ObjectScopedVoter` (ULV-04a) + 3-state attribute permissions reader (ULV-04b) layer'ują się ponad nimi bez breaking changes. Custom kindy (`kind='custom'`) są od dnia ULV indeksowane w Meilisearch i renderowane przez ObjectListView (pre-ULV były skipowane w MVP per pierwotny scope ADR-009).
+
 ### ADR-012: Attribute Group as first-class entity for cross-objecttype data modeling
 
 **Status:** Zaakceptowany (2026-05-01)
