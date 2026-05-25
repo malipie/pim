@@ -87,7 +87,7 @@ final readonly class GetObjectTypeListSchemaHandler
     }
 
     /**
-     * @return array{id: string, code: string, kind: string, label: array<string, string>, is_categorizable: bool, has_variants: bool, expose_to_main_menu: bool}
+     * @return array{id: string, code: string, kind: string, label: array<string, string>, is_categorizable: bool, has_variants: bool, has_multimedia: bool, expose_to_main_menu: bool}
      */
     private function projectObjectType(ObjectType $objectType): array
     {
@@ -98,6 +98,9 @@ final readonly class GetObjectTypeListSchemaHandler
             'label' => $objectType->getLabel(),
             'is_categorizable' => $objectType->isCategorizable(),
             'has_variants' => $objectType->hasVariants(),
+            // UP-00 (#1017) — surface multimedia capability so the
+            // UniversalDetailPage (UP-07) can gate the Multimedia tab.
+            'has_multimedia' => $objectType->hasMultimedia(),
             'expose_to_main_menu' => $objectType->isExposedToMainMenu(),
         ];
     }

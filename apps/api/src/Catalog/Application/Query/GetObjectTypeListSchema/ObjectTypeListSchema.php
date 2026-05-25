@@ -32,10 +32,10 @@ namespace App\Catalog\Application\Query\GetObjectTypeListSchema;
 final readonly class ObjectTypeListSchema
 {
     /**
-     * @param array{id: string, code: string, kind: string, label: array<string, string>, is_categorizable: bool, has_variants: bool, expose_to_main_menu: bool} $objectType
-     * @param list<ColumnRow>                                                                                                                                    $columns
-     * @param list<string>                                                                                                                                       $filterableAttributes
-     * @param list<string>                                                                                                                                       $searchableAttributes
+     * @param array{id: string, code: string, kind: string, label: array<string, string>, is_categorizable: bool, has_variants: bool, has_multimedia: bool, expose_to_main_menu: bool} $objectType
+     * @param list<ColumnRow>                                                                                                                                                          $columns
+     * @param list<string>                                                                                                                                                             $filterableAttributes
+     * @param list<string>                                                                                                                                                             $searchableAttributes
      */
     public function __construct(
         public array $objectType,
