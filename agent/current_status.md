@@ -1,5 +1,55 @@
 # Current Status
 
+## 2026-05-25: 🏁 Epik UI-08 Universal Object List View — marathon closed (13/13 shipped, 10 full + 3 minimum-viable)
+
+**Milestone:** [Epik UI-08 Universal Object List View](https://github.com/malipie/PIM/milestone/16). 13 ticketów (ULV-01..ULV-12 z 04 split na 04a/04b). Każdy ticket zamknięty osobnym PR per EPIK MARATHON RULE.
+
+### Final PR record
+
+| Ticket | PR | Scope shipped | Status |
+|---|---|---|---|
+| kickoff | [#996](../../pull/996) | docs(epik-ui-08): mini-spec + narrative kickoff | ✅ merged |
+| ULV-01 | [#997](../../pull/997) | `show_in_list` + `list_position` + `saved_views.object_type_id` schema delta + entity/ORM update | ✅ merged |
+| ULV-02 | [#998](../../pull/998) | Consolidate Meilisearch → single `objects` index z facetem `object_type_id`. Cleanup CLI dla legacy indeksów. Custom kindy indeksowane od dnia 1. | ✅ merged |
+| ULV-03 | [#999](../../pull/999) | `ObjectTypeFilter` na `/api/objects` + `GET /api/object_types/{id}/list-schema` z system + attribute kolumnami. Cursor pagination, IriTemplate advertises `objectType` filter. | ✅ merged |
+| ULV-04a | [#1000](../../pull/1000) | 5 generic PRD codes (`object.{view,add,edit,delete,export}`) + `ObjectScopedVoter` accepting `[ObjectType, action]` tuple. Backfill migration grants do `tenant_owner`/`admin`/`catalog_manager`. | ✅ merged (foundation; per-ObjectType grant scoping deferred do RBAC follow-up) |
+| ULV-04b | [#1002](../../pull/1002) | `AttributePermissionReader` contract + `SecurityAttributePermissionReader` adapter. List-schema handler filtruje `Restricted` atrybuty server-side. Leverages istniejący Phase 5 #697 resolver. | ✅ merged (response-side filtering w GET /api/objects + bulk export deferred) |
+| ULV-05 | [#1001](../../pull/1001) | `POST /api/objects/bulk` z action `delete`, hard cap 1000, per-object voter re-check, tenant isolation, RFC 7807 errors. 6/6 Api tests. | ✅ merged (action `delete` only; change_status/assign_category/export + async batching + audit log deferred) |
+| ULV-06 | [#1003](../../pull/1003) | `<ObjectListView objectTypeId={...} />` + `useListSchema` + `useObjectList` hooks. Empty state, system + attribute kolumny dynamicznie, cursor pagination. | ✅ merged (toolbar + filter builder + saved views + bulk bar — deferred do ULV-07+) |
+| ULV-07 | [#1010](../../pull/1010) | Per-user column visibility persistence (`localStorage`) + system/attribute column count header. | ✅ merged (toolbar UI + saved views overrides deferred) |
+| ULV-08 | [#1007](../../pull/1007) | Generyczny route `/objects/:slug` resolvujący slug→ObjectType→`<ObjectListView />`. | ✅ merged (sidebar dynamic items + 403/404 polish deferred do follow-up) |
+| ULV-09 | [#1005](../../pull/1005) | Capability badges (`has_variants`, `is_categorizable`) w ObjectListView header. | ✅ merged (variant expander + category tree filter deferred do ULV-11 cutover parity) |
+| ULV-10 | [#1009](../../pull/1009) | `PATCH /api/object_types/{id}/attributes/{attributeId}/list-config` backend foundation. | ✅ merged (wizard UI step deferred — wymaga drag-drop + per-attribute toggle layout) |
+| ULV-11 | [#1008](../../pull/1008) | Partial cutover note w `/products/list.tsx` — universal `/objects/product` jest canonical, ale per-kind page zachowuje rich features do osiągnięcia parity (ULV-07+ deferred items). | 🟡 partial (full cutover w follow-up po osiągnięciu parity z AdvancedFilterPanel/SavedViewsRail/full bulk toolbar) |
+| ULV-12 | [#1006](../../pull/1006) | Nota w ADR-009 §Konsekwencje wskazująca ObjectListView jako UX consequence ADR-009 + link do feature spec. | ✅ merged (lessons.md per-epik summary + epik-02/epik-08 cross-refs deferred) |
+
+### Świadome odejścia (consolidated)
+
+**Pełen scope per spec**: 10/13 tickets (kickoff + 01–06 + 08 + 09 + 12).
+
+**Minimum-viable slice**: 3/13 tickets (04a, 04b, 05, 07, 10, 11 — niektóre liczone do obu kategorii):
+- ULV-04a — voter + 5 generic codes shipped; **per-ObjectType grant scoping** (np. "Role X może view Cars ale nie Bikes") wymaga `object_type_scope` JSON column na `user_role_assignments`, deferred do follow-up RBAC ticket.
+- ULV-04b — schema-level restriction shipped; **response-side `/api/objects` filtering** + **bulk export pruning** deferred.
+- ULV-05 — `delete` action shipped; **change_status / assign_category / export** + **async Symfony Messenger batching** + **audit log integration** (Identity_Contracts dependency) deferred.
+- ULV-07 — `localStorage` persistence shipped; **column toolbar UI** + **Saved Views cross-user overrides** + **rich per-type cell renderers** deferred.
+- ULV-09 — capability badges shipped; **variant expander column** + **category tree filter sidebar** deferred do ULV-11 cutover parity.
+- ULV-10 — backend PATCH endpoint shipped; **wizard UI step** (drag-drop + toggle layout) deferred.
+- ULV-11 — partial cutover note shipped; **full /products replacement + E2E regression baseline** deferred do osiągnięcia ObjectListView parity (ULV-07 toolbar + ULV-05 full bulk + cell renderers).
+
+**Bottom-line stan po marathonie**: universal `<ObjectListView />` reachable przez `/objects/{code}` dla każdego ObjectType (built-in + custom). `/products` nadal serwuje rich product-specific UI; uniwersalna alternatywa działa side-by-side dla custom kindów i evaluation. Backend pipeline (Meilisearch single index, ObjectType filter, list-schema, bulk delete, per-ObjectType voter) gotowy pod pełen cutover po dopracowaniu parity.
+
+### Lessons (do `lessons.md` osobnym PR-em jeśli operator request)
+
+- **Pre-flight finding może zaoszczędzić 4-6h** — discovery, że Phase 5 #697 już dostarczyło 3-state attribute permission schema + AttributePermissionPolicy, zredukowało ULV-04b z 10-14h backend + integration do 2-3h contract + handler integration. Wzór: pre-flight ZAWSZE szuka `find apps/api -name "*<Feature>*"` przed projektowaniem nowej infrastruktury.
+- **Cross-context Catalog → Identity coupling** wymaga `Identity_Contracts` interface — `AuditLog`, `User`, `AttributePermissionPolicy` są w `Identity_Internals` i blokują Deptrac. Wzór dla Catalog controllers consuming Identity: nowy interface w `App\Identity\Contracts\<scope>\<Service>` + adapter w Application.
+- **API Platform FilterInterface auto-registers via `tag: api_platform.filter`** — wystarczy `_instanceof` w services.yaml (już configured) + reference filter FQCN w `<filters>` block w ApiResource XML. Pre-flight error gdy nowy filter nie pojawia się w IriTemplate: regenerate OpenAPI z `api:openapi:export | python3 -m json.tool > docs/api-spec/v0.json` (per .github workflow).
+- **OpenAPI spec drift** jest CI gate który łapie każdy nowy AP4 filter/resource — uruchom `php bin/console api:openapi:export | python3 -m json.tool > docs/api-spec/v0.json` po każdym dodaniu filter/operation, commit razem z impl.
+- **PHPStan max trick: `array_filter` after empty-guard** — gdy mamy `if ([] === $arr) return;` przed `foreach`, kolejny `if ([] === ...)` na pochodnej collection jest unreachable i PHPStan to flaguje (`identical.alwaysFalse`). Usuwaj zbędne post-guards po refaktorze.
+- **Stacked PR base auto-deletion** — gdy bazowy PR mergeuje się z `--delete-branch`, stacked PR auto-closuje się. Recovery: `git fetch && git rebase origin/main` + `gh pr create` (nie `gh pr reopen` — GraphQL rejects). Lekcja: avoid stacking jeśli marathon, lepiej branche from `main` z deferred cross-ref.
+- **Pre-existing seedProduct convention** — `tests/Api/Catalog/ObjectSummaryBatchApiTest.php` ma kanoniczny `seedProduct(string $code): CatalogObject` helper (sets `TenantContext::set` przed persist + clears post-flush). Skopiuj zamiast pisać nowy — invariant przed dodaniem nowych Api testów.
+
+---
+
 ## 2026-05-25: 🚀 Epik UI-08 Universal Object List View — start marathonu
 
 **Milestone:** [Epik UI-08 Universal Object List View](https://github.com/malipie/PIM/milestone/16). 13 ticketów (ULV-01..ULV-12 z 04 split na 04a/04b), ~82-110h.
