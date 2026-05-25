@@ -37,6 +37,21 @@ class DoctrineObjectTypeAttributeRepository extends ServiceEntityRepository impl
         return $rows;
     }
 
+    /**
+     * @return list<ObjectTypeAttribute>
+     */
+    public function findByAttribute(Attribute $attribute): array
+    {
+        /** @var list<ObjectTypeAttribute> $rows */
+        $rows = $this->createQueryBuilder('ota')
+            ->andWhere('ota.attribute = :attribute')
+            ->setParameter('attribute', $attribute)
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function findOne(ObjectType $objectType, Attribute $attribute): ?ObjectTypeAttribute
     {
         return $this->findOneBy(['objectType' => $objectType, 'attribute' => $attribute]);

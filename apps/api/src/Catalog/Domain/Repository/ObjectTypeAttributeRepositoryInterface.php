@@ -15,6 +15,11 @@ interface ObjectTypeAttributeRepositoryInterface
      */
     public function findByObjectType(ObjectType $objectType): array;
 
+    /**
+     * @return list<ObjectTypeAttribute>
+     */
+    public function findByAttribute(Attribute $attribute): array;
+
     public function findOne(ObjectType $objectType, Attribute $attribute): ?ObjectTypeAttribute;
 
     public function save(ObjectTypeAttribute $junction): void;
