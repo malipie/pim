@@ -10,6 +10,7 @@ use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Contracts\Policy\AttributePermissionReader;
 
 /**
  * ULV-03 (#984) — resolves the universal list schema for an ObjectType.
@@ -42,6 +43,7 @@ final readonly class GetObjectTypeListSchemaHandler
     public function __construct(
         private ObjectTypeRepositoryInterface $objectTypes,
         private ObjectTypeAttributeRepositoryInterface $junctions,
+        private AttributePermissionReader $attributePermissions,
     ) {
     }
 
@@ -53,6 +55,16 @@ final readonly class GetObjectTypeListSchemaHandler
         }
 
         $junctions = $this->junctions->findByObjectType($objectType);
+        // ULV-04b (#986) — drop junctions whose attribute is `restricted`
+        // for the caller. The 3-state policy resolves to `Restricted`
+        // when no per-role grant exists for the broad gate (PRD §3.5
+        // Step 0) or when an explicit grant restricts it.
+        $junctions = array_values(array_filter(
+            $junctions,
+            fn (ObjectTypeAttribute $j): bool => $this->attributePermissions->canViewAttribute(
+                $j->getAttribute()->getId(),
+            ),
+        ));
         $listJunctions = array_values(array_filter(
             $junctions,
             static fn (ObjectTypeAttribute $j): bool => $j->isShownInList(),
