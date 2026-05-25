@@ -188,8 +188,27 @@ export function ObjectListView({ objectTypeId, onCreate }: ObjectListViewProps) 
   return (
     <div className="space-y-4">
       <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{typeLabel}</h1>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold">{typeLabel}</h1>
+            {/* ULV-09 (#991) — capability badges: variants + categorizable
+                surface on the header so operators see at a glance whether
+                this ObjectType opts into the conditional features (variant
+                tree, category sidebar). Each badge is muted; the actual
+                feature wiring rides in dedicated tickets (variant column
+                expander + category filter sidebar) which the ULV-09
+                minimum-viable slice keeps deferred so the badge ships now. */}
+            {objectType.has_variants ? (
+              <span className="rounded bg-violet-100 px-2 py-0.5 text-xs text-violet-900">
+                {t('object_list.capability.variants', { defaultValue: 'Variants' })}
+              </span>
+            ) : null}
+            {objectType.is_categorizable ? (
+              <span className="rounded bg-sky-100 px-2 py-0.5 text-xs text-sky-900">
+                {t('object_list.capability.categorizable', { defaultValue: 'Categorized' })}
+              </span>
+            ) : null}
+          </div>
           <p className="text-sm text-muted-foreground">
             {t('object_list.header_count', {
               defaultValue: '{{count}} items',
