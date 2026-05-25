@@ -12,10 +12,7 @@ import {
 } from '@/components/modeling/category-tree';
 import { DeclareAttributeGroupDialog } from '@/components/modeling/declare-attribute-group-dialog';
 import { ModelingPageHeader } from '@/components/modeling/modeling-page-header';
-import {
-  type BuiltInObjectKind,
-  ObjectTypeFilterDropdown,
-} from '@/components/modeling/object-type-filter-dropdown';
+import { ObjectTypeFilterDropdown } from '@/components/modeling/object-type-filter-dropdown';
 import { Card } from '@/components/ui/card';
 import { MockBadge } from '@/components/ui/mock-badge';
 import { jsonFetch } from '@/lib/http';
@@ -102,7 +99,12 @@ export function CategoriesTreePage() {
   const { t, i18n } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const targetType = (searchParams.get('targetType') ?? 'service') as BuiltInObjectKind;
+  // ADR-014 / MOD-11 (#903): default falls back to whatever the dropdown
+  // resolves as the first eligible OT (`is_built_in=true` AND
+  // `is_categorizable=true`). The dropdown emits its choice via
+  // `onChange` on mount when the URL param doesn't match anything, so an
+  // empty default is correct here — the URL gets stamped on first render.
+  const targetType: string = searchParams.get('targetType') ?? 'product';
   const selectedId = searchParams.get('selected') ?? null;
 
   const { result } = useList<CategoryEntry>({
@@ -134,7 +136,7 @@ export function CategoriesTreePage() {
     setSearchParams(next, { replace: true });
   };
 
-  const handleTargetChange = (kind: BuiltInObjectKind) => {
+  const handleTargetChange = (kind: string) => {
     const next = new URLSearchParams(searchParams);
     next.set('targetType', kind);
     setSearchParams(next, { replace: true });
@@ -209,7 +211,7 @@ function CategoryDetailPanel({
   tree,
 }: {
   categoryId: string;
-  targetType: BuiltInObjectKind;
+  targetType: string;
   locale: string;
   tree: CategoryTreeNode[];
 }) {
