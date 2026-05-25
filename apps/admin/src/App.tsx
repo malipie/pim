@@ -116,6 +116,10 @@ const UniversalObjectListPage = lazyPage(
   () => import('@/features/catalog/objects/list-page'),
   'ObjectListPage',
 );
+const UniversalObjectShowPage = lazyPage(
+  () => import('@/features/catalog/objects/show-page'),
+  'ObjectShowPage',
+);
 const UniversalObjectCreatePage = lazyPage(
   () => import('@/features/catalog/objects/create-page'),
   'ObjectCreatePage',
@@ -416,6 +420,11 @@ function App() {
                     ObjectCreatePage; custom kinds render
                     UniversalCreatePage. */}
                 <Route path="/objects/:slug/new" element={<UniversalObjectCreatePage />} />
+                {/* UP-07 (#1023) — universal /objects/:slug/:id detail route.
+                    Built-in product/category/asset slugs redirect to their
+                    legacy detail routes inside ObjectShowPage; custom kinds
+                    render UniversalDetailPage. */}
+                <Route path="/objects/:slug/:id" element={<UniversalObjectShowPage />} />
                 {/* VIEW-07 (#420): edit page is now inline-edit on /products/:id.
                     Keep the legacy path as a back-compat redirect for bookmarks
                     and Refine resource lookups that still ask for `edit`. */}

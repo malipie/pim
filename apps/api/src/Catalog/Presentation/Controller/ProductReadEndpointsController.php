@@ -177,11 +177,23 @@ final class ProductReadEndpointsController
         methods: ['GET'],
         priority: 200,
     )]
+    // UP-07 (#1023) — poly-kind mirror so /objects/:slug/:id detail view
+    // can resolve effective groups (overlay-by-category) for any
+    // ObjectType, not just kind=product. mustFindObject relaxes the kind
+    // gate; the resolver itself is kind-agnostic (operates on
+    // CatalogObject + ObjectType).
+    #[Route(
+        '/api/objects/{id}/effective-attribute-groups',
+        name: 'pim_objects_effective_attribute_groups',
+        requirements: ['id' => self::UUID_REGEX],
+        methods: ['GET'],
+        priority: 200,
+    )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     #[RequiresPermission(module: 'products', action: 'view')]
     public function effectiveAttributeGroups(string $id): JsonResponse
     {
-        $product = $this->mustFindProduct($id);
+        $product = $this->mustFindObject($id);
 
         $groups = $this->resolver->resolve($product);
         $byGroup = $this->resolver->loadGroupAttributes($groups);
@@ -301,6 +313,22 @@ final class ProductReadEndpointsController
         }
 
         return $product;
+    }
+
+    /**
+     * UP-07 (#1023) — poly-kind lookup for the universal
+     * `/api/objects/{id}/effective-attribute-groups` route. No kind
+     * gate; tenant + voter scoping happens upstream via
+     * `CatalogObjectRepository`.
+     */
+    private function mustFindObject(string $id): CatalogObject
+    {
+        $object = $this->objects->findById(Uuid::fromString($id));
+        if (!$object instanceof CatalogObject) {
+            throw new NotFoundHttpException(\sprintf('Object %s not found.', $id));
+        }
+
+        return $object;
     }
 
     /**
