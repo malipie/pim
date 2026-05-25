@@ -15,6 +15,7 @@ use App\Catalog\Application\Command\UpdateCatalogObject\UpdateCatalogObjectComma
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectInput;
 use App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectPatchInput;
 use InvalidArgumentException;
@@ -53,6 +54,7 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
     public function __construct(
         private MessageBusInterface $bus,
         private CatalogObjectRepositoryInterface $catalogObjects,
+        private ObjectTypeRepositoryInterface $objectTypes,
     ) {
     }
 
@@ -107,7 +109,7 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
         $command = new CreateCatalogObjectCommand(
             objectTypeId: Uuid::fromString($data->objectTypeId),
             code: $data->code,
-            expectedKind: $this->kindOrFail($operation),
+            expectedKind: $this->expectedKindFor($operation, $data),
             parentId: null !== $data->parentId ? Uuid::fromString($data->parentId) : null,
             attributes: $data->attributes ?? [],
             categoryIds: $categoryIds,
@@ -200,18 +202,44 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
         }
     }
 
-    private function kindOrFail(Operation $operation): ObjectKind
+    /**
+     * Per-kind sugar paths (`POST /api/products`, `/api/categories`) declare
+     * their kind via `extraProperties.kind`; CreateCatalogObjectHandler then
+     * 422s when the supplied `objectTypeId` resolves to a different kind, so
+     * a request to `/api/products` with a category ObjectType is rejected.
+     *
+     * The poly-kind `POST /api/objects` (#981) intentionally omits the
+     * discriminator — relation pickers create targets of arbitrary kinds
+     * (built-in product/category/asset AND custom kinds) without knowing
+     * the sugar path. For that path we derive the kind from the ObjectType
+     * row itself; the equality guard in the handler then becomes a no-op
+     * but the rest of its validation (tenant scope, existence) keeps
+     * running unchanged.
+     */
+    private function expectedKindFor(Operation $operation, CatalogObjectInput $data): ObjectKind
     {
         $value = $operation->getExtraProperties()['kind'] ?? null;
-        if (!\is_string($value)) {
-            throw new UnprocessableEntityHttpException('Operation is missing the kind discriminator.');
-        }
-        $kind = ObjectKind::tryFrom($value);
-        if (null === $kind) {
-            throw new UnprocessableEntityHttpException(\sprintf('Unknown ObjectKind "%s".', $value));
+        if (\is_string($value)) {
+            $kind = ObjectKind::tryFrom($value);
+            if (null === $kind) {
+                throw new UnprocessableEntityHttpException(\sprintf('Unknown ObjectKind "%s".', $value));
+            }
+
+            return $kind;
         }
 
-        return $kind;
+        try {
+            $objectTypeId = Uuid::fromString($data->objectTypeId);
+        } catch (InvalidArgumentException $e) {
+            throw new UnprocessableEntityHttpException(\sprintf('"%s" is not a valid UUID.', $data->objectTypeId), $e);
+        }
+
+        $objectType = $this->objectTypes->findById($objectTypeId);
+        if (null === $objectType) {
+            throw new NotFoundHttpException(\sprintf('ObjectType "%s" was not found.', $data->objectTypeId));
+        }
+
+        return $objectType->getKind();
     }
 
     /**

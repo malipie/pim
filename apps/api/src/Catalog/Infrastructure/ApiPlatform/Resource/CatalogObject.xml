@@ -318,6 +318,32 @@
                        uriTemplate="/objects/{id}{._format}"
                        name="objects_get"
                        security="is_granted('READ', object)"/>
+
+            <!-- Poly-kind create (#981) — relation picker modal's
+                 "Utwórz i podepnij" submits here when the target ObjectType
+                 is a custom kind (no sugar path). No `extraProperties.kind`
+                 is set; CatalogObjectProcessor::expectedKindFor() reads the
+                 ObjectType row keyed by `objectTypeId` in the payload and
+                 uses its kind as the discriminator. Built-in kinds should
+                 still prefer the sugar-path POSTs (/api/products etc.) where
+                 the discriminator is locked at the operation level, but the
+                 poly-kind POST accepts them too for consistency. -->
+            <operation class="ApiPlatform\Metadata\Post"
+                       uriTemplate="/objects{._format}"
+                       name="objects_post"
+                       input="App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectInput"
+                       processor="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectProcessor"
+                       security="is_granted('CREATE', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>object:create</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
         </operations>
     </resource>
 </resources>
