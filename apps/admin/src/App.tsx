@@ -112,6 +112,10 @@ const ObjectListingPlaceholder = lazyPage(
   () => import('@/features/catalog/objects/placeholder'),
   'ObjectListingPlaceholder',
 );
+const UniversalObjectListPage = lazyPage(
+  () => import('@/features/catalog/objects/list-page'),
+  'ObjectListPage',
+);
 const ProductCreatePage = lazyPage(
   () => import('@/features/catalog/products/create'),
   'ProductCreatePage',
@@ -397,6 +401,11 @@ function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/products" element={<ProductListPage />} />
                 <Route path="/products/new" element={<ProductCreatePage />} />
+                {/* ULV-08 (#990) — universal /objects/{slug} route renders
+                    the ObjectListView for any ObjectType by code. The
+                    legacy /products / /categories / /assets routes keep
+                    pointing at their own pages until ULV-11 cuts over. */}
+                <Route path="/objects/:slug" element={<UniversalObjectListPage />} />
                 {/* VIEW-07 (#420): edit page is now inline-edit on /products/:id.
                     Keep the legacy path as a back-compat redirect for bookmarks
                     and Refine resource lookups that still ask for `edit`. */}
