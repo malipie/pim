@@ -306,6 +306,18 @@
                     <paginationField field="id" direction="DESC"/>
                 </paginationViaCursor>
             </operation>
+
+            <!-- Poly-kind detail counterpart to GetCollection above (#977).
+                 RelationInlineEditPanel fetches a target object's detail by
+                 UUID without knowing its kind upfront (the chosen target may
+                 be a product, category, or asset — the relation attribute's
+                 `allowedObjectTypeIds` spans kinds). No `extraProperties.kind`
+                 → KindItemExtension no-ops; TenantFilter + the `READ object`
+                 voter still scope the read to the current tenant + grant. -->
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/objects/{id}{._format}"
+                       name="objects_get"
+                       security="is_granted('READ', object)"/>
         </operations>
     </resource>
 </resources>
