@@ -40,6 +40,15 @@ class ObjectTypeAttribute
     private ?Uuid $channelId = null;
     private ?string $locale = null;
 
+    /**
+     * ULV-01 (#982) — drives universal list view columns. When TRUE this
+     * attribute renders as a column on the ObjectType's instance list
+     * (`<ObjectListView objectTypeId={...} />`), ordered by `listPosition`.
+     */
+    private bool $showInList = false;
+
+    private int $listPosition = 0;
+
     public function __construct(
         ObjectType $objectType,
         Attribute $attribute,
@@ -100,5 +109,33 @@ class ObjectTypeAttribute
     public function changeLocale(?string $locale): void
     {
         $this->locale = $locale;
+    }
+
+    public function isShownInList(): bool
+    {
+        return $this->showInList;
+    }
+
+    /**
+     * Symfony PropertyAccess accessor alias for serialization.
+     */
+    public function getShowInList(): bool
+    {
+        return $this->showInList;
+    }
+
+    public function setShowInList(bool $showInList): void
+    {
+        $this->showInList = $showInList;
+    }
+
+    public function getListPosition(): int
+    {
+        return $this->listPosition;
+    }
+
+    public function setListPosition(int $listPosition): void
+    {
+        $this->listPosition = $listPosition;
     }
 }

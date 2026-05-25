@@ -27,6 +27,12 @@ class SavedView implements TenantScoped
     private ?string $description = null;
     private string $resource;
     /**
+     * ULV-01 (#982) — scopes a saved view to a specific ObjectType. Nullable
+     * for backward compatibility with the legacy `resource` string column;
+     * ULV-06 / ULV-11 finish the cutover and start enforcing non-null.
+     */
+    private ?ObjectType $objectType = null;
+    /**
      * @var array<string, mixed>
      */
     private array $config;
@@ -112,6 +118,17 @@ class SavedView implements TenantScoped
     public function getResource(): string
     {
         return $this->resource;
+    }
+
+    public function getObjectType(): ?ObjectType
+    {
+        return $this->objectType;
+    }
+
+    public function assignObjectType(?ObjectType $objectType): void
+    {
+        $this->objectType = $objectType;
+        $this->touch();
     }
 
     /**
