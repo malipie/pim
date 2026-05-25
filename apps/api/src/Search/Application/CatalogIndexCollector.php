@@ -32,7 +32,7 @@ final class CatalogIndexCollector implements ResetInterface
     /** @var array<string, true> objectId (RFC4122 string) => true */
     private array $upserts = [];
 
-    /** @var array<string, ObjectKind> objectId (RFC4122 string) => kind */
+    /** @var array<string, ObjectKind> objectId (RFC4122 string) => kind (telemetry only post-ULV) */
     private array $deletes = [];
 
     public function queueUpsert(Uuid $id): void
@@ -45,6 +45,11 @@ final class CatalogIndexCollector implements ResetInterface
         $this->upserts[$rfc] = true;
     }
 
+    /**
+     * `$kind` is retained as a legacy hint (telemetry, logging). ULV-02
+     * (#983) consolidated the per-kind indexes into a single `objects`
+     * index, so the collector no longer partitions deletes by kind.
+     */
     public function queueDelete(Uuid $id, ObjectKind $kind): void
     {
         $rfc = $id->toRfc4122();

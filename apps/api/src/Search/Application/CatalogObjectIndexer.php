@@ -64,11 +64,9 @@ final readonly class CatalogObjectIndexer
             return;
         }
 
-        if (ObjectKind::Custom === $object->getKind()) {
-            // Custom kinds have no MVP index per ADR-009; phase 2/3 unlock.
-            return;
-        }
-
+        // ULV-02 (#983) — custom kinds land in the consolidated `objects`
+        // index alongside built-ins; the universal list view treats every
+        // ObjectType uniformly. The previous Phase 2/3 skip is gone.
         $this->push($object);
     }
 
@@ -92,19 +90,10 @@ final readonly class CatalogObjectIndexer
             return;
         }
 
-        /** @var array<string, list<array<string, mixed>>> $byKind */
-        $byKind = [];
-        foreach ($objects as $object) {
-            $kind = $object->getKind();
-            if (ObjectKind::Custom === $kind) {
-                continue;
-            }
-            $byKind[$kind->value][] = $this->toDocument($object);
-        }
-
-        if ([] === $byKind) {
-            return;
-        }
+        // ULV-02 (#983) — single `objects` index for every ObjectKind
+        // (custom included), so the by-kind partition is gone. The early
+        // empty-$objects guard above keeps this list non-empty.
+        $documents = array_map(fn ($o) => $this->toDocument($o), $objects);
 
         try {
             $client = $this->clientFactory->create();
@@ -121,32 +110,26 @@ final readonly class CatalogObjectIndexer
             return;
         }
 
-        foreach ($byKind as $kindValue => $documents) {
-            $kind = ObjectKind::from($kindValue);
-            foreach (array_chunk($documents, self::BATCH_SIZE) as $chunk) {
-                try {
-                    $client->index(IndexSettingsTemplate::indexName($kind))->addDocuments($chunk);
-                } catch (Throwable $e) {
-                    // Fail-soft per chunk — same rationale as above.
-                    $this->logger->warning('Index batch push failed: {message}', [
-                        'message' => $e->getMessage(),
-                        'kind' => $kind->value,
-                        'count' => \count($chunk),
-                    ]);
-                }
+        foreach (array_chunk($documents, self::BATCH_SIZE) as $chunk) {
+            try {
+                $client->index(IndexSettingsTemplate::indexName())->addDocuments($chunk);
+            } catch (Throwable $e) {
+                // Fail-soft per chunk — same rationale as above.
+                $this->logger->warning('Index batch push failed: {message}', [
+                    'message' => $e->getMessage(),
+                    'count' => \count($chunk),
+                ]);
             }
         }
     }
 
     public function remove(Uuid $objectId, ObjectKind $kind): void
     {
-        if (ObjectKind::Custom === $kind) {
-            return;
-        }
-
+        // ULV-02 (#983) — single `objects` index; the `$kind` argument is
+        // legacy hint kept for telemetry and call-site BC.
         try {
             $client = $this->clientFactory->create();
-            $client->index(IndexSettingsTemplate::indexName($kind))->deleteDocument($objectId->toRfc4122());
+            $client->index(IndexSettingsTemplate::indexName())->deleteDocument($objectId->toRfc4122());
         } catch (Throwable $e) {
             $this->logger->warning('Index delete failed: {message}', [
                 'message' => $e->getMessage(),
@@ -167,18 +150,11 @@ final readonly class CatalogObjectIndexer
             return;
         }
 
-        /** @var array<string, list<string>> $idsByKind */
-        $idsByKind = [];
-        foreach ($kindByIdRfc4122 as $id => $kind) {
-            if (ObjectKind::Custom === $kind) {
-                continue;
-            }
-            $idsByKind[$kind->value][] = $id;
-        }
-
-        if ([] === $idsByKind) {
-            return;
-        }
+        // ULV-02 (#983) — single `objects` index; kind partition replaced
+        // by a flat list of ids. Custom kinds are included now.
+        // The early `[] === $kindByIdRfc4122` guard above keeps this
+        // non-empty.
+        $ids = array_keys($kindByIdRfc4122);
 
         try {
             $client = $this->clientFactory->create();
@@ -190,17 +166,13 @@ final readonly class CatalogObjectIndexer
             return;
         }
 
-        foreach ($idsByKind as $kindValue => $ids) {
-            $kind = ObjectKind::from($kindValue);
-            try {
-                $client->index(IndexSettingsTemplate::indexName($kind))->deleteDocuments($ids);
-            } catch (Throwable $e) {
-                $this->logger->warning('Index batch delete failed: {message}', [
-                    'message' => $e->getMessage(),
-                    'kind' => $kind->value,
-                    'count' => \count($ids),
-                ]);
-            }
+        try {
+            $client->index(IndexSettingsTemplate::indexName())->deleteDocuments($ids);
+        } catch (Throwable $e) {
+            $this->logger->warning('Index batch delete failed: {message}', [
+                'message' => $e->getMessage(),
+                'count' => \count($ids),
+            ]);
         }
     }
 
@@ -208,7 +180,7 @@ final readonly class CatalogObjectIndexer
     {
         try {
             $client = $this->clientFactory->create();
-            $client->index(IndexSettingsTemplate::indexName($object->getKind()))
+            $client->index(IndexSettingsTemplate::indexName())
                 ->addDocuments([$this->toDocument($object)]);
         } catch (Throwable $e) {
             $this->logger->warning('Index push failed: {message}', [
@@ -244,7 +216,10 @@ final readonly class CatalogObjectIndexer
             'createdAt' => $object->getCreatedAt()->getTimestamp(),
             'updatedAt' => $object->getUpdatedAt()->getTimestamp(),
         ];
-        if (ObjectKind::Product === $object->getKind()) {
+        // Category denormalisation: any ObjectType with `isCategorizable=true`
+        // gets its category code array surfaced so the universal list view's
+        // category-tree filter (ULV-09) resolves through Meili.
+        if ($object->getObjectType()->isCategorizable()) {
             $base['category'] = array_map(
                 static fn (ObjectCategory $a): string => $a->getCategory()->getCode(),
                 $this->objectCategories->findByProduct($object),

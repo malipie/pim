@@ -61,9 +61,8 @@ final readonly class CatalogSearchService
         array $rangeFilters = [],
         ?string $customFilterExpression = null,
     ): array {
-        if (ObjectKind::Custom === $kind) {
-            return $this->emptyResult();
-        }
+        // ULV-02 (#983) — custom kinds land in the consolidated `objects`
+        // index alongside built-ins; no early-return skip anymore.
 
         $tenant = $this->tenantProvider->getCurrent();
         if (!$tenant instanceof Tenant) {
@@ -75,6 +74,10 @@ final readonly class CatalogSearchService
 
         $tenantFilter = \sprintf('tenantId = "%s"', $tenant->getId()->toRfc4122());
         $extraFilters = [];
+        // ULV-02 — every kind shares one index, so we constrain by the
+        // `kind` filterable to preserve the legacy "show me only products"
+        // behaviour callers still expect.
+        $extraFilters[] = \sprintf('kind = "%s"', $kind->value);
         foreach ($filters as $key => $value) {
             if (\is_array($value)) {
                 $orParts = [];
@@ -99,7 +102,9 @@ final readonly class CatalogSearchService
         if (null !== $customFilterExpression && '' !== trim($customFilterExpression)) {
             $extraFilters[] = '('.$customFilterExpression.')';
         }
-        $filterExpression = trim($tenantFilter.([] !== $extraFilters ? ' AND '.implode(' AND ', $extraFilters) : ''));
+        // ULV-02 — `$extraFilters` always carries at least the `kind`
+        // filter we added above, so the conditional join is unconditional.
+        $filterExpression = trim($tenantFilter.' AND '.implode(' AND ', $extraFilters));
 
         $options = [
             'filter' => $filterExpression,
@@ -128,7 +133,7 @@ final readonly class CatalogSearchService
 
         try {
             $client = $this->clientFactory->create();
-            $result = $client->index(IndexSettingsTemplate::indexName($kind))->search($query, $options);
+            $result = $client->index(IndexSettingsTemplate::indexName())->search($query, $options);
             $raw = $result->toArray();
         } catch (Throwable $e) {
             $this->logger->warning('Meilisearch query failed: {message}', [
@@ -190,7 +195,8 @@ final readonly class CatalogSearchService
      */
     private function filterableAttributesFor(ObjectKind $kind): array
     {
-        $settings = new IndexSettingsTemplate()->settingsFor($kind);
+        // ULV-02 — single index settings; `$kind` retained as legacy hint.
+        $settings = new IndexSettingsTemplate()->settingsFor();
         $raw = $settings['filterableAttributes'] ?? [];
         if (!\is_array($raw)) {
             return [];
