@@ -1992,6 +1992,18 @@
                         "explode": false
                     },
                     {
+                        "name": "objectType",
+                        "in": "query",
+                        "description": "Scope the collection to a specific ObjectType by UUID. Drives the universal ObjectListView so a single endpoint serves every ObjectType (built-in product/category/asset/brand or custom).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
                         "name": "order[id]",
                         "in": "query",
                         "description": "",
@@ -2288,6 +2300,18 @@
                         "name": "parent_id",
                         "in": "query",
                         "description": "Exact match on parent_id \u2014 returns rows whose parent points at the given UUID (variants of a master product, children of a category). Pass the literal string `null` to return masters only (rows whose parent IS NULL).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "objectType",
+                        "in": "query",
+                        "description": "Scope the collection to a specific ObjectType by UUID. Drives the universal ObjectListView so a single endpoint serves every ObjectType (built-in product/category/asset/brand or custom).",
                         "required": false,
                         "deprecated": false,
                         "schema": {
@@ -2915,6 +2939,18 @@
                         "explode": false
                     },
                     {
+                        "name": "objectType",
+                        "in": "query",
+                        "description": "Scope the collection to a specific ObjectType by UUID. Drives the universal ObjectListView so a single endpoint serves every ObjectType (built-in product/category/asset/brand or custom).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
                         "name": "order[id]",
                         "in": "query",
                         "description": "",
@@ -3318,6 +3354,18 @@
                         "name": "parent_id",
                         "in": "query",
                         "description": "Exact match on parent_id \u2014 returns rows whose parent points at the given UUID (variants of a master product, children of a category). Pass the literal string `null` to return masters only (rows whose parent IS NULL).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "objectType",
+                        "in": "query",
+                        "description": "Scope the collection to a specific ObjectType by UUID. Drives the universal ObjectListView so a single endpoint serves every ObjectType (built-in product/category/asset/brand or custom).",
                         "required": false,
                         "deprecated": false,
                         "schema": {

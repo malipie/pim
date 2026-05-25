@@ -37,13 +37,20 @@ final class ObjectTypeListSchemaApiTest extends CatalogApiTestCase
         self::assertArrayHasKey('filterableAttributes', $payload);
         self::assertArrayHasKey('searchableAttributes', $payload);
 
-        self::assertSame('product', $payload['objectType']['kind']);
-        self::assertSame('product', $payload['objectType']['code']);
-        self::assertArrayHasKey('is_categorizable', $payload['objectType']);
-        self::assertArrayHasKey('has_variants', $payload['objectType']);
+        $objectTypeRow = $payload['objectType'];
+        self::assertIsArray($objectTypeRow);
+        self::assertSame('product', $objectTypeRow['kind']);
+        self::assertSame('product', $objectTypeRow['code']);
+        self::assertArrayHasKey('is_categorizable', $objectTypeRow);
+        self::assertArrayHasKey('has_variants', $objectTypeRow);
 
         // Four mandatory system columns.
-        $systemKeys = array_column(array_filter($payload['columns'], static fn ($c) => $c['system']), 'key');
+        $columns = $payload['columns'];
+        self::assertIsArray($columns);
+        $systemKeys = array_column(
+            array_filter($columns, static fn ($c): bool => \is_array($c) && true === ($c['system'] ?? false)),
+            'key',
+        );
         self::assertContains('code', $systemKeys);
         self::assertContains('status', $systemKeys);
         self::assertContains('completeness', $systemKeys);

@@ -79,8 +79,11 @@ final class GetObjectTypeListSchemaHandlerTest extends TestCase
         $schema = $handler(new GetObjectTypeListSchemaQuery($objectType->getId()));
 
         self::assertNotNull($schema);
-        $attributeKeys = array_column(array_filter($schema->columns, static fn ($c) => !$c['system']), 'key');
-        self::assertSame(['sku', 'name', 'brand', 'color'], array_values($attributeKeys));
+        $attributeKeys = array_column(
+            array_filter($schema->columns, static fn ($c) => !$c['system']),
+            'key',
+        );
+        self::assertSame(['sku', 'name', 'brand', 'color'], $attributeKeys);
     }
 
     #[Test]
