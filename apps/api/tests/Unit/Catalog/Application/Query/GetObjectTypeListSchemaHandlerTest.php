@@ -13,6 +13,7 @@ use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Identity\Contracts\Policy\AttributePermissionReader;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
@@ -31,6 +32,7 @@ final class GetObjectTypeListSchemaHandlerTest extends TestCase
         $handler = new GetObjectTypeListSchemaHandler(
             $this->repositoryReturning(null),
             $this->junctionRepositoryReturning([]),
+            $this->permissionsAllow(),
         );
 
         $result = $handler(new GetObjectTypeListSchemaQuery(Uuid::v7()));
@@ -45,6 +47,7 @@ final class GetObjectTypeListSchemaHandlerTest extends TestCase
         $handler = new GetObjectTypeListSchemaHandler(
             $this->repositoryReturning($objectType),
             $this->junctionRepositoryReturning([]),
+            $this->permissionsAllow(),
         );
 
         $schema = $handler(new GetObjectTypeListSchemaQuery($objectType->getId()));
@@ -74,6 +77,7 @@ final class GetObjectTypeListSchemaHandlerTest extends TestCase
         $handler = new GetObjectTypeListSchemaHandler(
             $this->repositoryReturning($objectType),
             $this->junctionRepositoryReturning([$name, $sku, $hidden, $color, $brand]),
+            $this->permissionsAllow(),
         );
 
         $schema = $handler(new GetObjectTypeListSchemaQuery($objectType->getId()));
@@ -96,6 +100,7 @@ final class GetObjectTypeListSchemaHandlerTest extends TestCase
         $handler = new GetObjectTypeListSchemaHandler(
             $this->repositoryReturning($objectType),
             $this->junctionRepositoryReturning([$filterable, $notFilterable]),
+            $this->permissionsAllow(),
         );
 
         $schema = $handler(new GetObjectTypeListSchemaQuery($objectType->getId()));
@@ -115,6 +120,7 @@ final class GetObjectTypeListSchemaHandlerTest extends TestCase
         $handler = new GetObjectTypeListSchemaHandler(
             $this->repositoryReturning($objectType),
             $this->junctionRepositoryReturning([$text, $wysiwyg, $number]),
+            $this->permissionsAllow(),
         );
 
         $schema = $handler(new GetObjectTypeListSchemaQuery($objectType->getId()));
@@ -123,6 +129,32 @@ final class GetObjectTypeListSchemaHandlerTest extends TestCase
         self::assertContains('name', $schema->searchableAttributes);
         self::assertContains('long_desc', $schema->searchableAttributes);
         self::assertNotContains('weight', $schema->searchableAttributes);
+    }
+
+    #[Test]
+    public function hidesRestrictedAttributeFromColumnsAndFilters(): void
+    {
+        $objectType = $this->makeObjectType();
+        $visible = $this->makeJunction($objectType, 'name', AttributeType::Text, showInList: true, filterable: true);
+        $restricted = $this->makeJunction($objectType, 'margin', AttributeType::Number, showInList: true, filterable: true);
+        $restrictedId = $restricted->getAttribute()->getId()->toRfc4122();
+
+        $handler = new GetObjectTypeListSchemaHandler(
+            $this->repositoryReturning($objectType),
+            $this->junctionRepositoryReturning([$visible, $restricted]),
+            $this->permissionsRestrictByCode($restrictedId),
+        );
+
+        $schema = $handler(new GetObjectTypeListSchemaQuery($objectType->getId()));
+
+        self::assertNotNull($schema);
+        $attributeKeys = array_column(
+            array_filter($schema->columns, static fn ($c) => !$c['system']),
+            'key',
+        );
+        self::assertSame(['name'], $attributeKeys, 'restricted attribute removed from columns');
+        self::assertNotContains('margin', $schema->filterableAttributes);
+        self::assertContains('name', $schema->filterableAttributes);
     }
 
     #[Test]
@@ -136,6 +168,7 @@ final class GetObjectTypeListSchemaHandlerTest extends TestCase
         $handler = new GetObjectTypeListSchemaHandler(
             $this->repositoryReturning($objectType),
             $this->junctionRepositoryReturning([]),
+            $this->permissionsAllow(),
         );
 
         $schema = $handler(new GetObjectTypeListSchemaQuery($objectType->getId()));
@@ -144,6 +177,42 @@ final class GetObjectTypeListSchemaHandlerTest extends TestCase
         self::assertTrue($schema->objectType['is_categorizable']);
         self::assertTrue($schema->objectType['has_variants']);
         self::assertTrue($schema->objectType['expose_to_main_menu']);
+    }
+
+    private function permissionsAllow(): AttributePermissionReader
+    {
+        return new class implements AttributePermissionReader {
+            public function canViewAttribute(Uuid $attributeId): bool
+            {
+                return true;
+            }
+
+            public function canEditAttribute(Uuid $attributeId): bool
+            {
+                return true;
+            }
+        };
+    }
+
+    private function permissionsRestrictByCode(string $restrictedCode): AttributePermissionReader
+    {
+        $blockedCode = $restrictedCode;
+
+        return new class($blockedCode) implements AttributePermissionReader {
+            public function __construct(private readonly string $code)
+            {
+            }
+
+            public function canViewAttribute(Uuid $attributeId): bool
+            {
+                return $this->code !== $attributeId->toRfc4122();
+            }
+
+            public function canEditAttribute(Uuid $attributeId): bool
+            {
+                return $this->code !== $attributeId->toRfc4122();
+            }
+        };
     }
 
     private function makeObjectType(): ObjectType
