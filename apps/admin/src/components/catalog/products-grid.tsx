@@ -41,6 +41,13 @@ interface ProductsGridProps {
    * variants live in the same Refine page as the master.
    */
   alwaysShowChevronOnMasters?: boolean;
+  /**
+   * UP-06 (#1024) — per-row detail route builder. Defaults to
+   * `/products/{id}` to keep the legacy /products list unchanged when
+   * unspecified; UniversalListPage overrides this with
+   * `/objects/{slug}/{id}` for custom kinds.
+   */
+  detailPathFor?: (id: string) => string;
 }
 
 const GRID_TPL =
@@ -89,6 +96,7 @@ export function ProductsGrid({
   onChangedRow,
   isLoading,
   alwaysShowChevronOnMasters = false,
+  detailPathFor = (id: string) => `/products/${id}`,
 }: ProductsGridProps) {
   const { t } = useTranslation();
   const masterIds = rows.filter((r) => r.parentId === null).map((r) => r.id);
@@ -147,6 +155,7 @@ export function ProductsGrid({
               forceExpandable={alwaysShowChevronOnMasters && row.parentId === null}
               onToggleEnabled={onToggleEnabled}
               onChangedRow={onChangedRow}
+              detailPathFor={detailPathFor}
             />
           ))}
         </div>
@@ -192,6 +201,7 @@ interface RowViewProps {
   forceExpandable?: boolean;
   onToggleEnabled: (id: string, next: boolean) => void;
   onChangedRow: () => void;
+  detailPathFor: (id: string) => string;
 }
 
 function ProductsGridRowView({
@@ -204,6 +214,7 @@ function ProductsGridRowView({
   forceExpandable = false,
   onToggleEnabled,
   onChangedRow,
+  detailPathFor,
 }: RowViewProps) {
   const { t } = useTranslation();
   const variant = isVariant(row);
@@ -273,7 +284,7 @@ function ProductsGridRowView({
           <span className="font-medium text-zinc-700">{row.sku}</span>
         ) : (
           <Link
-            to={`/products/${row.id}`}
+            to={detailPathFor(row.id)}
             className="font-medium text-zinc-700 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 rounded"
           >
             {row.sku}
@@ -288,7 +299,7 @@ function ProductsGridRowView({
           </span>
         ) : (
           <Link
-            to={`/products/${row.id}`}
+            to={detailPathFor(row.id)}
             className="text-[13.5px] font-medium tracking-tight truncate text-left hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 rounded"
           >
             {row.name}

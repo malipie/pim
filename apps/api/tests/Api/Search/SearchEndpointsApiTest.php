@@ -96,6 +96,49 @@ final class SearchEndpointsApiTest extends CatalogApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    #[Test]
+    public function searchObjectsScopedToObjectTypeId(): void
+    {
+        $this->seedProduct('SCOPED-OT-1', ['brand' => 'TestBrand']);
+        $this->forceReindex(ObjectKind::Product);
+
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $type = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert(null !== $type);
+
+        $client = $this->authenticatedClient();
+        $body = $client->request('GET', '/api/search/objects?objectTypeId='.$type->getId()->toRfc4122())->toArray();
+
+        self::assertArrayHasKey('hits', $body);
+        self::assertGreaterThanOrEqual(1, $body['totalHits'] ?? 0);
+    }
+
+    #[Test]
+    public function searchObjectsRejectsMissingObjectTypeId(): void
+    {
+        $client = $this->authenticatedClient();
+        $client->request('GET', '/api/search/objects');
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    #[Test]
+    public function searchObjectsRejectsInvalidUuid(): void
+    {
+        $client = $this->authenticatedClient();
+        $client->request('GET', '/api/search/objects?objectTypeId=not-a-uuid');
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    #[Test]
+    public function searchObjectsReturns404ForUnknownObjectType(): void
+    {
+        $client = $this->authenticatedClient();
+        $client->request('GET', '/api/search/objects?objectTypeId=01923456-0000-7000-8000-000000000000');
+        self::assertResponseStatusCodeSame(404);
+    }
+
     /**
      * @param array<string, scalar> $attributes
      */
