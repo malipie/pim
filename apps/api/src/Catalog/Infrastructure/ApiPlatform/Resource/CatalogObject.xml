@@ -75,6 +75,13 @@
             -->
             <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\ParentIdFilter</filter>
             <!--
+                ULV-03 (#984): `?objectType={uuid}` scopes the poly-kind
+                /api/objects collection to a single ObjectType for the
+                universal ObjectListView (ULV-06). Required so custom
+                kinds — which share `kind=custom` — can be filtered.
+            -->
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\ObjectTypeFilter</filter>
+            <!--
                 OrderFilter + RangeFilter pinned to `id` are mandatory for
                 cursor pagination (`paginationViaCursor` below) — lessons #0.0.3
                 docu the AP4 trio. Without RangeFilter the `?id[lt]=...`
