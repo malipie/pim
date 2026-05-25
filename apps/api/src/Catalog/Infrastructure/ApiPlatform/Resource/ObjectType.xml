@@ -24,6 +24,16 @@
             </values>
         </normalizationContext>
 
+        <!--
+            #1012 — `?code=samochody` exact-match filter for the universal
+            ObjectListPage slug resolution. Without it the GetCollection
+            returns every ObjectType regardless of query param and the FE
+            grabs `members[0]` (alphabetically `product`) for every slug.
+        -->
+        <filters>
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\ObjectTypeCodeFilter</filter>
+        </filters>
+
         <operations>
             <operation class="ApiPlatform\Metadata\GetCollection"
                        uriTemplate="/object_types{._format}"

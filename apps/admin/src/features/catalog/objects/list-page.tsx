@@ -1,31 +1,43 @@
 import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
 import { ObjectListView } from '@/components/objects/object-list-view';
 import { jsonFetch } from '@/lib/http';
 
 /**
- * ULV-08 (#990) — `/objects/:slug` route renders the universal
+ * ULV-08 (#990) + #1012 — `/objects/:slug` route renders the universal
  * `ObjectListView` for the ObjectType whose `code` (per ULV-01 reused as
  * URL slug) matches.
  *
- * Resolution: we query the existing `/api/object_types?code=...` filter
- * for a single match, then pass its UUID to `ObjectListView`. The lookup
- * is cached for 5 min — slugs are stable and the slug→id mapping is the
- * hottest part of the route hit.
+ * Resolution: we query `/api/object_types?code={slug}&itemsPerPage=1`
+ * (the `code` filter shipped in #1012 — without it the GetCollection
+ * ignored the param and returned every type, so the FE picked
+ * `members[0]` = `product` for every slug). Cached 5 min.
+ *
+ * Client-side guard: we still verify `member.code === slug` post-fetch
+ * as defence-in-depth — if the filter ever regresses the page renders
+ * the slug-not-found error instead of silently showing the wrong list.
  *
  * `/products`, `/categories`, `/assets` keep working through their own
- * routes (ULV-11 will collapse them into this path with regression
- * baseline). 404 if no matching ObjectType in the current tenant.
+ * routes; the cutover to consolidate them onto `/objects/{slug}` is the
+ * deferred ULV-11 follow-up. 404-style error in the current tenant if
+ * the slug does not match an ObjectType.
  */
+interface ObjectTypeLookupRow {
+  id: string;
+  code: string;
+}
+
 interface ObjectTypeLookupResponse {
-  member?: Array<{ id: string; code: string }>;
-  'hydra:member'?: Array<{ id: string; code: string }>;
+  member?: ObjectTypeLookupRow[];
+  'hydra:member'?: ObjectTypeLookupRow[];
 }
 
 export function ObjectListPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
 
   const lookup = useQuery({
@@ -38,9 +50,38 @@ export function ObjectListPage() {
         query: { code: slug, itemsPerPage: 1 },
       });
       const members = response.member ?? response['hydra:member'] ?? [];
-      return members[0] ?? null;
+      const first = members[0];
+      // Defence in depth — refuse to render if the row returned by the
+      // backend does not match the slug we asked for. Protects against
+      // a regression in the `code` filter where the GetCollection
+      // returns every row regardless of the query param.
+      if (first === undefined || first.code !== slug) {
+        return null;
+      }
+      return first;
     },
   });
+
+  // #1012 — built-in kinds keep their dedicated create flows
+  // (`/products/new` etc.); custom kinds get a generic placeholder that
+  // operators can replace once the dedicated wizard lands.
+  const handleCreate = useCallback(() => {
+    if (!lookup.data) return;
+    const code = lookup.data.code;
+    if (code === 'product') {
+      navigate('/products/new');
+      return;
+    }
+    if (code === 'category') {
+      navigate('/modeling/categories?action=create');
+      return;
+    }
+    if (code === 'asset') {
+      navigate('/multimedia?action=upload');
+      return;
+    }
+    navigate(`/objects/${code}/new`);
+  }, [lookup.data, navigate]);
 
   if (lookup.isLoading) {
     return (
@@ -64,7 +105,7 @@ export function ObjectListPage() {
     );
   }
 
-  return <ObjectListView objectTypeId={lookup.data.id} />;
+  return <ObjectListView objectTypeId={lookup.data.id} onCreate={handleCreate} />;
 }
 
 export default ObjectListPage;

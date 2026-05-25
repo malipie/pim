@@ -46,6 +46,10 @@ export interface UseObjectListParams {
   itemsPerPage?: number;
   cursorAfter?: string;
   cursorBefore?: string;
+  /** #1012 — substring search on `CatalogObject.code` via the SkuFilter. */
+  query?: string;
+  /** #1012 — exact-match status filter (`published`, `draft`, `archived`). */
+  status?: string;
 }
 
 /**
@@ -53,14 +57,29 @@ export interface UseObjectListParams {
  *
  * `cursorAfter` / `cursorBefore` map to AP4's `?id[lt]=...` / `?id[gt]=...`
  * cursor params advertised by the IriTemplate on /api/objects. The
- * upstream filters (?status, ?completeness etc.) are forwarded later
- * via ULV-06 / ULV-07 filter UI; this hook keeps the core wiring lean.
+ * `query` param forwards as `?sku=...` (substring on code, existing
+ * `SkuFilter`) and `status` as `?status=...` (existing `StatusFilter`).
  */
 export function useObjectList(params: UseObjectListParams): UseQueryResult<ObjectListResponse> {
-  const { objectTypeId, itemsPerPage = 30, cursorAfter, cursorBefore } = params;
+  const {
+    objectTypeId,
+    itemsPerPage = 30,
+    cursorAfter,
+    cursorBefore,
+    query: searchQuery,
+    status,
+  } = params;
 
   return useQuery({
-    queryKey: ['object-list', objectTypeId, itemsPerPage, cursorAfter, cursorBefore],
+    queryKey: [
+      'object-list',
+      objectTypeId,
+      itemsPerPage,
+      cursorAfter,
+      cursorBefore,
+      searchQuery,
+      status,
+    ],
     enabled: Boolean(objectTypeId),
     staleTime: 30 * 1000,
     queryFn: async () => {
@@ -73,6 +92,12 @@ export function useObjectList(params: UseObjectListParams): UseQueryResult<Objec
       }
       if (cursorBefore) {
         query['id[gt]'] = cursorBefore;
+      }
+      if (searchQuery && searchQuery.length > 0) {
+        query.sku = searchQuery;
+      }
+      if (status && status.length > 0) {
+        query.status = status;
       }
 
       return jsonFetch<ObjectListResponse>('/api/objects', {
