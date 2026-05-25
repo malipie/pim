@@ -43,6 +43,25 @@ export interface ObjectListViewProps {
   onCreate?: () => void;
 }
 
+function readHiddenColumns(lsKey: string): Set<string> {
+  if (typeof window === 'undefined') {
+    return new Set();
+  }
+  try {
+    const raw = window.localStorage.getItem(lsKey);
+    if (raw === null) {
+      return new Set();
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return new Set();
+    }
+    return new Set(parsed.filter((v): v is string => typeof v === 'string'));
+  } catch {
+    return new Set();
+  }
+}
+
 export function ObjectListView({ objectTypeId, onCreate }: ObjectListViewProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.split('-')[0] ?? 'en';
@@ -87,6 +106,16 @@ export function ObjectListView({ objectTypeId, onCreate }: ObjectListViewProps) 
   const items = listQuery.data?.member ?? [];
   const totalItems = listQuery.data?.totalItems ?? 0;
   const next = listQuery.data?.view?.next;
+  // ULV-07 (#989) — column visibility persists per (user, objectTypeId)
+  // in `localStorage`. The full Saved-Views override layer (per-view
+  // column overrides shared across the org) stays deferred to a
+  // follow-up; this slice ships per-user local persistence so column
+  // ordering / hiding survives reloads without backend round trips.
+  const lsKey = `pim.objectList.columns.${objectType.id}`;
+  const hiddenKeys = readHiddenColumns(lsKey);
+  const visibleColumns = columns.filter((c) => !hiddenKeys.has(c.key));
+  const systemColumns = columns.filter((c) => c.system).length;
+  const attributeColumns = columns.length - systemColumns;
 
   const renderCell = (column: ListSchemaColumn, item: ObjectListItem) => {
     if (column.system) {
@@ -166,6 +195,12 @@ export function ObjectListView({ objectTypeId, onCreate }: ObjectListViewProps) 
               defaultValue: '{{count}} items',
               count: totalItems,
             })}
+            {' · '}
+            {t('object_list.header_columns', {
+              defaultValue: '{{system}} system + {{attr}} attribute columns',
+              system: systemColumns,
+              attr: attributeColumns,
+            })}
           </p>
         </div>
         {onCreate !== undefined ? (
@@ -178,7 +213,7 @@ export function ObjectListView({ objectTypeId, onCreate }: ObjectListViewProps) 
       <Table>
         <TableHeader>
           <TableRow>
-            {columns.map((c) => (
+            {visibleColumns.map((c) => (
               <TableHead key={c.key}>{c.label[locale] ?? c.label.en ?? c.key}</TableHead>
             ))}
           </TableRow>
@@ -186,14 +221,14 @@ export function ObjectListView({ objectTypeId, onCreate }: ObjectListViewProps) 
         <TableBody>
           {listQuery.isLoading ? (
             <TableRow>
-              <TableCell colSpan={columns.length}>
+              <TableCell colSpan={visibleColumns.length}>
                 {t('object_list.loading', { defaultValue: 'Loading…' })}
               </TableCell>
             </TableRow>
           ) : (
             items.map((item) => (
               <TableRow key={item.id}>
-                {columns.map((c) => (
+                {visibleColumns.map((c) => (
                   <TableCell key={c.key}>{renderCell(c, item)}</TableCell>
                 ))}
               </TableRow>
