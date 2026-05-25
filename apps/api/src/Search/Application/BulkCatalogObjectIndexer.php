@@ -58,30 +58,25 @@ final readonly class BulkCatalogObjectIndexer
             ->select('o')
             ->from(CatalogObject::class, 'o');
 
+        // ULV-02 (#983) — every kind (custom included) writes to the
+        // consolidated `objects` index. The previous custom-kind skip is
+        // gone; the per-kind buffer collapses to a single flat buffer.
         if ($kind instanceof ObjectKind) {
             $qb->where('o.kind = :kind')->setParameter('kind', $kind);
-        } else {
-            $qb->where('o.kind != :customKind')->setParameter('customKind', ObjectKind::Custom);
         }
         $qb->orderBy('o.id', 'ASC');
 
         $count = 0;
         $batches = 0;
-        $perKindBuffer = [];
+        $buffer = [];
 
         foreach ($qb->getQuery()->toIterable() as $row) {
-            $rowKind = $row->getKind();
-            if (ObjectKind::Custom === $rowKind) {
-                continue;
-            }
-
-            $perKindBuffer[$rowKind->value][] = $this->toDocument($row);
+            $buffer[] = $this->toDocument($row);
             ++$count;
 
-            // Flush a per-kind buffer when it reaches the Meili batch size.
-            if (\count($perKindBuffer[$rowKind->value]) >= self::MEILI_BATCH_SIZE) {
-                $this->flushBatch($client, $rowKind, $perKindBuffer[$rowKind->value], $dryRun);
-                $perKindBuffer[$rowKind->value] = [];
+            if (\count($buffer) >= self::MEILI_BATCH_SIZE) {
+                $this->flushBatch($client, $buffer, $dryRun);
+                $buffer = [];
                 ++$batches;
                 if (null !== $onProgress) {
                     $onProgress($count, self::MEILI_BATCH_SIZE);
@@ -96,16 +91,11 @@ final readonly class BulkCatalogObjectIndexer
             }
         }
 
-        // Flush any leftover buffers.
-        foreach ($perKindBuffer as $value => $documents) {
-            if ([] === $documents) {
-                continue;
-            }
-            $rowKind = ObjectKind::from($value);
-            $this->flushBatch($client, $rowKind, $documents, $dryRun);
+        if ([] !== $buffer) {
+            $this->flushBatch($client, $buffer, $dryRun);
             ++$batches;
             if (null !== $onProgress) {
-                $onProgress($count, \count($documents));
+                $onProgress($count, \count($buffer));
             }
         }
 
@@ -115,11 +105,10 @@ final readonly class BulkCatalogObjectIndexer
     /**
      * @param list<array<string, mixed>> $documents
      */
-    private function flushBatch(\Meilisearch\Client $client, ObjectKind $kind, array $documents, bool $dryRun): void
+    private function flushBatch(\Meilisearch\Client $client, array $documents, bool $dryRun): void
     {
         if ($dryRun) {
             $this->logger->info('Reindex dry-run batch.', [
-                'kind' => $kind->value,
                 'count' => \count($documents),
             ]);
 
@@ -127,11 +116,10 @@ final readonly class BulkCatalogObjectIndexer
         }
 
         try {
-            $client->index(IndexSettingsTemplate::indexName($kind))->addDocuments($documents);
+            $client->index(IndexSettingsTemplate::indexName())->addDocuments($documents);
         } catch (Throwable $e) {
             $this->logger->warning('Reindex batch push failed: {message}', [
                 'message' => $e->getMessage(),
-                'kind' => $kind->value,
                 'count' => \count($documents),
             ]);
         }
@@ -162,7 +150,10 @@ final readonly class BulkCatalogObjectIndexer
             'createdAt' => $object->getCreatedAt()->getTimestamp(),
             'updatedAt' => $object->getUpdatedAt()->getTimestamp(),
         ];
-        if (ObjectKind::Product === $object->getKind()) {
+        // ULV-02 (#983) — any categorizable ObjectType gets its category
+        // codes denormalised so the category-tree filter sidebar resolves
+        // through Meili across kinds.
+        if ($object->getObjectType()->isCategorizable()) {
             $base['category'] = array_map(
                 static fn (ObjectCategory $a): string => $a->getCategory()->getCode(),
                 $this->objectCategories->findByProduct($object),

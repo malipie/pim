@@ -62,16 +62,18 @@ final class SearchHealthCommand extends Command
 
         $io->success(\sprintf('Meilisearch healthy (status=%s).', $status));
 
+        // ULV-02 (#983) — one consolidated `objects` index covers every
+        // kind. The health command now reports a single row.
         $tasks = $this->provisioner->provision();
-        $rows = [];
-        foreach (IndexSettingsTemplate::indexedKinds() as $kind) {
-            $rows[] = [
-                IndexSettingsTemplate::indexName($kind),
-                $kind->value,
-                $tasks[$kind->value] ?? '-',
-            ];
-        }
-        $io->table(['Index', 'Kind', 'Settings task UID'], $rows);
+        $name = IndexSettingsTemplate::indexName();
+        $io->table(
+            ['Index', 'Indexed kinds', 'Settings task UID'],
+            [[
+                $name,
+                implode(', ', array_map(static fn ($k) => $k->value, IndexSettingsTemplate::indexedKinds())),
+                $tasks[$name] ?? '-',
+            ]],
+        );
 
         return Command::SUCCESS;
     }

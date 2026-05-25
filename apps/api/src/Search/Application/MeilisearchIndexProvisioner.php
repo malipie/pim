@@ -9,16 +9,17 @@ use App\Search\Infrastructure\MeilisearchClientFactory;
 use Throwable;
 
 /**
- * Idempotent index bootstrap for Meilisearch (#49 / 0.5.1).
+ * Idempotent index bootstrap for Meilisearch (ULV-02 / #983).
  *
- * Creates each kind's index if missing and writes the settings
- * template (`searchable`, `filterable`, `sortable`, `displayed`,
- * `ranking`). Re-runs are no-ops because Meili's `updateSettings`
- * is itself idempotent — same payload, same task acknowledgment.
+ * Creates the consolidated `objects` index if missing and writes its
+ * settings template (`searchable`, `filterable`, `sortable`, `displayed`,
+ * `ranking`, `pagination`). Re-runs are no-ops because Meili's
+ * `updateSettings` is itself idempotent.
  *
- * Used by the `pim:search:health` CLI (this ticket) and the future
- * `pim:search:reindex` command (#51) so a fresh stack always has
- * the right index shape before any document push.
+ * Pre-ULV provisioned four per-kind indexes (`products`, `categories`,
+ * `assets`, `brands`); the cleanup of those legacy indexes happens via
+ * `pim:search:cleanup-legacy-indexes` (a one-shot CLI) so a tenant can
+ * stage the migration: provision new → reindex → drop old.
  */
 final readonly class MeilisearchIndexProvisioner
 {
@@ -29,33 +30,36 @@ final readonly class MeilisearchIndexProvisioner
     }
 
     /**
-     * @return array<string, string> Map of `ObjectKind->value` to the
-     *                               task UID returned by Meili. Useful
-     *                               for the health command to surface a
-     *                               concrete handle per kind.
+     * Provisions the single `objects` index. Returns the task UID Meili
+     * returned for the settings update so the health command can surface
+     * a concrete handle. Keyed by `'objects'` for backward-compatible
+     * call sites (was keyed by kind value pre-ULV).
+     *
+     * @return array<string, string>
      */
     public function provision(): array
     {
         $client = $this->clientFactory->create();
-        $tasks = [];
+        $name = IndexSettingsTemplate::indexName();
 
-        foreach (IndexSettingsTemplate::indexedKinds() as $kind) {
-            $name = IndexSettingsTemplate::indexName($kind);
-            $client->createIndex($name, ['primaryKey' => 'id']);
+        $client->createIndex($name, ['primaryKey' => 'id']);
+        $task = $client->index($name)->updateSettings($this->template->settingsFor());
+        $taskUid = $task['taskUid'] ?? $task['uid'] ?? '';
 
-            $task = $client->index($name)->updateSettings($this->template->settingsFor($kind));
-            $taskUid = $task['taskUid'] ?? $task['uid'] ?? '';
-            $tasks[$kind->value] = \is_scalar($taskUid) ? (string) $taskUid : '';
-        }
-
-        return $tasks;
+        return [
+            $name => \is_scalar($taskUid) ? (string) $taskUid : '',
+        ];
     }
 
-    public function indexExists(ObjectKind $kind): bool
+    /**
+     * `$kind` is retained as a legacy hint — every kind resolves to the
+     * universal `objects` index post-ULV.
+     */
+    public function indexExists(?ObjectKind $kind = null): bool
     {
         $client = $this->clientFactory->create();
         try {
-            $client->index(IndexSettingsTemplate::indexName($kind))->fetchInfo();
+            $client->index(IndexSettingsTemplate::indexName())->fetchInfo();
 
             return true;
         } catch (Throwable) {

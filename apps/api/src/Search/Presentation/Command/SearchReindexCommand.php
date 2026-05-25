@@ -84,24 +84,22 @@ final class SearchReindexCommand extends Command
         if ('all' !== $kindOption) {
             $kind = ObjectKind::tryFrom($kindOption);
             if (null === $kind) {
-                $io->error(\sprintf('Unknown kind "%s". Use product, category, asset, or all.', $kindOption));
+                $io->error(\sprintf('Unknown kind "%s". Use product, category, asset, brand, custom, or all.', $kindOption));
 
                 return Command::INVALID;
             }
-            if (ObjectKind::Custom === $kind) {
-                $io->error('Custom kind has no MVP index — phase 2/3 unlock.');
-
-                return Command::INVALID;
-            }
+            // ULV-02 (#983) — custom kinds now land in the consolidated
+            // `objects` index alongside built-ins.
         }
 
         $dryRun = true === $input->getOption('dry-run');
         $purge = true === $input->getOption('purge');
 
         $io->title(\sprintf(
-            '%s reindex of %s%s',
+            '%s reindex of %s into %s%s',
             $dryRun ? 'DRY-RUN' : 'Live',
-            null === $kind ? 'every built-in kind' : IndexSettingsTemplate::indexName($kind),
+            null === $kind ? 'every kind' : $kind->value,
+            IndexSettingsTemplate::indexName(),
             $purge ? ' (purging existing docs first)' : '',
         ));
 
@@ -152,15 +150,20 @@ final class SearchReindexCommand extends Command
             return;
         }
 
-        $kinds = null === $kind ? IndexSettingsTemplate::indexedKinds() : [$kind];
-        foreach ($kinds as $k) {
-            $name = IndexSettingsTemplate::indexName($k);
-            try {
+        // ULV-02 (#983) — single `objects` index. When `--kind=foo` is set
+        // we purge only documents of that kind via filter; full purge drops
+        // everything in the index.
+        $name = IndexSettingsTemplate::indexName();
+        try {
+            if (null === $kind) {
                 $client->index($name)->deleteAllDocuments();
-                $io->writeln(\sprintf('  purged: %s', $name));
-            } catch (Throwable $e) {
-                $io->warning(\sprintf('Purge of "%s" failed: %s', $name, $e->getMessage()));
+                $io->writeln(\sprintf('  purged all documents in: %s', $name));
+            } else {
+                $client->index($name)->deleteDocuments(['filter' => \sprintf('kind = "%s"', $kind->value)]);
+                $io->writeln(\sprintf('  purged kind=%s documents in: %s', $kind->value, $name));
             }
+        } catch (Throwable $e) {
+            $io->warning(\sprintf('Purge of "%s" failed: %s', $name, $e->getMessage()));
         }
     }
 }
