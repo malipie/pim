@@ -1,3 +1,26 @@
+/*
+ * ULV-11 (#993) — partial cutover note.
+ *
+ * The universal `<ObjectListView objectTypeId={...} />` (ULV-06) reachable
+ * via `/objects/product` is the canonical universal list view post-ULV.
+ * This product-specific list.tsx keeps its rich feature surface
+ * (AdvancedFilterPanel, SavedViewsRail, ExcelLikeGrid cell edits,
+ * BulkBar with the full bulk action toolbar wired to per-kind handlers)
+ * because the universal view has not yet reached parity:
+ *   - ULV-07 (#989) advanced-filter / saved-views integration is still
+ *     deferred (column toolbar + saved view overrides ship as a
+ *     follow-up).
+ *   - ULV-05 (#987) bulk endpoint covers `delete` only; the rest of the
+ *     bulk action surface (change_status, categories, publish channels,
+ *     set/clear/append attributes) lives in the per-kind
+ *     BulkActionsController.
+ *
+ * Full cutover with E2E regression baseline lands in a dedicated
+ * follow-up ticket that closes the parity gap. Until then, this page
+ * remains the operator-facing /products entry point; deep-link
+ * `/objects/product` exposes the universal renderer for evaluation +
+ * for custom kinds that have no dedicated sugar page.
+ */
 import { useList } from '@refinedev/core';
 import { Plus, Search } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
