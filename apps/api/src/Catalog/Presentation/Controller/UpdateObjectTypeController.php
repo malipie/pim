@@ -74,6 +74,7 @@ final class UpdateObjectTypeController
                 completenessRules: $this->mapOrNull($body['completenessRules'] ?? null),
                 exposeToMainMenu: $this->boolOrNull($body['exposeToMainMenu'] ?? null),
                 isCategorizable: $this->boolOrNull($body['isCategorizable'] ?? null),
+                hasMultimedia: $this->boolOrNull($body['hasMultimedia'] ?? null),
             );
         } catch (BuiltInObjectTypeException $e) {
             throw new HttpException(Response::HTTP_FORBIDDEN, $e->getMessage(), $e);
@@ -96,6 +97,7 @@ final class UpdateObjectTypeController
             'completenessRules' => $objectType->getCompletenessRules(),
             'exposeToMainMenu' => $objectType->isExposedToMainMenu(),
             'isCategorizable' => $objectType->isCategorizable(),
+            'hasMultimedia' => $objectType->hasMultimedia(),
             'schemaVersion' => $objectType->getSchemaVersion(),
         ]);
     }

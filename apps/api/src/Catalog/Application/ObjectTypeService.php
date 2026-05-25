@@ -127,6 +127,7 @@ final readonly class ObjectTypeService
         ?array $completenessRules = null,
         ?bool $exposeToMainMenu = null,
         ?bool $isCategorizable = null,
+        ?bool $hasMultimedia = null,
     ): ObjectType {
         $isBuiltIn = $objectType->isBuiltIn();
 
@@ -197,6 +198,20 @@ final readonly class ObjectTypeService
                 );
             }
             $objectType->setCategorizable($isCategorizable);
+        }
+        if (null !== $hasMultimedia) {
+            // UP-07b (#1022): built-in Product is locked TRUE (legacy
+            // multimedia tab behaviour). Other kinds (built-in + custom)
+            // are free to flip. Toggle gates the Multimedia tab on
+            // UniversalDetailPage (UP-07).
+            if (
+                $isBuiltIn
+                && ObjectKind::Product === $objectType->getKind()
+                && $objectType->hasMultimedia() !== $hasMultimedia
+            ) {
+                throw BuiltInObjectTypeException::fieldLocked($objectType, 'hasMultimedia');
+            }
+            $objectType->setHasMultimedia($hasMultimedia);
         }
 
         $this->em->flush();

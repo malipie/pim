@@ -49,6 +49,7 @@ interface ObjectTypeDetail {
   completenessRules?: Record<string, unknown> | null;
   exposeToMainMenu?: boolean;
   isCategorizable?: boolean;
+  hasMultimedia?: boolean;
 }
 
 interface ObjectTypeUsage {
@@ -734,6 +735,32 @@ export function ObjectTypeShowPage() {
                 {t('object_types.setting_categorizable_category_locked', {
                   defaultValue:
                     'Kategoria sama definiuje warstwę overlay — nie może być jej konsumentem.',
+                })}
+              </div>
+            ) : null}
+          </div>
+          {/* UP-07b (#1022) — `hasMultimedia` capability flag gates the
+              Multimedia tab on UniversalDetailPage (UP-07). Built-in
+              product is seeded `true` and locked (legacy multimedia tab
+              behaviour). Other kinds opt in here. */}
+          <div className="border-t border-zinc-100 pt-5">
+            <SettingToggleRow
+              label={t('object_types.setting_multimedia_label', {
+                defaultValue: 'Ma multimedia',
+              })}
+              description={t('object_types.setting_multimedia_desc', {
+                defaultValue:
+                  'Po włączeniu detail page tego ObjectType pokazuje zakładkę Multimedia z obrazkami / dokumentami przypisanymi do instancji.',
+              })}
+              checked={Boolean(objectType.hasMultimedia)}
+              locked={objectType.kind === 'product' && isBuiltIn}
+              onChange={(next) => void handlePatch({ hasMultimedia: next })}
+            />
+            {objectType.kind === 'product' && isBuiltIn ? (
+              <div className="mt-2 text-[11.5px] text-zinc-500">
+                {t('object_types.setting_multimedia_product_locked', {
+                  defaultValue:
+                    'Built-in Product zachowuje zakładkę Multimedia (legacy behaviour); flag zablokowany.',
                 })}
               </div>
             ) : null}
