@@ -1,5 +1,52 @@
 # Current Status
 
+## 2026-05-25: 🏁 Epik UP (Universal Page Parity) — marathon closed (12/12 shipped)
+
+**Milestone:** Epik UP zamknięty drugim ciągiem maratońskim po Epiku UI-08. Operator po post-UI-08 manual smoke teście odrzucił MVP `ObjectListView` jako "półśrodek" — Epik UP wydziela `/products` *list/show/create* (1085+1033+5 linii) do parametryzowanych komponentów konsumowanych przez `/products` ORAZ `/objects/:slug`. ADR-009 finalna realizacja.
+
+### Final PR record (12 tickets)
+
+| Ticket | PR | Scope shipped | Status |
+|---|---|---|---|
+| UP-00 | [#1030](../../pull/1030) | `object_types.has_multimedia` capability flag + Doctrine ORM + seed Product=true | ✅ merged |
+| UP-01 | [#1031](../../pull/1031) | Poly-kind `PATCH` + `DELETE /api/objects/{id}` (AP4 ApiResource ops) | ✅ merged |
+| UP-02 | [#1035](../../pull/1035) | Universal `POST /api/objects/bulk-actions/preview` + `/api/objects/bulk-actions/{action}` (mirror 14 akcji, capability gates) | ✅ merged |
+| UP-03 | [#1032](../../pull/1032) | Poly-kind `/api/objects/{id}/categories` CRUD (gate na `isCategorizable`) | ✅ merged |
+| UP-04 | [#1033](../../pull/1033) | Poly-kind `/api/objects/{master}/generate-variants` (gate na `hasVariants`) | ✅ merged |
+| UP-05 | [#1034](../../pull/1034) | `SmartFilterPreset.resource` column + `?resource=` filter w `SmartFilterPresetController` | ✅ merged |
+| UP-06 | [#1037](../../pull/1037) | `UniversalListPage` (~900 linii) + `/api/search/objects?objectTypeId=` + `useCatalogSearch` discriminated-union mode + `ProductsGrid.detailPathFor` | ✅ merged |
+| UP-07 | [#1038](../../pull/1038) | `UniversalDetailPage` + `mustFindObject()` + poly-kind `/api/objects/{id}/effective-attribute-groups` + `/objects/:slug/:id` route | ✅ merged |
+| UP-07b | [#1036](../../pull/1036) | ObjectType wizard: `has_multimedia` toggle (Capability flags section) | ✅ merged |
+| UP-08 | [#1039](../../pull/1039) | `UniversalCreatePage` full-page wizard + `/objects/:slug/new` route | ✅ merged |
+| UP-09 | [#1040](../../pull/1040) | `AdvancedFilterPanel.panelAttrs` prop (per-ObjectType attribute catalog, legacy fallback preserved) | ✅ merged |
+| UP-10 | [#1041](../../pull/1041) | Cutover `/products` → `ProductsUniversalListPage` (UniversalListPage wrapper) + `/products/legacy` safety net + DELETE MVP (`ObjectListView`, `CreateObjectDialog`, `EmptyStateObject`, `placeholder.tsx`) | ✅ merged |
+
+### Świadome odejścia (consolidated)
+
+UniversalDetailPage (UP-07) szyje attribute editing + tabs dynamicznie + delete; **kategorie tab w trybie read-only** (CategoryPickerDialog jest produktowy, universal refactor deferred). **VariantsTab, MultimediaTab, SyncStatusCard, AgentSuggestionsCard, DuplicateButton, PreviewButton** zostają na `/products/{id}` legacy route — dual maintenance per operator decision (1-sprint window). UniversalCreatePage (UP-08) MVP: code + flat attribute groups + POST `/api/objects`; category pre-selection deferred (depends UP-07 picker refactor). UniversalListPage (UP-06) `select-all-matching` dla non-product gates → toast hint; `/api/objects/select-all-matching` poly-kind endpoint jest deferred. UP-09 `panelAttrs` prop shipped, wiring w UniversalListPage czeka na schema endpoint extension z `attribute.type`. UP-10 NIE usuwa legacy `ProductListPage` — fallback przez 1 sprint za `?legacy=1` toggle.
+
+### Bottom-line stan po marathonie
+
+- `/products` → `UniversalListPage` (objectTypeId=built-in product) — pixel-perfect z poprzednim wyglądem, ten sam component renderuje `/objects/samochody`.
+- `/products/legacy` → legacy `ProductListPage` (dual-maintenance fallback, 1-sprint).
+- `/products/:id` → legacy `ProductDetailPage` (rich product detail: variants/multimedia/sync).
+- `/products/new` → legacy create wizard (category overlay + variant generator + multimedia uploader).
+- `/objects/:slug` → `UniversalListPage` (per-kind via slug resolver; built-in product/category/asset też mountable).
+- `/objects/:slug/:id` → built-in product/category/asset REDIRECT do legacy detail routes; custom → `UniversalDetailPage` (attribute editing + delete + read-only categories tab).
+- `/objects/:slug/new` → built-in product/category/asset REDIRECT do legacy create; custom → `UniversalCreatePage` (full-page wizard, POST `/api/objects`).
+- ADR-009 obietnica „każdy ObjectType pierwszej klasy" zrealizowana: identyczny `UniversalListPage` component dla `/products` + `/objects/samochody`.
+
+### Lessons (UP epik, do `lessons.md` w tym samym PR)
+
+- **Multiple `#[Route]` per controller method** (Symfony 7.x) → poly-kind endpoints bez duplicating handler. UP-02 (bulk-actions) + UP-04 (generate-variants) + UP-07a (effective-attribute-groups) wykorzystują wzorzec. Tańsze niż nowy controller per `/api/objects/*` mirror.
+- **FrankenPHP worker mode caches routes w pamięci** — `composer cache:clear` nie wystarczy żeby nowe route dotarły do live workerów. Po dodaniu nowej `#[Route]` w działającym stacku → `docker compose exec api kill -USR1 1` (graceful restart workerów) LUB `docker compose restart api`. Bez tego smoke test zwraca 404 mimo że `debug:router` widzi route.
+- **`useSmartPresets` resource scoping** — `localStorage` keys + smart preset queries per (user, resource). Universal list używa `resource: objectTypeCode` (np. `samochody`) tak żeby presets nie wyciekały między ObjectTypes. System-shipped presets (`resource=NULL` w DB) są zawsze widoczne — globalne.
+- **`detailPathFor` prop default** — kompatybilne wstecz: `ProductsGrid` nadal działa bez tej props (default `/products/{id}`). UniversalListPage przekazuje per-kind builder. Wzór dla universalnych komponentów: optional props z legacy defaults.
+- **Anti-pattern: parallel MVP zamiast extraction** — pre-Epik UP `ObjectListView` był parallel MVP zbudowany od zera zamiast wydzielić istniejący `ProductListPage`. Po post-UI-08 manual smoke operator słusznie odrzucił jako "półśrodek": custom kindy second-class citizens, dwa kody do utrzymania, drift inevitable. **Lesson**: gdy operator gold-standard view istnieje, ZAWSZE extract zamiast budować równoległy MVP. ULV-06 startowy plan był błędny; UP-06 spłacił dług.
+- **Operator-friendly dual maintenance** — UP-10 nie usuwa starego `ProductListPage`; mountuje go pod `/products/legacy`. Operator dostaje toggle na 1 sprint do porównań. Zwiększa koszt utrzymania (2 codepaths) ale chroni przed regression w gold-standard widoku. Po sprint follow-up ticket usuwa legacy.
+
+---
+
 ## 2026-05-25: 🏁 Epik UI-08 Universal Object List View — marathon closed (13/13 shipped, 10 full + 3 minimum-viable)
 
 **Milestone:** [Epik UI-08 Universal Object List View](https://github.com/malipie/PIM/milestone/16). 13 ticketów (ULV-01..ULV-12 z 04 split na 04a/04b). Każdy ticket zamknięty osobnym PR per EPIK MARATHON RULE.
