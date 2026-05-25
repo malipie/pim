@@ -1,5 +1,51 @@
 # Current Status
 
+## 2026-05-25: 🚀 Epik UI-08 Universal Object List View — start marathonu
+
+**Milestone:** [Epik UI-08 Universal Object List View](https://github.com/malipie/PIM/milestone/16). 13 ticketów (ULV-01..ULV-12 z 04 split na 04a/04b), ~82-110h.
+
+**Tryb:** EPIK MARATHON RULE + bypass permissions. Per CLAUDE.md — każdy ticket = własny branch + PR + CI + merge.
+
+**Foundation spec:** [`Project Plan/UI/feature-universal-object-list.md`](Project%20Plan/UI/feature-universal-object-list.md) (commitowany w tym PR, kickoff). Realizacja ADR-009 — ObjectListView sparametryzowany `objectTypeId` zastępujący Product-specyficzną listę.
+
+**Pre-flight ustalenia (zapis intencjonalny przed startem):**
+- Meilisearch dziś per-kind (`products`, `categories`, `assets`, `brands`) — ULV-02 konsoliduje do `objects`.
+- `/products` admin view mocno coupled z Productem (`EmptyStateProducts`, `ProductsGrid`, `PRODUCT_FACETS`, hardcoded `EXCEL_COLUMNS`). `SavedViewsRail.resource` jest jedyną istniejącą ścieżką parametryzacji.
+- RBAC dziś hardcoded `products.*` — ULV-04a wprowadza generyczny `object.*@{slug}` z backward-compat aliasami. ULV-04b pull'uje field-level 3-state z Phase 3.
+- Schema deltas wszystkie missing (`show_in_list`, `list_position`, `object_types.slug`, `saved_views.object_type_id`) — ULV-01 dostarcza.
+
+**Sugerowana kolejność implementacji:** 01 + 02 + 12 (równolegle) → 03 → 04a → 04b/05 → 06 → 07/08/09 → 10 → 11.
+
+**Issues w trackerze:** #982..#994 (13 ticketów).
+
+---
+
+## 2026-05-25: post-smoke fix #2/#3/#4 — relation inline-edit + attribute→ObjectType + custom-kind create
+
+**Sesja trzech powiązanych bugów w tab Powiązania karty produktu + widoku Atrybut.**
+
+| Issue | PR | Scope |
+|---|---|---|
+| [#977](../../issues/977) | [#978](../../pull/978) | poly-kind `GET /api/objects/{id}` — fix „Nie udało się załadować obiektu docelowego" w `RelationInlineEditPanel` (target detail fetch). MERGED 61d29f3. |
+| [#979](../../issues/979) | [#980](../../pull/980) | widok Atrybut → nowa sekcja „Typy obiektów" z toggle chipami + endpoint `GET /api/attributes/{id}/owner_object_types`. Eksponuje junction `object_type_attributes` z poziomu Atrybut zamiast wymuszać nawigację do ObjectType. MERGED 4fc845a. |
+| [#981](../../issues/981) | [#995](../../pull/995) | poly-kind `POST /api/objects` — modal „Utwórz i podepnij" dla custom-kind targetów (np. „Salony Sprzedaży"). `CatalogObjectProcessor::expectedKindFor()` derives kind z `ObjectType.kind` gdy operacja pomija `extraProperties.kind`. MERGED 54e3e81. |
+
+**Wspólny pattern**: trzy z trzech bugów wynikały z istnienia FE'a wołającego `/api/objects` (poly-kind path z #976) bez analogicznych operations w BE. Naturalna konsekwencja: pełen poly-kind CRUD pattern (`/api/objects` GetCollection + Get + Post; PATCH/DELETE TBD jeśli FE wymaga) z brakiem `extraProperties.kind` na operation level i kind derivation w processor/extension. KindCollectionExtension i KindItemExtension już no-opują bez kind; CatalogObjectProcessor po refactorze (#995) też.
+
+**Quality gates dla każdego ticketu**: PHPStan max 0, PHPUnit nowy test 5-7/5-7, composer audit 0 high/critical, OpenAPI snapshot regenerated (Bug 1 + Bug 3 — Bug 2 to custom Symfony controller poza AP4 metadata).
+
+**Live-stack smoke proofy** w issue close comments:
+- Bug 1: `GET /api/objects/{productId}` → 200, code=975TGT-MPKU0RS5-744 (ten sam ze screenshota operatora).
+- Bug 2: attach/detach round-trip → 204, tab Powiązania z 7 cardów (było 6) po dodaniu `relacje_do_salonow_sprzedazy`.
+- Bug 3: `POST /api/objects` dla custom kind → 201, kind=custom.
+
+**Lekcje (do `lessons.md` po sesji)**:
+- Poly-kind `/api/objects` powinien mieć symetryczny CRUD (Get + GetCollection + Post na minimum) — dodawanie operations ad-hoc per zgłoszony bug jest reactive. Rozważyć też PATCH/DELETE w przyszłym ticket'cie.
+- FrankenPHP worker MUST be restarted po `cache:clear --env=dev` w runtime — sam clear cache w workerze powoduje stale require'y plików których już nie ma. `docker compose restart api && sleep 5` po każdym cache:clear w dev.
+- `attribute_group_attributes` (folder) ≠ `object_type_attributes` (ownership). Operatorzy mylą jedno z drugim. UI musi mieć JAWNE sekcje dla każdego (zostało dodane w #980).
+
+**Następna iteracja**: czekam na manual smoke operatora w UI modalu „Utwórz i podepnij" dla custom kind ObjectType. Jak coś się sypie → kolejny ticket.
+
 ## 2026-05-23: post-smoke fix #1 — kategoria + dynamiczne atrybuty + modal warning
 
 **Faza drobnych poprawek po manual smoke teście operatora.** Pierwszy bug ticket [#891](../../issues/891) → PR [#892](../../pull/892).
