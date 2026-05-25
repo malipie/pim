@@ -80,6 +80,11 @@
                 <option name="default">false</option>
             </options>
         </field>
+        <field name="hasMultimedia" type="boolean" column="has_multimedia">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
         <field name="allowedParentTypeIds" type="json" column="allowed_parent_type_ids">
             <options>
                 <option name="jsonb">true</option>

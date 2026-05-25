@@ -88,6 +88,10 @@ final readonly class BuiltInObjectTypeSeeder
                     // ObjectType whose instances participate in primary-
                     // category-driven attribute distribution.
                     $type->setCategorizable(true);
+                    // UP-00 (#1017): seed Product with multimedia capability
+                    // so the legacy /products multimedia tab renders by
+                    // default. Other kinds opt in via UP-07b wizard toggle.
+                    $type->setHasMultimedia(true);
                 } elseif (ObjectKind::Category === $kind) {
                     $type->setHierarchical(true);
                 }

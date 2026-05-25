@@ -115,6 +115,18 @@ class ObjectType implements TenantScoped
     private bool $isCategorizable = false;
 
     /**
+     * UP-00 (#1017) — gates the Multimedia tab on the UniversalDetailPage
+     * (UP-07). Built-in product seeded `true` to match legacy hard-coded
+     * behaviour; other built-ins + custom kinds default `false`. The
+     * operator opts in per ObjectType via the UP-07b wizard toggle.
+     *
+     * `kind=product` is implicitly locked at the wizard level — built-in
+     * lock pattern. Other kinds (including future built-in additions) are
+     * free to flip the flag.
+     */
+    private bool $hasMultimedia = false;
+
+    /**
      * UUID list of ObjectTypes allowed as parent. Plain JSONB list (not a
      * junction) — N stays small (≤ 5 typical), and the only consumer is the
      * detail view's Allowed parent types chip strip. A junction would cost
@@ -383,6 +395,26 @@ class ObjectType implements TenantScoped
     public function setCategorizable(bool $value): void
     {
         $this->isCategorizable = $value;
+        $this->touch();
+    }
+
+    public function hasMultimedia(): bool
+    {
+        return $this->hasMultimedia;
+    }
+
+    /**
+     * Symfony PropertyAccess accessor alias — exposes the property as
+     * `hasMultimedia` in serialized JSON output.
+     */
+    public function getHasMultimedia(): bool
+    {
+        return $this->hasMultimedia;
+    }
+
+    public function setHasMultimedia(bool $value): void
+    {
+        $this->hasMultimedia = $value;
         $this->touch();
     }
 
