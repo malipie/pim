@@ -6531,6 +6531,18 @@
                         },
                         "style": "form",
                         "explode": true
+                    },
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "description": "Exact match on ObjectType.code (tenant-scoped). Used by the universal ObjectListPage to resolve URL slug \u2192 ObjectType UUID.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
                     }
                 ],
                 "x-cortex-permission": "object_type.read"

@@ -1,8 +1,10 @@
+import { Plus, Search, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { EmptyStateObject } from '@/components/objects/empty-state-object';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -14,6 +16,7 @@ import {
 import { type ListSchemaColumn, useListSchema } from '@/hooks/use-list-schema';
 import { type ObjectListItem, useObjectList } from '@/hooks/use-object-list';
 import { HttpError } from '@/lib/http';
+import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 
 /**
  * ULV-06 (#988) — universal list view component for any ObjectType.
@@ -62,15 +65,31 @@ function readHiddenColumns(lsKey: string): Set<string> {
   }
 }
 
+const STATUS_OPTIONS = ['', 'published', 'draft', 'archived'] as const;
+type StatusOption = (typeof STATUS_OPTIONS)[number];
+
 export function ObjectListView({ objectTypeId, onCreate }: ObjectListViewProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.split('-')[0] ?? 'en';
   const schemaQuery = useListSchema(objectTypeId);
   const [cursorAfter, setCursorAfter] = useState<string | undefined>(undefined);
+  // #1012 — search + status filter. Search debounces 300ms before
+  // firing /api/objects?sku= (substring on code via existing SkuFilter);
+  // status is a plain enum dropdown matching the StatusFilter values.
+  const [searchInput, setSearchInput] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusOption>('');
+  const applySearch = useDebouncedCallback((value: string) => {
+    setAppliedSearch(value.trim());
+    setCursorAfter(undefined);
+  }, 300);
+
   const listQuery = useObjectList({
     objectTypeId,
     itemsPerPage: 30,
     cursorAfter,
+    query: appliedSearch.length > 0 ? appliedSearch : undefined,
+    status: statusFilter.length > 0 ? statusFilter : undefined,
   });
 
   if (schemaQuery.isError) {
@@ -174,11 +193,23 @@ export function ObjectListView({ objectTypeId, onCreate }: ObjectListViewProps) 
     );
   };
 
-  if (totalItems === 0 && !listQuery.isLoading) {
+  const noResultsForFilters =
+    totalItems === 0 &&
+    !listQuery.isLoading &&
+    (appliedSearch.length > 0 || statusFilter.length > 0);
+  const trulyEmpty = totalItems === 0 && !listQuery.isLoading && !noResultsForFilters;
+
+  if (trulyEmpty) {
     return (
       <div className="space-y-4">
         <header className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">{typeLabel}</h1>
+          {onCreate !== undefined ? (
+            <Button onClick={onCreate}>
+              <Plus className="size-4" />
+              {t('object_list.cta_create', { defaultValue: 'Create' })}
+            </Button>
+          ) : null}
         </header>
         <EmptyStateObject objectType={objectType} onCreate={onCreate} />
       </div>
@@ -224,10 +255,76 @@ export function ObjectListView({ objectTypeId, onCreate }: ObjectListViewProps) 
         </div>
         {onCreate !== undefined ? (
           <Button onClick={onCreate}>
+            <Plus className="size-4" />
             {t('object_list.cta_create', { defaultValue: 'Create' })}
           </Button>
         ) : null}
       </header>
+
+      {/* #1012 — search + status filter toolbar. Search debounces 300ms
+          then forwards as ?sku= (substring on CatalogObject.code); status
+          forwards as ?status=. AdvancedFilterBuilder + SavedViewsRail
+          stay deferred to ULV-07 follow-up parity work. */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchInput}
+            placeholder={t('object_list.search_placeholder', {
+              defaultValue: 'Search by code…',
+            })}
+            onChange={(e) => {
+              const next = e.target.value;
+              setSearchInput(next);
+              applySearch(next);
+            }}
+            className="pl-8 pr-8"
+            aria-label={t('object_list.search_aria', { defaultValue: 'Search objects by code' })}
+          />
+          {searchInput.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchInput('');
+                setAppliedSearch('');
+                setCursorAfter(undefined);
+              }}
+              className="absolute right-2 top-1/2 grid -translate-y-1/2 place-items-center rounded p-1 text-muted-foreground hover:bg-muted"
+              aria-label={t('object_list.search_clear', { defaultValue: 'Clear search' })}
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value as StatusOption);
+            setCursorAfter(undefined);
+          }}
+          className="h-9 rounded-md border bg-background px-2 text-sm"
+          aria-label={t('object_list.status_filter_aria', { defaultValue: 'Filter by status' })}
+        >
+          <option value="">
+            {t('object_list.status_filter_all', { defaultValue: 'All statuses' })}
+          </option>
+          <option value="published">
+            {t('object_list.status.published', { defaultValue: 'Published' })}
+          </option>
+          <option value="draft">{t('object_list.status.draft', { defaultValue: 'Draft' })}</option>
+          <option value="archived">
+            {t('object_list.status.archived', { defaultValue: 'Archived' })}
+          </option>
+        </select>
+      </div>
+
+      {noResultsForFilters ? (
+        <div className="rounded border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+          {t('object_list.no_results', {
+            defaultValue: 'No objects match the current search / filter.',
+          })}
+        </div>
+      ) : null}
 
       <Table>
         <TableHeader>
