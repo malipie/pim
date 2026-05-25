@@ -586,11 +586,14 @@ function ObjectPickerDialog({
     queryKey: ['objects', 'picker', debounced, allowedObjectTypeIds.join(',')],
     queryFn: () => {
       const params = new URLSearchParams();
-      if (debounced.length > 0) params.set('code', debounced);
+      // #975 — `SkuFilter` reacts to `?sku=`, matching `code` via case-insensitive
+      // substring LIKE. Earlier `?code=` was silently ignored by AP4. Accept
+      // defaults to `application/ld+json` so the response carries the
+      // `member` envelope we read below; explicit `application/json` would
+      // hand back a raw array AP4 normalises differently.
+      if (debounced.length > 0) params.set('sku', debounced);
       params.set('itemsPerPage', '50');
-      return jsonFetch<ObjectsListResponse>(`/api/objects?${params.toString()}`, {
-        accept: 'application/json',
-      });
+      return jsonFetch<ObjectsListResponse>(`/api/objects?${params.toString()}`);
     },
   });
 

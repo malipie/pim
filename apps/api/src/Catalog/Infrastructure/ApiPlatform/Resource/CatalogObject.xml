@@ -281,6 +281,31 @@
                     </values>
                 </extraProperties>
             </operation>
+
+            <!-- ──────────── /api/objects (poly-kind, READ-ONLY) ────────────
+                 Generic read-only endpoint exposing the union of all kinds
+                 (product + category + asset) for cross-kind pickers — the
+                 relation-attribute candidate modal in `relations-tab.tsx`
+                 (#975) needs a single list endpoint because the target
+                 `allowedObjectTypeIds` can span multiple kinds.
+
+                 No `extraProperties.kind` is set, so KindCollectionExtension
+                 no-ops (see KindCollectionExtension::applyToCollection) and
+                 the query returns rows across all kinds, narrowed by the
+                 tenant filter and the CatalogObject voter.
+
+                 Read-only by design — writes still go through the per-kind
+                 sugar paths (`POST /api/{products,categories}`) where
+                 CatalogObjectProcessor enforces the discriminator. -->
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/objects{._format}"
+                       name="objects_get_collection"
+                       paginationType="cursor"
+                       security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
+                <paginationViaCursor>
+                    <paginationField field="id" direction="DESC"/>
+                </paginationViaCursor>
+            </operation>
         </operations>
     </resource>
 </resources>
