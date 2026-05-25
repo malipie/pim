@@ -193,28 +193,9 @@ export function ObjectListView({ objectTypeId, onCreate }: ObjectListViewProps) 
     );
   };
 
-  const noResultsForFilters =
-    totalItems === 0 &&
-    !listQuery.isLoading &&
-    (appliedSearch.length > 0 || statusFilter.length > 0);
-  const trulyEmpty = totalItems === 0 && !listQuery.isLoading && !noResultsForFilters;
-
-  if (trulyEmpty) {
-    return (
-      <div className="space-y-4">
-        <header className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">{typeLabel}</h1>
-          {onCreate !== undefined ? (
-            <Button onClick={onCreate}>
-              <Plus className="size-4" />
-              {t('object_list.cta_create', { defaultValue: 'Create' })}
-            </Button>
-          ) : null}
-        </header>
-        <EmptyStateObject objectType={objectType} onCreate={onCreate} />
-      </div>
-    );
-  }
+  const hasFilters = appliedSearch.length > 0 || statusFilter.length > 0;
+  const noResultsForFilters = totalItems === 0 && !listQuery.isLoading && hasFilters;
+  const trulyEmpty = totalItems === 0 && !listQuery.isLoading && !hasFilters;
 
   return (
     <div className="space-y-4">
@@ -318,56 +299,63 @@ export function ObjectListView({ objectTypeId, onCreate }: ObjectListViewProps) 
         </select>
       </div>
 
-      {noResultsForFilters ? (
+      {/* #1014 — body conditional: empty state, no-results, or table.
+          Search/status toolbar above always renders so operators can
+          interact with filters even when the current view is empty. */}
+      {trulyEmpty ? (
+        <EmptyStateObject objectType={objectType} onCreate={onCreate} />
+      ) : noResultsForFilters ? (
         <div className="rounded border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
           {t('object_list.no_results', {
             defaultValue: 'No objects match the current search / filter.',
           })}
         </div>
-      ) : null}
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {visibleColumns.map((c) => (
-              <TableHead key={c.key}>{c.label[locale] ?? c.label.en ?? c.key}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {listQuery.isLoading ? (
-            <TableRow>
-              <TableCell colSpan={visibleColumns.length}>
-                {t('object_list.loading', { defaultValue: 'Loading…' })}
-              </TableCell>
-            </TableRow>
-          ) : (
-            items.map((item) => (
-              <TableRow key={item.id}>
+      ) : (
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow>
                 {visibleColumns.map((c) => (
-                  <TableCell key={c.key}>{renderCell(c, item)}</TableCell>
+                  <TableHead key={c.key}>{c.label[locale] ?? c.label.en ?? c.key}</TableHead>
                 ))}
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            </TableHeader>
+            <TableBody>
+              {listQuery.isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={visibleColumns.length}>
+                    {t('object_list.loading', { defaultValue: 'Loading…' })}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                items.map((item) => (
+                  <TableRow key={item.id}>
+                    {visibleColumns.map((c) => (
+                      <TableCell key={c.key}>{renderCell(c, item)}</TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
 
-      {next !== undefined ? (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            onClick={() => {
-              const lastId = items[items.length - 1]?.id;
-              if (lastId !== undefined) {
-                setCursorAfter(lastId);
-              }
-            }}
-          >
-            {t('object_list.next_page', { defaultValue: 'Next page' })}
-          </Button>
-        </div>
-      ) : null}
+          {next !== undefined ? (
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const lastId = items[items.length - 1]?.id;
+                  if (lastId !== undefined) {
+                    setCursorAfter(lastId);
+                  }
+                }}
+              >
+                {t('object_list.next_page', { defaultValue: 'Next page' })}
+              </Button>
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

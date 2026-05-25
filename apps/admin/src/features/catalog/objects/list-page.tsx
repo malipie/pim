@@ -1,33 +1,35 @@
 import { useQuery } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 
+import { CreateObjectDialog } from '@/components/objects/create-object-dialog';
 import { ObjectListView } from '@/components/objects/object-list-view';
 import { jsonFetch } from '@/lib/http';
 
 /**
- * ULV-08 (#990) + #1012 — `/objects/:slug` route renders the universal
- * `ObjectListView` for the ObjectType whose `code` (per ULV-01 reused as
- * URL slug) matches.
+ * ULV-08 (#990) + #1012 + #1014 — `/objects/:slug` route renders the
+ * universal `ObjectListView` for the ObjectType whose `code` (per ULV-01
+ * reused as URL slug) matches.
  *
- * Resolution: we query `/api/object_types?code={slug}&itemsPerPage=1`
- * (the `code` filter shipped in #1012 — without it the GetCollection
- * ignored the param and returned every type, so the FE picked
- * `members[0]` = `product` for every slug). Cached 5 min.
+ * Slug resolution: `/api/object_types?code={slug}&itemsPerPage=1`
+ * (filter shipped in #1012). Client-side guard verifies
+ * `member.code === slug` post-fetch as defence-in-depth.
  *
- * Client-side guard: we still verify `member.code === slug` post-fetch
- * as defence-in-depth — if the filter ever regresses the page renders
- * the slug-not-found error instead of silently showing the wrong list.
- *
- * `/products`, `/categories`, `/assets` keep working through their own
- * routes; the cutover to consolidate them onto `/objects/{slug}` is the
- * deferred ULV-11 follow-up. 404-style error in the current tenant if
- * the slug does not match an ObjectType.
+ * Create flow (per kind, #1014 fix):
+ *   - Built-in `product` / `category` / `asset` keep their dedicated
+ *     create routes (`/products/new`, `/modeling/categories?action=create`,
+ *     `/multimedia?action=upload`).
+ *   - Built-in `brand` falls through to the modal — there is no dedicated
+ *     brand create page; the modal handles it via the poly-kind POST.
+ *   - Every other kind (custom) opens `CreateObjectDialog` in-page —
+ *     pre-fix navigated to `/objects/{code}/new` which the App-level
+ *     catch-all redirected to `/dashboard`, breaking the flow entirely.
  */
 interface ObjectTypeLookupRow {
   id: string;
   code: string;
+  label?: Record<string, string>;
 }
 
 interface ObjectTypeLookupResponse {
@@ -35,10 +37,18 @@ interface ObjectTypeLookupResponse {
   'hydra:member'?: ObjectTypeLookupRow[];
 }
 
+const ROUTABLE_BUILT_IN_KINDS: Record<string, string> = {
+  product: '/products/new',
+  category: '/modeling/categories?action=create',
+  asset: '/multimedia?action=upload',
+};
+
 export function ObjectListPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language.split('-')[0] ?? 'en';
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const lookup = useQuery({
     queryKey: ['object-type-by-code', slug],
@@ -51,10 +61,6 @@ export function ObjectListPage() {
       });
       const members = response.member ?? response['hydra:member'] ?? [];
       const first = members[0];
-      // Defence in depth — refuse to render if the row returned by the
-      // backend does not match the slug we asked for. Protects against
-      // a regression in the `code` filter where the GetCollection
-      // returns every row regardless of the query param.
       if (first === undefined || first.code !== slug) {
         return null;
       }
@@ -62,26 +68,25 @@ export function ObjectListPage() {
     },
   });
 
-  // #1012 — built-in kinds keep their dedicated create flows
-  // (`/products/new` etc.); custom kinds get a generic placeholder that
-  // operators can replace once the dedicated wizard lands.
   const handleCreate = useCallback(() => {
     if (!lookup.data) return;
     const code = lookup.data.code;
-    if (code === 'product') {
-      navigate('/products/new');
+    const sugarPath = ROUTABLE_BUILT_IN_KINDS[code];
+    if (sugarPath !== undefined) {
+      navigate(sugarPath);
       return;
     }
-    if (code === 'category') {
-      navigate('/modeling/categories?action=create');
-      return;
-    }
-    if (code === 'asset') {
-      navigate('/multimedia?action=upload');
-      return;
-    }
-    navigate(`/objects/${code}/new`);
+    // Every other kind (custom + built-in brand) opens the in-page
+    // dialog instead of navigating to a non-existent `/objects/{code}/new`
+    // route (the App catch-all would redirect to /dashboard — #1014 bug A).
+    setCreateDialogOpen(true);
   }, [lookup.data, navigate]);
+
+  const typeLabel = useMemo(() => {
+    if (!lookup.data) return '';
+    const labels = lookup.data.label ?? {};
+    return labels[locale] ?? labels.en ?? lookup.data.code;
+  }, [lookup.data, locale]);
 
   if (lookup.isLoading) {
     return (
@@ -105,7 +110,18 @@ export function ObjectListPage() {
     );
   }
 
-  return <ObjectListView objectTypeId={lookup.data.id} onCreate={handleCreate} />;
+  return (
+    <>
+      <ObjectListView objectTypeId={lookup.data.id} onCreate={handleCreate} />
+      <CreateObjectDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        objectTypeId={lookup.data.id}
+        objectTypeCode={lookup.data.code}
+        objectTypeLabel={typeLabel}
+      />
+    </>
+  );
 }
 
 export default ObjectListPage;
