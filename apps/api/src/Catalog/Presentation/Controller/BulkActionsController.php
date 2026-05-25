@@ -68,6 +68,7 @@ final class BulkActionsController
     }
 
     #[Route('/api/products/bulk-actions/preview', name: 'pim_bulk_actions_preview', methods: ['POST'])]
+    #[Route('/api/objects/bulk-actions/preview', name: 'pim_objects_bulk_actions_preview', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     #[RequiresPermission(module: 'products', action: 'bulk_operations')]
     public function preview(Request $request): JsonResponse
@@ -258,6 +259,7 @@ final class BulkActionsController
     }
 
     #[Route('/api/products/bulk-actions/{actionType}', name: 'pim_bulk_actions_apply', methods: ['POST'])]
+    #[Route('/api/objects/bulk-actions/{actionType}', name: 'pim_objects_bulk_actions_apply', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     #[RequiresPermission(module: 'products', action: 'bulk_operations')]
     public function apply(string $actionType, Request $request): JsonResponse
