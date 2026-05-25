@@ -116,6 +116,10 @@ const UniversalObjectListPage = lazyPage(
   () => import('@/features/catalog/objects/list-page'),
   'ObjectListPage',
 );
+const UniversalObjectCreatePage = lazyPage(
+  () => import('@/features/catalog/objects/create-page'),
+  'ObjectCreatePage',
+);
 const ProductCreatePage = lazyPage(
   () => import('@/features/catalog/products/create'),
   'ProductCreatePage',
@@ -406,6 +410,12 @@ function App() {
                     legacy /products / /categories / /assets routes keep
                     pointing at their own pages until ULV-11 cuts over. */}
                 <Route path="/objects/:slug" element={<UniversalObjectListPage />} />
+                {/* UP-08 (#1029) — universal /objects/:slug/new full-page
+                    create wizard. Built-in product/category/asset slugs
+                    redirect to their legacy create routes inside
+                    ObjectCreatePage; custom kinds render
+                    UniversalCreatePage. */}
+                <Route path="/objects/:slug/new" element={<UniversalObjectCreatePage />} />
                 {/* VIEW-07 (#420): edit page is now inline-edit on /products/:id.
                     Keep the legacy path as a back-compat redirect for bookmarks
                     and Refine resource lookups that still ask for `edit`. */}
