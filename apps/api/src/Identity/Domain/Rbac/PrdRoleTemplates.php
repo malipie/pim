@@ -90,6 +90,9 @@ final class PrdRoleTemplates
                 'api_tokens.own.crud', 'api_tokens.all.view_revoke',
                 'audit.view_own', 'audit.view_cross_user',
                 'tenant.delete',
+                // ULV-04a (#985) — universal ObjectListView verbs (covers
+                // every ObjectType, custom included).
+                'object.view', 'object.add', 'object.edit', 'object.delete', 'object.export',
             ],
 
             // Administrator — everything except tenant.delete and billing
@@ -111,6 +114,8 @@ final class PrdRoleTemplates
                 'settings.integrations.manage', 'settings.integration_secrets.read',
                 'api_tokens.own.crud', 'api_tokens.all.view_revoke',
                 'audit.view_own', 'audit.view_cross_user',
+                // ULV-04a (#985) — universal ObjectListView verbs.
+                'object.view', 'object.add', 'object.edit', 'object.delete', 'object.export',
             ],
 
             // Catalog Manager — products / categories / multimedia full CRUD + workflow approve + bulk agent
@@ -125,6 +130,8 @@ final class PrdRoleTemplates
                 'agent.bulk_actions',
                 'audit.view_own',
                 'api_tokens.own.crud',
+                // ULV-04a (#985) — universal ObjectListView verbs.
+                'object.view', 'object.add', 'object.edit', 'object.delete', 'object.export',
             ],
 
             // Marketing — view/add/edit products (NO delete), categories CRU, own multimedia, view-only audit

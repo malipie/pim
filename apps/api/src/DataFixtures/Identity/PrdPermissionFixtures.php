@@ -123,6 +123,25 @@ final class PrdPermissionFixtures extends Fixture
 
         // Tenant lifecycle
         'tenant.delete',
+
+        // ULV-04a (#985) — generic ObjectType-scoped verbs for the
+        // universal ObjectListView. Cover every ObjectType (built-in +
+        // custom). The legacy per-kind codes (products.*, categories.*,
+        // multimedia.* etc.) keep working in parallel; ULV-04a only adds
+        // the generic verbs the universal list endpoint and per-ObjectType
+        // voter consume.
+        //
+        // Per-ObjectType grant scoping (e.g. `object.view` granted only
+        // for ObjectType=Cars but not Bikes) is enforced by the new
+        // `ObjectScopedVoter` via the user_role_assignments scope payload
+        // (locale/channel/attribute_group_scope already exists; a future
+        // RBAC ticket adds object_type_scope without touching the
+        // permission catalogue here).
+        'object.view',
+        'object.add',
+        'object.edit',
+        'object.delete',
+        'object.export',
     ];
 
     public function load(ObjectManager $manager): void
