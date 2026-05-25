@@ -66,6 +66,11 @@ final class SmartFilterPresetController
         $userId = $user instanceof UserIdentityAware ? $user->getId() : null;
 
         $withCounts = $request->query->getBoolean('counts', false);
+        // UP-05 (#1020) — scope presets per ObjectType.code (mirrors
+        // /api/saved-views?resource=). When absent, fall back to 'products'
+        // for backward compatibility with the legacy product list.
+        $requestedResource = $request->query->getString('resource', 'products');
+        $resource = '' === $requestedResource ? 'products' : $requestedResource;
 
         $qb = $this->em->getRepository(SmartFilterPreset::class)
             ->createQueryBuilder('p')
@@ -82,6 +87,11 @@ final class SmartFilterPresetController
         } else {
             $qb->andWhere('p.tenant IS NULL');
         }
+
+        // Resource scope: matching the requested resource OR cross-kind
+        // (resource IS NULL) presets — same semantic as `saved_views.resource`.
+        $qb->andWhere('p.resource = :resource OR p.resource IS NULL')
+            ->setParameter('resource', $resource);
 
         /** @var list<SmartFilterPreset> $presets */
         $presets = $qb->getQuery()->getResult();
@@ -119,6 +129,11 @@ final class SmartFilterPresetController
         $query = $this->parseQuery($body['query'] ?? null);
         $sortOrderRaw = $body['sort_order'] ?? 100;
         $sortOrder = is_numeric($sortOrderRaw) ? (int) $sortOrderRaw : 100;
+        // UP-05 (#1020) — scope user-created presets to the resource they
+        // were created from (e.g. `samochody`). Defaults to `products` for
+        // backward compatibility with the legacy product list.
+        $resourceRaw = $body['resource'] ?? 'products';
+        $resource = \is_string($resourceRaw) && '' !== $resourceRaw ? $resourceRaw : 'products';
 
         $slug = $this->generateUniqueSlug($name['pl'], $tenant->getId(), $userId);
 
@@ -130,6 +145,7 @@ final class SmartFilterPresetController
             userId: $userId,
             isBuiltIn: false,
             sortOrder: $sortOrder,
+            resource: $resource,
         );
 
         $this->em->persist($preset);
@@ -355,6 +371,7 @@ final class SmartFilterPresetController
             'is_built_in' => $preset->isBuiltIn(),
             'is_system' => $preset->isSystem(),
             'sort_order' => $preset->getSortOrder(),
+            'resource' => $preset->getResource(),
             'created_at' => $preset->getCreatedAt()->format(DateTimeInterface::ATOM),
             'updated_at' => $preset->getUpdatedAt()->format(DateTimeInterface::ATOM),
         ];

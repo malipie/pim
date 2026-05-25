@@ -46,6 +46,13 @@ class SmartFilterPreset implements TenantScoped, SystemShipped
 
     private bool $isBuiltIn;
     private int $sortOrder;
+    /**
+     * UP-05 (#1020) — scopes the preset to a specific ObjectType.code
+     * (mirrors `saved_views.resource`). NULL = visible across every kind
+     * (legacy semantics). Tenant-side presets created from UniversalListPage
+     * carry the kind code so they stay segregated.
+     */
+    private ?string $resource = null;
     private DateTimeImmutable $createdAt;
     private DateTimeImmutable $updatedAt;
 
@@ -62,6 +69,7 @@ class SmartFilterPreset implements TenantScoped, SystemShipped
         bool $isBuiltIn = false,
         int $sortOrder = 0,
         ?Uuid $id = null,
+        ?string $resource = null,
     ) {
         $this->id = $id ?? Uuid::v7();
         $this->slug = $slug;
@@ -71,6 +79,7 @@ class SmartFilterPreset implements TenantScoped, SystemShipped
         $this->userId = $userId;
         $this->isBuiltIn = $isBuiltIn;
         $this->sortOrder = $sortOrder;
+        $this->resource = $resource;
         $this->createdAt = new DateTimeImmutable();
         $this->updatedAt = $this->createdAt;
     }
@@ -197,6 +206,18 @@ class SmartFilterPreset implements TenantScoped, SystemShipped
     public function isTenantShared(): bool
     {
         return null === $this->userId && null !== $this->tenant;
+    }
+
+    public function getResource(): ?string
+    {
+        return $this->resource;
+    }
+
+    public function changeResource(?string $resource): void
+    {
+        $this->guardMutable();
+        $this->resource = $resource;
+        $this->touch();
     }
 
     public function getCreatedAt(): DateTimeImmutable

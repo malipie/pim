@@ -111,6 +111,10 @@ final class BuiltInSmartFilterPresetsSeeder
                 isBuiltIn: true,
                 sortOrder: $def['sort_order'],
                 id: Uuid::fromString($def['id']),
+                // UP-05 (#1020): built-in presets target the legacy product
+                // list. Scoping them to `products` keeps them out of
+                // `/objects/{custom_kind}` views.
+                resource: 'products',
             );
 
             $this->em->persist($preset);
