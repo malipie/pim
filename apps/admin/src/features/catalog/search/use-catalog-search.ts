@@ -16,6 +16,18 @@ import { jsonFetch } from '@/lib/http';
  */
 export type CatalogSearchKind = 'products' | 'categories' | 'assets';
 
+/**
+ * UP-06 (#1024) — universal search target. `kind` hits the existing
+ * sugar route `/api/search/{kind}` (products / categories / assets);
+ * `objectTypeId` hits `/api/search/objects?objectTypeId=...` and scopes
+ * the consolidated Meilisearch `objects` index to one ObjectType —
+ * essential for custom kinds where `kind='custom'` would otherwise
+ * mix two unrelated ObjectTypes in the same result.
+ */
+export type CatalogSearchTarget =
+  | { kind: CatalogSearchKind; objectTypeId?: undefined }
+  | { kind?: undefined; objectTypeId: string };
+
 export interface CatalogSearchHit {
   id: string;
   code?: string;
@@ -35,8 +47,9 @@ export interface CatalogSearchResult {
   perPage: number;
 }
 
-export interface UseCatalogSearchOptions {
-  kind: CatalogSearchKind;
+export type UseCatalogSearchOptions = CatalogSearchTarget & UseCatalogSearchBaseOptions;
+
+interface UseCatalogSearchBaseOptions {
   query: string;
   filters?: Record<string, string | string[]>;
   /**
@@ -76,6 +89,7 @@ export interface UseCatalogSearchState {
 export function useCatalogSearch(options: UseCatalogSearchOptions): UseCatalogSearchState {
   const {
     kind,
+    objectTypeId,
     query,
     filters,
     rangeFilters,
@@ -125,7 +139,15 @@ export function useCatalogSearch(options: UseCatalogSearchOptions): UseCatalogSe
       }
 
       setIsLoading(true);
-      jsonFetch<CatalogSearchResult>(`/api/search/${kind}?${params.toString()}`)
+      // UP-06 (#1024) — route choice: built-in sugar (`kind`) vs.
+      // universal endpoint (`objectTypeId`). Sugar route is mandatory
+      // for built-in kinds because the per-kind facet whitelist /
+      // permission code differs; universal handles custom kinds.
+      const targetUrl =
+        objectTypeId !== undefined
+          ? `/api/search/objects?objectTypeId=${encodeURIComponent(objectTypeId)}&${params.toString()}`
+          : `/api/search/${kind}?${params.toString()}`;
+      jsonFetch<CatalogSearchResult>(targetUrl)
         .then((response) => {
           if (cancelled) return;
           setResult(response);
@@ -146,6 +168,7 @@ export function useCatalogSearch(options: UseCatalogSearchOptions): UseCatalogSe
     };
   }, [
     kind,
+    objectTypeId,
     query,
     page,
     perPage,

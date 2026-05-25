@@ -8,6 +8,7 @@ use App\Catalog\Application\Filter\FilterDslResolver;
 use App\Catalog\Application\Filter\FilterUrlSerializer;
 use App\Catalog\Domain\Entity\SmartFilterPreset;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Search\Application\CatalogSearchService;
 use App\Shared\Application\TenantContext;
@@ -47,6 +48,7 @@ final class SearchController
         private readonly FilterUrlSerializer $filterUrlSerializer,
         private readonly EntityManagerInterface $em,
         private readonly TenantContext $tenantContext,
+        private readonly ObjectTypeRepositoryInterface $objectTypes,
     ) {
     }
 
@@ -74,7 +76,40 @@ final class SearchController
         return $this->run($request, ObjectKind::Asset);
     }
 
-    private function run(Request $request, ObjectKind $kind): JsonResponse
+    /**
+     * UP-06 (#1024) — universal search route that scopes by `objectTypeId`
+     * instead of a hard-coded `ObjectKind`. Powers `/objects/:slug` so
+     * custom kinds (`samochody`, `vacancies`, etc.) get the same
+     * Meilisearch + facets + smart presets + filter-DSL surface that
+     * `/products` enjoys via the per-kind sugar route above.
+     *
+     * The query param `objectTypeId` is mandatory; we resolve the
+     * ObjectType to derive its `ObjectKind` (so the existing `kind`
+     * filter still scopes the consolidated `objects` index), then
+     * AND-merge an `objectTypeId = "..."` filter so two custom kinds
+     * sharing `kind=custom` stay isolated.
+     */
+    #[Route('/api/search/objects', name: 'pim_search_objects', methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'products', action: 'view')]
+    public function objects(Request $request): JsonResponse
+    {
+        $objectTypeIdRaw = $request->query->get('objectTypeId');
+        if (!\is_string($objectTypeIdRaw) || '' === trim($objectTypeIdRaw)) {
+            throw new BadRequestHttpException('objectTypeId query parameter is required.');
+        }
+        if (!Uuid::isValid($objectTypeIdRaw)) {
+            throw new BadRequestHttpException('objectTypeId must be a valid UUID.');
+        }
+        $objectType = $this->objectTypes->findById(Uuid::fromString($objectTypeIdRaw));
+        if (null === $objectType) {
+            throw new NotFoundHttpException(\sprintf('ObjectType "%s" was not found.', $objectTypeIdRaw));
+        }
+
+        return $this->run($request, $objectType->getKind(), $objectType->getId()->toRfc4122());
+    }
+
+    private function run(Request $request, ObjectKind $kind, ?string $objectTypeId = null): JsonResponse
     {
         // VIEW-20 (#551) — text search lives under `?query=` so it does not
         // collide with `?q=<base64-blob>` introduced by VIEW-10 for the
@@ -138,6 +173,13 @@ final class SearchController
         // a FilterDsl through the resolver and AND-merge the resulting
         // Meilisearch expression with the existing flat filters above.
         $customFilterExpression = $this->resolveCustomFilter($request);
+
+        // UP-06 (#1024) — `/api/search/objects` scopes by objectTypeId on
+        // top of the kind filter so two custom ObjectTypes sharing
+        // `kind=custom` (e.g. `samochody` + `vacancies`) stay isolated.
+        if (null !== $objectTypeId) {
+            $filters['objectTypeId'] = $objectTypeId;
+        }
 
         $result = $this->searchService->search(
             kind: $kind,

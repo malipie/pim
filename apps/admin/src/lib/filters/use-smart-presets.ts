@@ -33,6 +33,15 @@ interface ListResponse {
 
 export interface UseSmartPresetsOptions {
   withCounts?: boolean;
+  /**
+   * UP-05 (#1034) — scopes returned presets to a single resource.
+   * `products` (legacy default) keeps the existing /products behaviour;
+   * an ObjectType code (e.g. `samochody`) restricts to presets created
+   * for that custom kind. System-shipped presets (resource=NULL) are
+   * always included so global views like "Red completeness" stay
+   * available across all resources.
+   */
+  resource?: string;
 }
 
 export interface UseSmartPresetsResult {
@@ -50,6 +59,7 @@ export interface UseSmartPresetsResult {
 
 export function useSmartPresets({
   withCounts = true,
+  resource,
 }: UseSmartPresetsOptions = {}): UseSmartPresetsResult {
   const [presets, setPresets] = useState<SmartFilterPreset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,6 +71,7 @@ export function useSmartPresets({
     try {
       const params = new URLSearchParams();
       if (withCounts) params.set('counts', 'true');
+      if (resource !== undefined && resource !== '') params.set('resource', resource);
       const url = `/api/smart-filter-presets${params.toString() ? `?${params.toString()}` : ''}`;
       const body = await jsonFetch<ListResponse>(url);
       setPresets(body.data);
@@ -74,7 +85,7 @@ export function useSmartPresets({
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [withCounts]);
+  }, [withCounts, resource]);
 
   const create: UseSmartPresetsResult['create'] = async (input) => {
     const created = await jsonFetch<SmartFilterPreset>('/api/smart-filter-presets', {

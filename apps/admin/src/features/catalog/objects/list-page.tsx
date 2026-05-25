@@ -1,35 +1,36 @@
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 
-import { CreateObjectDialog } from '@/components/objects/create-object-dialog';
-import { ObjectListView } from '@/components/objects/object-list-view';
+import { UniversalListPage } from '@/components/objects/universal-list-page';
+import { useListSchema } from '@/hooks/use-list-schema';
 import { jsonFetch } from '@/lib/http';
 
 /**
- * ULV-08 (#990) + #1012 + #1014 — `/objects/:slug` route renders the
- * universal `ObjectListView` for the ObjectType whose `code` (per ULV-01
- * reused as URL slug) matches.
+ * ULV-08 (#990) + UP-06 (#1024) — `/objects/:slug` route now renders the
+ * full-feature `UniversalListPage` (extracted from /products) instead of
+ * the MVP `ObjectListView`. Pixel-perfect parity with /products is the
+ * acceptance criterion per operator decision:
  *
- * Slug resolution: `/api/object_types?code={slug}&itemsPerPage=1`
- * (filter shipped in #1012). Client-side guard verifies
- * `member.code === slug` post-fetch as defence-in-depth.
+ *   > "nie idziemy w żadne półśrodki. Lista ma być piksel perfect jak
+ *      w produktach czyli smart filtry, zapisz widok, filtrowanie
+ *      zaawansowane, płasko/drzewo, karty/excel, zapisanie widoku,
+ *      własny preset."
  *
- * Create flow (per kind, #1014 fix):
- *   - Built-in `product` / `category` / `asset` keep their dedicated
- *     create routes (`/products/new`, `/modeling/categories?action=create`,
- *     `/multimedia?action=upload`).
- *   - Built-in `brand` falls through to the modal — there is no dedicated
- *     brand create page; the modal handles it via the poly-kind POST.
- *   - Every other kind (custom) opens `CreateObjectDialog` in-page —
- *     pre-fix navigated to `/objects/{code}/new` which the App-level
- *     catch-all redirected to `/dashboard`, breaking the flow entirely.
+ * Slug resolution stays the same — `/api/object_types?code={slug}` →
+ * single row → propagated as `objectTypeId` to UniversalListPage.
+ *
+ * Built-in `product` redirects to `/products` so the legacy
+ * ProductListPage entry point is preserved during dual maintenance
+ * (UP-10). `/objects/product` deep-link still resolves to
+ * UniversalListPage for evaluation parity.
  */
 interface ObjectTypeLookupRow {
   id: string;
   code: string;
   label?: Record<string, string>;
+  kind?: string;
 }
 
 interface ObjectTypeLookupResponse {
@@ -37,18 +38,28 @@ interface ObjectTypeLookupResponse {
   'hydra:member'?: ObjectTypeLookupRow[];
 }
 
-const ROUTABLE_BUILT_IN_KINDS: Record<string, string> = {
+const BUILT_IN_KIND_BY_CODE: Record<string, 'products' | 'categories' | 'assets'> = {
+  product: 'products',
+  category: 'categories',
+  asset: 'assets',
+};
+
+const BUILT_IN_CREATE_PATH: Record<string, string> = {
   product: '/products/new',
   category: '/modeling/categories?action=create',
   asset: '/multimedia?action=upload',
 };
 
+const BUILT_IN_DETAIL_PATH: Record<string, (id: string) => string> = {
+  product: (id) => `/products/${id}`,
+  category: (id) => `/modeling/categories/${id}`,
+  asset: (id) => `/multimedia/${id}`,
+};
+
 export function ObjectListPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.split('-')[0] ?? 'en';
-  const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const lookup = useQuery({
     queryKey: ['object-type-by-code', slug],
@@ -68,19 +79,7 @@ export function ObjectListPage() {
     },
   });
 
-  const handleCreate = useCallback(() => {
-    if (!lookup.data) return;
-    const code = lookup.data.code;
-    const sugarPath = ROUTABLE_BUILT_IN_KINDS[code];
-    if (sugarPath !== undefined) {
-      navigate(sugarPath);
-      return;
-    }
-    // Every other kind (custom + built-in brand) opens the in-page
-    // dialog instead of navigating to a non-existent `/objects/{code}/new`
-    // route (the App catch-all would redirect to /dashboard — #1014 bug A).
-    setCreateDialogOpen(true);
-  }, [lookup.data, navigate]);
+  const schemaQuery = useListSchema(lookup.data?.id);
 
   const typeLabel = useMemo(() => {
     if (!lookup.data) return '';
@@ -88,7 +87,7 @@ export function ObjectListPage() {
     return labels[locale] ?? labels.en ?? lookup.data.code;
   }, [lookup.data, locale]);
 
-  if (lookup.isLoading) {
+  if (lookup.isLoading || (lookup.data && schemaQuery.isLoading)) {
     return (
       <div
         aria-busy="true"
@@ -110,17 +109,34 @@ export function ObjectListPage() {
     );
   }
 
+  if (schemaQuery.isError || !schemaQuery.data) {
+    return (
+      <div className="rounded border border-destructive bg-destructive/5 p-6 text-sm text-destructive">
+        {t('object_list.errors.schema_fetch', {
+          defaultValue: 'Could not load list schema.',
+        })}
+      </div>
+    );
+  }
+
+  const objectType = lookup.data;
+  const schema = schemaQuery.data;
+  const code = objectType.code;
+  const searchKind = BUILT_IN_KIND_BY_CODE[code];
+  const createPath = BUILT_IN_CREATE_PATH[code] ?? `/objects/${code}/new`;
+  const detailPathFor = BUILT_IN_DETAIL_PATH[code] ?? ((id: string) => `/objects/${code}/${id}`);
+
   return (
-    <>
-      <ObjectListView objectTypeId={lookup.data.id} onCreate={handleCreate} />
-      <CreateObjectDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        objectTypeId={lookup.data.id}
-        objectTypeCode={lookup.data.code}
-        objectTypeLabel={typeLabel}
-      />
-    </>
+    <UniversalListPage
+      objectTypeId={objectType.id}
+      objectTypeCode={code}
+      objectTypeLabel={typeLabel}
+      searchKind={searchKind}
+      hasVariants={schema.objectType.has_variants}
+      isCategorizable={schema.objectType.is_categorizable}
+      createPath={createPath}
+      detailPathFor={detailPathFor}
+    />
   );
 }
 
