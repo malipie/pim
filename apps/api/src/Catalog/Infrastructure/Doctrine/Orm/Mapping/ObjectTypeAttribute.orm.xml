@@ -10,6 +10,7 @@
 
         <indexes>
             <index name="object_type_attributes_object_type_sort_idx" columns="object_type_id,sort_order"/>
+            <index name="object_type_attributes_show_in_list_idx" columns="object_type_id,show_in_list,list_position"/>
         </indexes>
 
         <id name="objectType" association-key="true"/>
@@ -35,6 +36,16 @@
         </field>
         <field name="channelId" type="uuid" column="channel_id" nullable="true"/>
         <field name="locale" type="string" length="8" nullable="true"/>
+        <field name="showInList" type="boolean" column="show_in_list">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+        <field name="listPosition" type="integer" column="list_position">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
 
     </entity>
 

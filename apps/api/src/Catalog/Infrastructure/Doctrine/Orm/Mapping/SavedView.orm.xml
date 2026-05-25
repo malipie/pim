@@ -13,6 +13,7 @@
 
         <indexes>
             <index name="saved_views_tenant_user_resource_idx" columns="tenant_id,user_id,resource"/>
+            <index name="saved_views_tenant_object_type_idx" columns="tenant_id,object_type_id"/>
         </indexes>
 
         <id name="id" type="uuid" column="id">
@@ -32,6 +33,11 @@
                 <option name="default">products</option>
             </options>
         </field>
+
+        <many-to-one field="objectType" target-entity="App\Catalog\Domain\Entity\ObjectType">
+            <join-column name="object_type_id" referenced-column-name="id" nullable="true" on-delete="CASCADE"/>
+        </many-to-one>
+
         <field name="config" type="json">
             <options>
                 <option name="jsonb">true</option>
