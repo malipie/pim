@@ -22,8 +22,11 @@ use Symfony\Component\Uid\Uuid;
  *   - `POST   /api/products/{id}/assets`             — link assets (m2m)
  *   - `DELETE /api/products/{id}/assets/{assetId}`   — unlink
  *
- * The product detail view calls these to render the multimedia grid
- * and to attach picks from the library or fresh uploads.
+ * UX-04 — every method is *also* exposed at `/api/objects/{id}/assets`
+ * so any ObjectType with `hasMultimedia=true` (custom or built-in)
+ * lights up the same data flow. Single handler, multiple Route attrs
+ * — pattern recycled from UP-04 (generate-variants) and UP-07a
+ * (effective-attribute-groups).
  *
  * The link table only stores `(asset_id, product_id, position)` — the
  * GET endpoint resolves each id back into the same payload shape the
@@ -39,10 +42,11 @@ final readonly class ProductAssetsController
     }
 
     #[Route(path: '/api/products/{id}/assets', name: 'pim_products_assets_list', methods: ['GET'], format: 'json')]
+    #[Route(path: '/api/objects/{id}/assets', name: 'pim_objects_assets_list', methods: ['GET'], format: 'json')]
     #[RequiresPermission(module: 'asset', action: 'read')]
     public function list(string $id): JsonResponse
     {
-        $productId = $this->parseUuid($id, 'product');
+        $productId = $this->parseUuid($id, 'object');
         $assetIds = $this->linker->findAssetIdsForProduct($productId);
 
         $payload = [];
@@ -57,10 +61,11 @@ final readonly class ProductAssetsController
     }
 
     #[Route(path: '/api/products/{id}/assets', name: 'pim_products_assets_link', methods: ['POST'], format: 'json')]
+    #[Route(path: '/api/objects/{id}/assets', name: 'pim_objects_assets_link', methods: ['POST'], format: 'json')]
     #[RequiresPermission(module: 'asset', action: 'write')]
     public function link(string $id, Request $request): JsonResponse
     {
-        $productId = $this->parseUuid($id, 'product');
+        $productId = $this->parseUuid($id, 'object');
 
         $payload = json_decode($request->getContent(), true);
         if (!\is_array($payload) || !\is_array($payload['assetIds'] ?? null)) {
@@ -99,10 +104,16 @@ final readonly class ProductAssetsController
         methods: ['DELETE'],
         format: 'json',
     )]
+    #[Route(
+        path: '/api/objects/{id}/assets/{assetId}',
+        name: 'pim_objects_assets_unlink',
+        methods: ['DELETE'],
+        format: 'json',
+    )]
     #[RequiresPermission(module: 'asset', action: 'write')]
     public function unlink(string $id, string $assetId): JsonResponse
     {
-        $productId = $this->parseUuid($id, 'product');
+        $productId = $this->parseUuid($id, 'object');
         $rawAssetId = $this->parseUuid($assetId, 'asset');
 
         // Same Asset-id-or-CatalogObject-id tolerance as `link()`.
