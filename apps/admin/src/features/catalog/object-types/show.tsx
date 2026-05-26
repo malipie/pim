@@ -157,6 +157,12 @@ export function ObjectTypeShowPage() {
       queryClient.invalidateQueries({ queryKey: ['object_types', id, 'attached_groups'] }),
       queryClient.invalidateQueries({ queryKey: ['object_types', id, 'attached_attributes'] }),
       queryClient.invalidateQueries({ queryKey: ['object_types', id, 'audit_log'] }),
+      // UX bug fix #1 — list-schema carries the capability flags
+      // (has_multimedia / has_variants / is_categorizable) consumed by
+      // UniversalDetailPage. Without this invalidate the 5-min staleTime
+      // caches the old value, so flipping a capability OFF then back ON
+      // does NOT bring the tab back until the cache expires.
+      queryClient.invalidateQueries({ queryKey: ['list-schema', id] }),
     ]);
   };
 
