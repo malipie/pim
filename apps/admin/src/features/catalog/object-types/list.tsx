@@ -30,7 +30,6 @@ const SECONDARY_LABEL: Record<string, string> = {
   product: 'Products',
   category: 'Categories',
   asset: 'Assets',
-  brand: 'Brands',
 };
 
 /**

@@ -101,7 +101,7 @@ interface EffectiveResponse {
   effectiveGroups: EffectiveGroupRow[];
 }
 
-const PREVIEW_KINDS = ['product', 'category', 'asset', 'brand'] as const;
+const PREVIEW_KINDS = ['product', 'category', 'asset'] as const;
 
 type PreviewKind = (typeof PREVIEW_KINDS)[number];
 

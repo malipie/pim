@@ -41,10 +41,6 @@ final class ObjectKindRouter
             'path' => '/api/assets',
             'groups' => ['object:read', 'object:read:asset'],
         ],
-        'brand' => [
-            'path' => '/api/brands',
-            'groups' => ['object:read', 'object:read:brand'],
-        ],
     ];
 
     /**
@@ -85,8 +81,7 @@ final class ObjectKindRouter
      * kind without hardcoding the list.
      *
      * ADR-014 / MOD-10 (#902) — Brand was removed from the built-in pool.
-     * The kind enum case stays for tenants that converted Brand to
-     * custom, but it no longer gets a dedicated sugar path.
+     * UX-01 finished the cleanup by dropping the enum case altogether.
      *
      * @return list<ObjectKind>
      */

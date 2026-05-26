@@ -136,7 +136,6 @@ final class IndexSettingsTemplate
             ObjectKind::Product,
             ObjectKind::Category,
             ObjectKind::Asset,
-            ObjectKind::Brand,
             ObjectKind::Custom,
         ];
     }

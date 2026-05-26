@@ -12,9 +12,9 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Covers the built-in / immutability / icon / colour metadata introduced
- * by UI-08.2 (#257). The data layer also seeds Brand as the 4-th built-in
- * with code-immutable + undeletable; the migration is exercised by the
- * Doctrine pipeline, here we focus on the entity invariants.
+ * by UI-08.2 (#257). Per ADR-014 / MOD-10 Brand is no longer a built-in
+ * kind — only Product, Category, Asset get seeded with code-immutable +
+ * undeletable flags. Tests here focus on the entity-level invariants.
  */
 final class ObjectTypeBuiltInFlagsTest extends TestCase
 {
@@ -65,12 +65,12 @@ final class ObjectTypeBuiltInFlagsTest extends TestCase
     #[Test]
     public function iconAndColorAreFreelyEditable(): void
     {
-        $type = new ObjectType('brand', ObjectKind::Brand, ['pl' => 'Marka', 'en' => 'Brand']);
+        $type = new ObjectType('asset', ObjectKind::Asset, ['pl' => 'Zasób', 'en' => 'Asset']);
 
-        $type->setIcon('Tag');
+        $type->setIcon('Image');
         $type->setColor('#F59E0B');
 
-        self::assertSame('Tag', $type->getIcon());
+        self::assertSame('Image', $type->getIcon());
         self::assertSame('#F59E0B', $type->getColor());
 
         $type->setIcon(null);
@@ -78,9 +78,11 @@ final class ObjectTypeBuiltInFlagsTest extends TestCase
     }
 
     #[Test]
-    public function brandKindIsBuiltInButCustomIsNot(): void
+    public function builtInKindsAreFlaggedAndCustomIsNot(): void
     {
-        self::assertTrue(ObjectKind::Brand->isBuiltIn());
+        self::assertTrue(ObjectKind::Product->isBuiltIn());
+        self::assertTrue(ObjectKind::Category->isBuiltIn());
+        self::assertTrue(ObjectKind::Asset->isBuiltIn());
         self::assertFalse(ObjectKind::Custom->isBuiltIn());
     }
 }

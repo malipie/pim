@@ -46,7 +46,6 @@ final class RbacMatrix
         'attribute',
         'attribute_group',
         'backup',
-        'brand',
         'category',
         'channel',
         'import_profile',
@@ -99,7 +98,7 @@ final class RbacMatrix
                 name: 'Catalog Manager',
                 permissionCodes: [
                     ...self::permissionsFor(
-                        resources: ['object', 'object_type', 'attribute', 'attribute_group', 'category', 'asset', 'brand'],
+                        resources: ['object', 'object_type', 'attribute', 'attribute_group', 'category', 'asset'],
                         actions: [self::ACTION_READ, self::ACTION_WRITE, self::ACTION_DELETE],
                     ),
                     // IMP-01/02 — Catalog Manager is the primary persona for
@@ -128,7 +127,7 @@ final class RbacMatrix
                     // Read-only on catalog so an integrator can wire mappings
                     // without being able to mutate product data.
                     ...self::permissionsFor(
-                        resources: ['object', 'object_type', 'attribute', 'category', 'brand', 'asset'],
+                        resources: ['object', 'object_type', 'attribute', 'category', 'asset'],
                         actions: [self::ACTION_READ],
                     ),
                 ],

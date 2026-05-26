@@ -24,7 +24,6 @@ final class IndexSettingsTemplateConsolidationTest extends TestCase
         self::assertSame('objects', IndexSettingsTemplate::indexName(ObjectKind::Product));
         self::assertSame('objects', IndexSettingsTemplate::indexName(ObjectKind::Category));
         self::assertSame('objects', IndexSettingsTemplate::indexName(ObjectKind::Asset));
-        self::assertSame('objects', IndexSettingsTemplate::indexName(ObjectKind::Brand));
         self::assertSame('objects', IndexSettingsTemplate::indexName(ObjectKind::Custom));
     }
 
@@ -37,8 +36,7 @@ final class IndexSettingsTemplateConsolidationTest extends TestCase
         self::assertContains(ObjectKind::Product, $kinds);
         self::assertContains(ObjectKind::Category, $kinds);
         self::assertContains(ObjectKind::Asset, $kinds);
-        self::assertContains(ObjectKind::Brand, $kinds);
-        self::assertCount(5, $kinds);
+        self::assertCount(4, $kinds);
     }
 
     #[Test]
