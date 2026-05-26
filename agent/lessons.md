@@ -2,6 +2,41 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z marathonu UX-01..UX-09 (2026-05-26, capability flags + cutover guard)
+
+### Patterns to Follow
+
+1. **Symmetric kind guards dla capability flag** — `isCategorizable=true` blocked dla Category (circular dependency w resolverze), `hasMultimedia=true` blocked dla Asset (asset IS multimedia). Wzór: jeśli flaga semantically oznacza "ma X w sobie", a kind sam JEST X, to flag musi być rejected na warstwie service. UI lock w show.tsx mirror'uje BE rejection. Symmetric guards ułatwiają debugowanie + dokumentowanie + tests pisanie ("rejects hasMultimedia=true on Asset" + "rejects isCategorizable=true on Category" = mirror tests).
+
+2. **Stack PR-ów oszczędza czas marathonu** — UX-09 wymagał prop'ów z UX-08 (`hasMultimedia`, `hasVariants` w `UniversalDetailPage`). Branch UX-09 utworzony od UX-08 + PR `base=main`. Po merge UX-08 → main, `git rebase origin/main` + `git push --force-with-lease` = clean single-commit diff. Każdy ticket = własny CI cycle bez czekania na sąsiednie merge'e. Stack do 3-4 PR-ów manageable; powyżej rebase chains zaczynają boleć.
+
+3. **`single follow-up PATCH bundle` po POST** — `POST /api/object_types` przyjmuje tylko core + `hasVariants`; capability flags (`hasMultimedia`, `isCategorizable`, `exposeToMainMenu`) wymagają osobnego PATCH. UX-07 wzorzec: jeden PATCH z mergeniem 3 opt-in flagów, nie 3 round-tripy. Jeden network call + jedna error obsługa.
+
+4. **Multiple #[Route] attrs dla poly-kind w custom Symfony controller (NIE ApiPlatform Resource)** — UX-04 dodaje `/api/objects/{id}/assets` jako alias `/api/products/{id}/assets` przez drugi `#[Route]` attribute na istniejących metodach. Tożsame z UP-04 wzorcem dla ApiPlatform Resource methods. Backend kind-agnostic (link table `product_assets.product_id` faktycznie przechowuje CatalogObject UUID — `product_id` to legacy nazwa kolumny). Frontend może pass'ować `productId={objectId}` do legacy komponentu i działa.
+
+### Patterns to Avoid
+
+1. **NIE flipować default'u na cutoverze bez sprawdzenia wszystkich E2E spec'ów na docelowej route** — UX-09 początkowo flipował default `/products/:id` na `UniversalDetailPage`. Lokalnie typecheck/lint zielone, ale Playwright `apps/admin/e2e/975-relation-picker-candidates.spec.ts` zfailowało na missing "Dodaj powiązanie" CTA. Cutover zepsuł flow który wymagał legacy-only komponentu (`RelationsTab`). Lesson: każdy "cutover" PR wymaga manual smoke listy istniejących E2E spec'ów na docelowej route PRZED merge. Default flip to operacja wyłącznie po pełnym feature parity, NIE w środku marathonu. Solution: ship opt-in path (`?universal=1`) jako preview, zostaw default na legacy. Default flip = osobny ticket po follow-up'ach.
+
+2. **PHPStan max może lokalnie passować, ale CI failuje na cross-file zależnościach** — UX-01 PHPStan lokalnie pass, CI failed na `ObjectKindRouter::BUILT_IN_ROUTES` z `'brand'` key — file deklarował phpdoc `array<value-of<ObjectKind>, ...>` ale ObjectKind nie miał już case Brand. Lokalne PHPStan cache nie miał invalidowanej tej referencji. Lesson: po usunięciu enum case z `Domain/ObjectKind.php`, **ZAWSZE** `rg "ObjectKind::<Case>|case <Case>|'<value>'"` na CAŁY `apps/api/src` PRZED commitem. Cache invalidation po enum changes wymaga full rerun.
+
+3. **Subject `feat(scope): ABC..XYZ` z myślnikiem może przekroczyć 72 znaki commitlint limit** — UX-09 początkowy commit fail bo subject `feat(admin): UX-09 cutover /products/:id to UniversalDetailPage + ?legacy=1 fallback` = 80 znaków. Lesson: pre-emptive count subject length, target ≤65 znaków + body opisuje resztę.
+
+### Package Quirks
+
+1. **`pnpm biome format --write <file>` auto-fix formatting** — gdy Biome zgłasza format error w pre-commit, ręczne edytowanie zatkanej linii jest wolne. `pnpm biome format --write <path/to/file.tsx>` rozwiązuje większość przypadków (string break, parameter wrap). Lokalne `pnpm lint --fix` szerszy zakres ale `format --write` na single file = punktowy fix.
+
+2. **`docker compose exec -T -e APP_ENV=test api ./bin/phpunit ...`** — bez `APP_ENV=test` PHPUnit kernel boots w dev mode → "Could not find service test.service_container" failure. Wzór dla każdej PHPUnit run w docker.
+
+### Decyzje świadome (UX marathon)
+
+- **Multimedia jako capability, nie AttributeGroup** (operator decision): `BuiltInProductMediaAttributesSeeder` deleted, migration czyszcząca grupę 'media' z bazy. Multimedia tab pojawia się na podstawie `ObjectType.hasMultimedia` flag, nie obecności group w `effective_attribute_groups`. Sterowanie capability'ami przez toggle UI, nie przez attribute group attach/detach.
+- **Category + Asset hidden z `/modeling/object-types`** — `<Navigate>` redirect dla `kind IN ('category','asset')`. Operator: "tego już nie będziemy potrzebować". API endpoint /api/object_types nadal zwraca wszystkie kindy (potrzebne dla slug resolution w UniversalListPage).
+- **Brand demoted z built-in do zwykłego atrybutu** — ObjectKind::Brand enum case removed, RbacMatrix '`brand'` resource dropped, BuiltInObjectTypeSeeder usunięty. Demo data + tests używające `'brand'` jako attribute code (Text) zostają — operator: "Brand zostawiamy jako zwykły atrybut".
+- **UX-09 opt-in zamiast full cutover** — Playwright złapał regresję RelationsTab. Default `/products/:id` zostaje legacy ProductDetailPage. `?universal=1` to opt-in preview UniversalDetailPage. 4 follow-up tickety przed final flip.
+
+---
+
 ## Lessons z Epiku UP (2026-05-25, Universal Page Parity — extraction zamiast parallel MVP)
 
 ### Patterns to Follow
