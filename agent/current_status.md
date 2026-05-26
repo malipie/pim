@@ -1,5 +1,55 @@
 # Current Status
 
+## 2026-05-26: 🏁 Epik UX (Modeling/Object-Types polish) — marathon closed (9/9 shipped)
+
+**Milestone:** Marathon UX-01..UX-09 (PR-y #1045/#1047/#1049/#1053/#1051/#1055/#1057/#1059/#1061) dla operatora po wątpliwościach przy `/modeling/object-types` ("multimedia są hardcoded a powinny być capability flag", "kategorie/asset nie mają sensu w modeling"). Kapitalna decyzja: trzy capability flags (`hasVariants` / `isCategorizable` / `hasMultimedia`) sterują *którymi zakładkami* operator widzi, nie strukturą encji. Multimedia przestaje być AttributeGroup.
+
+### Final PR record
+
+| Ticket | PR | Scope shipped | Status |
+|---|---|---|---|
+| UX-01 | [#1045](../../pull/1045) | Remove `ObjectKind::Brand` enum case + RbacMatrix/IndexSettings/MenuConfig refs + admin SECONDARY_LABEL / icon map + migration deleting legacy `kind='brand'` rows | ✅ merged |
+| UX-02 | [#1047](../../pull/1047) | Delete `BuiltInProductMediaAttributesSeeder` + AppFixtures wiring + migration purging `attribute_groups` rows with `code IN ('media','multimedia')` + dispatch usuwany w `ProductDetailPage` | ✅ merged |
+| UX-03 | [#1049](../../pull/1049) | `ObjectTypeService::update()` accepts `hasMultimedia`; drops fieldLocked guards on `hasVariants`/`isCategorizable`/`hasMultimedia` (built-in editable); Asset rejected for `hasMultimedia=true`; serializer exposes the flag | ✅ merged |
+| UX-04 | [#1053](../../pull/1053) | Poly-kind `/api/objects/{id}/assets` (GET/POST/DELETE) via multiple `#[Route]` on `ProductAssetsController` — handler kind-agnostic for all multimedia paths | ✅ merged |
+| UX-05 | [#1051](../../pull/1051) | `/modeling/object-types` list hides `kind IN ('category','asset')`; deep-link guard `<Navigate>` na show.tsx dla tych kindów | ✅ merged |
+| UX-06 | [#1055](../../pull/1055) | `show.tsx` Settings card: new `hasMultimedia` toggle (Asset locked), relabel `hasVariants` → "Czy mają warianty?", relabel `isCategorizable` → "Czy można je przypisywać do kategorii?", built-in unlock | ✅ merged |
+| UX-07 | [#1057](../../pull/1057) | `ObjectTypeWizard` Step 3 Settings: new `hasMultimedia` + `isCategorizable` toggles + relabel; single follow-up PATCH bundles `exposeToMainMenu` + new flags (POST endpoint doesn't accept them in body) | ✅ merged |
+| UX-08 | [#1059](../../pull/1059) | `UniversalDetailPage` adds conditional Multimedia (delegates to `ProductMultimediaTab` with objectId — backend kind-agnostic via UX-04 alias) and Variants (minimal poly-kind reader `?parent_id=`) tabs; `useListSchema` exposes `has_multimedia` | ✅ merged |
+| UX-09 | [#1061](../../pull/1061) | `/products/:id?universal=1` opt-in preview path → `UniversalDetailPage`; default render stays legacy `ProductDetailPage` (Playwright caught RelationsTab regression) — flip to default after 4 follow-up power-feature migrations | 🟡 opt-in preview shipped, default cutover deferred |
+
+### Świadome odejścia (consolidated)
+
+- **UX-09** nie flippuje defaultu — `/products/:id` zostaje legacy `ProductDetailPage` (gold-standard z RelationsTab + Variants editor + Sync/Agent sidebars + Duplicate/Preview). `?universal=1` to opt-in preview. Cztery follow-up tickety przed final cutover:
+  1. Poly-kind `RelationsTab` + "Dodaj powiązanie" CTA
+  2. Variants full editor (axis matrix + bulk generator)
+  3. `SyncStatusCard` + `AgentSuggestionsCard` (sidebar)
+  4. `DuplicateButton` + `PreviewButton` (header)
+- **UX-08** Variants panel: minimal read-only list (`/api/objects?parent_id=`). Full editor zostaje legacy.
+- **UX-08** Multimedia tab: delegacja do `ProductMultimediaTab(productId={objectId})` zamiast nowy `ObjectMultimediaTab` — refactor komponentu na `apiPath` prop = follow-up.
+- **UX-02** migration `down()` irreversible by design (seeder już deleted).
+- **UX-01** Brand jako `text` attribute code w demo data zostaje — operator wprost: "Brand zostawiamy jako zwykły atrybut".
+
+### Bottom-line stan po marathonie
+
+- `/modeling/object-types` → tylko Product (built-in) + custom widoczne. Category/Asset/Brand redirect na list.
+- ObjectType detail (show.tsx) → 3 capability toggles edytowalne dla każdego kindu (z Asset/Category symmetric guards).
+- ObjectType wizard (new) → te same 3 capability toggles w Step 3 (bundle PATCH po POST).
+- `/objects/{slug}/{id}` (custom kindy) → `UniversalDetailPage` z conditional Multimedia + Categories + Variants tabs sterowanymi flagami.
+- `/products/{id}` → default legacy (gold-standard) + `?universal=1` opt-in preview.
+- Backend: `BuiltInProductMediaAttributesSeeder` deleted, Brand enum case removed, capability flags unlocked dla built-in (Product editable), poly-kind `/api/objects/{id}/assets` action.
+
+### Lessons (do `lessons.md` osobnym PR-em)
+
+- **Playwright catches semantic regressions, not just visual** — UX-09 początkowo flipował default na UniversalDetailPage. Lokalnie typecheck/lint zielone, ale Playwright `975-relation-picker` E2E zawiódł na missing "Dodaj powiązanie" CTA. Cutover ZEPSUŁ flow który nie miał poly-kind RelationsTab. Lesson: każdy "cutover" PR wymaga sprawdzenia LISTY istniejących E2E spec'ów na docelowej route przed merge. Default flip to operacja wyłącznie po pełnym feature parity, NIE w środku marathonu.
+- **PRZED `composer phpstan` lokalnie zawsze sprawdź wszystkie referencje per file: PHPStan max widzi cross-file** — UX-01 PHPStan lokalnie pass, ale CI failed na `ObjectKindRouter::BUILT_IN_ROUTES` z `'brand'` key — file którego nie touchowałem ale który deklarował phpdoc type kompatybilny z usuniętym enum case. Lesson: po usunięciu enum case z `Domain/ObjectKind.php`, `rg "ObjectKind::Brand|case Brand|'brand'"` PRZED commitem na CAŁY apps/api.
+- **API Platform XML serializer groups vs ApiResource definition** — UX-03 wymagało dodania `<attribute name="hasMultimedia">` w `Catalog/Infrastructure/Serializer/ObjectType.xml` (NIE w `ApiPlatform/Resource/ObjectType.xml`). Resource XML pokazuje grupy normalizacyjne (`admin:read`), serializer XML mapuje atrybuty na grupy. Dwa odrębne miejsca.
+- **Stack PR-ów oszczędza czas marathonu** — UX-09 musiał używać prop'ów z UX-08 (`hasMultimedia`, `hasVariants`). Branch UX-09 utworzony od UX-08 + PR base=main. Po merge UX-08 → main, rebase UX-09 + force-push = clean single-commit diff. Każdy ticket = własny CI cycle bez czekania na sąsiednie merge'e.
+- **Symmetric kind guards for capability flags** — `isCategorizable=true` blocked dla Category (circular dependency), `hasMultimedia=true` blocked dla Asset (asset IS multimedia). Wzór: jeśli flaga semantically oznacza "ma X w sobie", a kind sam JEST X, to flag musi być rejected. Symmetric guards ułatwiają debugowanie + dokumentowanie.
+- **PR opening podczas heavy CI** — w marathonie UX-01..UX-09 7 PR-ów było jednocześnie open. Każdy własny CI cycle 5-15 min. Merge "as soon as green" w kolejności zaimplementowania (nie zależności logicznej) pozwala na maksymalne wykorzystanie czasu CI.
+
+---
+
 ## 2026-05-25: 🏁 Epik UP (Universal Page Parity) — marathon closed (12/12 shipped)
 
 **Milestone:** Epik UP zamknięty drugim ciągiem maratońskim po Epiku UI-08. Operator po post-UI-08 manual smoke teście odrzucił MVP `ObjectListView` jako "półśrodek" — Epik UP wydziela `/products` *list/show/create* (1085+1033+5 linii) do parametryzowanych komponentów konsumowanych przez `/products` ORAZ `/objects/:slug`. ADR-009 finalna realizacja.
