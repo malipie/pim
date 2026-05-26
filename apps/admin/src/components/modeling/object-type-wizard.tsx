@@ -84,6 +84,8 @@ export function ObjectTypeWizard() {
   const [color, setColor] = useState<string>(DEFAULT_WIZARD_COLORS[0]);
   const [hierarchical, setHierarchical] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
+  const [hasMultimedia, setHasMultimedia] = useState(false);
+  const [isCategorizable, setIsCategorizable] = useState(false);
   const [abstractFlag, setAbstractFlag] = useState(false);
   const [exposeToMainMenu, setExposeToMainMenu] = useState(false);
   const [pickedGroupIds, setPickedGroupIds] = useState<Set<string>>(new Set());
@@ -257,16 +259,22 @@ export function ObjectTypeWizard() {
         }
       }
 
-      // VIEW-08 follow-up — POST /api/object_types nie obsługuje
-      // exposeToMainMenu w body, więc gdy operator włączył toggle w
-      // step 3, dosyłamy PATCH zaraz po stworzeniu.
+      // VIEW-08 / UX-07 follow-up — POST /api/object_types nie obsługuje
+      // exposeToMainMenu / hasMultimedia / isCategorizable w body, więc
+      // gdy operator włączył któryś z tych toggles w step 3, dosyłamy
+      // pojedynczy PATCH zaraz po stworzeniu (jeden round-trip dla
+      // wszystkich trzech).
       let exposeFailed = false;
-      if (exposeToMainMenu) {
+      const postCreatePayload: Record<string, unknown> = {};
+      if (exposeToMainMenu) postCreatePayload.exposeToMainMenu = true;
+      if (hasMultimedia) postCreatePayload.hasMultimedia = true;
+      if (isCategorizable) postCreatePayload.isCategorizable = true;
+      if (Object.keys(postCreatePayload).length > 0) {
         try {
           await jsonFetch(`/api/object_types/${created.id}`, {
             method: 'PATCH',
             contentType: 'application/merge-patch+json',
-            body: { exposeToMainMenu: true },
+            body: postCreatePayload,
           });
         } catch {
           exposeFailed = true;
@@ -693,12 +701,37 @@ export function ObjectTypeWizard() {
                   onChange={setHierarchical}
                 />
                 <SettingToggleRow
-                  label={t('object_types.setting_variants_label', { defaultValue: 'Has variants' })}
+                  label={t('object_types.setting_variants_label', {
+                    defaultValue: 'Czy mają warianty?',
+                  })}
                   description={t('object_types.setting_variants_desc', {
-                    defaultValue: 'Obiekty mogą mieć warianty (jak Product → kolor × rozmiar)',
+                    defaultValue:
+                      'Włącza zakładkę „Warianty" w karcie obiektu (np. Produkt → kolor × rozmiar).',
                   })}
                   checked={hasVariants}
                   onChange={setHasVariants}
+                />
+                <SettingToggleRow
+                  label={t('object_types.setting_multimedia_label', {
+                    defaultValue: 'Czy obiekty tego typu mają zdjęcia i pliki?',
+                  })}
+                  description={t('object_types.setting_multimedia_desc', {
+                    defaultValue:
+                      'Włącza zakładkę „Multimedia" w karcie obiektu — biblioteka zdjęć i plików.',
+                  })}
+                  checked={hasMultimedia}
+                  onChange={setHasMultimedia}
+                />
+                <SettingToggleRow
+                  label={t('object_types.setting_categorizable_label', {
+                    defaultValue: 'Czy można je przypisywać do kategorii?',
+                  })}
+                  description={t('object_types.setting_categorizable_desc_wizard', {
+                    defaultValue:
+                      'Włącza zakładkę „Kategorie" w karcie obiektu. Instancje muszą wybrać kategorię główną przy tworzeniu — jej ścieżka root→leaf dodaje atrybuty kumulatywnie.',
+                  })}
+                  checked={isCategorizable}
+                  onChange={setIsCategorizable}
                 />
                 <SettingToggleRow
                   label={t('object_types.setting_abstract_label', { defaultValue: 'Is abstract' })}
