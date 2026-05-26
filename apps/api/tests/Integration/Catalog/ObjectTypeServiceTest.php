@@ -15,6 +15,7 @@ use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
+use LogicException;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
@@ -142,6 +143,55 @@ final class ObjectTypeServiceTest extends KernelTestCase
         self::assertCount(1, $junctions);
         self::assertTrue($junctions[0]->isRequiredForCompleteness());
         self::assertSame(10, $junctions[0]->getSortOrder());
+    }
+
+    #[Test]
+    public function updateUnlocksCapabilityFlagsOnBuiltInProduct(): void
+    {
+        // UX-03: hasVariants / isCategorizable / hasMultimedia drive *which
+        // tabs* the operator sees, not the entity model itself. They must
+        // be flippable on built-in rows too, otherwise Product is forever
+        // stuck with its seed values.
+        $service = $this->serviceWithCustomEnabled(false);
+        $product = $service->create('product', ObjectKind::Product, ['pl' => 'Produkt'], builtIn: true);
+        $product->setHasVariants(true);
+        $product->setCategorizable(true);
+        $product->setHasMultimedia(true);
+        $this->em()->flush();
+
+        $service->update($product, hasVariants: false);
+        $service->update($product, isCategorizable: false);
+        $service->update($product, hasMultimedia: false);
+
+        self::assertFalse($product->hasVariants());
+        self::assertFalse($product->isCategorizable());
+        self::assertFalse($product->hasMultimedia());
+    }
+
+    #[Test]
+    public function updateStillLocksStructuralFlagsOnBuiltInProduct(): void
+    {
+        // The structural flags (`hierarchical`, `abstract`,
+        // `allowedParentTypeIds`, `completenessRules`) stay locked on
+        // built-ins — they shape the entity model and the seeder owns
+        // their values.
+        $service = $this->serviceWithCustomEnabled(false);
+        $product = $service->create('product', ObjectKind::Product, ['pl' => 'Produkt'], builtIn: true);
+
+        $this->expectException(BuiltInObjectTypeException::class);
+        $service->update($product, hierarchical: true);
+    }
+
+    #[Test]
+    public function updateRejectsHasMultimediaTrueOnAsset(): void
+    {
+        // UX-03: Asset is itself the multimedia surface; promoting an
+        // Asset ObjectType to host a Multimedia tab would be recursive.
+        $service = $this->serviceWithCustomEnabled(false);
+        $asset = $service->create('asset', ObjectKind::Asset, ['pl' => 'Zasób'], builtIn: true);
+
+        $this->expectException(LogicException::class);
+        $service->update($asset, hasMultimedia: true);
     }
 
     #[Test]
