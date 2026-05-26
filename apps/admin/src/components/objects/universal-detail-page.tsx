@@ -49,6 +49,7 @@ import { AttrRow } from '@/features/catalog/products/components/attr-row';
 import { CompletenessRing } from '@/features/catalog/products/components/completeness-ring';
 import { EffectiveModelCard } from '@/features/catalog/products/components/effective-model-card';
 import { LocaleChannelToolbar } from '@/features/catalog/products/components/locale-channel-toolbar';
+import { ProductMultimediaTab } from '@/features/catalog/products/components/product-multimedia-tab';
 import type {
   AttributeMeta,
   CatalogObjectDto,
@@ -60,7 +61,7 @@ import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
-const SPECIAL_TABS = ['attributes', 'categories'] as const;
+const SPECIAL_TABS = ['attributes', 'categories', 'multimedia', 'variants'] as const;
 type SpecialTabKey = (typeof SPECIAL_TABS)[number];
 type TabKey = SpecialTabKey | string;
 
@@ -85,8 +86,10 @@ export interface UniversalDetailPageProps {
   objectTypeLabel: string;
   /** Back link (typically `/objects/:slug`). */
   backHref: string;
-  /** Capability flag from the list-schema response. */
+  /** Capability flags from the list-schema response. */
   isCategorizable: boolean;
+  hasMultimedia: boolean;
+  hasVariants: boolean;
 }
 
 interface CategoryAssignment {
@@ -109,6 +112,8 @@ export function UniversalDetailPage({
   objectTypeLabel,
   backHref,
   isCategorizable,
+  hasMultimedia,
+  hasVariants,
 }: UniversalDetailPageProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -167,9 +172,11 @@ export function UniversalDetailPage({
   const visibleTabs: readonly TabKey[] = useMemo(() => {
     const fromGroups = tabModeGroups.map((g) => g.code);
     const tabs: TabKey[] = ['attributes', ...fromGroups];
+    if (hasMultimedia) tabs.push('multimedia');
     if (isCategorizable) tabs.push('categories');
+    if (hasVariants) tabs.push('variants');
     return tabs;
-  }, [tabModeGroups, isCategorizable]);
+  }, [tabModeGroups, isCategorizable, hasMultimedia, hasVariants]);
 
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
   const [locale, setLocale] = useState<ProductLocale>('pl');
@@ -492,6 +499,12 @@ export function UniversalDetailPage({
                 />
               );
             }
+            if (activeTab === 'multimedia') {
+              return <ObjectMultimediaPanel objectId={objectId} />;
+            }
+            if (activeTab === 'variants') {
+              return <ObjectVariantsPanel objectId={objectId} />;
+            }
             const tabGroup = tabModeGroups.find((g) => g.code === activeTab);
             if (tabGroup) return renderStackedGroup(tabGroup);
             return null;
@@ -671,4 +684,84 @@ function resolveProvenance(
     return meta.provenance;
   }
   return 'manual';
+}
+
+/**
+ * UX-08 — Multimedia tab driven by `ObjectType.hasMultimedia`.
+ *
+ * Reuses `ProductMultimediaTab` with the object UUID as the `productId`
+ * prop — `product_assets` link table uses CatalogObject UUIDs across
+ * every kind (UX-04 poly-kind /api/objects/{id}/assets aliases the
+ * underlying handler), so no kind-specific paths leak through.
+ */
+function ObjectMultimediaPanel({ objectId }: { objectId: string }) {
+  return <ProductMultimediaTab productId={objectId} />;
+}
+
+interface VariantSummary {
+  id: string;
+  code?: string;
+  attributesIndexed?: Record<string, unknown>;
+}
+
+/**
+ * UX-08 — Variants tab driven by `ObjectType.hasVariants`.
+ *
+ * Minimal poly-kind list: queries `/api/objects?parent_id={objectId}`
+ * for direct children and links each one back to the detail page via
+ * its ObjectType slug. Full editor (axis matrix, generator) stays on
+ * the legacy Product detail for now — the universal generator endpoint
+ * landed in UP-04 but a generic editor UI is a follow-up.
+ */
+function ObjectVariantsPanel({ objectId }: { objectId: string }) {
+  const { t } = useTranslation();
+  const query = useQuery({
+    queryKey: ['object', objectId, 'variants'],
+    enabled: objectId !== '',
+    staleTime: 30_000,
+    queryFn: async () => {
+      const data = await jsonFetch<{
+        member?: VariantSummary[];
+        'hydra:member'?: VariantSummary[];
+      }>(`/api/objects?parent_id=${objectId}&itemsPerPage=200`, { accept: 'application/ld+json' });
+      return data.member ?? data['hydra:member'] ?? [];
+    },
+  });
+
+  if (query.isLoading) {
+    return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
+  }
+
+  const variants = query.data ?? [];
+  if (variants.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t('object_detail.variants.empty', {
+          defaultValue:
+            'Ten obiekt nie ma jeszcze wariantów. Generator wariantów ląduje w następnej iteracji.',
+        })}
+      </p>
+    );
+  }
+
+  return (
+    <ul className="space-y-2">
+      {variants.map((variant) => {
+        const indexed = variant.attributesIndexed ?? {};
+        const sku =
+          typeof variant.code === 'string' && variant.code.length > 0 ? variant.code : variant.id;
+        return (
+          <li key={variant.id} className="rounded-md border bg-card px-3 py-2 text-sm">
+            <div className="font-mono text-[12px] text-ink">{sku}</div>
+            <div className="text-[11px] text-muted-foreground">
+              {Object.entries(indexed)
+                .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+                .slice(0, 3)
+                .join(' · ')}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
