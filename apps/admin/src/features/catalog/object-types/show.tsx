@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check, Copy, Library, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, Navigate, useNavigate, useParams } from 'react-router';
 
 import { AddAttributesToObjectTypeDialog } from '@/components/modeling/add-attributes-to-object-type-dialog';
 import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
@@ -133,6 +133,12 @@ export function ObjectTypeShowPage() {
   }
 
   const objectType = result;
+  // UX-05 — Category and Asset ObjectTypes are managed by the system,
+  // not the operator. Deep-links land back on the modeling list rather
+  // than risking edits that would corrupt the platform-owned schema.
+  if (objectType.kind === 'category' || objectType.kind === 'asset') {
+    return <Navigate to="/modeling/object-types" replace />;
+  }
   const isBuiltIn = objectType.builtIn !== false;
   const labelText = resolveLabel(objectType.label, i18n.language);
   const labelMap =
