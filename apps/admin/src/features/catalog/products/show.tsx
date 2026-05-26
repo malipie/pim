@@ -8,26 +8,26 @@ import { ProductDetailPage } from './components/product-detail-page';
 import { useDefaultObjectType } from './use-default-object-type';
 
 /**
- * UX-09 — `/products/:id` cutover to `UniversalDetailPage`.
- *
- * The legacy `ProductDetailPage` remains reachable via `?legacy=1` for
- * one sprint (UP-10 pattern) so operators can fall back when power
- * features that have not been migrated yet (variants generator, sync
- * status, agent suggestions, duplicate, preview) are needed. After the
- * dual-maintenance window closes, the conditional drops and the legacy
- * component is removed.
+ * UX-09 — `/products/:id` adds an opt-in `?universal=1` path that
+ * renders the new `UniversalDetailPage` so operators can preview the
+ * cutover during the dual-maintenance window. The legacy
+ * `ProductDetailPage` stays as the default render because four power
+ * features have not been migrated yet (RelationsTab, full variants
+ * editor, SyncStatusCard + AgentSuggestionsCard, Duplicate / Preview
+ * buttons). When their follow-up tickets land the default flips and
+ * the conditional gets removed.
  */
 export function ProductShowPage() {
   const params = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const productId = params.id ?? '';
-  const isLegacy = searchParams.get('legacy') === '1';
+  const useUniversal = searchParams.get('universal') === '1';
 
-  if (isLegacy) {
-    return <ProductDetailPage mode="edit" productId={productId} />;
+  if (useUniversal) {
+    return <ProductDetailUniversal productId={productId} />;
   }
 
-  return <ProductDetailUniversal productId={productId} />;
+  return <ProductDetailPage mode="edit" productId={productId} />;
 }
 
 function ProductDetailUniversal({ productId }: { productId: string }) {
