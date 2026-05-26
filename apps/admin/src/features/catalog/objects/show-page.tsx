@@ -107,6 +107,8 @@ export function ObjectShowPage() {
       objectTypeLabel={typeLabel}
       backHref={`/objects/${code}`}
       isCategorizable={schemaQuery.data.objectType.is_categorizable}
+      hasMultimedia={schemaQuery.data.objectType.has_multimedia}
+      hasVariants={schemaQuery.data.objectType.has_variants}
     />
   );
 }
