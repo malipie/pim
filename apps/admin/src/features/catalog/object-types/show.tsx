@@ -49,6 +49,7 @@ interface ObjectTypeDetail {
   completenessRules?: Record<string, unknown> | null;
   exposeToMainMenu?: boolean;
   isCategorizable?: boolean;
+  hasMultimedia?: boolean;
 }
 
 interface ObjectTypeUsage {
@@ -658,14 +659,36 @@ export function ObjectTypeShowPage() {
             onChange={(next) => void handlePatch({ hierarchical: next })}
           />
           <SettingToggleRow
-            label={t('object_types.setting_variants_label', { defaultValue: 'Has variants' })}
+            label={t('object_types.setting_variants_label', {
+              defaultValue: 'Czy mają warianty?',
+            })}
             description={t('object_types.setting_variants_desc', {
-              defaultValue: 'Obiekty mogą mieć warianty (jak Product → kolor × rozmiar)',
+              defaultValue:
+                'Włącza zakładkę „Warianty" w karcie obiektu (np. Produkt → kolor × rozmiar).',
             })}
             checked={Boolean(objectType.hasVariants)}
-            locked={isBuiltIn}
             onChange={(next) => void handlePatch({ hasVariants: next })}
           />
+          <SettingToggleRow
+            label={t('object_types.setting_multimedia_label', {
+              defaultValue: 'Czy obiekty tego typu mają zdjęcia i pliki?',
+            })}
+            description={t('object_types.setting_multimedia_desc', {
+              defaultValue:
+                'Włącza zakładkę „Multimedia" w karcie obiektu — biblioteka zdjęć i plików przypiętych do obiektu.',
+            })}
+            checked={Boolean(objectType.hasMultimedia)}
+            locked={objectType.kind === 'asset'}
+            onChange={(next) => void handlePatch({ hasMultimedia: next })}
+          />
+          {objectType.kind === 'asset' ? (
+            <div className="mt-2 text-[11.5px] text-zinc-500">
+              {t('object_types.setting_multimedia_asset_locked', {
+                defaultValue:
+                  'Zasób sam jest multimediami — nie można rekurencyjnie dodawać kolejnej zakładki Multimedia.',
+              })}
+            </div>
+          ) : null}
           <SettingToggleRow
             label={t('object_types.setting_abstract_label', { defaultValue: 'Is abstract' })}
             description={t('object_types.setting_abstract_desc', {
@@ -725,11 +748,11 @@ export function ObjectTypeShowPage() {
           <div className="border-t border-zinc-100 pt-5">
             <SettingToggleRow
               label={t('object_types.setting_categorizable_label', {
-                defaultValue: 'Wymaga primary category',
+                defaultValue: 'Czy można je przypisywać do kategorii?',
               })}
               description={t('object_types.setting_categorizable_desc', {
                 defaultValue:
-                  'Po włączeniu instancje tego ObjectType muszą wybrać kategorię główną przy tworzeniu — jej ścieżka root→leaf w drzewie kategorii dodaje atrybuty kumulatywnie (ADR-014). Wyłącz, by formularz pokazywał tylko bazowe atrybuty ObjectType.',
+                  'Włącza zakładkę „Kategorie" w karcie obiektu. Po włączeniu instancje muszą wybrać kategorię główną przy tworzeniu — jej ścieżka root→leaf w drzewie kategorii dodaje atrybuty kumulatywnie (ADR-014). Wyłącz, by formularz pokazywał tylko bazowe atrybuty ObjectType.',
               })}
               checked={Boolean(objectType.isCategorizable)}
               locked={objectType.kind === 'category'}
