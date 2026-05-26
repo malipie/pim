@@ -41,7 +41,6 @@ import { DuplicateButton } from './duplicate-button';
 import { EffectiveModelCard } from './effective-model-card';
 import { LocaleChannelToolbar } from './locale-channel-toolbar';
 import { PreviewButton } from './preview-button';
-import { ProductMultimediaTab } from './product-multimedia-tab';
 import { RelationsTab } from './relations-tab';
 import { SyncStatusCard } from './sync-status-card';
 import type {
@@ -767,13 +766,14 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
             }
 
             // Tab-mode AttributeGroup → render only that group, with
-            // bespoke components for media/relations that retain their
-            // legacy data flow (m2m assets, relation links endpoint).
+            // a bespoke component for relations that retains its legacy
+            // data flow (relation links endpoint). Multimedia is no
+            // longer dispatched here — UX-02 removes it from the
+            // AttributeGroup model entirely; the conditional Multimedia
+            // tab lives as a hardcoded special tab driven by
+            // `ObjectType.hasMultimedia` (UX-06+).
             const tabGroup = tabModeGroups.find((g) => g.code === activeTab);
             if (tabGroup && mode === 'edit') {
-              if (tabGroup.code === 'media' || tabGroup.code === 'multimedia') {
-                return <ProductMultimediaTab productId={id} />;
-              }
               if (tabGroup.code === 'relations') {
                 return <RelationsTab productId={id} />;
               }
