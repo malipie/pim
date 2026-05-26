@@ -79,7 +79,7 @@ final class RecalculateCompletenessCommand extends Command
         /** @var string $kindOption */
         $kindOption = $input->getOption('kind');
         $kinds = 'all' === $kindOption
-            ? [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset, ObjectKind::Brand]
+            ? [ObjectKind::Product, ObjectKind::Category, ObjectKind::Asset]
             : [ObjectKind::from($kindOption)];
         /** @var bool $dryRun */
         $dryRun = $input->getOption('dry-run');

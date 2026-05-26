@@ -15,6 +15,11 @@ namespace App\Catalog\Domain;
  * (Customer, Supplier, PriceList in phase 2/3) — gated behind a feature
  * flag in `ObjectTypeService` so MVP cannot accidentally create one.
  *
+ * `Brand` was previously seeded as a 4th built-in kind (MOD-10 #902) but
+ * reverted by ADR-014 — brand is now a tenant decision (select attribute,
+ * custom ObjectType, or external integration) rather than a platform-owned
+ * concept. UX-01 finishes the cleanup by removing the enum case.
+ *
  * `isBuiltIn()` is the semantic flag used by the service layer + tests to
  * tell "this kind is owned by the platform, not the tenant" apart from
  * the `is_built_in` boolean column on individual ObjectType rows. The
@@ -26,7 +31,6 @@ enum ObjectKind: string
     case Product = 'product';
     case Category = 'category';
     case Asset = 'asset';
-    case Brand = 'brand';
     case Custom = 'custom';
 
     public function isBuiltIn(): bool

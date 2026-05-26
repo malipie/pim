@@ -1,4 +1,4 @@
-import { Boxes, FolderTree, Image as ImageIcon, Layers, Package, Tag } from 'lucide-react';
+import { Boxes, FolderTree, Image as ImageIcon, Layers, Package } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -16,7 +16,6 @@ const KIND_ICON_MAP: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   product: Boxes,
   category: FolderTree,
   asset: ImageIcon,
-  brand: Tag,
   custom: Package,
 };
 
@@ -67,8 +66,6 @@ export function defaultAccent(kind: string | null): string {
       return '#a855f7';
     case 'asset':
       return '#ec4899';
-    case 'brand':
-      return '#f59e0b';
     default:
       return '#71717a';
   }

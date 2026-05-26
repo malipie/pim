@@ -41,11 +41,6 @@ final class BuiltInObjectTypeSeederTest extends KernelTestCase
             self::assertNotNull($type->getColor(), $kind->value);
             self::assertSame($kind, $type->getKind());
         }
-
-        self::assertNull(
-            $repo->findBuiltInByKind(ObjectKind::Brand, $tenant),
-            'Brand MUST NOT be seeded as a built-in ObjectType (ADR-014 / MOD-10).',
-        );
     }
 
     #[Test]

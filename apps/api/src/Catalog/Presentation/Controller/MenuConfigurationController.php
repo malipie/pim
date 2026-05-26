@@ -289,7 +289,6 @@ final class MenuConfigurationController
             ObjectKind::Product => 'nav.products',
             ObjectKind::Category => 'nav.categories',
             ObjectKind::Asset => 'nav.multimedia',
-            ObjectKind::Brand => 'nav.brands',
             default => null,
         };
     }

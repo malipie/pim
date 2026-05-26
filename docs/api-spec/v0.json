@@ -8273,7 +8273,6 @@
                             "product",
                             "category",
                             "asset",
-                            "brand",
                             "custom"
                         ]
                     },
@@ -8515,7 +8514,6 @@
                                     "product",
                                     "category",
                                     "asset",
-                                    "brand",
                                     "custom"
                                 ]
                             },
@@ -10803,7 +10801,6 @@
                             "product",
                             "category",
                             "asset",
-                            "brand",
                             "custom"
                         ]
                     },
@@ -10950,7 +10947,6 @@
                                     "product",
                                     "category",
                                     "asset",
-                                    "brand",
                                     "custom"
                                 ]
                             },
