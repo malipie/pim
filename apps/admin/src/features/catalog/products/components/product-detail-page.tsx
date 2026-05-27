@@ -14,6 +14,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 
+import { DetailLoadingState } from '@/components/catalog/detail-loading-state';
+import { DetailNotFoundState } from '@/components/catalog/detail-not-found-state';
 import type { Provenance } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -438,8 +440,31 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     }
   };
 
-  if (isEditMode && (query.isLoading || product === null || product === undefined)) {
-    return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
+  // Issue #1043 — split the original mixed guard into loading + not-found.
+  // The previous condition treated `product === undefined` (post-404) as
+  // still-loading and pinned the page on an infinite "Ładowanie…". Refine's
+  // `useOne` returns `isLoading=false`, `isError=true`, `data=undefined`
+  // after a 404, so we now check `isError` explicitly.
+  if (isEditMode && query.isLoading) {
+    return <DetailLoadingState />;
+  }
+  if (isEditMode && (query.isError || product === null || product === undefined)) {
+    return (
+      <DetailNotFoundState
+        id={id}
+        backHref="/products"
+        title={t('products.detail.errors.not_found_title', {
+          defaultValue: 'Produkt nie znaleziony',
+        })}
+        description={t('products.detail.errors.not_found_description', {
+          defaultValue: 'Produkt o ID "{{id}}" nie istnieje lub został usunięty.',
+          id,
+        })}
+        backLabel={t('products.detail.errors.back_to_list', {
+          defaultValue: 'Wróć do listy produktów',
+        })}
+      />
+    );
   }
 
   const skuValue =
