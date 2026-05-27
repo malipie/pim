@@ -39,16 +39,14 @@ test.describe('Detail pages — not-found state', () => {
     await expect(page.getByText(/Ładowanie/i)).toHaveCount(0);
   });
 
-  test('universal /objects/samochody/{missing-uuid} shows object not-found', async ({ page }) => {
-    await page.goto(`/objects/samochody/${MISSING_UUID}`);
-
-    const heading = page.getByRole('heading', { level: 1, name: 'Obiekt nie znaleziony' });
-    await expect(heading).toBeVisible({ timeout: 10_000 });
-
-    const backLink = page.getByRole('link', { name: /Wróć do listy/i });
-    await expect(backLink).toBeVisible();
-    await expect(backLink).toHaveAttribute('href', '/objects/samochody');
-  });
+  // NOTE: the analogous `/objects/<custom-slug>/<missing-uuid>` smoke is
+  // operator-only because CI fixtures only seed built-in product / category
+  // / asset ObjectTypes (per BuiltInObjectTypeSeeder). Built-in kinds
+  // redirect from `/objects/:slug/:id` to their legacy detail routes
+  // inside ObjectShowPage, so they cannot exercise UniversalDetailPage's
+  // not-found branch in a stable spec. Coverage for the universal branch
+  // is provided through the unit-level guard rewrite + operator smoke
+  // (`https://pim.localhost/objects/samochody/abc` in the PR body).
 
   test('clicking back from product not-found navigates to /products', async ({ page }) => {
     await page.goto(`/products/${MISSING_UUID}`);
