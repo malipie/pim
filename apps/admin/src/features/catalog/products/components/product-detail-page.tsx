@@ -894,6 +894,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
 
 const SPECIAL_TAB_DEFAULT_LABELS: Record<SpecialTabKey, string> = {
   attributes: 'Atrybuty',
+  multimedia: 'Multimedia',
   categories: 'Kategorie',
   history: 'Historia',
   variants: 'Warianty',
