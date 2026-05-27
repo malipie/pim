@@ -34,6 +34,8 @@ import { ArrowLeft, MoreHorizontal, Pencil, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
+import { DetailLoadingState } from '@/components/catalog/detail-loading-state';
+import { DetailNotFoundState } from '@/components/catalog/detail-not-found-state';
 import type { Provenance } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -269,14 +271,30 @@ export function UniversalDetailPage({
     }
   };
 
-  if (objectQuery.isLoading || product === null) {
-    return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
+  // Issue #1043 — order matters: check `isLoading` FIRST (covers initial
+  // mount), then the not-found bucket. The previous order had `product
+  // === null` in the loading guard, so a 404 stayed on `Ładowanie…`
+  // forever because `objectQuery.data ?? null` is null after a failed
+  // fetch and the error branch below was unreachable.
+  if (objectQuery.isLoading) {
+    return <DetailLoadingState />;
   }
-  if (objectQuery.isError) {
+  if (objectQuery.isError || product === null || product === undefined) {
     return (
-      <div className="rounded border border-destructive bg-destructive/5 p-6 text-sm text-destructive">
-        {t('object_detail.errors.load_failed', { defaultValue: 'Could not load object.' })}
-      </div>
+      <DetailNotFoundState
+        id={objectId}
+        backHref={backHref}
+        title={t('object_detail.errors.not_found_title', {
+          defaultValue: 'Obiekt nie znaleziony',
+        })}
+        description={t('object_detail.errors.not_found_description', {
+          defaultValue: 'Obiekt o ID "{{id}}" nie istnieje lub został usunięty.',
+          id: objectId,
+        })}
+        backLabel={t('object_detail.errors.back_to_list', {
+          defaultValue: 'Wróć do listy',
+        })}
+      />
     );
   }
 
