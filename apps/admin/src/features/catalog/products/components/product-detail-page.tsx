@@ -26,10 +26,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { MockBadge } from '@/components/ui/mock-badge';
 import { toast } from '@/components/ui/toast';
+import { useListSchema } from '@/hooks/use-list-schema';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
-
 import { useDefaultObjectType } from '../use-default-object-type';
 import { AgentSuggestionsCard } from './agent-suggestions-card';
 import { AttrGroupCard } from './attr-group-card';
@@ -39,8 +39,10 @@ import { CategorySelectorCard } from './category-selector-card';
 import { CompletenessRing } from './completeness-ring';
 import { DuplicateButton } from './duplicate-button';
 import { EffectiveModelCard } from './effective-model-card';
+
 import { LocaleChannelToolbar } from './locale-channel-toolbar';
 import { PreviewButton } from './preview-button';
+import { ProductMultimediaTab } from './product-multimedia-tab';
 import { RelationsTab } from './relations-tab';
 import { SyncStatusCard } from './sync-status-card';
 import type {
@@ -61,7 +63,7 @@ import { VariantsTabHost } from './variants-tab-host';
  * picker, audit log, variants tree). Tab-mode groups become tabs
  * dynamically — see `useDynamicTabs`.
  */
-const SPECIAL_TABS = ['attributes', 'categories', 'history', 'variants'] as const;
+const SPECIAL_TABS = ['attributes', 'multimedia', 'categories', 'history', 'variants'] as const;
 type SpecialTabKey = (typeof SPECIAL_TABS)[number];
 type TabKey = SpecialTabKey | string;
 
@@ -131,6 +133,13 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   });
 
   const { objectTypeId } = useDefaultObjectType('product');
+  // UX bug fix #2 — UX-02 removed the legacy 'media' AttributeGroup
+  // (operator decision: Multimedia is a capability, not an attribute
+  // group). Without reading `has_multimedia` from list-schema the
+  // legacy Multimedia tab never reappears on /products/{id}. Mirror
+  // the UniversalDetailPage gating logic so the tab follows the flag.
+  const schemaQuery = useListSchema(objectTypeId ?? undefined);
+  const hasMultimediaCapability = schemaQuery.data?.objectType.has_multimedia ?? false;
 
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
   const [locale, setLocale] = useState<ProductLocale>('pl');
@@ -271,15 +280,17 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     // object has reverse links but no forward `relations` AttributeGroup.
     const ensureRelations =
       shouldSurfaceRelationsTab && !fromGroups.includes('relations') ? ['relations'] : [];
+    const multimedia: TabKey[] = hasMultimediaCapability ? ['multimedia' as const] : [];
     return [
       'attributes' as const,
       ...fromGroups,
       ...ensureRelations,
+      ...multimedia,
       'categories' as const,
       'history' as const,
       'variants' as const,
     ];
-  }, [mode, tabModeGroups, shouldSurfaceRelationsTab]);
+  }, [mode, tabModeGroups, shouldSurfaceRelationsTab, hasMultimediaCapability]);
 
   // Keep activeTab valid as group set changes (e.g. groups data arrives
   // after first render or a tab→stacked switch in the wizard).
@@ -883,6 +894,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
 
 const SPECIAL_TAB_DEFAULT_LABELS: Record<SpecialTabKey, string> = {
   attributes: 'Atrybuty',
+  multimedia: 'Multimedia',
   categories: 'Kategorie',
   history: 'Historia',
   variants: 'Warianty',
@@ -968,10 +980,11 @@ function resolveProvenance(
 }
 
 function OtherTabs({ activeTab, productId }: { activeTab: SpecialTabKey; productId: string }) {
-  // MODR-03 (#925) — multimedia/relations branches removed; those tabs
-  // are now derived from `effectiveGroups` (display_mode='tab') and
-  // dispatched inline in the renderer (Media+Relations groups keep
-  // their bespoke components for the legacy m2m/links data flow).
+  // UX bug fix #2 — Multimedia is back as a special tab gated by
+  // `ObjectType.hasMultimedia` (UX-02 removed it from the AttributeGroup
+  // dispatcher; mirroring the UniversalDetailPage gating brings the
+  // legacy product card back in sync with the capability flag).
+  if (activeTab === 'multimedia') return <ProductMultimediaTab productId={productId} />;
   if (activeTab === 'categories') return <CategoriesTab productId={productId} />;
   if (activeTab === 'history') return <HistoryStub />;
   if (activeTab === 'variants') return <VariantsTabHost productId={productId} />;
