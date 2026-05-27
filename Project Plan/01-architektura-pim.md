@@ -1229,6 +1229,14 @@ Opcja (Y) zachowuje killer feature ADR-012 (dziedziczenie grup atrybutów po drz
 
 **Uzupełnienie 2026-05-24 (Opcja 2, batch MODR-01..11):** Placement atrybutów na karcie obiektu rozstrzygnięty przez `display_mode` na junction `object_type_attribute_groups` (`'tab'|'stacked'`, default `'tab'`, MODR-01 #923). Relacja jest **zwykłym atrybutem** — placement po grupie, widget po typie. Multimedia i Powiązania to seedowane `is_system_group=true` AttributeGroups (MODR-02 #924) — niczym nieuprzywilejowane wobec innych grup poza built-in flagą. Audit pozostaje `display_mode='stacked'` po data-migration (MODR-03 #925). Zakładka „Powiązania" widoczna gdy grupa ma atrybuty LUB obiekt ma reverse links (MODR-06 #928 → `GET /api/objects/{id}/relations/reverse/count`). Rich preview card + inline expand/edit operują przez `POST /api/objects/summaries` (batch fetch z `version`) i `PATCH /api/{kind-path}/{id}` z `expectedVersion` na `objects.version` (Doctrine `@Version`, MODR-08/MODR-10 #930/#932). Świadomie odrzucone alternatywy udokumentowane w `feature-modeling-data-model.md` §12.1.
 
+**Korekta 2026-05-26 (Option Y, batch MODRC-01..04):** Discoverability problem ujawniony przez operatora po MODR-02/06/07 — seedowana grupa `relations` materializująca zakładkę przy dodaniu atrybutu typu `relation` była *magiczna* (user nie miał jak odkryć tej reguły). Option Y rozstrzyga:
+- **Brak seedu grupy „Powiązania"** (MODRC-01 #1067 — supersedes MODR-02 #924 dla scope Powiązań). Każda grupa atrybutów istnieje *bo operator ją świadomie utworzył*, nigdy implicite. Multimedia idzie osobnym torem przez Moduł Media Library (Droga B).
+- **Konfigurator atrybutu `relation` nie pre-selectuje grupy** (MODRC-02 #1068 — supersedes MODR-07 #929). Selektor grupy bez defaultu + inline akcja „+ Utwórz nową grupę" w jednym przepływie. Zapis bez grupy → 422. Pattern stosuje się do *każdego* typu atrybutu — brak typu z magicznym przypisaniem.
+- **Systemowa sekcja „Powiązania zwrotne"** (MODRC-03 #1069 — supersedes MODR-06 #928) jako jedyna *wirtualna* zakładka. Pojawia się gdy `/api/objects/{id}/relations/reverse/count` zwróci `hasReverse=true`. Read-only, wizualnie odróżnialna ikoną „system". Reverse to jedyny case, którego user nie zaprojektuje z góry — system zapewnia minimalny widok bez zmuszania do tworzenia grupy „na zapas".
+- **Odrzucone alternatywy**: (a) seed grupy „Powiązania" jako built-in, (b) flaga `has_relations` na ObjectType (proliferacja flag → Pimcore-classes anti-pattern), (c) magiczna widoczność zakładki przy populacji atrybutami. Pełne uzasadnienia w `feature-modeling-data-model.md` §12.1.
+
+Multimedia idzie osobnym torem (Moduł Media Library), kategorie też (osobny System Module) — Option Y batch dotyczy WYŁĄCZNIE Powiązań.
+
 ## 14. Roadmap rozwoju
 
 Roadmap fazowa, wysokopoziomowa. Szczegółowy backlog i estymacje w dokumencie `02-plan-projektu-pim.md`.

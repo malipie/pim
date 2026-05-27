@@ -2,6 +2,16 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z Option Y (2026-05-26, MODRC-01..04 — un-seed Powiązania)
+
+### Decyzje świadome
+- **MODR-02/06/07 zastąpione przez MODRC-01..03** (Option Y, 2026-05-26). Decyzja: zero seedu/flag dla Powiązań — tylko systemowa sekcja „Powiązania zwrotne" jest auto-generowana. Powód: discoverability + symetria z innymi typami atrybutów. Operator po pre-flight smoke teście MODR-02 zauważył że *„dodanie atrybutu typu relation magicznie materializuje zakładkę — user nie ma jak odkryć tej reguły"*. Naprawia to wszystkie 3 anti-patterny jednym ruchem: brak seedu grupy, brak flagi `has_relations`, brak magicznej widoczności tab przy populacji. Cytat operatora: *„multimedia / kategorie / powiązania mają być predefiniowane jako moduły, nie hardkodowane jako zakładki AttributeGroup"*.
+- **Powiązania zwrotne to jedyna sankcjonowana „wirtualna" zakładka**. Wyjątek uzasadniony: user nie może zaprojektować z góry grupy „na zapas" dla powiązań, które dopiero inni do niego stworzą. Ergo systemowa sekcja read-only jest jedyną prawnie magiczną częścią UI. Wizualnie wyraźnie odróżnialna (ikona „system") żeby user widział „to nie jest część mojego modelu, to systemowy widok".
+
+### Patterns to Follow
+1. **Un-seed via cascade + irreversible down()** — gdy operator wyciąga z modelu coś co dotąd było seedowane (Brand kind, Multimedia group, Powiązania group), wzorzec migracji jest stały: peel off RESTRICT-FK dependents (object_relations, object_type_attributes) explicit DELETE'em, potem CASCADE-driven cleanup attribute_group_attributes + object_type_attribute_groups przez wycięcie głównej encji. `down()` zawsze irreversible (`throwIrreversibleMigrationException`) z notką „seeder removed in same change set". Recovery wymaga code restore.
+2. **Test-scope replica seeder w base TestCase** — gdy production seeder znika, ale dwa Api Test Cases polegały na tej samej fixturze (5 relation attrs), inline replica trafia do `protected function seedTestRelationAttributes()` w `CatalogApiTestCase`. Atrybuty seedowane w teście dostają `is_system=false` żeby zachować separację „test sandbox" vs. „production seed". Single helper > duplikacja w 2 plikach.
+
 ## Lessons z marathonu UX-01..UX-09 (2026-05-26, capability flags + cutover guard)
 
 ### Patterns to Follow
