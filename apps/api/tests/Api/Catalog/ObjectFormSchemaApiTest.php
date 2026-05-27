@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Catalog;
 
+use App\Catalog\Application\BuiltInSystemAttributesSeeder;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\AttributeGroup;
@@ -11,6 +12,7 @@ use App\Catalog\Domain\Entity\AttributeGroupAttribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
@@ -72,6 +74,58 @@ final class ObjectFormSchemaApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function systemAttributesAreNotAutoRenderedWhenAuditGroupMissing(): void
+    {
+        // #1077 AC2: with the legacy audit group un-seeded, the form-schema
+        // surface must NOT auto-expose the system attributes — visibility is
+        // explicit modeling configuration after #1074. We seed the platform
+        // attribute rows first to assert the BE doesn't "guess" them in.
+        $this->seedSystemAttributes();
+
+        $product = $this->seedProduct('SKU-FS-AUDIT-NONE');
+        $client = $this->authenticatedClient();
+
+        $response = $client->request('GET', '/api/objects/'.$product->getId()->toRfc4122().'/form-schema');
+
+        self::assertSame(200, $response->getStatusCode());
+        $payload = $response->toArray();
+        self::assertIsArray($payload['effectiveGroups']);
+        $codes = $this->collectAttributeCodes($payload['effectiveGroups']);
+        foreach (['created_at', 'updated_at', 'created_by', 'updated_by'] as $systemCode) {
+            self::assertNotContains(
+                $systemCode,
+                $codes,
+                \sprintf('Form-schema must not surface system attribute "%s" without user opt-in.', $systemCode),
+            );
+        }
+    }
+
+    #[Test]
+    public function systemAttributesRenderInFormSchemaWhenUserAttachesThem(): void
+    {
+        // #1077 AC3: once the user explicitly puts a system attribute into a
+        // group attached to the ObjectType, the form-schema renders it like
+        // any other attribute — no special-casing, no auto-hiding.
+        $this->seedSystemAttributes();
+
+        $product = $this->seedProduct('SKU-FS-AUDIT-OPTIN');
+        $this->attachSystemAttributeToProductTypeGroup('user-audit', 'User audit');
+
+        $client = $this->authenticatedClient();
+        $response = $client->request('GET', '/api/objects/'.$product->getId()->toRfc4122().'/form-schema');
+
+        self::assertSame(200, $response->getStatusCode());
+        $payload = $response->toArray();
+        self::assertIsArray($payload['effectiveGroups']);
+        $codes = $this->collectAttributeCodes($payload['effectiveGroups']);
+        self::assertContains(
+            'created_at',
+            $codes,
+            'Form-schema must include `created_at` once user attaches it to an ObjectType group.',
+        );
+    }
+
+    #[Test]
     public function getFormSchemaRequiresAuthentication(): void
     {
         $product = $this->seedProduct('SKU-FS-002');
@@ -127,5 +181,69 @@ final class ObjectFormSchemaApiTest extends CatalogApiTestCase
         $em->flush();
 
         $tenantContext->clear();
+    }
+
+    private function seedSystemAttributes(): void
+    {
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert(null !== $tenant);
+        self::getContainer()->get(BuiltInSystemAttributesSeeder::class)->seed($tenant);
+    }
+
+    private function attachSystemAttributeToProductTypeGroup(string $groupCode, string $groupLabel): void
+    {
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert(null !== $tenant);
+
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenantContext->set($tenant);
+
+        $type = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert(null !== $type);
+
+        $createdAt = self::getContainer()->get(AttributeRepositoryInterface::class)
+            ->findByCode('created_at', $tenant);
+        \assert(null !== $createdAt, 'created_at must be seeded before this helper.');
+
+        $group = new AttributeGroup($groupCode, ['en' => $groupLabel]);
+        $em = $this->em();
+        $em->persist($group);
+        $em->flush();
+        $em->persist(new AttributeGroupAttribute($group, $createdAt, 1));
+        $em->persist(new ObjectTypeAttributeGroup($type, $group, 1));
+        $em->flush();
+
+        $tenantContext->clear();
+    }
+
+    /**
+     * @param array<mixed> $groups
+     *
+     * @return list<string>
+     */
+    private function collectAttributeCodes(array $groups): array
+    {
+        $codes = [];
+        foreach ($groups as $group) {
+            if (!\is_array($group)) {
+                continue;
+            }
+            $attributes = $group['attributes'] ?? [];
+            if (!\is_array($attributes)) {
+                continue;
+            }
+            foreach ($attributes as $attribute) {
+                if (!\is_array($attribute)) {
+                    continue;
+                }
+                $code = $attribute['code'] ?? null;
+                if (\is_string($code)) {
+                    $codes[] = $code;
+                }
+            }
+        }
+
+        return $codes;
     }
 }

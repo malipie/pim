@@ -8,6 +8,7 @@ use App\Catalog\Application\BuiltInObjectTypeSeeder;
 use App\Catalog\Application\BuiltInSystemAttributesSeeder;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface;
@@ -110,6 +111,52 @@ final class SystemAttributesAuditGroupTest extends KernelTestCase
 
         self::assertSame($beforeAttrs, $this->systemAttributeCount());
         self::assertSame(0, $this->auditJunctionCount());
+    }
+
+    #[Test]
+    public function catalogObjectPersistsSystemTimestampsWithoutAuditGroup(): void
+    {
+        // #1077 AC1: audit AttributeGroup is missing (per #1074 migration), but
+        // the platform timestamps must still be populated on every persist /
+        // update. The test reads the raw `objects.created_at` / `updated_at`
+        // columns to confirm — independent of any form-schema visibility logic.
+        self::getContainer()->get(BuiltInSystemAttributesSeeder::class)->seed($this->tenant);
+
+        $em = $this->em();
+        $productType = $this->objectTypeRepository()->findBuiltInByKind(ObjectKind::Product, $this->tenant);
+        self::assertNotNull($productType);
+
+        self::assertNull($this->attributeGroupRepository()->findByCode('audit', $this->tenant));
+
+        $product = new CatalogObject($productType, 'SKU-1077-A');
+        $em->persist($product);
+        $em->flush();
+
+        $row = $em->getConnection()->fetchAssociative(
+            'SELECT created_at, updated_at FROM objects WHERE id = ?',
+            [$product->getId()->toRfc4122()],
+        );
+        self::assertIsArray($row);
+        self::assertNotEmpty($row['created_at'] ?? null);
+        self::assertNotEmpty($row['updated_at'] ?? null);
+        $createdAt = $row['created_at'];
+        \assert(\is_string($createdAt));
+
+        // Mutate the entity → updated_at must move forward; created_at frozen.
+        // Sleep one second so the column-level granularity (TIMESTAMP) cannot
+        // alias the two values.
+        sleep(1);
+        $product->changeEnabled(false);
+        $em->flush();
+        $em->clear();
+
+        $rowAfter = $em->getConnection()->fetchAssociative(
+            'SELECT created_at, updated_at FROM objects WHERE id = ?',
+            [$product->getId()->toRfc4122()],
+        );
+        self::assertIsArray($rowAfter);
+        self::assertSame($createdAt, $rowAfter['created_at']);
+        self::assertGreaterThanOrEqual($createdAt, $rowAfter['updated_at']);
     }
 
     private function systemAttributeCount(): int

@@ -26,6 +26,7 @@ import { AddAttributesFromLibraryDialog } from '@/components/modeling/add-attrib
 import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { CreateAttributeInGroupDialog } from '@/components/modeling/create-attribute-in-group-dialog';
+import { DangerZoneCard } from '@/components/modeling/danger-zone-card';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -260,6 +261,42 @@ function Editor({
       // ignored — the next reload will resync
     }
   };
+
+  const navigate = useNavigate();
+
+  const deleteGroup = useCallback(async () => {
+    try {
+      await jsonFetch(`/api/attribute_groups/${group.id}`, {
+        method: 'DELETE',
+        accept: 'application/json',
+      });
+      queryClient.invalidateQueries({ queryKey: ['attribute_groups'] });
+      navigate('/modeling/attribute-groups');
+    } catch (err) {
+      // Re-thrown so DangerZoneCard surfaces the message inline.
+      if (err instanceof HttpError) {
+        const detail =
+          err.body && typeof err.body === 'object' && 'detail' in err.body
+            ? String((err.body as Record<string, unknown>).detail)
+            : null;
+        throw new Error(
+          detail ??
+            t('modeling.attributeGroups.delete_error_generic', {
+              defaultValue: 'Nie udało się usunąć grupy (HTTP {{status}}).',
+              status: err.status,
+            }),
+        );
+      }
+      throw err instanceof Error
+        ? err
+        : new Error(
+            t('modeling.attributeGroups.delete_error_generic', {
+              defaultValue: 'Nie udało się usunąć grupy.',
+              status: 0,
+            }),
+          );
+    }
+  }, [group.id, navigate, queryClient, t]);
 
   const toggleRequired = async (attributeId: string, next: boolean) => {
     try {
@@ -631,6 +668,34 @@ function Editor({
             />
           </div>
         </Card>
+
+        {!isLockedSystemGroup ? (
+          <DangerZoneCard
+            title={t('modeling.attributeGroups.danger_zone_title', {
+              defaultValue: 'Usuń grupę atrybutów',
+            })}
+            description={t('modeling.attributeGroups.danger_zone_description', {
+              defaultValue:
+                'Trwałe usunięcie grupy. Atrybuty przypisane do grupy pozostają w bibliotece. Backend zablokuje usunięcie, jeśli grupa jest jeszcze przypięta do ObjectType lub kategorii.',
+            })}
+            destructiveLabel={t('modeling.attributeGroups.danger_zone_action', {
+              defaultValue: 'Usuń grupę',
+            })}
+            blockedLabel={t('modeling.attributeGroups.danger_zone_action_blocked', {
+              defaultValue: 'Usuwanie zablokowane',
+            })}
+            blocked={false}
+            confirmTitle={t('modeling.attributeGroups.danger_zone_confirm_title', {
+              defaultValue: 'Usunąć grupę „{{name}}"?',
+              name: groupName,
+            })}
+            confirmDescription={t('modeling.attributeGroups.danger_zone_confirm_description', {
+              defaultValue:
+                'Operacja jest nieodwracalna. Atrybuty zostaną odpięte od grupy, ale pozostaną dostępne w bibliotece.',
+            })}
+            onConfirm={deleteGroup}
+          />
+        ) : null}
       </div>
 
       {dirty ? (
