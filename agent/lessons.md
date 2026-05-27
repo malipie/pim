@@ -2,6 +2,24 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z #1074/#1075 (2026-05-27, optional audit AttributeGroup)
+
+### Patterns to Follow
+
+1. **Rozdzielić `Attribute.isSystem` od widoczności formularza** — systemowe atrybuty (`created_at`, `updated_at`, `created_by`, `updated_by`) mogą być platform-owned i immutable, ale NIE oznacza to automatycznej sekcji formularza. Widoczność idzie wyłącznie przez jawne `AttributeGroup` membership + `ObjectTypeAttributeGroup` / category overlay.
+
+2. **Legacy system group exceptions muszą być spójne BE+FE** — po zmianie kontraktu `audit` jest wyjątkiem od locked system groups: backend pozwala usunąć/detachować legacy `code='audit'`, frontend nie pokazuje jej w locked built-in groups i renderuje jako removable modeling config.
+
+### Patterns to Avoid
+
+1. **Nie aktualizować tylko seederów bez testów CRUD** — usunięcie seedowania `audit` łamie testy, które zakładały delete-protection na grupie tworzonej przez seeder. Zawsze grep po starym założeniu (`auto-attached audit`, `System attrs seeder also creates`) i przepisać test na explicit non-audit system group.
+
+### Decyzje świadome
+
+- **`audit` AttributeGroup staje się legacy/user-managed modeling config** — migracja usuwa legacy auto-attached system rows, ale systemowe Attribute rows zostają. Jeśli operator chce sekcję audytu w konkretnym ObjectType, tworzy/przypina grupę jawnie.
+
+---
+
 ## Lessons z marathonu UX-01..UX-09 (2026-05-26, capability flags + cutover guard)
 
 ### Patterns to Follow

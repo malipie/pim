@@ -1,5 +1,27 @@
 # Current Status
 
+## 2026-05-27: 🔧 #1074/#1075 — audit AttributeGroup optional (PR prep)
+
+**Branch:** `fix/1074-optional-audit-group`
+
+**Cel:** systemowe atrybuty audytowe (`created_at`, `updated_at`, `created_by`, `updated_by`) zostają seedowane i zbierają wartości, ale `AttributeGroup(code='audit')` nie jest już runtime-seedowana, auto-attached ani traktowana jako wymuszona sekcja formularza. Widoczność pól audytowych = jawna konfiguracja modelowania.
+
+### Ostatnie 3 akcje
+
+1. Usunięto runtime seedowanie/auto-attach grupy `audit` (`BuiltInSystemAttributesSeeder`, delete `AutoAttachAuditGroupListener`) i dodano migrację cleanup `Version20260527100000.php` dla legacy auto-attached audit rows.
+2. Zaktualizowano BE/FE kontrakty i testy: legacy `audit` jest wyjątkiem od blokady system group delete/detach; UI pokazuje ją jako removable modeling config, a locked built-in groups nie obejmują `audit`.
+3. Quality gates zielone: backend PHPStan, targeted PHPUnit (`47 tests, 141 assertions`) oraz admin lint/typecheck/build. Admin lint ma tylko istniejące warnings/infos.
+
+### Następny krok
+
+- Przygotować commit/PR dla #1074/#1075 bez dodawania unrelated untracked docs.
+
+### Blokery / uwagi
+
+- Brak aktywnego blokera. `git status` pokazuje dwa untracked pliki w `Project Plan/UI/*` niezwiązane z tym branchem — nie dodawać bez weryfikacji scope.
+
+---
+
 ## 2026-05-26: 🏁 Epik UX (Modeling/Object-Types polish) — marathon closed (9/9 shipped)
 
 **Milestone:** Marathon UX-01..UX-09 (PR-y #1045/#1047/#1049/#1053/#1051/#1055/#1057/#1059/#1061) dla operatora po wątpliwościach przy `/modeling/object-types` ("multimedia są hardcoded a powinny być capability flag", "kategorie/asset nie mają sensu w modeling"). Kapitalna decyzja: trzy capability flags (`hasVariants` / `isCategorizable` / `hasMultimedia`) sterują *którymi zakładkami* operator widzi, nie strukturą encji. Multimedia przestaje być AttributeGroup.

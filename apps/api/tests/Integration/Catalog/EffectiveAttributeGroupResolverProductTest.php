@@ -59,10 +59,8 @@ final class EffectiveAttributeGroupResolverProductTest extends KernelTestCase
 
         $groups = $this->resolver()->resolve($product);
 
-        // Built-in product has the audit group only by default — same as
-        // pre-PCAT behaviour, no regression for unassigned products.
         $codes = array_map(static fn (AttributeGroup $g): string => $g->getCode(), $groups);
-        self::assertSame(['audit'], $codes);
+        self::assertSame([], $codes);
     }
 
     #[Test]
@@ -82,8 +80,7 @@ final class EffectiveAttributeGroupResolverProductTest extends KernelTestCase
         $groups = $this->resolver()->resolve($product);
 
         $codes = array_map(static fn (AttributeGroup $g): string => $g->getCode(), $groups);
-        self::assertContains('audit', $codes);
-        self::assertContains('vehicle-spec', $codes);
+        self::assertSame(['vehicle-spec'], $codes);
     }
 
     #[Test]
@@ -158,15 +155,14 @@ final class EffectiveAttributeGroupResolverProductTest extends KernelTestCase
     public function resolveReturnsBaseGroupsForNonCategorizableObjectType(): void
     {
         // ADR-014 / MOD-03 — Category itself has is_categorizable=false,
-        // so its instance form must show its own base AttributeGroups
-        // (the audit group seeded by BuiltInSystemAttributesSeeder) and
-        // skip the category overlay entirely. Fixes #3-#28.
+        // so its instance form must show only explicitly attached base
+        // AttributeGroups and skip the category overlay entirely.
         $category = $this->makeCategory('telewizory', 'elektronika.tv');
 
         $groups = $this->resolver()->resolve($category);
         $codes = array_map(static fn (AttributeGroup $g): string => $g->getCode(), $groups);
 
-        self::assertContains('audit', $codes, 'Category instance must render its own base audit group');
+        self::assertSame([], $codes);
     }
 
     #[Test]
@@ -177,9 +173,9 @@ final class EffectiveAttributeGroupResolverProductTest extends KernelTestCase
         $groups = $this->resolver()->resolve($product);
         $codes = array_map(static fn (AttributeGroup $g): string => $g->getCode(), $groups);
 
-        // Only the base ObjectType layer applies — same as before any
-        // assignment lands.
-        self::assertSame(['audit'], $codes);
+        // Only the base ObjectType layer applies — empty until the operator
+        // attaches groups explicitly.
+        self::assertSame([], $codes);
     }
 
     #[Test]
@@ -187,6 +183,9 @@ final class EffectiveAttributeGroupResolverProductTest extends KernelTestCase
     {
         $em = $this->em();
         $productType = $this->productType();
+
+        $baseGroup = $this->makeGroup('base-group', 'Base');
+        $em->persist(new \App\Catalog\Domain\Entity\ObjectTypeAttributeGroup($productType, $baseGroup, 1));
 
         $cat = $this->makeCategory('ordercat');
         $catGroup = $this->makeGroup('cat-group', 'Cat');
@@ -199,7 +198,7 @@ final class EffectiveAttributeGroupResolverProductTest extends KernelTestCase
         $groups = $this->resolver()->resolve($product);
         $codes = array_map(static fn (AttributeGroup $g): string => $g->getCode(), $groups);
 
-        $auditIdx = array_search('audit', $codes, true);
+        $auditIdx = array_search('base-group', $codes, true);
         $catIdx = array_search('cat-group', $codes, true);
         self::assertNotFalse($auditIdx);
         self::assertNotFalse($catIdx);

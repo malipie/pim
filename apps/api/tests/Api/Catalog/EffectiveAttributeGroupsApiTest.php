@@ -8,7 +8,10 @@ use App\Catalog\Application\BuiltInSystemAttributesSeeder;
 use App\Catalog\Application\ObjectTypeService;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Entity\AttributeGroup;
+use App\Catalog\Domain\Entity\AttributeGroupAttribute;
 use App\Catalog\Domain\Entity\AttributeOption;
+use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
@@ -109,9 +112,9 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
     public function exposesDisplayModePerGroupAndSyntheticGroupIsStacked(): void
     {
         // MODR-03 (#925) — every group in the payload carries a
-        // `display_mode`. Audit (real group) is `stacked` after the
-        // MODR-03 data migration; the synthetic "default" bucket is
-        // always `stacked` so it never spawns a tab on the frontend.
+        // `display_mode`. Explicitly attached real groups can be
+        // `stacked`; the synthetic "default" bucket is always `stacked`
+        // so it never spawns a tab on the frontend.
         $client = $this->authenticatedClient();
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
         \assert($tenant instanceof Tenant);
@@ -121,14 +124,18 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
             ->findBuiltInByKind(ObjectKind::Product, $tenant);
         \assert(null !== $productType);
 
-        // Seed the audit system group + attach one loose attribute so
-        // both an audit (stacked) and a synthetic default (stacked)
-        // group appear in the response.
-        self::getContainer()->get(BuiltInSystemAttributesSeeder::class)->seed($tenant);
         $tenantContext = self::getContainer()->get(TenantContext::class);
         $tenantContext->set($tenant);
-        $brandAttr = new Attribute('modr03_brand', ['pl' => 'Marka', 'en' => 'Brand'], AttributeType::Text);
+        $group = new AttributeGroup('modr03_specs', ['pl' => 'Specyfikacja', 'en' => 'Specs']);
         $em = $this->em();
+        $em->persist($group);
+        $em->persist(new ObjectTypeAttributeGroup(
+            $productType,
+            $group,
+            position: 0,
+            displayMode: ObjectTypeAttributeGroup::DISPLAY_MODE_STACKED,
+        ));
+        $brandAttr = new Attribute('modr03_brand', ['pl' => 'Marka', 'en' => 'Brand'], AttributeType::Text);
         $em->persist($brandAttr);
         $em->flush();
         self::getContainer()->get(ObjectTypeService::class)
@@ -159,7 +166,7 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
             $modesByCode[$code] = $g['display_mode'];
         }
 
-        self::assertSame('stacked', $modesByCode['audit'] ?? null, 'audit group must be stacked post-MODR-03 migration');
+        self::assertSame('stacked', $modesByCode['modr03_specs'] ?? null, 'explicit group must preserve stacked display mode');
         self::assertSame('stacked', $modesByCode['default'] ?? null, 'synthetic default group must be stacked');
     }
 
@@ -213,12 +220,10 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
             ->findBuiltInByKind(ObjectKind::Product, $tenant);
         \assert(null !== $productType);
 
-        // The audit AttributeGroup is auto-attached to product by the
-        // built-in seeder. Its `created_at` attribute is also attached
-        // through ObjectTypeAttribute on the same ObjectType — that is
-        // the realistic shape today. The endpoint must surface the
-        // attribute exactly once (under the audit group, not in the
-        // synthetic default bucket).
+        // A system attribute can be both a member of an explicitly attached
+        // group and a loose ObjectType attribute. The endpoint must surface
+        // it exactly once (under the real group, not in the synthetic
+        // default bucket).
         self::getContainer()->get(BuiltInSystemAttributesSeeder::class)->seed($tenant);
         $createdAt = self::getContainer()
             ->get(AttributeRepositoryInterface::class)
@@ -227,6 +232,13 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
 
         $tenantContext = self::getContainer()->get(TenantContext::class);
         $tenantContext->set($tenant);
+        $timestampsGroup = new AttributeGroup('timestamps_v071', ['pl' => 'Daty', 'en' => 'Timestamps']);
+        $em = $this->em();
+        $em->persist($timestampsGroup);
+        $em->flush();
+        $em->persist(new AttributeGroupAttribute($timestampsGroup, $createdAt, 0));
+        $em->persist(new ObjectTypeAttributeGroup($productType, $timestampsGroup, position: 0));
+        $em->flush();
         $service = self::getContainer()->get(ObjectTypeService::class);
         $service->assignAttribute($productType, $createdAt, required: false, sortOrder: 99);
         $tenantContext->clear();
@@ -248,9 +260,9 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
         $occurrences = 0;
         $bodyGroups = $body['groups'] ?? [];
         \assert(\is_array($bodyGroups));
-        foreach ($bodyGroups as $group) {
-            \assert(\is_array($group));
-            $attributes = $group['attributes'] ?? [];
+        foreach ($bodyGroups as $bodyGroup) {
+            \assert(\is_array($bodyGroup));
+            $attributes = $bodyGroup['attributes'] ?? [];
             \assert(\is_array($attributes));
             foreach ($attributes as $attr) {
                 \assert(\is_array($attr));

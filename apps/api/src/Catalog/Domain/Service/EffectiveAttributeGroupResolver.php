@@ -21,7 +21,8 @@ use Symfony\Component\Uid\Uuid;
  *
  *   1. **Globalne grupy ObjectType** (`object_type_attribute_groups`) — the
  *      baseline list every object of a given kind sees, irrespective of
- *      category. Includes the auto-attached audit group seeded by UI-08.3.
+ *      category. System audit attributes are not included unless an
+ *      AttributeGroup containing them is explicitly attached.
  *   2. **Grupy dziedziczone z drzewa kategorii** (`category_attribute_groups`)
  *      — for `kind='category'` objects, walked from root → leaf via the
  *      `parent` self-reference. Each ancestor contributes the groups

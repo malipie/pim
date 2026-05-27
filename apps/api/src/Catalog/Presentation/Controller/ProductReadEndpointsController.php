@@ -256,9 +256,9 @@ final class ProductReadEndpointsController
 
         // VIEW-07.1 (#421+) — surface ObjectType-attached attributes
         // that are not declared in any AttributeGroup. Without this the
-        // detail page renders only the audit group whenever an
-        // ObjectType uses "loose" attributes (the default Klimas seed
-        // pattern). The synthetic group is appended last so curated
+        // detail page would hide loose ObjectType attributes whenever the
+        // ObjectType has no explicit AttributeGroup memberships. The
+        // synthetic group is appended last so curated
         // grouping always wins the sort order; an all-zero UUID acts as
         // a sentinel for the frontend to recognise + hide it from the
         // "Effective model" sidebar listing.

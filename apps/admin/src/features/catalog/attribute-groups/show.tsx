@@ -146,6 +146,8 @@ function Editor({
   const [createOpen, setCreateOpen] = useState(false);
 
   const isSystem = group.systemGroup === true;
+  const isLegacyAuditGroup = group.code === 'audit';
+  const isLockedSystemGroup = isSystem && !isLegacyAuditGroup;
 
   const { data: members = [], refetch: refetchMembers } = useQuery<MemberRow[]>({
     queryKey: ['attribute_groups', group.id, 'attributes'],
@@ -194,7 +196,7 @@ function Editor({
       const nextDescription = stripEmpty({ pl: descPl });
       if (JSON.stringify(nextDescription) !== JSON.stringify(initialDescription))
         body.description = nextDescription;
-      if (!isSystem) {
+      if (!isLockedSystemGroup) {
         if (color !== initialColor) body.color = color;
       }
       await jsonFetch(`/api/attribute_groups/${group.id}`, {
@@ -225,7 +227,7 @@ function Editor({
     initialColor,
     initialDescription,
     initialLabel,
-    isSystem,
+    isLockedSystemGroup,
     labelEn,
     labelPl,
     onSaved,
@@ -339,7 +341,7 @@ function Editor({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-display text-[22px] font-semibold tracking-tight">{groupName}</h1>
-            {isSystem ? <BuiltInLockBadge /> : null}
+            {isLockedSystemGroup ? <BuiltInLockBadge /> : null}
           </div>
           <div className="mt-0.5 font-mono text-[12px] text-muted-foreground">
             /modeling/attribute-groups/{group.code}
@@ -347,7 +349,7 @@ function Editor({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <AuditLogIndicator />
-          {!isSystem ? (
+          {!isLockedSystemGroup ? (
             <Button
               size="sm"
               disabled={saving}
@@ -404,7 +406,7 @@ function Editor({
               onChange={(e) =>
                 activeLocale === 'pl' ? setLabelPl(e.target.value) : setLabelEn(e.target.value)
               }
-              disabled={isSystem}
+              disabled={isLockedSystemGroup}
               placeholder={t('modeling.attributeGroups.fields.name_placeholder', {
                 defaultValue: 'Nazwa grupy',
               })}
@@ -420,11 +422,11 @@ function Editor({
             </FieldRow>
             <FieldRow
               label={t('modeling.attributeGroups.fields.color', { defaultValue: 'Color' })}
-              lock={isSystem}
+              lock={isLockedSystemGroup}
             >
               <span className="inline-flex items-center gap-2">
                 <span className="size-4 rounded" style={{ background: color }} aria-hidden />
-                {isSystem ? (
+                {isLockedSystemGroup ? (
                   <span className="font-mono text-[12px]">{color}</span>
                 ) : (
                   <Input
@@ -446,7 +448,7 @@ function Editor({
               rows={2}
               value={descPl}
               onChange={(e) => setDescPl(e.target.value)}
-              disabled={isSystem}
+              disabled={isLockedSystemGroup}
               className="mt-1.5"
               placeholder={t('modeling.attributeGroups.fields.description_placeholder', {
                 defaultValue: 'Krótki opis grupy — kiedy używać, jakie atrybuty zawiera.',

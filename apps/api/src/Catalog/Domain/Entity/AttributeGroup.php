@@ -25,10 +25,10 @@ use Symfony\Component\Validator\Constraints as Assert;
  *  - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),
  *  - first-class M:N via `attribute_group_attributes` junction (ADR-012).
  *
- * `is_system_group=true` marks groups managed by the system (e.g. the auto-
- * attached "Audit" group #UI-08.3) — not deletable, not detachable from
- * ObjectType, code is immutable. `auto_attached=true` means the group is
- * automatically wired to every new ObjectType (currently only Audit).
+ * `is_system_group=true` marks groups managed by the system — not deletable,
+ * not detachable from ObjectType, code is immutable. Legacy `audit` rows are
+ * the exception after #1074/#1075: audit visibility is user-managed modeling
+ * configuration, not platform infrastructure.
  */
 class AttributeGroup implements TenantScoped
 {
@@ -60,7 +60,8 @@ class AttributeGroup implements TenantScoped
     private bool $autoAttached = false;
 
     /**
-     * Group always rendered in product forms (cannot be skipped/collapsed).
+     * Group is rendered as a required section when it is explicitly attached
+     * to a form schema and cannot be skipped/collapsed by users.
      * UI mapping: `Wymagana sekcja` toggle in NewAttributeGroupView mockup.
      */
     private bool $isRequiredSection = false;
