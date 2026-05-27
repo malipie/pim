@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\DataFixtures;
 
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
-use App\Catalog\Application\BuiltInProductRelationAttributesSeeder;
 use App\Catalog\Application\BuiltInSmartFilterPresetsSeeder;
 use App\Catalog\Application\BuiltInSystemAttributesSeeder;
 use App\Catalog\Application\DefaultMenuSeeder;
@@ -66,7 +65,6 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
         private readonly SeedTenantPrdRolesService $tenantPrdRolesSeeder,
         private readonly BuiltInObjectTypeSeeder $builtInSeeder,
         private readonly BuiltInSystemAttributesSeeder $systemAttributesSeeder,
-        private readonly BuiltInProductRelationAttributesSeeder $productRelationAttributesSeeder,
         private readonly ObjectTypeRepositoryInterface $objectTypeRepository,
         private readonly DemoCatalogSeeder $demoCatalogSeeder,
         private readonly DefaultMenuSeeder $defaultMenuSeeder,
@@ -141,10 +139,12 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
             // wire any future ObjectType to the existing audit group.
             // Existing ObjectTypes are back-filled by the migration.
             $this->systemAttributesSeeder->seed($tenant);
-            // ADR-014 / MOD-02 (#894): seed the 5 built-in `relation`
-            // attributes on Product ObjectType + the "Powiązania" group
-            // that hosts them. Replaces BuiltInAssociationTypeSeeder.
-            $this->productRelationAttributesSeeder->seed($tenant);
+            // MODRC-01 — the "Powiązania" AttributeGroup and its five seeded
+            // relation attributes (cross_sell / up_sell / related /
+            // alternative / accessory) are no longer seeded. Per Option Y
+            // (2026-05-26), relation is a regular attribute type; users
+            // create relation attributes and a hosting group explicitly via
+            // the modeling wizard (MODRC-02 inline create-group flow).
             // UX-02 — the "Multimedia" AttributeGroup is no longer seeded.
             // Multimedia is now a capability flag (`ObjectType.hasMultimedia`)
             // driving a hardcoded conditional tab, not a group of attributes.

@@ -6,7 +6,14 @@ namespace App\Tests\Api\Catalog;
 
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
+use App\Catalog\Domain\AttributeType;
+use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Entity\AttributeGroup;
+use App\Catalog\Domain\Entity\AttributeGroupAttribute;
+use App\Catalog\Domain\Entity\ObjectTypeAttribute;
+use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\RelationCardinality;
 use App\DataFixtures\Identity\PrdPermissionFixtures;
 use App\Identity\Application\RbacSeeder;
 use App\Identity\Application\SeedTenantPrdRolesService;
@@ -112,5 +119,87 @@ abstract class CatalogApiTestCase extends ApiTestCase
         \assert($em instanceof EntityManagerInterface);
 
         return $em;
+    }
+
+    /**
+     * Test-scoped helper that re-creates the legacy "Powiązania" group +
+     * five relation attributes (cross_sell, up_sell, related, alternative,
+     * accessory) for suites that exercise the relations endpoints.
+     *
+     * MODRC-01 (#1067) dropped the production seeder per Option Y —
+     * relation attributes are now user-created via the wizard. The Api
+     * suite still wants a deterministic dataset to assert against, so the
+     * fixture lives in test code instead of `apps/api/src/`.
+     */
+    protected function seedTestRelationAttributes(): void
+    {
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+
+        $tenantContext = self::getContainer()->get(\App\Shared\Application\TenantContext::class);
+        $previous = $tenantContext->get();
+        $tenantContext->set($tenant);
+        try {
+            $productType = self::getContainer()
+                ->get(\App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface::class)
+                ->findBuiltInByKind(ObjectKind::Product, $tenant);
+            \assert(null !== $productType);
+
+            $em = $this->em();
+
+            $group = new AttributeGroup(
+                code: 'relations',
+                label: ['pl' => 'Powiązania', 'en' => 'Relations'],
+                position: 500,
+                description: null,
+                icon: 'Link2',
+                color: '#0EA5E9',
+                isSystemGroup: false,
+                autoAttached: false,
+                isRequiredSection: false,
+                isShared: false,
+                hasConditionalVisibility: false,
+            );
+            $em->persist($group);
+            $em->persist(new ObjectTypeAttributeGroup($productType, $group, position: 500));
+            $em->flush();
+
+            $productTargetIds = [$productType->getId()->toRfc4122()];
+            $definitions = [
+                'cross_sell' => ['Sprzedaż krzyżowa', 'Cross-sell', 10],
+                'up_sell' => ['Sprzedaż dodatkowa', 'Up-sell', 20],
+                'related' => ['Powiązane', 'Related', 30],
+                'alternative' => ['Alternatywne', 'Alternative', 40],
+                'accessory' => ['Akcesoria', 'Accessory', 50],
+            ];
+            foreach ($definitions as $code => [$labelPl, $labelEn, $position]) {
+                $attribute = new Attribute($code, ['pl' => $labelPl, 'en' => $labelEn], AttributeType::Relation);
+                $attribute->reorder($position);
+                $attribute->setRelationTargetObjectTypeIds($productTargetIds);
+                $attribute->setRelationCardinality(RelationCardinality::Many);
+                $attribute->setRelationAdvanced(false);
+                $em->persist($attribute);
+                $em->flush();
+
+                $em->persist(new AttributeGroupAttribute(
+                    attributeGroup: $group,
+                    attribute: $attribute,
+                    position: $position,
+                ));
+                $em->persist(new ObjectTypeAttribute(
+                    objectType: $productType,
+                    attribute: $attribute,
+                    requiredForCompleteness: false,
+                    sortOrder: 500 + $position,
+                ));
+                $em->flush();
+            }
+        } finally {
+            if (null === $previous) {
+                $tenantContext->clear();
+            } else {
+                $tenantContext->set($previous);
+            }
+        }
     }
 }

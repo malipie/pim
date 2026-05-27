@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Catalog;
 
-use App\Catalog\Application\BuiltInProductRelationAttributesSeeder;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
@@ -20,11 +19,11 @@ final class ObjectRelationsCrudApiTest extends CatalogApiTestCase
     {
         parent::setUp();
 
-        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
-        \assert($tenant instanceof Tenant);
-        // Seed 5 built-in relation attrs on Product (cross_sell, up_sell, …)
-        // so the controller has something to look up by code.
-        self::getContainer()->get(BuiltInProductRelationAttributesSeeder::class)->seed($tenant);
+        // MODRC-01 — production seeder removed; test re-creates the legacy
+        // "Powiązania" group + cross_sell/up_sell/related/alternative/accessory
+        // attributes so existing assertions keep working against the same
+        // controller surface.
+        $this->seedTestRelationAttributes();
     }
 
     #[Test]

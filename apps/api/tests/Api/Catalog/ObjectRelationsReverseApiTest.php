@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Catalog;
 
-use App\Catalog\Application\BuiltInProductRelationAttributesSeeder;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
@@ -21,9 +20,8 @@ final class ObjectRelationsReverseApiTest extends CatalogApiTestCase
     {
         parent::setUp();
 
-        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
-        \assert($tenant instanceof Tenant);
-        self::getContainer()->get(BuiltInProductRelationAttributesSeeder::class)->seed($tenant);
+        // MODRC-01 — see CatalogApiTestCase::seedTestRelationAttributes.
+        $this->seedTestRelationAttributes();
     }
 
     #[Test]
