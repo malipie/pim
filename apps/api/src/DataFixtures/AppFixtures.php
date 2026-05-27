@@ -136,10 +136,9 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
         // are safe.
         foreach ($tenants as $tenant) {
             $this->builtInSeeder->seed($tenant);
-            // System attributes + audit group must be seeded *after* the
-            // built-in ObjectTypes so the AutoAttachAuditGroupListener can
-            // wire any future ObjectType to the existing audit group.
-            // Existing ObjectTypes are back-filled by the migration.
+            // System audit attributes are seeded as platform-owned Attribute
+            // rows only. Visibility is explicit modeling configuration;
+            // no AttributeGroup is auto-created or auto-attached.
             $this->systemAttributesSeeder->seed($tenant);
             // ADR-014 / MOD-02 (#894): seed the 5 built-in `relation`
             // attributes on Product ObjectType + the "Powiązania" group

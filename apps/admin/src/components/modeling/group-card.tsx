@@ -56,7 +56,8 @@ export function GroupCard({
   onDisplayModeChange,
 }: GroupCardProps) {
   const { t } = useTranslation();
-  const isLocked = Boolean(locked || group.system);
+  const isLegacyAuditGroup = group.code === 'audit';
+  const isLocked = Boolean(locked || (group.system && !isLegacyAuditGroup));
 
   const labelText = resolveGroupLabel(group, language);
   const previewVisible = group.attrsPreview.slice(0, 8);

@@ -71,8 +71,9 @@ class Attribute implements TenantScoped
     /**
      * UI-08.3 (#258) — `is_system=true` marks platform-owned attributes
      * (`created_at`, `updated_at`, `created_by`, `updated_by`). They are
-     * created by migration / seeder, never deletable, code immutable, and
-     * always rendered in the auto-attached audit AttributeGroup.
+     * created by migration / seeder, never deletable, and code immutable.
+     * Form visibility is explicit modeling configuration via AttributeGroup
+     * membership and ObjectType/Category attachments.
      */
     private bool $isSystem = false;
 

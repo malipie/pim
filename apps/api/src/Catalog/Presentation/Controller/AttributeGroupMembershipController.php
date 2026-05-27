@@ -90,8 +90,8 @@ final class AttributeGroupMembershipController
      * `DELETE /api/attribute_groups/{groupId}/attributes/{attributeId}`
      *
      * Removes the junction row only. The Attribute itself stays in the
-     * global library. System attributes in the system audit group are
-     * 422 (immutable membership).
+     * global library. System attributes in system-owned groups are 422
+     * (immutable membership).
      */
     #[Route(
         '/api/attribute_groups/{groupId}/attributes/{attributeId}',

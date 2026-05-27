@@ -54,15 +54,13 @@ final class EffectiveAttributeGroupResolverTest extends KernelTestCase
     }
 
     #[Test]
-    public function builtInProductReturnsAuditGroupOnly(): void
+    public function builtInProductReturnsNoGroupsByDefault(): void
     {
         $product = $this->makeProduct('SKU-001');
 
         $groups = $this->resolver()->resolve($product);
 
-        self::assertCount(1, $groups);
-        self::assertSame('audit', $groups[0]->getCode());
-        self::assertTrue($groups[0]->isSystemGroup());
+        self::assertSame([], $groups);
     }
 
     #[Test]
@@ -115,7 +113,7 @@ final class EffectiveAttributeGroupResolverTest extends KernelTestCase
     }
 
     #[Test]
-    public function formSchemaHandlerReturnsAuditGroupWithFourSystemAttributesForBuiltInProduct(): void
+    public function formSchemaHandlerReturnsNoGroupsForBuiltInProductByDefault(): void
     {
         $product = $this->makeProduct('SKU-002');
 
@@ -124,21 +122,7 @@ final class EffectiveAttributeGroupResolverTest extends KernelTestCase
 
         self::assertNotNull($schema);
         self::assertSame('product', $schema->objectType['kind']);
-        self::assertCount(1, $schema->effectiveGroups);
-        $audit = $schema->effectiveGroups[0];
-        self::assertSame('audit', $audit['code']);
-        self::assertTrue($audit['is_system_group']);
-        $attributes = $audit['attributes'];
-        self::assertIsArray($attributes);
-        self::assertCount(4, $attributes);
-        $codes = [];
-        foreach ($attributes as $attribute) {
-            self::assertIsArray($attribute);
-            self::assertIsString($attribute['code']);
-            $codes[] = $attribute['code'];
-        }
-        sort($codes);
-        self::assertSame(['created_at', 'created_by', 'updated_at', 'updated_by'], $codes);
+        self::assertSame([], $schema->effectiveGroups);
     }
 
     #[Test]
@@ -158,7 +142,7 @@ final class EffectiveAttributeGroupResolverTest extends KernelTestCase
 
         $first = $handler(new GetObjectFormSchemaQuery($product->getId()));
         self::assertNotNull($first);
-        self::assertCount(1, $first->effectiveGroups);
+        self::assertCount(0, $first->effectiveGroups);
 
         // Attach a fresh group to the product's ObjectType — the listener
         // must invalidate the cache so the next read sees the new group.
@@ -169,7 +153,7 @@ final class EffectiveAttributeGroupResolverTest extends KernelTestCase
 
         $second = $handler(new GetObjectFormSchemaQuery($product->getId()));
         self::assertNotNull($second);
-        self::assertCount(2, $second->effectiveGroups, 'Cache should invalidate after junction change.');
+        self::assertCount(1, $second->effectiveGroups, 'Cache should invalidate after junction change.');
     }
 
     private function makeProduct(string $code): CatalogObject

@@ -201,6 +201,16 @@ export function ObjectTypeShowPage() {
     }
   };
 
+  const handleDetachGroup = async (group: AttachedGroup) => {
+    setError(null);
+    try {
+      await jsonFetch(`/api/object_types/${id}/groups/${group.id}`, { method: 'DELETE' });
+      await refreshGroups();
+    } catch (e) {
+      setError(e instanceof HttpError ? `${e.status}` : e instanceof Error ? e.message : 'unknown');
+    }
+  };
+
   const handleDetachAttribute = async (attributeId: string) => {
     setError(null);
     try {
@@ -258,6 +268,9 @@ export function ObjectTypeShowPage() {
 
   const builtInGroups = (groups.data ?? []).filter((g) => g.system);
   const customGroups = (groups.data ?? []).filter((g) => !g.system);
+  const lockedBuiltInGroups = builtInGroups.filter((g) => g.code !== 'audit');
+  const legacyAuditGroups = builtInGroups.filter((g) => g.code === 'audit');
+  const editableGroups = [...legacyAuditGroups, ...customGroups];
   const enabledLocales = workspace.data?.enabledLocales ?? ['pl', 'en'];
   const primaryLocale = workspace.data?.primaryLocale ?? 'pl';
 
@@ -469,17 +482,17 @@ export function ObjectTypeShowPage() {
             <span className="ml-1 text-[11px] text-zinc-400">
               —{' '}
               {t('object_types.builtin_groups_tagline', {
-                defaultValue: 'dołączane automatycznie',
+                defaultValue: 'system-managed',
               })}
             </span>
           </div>
-          {builtInGroups.length === 0 ? (
+          {lockedBuiltInGroups.length === 0 ? (
             <p className="text-[12.5px] text-muted-foreground">
               {t('object_types.no_builtin_groups', { defaultValue: 'Brak built-in grup.' })}
             </p>
           ) : (
             <div className="space-y-2">
-              {builtInGroups.map((g) => (
+              {lockedBuiltInGroups.map((g) => (
                 <GroupCard
                   key={g.id}
                   group={g}
@@ -532,7 +545,15 @@ export function ObjectTypeShowPage() {
               </Button>
             </div>
           </div>
-          {customGroups.length === 0 ? (
+          {legacyAuditGroups.length > 0 ? (
+            <div className="rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2 text-[12px] text-amber-800">
+              {t('object_types.legacy_audit_groups_note', {
+                defaultValue:
+                  'Legacy audit group is listed below as removable modeling configuration. Audit fields remain system attributes, but their form visibility is no longer automatic.',
+              })}
+            </div>
+          ) : null}
+          {editableGroups.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-8 text-center text-[12.5px] text-zinc-500">
               {t('object_types.custom_groups_empty', {
                 defaultValue:
@@ -541,12 +562,15 @@ export function ObjectTypeShowPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {customGroups.map((g) => (
+              {editableGroups.map((g) => (
                 <GroupCard
                   key={g.id}
                   group={g}
                   language={i18n.language}
-                  onEdit={() => navigate(`/modeling/attribute-groups/${g.id}`)}
+                  onEdit={
+                    g.system ? undefined : () => navigate(`/modeling/attribute-groups/${g.id}`)
+                  }
+                  onRemove={handleDetachGroup}
                   onDisplayModeChange={handleDisplayModeChange}
                 />
               ))}

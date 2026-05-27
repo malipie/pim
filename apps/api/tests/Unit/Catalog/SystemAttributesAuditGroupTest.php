@@ -12,10 +12,9 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Covers UI-08.3 (#258): system attribute flag + audit AttributeGroup
- * invariants. The migration handles seeding + listener auto-attach is
- * exercised by integration tests; this file pins the entity-level
- * contracts that block accidental mutations of system rows.
+ * Covers system attribute and system AttributeGroup invariants. Runtime
+ * seeders create platform-owned audit attributes only; AttributeGroup
+ * visibility is explicit modeling configuration.
  */
 final class SystemAttributesAuditGroupTest extends TestCase
 {

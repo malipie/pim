@@ -30,9 +30,9 @@ final readonly class DeleteAttributeGroupHandler
             ));
         }
 
-        // System groups (audit) are never deletable — UI marks them with
-        // a 🔒 lock badge and the API enforces it on the wire.
-        if ($group->isSystemGroup()) {
+        // System-owned groups are never deletable. Legacy `audit` rows are
+        // user-managed modeling configuration after #1074 and remain removable.
+        if ($group->isSystemGroup() && 'audit' !== $group->getCode()) {
             throw new UnprocessableEntityHttpException(\sprintf(
                 'AttributeGroup "%s" is system-managed and cannot be deleted.',
                 $group->getCode(),

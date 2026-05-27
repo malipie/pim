@@ -11,8 +11,9 @@ use InvalidArgumentException;
  *
  * Represents *global* groups attached to an ObjectType — every object of
  * that type sees these groups in its form schema, regardless of category.
- * E.g. `Audit` (auto-attached, system-managed) and `Identification` are
- * always wired here. User-defined groups like "Marketing" attach here too.
+ * E.g. `Identification` and user-defined groups like "Marketing" attach
+ * here. System audit attributes become visible only when a group containing
+ * them is explicitly wired here.
  *
  * Composite PK is the `(object_type_id, attribute_group_id)` pair.
  *

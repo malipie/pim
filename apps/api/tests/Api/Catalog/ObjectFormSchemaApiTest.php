@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Catalog;
 
-use App\Catalog\Application\BuiltInSystemAttributesSeeder;
+use App\Catalog\Domain\AttributeType;
+use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Entity\AttributeGroup;
+use App\Catalog\Domain\Entity\AttributeGroupAttribute;
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
@@ -18,17 +22,8 @@ use Symfony\Component\Uid\Uuid;
  */
 final class ObjectFormSchemaApiTest extends CatalogApiTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
-        \assert(null !== $tenant);
-        self::getContainer()->get(BuiltInSystemAttributesSeeder::class)->seed($tenant);
-    }
-
     #[Test]
-    public function getFormSchemaForBuiltInProductReturnsAuditGroup(): void
+    public function getFormSchemaForBuiltInProductReturnsNoGroupsByDefault(): void
     {
         $product = $this->seedProduct('SKU-FS-001');
         $client = $this->authenticatedClient();
@@ -43,21 +38,14 @@ final class ObjectFormSchemaApiTest extends CatalogApiTestCase
         self::assertSame('product', $type['kind']);
         $groups = $payload['effectiveGroups'];
         self::assertIsArray($groups);
-        self::assertCount(1, $groups);
-        $audit = $groups[0];
-        self::assertIsArray($audit);
-        self::assertSame('audit', $audit['code']);
-        self::assertTrue($audit['is_system_group']);
-        self::assertIsArray($audit['attributes']);
-        self::assertCount(4, $audit['attributes']);
+        self::assertSame([], $groups);
     }
 
     #[Test]
     public function getFormSchemaExposesDisplayModePerGroup(): void
     {
-        // MODR-01 (#923) — every group in `effectiveGroups` carries the
-        // `display_mode` field; seeded audit junction defaults to 'tab'.
         $product = $this->seedProduct('SKU-FS-DM-001');
+        $this->attachGroupToProductType('display-mode', 'Display Mode');
         $client = $this->authenticatedClient();
 
         $response = $client->request('GET', '/api/objects/'.$product->getId()->toRfc4122().'/form-schema');
@@ -114,5 +102,30 @@ final class ObjectFormSchemaApiTest extends CatalogApiTestCase
         $tenantContext->clear();
 
         return $product;
+    }
+
+    private function attachGroupToProductType(string $code, string $label): void
+    {
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert(null !== $tenant);
+
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenantContext->set($tenant);
+
+        $type = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert(null !== $type);
+
+        $group = new AttributeGroup($code, ['en' => $label]);
+        $attribute = new Attribute($code.'_field', ['en' => $label.' field'], AttributeType::Text);
+        $em = $this->em();
+        $em->persist($group);
+        $em->persist($attribute);
+        $em->flush();
+        $em->persist(new AttributeGroupAttribute($group, $attribute, 1));
+        $em->persist(new ObjectTypeAttributeGroup($type, $group, 1));
+        $em->flush();
+
+        $tenantContext->clear();
     }
 }

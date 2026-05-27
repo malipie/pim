@@ -39,7 +39,7 @@ interface UsageResp {
  *   - title "Attribute Groups", description Pimcore/Akeneo positioning.
  *   - CTA "+ Nowa grupa" (zinc-900) → /modeling/attribute-groups/new.
  *   - Single Card with sticky search top, 2 sections:
- *     * System (auto-attached) — lock badge prefix.
+ *     * System — lock badge prefix.
  *     * Business groups.
  *   - Each row: 6-col grid (icon 44 / name+desc 1.6fr / code 1fr / N attr
  *     120 / N typy·N kat. 120 / chevron 28). Hover bg-zinc-50/70. Click →
@@ -138,7 +138,7 @@ export function AttributeGroupsListPage() {
                 <SectionDivider
                   withLock
                   label={t('modeling.attributeGroups.section_system_label', {
-                    defaultValue: 'System (auto-attached)',
+                    defaultValue: 'System',
                   })}
                 />
                 <div className="divide-y divide-zinc-50">
@@ -218,6 +218,7 @@ function GroupRowItem({
   const attrCount = usage?.attributeCount ?? 0;
   const typesUsed = usage?.directlyAttachedTo.objectTypes.length ?? 0;
   const categoriesUsed = usage?.directlyAttachedTo.categories.length ?? 0;
+  const isLockedSystemGroup = row.systemGroup === true && row.code !== 'audit';
 
   return (
     <Link
@@ -233,7 +234,7 @@ function GroupRowItem({
       <span className="flex min-w-0 flex-col">
         <span className="flex items-center gap-2">
           <span className="truncate text-[13.5px] font-semibold tracking-tight">{labelStr}</span>
-          {row.systemGroup ? <BuiltInLockBadge /> : null}
+          {isLockedSystemGroup ? <BuiltInLockBadge /> : null}
         </span>
         {descStr !== '—' ? (
           <span className="truncate text-[11.5px] text-muted-foreground">{descStr}</span>
