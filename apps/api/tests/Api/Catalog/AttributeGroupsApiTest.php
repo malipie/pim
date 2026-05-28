@@ -147,6 +147,27 @@ final class AttributeGroupsApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function deleteAllowsLegacyRelationsSystemGroup(): void
+    {
+        // MODRC-01 (#1080) — relations group is now user-managed. Legacy
+        // rows from BuiltInProductRelationAttributesSeeder pre-#1080 are
+        // removable via DELETE just like the audit row.
+        $client = $this->authenticatedClient();
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $tenantContext->set($tenant);
+        $relations = new AttributeGroup('relations', ['en' => 'Relations'], isSystemGroup: true);
+        $this->em()->persist($relations);
+        $this->em()->flush();
+        $tenantContext->clear();
+
+        $delete = $client->request('DELETE', '/api/attribute_groups/'.$relations->getId()->toRfc4122());
+
+        self::assertSame(204, $delete->getStatusCode());
+    }
+
+    #[Test]
     public function deleteBlocksWhenGroupIsAttachedToObjectType(): void
     {
         $client = $this->authenticatedClient();

@@ -269,11 +269,14 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     staleTime: 30_000,
   });
   const hasReverseRelations = reverseRelationsQuery.data?.hasReverse ?? false;
-  const hasForwardRelationsGroup = useMemo(
-    () => groups.some((g) => g.code === 'relations'),
+  // MODRC-01 (#1080) — relations group is no longer seeded, so detect the
+  // Relations tab from any relation-type attribute on the object, regardless
+  // of which group (or the synthetic default bucket) hosts it.
+  const hasForwardRelationAttributes = useMemo(
+    () => groups.some((g) => g.attributes.some((a) => a.type === 'relation')),
     [groups],
   );
-  const shouldSurfaceRelationsTab = hasForwardRelationsGroup || hasReverseRelations;
+  const shouldSurfaceRelationsTab = hasForwardRelationAttributes || hasReverseRelations;
 
   const visibleTabs: readonly TabKey[] = useMemo(() => {
     if (mode === 'create') return ['attributes'];
