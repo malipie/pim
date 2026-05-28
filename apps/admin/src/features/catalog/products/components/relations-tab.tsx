@@ -57,12 +57,12 @@ interface RelationRow {
   metadata: Record<string, unknown> | unknown[];
 }
 
-interface RelationGroupPayload {
+export interface RelationGroupPayload {
   attribute: RelationAttribute;
   relations: RelationRow[];
 }
 
-interface RelationsResponse {
+export interface RelationsResponse {
   sourceObjectId: string;
   relationAttributes: RelationGroupPayload[];
 }
@@ -171,7 +171,7 @@ export function RelationsTab({ productId }: RelationsTabProps) {
   );
 }
 
-function RelationGroupCard({
+export function RelationGroupCard({
   productId,
   group,
   locale,
