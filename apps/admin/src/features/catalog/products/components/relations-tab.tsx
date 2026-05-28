@@ -1,14 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ArrowDownLeft,
-  ChevronDown,
-  ChevronUp,
-  Link2,
-  Plus,
-  Search,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { ChevronDown, ChevronUp, Link2, Plus, Search, Trash2, X } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -20,6 +11,7 @@ import { HttpError, jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 import { RelationInlineEditPanel } from './relation-inline-edit-panel';
+import { SystemReverseRelationsSection } from './system-reverse-relations-section';
 
 /**
  * ADR-014 / MOD-12 (#904) — „Powiązania" tab on the product detail page.
@@ -174,46 +166,7 @@ export function RelationsTab({ productId }: RelationsTabProps) {
         />
       ))}
 
-      {reverseGroups.length > 0 ? (
-        <div className="rounded-2xl border border-line bg-surface p-5 soft-shadow">
-          <div className="flex items-center gap-2">
-            <ArrowDownLeft className="size-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold">
-              {t('relations.reverse_title', { defaultValue: 'Powiązania zwrotne (read-only)' })}
-            </h3>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t('relations.reverse_desc', {
-              defaultValue: 'Obiekty, które wskazują na ten produkt przez swoje atrybuty relacji.',
-            })}
-          </p>
-          <div className="mt-4 space-y-3">
-            {reverseGroups.map((group) => (
-              <div
-                key={`${group.sourceObjectType.id}:${group.attribute.id}`}
-                className="rounded-xl border border-line bg-background p-3"
-              >
-                <div className="text-xs font-medium">
-                  <span className="text-foreground">{group.attribute.code}</span>
-                  <span className="ml-2 text-muted-foreground">
-                    ({group.sourceObjectType.code} / {group.sourceObjectType.kind})
-                  </span>
-                </div>
-                <ul className="mt-2 flex flex-wrap gap-1.5">
-                  {group.sources.map((src) => (
-                    <li
-                      key={src.relationId}
-                      className="rounded-md bg-zinc-100 px-2 py-1 text-xs font-mono"
-                    >
-                      {src.code}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      <SystemReverseRelationsSection groups={reverseGroups} />
     </div>
   );
 }
