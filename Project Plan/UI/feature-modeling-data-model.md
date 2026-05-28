@@ -86,15 +86,15 @@ Gdy `advanced=true`, powiązanie ma **własne pola** (np. Product → akcesoria,
 
 Typ atrybutu `asset` pozostaje **odrębny** od `relation`. Asset ma specjalizowany UX (DAM picker, miniaturka, kadrowanie, upload) — ujednolicanie z `relation` byłoby sztuczne. `main_image`, `gallery` to typ `asset`, nie `relation→Asset`.
 
-### 3.5 Zakładka „Powiązania"
+### 3.5 Placement atrybutów typu `relation`
 
-**Decyzja (ADR-014, Opcja 2 — MODR-01..10):** Atrybut typu `relation` to **zwykły atrybut**. Placement na karcie obiektu (zakładka vs. sekcja inline) wynika wyłącznie z `AttributeGroup` + jej `display_mode` na junction `object_type_attribute_groups` (kolumna `display_mode VARCHAR(8) NOT NULL DEFAULT 'tab' CHECK IN ('tab','stacked')` — MODR-01 #923). **Widget dobierany jest po typie atrybutu** (`relation` → picker + grid + preview card; `text` → input), ale samo umiejscowienie idzie po grupie. Brak hardcoded ścieżki dla typu `relation`.
+**Decyzja (ADR-014, Option Y — MODRC-01..05, supersedes MODR-02/06/07):** Atrybut typu `relation` to **zwykły atrybut**. Placement na karcie obiektu (zakładka vs. sekcja inline) wynika wyłącznie z `AttributeGroup` + jej `display_mode` na junction `object_type_attribute_groups` (kolumna `display_mode VARCHAR(8) NOT NULL DEFAULT 'tab' CHECK IN ('tab','stacked')` — MODR-01 #923). **Widget dobierany jest po typie atrybutu** (`relation` → picker + grid + preview card; `text` → input), ale samo umiejscowienie idzie po grupie. **ŻADNA grupa nie jest seedowana ani built-in dla relacji.** Operator tworzy grupę dowolnego code'u + display_mode, jeśli chce.
 
-Zakładka „Powiązania" = render seedowanej grupy `relations` (`is_system_group=true`, `display_mode='tab'`, MODR-02 #924) — operator może w wizardzie / detalu ObjectType (MODR-04 #926) przerzucić ją na `stacked`, wtedy renderuje się jako sekcja inline pod zakładką „Atrybuty". Tak samo działa zaktualizowana seedowana grupa `media` (MODR-02 #924) — wcześniej Multimedia była hardcoded jako osobna zakładka, teraz jest standardową AttributeGroup. Audit pozostaje `display_mode='stacked'` (MODR-03 #925 + migracja `Version20260524160000`) by zachować historyczny układ.
+**Built-in atrybuty `cross_sell`, `up_sell`, `related`, `alternative`, `accessory`** (MODRC-01 #1080) pozostają seedowane jako `is_system=true` na Product ObjectType — ale jako **loose ObjectTypeAttribute**, bez przypisania do grupy. Form-schema zwraca je w syntetycznej domyślnej grupie do czasu, aż operator je sam pogrupuje.
 
-**Edge case widoczności zakładki „Powiązania"** (MODR-06 #928): tab jest widoczna gdy *(a)* seedowana grupa `relations` ma ≥ 1 atrybut **LUB** *(b)* obiekt ma ≥ 1 powiązanie **zwrotne** (`object_relations.target_object_id = ten obiekt`). Lekka probowa-flaga: `GET /api/objects/{id}/relations/reverse/count` → `{hasReverse: bool, count: int}`. Jeśli zakładka pojawia się wyłącznie z powodu reverse, renderuje wyłącznie read-only sekcję „Powiązania zwrotne".
+**Reverse relations** (MODRC-03 #1082) renderują się w **systemowej sekcji „Powiązania zwrotne"** — to jedyna wirtualna zakładka w systemie, auto-generowana gdy obiekt jest celem ≥1 powiązania (`object_relations.target_object_id = ten obiekt`). Sekcja jest read-only, wizualnie odróżnialna od user-defined zakładek (badge „system" + zinc styling). Lekka probowa-flaga: `GET /api/objects/{id}/relations/reverse/count` → `{hasReverse: bool, count: int}`. Widoczność zakładki forward (`hasForwardRelationAttributes`) ustala się **po typie atrybutu**, niezależnie od code'u grupy — patrz `product-detail-page.tsx` linie 272-276.
 
-**Konfigurator atrybutu `relation`** (MODR-07 #929) pre-zaznacza grupę `relations` jako domyślny target — leniwa ścieżka skupia relacje w jednej zakładce, świadoma ścieżka pozwala umieścić atrybut w dowolnej grupie (np. `producent` → grupa „Tożsamość").
+**Inline relation editor w `attr-row`** (MODRC-05 #1084): gdy operator umieści atrybut typu `relation` w grupie `display_mode='stacked'`, widget renderuje się jako kompaktowy edytor inline (lista linków + „+ Dodaj powiązanie"), używając tego samego API (`/api/objects/{id}/relations/{attributeId}`) co dedykowana `RelationsTab`. Relacja działa jak każdy inny atrybut, niezależnie od trybu wyświetlania grupy.
 
 **Rich preview card + inline edit** (MODR-08 #930 + MODR-10 #932): widget relacji renderuje powiązane obiekty jako karty (`code + name + ObjectType chip`), z batchowym fetchem `POST /api/objects/summaries`. Operator może rozwinąć kartę i edytować pola targetu w miejscu (`PATCH /api/{products|categories|assets}/{id}` z `expectedVersion` → 409 przy stale data; `objects.version` + Doctrine `@Version`).
 
@@ -244,7 +244,14 @@ ObjectType **nie-kategoryzowalny** (Brand, Service bez kategorii) — modal pomi
 - ❌ **Sekcja diagnostyczna orphaned values** w UI — Faza 1+. MVP: orphaned po prostu ukryte.
 - ❌ **Relacje wielopoziomowe / przechodnie** (A→B→C auto-discovery) — Faza 2.
 - ❌ **`visible_when` reguły composite** dla relacji — proste tak/nie z ADR-012, composite Faza 1.
-- ❌ **Multi-tab dla relacji** (osobne „Powiązania handlowe" / „techniczne") — MVP: jedna zakładka „Powiązania". *(Uwaga: technicznie relacja jest atrybutem w grupie — rozszerzenie do wielu zakładek to zmiana seedu grup, nie architektury.)*
+- ❌ **Multi-tab dla relacji** (osobne „Powiązania handlowe" / „techniczne") — MVP: jedna zakładka „Powiązania" dopóki operator nie utworzy kilku grup z `display_mode='tab'` zawierających atrybuty `relation`. *(Po MODRC-01..05 jest to świadomy choice operatora — każda grupa = osobna zakładka.)*
+
+### 12.0 Świadomie odrzucone alternatywy Option Y / batch MODRC-01..05 (rozstrzygnięte 2026-05-28)
+
+- ❌ **Flaga `has_relations` na ObjectType** — odrzucona jako pułapka proliferacji flag (à la Pimcore Classes). Każdy nowy „rodzaj" pól dawałby kolejną flagę; lepiej trzymać jedną mechanikę: atrybut + grupa.
+- ❌ **Seedowana built-in grupa „Powiązania"** — odrzucona jako anti-pattern discoverability. Operator nie miał jak odkryć, że dodanie atrybutu `relation` zmaterializuje zakładkę „magicznie"; teraz każda zakładka istnieje, bo grupa została świadomie utworzona przez operatora.
+- ❌ **„Magiczna" widoczność zakładki „Powiązania" przy populacji atrybutami** — odrzucona. Forward tab pojawia się gdy obiekt ma jakikolwiek atrybut `type='relation'` (detection po typie, nie po code'u grupy); reverse renderuje się w dedykowanej systemowej sekcji „Powiązania zwrotne".
+- ❌ **Pre-zaznaczanie domyślnej grupy w konfiguratorze atrybutu** — odrzucone (MODRC-02). User świadomie wybiera grupę z dropdownu albo tworzy nową inline.
 
 ### 12.1 Świadomie odrzucone alternatywy ADR-014 / batch MODR-01..10 (rozstrzygnięte 2026-05-24)
 

@@ -1,5 +1,7 @@
 # Tickety — Modelowanie: placement atrybutów + UX relacji (Opcja 2)
 
+> **Status: częściowo SUPERSEDED przez Option Y (MODRC-01..05)** — decyzja operatora 2026-05-28. MODR-02 (#924 — seedowana grupa „Powiązania"), MODR-06 (#928 — synthetic Relations tab po code'u grupy) oraz MODR-07 (#929 — pre-zaznaczony default group w konfiguratorze) zostały zastąpione przez MODRC-01 (#1080), MODRC-03 (#1082) i MODRC-02 (#1081) z batcha [`feature-modeling-relations-option-y-tickets.md`](feature-modeling-relations-option-y-tickets.md). Pozostałe MODR-y (01, 03, 04, 05, 08, 09, 10, 11) zachowują ważność.
+
 **Typ dokumentu:** Backlog ticketów — ready-to-paste GitHub Issues
 **Status:** Draft — gotowe do utworzenia GitHub Issues przez agenta kodującego
 **Powiązane:**

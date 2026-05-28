@@ -2,6 +2,24 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z MODRC-01..05 (2026-05-28, optional relations AttributeGroup — Option Y)
+
+### Patterns to Follow
+
+1. **Detekcja po typie atrybutu, nie po code'u grupy** — gdy wyświetlanie zakładki / tab'u zależało od konkretnego code'u grupy (`groups.some(g => g.code === 'relations')`), un-seed tej grupy rozwala UX. Lepiej detect-by-attribute-type (`g.attributes.some(a => a.type === 'relation')`) bo: (a) niezależne od code'u, (b) działa w syntetycznej grupie default, (c) pozwala operatorowi przenosić atrybuty między grupami bez tracenia funkcjonalności. Pattern zwalidowany w MODRC-01 po Playwright failure na 975-spec.
+
+2. **Shared FE allow-list dla legacy optional system groups** — gdy drugi legacy code (`relations` po `audit`) trzeba dodać do tej samej logiki w 6+ plikach, refactor do shared helper `apps/admin/src/lib/legacy-attribute-groups.ts` z constant + type guard. Ułatwia trzeciego addowania i utrzymanie BE/FE w synchronie (mirror constant w `DeleteAttributeGroupHandler::LEGACY_USER_MANAGED_SYSTEM_GROUP_CODES`).
+
+### Patterns to Avoid
+
+1. **Nie wycinać seedu grupy bez wcześniejszego sprawdzenia FE detection logic** — MODRC-01 zminął seed, ale UI w `product-detail-page.tsx` linia 272 wciąż polegał na `code === 'relations'`. Playwright spec na Relations tab failed. Lesson: przed un-seed → grep `code === '<legacy_code>'` po `apps/admin/src` i zaplanować przejście na detection po typie/flagach atrybutu, nie po code'u grupy.
+
+### Decyzje świadome
+
+- **MODR-02/06/07 superseded przez MODRC-01..05 (Option Y)** — zero seedu grupy `relations`, zero flagi `has_relations`, zero magicznych tabów. Forward tab pojawia się po obecności atrybutów `type='relation'` (niezależnie od grupy); reverse w dedykowanej systemowej sekcji (MODRC-03); inline editor w `attr-row` daje parytę z innymi typami atrybutów (MODRC-05). Powód: discoverability + symetria + brak proliferacji flag (anti-pattern Pimcore Classes).
+
+---
+
 ## Lessons z #1074/#1075 (2026-05-27, optional audit AttributeGroup)
 
 ### Patterns to Follow
