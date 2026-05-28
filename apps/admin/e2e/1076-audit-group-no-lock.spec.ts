@@ -13,21 +13,21 @@ const AUDIT_GROUP_CODE = 'audit';
  */
 test('audit attribute group is not presented as locked in /modeling/attribute-groups', async ({
   page,
-  request,
 }) => {
   await apiLogin(page);
 
-  // Make sure the legacy audit group exists for this run. We POST it
-  // directly through the API; the BE allows the code irrespective of
+  // The browser context now carries the auth cookie. Using `page.request`
+  // (rather than the top-level test `request`) inherits that cookie so the
+  // POST does not 401 in CI. The BE accepts `code='audit'` irrespective of
   // is_system_group flag (#1078 keeps `audit` as a user-managed value).
-  const create = await request.post('/api/attribute_groups', {
+  const create = await page.request.post('/api/attribute_groups', {
     data: { code: AUDIT_GROUP_CODE, label: { pl: 'Audyt', en: 'Audit' } },
     headers: { accept: 'application/ld+json', 'content-type': 'application/json' },
   });
   const createdId =
     create.status() === 201
       ? ((await create.json()) as { id: string }).id
-      : await locateExistingAuditId(request);
+      : await locateExistingAuditId(page);
 
   try {
     await page.goto('/modeling/attribute-groups');
@@ -44,14 +44,12 @@ test('audit attribute group is not presented as locked in /modeling/attribute-gr
     await expect(page.getByRole('button', { name: /zapisz zmiany|save changes/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /usuń grupę|delete/i }).first()).toBeVisible();
   } finally {
-    await request.delete(`/api/attribute_groups/${createdId}`);
+    await page.request.delete(`/api/attribute_groups/${createdId}`);
   }
 });
 
-async function locateExistingAuditId(
-  request: import('@playwright/test').APIRequestContext,
-): Promise<string> {
-  const resp = await request.get('/api/attribute_groups?itemsPerPage=200', {
+async function locateExistingAuditId(page: import('@playwright/test').Page): Promise<string> {
+  const resp = await page.request.get('/api/attribute_groups?itemsPerPage=200', {
     headers: { accept: 'application/ld+json' },
   });
   const payload = (await resp.json()) as {
