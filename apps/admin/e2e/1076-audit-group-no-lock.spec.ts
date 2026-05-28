@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { apiLogin } from './helpers/auth';
+import { ADMIN_EMAIL, ADMIN_PASSWORD, apiLogin } from './helpers/auth';
 
 const AUDIT_GROUP_CODE = 'audit';
 
@@ -10,24 +10,33 @@ const AUDIT_GROUP_CODE = 'audit';
  * still carry an `is_system_group=true` audit row, fresh installs have it
  * deleted by migration {@link Version20260527100000}. The legacy row is
  * created via the API so the assertion is deterministic.
+ *
+ * Direct login is used to obtain the JWT bearer — `apiLogin` only lands the
+ * refresh cookie which is not enough for ad-hoc `page.request.*` API calls
+ * (the BE expects `Authorization: Bearer <jwt>`). Pattern mirrors
+ * `975-relation-picker-candidates.spec.ts`.
  */
 test('audit attribute group is not presented as locked in /modeling/attribute-groups', async ({
   page,
 }) => {
+  const loginResponse = await page.request.post('/api/auth/login', {
+    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
+    headers: { accept: 'application/json' },
+  });
+  expect(loginResponse.status()).toBe(200);
+  const { token } = (await loginResponse.json()) as { token: string };
+  const bearer = { authorization: `Bearer ${token}` };
+
   await apiLogin(page);
 
-  // The browser context now carries the auth cookie. Using `page.request`
-  // (rather than the top-level test `request`) inherits that cookie so the
-  // POST does not 401 in CI. The BE accepts `code='audit'` irrespective of
-  // is_system_group flag (#1078 keeps `audit` as a user-managed value).
   const create = await page.request.post('/api/attribute_groups', {
     data: { code: AUDIT_GROUP_CODE, label: { pl: 'Audyt', en: 'Audit' } },
-    headers: { accept: 'application/ld+json', 'content-type': 'application/json' },
+    headers: { ...bearer, accept: 'application/ld+json', 'content-type': 'application/json' },
   });
   const createdId =
     create.status() === 201
       ? ((await create.json()) as { id: string }).id
-      : await locateExistingAuditId(page);
+      : await locateExistingAuditId(page, bearer);
 
   try {
     await page.goto('/modeling/attribute-groups');
@@ -44,13 +53,16 @@ test('audit attribute group is not presented as locked in /modeling/attribute-gr
     await expect(page.getByRole('button', { name: /zapisz zmiany|save changes/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /usuń grupę|delete/i }).first()).toBeVisible();
   } finally {
-    await page.request.delete(`/api/attribute_groups/${createdId}`);
+    await page.request.delete(`/api/attribute_groups/${createdId}`, { headers: bearer });
   }
 });
 
-async function locateExistingAuditId(page: import('@playwright/test').Page): Promise<string> {
+async function locateExistingAuditId(
+  page: import('@playwright/test').Page,
+  bearer: { authorization: string },
+): Promise<string> {
   const resp = await page.request.get('/api/attribute_groups?itemsPerPage=200', {
-    headers: { accept: 'application/ld+json' },
+    headers: { ...bearer, accept: 'application/ld+json' },
   });
   const payload = (await resp.json()) as {
     'hydra:member'?: { id: string; code: string }[];
