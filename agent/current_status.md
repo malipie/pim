@@ -1,5 +1,50 @@
 # Current Status
 
+## 2026-05-28: 🏁 Option Y — relations AttributeGroup optional, full marathon closed (5/5 + audit finalize)
+
+**Milestone:** MODRC-01..05 (PR-y #1085/#1086/#1087/#1088/#1089) + #1079 audit finalize. Operator decision (po sukcesie #1074 dla audit): zrobić to samo dla seedowanej grupy „Powiązania" + zapewnić aby relacja działała jak każdy inny atrybut (inline LUB tab).
+
+### Shipped (all merged)
+
+| Ticket | PR | Scope | Status |
+|---|---|---|---|
+| #1076/#1077 audit finalize | [#1079](../../pull/1079) | Frontend lock UX cleanup (DangerZone delete na show.tsx, declare-dialog audit guard, section divider lock only-when-locked) + PHPUnit dla timestamps + form-schema audit-not-auto-rendered | ✅ merged |
+| MODRC-01 #1080 | [#1085](../../pull/1085) | Un-seed `relations` AttributeGroup; `BuiltInProductRelationAttributesSeeder` mints attributes + loose `ObjectTypeAttribute` only; migracja `Version20260528100000`; `DeleteAttributeGroupHandler` generalizes allow-list to `['audit', 'relations']` | ✅ merged |
+| MODRC-02 #1081 | [#1086](../../pull/1086) | `legacy-attribute-groups.ts` helper (`LEGACY_OPTIONAL_SYSTEM_GROUP_CODES`); refactor 6 admin files od `code === 'audit'` do helpera; E2E `1081-relations-group-no-lock.spec.ts` mirror audit | ✅ merged |
+| MODRC-03 #1082 | [#1088](../../pull/1088) | `SystemReverseRelationsSection` component z `system` badge + zinc styling + klikalnymi sources; extract z `relations-tab.tsx` | ✅ merged |
+| MODRC-04 #1083 | [#1087](../../pull/1087) | docs: `feature-modeling-data-model.md` §3.5 rewritten + §12.0 (3 odrzucone alternatywy); ADR-014 supplementary note; `lessons.md` MODRC-01..05 entry; cross-reference w `feature-modeling-relations-ux-tickets.md` | ✅ merged |
+| MODRC-05 #1084 | [#1089](../../pull/1089) | `RelationInlineEditor` wrapper + `RelationGroupCard` export + `relationContextProductId` prop w AttrRow → inline picker dla relation attrs w stacked groups | ✅ merged |
+
+### Świadome odejścia / lekcje
+
+- **Detection-by-type, nie code-of-group** — MODRC-01 początkowo nie zaktualizował `hasForwardRelationsGroup = groups.some(g => g.code === 'relations')` w `product-detail-page.tsx`. Playwright 975-spec failed na missing "Powiązania" tab. Fix: detection przez `g.attributes.some(a => a.type === 'relation')`. Pattern zapisany w `lessons.md`.
+- **MODRC-05 reuse, nie reimplement** — zamiast nowego inline editora ekstraktuje `RelationGroupCard` z `relations-tab.tsx` przez export + wrapper. Shared cache key `['objects', productId, 'relations']` keeps inline editor i tab w sync.
+- **MODR-02/06/07 (#924/#928/#929) z poprzedniego batchu MODR-01..11 SUPERSEDED przez MODRC-01..03/05** — pozostałe MODR-y (01, 03, 04, 05, 08, 09, 10, 11) zachowują ważność, banner SUPERSEDED w `feature-modeling-relations-ux-tickets.md`.
+
+### Live-stack smoke test (proof end-to-end MODRC-01..05)
+
+1. Login admin@demo.localhost / changeme → 200, JWT minted.
+2. POST `/api/attribute_groups` `{code:polecane}` → 201, `systemGroup=false`.
+3. POST `/api/object_types/{product}/groups/{polecane}` → 204 (attached).
+4. PATCH same junction `{display_mode:stacked}` → 204.
+5. POST `/api/attribute_groups/{polecane}/attributes/bulk-attach` `{attributeCodes:[cross_sell]}` → 200 `{attached:[cross_sell]}`.
+6. GET `/api/objects/{product}/form-schema` → `effectiveGroups[0] = {code: polecane, display_mode: stacked, attributes: [cross_sell]}` — relacja w stacked custom group.
+7. PUT `/api/objects/{product}/relations/cross_sell` `{targets:[{id:{target}}]}` → 204; subsequent GET confirms link persisted.
+8. GET `/api/objects/{target}/relations/reverse/count` → `{hasReverse: true, count: 1}` + full reverse list contains `cross_sell` from source product.
+9. DELETE migration test: legacy `relations` row pre-merge (`is_system_group=true`) → DELETE → 204 (bo allow-list rozszerzony).
+
+Wszystkie kroki ✅ — Option Y end-to-end works.
+
+### Następny krok
+
+- Operator decision: czy odpalić kolejny widok / inny refactor. Wszystkie 5 MODRC + #1079 audit zamknięte; ekran `/modeling/attribute-groups` nie pokazuje już legacy `audit`/`relations` na stałe, relacje placeable w dowolnej grupie (stacked/tab) z prawdziwym inline picker'em.
+
+### Blokery / uwagi
+
+- `Project Plan/UI/feature-modeling-relations-option-y-tickets.md` + `plan-audytu-code-review.md` zostają jako untracked (out-of-scope materiał z sesji planowania, decyzja operatora czy commitować osobno).
+
+---
+
 ## 2026-05-27: 🔧 #1074/#1075 — audit AttributeGroup optional (PR prep)
 
 **Branch:** `fix/1074-optional-audit-group`
