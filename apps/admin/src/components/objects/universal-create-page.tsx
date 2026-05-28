@@ -19,7 +19,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Save } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import { AttrGroupCard } from '@/features/catalog/products/components/attr-group
 import { AttrRow } from '@/features/catalog/products/components/attr-row';
 import type { GroupMeta, ProductLocale } from '@/features/catalog/products/components/types';
 import { jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
 
 export interface UniversalCreatePageProps {
   objectTypeId: string;
@@ -53,6 +54,8 @@ const GROUP_ICONS: Record<string, string> = {
   cennik: '💰',
 };
 
+const ATTRIBUTES_TAB = 'attributes';
+
 export function UniversalCreatePage({
   objectTypeId,
   objectTypeCode,
@@ -68,6 +71,7 @@ export function UniversalCreatePage({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [locale] = useState<ProductLocale>('pl');
+  const [activeTab, setActiveTab] = useState<string>(ATTRIBUTES_TAB);
 
   // UP-08 — fetch the ObjectType's effective groups without an object
   // context (no categories selected). Uses the `/preview` POST endpoint
@@ -75,15 +79,16 @@ export function UniversalCreatePage({
   // the detail page; category-driven overlay during create is a
   // follow-up.
   //
-  // #1096 — render every group inline as a stacked card regardless of
-  // its `display_mode`. The detail page (MODR-04) splits tab-mode
-  // groups into their own tabs, but during create the operator fills
-  // initial values in a single form; tab navigation here would just
-  // add friction and hide fields behind clicks.
+  // #1098 — `refetchOnMount: 'always'` keeps the tab list aligned with
+  // modeling changes the operator just made. Without it the 5-minute
+  // staleTime + lack of cross-page invalidation hides newly attached
+  // groups (e.g. operator attaches a second AttributeGroup in
+  // modeling, navigates back here, and only sees the cached payload).
   const groupsQuery = useQuery<{ groups: GroupMeta[] }>({
     queryKey: ['object-type', objectTypeId, 'effective-attribute-groups', 'preview', 'empty'],
     enabled: objectTypeId !== '',
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30_000,
+    refetchOnMount: 'always',
     queryFn: () =>
       jsonFetch<{ groups: GroupMeta[] }>(
         `/api/object_types/${objectTypeId}/effective-attribute-groups/preview`,
@@ -95,7 +100,43 @@ export function UniversalCreatePage({
         },
       ),
   });
-  const groups = groupsQuery.data?.groups ?? [];
+  const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data]);
+
+  // #1098 — mirror MODR-04 split from product-detail-page: tab-mode
+  // groups become their own tab, stacked-mode groups live inline
+  // inside the default "Atrybuty" tab. Operator gets the same mental
+  // model in create as in detail.
+  const tabModeGroups = useMemo(
+    () => groups.filter((g) => (g.display_mode ?? 'tab') === 'tab'),
+    [groups],
+  );
+  const stackedGroups = useMemo(
+    () => groups.filter((g) => (g.display_mode ?? 'tab') === 'stacked'),
+    [groups],
+  );
+
+  const visibleTabs: readonly string[] = useMemo(() => {
+    if (groups.length === 0) return [];
+    const tabs: string[] = [];
+    // Hide the synthetic Atrybuty tab when no stacked groups exist —
+    // otherwise the operator stares at an empty default tab before
+    // they realise the data lives behind a different chip.
+    if (stackedGroups.length > 0 || tabModeGroups.length === 0) {
+      tabs.push(ATTRIBUTES_TAB);
+    }
+    for (const group of tabModeGroups) tabs.push(group.code);
+    return tabs;
+  }, [groups, stackedGroups, tabModeGroups]);
+
+  // Keep activeTab valid when the visible tab set changes (e.g. groups
+  // arrive after first render, operator attaches a new group via
+  // modeling and the refetch lands).
+  useEffect(() => {
+    if (visibleTabs.length === 0) return;
+    if (!visibleTabs.includes(activeTab)) {
+      setActiveTab(visibleTabs[0] ?? ATTRIBUTES_TAB);
+    }
+  }, [activeTab, visibleTabs]);
 
   const toggleGroup = (groupId: string): void => {
     setExpandedGroups((prev) => {
@@ -144,6 +185,41 @@ export function UniversalCreatePage({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const renderGroup = (group: GroupMeta) => (
+    <AttrGroupCard
+      key={group.id}
+      id={group.id}
+      title={group.label[lang] ?? group.code}
+      icon={GROUP_ICONS[group.code]}
+      filledCount={countFilled(group, dirtyFields)}
+      totalCount={group.attributes.length}
+      expanded={expandedGroups.has(group.id) || expandedGroups.size === 0}
+      onToggle={() => toggleGroup(group.id)}
+    >
+      {group.attributes.map((attr) => (
+        <AttrRow
+          key={attr.id}
+          attribute={attr}
+          value={dirtyFields[attr.code]}
+          provenance="manual"
+          locale={locale}
+          isEditing={true}
+          isLocked={attr.is_system}
+          onChange={(next) => setFieldValue(attr.code, next)}
+        />
+      ))}
+    </AttrGroupCard>
+  );
+
+  const tabLabel = (tab: string): string => {
+    if (tab === ATTRIBUTES_TAB) {
+      return t('object_create.tabs.attributes', { defaultValue: 'Atrybuty' });
+    }
+    const group = tabModeGroups.find((g) => g.code === tab);
+    if (group === undefined) return tab;
+    return group.label[lang] ?? group.code;
   };
 
   return (
@@ -217,6 +293,41 @@ export function UniversalCreatePage({
             </div>
           </div>
         </div>
+
+        {visibleTabs.length > 1 ? (
+          <div className="flex items-center gap-1 border-t border-zinc-100 px-7">
+            <div
+              className="flex flex-1 items-center gap-1"
+              role="tablist"
+              aria-label={t('object_create.tabs.aria', { defaultValue: 'Zakładki typu obiektu' })}
+            >
+              {visibleTabs.map((tab) => {
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setActiveTab(tab)}
+                    className={cn(
+                      'relative inline-flex h-[44px] items-center gap-2 px-3.5 text-[13px] font-medium tracking-tight',
+                      isActive ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-800',
+                    )}
+                  >
+                    {tabLabel(tab)}
+                    {isActive ? (
+                      <span
+                        className="absolute -bottom-px left-0 right-0 h-[2px] rounded-t bg-zinc-900"
+                        aria-hidden
+                      />
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </header>
 
       <div className="grid grid-cols-1 gap-5 px-7 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -238,32 +349,14 @@ export function UniversalCreatePage({
                 })}
               </p>
             </div>
+          ) : activeTab === ATTRIBUTES_TAB ? (
+            stackedGroups.map(renderGroup)
           ) : (
-            groups.map((group) => (
-              <AttrGroupCard
-                key={group.id}
-                id={group.id}
-                title={group.label[lang] ?? group.code}
-                icon={GROUP_ICONS[group.code]}
-                filledCount={countFilled(group, dirtyFields)}
-                totalCount={group.attributes.length}
-                expanded={expandedGroups.has(group.id) || expandedGroups.size === 0}
-                onToggle={() => toggleGroup(group.id)}
-              >
-                {group.attributes.map((attr) => (
-                  <AttrRow
-                    key={attr.id}
-                    attribute={attr}
-                    value={dirtyFields[attr.code]}
-                    provenance="manual"
-                    locale={locale}
-                    isEditing={true}
-                    isLocked={attr.is_system}
-                    onChange={(next) => setFieldValue(attr.code, next)}
-                  />
-                ))}
-              </AttrGroupCard>
-            ))
+            (() => {
+              const tabGroup = tabModeGroups.find((g) => g.code === activeTab);
+              if (tabGroup === undefined) return null;
+              return renderGroup(tabGroup);
+            })()
           )}
         </div>
 
