@@ -107,7 +107,23 @@ export function AttrRow({
       </div>
 
       <div className="min-w-0">
-        {editable ? (
+        {/* Issue #1094 — relation attrs render their full inline editor
+            regardless of the page-level Edytuj toggle. RelationInlineEditor
+            is self-contained: own query (`['objects', productId, 'relations']`),
+            modal-driven picker, mutations against /api/objects/{id}/relations.
+            It does not participate in the dirty-fields flow, so it should
+            never live behind `editable`. Pre-#1093 the synthetic Relations
+            tab rendered RelationsTab standalone, also bypassing the page
+            toggle; this preserves that UX for the inline path. */}
+        {attribute.type === 'relation' &&
+        typeof relationContextProductId === 'string' &&
+        relationContextProductId.length > 0 ? (
+          <RelationInlineEditor
+            productId={relationContextProductId}
+            attributeId={attribute.id}
+            attributeCode={attribute.code}
+          />
+        ) : editable ? (
           attribute.type === 'wysiwyg' ? (
             <WysiwygEditor
               value={stringValue}
@@ -176,18 +192,6 @@ export function AttrRow({
                 defaultValue: 'Wybierz…',
               })}
               className="rounded-xl text-[13.5px]"
-            />
-          ) : attribute.type === 'relation' &&
-            typeof relationContextProductId === 'string' &&
-            relationContextProductId.length > 0 ? (
-            // MODRC-05 (#1084) — render the full relation picker inline
-            // whenever the parent supplies a productId. The same UI as the
-            // dedicated Relations tab, so relations work like any other
-            // attribute regardless of the hosting group's display_mode.
-            <RelationInlineEditor
-              productId={relationContextProductId}
-              attributeId={attribute.id}
-              attributeCode={attribute.code}
             />
           ) : (
             <Input
