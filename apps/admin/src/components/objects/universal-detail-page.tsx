@@ -501,6 +501,7 @@ export function UniversalDetailPage({
                     isEditing={isEditing}
                     isLocked={attr.is_system}
                     onChange={(next) => setFieldValue(attr.code, next)}
+                    relationContextProductId={objectId}
                   />
                 ))}
               </AttrGroupCard>

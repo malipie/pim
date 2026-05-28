@@ -8,6 +8,7 @@ import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-selec
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
+import { RelationInlineEditor } from './relation-inline-editor';
 import type { AttributeMeta, AttributeOptionMeta, ProductLocale } from './types';
 
 export interface AttrRowProps {
@@ -26,6 +27,14 @@ export interface AttrRowProps {
    * tooltip so we don't lose it for Faza 2 inheritance work.
    */
   onCopyToOthers?: () => void;
+  /**
+   * MODRC-05 (#1084) — when supplied and the attribute is `type='relation'`,
+   * AttrRow renders the inline relation editor (picker + grid) instead of
+   * a plain text input. The parent passes the current object id so the
+   * editor can fetch `/api/objects/{id}/relations` and reuse the same
+   * cache key as the dedicated Relations tab.
+   */
+  relationContextProductId?: string;
 }
 
 /**
@@ -44,6 +53,7 @@ export function AttrRow({
   isLocked,
   onChange,
   onCopyToOthers,
+  relationContextProductId,
 }: AttrRowProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
@@ -166,6 +176,18 @@ export function AttrRow({
                 defaultValue: 'Wybierz…',
               })}
               className="rounded-xl text-[13.5px]"
+            />
+          ) : attribute.type === 'relation' &&
+            typeof relationContextProductId === 'string' &&
+            relationContextProductId.length > 0 ? (
+            // MODRC-05 (#1084) — render the full relation picker inline
+            // whenever the parent supplies a productId. The same UI as the
+            // dedicated Relations tab, so relations work like any other
+            // attribute regardless of the hosting group's display_mode.
+            <RelationInlineEditor
+              productId={relationContextProductId}
+              attributeId={attribute.id}
+              attributeCode={attribute.code}
             />
           ) : (
             <Input

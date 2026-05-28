@@ -776,6 +776,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                     isEditing={isEditing}
                     isLocked={attr.is_system}
                     onChange={(next) => setFieldValue(attr.code, next)}
+                    relationContextProductId={isEditMode ? id : undefined}
                   />
                 ))}
               </AttrGroupCard>
