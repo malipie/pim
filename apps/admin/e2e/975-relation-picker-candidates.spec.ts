@@ -65,20 +65,11 @@ test('relation picker lists candidates and narrows on `?sku=` filter', async ({ 
   await page.goto(`/products/${source.id}/edit`);
   await expect(page).toHaveURL(/\/products\/[0-9a-f-]{36}\/edit$/);
 
-  // Issue #1092 — relation attrs are now normal attributes and render
-  // INLINE in the default `Atrybuty` tab (no synthetic "Powiązania"
-  // tab unless the object has reverse links pointing at it). AttrRow
-  // gates its editor surface on the page-level "isEditing" toggle, so
-  // click the "Edytuj" button first to expose the inline relation
-  // picker buttons.
-  await page
-    .getByRole('button', { name: /^(edytuj|edit)$/i })
-    .first()
-    .click();
-
-  // Every built-in relation attribute renders its own "Dodaj
-  // powiązanie" button via RelationInlineEditor; pick the first one
-  // (cross_sell, position 10 in the seeder).
+  // Issue #1094 — RelationInlineEditor renders regardless of the
+  // page-level Edytuj toggle. It is self-contained (own query, own
+  // modal picker, own mutations) and does not participate in the
+  // dirty-fields flow, so it lives OUTSIDE the `editable` branch in
+  // AttrRow. No Edytuj click required.
   const addLinkButton = page
     .getByRole('button', { name: /^(dodaj powi[ąa]zanie|add link|add relation)$/i })
     .first();
