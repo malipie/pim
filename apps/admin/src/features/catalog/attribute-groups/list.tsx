@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { jsonFetch } from '@/lib/http';
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { cn } from '@/lib/utils';
 
 interface AttributeGroupRow {
@@ -72,10 +73,13 @@ export function AttributeGroupsListPage() {
     (a.position ?? 0) - (b.position ?? 0);
   const systemGroups = filtered.filter((r) => r.systemGroup === true).sort(sortByPosition);
   const businessGroups = filtered.filter((r) => r.systemGroup !== true).sort(sortByPosition);
-  // Legacy `audit` (#1074) is the only system-flagged group that is removable.
-  // Keep the lock affordance on the "System" header only when a truly-locked
-  // group is still present, so audit-only databases don't show misleading UX.
-  const systemSectionHasLockedGroup = systemGroups.some((row) => row.code !== 'audit');
+  // Legacy `audit` (#1074) and `relations` (#1080) are removable even when
+  // `is_system_group=true`. Keep the lock affordance on the "System" header
+  // only when a truly-locked group is still present, so audit/relations-only
+  // databases don't show misleading UX.
+  const systemSectionHasLockedGroup = systemGroups.some(
+    (row) => !isLegacyOptionalSystemGroupCode(row.code),
+  );
 
   return (
     <div className="space-y-6">
@@ -222,7 +226,8 @@ function GroupRowItem({
   const attrCount = usage?.attributeCount ?? 0;
   const typesUsed = usage?.directlyAttachedTo.objectTypes.length ?? 0;
   const categoriesUsed = usage?.directlyAttachedTo.categories.length ?? 0;
-  const isLockedSystemGroup = row.systemGroup === true && row.code !== 'audit';
+  const isLockedSystemGroup =
+    row.systemGroup === true && !isLegacyOptionalSystemGroupCode(row.code);
 
   return (
     <Link

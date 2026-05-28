@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { HttpError, jsonFetch } from '@/lib/http';
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { useCurrentWorkspace } from '@/lib/use-current-workspace';
 
 interface ObjectTypeDetail {
@@ -268,9 +269,9 @@ export function ObjectTypeShowPage() {
 
   const builtInGroups = (groups.data ?? []).filter((g) => g.system);
   const customGroups = (groups.data ?? []).filter((g) => !g.system);
-  const lockedBuiltInGroups = builtInGroups.filter((g) => g.code !== 'audit');
-  const legacyAuditGroups = builtInGroups.filter((g) => g.code === 'audit');
-  const editableGroups = [...legacyAuditGroups, ...customGroups];
+  const lockedBuiltInGroups = builtInGroups.filter((g) => !isLegacyOptionalSystemGroupCode(g.code));
+  const legacyOptionalGroups = builtInGroups.filter((g) => isLegacyOptionalSystemGroupCode(g.code));
+  const editableGroups = [...legacyOptionalGroups, ...customGroups];
   const enabledLocales = workspace.data?.enabledLocales ?? ['pl', 'en'];
   const primaryLocale = workspace.data?.primaryLocale ?? 'pl';
 
@@ -545,11 +546,11 @@ export function ObjectTypeShowPage() {
               </Button>
             </div>
           </div>
-          {legacyAuditGroups.length > 0 ? (
+          {legacyOptionalGroups.length > 0 ? (
             <div className="rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2 text-[12px] text-amber-800">
-              {t('object_types.legacy_audit_groups_note', {
+              {t('object_types.legacy_optional_groups_note', {
                 defaultValue:
-                  'Legacy audit group is listed below as removable modeling configuration. Audit fields remain system attributes, but their form visibility is no longer automatic.',
+                  'Legacy system groups (audit, relations) are listed below as removable modeling configuration. The underlying attributes remain system-owned, but their form visibility is no longer automatic.',
               })}
             </div>
           ) : null}

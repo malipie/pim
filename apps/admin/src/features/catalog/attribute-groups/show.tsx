@@ -34,6 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { HttpError, jsonFetch } from '@/lib/http';
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { cn } from '@/lib/utils';
 
 interface AttributeGroupDetail {
@@ -147,8 +148,8 @@ function Editor({
   const [createOpen, setCreateOpen] = useState(false);
 
   const isSystem = group.systemGroup === true;
-  const isLegacyAuditGroup = group.code === 'audit';
-  const isLockedSystemGroup = isSystem && !isLegacyAuditGroup;
+  const isLegacyOptionalGroup = isLegacyOptionalSystemGroupCode(group.code);
+  const isLockedSystemGroup = isSystem && !isLegacyOptionalGroup;
 
   const { data: members = [], refetch: refetchMembers } = useQuery<MemberRow[]>({
     queryKey: ['attribute_groups', group.id, 'attributes'],
