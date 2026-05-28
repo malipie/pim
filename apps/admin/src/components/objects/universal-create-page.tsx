@@ -74,6 +74,12 @@ export function UniversalCreatePage({
   // with an empty categoryIds payload so the response shape mirrors
   // the detail page; category-driven overlay during create is a
   // follow-up.
+  //
+  // #1096 — render every group inline as a stacked card regardless of
+  // its `display_mode`. The detail page (MODR-04) splits tab-mode
+  // groups into their own tabs, but during create the operator fills
+  // initial values in a single form; tab navigation here would just
+  // add friction and hide fields behind clicks.
   const groupsQuery = useQuery<{ groups: GroupMeta[] }>({
     queryKey: ['object-type', objectTypeId, 'effective-attribute-groups', 'preview', 'empty'],
     enabled: objectTypeId !== '',
@@ -90,7 +96,6 @@ export function UniversalCreatePage({
       ),
   });
   const groups = groupsQuery.data?.groups ?? [];
-  const stackedGroups = groups.filter((g) => (g.display_mode ?? 'tab') === 'stacked');
 
   const toggleGroup = (groupId: string): void => {
     setExpandedGroups((prev) => {
@@ -218,7 +223,7 @@ export function UniversalCreatePage({
         <div className="min-w-0 space-y-3">
           {groupsQuery.isLoading ? (
             <p className="text-sm text-muted-foreground">{t('app.loading')}</p>
-          ) : stackedGroups.length === 0 ? (
+          ) : groups.length === 0 ? (
             <div className="border-line bg-surface rounded-2xl border border-dashed p-6 text-center">
               <p className="text-ink text-[13px] font-medium">
                 {t('object_create.no_attributes', {
@@ -234,7 +239,7 @@ export function UniversalCreatePage({
               </p>
             </div>
           ) : (
-            stackedGroups.map((group) => (
+            groups.map((group) => (
               <AttrGroupCard
                 key={group.id}
                 id={group.id}
