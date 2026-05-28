@@ -108,8 +108,18 @@ final readonly class BuiltInProductRelationAttributesSeeder
                     continue;
                 }
 
+                // Issue #1092 — relation attributes are NOT marked
+                // `is_system` anymore. Operator wants the 5 built-in
+                // relation attrs (cross_sell, up_sell, related,
+                // alternative, accessory) to behave like normal
+                // attributes: addable, removable, groupable into any
+                // AttributeGroup. The `markSystem()` call that used to
+                // sit here drove the BuiltInLockBadge in
+                // /modeling/attributes and refused detachment via
+                // `DetachAttributeFromGroupHandler`. Migration
+                // Version20260528110000 clears the flag for existing
+                // rows.
                 $attribute = new Attribute($code, $definition['label'], AttributeType::Relation);
-                $attribute->markSystem();
                 $attribute->reorder($definition['position']);
                 $attribute->setRelationTargetObjectTypeIds($productTargetIds);
                 $attribute->setRelationCardinality(RelationCardinality::Many);

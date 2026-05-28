@@ -55,7 +55,12 @@ final class BuiltInProductRelationAttributesSeederTest extends KernelTestCase
             self::assertSame(RelationCardinality::Many, $attribute->getRelationCardinality(), "{$code} cardinality");
             self::assertFalse($attribute->isRelationAdvanced(), "{$code} advanced");
             self::assertSame([$productTypeId], $attribute->getRelationTargetObjectTypeIds(), "{$code} target");
-            self::assertTrue($attribute->isSystem(), "{$code} system flag");
+            // Issue #1092 — built-in relation attrs are NO LONGER marked
+            // system. They behave like normal attributes (operator can
+            // detach / group / remove them freely). The seeder lost its
+            // `markSystem()` call and migration Version20260528110000
+            // backfills `is_system=false` for any historic rows.
+            self::assertFalse($attribute->isSystem(), "{$code} system flag");
         }
     }
 

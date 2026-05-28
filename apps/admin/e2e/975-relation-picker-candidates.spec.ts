@@ -60,26 +60,29 @@ test('relation picker lists candidates and narrows on `?sku=` filter', async ({ 
   });
   expect(targetResponse.status()).toBe(201);
 
-  // Navigate straight to the source product in edit mode — relations
-  // tab only renders when `mode === 'edit'`.
+  // Navigate to the source product in edit mode — relation attributes
+  // render inline as AttrRows in the `Atrybuty` tab.
   await page.goto(`/products/${source.id}/edit`);
   await expect(page).toHaveURL(/\/products\/[0-9a-f-]{36}\/edit$/);
 
-  // Switch to the "Powiązania"/"Relations" tab. Seeded via
-  // BuiltInProductRelationAttributesSeeder so every product detail
-  // page has this tab. Match both Polish + English labels + optional
-  // badge count.
-  await page.getByRole('tab', { name: /(powi[ąa]zania|relations)\s*\d*/i }).click();
+  // Issue #1092 — relation attrs are now normal attributes and render
+  // INLINE in the default `Atrybuty` tab (no synthetic "Powiązania"
+  // tab unless the object has reverse links pointing at it). AttrRow
+  // gates its editor surface on the page-level "isEditing" toggle, so
+  // click the "Edytuj" button first to expose the inline relation
+  // picker buttons.
+  await page
+    .getByRole('button', { name: /^(edytuj|edit)$/i })
+    .first()
+    .click();
 
   // Every built-in relation attribute renders its own "Dodaj
-  // powiązanie" button — pick the first one (cross_sell, position 10
-  // in the seeder). We don't bind to a specific card heading because
-  // multiple cards share the same surrounding `div` structure; the
-  // first button is the cross-sell entry point.
+  // powiązanie" button via RelationInlineEditor; pick the first one
+  // (cross_sell, position 10 in the seeder).
   const addLinkButton = page
     .getByRole('button', { name: /^(dodaj powi[ąa]zanie|add link|add relation)$/i })
     .first();
-  await expect(addLinkButton).toBeVisible();
+  await expect(addLinkButton).toBeVisible({ timeout: 15_000 });
 
   // Open the picker modal. Capture the candidate fetch so we can
   // prove the FE talks to `/api/objects?…sku=…` (the bug was
