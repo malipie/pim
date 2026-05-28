@@ -270,14 +270,15 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     staleTime: 30_000,
   });
   const hasReverseRelations = reverseRelationsQuery.data?.hasReverse ?? false;
-  // MODRC-01 (#1080) — relations group is no longer seeded, so detect the
-  // Relations tab from any relation-type attribute on the object, regardless
-  // of which group (or the synthetic default bucket) hosts it.
-  const hasForwardRelationAttributes = useMemo(
-    () => groups.some((g) => g.attributes.some((a) => a.type === 'relation')),
-    [groups],
-  );
-  const shouldSurfaceRelationsTab = hasForwardRelationAttributes || hasReverseRelations;
+  // Issue #1092 — forward relation attributes are normal attributes
+  // now: they render inline through their natural group placement
+  // (stacked-mode group → inline in the `attributes` tab; tab-mode
+  // group → its own dedicated tab via `tabModeGroups`). The synthetic
+  // `relations` tab only survives for the reverse-only case (object is
+  // pointed at from elsewhere but has no forward relation attribute of
+  // its own) — that path still needs the bespoke `RelationsTab` because
+  // `effective-attribute-groups` has no concept of "incoming links".
+  const shouldSurfaceRelationsTab = hasReverseRelations;
 
   const visibleTabs: readonly TabKey[] = useMemo(() => {
     if (mode === 'create') return ['attributes'];
