@@ -7,6 +7,7 @@ import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { HttpError, jsonFetch } from '@/lib/http';
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { cn } from '@/lib/utils';
 
 interface AttributeGroupRow {
@@ -194,10 +195,12 @@ export function DeclareAttributeGroupDialog({
                 const isInherited = !isDeclared && Boolean(inheritedFrom);
                 const isDisabled = isDeclared || isInherited;
                 const isPicked = picked.has(g.id);
-                // Legacy `audit` group is user-managed modeling config (#1074):
-                // skip the lock badge so it isn't presented as permanent.
+                // Legacy `audit` (#1074) and `relations` (#1080) are user-managed
+                // modeling config: skip the lock badge so they aren't presented
+                // as permanent.
                 const isLockedSystem =
-                  Boolean(g.is_system_group ?? g.isSystemGroup) && g.code !== 'audit';
+                  Boolean(g.is_system_group ?? g.isSystemGroup) &&
+                  !isLegacyOptionalSystemGroupCode(g.code);
 
                 return (
                   <button

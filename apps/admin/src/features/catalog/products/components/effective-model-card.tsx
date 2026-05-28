@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { Card } from '@/components/ui/card';
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import type { GroupMeta } from './types';
 import { SYNTHETIC_DEFAULT_GROUP_ID } from './types';
 
@@ -42,7 +43,8 @@ export function EffectiveModelCard({
           .map((group) => {
             const label = group.label[lang] ?? group.code;
             const source = resolveSource(group, objectTypeName, categoryName);
-            const isSystem = group.code === 'audit' || group.code === 'identification';
+            const isSystem =
+              isLegacyOptionalSystemGroupCode(group.code) || group.code === 'identification';
             return (
               <li key={group.id} className="flex items-center gap-2 rounded-lg px-2 py-1">
                 {isSystem ? <Lock className="size-3 text-zinc-300" aria-hidden /> : null}
@@ -69,7 +71,7 @@ function resolveSource(
   objectTypeName?: string | null,
   categoryName?: string | null,
 ): string {
-  if (group.code === 'audit') return 'system';
+  if (isLegacyOptionalSystemGroupCode(group.code)) return 'system';
   if (categoryName !== null && categoryName !== undefined && group.code.startsWith('category_')) {
     return `Kat: ${categoryName}`;
   }

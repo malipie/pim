@@ -61,6 +61,7 @@ import type {
 } from '@/features/catalog/products/components/types';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { jsonFetch } from '@/lib/http';
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { cn } from '@/lib/utils';
 
 const SPECIAL_TABS = ['attributes', 'categories', 'multimedia', 'variants'] as const;
@@ -488,7 +489,7 @@ export function UniversalDetailPage({
                 totalCount={group.attributes.length}
                 expanded={expandedGroups.has(group.id)}
                 onToggle={() => toggleGroup(group.id)}
-                isSystem={group.code === 'audit'}
+                isSystem={isLegacyOptionalSystemGroupCode(group.code)}
               >
                 {group.attributes.map((attr) => (
                   <AttrRow
