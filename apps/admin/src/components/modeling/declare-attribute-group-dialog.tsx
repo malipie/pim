@@ -194,7 +194,10 @@ export function DeclareAttributeGroupDialog({
                 const isInherited = !isDeclared && Boolean(inheritedFrom);
                 const isDisabled = isDeclared || isInherited;
                 const isPicked = picked.has(g.id);
-                const isSystem = Boolean(g.is_system_group ?? g.isSystemGroup);
+                // Legacy `audit` group is user-managed modeling config (#1074):
+                // skip the lock badge so it isn't presented as permanent.
+                const isLockedSystem =
+                  Boolean(g.is_system_group ?? g.isSystemGroup) && g.code !== 'audit';
 
                 return (
                   <button
@@ -246,7 +249,7 @@ export function DeclareAttributeGroupDialog({
                         <span className="text-[13.5px] font-medium tracking-tight">
                           {labelString(g.label) || g.code}
                         </span>
-                        {isSystem ? <BuiltInLockBadge tone="quiet" /> : null}
+                        {isLockedSystem ? <BuiltInLockBadge tone="quiet" /> : null}
                       </div>
                       <div className="font-mono text-[11px] text-zinc-400">{g.code}</div>
                     </div>
