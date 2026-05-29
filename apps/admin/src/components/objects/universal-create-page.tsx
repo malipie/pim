@@ -39,6 +39,14 @@ export interface UniversalCreatePageProps {
   backHref: string;
   /** Builder for the detail route after successful create. */
   detailPathFor: (id: string) => string;
+  /**
+   * #1104 — when `true`, surfaces a Multimedia tab next to the
+   * attribute tabs. Uploads need the post-create object id, so the
+   * panel renders a disclaimer pointing the operator at the detail
+   * page; the tab itself stays visible so the capability advertised
+   * in modeling matches what the operator sees here.
+   */
+  hasMultimedia?: boolean;
 }
 
 const GROUP_ICONS: Record<string, string> = {
@@ -55,6 +63,7 @@ const GROUP_ICONS: Record<string, string> = {
 };
 
 const ATTRIBUTES_TAB = 'attributes';
+const MULTIMEDIA_TAB = 'multimedia';
 
 export function UniversalCreatePage({
   objectTypeId,
@@ -62,6 +71,7 @@ export function UniversalCreatePage({
   objectTypeLabel,
   backHref,
   detailPathFor,
+  hasMultimedia = false,
 }: UniversalCreatePageProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -116,17 +126,21 @@ export function UniversalCreatePage({
   );
 
   const visibleTabs: readonly string[] = useMemo(() => {
-    if (groups.length === 0) return [];
+    if (groups.length === 0 && !hasMultimedia) return [];
     const tabs: string[] = [];
     // Hide the synthetic Atrybuty tab when no stacked groups exist —
     // otherwise the operator stares at an empty default tab before
     // they realise the data lives behind a different chip.
-    if (stackedGroups.length > 0 || tabModeGroups.length === 0) {
+    if (stackedGroups.length > 0 || (tabModeGroups.length === 0 && groups.length > 0)) {
       tabs.push(ATTRIBUTES_TAB);
     }
     for (const group of tabModeGroups) tabs.push(group.code);
+    // #1104 — surface Multimedia capability flagged in modeling.
+    // The panel renders a disclaimer that uploads live on the detail
+    // page (they need the post-create object id).
+    if (hasMultimedia) tabs.push(MULTIMEDIA_TAB);
     return tabs;
-  }, [groups, stackedGroups, tabModeGroups]);
+  }, [groups, stackedGroups, tabModeGroups, hasMultimedia]);
 
   // Keep activeTab valid when the visible tab set changes (e.g. groups
   // arrive after first render, operator attaches a new group via
@@ -248,6 +262,9 @@ export function UniversalCreatePage({
     if (tab === ATTRIBUTES_TAB) {
       return t('object_create.tabs.attributes', { defaultValue: 'Atrybuty' });
     }
+    if (tab === MULTIMEDIA_TAB) {
+      return t('object_create.tabs.multimedia', { defaultValue: 'Multimedia' });
+    }
     const group = tabModeGroups.find((g) => g.code === tab);
     if (group === undefined) return tab;
     return group.label[lang] ?? group.code;
@@ -365,6 +382,20 @@ export function UniversalCreatePage({
         <div className="min-w-0 space-y-3">
           {groupsQuery.isLoading ? (
             <p className="text-sm text-muted-foreground">{t('app.loading')}</p>
+          ) : activeTab === MULTIMEDIA_TAB ? (
+            <div className="border-line bg-surface rounded-2xl border border-dashed p-6 text-center">
+              <p className="text-ink text-[13px] font-medium">
+                {t('object_create.multimedia.unavailable', {
+                  defaultValue: 'Multimedia dostępne po pierwszym zapisie',
+                })}
+              </p>
+              <p className="mt-1 text-[11.5px] text-muted-foreground">
+                {t('object_create.multimedia.hint', {
+                  defaultValue:
+                    'Najpierw utwórz obiekt (Kod + Utwórz). Zdjęcia i pliki dodasz w karcie obiektu po zapisie.',
+                })}
+              </p>
+            </div>
           ) : groups.length === 0 ? (
             <div className="border-line bg-surface rounded-2xl border border-dashed p-6 text-center">
               <p className="text-ink text-[13px] font-medium">
