@@ -7,7 +7,8 @@
     "close": "Close",
     "cancel": "Cancel",
     "save": "Save",
-    "brand_subtitle_fallback": "Workspace"
+    "brand_subtitle_fallback": "Workspace",
+    "delete_error": "Failed to delete"
   },
   "user_menu": {
     "aria_label": "User menu",
@@ -1008,6 +1009,14 @@
     },
     "actions": {
       "view": "View"
+    },
+    "delete": {
+      "action": "Delete attribute",
+      "confirm_title": "Delete attribute?",
+      "confirm_body": "Attribute \"{{code}}\" will be permanently deleted along with its option values. This action cannot be undone.",
+      "confirm_submit": "Delete attribute",
+      "success": "Attribute deleted.",
+      "error_in_use": "Cannot delete an attribute that is in use. Detach or migrate it first."
     }
   },
   "attribute_groups": {

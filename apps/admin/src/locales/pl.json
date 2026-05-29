@@ -7,7 +7,8 @@
     "close": "Zamknij",
     "cancel": "Anuluj",
     "save": "Zapisz",
-    "brand_subtitle_fallback": "Workspace"
+    "brand_subtitle_fallback": "Workspace",
+    "delete_error": "Nie udało się usunąć"
   },
   "user_menu": {
     "aria_label": "Menu użytkownika",
@@ -1018,6 +1019,14 @@
     },
     "actions": {
       "view": "Podgląd"
+    },
+    "delete": {
+      "action": "Usuń atrybut",
+      "confirm_title": "Usunąć atrybut?",
+      "confirm_body": "Atrybut \"{{code}}\" zostanie trwale usunięty wraz z jego wartościami słownikowymi. Tej operacji nie można cofnąć.",
+      "confirm_submit": "Usuń atrybut",
+      "success": "Atrybut został usunięty.",
+      "error_in_use": "Nie można usunąć atrybutu, który jest w użyciu. Odepnij go lub zmigruj."
     }
   },
   "attribute_groups": {
