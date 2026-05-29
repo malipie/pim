@@ -30,7 +30,7 @@ export function EffectiveModelCard({
   return (
     <Card className="rounded-2xl border-line bg-surface p-5 soft-shadow">
       <div className="mb-2.5 text-[12px] font-medium text-zinc-500">
-        {t('products.detail.sidebar.effective_model', { defaultValue: 'Efektywny model' })}
+        {t('products.detail.sidebar.effective_model.title', { defaultValue: 'Efektywny model' })}
       </div>
       <p className="mb-2 text-[12px] text-zinc-500">
         {t('products.detail.sidebar.effective_model.intro', {
