@@ -1567,6 +1567,7 @@
           "title": "Variants"
         },
         "effective_model": {
+          "title": "Effective model",
           "intro": "Object attributes come from:",
           "see_in_modeling": "Open in Modeling →"
         }

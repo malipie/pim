@@ -1615,6 +1615,7 @@
           "title": "Warianty"
         },
         "effective_model": {
+          "title": "Efektywny model",
           "intro": "Atrybuty obiektu pochodzą z:",
           "see_in_modeling": "Zobacz w Modelowanie →"
         }
