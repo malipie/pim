@@ -41,7 +41,14 @@ export function AttrGroupCard({
   return (
     <Card
       id={`group-${id}`}
-      className="overflow-hidden rounded-2xl border-line bg-surface soft-shadow"
+      // #1106 — `overflow-hidden` used to clip the rounded-corner body
+      // bleed, but it also clipped MultiSelect/Combobox popovers
+      // rendered by AttrRow children (relation picker, multiselect
+      // options, etc.) since they live inside the card via `absolute`.
+      // `overflow-visible` lets the popover overlay neighbouring rows
+      // and tabs; the rounded-corner bleed is negligible because the
+      // body bg (`bg-zinc-50/40`) only kisses the corner by a few px.
+      className="overflow-visible rounded-2xl border-line bg-surface soft-shadow"
     >
       <button
         type="button"
