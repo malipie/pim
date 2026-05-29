@@ -161,7 +161,15 @@ export function UniversalDetailPage({
       unwrapAttributesIndexed(product?.attributesIndexed as Record<string, unknown> | undefined),
     [product?.attributesIndexed],
   );
-  const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data]);
+  // Hide empty groups (0 attributes) from the object card: after an
+  // operator deletes the last attribute of a group, the backend still
+  // returns the now-empty group (it's a valid modeling construct), but
+  // rendering it as an empty "0/0" tab/card is noise. Modeling views keep
+  // empty groups; here we only render groups that contribute attributes.
+  const groups = useMemo(
+    () => (groupsQuery.data?.groups ?? []).filter((g) => g.attributes.length > 0),
+    [groupsQuery.data],
+  );
 
   const tabModeGroups = useMemo(
     () => groups.filter((g) => (g.display_mode ?? 'tab') === 'tab'),

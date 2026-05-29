@@ -110,7 +110,13 @@ export function UniversalCreatePage({
         },
       ),
   });
-  const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data]);
+  // Hide empty groups (0 attributes) — mirror universal-detail-page so the
+  // create form never shows an empty "0/0" tab for a group whose attributes
+  // were all removed in modeling. Modeling views keep empty groups.
+  const groups = useMemo(
+    () => (groupsQuery.data?.groups ?? []).filter((g) => g.attributes.length > 0),
+    [groupsQuery.data],
+  );
 
   // #1098 — mirror MODR-04 split from product-detail-page: tab-mode
   // groups become their own tab, stacked-mode groups live inline
