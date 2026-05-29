@@ -1,6 +1,7 @@
 import { Copy, Link2, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WysiwygEditor } from '@/components/catalog/wysiwyg-editor';
+import { RelationCreateField } from '@/components/objects/relation-create-field';
 import { type Provenance, ProvenanceBadge } from '@/components/provenance-badge';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
@@ -35,6 +36,15 @@ export interface AttrRowProps {
    * cache key as the dedicated Relations tab.
    */
   relationContextProductId?: string;
+  /**
+   * #1102 — opt-in: in the object create flow (`UniversalCreatePage`)
+   * there is no productId yet, so a relation attribute renders
+   * `RelationCreateField` (search + multi-select of target objects).
+   * The chosen ids land in the parent's dirty-fields dict and are
+   * sent through PUT `/api/objects/{newId}/relations/{attributeCode}`
+   * after the main POST succeeds.
+   */
+  createMode?: boolean;
 }
 
 /**
@@ -54,6 +64,7 @@ export function AttrRow({
   onChange,
   onCopyToOthers,
   relationContextProductId,
+  createMode = false,
 }: AttrRowProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
@@ -123,6 +134,8 @@ export function AttrRow({
             attributeId={attribute.id}
             attributeCode={attribute.code}
           />
+        ) : attribute.type === 'relation' && createMode && editable ? (
+          <RelationCreateField attribute={attribute} value={value} onChange={onChange} />
         ) : editable ? (
           attribute.type === 'wysiwyg' ? (
             <WysiwygEditor

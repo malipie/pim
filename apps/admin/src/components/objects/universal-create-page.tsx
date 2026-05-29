@@ -162,23 +162,53 @@ export function UniversalCreatePage({
     }
     setIsSaving(true);
     try {
-      const attributes = stripAttributes(dirtyFields);
+      // #1102 — relation values live in `object_relations`, not
+      // `object_values`. The POST /api/objects payload only handles
+      // the latter, so split the dirty dict in two: ordinary attrs
+      // ride along with the POST, relation attrs get one PUT each
+      // after the main row exists.
+      const relationCodes = collectRelationCodes(groups);
+      const { normal, relations } = splitDirtyAttributes(dirtyFields, relationCodes);
       const body: Record<string, unknown> = {
         objectTypeId,
         code: trimmedCode,
       };
-      if (Object.keys(attributes).length > 0) body.attributes = attributes;
+      if (Object.keys(normal).length > 0) body.attributes = normal;
       const created = await jsonFetch<{ id: string }>('/api/objects', {
         method: 'POST',
         contentType: 'application/ld+json',
         body,
       });
-      toast.success(
-        t('object_create.success', {
-          defaultValue: 'Utworzono {{code}}',
-          code: trimmedCode,
-        }),
-      );
+
+      const relationFailures: string[] = [];
+      for (const [attrCode, targets] of Object.entries(relations)) {
+        if (targets.length === 0) continue;
+        try {
+          await jsonFetch(`/api/objects/${created.id}/relations/${attrCode}`, {
+            method: 'PUT',
+            contentType: 'application/json',
+            body: { targets: targets.map((id) => ({ id })) },
+          });
+        } catch {
+          relationFailures.push(attrCode);
+        }
+      }
+
+      if (relationFailures.length > 0) {
+        toast.error(
+          t('object_create.relations_partial_error', {
+            defaultValue: 'Obiekt utworzony, ale relacje nie zapisane: {{codes}}',
+            codes: relationFailures.join(', '),
+          }),
+        );
+      } else {
+        toast.success(
+          t('object_create.success', {
+            defaultValue: 'Utworzono {{code}}',
+            code: trimmedCode,
+          }),
+        );
+      }
       navigate(detailPathFor(created.id));
     } catch {
       toast.error(t('object_create.failed', { defaultValue: 'Nie udało się utworzyć obiektu' }));
@@ -208,6 +238,7 @@ export function UniversalCreatePage({
           isEditing={true}
           isLocked={attr.is_system}
           onChange={(next) => setFieldValue(attr.code, next)}
+          createMode={true}
         />
       ))}
     </AttrGroupCard>
@@ -379,13 +410,39 @@ export function UniversalCreatePage({
   );
 }
 
-function stripAttributes(dirty: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
+function collectRelationCodes(groups: GroupMeta[]): Set<string> {
+  const codes = new Set<string>();
+  for (const group of groups) {
+    for (const attr of group.attributes) {
+      if (attr.type === 'relation') codes.add(attr.code);
+    }
+  }
+  return codes;
+}
+
+function splitDirtyAttributes(
+  dirty: Record<string, unknown>,
+  relationCodes: Set<string>,
+): { normal: Record<string, unknown>; relations: Record<string, string[]> } {
+  const normal: Record<string, unknown> = {};
+  const relations: Record<string, string[]> = {};
   for (const [k, v] of Object.entries(dirty)) {
     if (k === 'sku' || k === 'code') continue;
-    out[k] = v;
+    if (relationCodes.has(k)) {
+      relations[k] = toIdList(v);
+      continue;
+    }
+    normal[k] = v;
   }
-  return out;
+  return { normal, relations };
+}
+
+function toIdList(value: unknown): string[] {
+  if (typeof value === 'string' && value !== '') return [value];
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string' && v !== '');
+  }
+  return [];
 }
 
 function countFilled(group: GroupMeta, dirty: Record<string, unknown>): number {
