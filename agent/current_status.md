@@ -1,5 +1,16 @@
 # Current Status
 
+## 2026-05-29: bug-fix — usuwanie atrybutów z UI + guard 409 (in-use)
+
+**Issue #1108 → PR [#1109](../../pull/1109) (merged, squash 6643074).** Operator: „dodaj możliwość usuwania atrybutów" na `/modeling/attributes`.
+
+- **Root cause:** niedokończony feature — `DELETE /api/attributes/{id}` istniał od VIEW-02 (#374), ale FE nigdy nie dostał triggera; dodatkowo usunięcie atrybutu w użyciu leciało 500 (FK RESTRICT) zamiast 409.
+- **BE:** `DeleteAttributeHandler` — pre-check przez `UsageQueryService::forAttribute()` (objectTypes/instanceCount) → `ConflictHttpException` 409; catch `ForeignKeyConstraintViolationException` jako safety-net dla 60s cache race. Grupy (CASCADE) nie blokują.
+- **FE:** przycisk „Usuń atrybut" + dialog potwierdzenia w `attributes/show.tsx` (tylko `!isSystem`); `jsonFetch` DELETE + toast + redirect; i18n `attributes.delete.*` pl+en.
+- **Test:** `deleteRejectsAttributeInUseWith409` w `AttributesCrudApiTest` (9/9). Playwright `attributes-delete.spec.ts` (`test.fixme` w CI — rate limiter).
+- **Live smoke (main):** unused→204, `cross_sell` in-use→409 z detail, system→422.
+- **Lekcja (potwierdzenie znanego patternu):** dodanie argumentu do konstruktora handlera → po edycie w żywym kontenerze `cache:clear --env=dev` + `docker compose restart api`, inaczej stary DI container → 500 (ArgumentCountError). Memory: `feedback_frankenphp_worker_cache_restart`.
+
 ## 2026-05-28: 🏁 Option Y — relations AttributeGroup optional, full marathon closed (5/5 + audit finalize)
 
 **Milestone:** MODRC-01..05 (PR-y #1085/#1086/#1087/#1088/#1089) + #1079 audit finalize. Operator decision (po sukcesie #1074 dla audit): zrobić to samo dla seedowanej grupy „Powiązania" + zapewnić aby relacja działała jak każdy inny atrybut (inline LUB tab).
