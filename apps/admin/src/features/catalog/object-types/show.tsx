@@ -269,7 +269,10 @@ export function ObjectTypeShowPage() {
 
   const builtInGroups = (groups.data ?? []).filter((g) => g.system);
   const customGroups = (groups.data ?? []).filter((g) => !g.system);
-  const lockedBuiltInGroups = builtInGroups.filter((g) => !isLegacyOptionalSystemGroupCode(g.code));
+  // #1100 — the BUILT-IN ATTRIBUTE GROUPS section was removed from
+  // this view; only the legacy optional system groups (audit, relations)
+  // are still surfaced because they are operator-editable and live
+  // inside the CUSTOM ATTRIBUTE GROUPS card alongside true custom ones.
   const legacyOptionalGroups = builtInGroups.filter((g) => isLegacyOptionalSystemGroupCode(g.code));
   const editableGroups = [...legacyOptionalGroups, ...customGroups];
   const enabledLocales = workspace.data?.enabledLocales ?? ['pl', 'en'];
@@ -468,42 +471,6 @@ export function ObjectTypeShowPage() {
               locked
             />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="space-y-3 p-6">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-              {t('object_types.builtin_groups_section', {
-                defaultValue: 'Built-in attribute groups',
-              })}
-            </span>
-            <BuiltInLockBadge />
-            <span className="ml-1 text-[11px] text-zinc-400">
-              —{' '}
-              {t('object_types.builtin_groups_tagline', {
-                defaultValue: 'system-managed',
-              })}
-            </span>
-          </div>
-          {lockedBuiltInGroups.length === 0 ? (
-            <p className="text-[12.5px] text-muted-foreground">
-              {t('object_types.no_builtin_groups', { defaultValue: 'Brak built-in grup.' })}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {lockedBuiltInGroups.map((g) => (
-                <GroupCard
-                  key={g.id}
-                  group={g}
-                  language={i18n.language}
-                  locked
-                  onDisplayModeChange={handleDisplayModeChange}
-                />
-              ))}
-            </div>
-          )}
         </CardContent>
       </Card>
 
