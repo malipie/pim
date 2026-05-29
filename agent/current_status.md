@@ -1,5 +1,15 @@
 # Current Status
 
+## 2026-05-30: bug-fix — karta obiektu: puste grupy + i18n effective_model
+
+Zgłoszenie operatora na `/objects/salony_sprzedazy/{id}`. Po researchu rozdzielone na 3 wątki:
+
+- **Empty-group (właściwy bug)** — Issue #1112 → PR [#1113](../../pull/1113) (merged, `3da4919`). Po usunięciu ostatniego atrybutu grupy backend nadal zwraca pustą grupę; FE renderował ją jako zakładkę „0/0". Fix: filtr `attributes.length > 0` w `universal-detail-page.tsx` + `universal-create-page.tsx` (modeling i kontrakt API bez zmian). Browser smoke: pusta zakładka znika, niepuste grupy zostają.
+- **i18n effective_model** — Issue #1110 → PR [#1111](../../pull/1111) (merged). `effective-model-card.tsx` wołał klucz-obiekt jako string → sidebar pokazywał komunikat błędu zamiast „Efektywny model". Fix: dodany `effective_model.title` (pl/en).
+- **Select „nie działa" (NIE bug)** — zweryfikowane wyczerpująco na main (detail+create × stacked+tab × select+multiselect × zapis/persist) — select działa end-to-end (naprawiony wcześniej przez #1107 popover clipping). Bez zmiany kodu.
+- **„TYPY OBIEKTÓW" na stronie atrybutu (NIE bug)** — operator brał `AttachedObjectTypesCard` (#979) za artefakt; to działające toggle-chipy junction `object_type_attributes` (przypięcie atrybutu do typów). Operator potwierdził działanie używając go (stąd `pracownicy` zyskał atrybut). Kandydat na poprawę afordancji (chipy wyglądają jak statyczne etykiety) — opcjonalny follow-up.
+- **Lekcja:** zgłoszenie „X nie działa" warto zawęzić AskUserQuestion + odtworzyć wizualnie (Playwright + screenshot) ZANIM się naprawia — tu „select" okazał się działać, a realny bug (puste grupy) był gdzie indziej. Nie fabrykować fixu pod nieodtworzony objaw.
+
 ## 2026-05-29: bug-fix — usuwanie atrybutów z UI + guard 409 (in-use)
 
 **Issue #1108 → PR [#1109](../../pull/1109) (merged, squash 6643074).** Operator: „dodaj możliwość usuwania atrybutów" na `/modeling/attributes`.
