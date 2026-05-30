@@ -71,7 +71,10 @@ final class CategoryAttributeGroupController
     public function list(string $id, Request $request): JsonResponse
     {
         $category = $this->fetchCategory($id);
-        $targetType = $this->resolveTargetType($request->query->get('targetObjectTypeKind'));
+        $targetType = $this->resolveTargetTypeByIdOrKind(
+            $request->query->get('targetObjectTypeId'),
+            $request->query->get('targetObjectTypeKind'),
+        );
 
         $rows = $this->junctions->findByCategoryAndTarget($category, $targetType);
 
@@ -121,11 +124,15 @@ final class CategoryAttributeGroupController
         $payload = $this->decodePayload($request);
         $groupId = $payload['groupId'] ?? null;
         $kindParam = $payload['targetObjectTypeKind'] ?? null;
+        $idParam = $payload['targetObjectTypeId'] ?? null;
 
         if (!\is_string($groupId) || '' === $groupId) {
             throw new UnprocessableEntityHttpException('Field "groupId" is required.');
         }
-        $targetType = $this->resolveTargetType(\is_string($kindParam) ? $kindParam : null);
+        $targetType = $this->resolveTargetTypeByIdOrKind(
+            \is_string($idParam) ? $idParam : null,
+            \is_string($kindParam) ? $kindParam : null,
+        );
 
         try {
             $groupUuid = Uuid::fromString($groupId);
@@ -238,6 +245,33 @@ final class CategoryAttributeGroupController
         }
 
         return $category;
+    }
+
+    /**
+     * ADR-015 — resolve the target ObjectType for a category's group
+     * declaration. `targetObjectTypeId` (UUID) takes precedence and supports
+     * custom-OT category trees; `targetObjectTypeKind` stays as the built-in
+     * fallback for backward compatibility.
+     */
+    private function resolveTargetTypeByIdOrKind(
+        ?string $idParam,
+        ?string $kindParam,
+    ): \App\Catalog\Domain\Entity\ObjectType {
+        if (\is_string($idParam) && '' !== $idParam) {
+            try {
+                $uuid = Uuid::fromString($idParam);
+            } catch (InvalidArgumentException $e) {
+                throw new BadRequestHttpException(\sprintf('Invalid targetObjectTypeId "%s".', $idParam), $e);
+            }
+            $type = $this->objectTypes->findById($uuid);
+            if (null === $type) {
+                throw new NotFoundHttpException(\sprintf('ObjectType "%s" was not found.', $idParam));
+            }
+
+            return $type;
+        }
+
+        return $this->resolveTargetType($kindParam);
     }
 
     private function resolveTargetType(?string $kindParam): \App\Catalog\Domain\Entity\ObjectType

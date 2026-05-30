@@ -206,6 +206,7 @@ export function CategoriesTreePage() {
           {selectedId ? (
             <CategoryDetailPanel
               categoryId={selectedId}
+              targetObjectTypeId={targetObjectTypeId}
               targetType={targetType}
               locale={i18n.language}
               tree={tree}
@@ -227,11 +228,13 @@ export function CategoriesTreePage() {
 
 function CategoryDetailPanel({
   categoryId,
+  targetObjectTypeId,
   targetType,
   locale,
   tree,
 }: {
   categoryId: string;
+  targetObjectTypeId: string;
   targetType: string;
   locale: string;
   tree: CategoryTreeNode[];
@@ -241,23 +244,27 @@ function CategoryDetailPanel({
 
   const node = useMemo(() => findNode(tree, categoryId), [tree, categoryId]);
 
+  // ADR-015 — resolve declared/effective groups by ObjectType id so custom-OT
+  // category trees work (kind='custom' has no single built-in OT).
   const { data: declared, refetch: refetchDeclared } = useQuery<DeclaredGroupsResponse>({
-    queryKey: ['categories', categoryId, 'attribute_groups', targetType],
+    queryKey: ['categories', categoryId, 'attribute_groups', targetObjectTypeId],
     queryFn: () =>
       jsonFetch<DeclaredGroupsResponse>(
-        `/api/categories/${categoryId}/attribute_groups?targetObjectTypeKind=${targetType}`,
+        `/api/categories/${categoryId}/attribute_groups?targetObjectTypeId=${targetObjectTypeId}`,
         { accept: 'application/json' },
       ),
+    enabled: targetObjectTypeId !== '',
     staleTime: 10_000,
   });
 
   const { data: effective, refetch: refetchEffective } = useQuery<EffectiveResponse>({
-    queryKey: ['categories', categoryId, 'effective-groups', targetType],
+    queryKey: ['categories', categoryId, 'effective-groups', targetObjectTypeId],
     queryFn: () =>
       jsonFetch<EffectiveResponse>(
-        `/api/categories/${categoryId}/effective-groups?objectTypeKind=${targetType}`,
+        `/api/categories/${categoryId}/effective-groups?objectTypeId=${targetObjectTypeId}`,
         { accept: 'application/json' },
       ),
+    enabled: targetObjectTypeId !== '',
     staleTime: 10_000,
   });
 
@@ -510,6 +517,7 @@ function CategoryDetailPanel({
         open={declareOpen}
         onOpenChange={setDeclareOpen}
         categoryId={categoryId}
+        targetObjectTypeId={targetObjectTypeId}
         targetObjectTypeKind={targetType}
         declaredGroupIds={declaredGroupIds}
         inheritedFromMap={inheritedFromMap}

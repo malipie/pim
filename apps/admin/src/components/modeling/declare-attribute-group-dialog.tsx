@@ -25,6 +25,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categoryId: string;
+  /** ADR-015 — ObjectType id the declaration targets (supports custom-OT trees). */
+  targetObjectTypeId: string;
   /** ObjectKind discriminator the declaration targets (`product` / `service` / `category` / ...). */
   targetObjectTypeKind: string;
   /** AttributeGroup IDs already declared on this category for this target — disabled with a tooltip. */
@@ -49,6 +51,7 @@ export function DeclareAttributeGroupDialog({
   open,
   onOpenChange,
   categoryId,
+  targetObjectTypeId,
   targetObjectTypeKind,
   declaredGroupIds,
   inheritedFromMap,
@@ -120,14 +123,15 @@ export function DeclareAttributeGroupDialog({
         await jsonFetch(`/api/categories/${categoryId}/attribute_groups`, {
           method: 'POST',
           contentType: 'application/json',
-          body: { groupId, targetObjectTypeKind },
+          // ADR-015 — declare by ObjectType id (BE prefers it; supports custom-OT trees).
+          body: { groupId, targetObjectTypeId },
         });
       }
       await queryClient.invalidateQueries({
-        queryKey: ['categories', categoryId, 'attribute_groups', targetObjectTypeKind],
+        queryKey: ['categories', categoryId, 'attribute_groups', targetObjectTypeId],
       });
       await queryClient.invalidateQueries({
-        queryKey: ['categories', categoryId, 'effective-groups', targetObjectTypeKind],
+        queryKey: ['categories', categoryId, 'effective-groups', targetObjectTypeId],
       });
       onDeclared();
       onOpenChange(false);

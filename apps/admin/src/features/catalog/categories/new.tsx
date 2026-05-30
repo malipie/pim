@@ -137,11 +137,18 @@ export function CategoryCreatePage() {
       });
       const newId = created.id;
       await queryClient.invalidateQueries({ queryKey: ['categories'] });
-      if (newId) {
-        navigate(`/modeling/categories?selected=${newId}`);
-      } else {
-        navigate('/modeling/categories');
+      // ADR-015 — return to the SAME tree the category was created in, else
+      // the list defaults to the first tree (Product) and the freshly created
+      // category is invisible until the operator re-picks its ObjectType.
+      const params = new URLSearchParams();
+      if (targetObjectTypeId) {
+        params.set('targetObjectTypeId', targetObjectTypeId);
+        const targetKind = (objectTypes.data ?? []).find((t) => t.id === targetObjectTypeId)?.kind;
+        if (targetKind) params.set('targetType', targetKind);
       }
+      if (newId) params.set('selected', newId);
+      const qs = params.toString();
+      navigate(qs ? `/modeling/categories?${qs}` : '/modeling/categories');
     } catch (err) {
       setError(
         err instanceof HttpError
