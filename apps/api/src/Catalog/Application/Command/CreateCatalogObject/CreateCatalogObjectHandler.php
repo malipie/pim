@@ -36,6 +36,7 @@ final readonly class CreateCatalogObjectHandler
         private ObjectTypeRepositoryInterface $objectTypes,
         private ObjectAttributesUpserter $attributesUpserter,
         private ObjectCategoryRepositoryInterface $objectCategories,
+        private \App\Catalog\Application\CategoryTreeAssignmentGuard $treeGuard,
     ) {
     }
 
@@ -162,6 +163,8 @@ final readonly class CreateCatalogObjectHandler
                         $categoryId->toRfc4122(),
                     ));
                 }
+                // ADR-015 — the category must belong to this object's tree.
+                $this->treeGuard->assertSameTree($object, $category);
             }
             $this->objectCategories->replaceForProduct($object, $command->categoryIds, $command->primaryCategoryId);
         }
