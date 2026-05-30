@@ -90,7 +90,11 @@ export function useSmartPresets({
   const create: UseSmartPresetsResult['create'] = async (input) => {
     const created = await jsonFetch<SmartFilterPreset>('/api/smart-filter-presets', {
       method: 'POST',
-      body: input,
+      // Scope the new preset to the current resource (ObjectType code) so it
+      // appears in this list's load(), which filters `resource = :resource OR
+      // resource IS NULL`. Without it the backend defaults to 'products' and
+      // the preset is invisible on custom-object lists. Refs #1145.
+      body: { ...input, resource },
     });
     await load();
     return created;
