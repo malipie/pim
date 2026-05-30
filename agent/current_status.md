@@ -1,5 +1,15 @@
 # Current Status
 
+## 2026-05-30: feat — ADR-015 osobne drzewa kategorii per ObjectType (3 PR-y, kompletne)
+
+**ADR-015** (nowy ADR w `01-architektura-pim.md`): drzewo kategorii partycjonowane per docelowy ObjectType (`objects.category_target_object_type_id`). Dostarczone 3 PR-ami, wszystkie merged do main (`916c3cc`):
+- **PR-A [#1119]** — migracja `Version20260530120000` (kolumna+FK+backfill do Product+partial unique per-tree), encja `CatalogObject.categoryTargetObjectType`, create flow (wymaga scope dla kategorii, walidacja categorizable + same-tree parent), seeder, ADR-015 doc. PHPUnit + 10 plików testów zaktualizowanych.
+- **PR-B [#1120]** — `CategoryTreeFilter`: `GET /api/categories?categoryTargetObjectType=<uuid>` scope per drzewo.
+- **PR-C [#1123]** — FE: `ObjectTypeFilterDropdown` listuje wszystkie `is_categorizable` (built-in+custom), emituje objectId; `categories/list` filtruje per drzewo; `categories/new` tworzy w wybranym drzewie; reword etykiety `is_categorizable` → „Czy obiekty mogą być przypisane do drzewa kategorii?".
+- **Live smoke (main)**: custom OT „Salony" → włącz categorizable → utwórz kategorię → drzewo Salony zawiera tylko ją, drzewo Product osobno (izolacja potwierdzona). Stan przywrócony.
+- **DECYZJE operatora**: bramka = `is_categorizable`; migracja = istniejące kategorie → Product, pozostałe OT bez drzewa (puste do utworzenia).
+- **ODŁOŻONE → #1121 (PR-D)**: walidacja cross-tree przypisania obiektów (defense-in-depth, nieosiągalne z UI) + `EffectiveAttributeGroups` `kind`→`objectId` dla preview dystrybucji w custom-OT drzewach.
+
 ## 2026-05-30: feat — edytowalna nazwa obiektu + analiza/usunięcie odwrotnego attach (kontynuacja)
 
 - **Edytowalna nazwa obiektu** — Issue #1116 → PR [#1117](../../pull/1117) (merged, `61f6ca5`). Tytuł H1 na karcie obiektu/produktu był read-only dla istniejących wpisów (name edytowalny tylko jako zaszyte pole „Name"). Teraz w trybie edycji tytuł = `<Input>` spięty z atrybutem `name` (ten sam flow co create), w `universal-detail-page.tsx` + `product-detail-page.tsx` + i18n `object_detail.name_placeholder`. Bez zmian BE. Browser smoke oba widoki: edycja→zapis→persist→restore.
