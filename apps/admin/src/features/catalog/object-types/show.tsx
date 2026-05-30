@@ -646,17 +646,6 @@ export function ObjectTypeShowPage() {
             {t('object_types.settings_section', { defaultValue: 'Settings' })}
           </div>
           <SettingToggleRow
-            label={t('object_types.setting_hierarchical_label', {
-              defaultValue: 'Is hierarchical',
-            })}
-            description={t('object_types.setting_hierarchical_desc', {
-              defaultValue: 'Obiekty mogą tworzyć drzewo (jak Category)',
-            })}
-            checked={Boolean(objectType.hierarchical)}
-            locked={isBuiltIn}
-            onChange={(next) => void handlePatch({ hierarchical: next })}
-          />
-          <SettingToggleRow
             label={t('object_types.setting_variants_label', {
               defaultValue: 'Czy mają warianty?',
             })}
@@ -687,15 +676,6 @@ export function ObjectTypeShowPage() {
               })}
             </div>
           ) : null}
-          <SettingToggleRow
-            label={t('object_types.setting_abstract_label', { defaultValue: 'Is abstract' })}
-            description={t('object_types.setting_abstract_desc', {
-              defaultValue: 'Nie można tworzyć instancji bezpośrednio (tylko przez sub-typy)',
-            })}
-            checked={Boolean(objectType.abstract)}
-            locked={isBuiltIn}
-            onChange={(next) => void handlePatch({ abstract: next })}
-          />
           {/* VIEW-08 (#427) — main menu candidacy. Asset is locked because
               /assets has its own DAM page; the generic listing route would
               404 in MVP (ships in B-2). */}
@@ -764,43 +744,6 @@ export function ObjectTypeShowPage() {
                 })}
               </div>
             ) : null}
-          </div>
-          <div className="border-t border-zinc-100 pt-5">
-            <div className="mb-2 text-[11.5px] font-medium text-zinc-500">
-              {t('object_types.allowed_parent_types_label', {
-                defaultValue: 'Allowed parent types',
-              })}
-            </div>
-            <div className="flex items-center gap-2">
-              {(objectType.allowedParentTypeIds ?? []).length === 0 ? (
-                <span className="text-[12px] text-muted-foreground">
-                  {t('object_types.allowed_parent_types_empty', {
-                    defaultValue: 'Brak — typ nie posiada rodzica.',
-                  })}
-                </span>
-              ) : (
-                (objectType.allowedParentTypeIds ?? []).map((parentId) => (
-                  <span
-                    key={parentId}
-                    className="rounded-lg bg-zinc-100 px-2.5 py-1 text-[12px] font-medium text-zinc-700"
-                  >
-                    {parentId}
-                  </span>
-                ))
-              )}
-              {!isBuiltIn ? (
-                <button
-                  type="button"
-                  className="rounded-lg border border-dashed border-zinc-200 px-2.5 py-1 text-[12px] text-zinc-500 hover:border-zinc-400 hover:text-zinc-900"
-                  disabled
-                  title={t('object_types.add_parent_deferred', {
-                    defaultValue: 'Implementacja w VIEW-04 (Categories).',
-                  })}
-                >
-                  + {t('object_types.add_parent_type', { defaultValue: 'Add parent type' })}
-                </button>
-              ) : null}
-            </div>
           </div>
         </CardContent>
       </Card>
