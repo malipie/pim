@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { jsonFetch } from '@/lib/http';
@@ -77,11 +78,21 @@ export function ObjectTypeFilterDropdown({ value, onChange, className }: Props) 
   // Auto-select the first option when the URL param doesn't match anything
   // in the fetched list (initial render OR after the operator demoted the
   // previously-selected OT via toggle).
+  //
+  // #1126 — this MUST run in an effect, not during render. The parent
+  // (CategoriesTreePage) gates its category `useList` on the URL param this
+  // emits; calling `onChange` (→ setSearchParams) during a child's render is
+  // unreliable in React and left the param empty on first load, so the tree
+  // rendered empty until the operator manually toggled the select. A
+  // post-commit effect stamps the URL reliably → the list enables + loads.
   const firstOption = options[0];
   const valueMatches = options.some((ot) => ot.id === value);
-  if (!query.isLoading && firstOption !== undefined && !valueMatches) {
-    onChange(firstOption.id, firstOption.kind);
-  }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `onChange` is recreated each render by the parent; `valueMatches` gates re-emits so omitting it avoids a render loop.
+  useEffect(() => {
+    if (!query.isLoading && firstOption !== undefined && !valueMatches) {
+      onChange(firstOption.id, firstOption.kind);
+    }
+  }, [query.isLoading, firstOption?.id, firstOption?.kind, valueMatches]);
 
   if (query.isLoading) {
     return (
