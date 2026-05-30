@@ -1,4 +1,5 @@
 import { useOne } from '@refinedev/core';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -101,33 +102,70 @@ interface EffectiveResponse {
   effectiveGroups: EffectiveGroupRow[];
 }
 
-const PREVIEW_KINDS = ['product', 'category', 'asset'] as const;
+interface CategorizableOt {
+  id: string;
+  code: string;
+  kind: string;
+  label?: Record<string, string> | string | null;
+  isCategorizable?: boolean;
+}
 
-type PreviewKind = (typeof PREVIEW_KINDS)[number];
+function otLabel(opt: CategorizableOt, locale: string): string {
+  if (opt.label && typeof opt.label === 'object') {
+    return opt.label[locale] ?? opt.label.pl ?? opt.label.en ?? opt.code;
+  }
+  if (typeof opt.label === 'string' && opt.label !== '') return opt.label;
+  return opt.code;
+}
 
 /**
  * UI-08.14 (#269) — `<EffectiveAttributesPreview>`.
  *
- * Hits /api/categories/{id}/effective-groups?objectTypeKind=... and
- * renders the deduplicated AttributeGroup list a hypothetical object of
- * the picked kind would see if placed under this category. The killer
- * feature competitors (Akeneo, Pimcore) lack natively.
+ * Hits /api/categories/{id}/effective-groups?objectTypeId=... and renders the
+ * deduplicated AttributeGroup list a hypothetical object of the picked
+ * ObjectType would see if placed under this category. The killer feature
+ * competitors (Akeneo, Pimcore) lack natively.
+ *
+ * ADR-015 (#1127) — picks the target by ObjectType id (not kind) and lists
+ * every categorizable ObjectType (built-in + custom), so custom-OT category
+ * trees can be previewed (kind='custom' has no single built-in OT).
  */
 function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
-  const { t } = useTranslation();
-  const [kind, setKind] = useState<PreviewKind>('product');
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'pl' ? 'pl' : 'en';
+
+  const { data: ots } = useQuery<CategorizableOt[]>({
+    queryKey: ['modeling', 'categorizable-object-types'],
+    queryFn: async () => {
+      const list = await jsonFetch<CategorizableOt[]>('/api/object_types', {
+        accept: 'application/json',
+      });
+      return list.filter((o) => o.isCategorizable === true);
+    },
+    staleTime: 60_000,
+  });
+  const options = ots ?? [];
+
+  const [objectTypeId, setObjectTypeId] = useState<string>('');
+  // Default to the first categorizable ObjectType once the list loads.
+  useEffect(() => {
+    const first = options[0];
+    if (objectTypeId === '' && first !== undefined) setObjectTypeId(first.id);
+  }, [options, objectTypeId]);
+
   const [data, setData] = useState<EffectiveResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (objectTypeId === '') return;
     let cancelled = false;
     setLoading(true);
     setError(null);
     setData(null);
 
     jsonFetch<EffectiveResponse>(
-      `/api/categories/${categoryId}/effective-groups?objectTypeKind=${kind}`,
+      `/api/categories/${categoryId}/effective-groups?objectTypeId=${objectTypeId}`,
       { accept: 'application/json' },
     )
       .then((payload) => {
@@ -148,7 +186,7 @@ function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [categoryId, kind, t]);
+  }, [categoryId, objectTypeId, t]);
 
   return (
     <Card className="border-accent-violet/30 bg-accent-violet/5 soft-shadow">
@@ -172,12 +210,12 @@ function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
             <select
               id="preview-kind"
               className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-              value={kind}
-              onChange={(e) => setKind(e.target.value as PreviewKind)}
+              value={objectTypeId}
+              onChange={(e) => setObjectTypeId(e.target.value)}
             >
-              {PREVIEW_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {k}
+              {options.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {otLabel(opt, locale)}
                 </option>
               ))}
             </select>
