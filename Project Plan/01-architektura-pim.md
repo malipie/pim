@@ -1231,6 +1231,27 @@ Opcja (Y) zachowuje killer feature ADR-012 (dziedziczenie grup atrybutów po drz
 
 **Uzupełnienie 2026-05-28 (Option Y, batch MODRC-01..05 — supersedes MODR-02/06/07):** Seedowana grupa „Powiązania" wycofana razem z audit (#1074 / Version20260527100000 → #1080 / Version20260528100000). 5 built-in atrybutów typu `relation` (`cross_sell`, `up_sell`, `related`, `alternative`, `accessory`) pozostaje seedowanych na Product ObjectType **jako loose `ObjectTypeAttribute`** (bez grupy). Operator świadomie tworzy grupę dowolnego code'u i `display_mode`, jeśli chce zakładkę lub sekcję inline. Forward Relations tab detection w `product-detail-page.tsx` przechodzi z `code === 'relations'` na detection po typie atrybutu (`g.attributes.some(a => a.type === 'relation')`). Reverse relations renderują się w **systemowej sekcji „Powiązania zwrotne"** (MODRC-03 #1082) — jedyna wirtualna zakładka, auto-generowana gdy obiekt jest celem. Inline relation editor w `attr-row.tsx` (MODRC-05 #1084) zapewnia parytę z innymi atrybutami niezależnie od `display_mode` grupy. Świadomie odrzucone alternatywy (flaga `has_relations`, magiczna widoczność, seed grupy) w `feature-modeling-data-model.md` §12.0.
 
+### ADR-015: Drzewa kategorii per ObjectType (rewizja modelu kategorii z ADR-014)
+
+**Status:** Accepted (2026-05-30).
+
+**Kontekst.** ADR-014 zakładał JEDNO współdzielone drzewo kategorii per tenant (`objects` kind='category', ltree `path`); `objects.object_type_id` wskazywał wbudowany typ „Category", a dystrybucja grup atrybutów szła przez `category_attribute_groups.target_object_type_id`. Select „Object Type" na `/modeling/categories` zmieniał tylko target dystrybucji, nie samo drzewo, i obsługiwał wyłącznie built-in categorizable OT (kontrakt API po `kind`). Operator potrzebuje, by każdy kategoryzowalny ObjectType miał **własne, niezależne drzewo kategorii**, wybierane selektorem.
+
+**Decyzja.**
+- Drzewo kategorii jest **partycjonowane per docelowy ObjectType**. Nowa kolumna `objects.category_target_object_type_id` (UUID, NULL dla nie-kategorii, ustawiana na create dla `kind='category'`, FK→`object_types` ON DELETE RESTRICT) wyznacza, do którego drzewa należy kategoria.
+- Unikalność kodu kategorii jest **per-drzewo**: `objects_tenant_kind_code_uniq` zastąpione dwoma partial unique indexami — `(tenant_id, kind, code) WHERE kind <> 'category'` oraz `(tenant_id, category_target_object_type_id, code) WHERE kind = 'category'`. Ten sam `code` (np. „elektronika") może istnieć w wielu drzewach.
+- **`is_categorizable` bramkuje** posiadanie drzewa: semantyka flagi = „instancje tego ObjectType mogą być przypisane do drzewa (i dziedziczyć atrybuty z kategorii)". Select listuje wszystkie OT z `is_categorizable=true` (built-in **i custom**); kontrakt API kategorii przechodzi z `objectTypeKind` (enum) na `objectTypeId` (UUID).
+- Instancja OT=X może być przypisana tylko do kategorii z drzewa X (walidacja w handlerze przypisania → 422). Dziecko-kategoria musi należeć do tego samego drzewa co rodzic.
+- `category_attribute_groups.target_object_type_id` dla danej kategorii równy jej `category_target_object_type_id` (target wynika z drzewa); junction zostaje dla wielu grup per kategoria.
+
+**Migracja (Version20260530120000, expand-contract).** Krok expand: dodanie kolumny + FK + index, backfill istniejących kategorii do built-in Product OT per tenant (Product był jedynym categorizable; stare drzewo obsługiwało Product), swap unique index. Pozostałe ObjectType startują **bez drzewa** (puste) — drzewo powstaje gdy operator włączy `is_categorizable` i utworzy pierwszą kategorię. Built-in „Category" OT (`objects.object_type_id`) bez zmian.
+
+**Konsekwencje.** (+) Czytelny mental model „osobne drzewa, wybierz które edytujesz"; custom OT w pełni wspierane. (−) Tracimy współdzielenie jednej kategorii przez wiele OT (dziś nieużywane). (−) Wysoki blast radius — zmiana unikalności + scope ltree dotyka każdego odczytu kategorii; mitygacja: expand-contract + partial unique + pełen ApiTestCase/cross-tenant/Playwright per faza (PR-A schema, PR-B API+resolver, PR-C FE).
+
+**Alternatywy odrzucone:** (a) status quo „jedno drzewo + multi-target" — nie spełnia żądania; (b) osobny category-kind ObjectType per drzewo — mnoży byty infrastrukturalne; (c) zachowanie współdzielenia kategorii między OT — niewykorzystane, komplikuje UX i unikalność ścieżek.
+
+**Referencje:** ADR-014 (rewidowany w zakresie scope drzewa; reszta — primary category overlay, cumulative resolution, EffectiveAttributeGroupResolver — w mocy). Plan implementacji: PR-A (#1118) schema+encja+create, PR-B API+resolver+walidacja przypisania, PR-C FE (dropdown all-categorizable + objectTypeId, list/new/show per drzewo, reword etykiety `is_categorizable` → „czy obiekty mogą być przypisane do drzewa").
+
 ## 14. Roadmap rozwoju
 
 Roadmap fazowa, wysokopoziomowa. Szczegółowy backlog i estymacje w dokumencie `02-plan-projektu-pim.md`.

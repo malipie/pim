@@ -20,6 +20,7 @@ final class CategoriesApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'electronics',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
 
@@ -53,6 +54,7 @@ final class CategoriesApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'medical',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
 
@@ -70,6 +72,7 @@ final class CategoriesApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'lekarz',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
         self::assertResponseStatusCodeSame(201);
@@ -81,6 +84,7 @@ final class CategoriesApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'chirurg',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
                 'parentId' => $rootId,
             ], JSON_THROW_ON_ERROR),
         ]);
@@ -98,6 +102,7 @@ final class CategoriesApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'usage_target',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
         self::assertResponseStatusCodeSame(201);

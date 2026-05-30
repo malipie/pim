@@ -106,6 +106,12 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
             ? Uuid::fromString($data->primaryCategoryId)
             : null;
 
+        // ADR-015 — scope of the category tree this category joins.
+        $categoryTargetObjectTypeId = null !== $data->categoryTargetObjectTypeId
+            && '' !== $data->categoryTargetObjectTypeId
+            ? Uuid::fromString($data->categoryTargetObjectTypeId)
+            : null;
+
         $command = new CreateCatalogObjectCommand(
             objectTypeId: Uuid::fromString($data->objectTypeId),
             code: $data->code,
@@ -114,6 +120,7 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
             attributes: $data->attributes ?? [],
             categoryIds: $categoryIds,
             primaryCategoryId: $primaryCategoryId,
+            categoryTargetObjectTypeId: $categoryTargetObjectTypeId,
         );
 
         $envelope = $this->dispatch($command);

@@ -47,6 +47,7 @@ final class ProductsApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'SKU-MISMATCH',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
 
@@ -70,6 +71,7 @@ final class ProductsApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'CAT-100',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
 
@@ -148,6 +150,7 @@ final class ProductsApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'CAT-CROSS',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ])->toArray();
         $id = $created['id'] ?? null;
@@ -170,6 +173,7 @@ final class ProductsApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'cat_a_891',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ])->toArray();
         $catB = $client->request('POST', '/api/categories', [
@@ -177,6 +181,7 @@ final class ProductsApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'cat_b_891',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ])->toArray();
         $catAId = $catA['id'] ?? null;
@@ -217,6 +222,7 @@ final class ProductsApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'cat_primary_orphan_891',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ])->toArray();
         $catB = $client->request('POST', '/api/categories', [
@@ -224,6 +230,7 @@ final class ProductsApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'cat_primary_orphan_b_891',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ])->toArray();
         $catAId = $catA['id'] ?? null;

@@ -40,6 +40,7 @@ final readonly class CreateCatalogObjectCommand
         public array $attributes = [],
         public ?array $categoryIds = null,
         public ?Uuid $primaryCategoryId = null,
+        public ?Uuid $categoryTargetObjectTypeId = null,
     ) {
     }
 }

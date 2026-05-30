@@ -83,7 +83,7 @@ final readonly class DemoCatalogSeeder
             $assetType->assignLabelAttribute($attributes['name']);
             $this->em->flush();
 
-            $categories = $this->seedCategories($categoryType, $attributes);
+            $categories = $this->seedCategories($categoryType, $productType, $attributes);
             $this->em->flush();
 
             $assets = $this->seedAssets($assetType, $tenant, $attributes);
@@ -183,7 +183,7 @@ final readonly class DemoCatalogSeeder
      *
      * @return list<CatalogObject>
      */
-    private function seedCategories(ObjectType $type, array $attributes): array
+    private function seedCategories(ObjectType $type, ObjectType $productType, array $attributes): array
     {
         $defs = [
             ['CAT-FOOTWEAR', 'footwear',  'Obuwie',         'Buty męskie i damskie'],
@@ -196,6 +196,8 @@ final readonly class DemoCatalogSeeder
         $categories = [];
         foreach ($defs as [$code, $path, $name, $description]) {
             $category = new CatalogObject($type, $code);
+            // ADR-015 — demo categories live in the Product tree.
+            $category->scopeCategoryTo($productType);
             $category->transitionTo(CatalogObject::STATUS_PUBLISHED);
             $category->attachToPath($path);
 
