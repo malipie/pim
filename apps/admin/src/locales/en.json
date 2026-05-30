@@ -1349,6 +1349,7 @@
       "more_filters": "More",
       "import": "Import",
       "new_product": "New product",
+      "add": "Add",
       "channel_filter_pending": "Per-channel filter waits for epic 0.6 (channel_publications)"
     },
     "counter": {

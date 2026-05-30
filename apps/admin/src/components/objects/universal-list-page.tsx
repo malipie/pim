@@ -661,7 +661,7 @@ export function UniversalListPage({
         <Button asChild className="h-11 rounded-2xl px-4">
           <Link to={createPath}>
             <Plus className="size-4" />
-            {t('products.toolbar.new_product', { defaultValue: 'Dodaj' })}
+            {t('products.toolbar.add', { defaultValue: 'Dodaj' })}
             <kbd className="ml-1.5 rounded bg-white/15 px-1 py-0.5 font-mono text-[10px]">⌘N</kbd>
           </Link>
         </Button>
