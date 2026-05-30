@@ -1,5 +1,5 @@
 import { useOne } from '@refinedev/core';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
@@ -8,6 +8,7 @@ import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { HttpError, jsonFetch } from '@/lib/http';
 
@@ -31,6 +32,12 @@ export function CategoryShowPage() {
     queryOptions: { enabled: id.length > 0 },
   });
 
+  // #1137 — inline category rename (writes the `name` attribute value).
+  const [editing, setEditing] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   if (query.isLoading || !result) {
     return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
   }
@@ -38,6 +45,40 @@ export function CategoryShowPage() {
   const category = result;
   const attrs = unwrapAttributesIndexed(category.attributesIndexed);
   const name = typeof attrs.name === 'string' ? attrs.name : category.code;
+
+  const startEdit = () => {
+    setDraftName(name);
+    setSaveError(null);
+    setEditing(true);
+  };
+
+  const saveName = async () => {
+    const trimmed = draftName.trim();
+    if (trimmed === '' || trimmed === name) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await jsonFetch(`/api/categories/${category.id}`, {
+        method: 'PATCH',
+        contentType: 'application/merge-patch+json',
+        accept: 'application/ld+json',
+        body: { attributes: { name: trimmed } },
+      });
+      await query.refetch();
+      setEditing(false);
+    } catch (err) {
+      setSaveError(
+        err instanceof HttpError
+          ? `HTTP ${err.status}`
+          : t('categories.rename_error', { defaultValue: 'Nie udało się zmienić nazwy.' }),
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -51,7 +92,47 @@ export function CategoryShowPage() {
           </Button>
           <AuditLogIndicator />
         </div>
-        <h1 className="display text-[28px] font-semibold leading-tight text-ink">{name}</h1>
+        {editing ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              autoFocus
+              aria-label={t('categories.rename', { defaultValue: 'Zmień nazwę kategorii' })}
+              className="h-11 max-w-md text-[20px] font-semibold"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void saveName();
+                if (e.key === 'Escape') setEditing(false);
+              }}
+            />
+            <Button size="sm" onClick={() => void saveName()} disabled={saving}>
+              {saving
+                ? t('app.saving', { defaultValue: 'Zapisywanie…' })
+                : t('app.save', { defaultValue: 'Zapisz' })}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={saving}>
+              {t('app.cancel', { defaultValue: 'Anuluj' })}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <h1 className="display text-[28px] font-semibold leading-tight text-ink">{name}</h1>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              onClick={startEdit}
+              aria-label={t('categories.rename', { defaultValue: 'Zmień nazwę kategorii' })}
+            >
+              <Pencil className="size-4" />
+            </Button>
+          </div>
+        )}
+        {saveError !== null ? (
+          <p className="text-sm text-destructive" role="alert">
+            {saveError}
+          </p>
+        ) : null}
         <p className="font-mono text-[12px] text-ink-2">{category.code}</p>
         {category.path ? (
           <p className="text-[12px] text-muted-foreground">
@@ -61,8 +142,6 @@ export function CategoryShowPage() {
       </div>
 
       <EffectiveAttributesPreview categoryId={category.id} />
-
-      <p className="text-xs text-muted-foreground">{t('categories.write_deferred_note')}</p>
     </div>
   );
 }
