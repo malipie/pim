@@ -83,8 +83,17 @@ export function AttributesListPage() {
   const optionCounts = useOptionCounts(attributes);
 
   const visible = attributes.filter((row) => {
-    if (filter === 'system' && row.system !== true) return false;
-    if (filter !== 'all' && filter !== 'system' && row.type !== filter) return false;
+    // System audit attributes (created_at/updated_at/created_by/updated_by)
+    // are read-only infrastructure — hide them from the default ("all") and
+    // type-filtered views, surfacing them only under the dedicated "system"
+    // chip. Refs #1136.
+    if (filter === 'system') {
+      if (row.system !== true) return false;
+    } else if (row.system === true) {
+      return false;
+    } else if (filter !== 'all' && row.type !== filter) {
+      return false;
+    }
     if (query.length > 0) {
       const q = query.toLowerCase();
       const code = row.code.toLowerCase();
