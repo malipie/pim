@@ -37,8 +37,10 @@ interface ObjectTypeOption {
 }
 
 interface Props {
+  /** Selected ObjectType id (UUID). ADR-015 — trees are keyed by objectTypeId. */
   value: string | null;
-  onChange: (next: string) => void;
+  /** Emits the chosen ObjectType id + its kind (kind kept for legacy kind-based calls). */
+  onChange: (objectTypeId: string, kind: string) => void;
   className?: string;
 }
 
@@ -63,7 +65,9 @@ export function ObjectTypeFilterDropdown({ value, onChange, className }: Props) 
       const data = await jsonFetch<ObjectTypeOption[]>('/api/object_types', {
         accept: 'application/json',
       });
-      return data.filter((ot) => ot.builtIn === true && ot.isCategorizable === true);
+      // ADR-015 — every categorizable ObjectType (built-in OR custom) owns
+      // its own category tree, so the selector lists all of them.
+      return data.filter((ot) => ot.isCategorizable === true);
     },
     staleTime: 60_000,
   });
@@ -74,9 +78,9 @@ export function ObjectTypeFilterDropdown({ value, onChange, className }: Props) 
   // in the fetched list (initial render OR after the operator demoted the
   // previously-selected OT via toggle).
   const firstOption = options[0];
-  const valueMatches = options.some((ot) => ot.kind === value);
+  const valueMatches = options.some((ot) => ot.id === value);
   if (!query.isLoading && firstOption !== undefined && !valueMatches) {
-    onChange(firstOption.kind);
+    onChange(firstOption.id, firstOption.kind);
   }
 
   if (query.isLoading) {
@@ -136,14 +140,17 @@ export function ObjectTypeFilterDropdown({ value, onChange, className }: Props) 
       </span>
       <select
         className="bg-transparent font-medium outline-none"
-        value={value ?? firstOption?.kind ?? ''}
-        onChange={(e) => onChange(e.target.value)}
+        value={value ?? firstOption?.id ?? ''}
+        onChange={(e) => {
+          const picked = options.find((ot) => ot.id === e.target.value);
+          if (picked !== undefined) onChange(picked.id, picked.kind);
+        }}
         aria-label={t('categories.target_type_aria', {
           defaultValue: 'Filter declared groups by target ObjectType',
         })}
       >
         {options.map((opt) => (
-          <option key={opt.id} value={opt.kind}>
+          <option key={opt.id} value={opt.id}>
             {optionLabel(opt, locale)}
           </option>
         ))}
