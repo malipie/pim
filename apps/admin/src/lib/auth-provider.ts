@@ -18,6 +18,12 @@ interface LoginResponse {
   token: string;
 }
 
+/** #1141 — shape returned by /api/auth/login when the account has active MFA. */
+interface MfaChallenge {
+  mfa_required?: boolean;
+  mfa_token?: string;
+}
+
 interface MeResponse {
   id: string;
   email: string;
@@ -54,16 +60,52 @@ export interface MeIdentity {
  */
 export const authProvider: AuthProvider = {
   async login(payload) {
-    const { email, password } = payload as LoginPayload;
+    const { email, password, mfaToken, code } = payload as LoginPayload & {
+      mfaToken?: string;
+      code?: string;
+    };
+
+    // Second factor (#1141): redeem the challenge token minted after the
+    // password step for the real JWT. A wrong/expired code surfaces as a
+    // recoverable error so the UI can let the user retry.
+    if (typeof mfaToken === 'string' && mfaToken !== '') {
+      try {
+        const response = await jsonFetch<LoginResponse>('/api/auth/2fa/login', {
+          method: 'POST',
+          body: { mfa_token: mfaToken, code },
+          contentType: 'application/json',
+          accept: 'application/json',
+        });
+        setAccessToken(response.token);
+        return { success: true, redirectTo: '/dashboard' };
+      } catch {
+        return { success: false, error: { name: 'MfaError', message: 'auth.mfa_invalid_code' } };
+      }
+    }
+
+    // Password step.
     try {
-      const response = await jsonFetch<LoginResponse>('/api/auth/login', {
+      const response = await jsonFetch<Partial<LoginResponse> & MfaChallenge>('/api/auth/login', {
         method: 'POST',
         body: { email, password },
         contentType: 'application/json',
         accept: 'application/json',
       });
-      setAccessToken(response.token);
-      return { success: true, redirectTo: '/dashboard' };
+      if (response.mfa_required === true && typeof response.mfa_token === 'string') {
+        // Password accepted, but the account requires a second factor. Surface
+        // the challenge token so the UI can collect the TOTP / backup code.
+        return {
+          success: false,
+          error: { name: 'MfaRequired', message: 'auth.mfa_required' },
+          mfaRequired: true,
+          mfaToken: response.mfa_token,
+        };
+      }
+      if (typeof response.token === 'string') {
+        setAccessToken(response.token);
+        return { success: true, redirectTo: '/dashboard' };
+      }
+      return { success: false, error: { name: 'LoginError', message: 'auth.login_failed' } };
     } catch (error) {
       const message =
         error instanceof HttpError && error.status === 401

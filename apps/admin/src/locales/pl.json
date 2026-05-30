@@ -36,6 +36,13 @@
     "submitting": "Logowanie...",
     "invalid_credentials": "Nieprawidłowy e-mail lub hasło.",
     "login_failed": "Nie udało się zalogować. Spróbuj ponownie.",
+    "mfa_title": "Weryfikacja dwuetapowa",
+    "mfa_subtitle": "Wpisz kod z aplikacji uwierzytelniającej lub kod zapasowy.",
+    "mfa_code": "Kod weryfikacyjny",
+    "mfa_submit": "Zweryfikuj",
+    "mfa_back": "Wróć do logowania",
+    "mfa_required": "Wymagana weryfikacja dwuetapowa.",
+    "mfa_invalid_code": "Nieprawidłowy lub przeterminowany kod. Spróbuj ponownie.",
     "session_expired": "Sesja wygasła. Zaloguj się ponownie.",
     "first_login_password": {
       "title": "Pierwsze logowanie — zmień hasło",

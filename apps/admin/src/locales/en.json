@@ -36,6 +36,13 @@
     "submitting": "Signing in...",
     "invalid_credentials": "Invalid email or password.",
     "login_failed": "Sign-in failed. Please try again.",
+    "mfa_title": "Two-factor verification",
+    "mfa_subtitle": "Enter the code from your authenticator app or a backup code.",
+    "mfa_code": "Verification code",
+    "mfa_submit": "Verify",
+    "mfa_back": "Back to sign in",
+    "mfa_required": "Two-factor verification required.",
+    "mfa_invalid_code": "Invalid or expired code. Please try again.",
     "session_expired": "Your session has expired. Please sign in again.",
     "first_login_password": {
       "title": "First sign-in — change your password",

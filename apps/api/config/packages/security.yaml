@@ -74,6 +74,10 @@ security:
         # must be reachable without an access token because the typical
         # caller has just had its access token expire.
         - { path: ^/api/auth/refresh, roles: PUBLIC_ACCESS }
+        # #1141 — second factor of login. The caller has passed the password
+        # step but holds no JWT yet; authority is the opaque, short-lived
+        # challenge token minted after the password step (see MfaLoginController).
+        - { path: ^/api/auth/2fa/login, roles: PUBLIC_ACCESS }
         # RBAC-P2-008 (#657) / P2-009 (#658) — magic-link accept + password
         # reset confirm are open by design: the token IS the auth factor.
         # /api/invitations/{token}/accept matches the path below; the
