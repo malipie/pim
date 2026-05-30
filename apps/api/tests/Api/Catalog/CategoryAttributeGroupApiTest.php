@@ -199,6 +199,7 @@ final class CategoryAttributeGroupApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => $code,
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
         $id = $response->toArray()['id'] ?? null;

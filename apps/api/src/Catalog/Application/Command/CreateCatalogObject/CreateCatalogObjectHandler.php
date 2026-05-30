@@ -71,6 +71,40 @@ final readonly class CreateCatalogObjectHandler
             $object->assignParent($parent);
         }
 
+        // ADR-015 — a category belongs to exactly one categorizable
+        // ObjectType's tree. Require the scope on create; when a parent is
+        // given, the child must join the same tree as its parent (a subtree
+        // cannot jump trees).
+        if (ObjectKind::Category === $command->expectedKind) {
+            if (null === $command->categoryTargetObjectTypeId) {
+                throw new UnprocessableEntityHttpException(
+                    '"categoryTargetObjectTypeId" is required when creating a category.',
+                );
+            }
+            $targetType = $this->objectTypes->findById($command->categoryTargetObjectTypeId);
+            if (null === $targetType) {
+                throw new UnprocessableEntityHttpException(\sprintf(
+                    'Target ObjectType "%s" was not found.',
+                    $command->categoryTargetObjectTypeId->toRfc4122(),
+                ));
+            }
+            if (!$targetType->isCategorizable()) {
+                throw new UnprocessableEntityHttpException(\sprintf(
+                    'ObjectType "%s" is not categorizable; enable it before creating its category tree.',
+                    $targetType->getCode(),
+                ));
+            }
+            if (null !== $parent) {
+                $parentTarget = $parent->getCategoryTargetObjectType();
+                if (null === $parentTarget || !$parentTarget->getId()->equals($targetType->getId())) {
+                    throw new UnprocessableEntityHttpException(
+                        'A child category must belong to the same ObjectType tree as its parent.',
+                    );
+                }
+            }
+            $object->scopeCategoryTo($targetType);
+        }
+
         // VIEW-04 (#408) — derive the ltree `path` here rather than in a
         // Doctrine prePersist listener. ORM 3 freezes the insert
         // change-set before listeners run, so a `prePersist` write to

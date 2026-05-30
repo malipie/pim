@@ -106,12 +106,17 @@ final class CatalogObjectPolyKindGetTest extends CatalogApiTestCase
         string $code,
         ObjectKind $kind,
     ): string {
+        $payload = [
+            'code' => $code,
+            'objectTypeId' => $this->objectTypeIdFor($kind),
+        ];
+        // ADR-015 — categories must declare the categorizable ObjectType tree.
+        if (ObjectKind::Category === $kind) {
+            $payload['categoryTargetObjectTypeId'] = $this->objectTypeIdFor(ObjectKind::Product);
+        }
         $response = $client->request('POST', $sugarPath, [
             'headers' => ['content-type' => 'application/ld+json'],
-            'body' => json_encode([
-                'code' => $code,
-                'objectTypeId' => $this->objectTypeIdFor($kind),
-            ], JSON_THROW_ON_ERROR),
+            'body' => json_encode($payload, JSON_THROW_ON_ERROR),
         ]);
         $body = $response->toArray();
         $id = $body['id'] ?? null;

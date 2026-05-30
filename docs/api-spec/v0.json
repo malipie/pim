@@ -8422,6 +8422,17 @@
                             "string",
                             "null"
                         ]
+                    },
+                    "categoryTargetObjectTypeId": {
+                        "format": "uuid",
+                        "description": "ADR-015 \u2014 id of the categorizable {@see \\App\\Catalog\\Domain\\Entity\\ObjectType}\nwhose category tree this new category joins. Required when the sugar\npath is `/api/categories` (the handler raises 422 if missing or if the\ntarget ObjectType is not `is_categorizable`). Ignored for other kinds.",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     }
                 }
             },

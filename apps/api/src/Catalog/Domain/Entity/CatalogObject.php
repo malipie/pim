@@ -64,6 +64,16 @@ class CatalogObject extends AggregateRoot implements TenantScoped
     private string $code;
     private ?self $parent = null;
 
+    /**
+     * ADR-015 — the categorizable ObjectType whose tree this category
+     * belongs to. Only meaningful for `kind='category'` (NULL otherwise);
+     * partitions the otherwise-shared ltree namespace so each ObjectType
+     * has its own category tree. The category distributes attribute groups
+     * to instances of this target ObjectType (the `target_object_type_id`
+     * in `category_attribute_groups` equals this scope by construction).
+     */
+    private ?ObjectType $categoryTargetObjectType = null;
+
     private bool $enabled = true;
 
     private string $status = self::STATUS_DRAFT;
@@ -190,6 +200,25 @@ class CatalogObject extends AggregateRoot implements TenantScoped
     public function getKind(): ObjectKind
     {
         return $this->kind;
+    }
+
+    /**
+     * ADR-015 — the ObjectType tree this category belongs to (NULL for
+     * non-category rows).
+     */
+    public function getCategoryTargetObjectType(): ?ObjectType
+    {
+        return $this->categoryTargetObjectType;
+    }
+
+    /**
+     * ADR-015 — assign this category to a categorizable ObjectType's tree.
+     * Set once at create time (the create handler enforces presence +
+     * `is_categorizable` for `kind='category'`).
+     */
+    public function scopeCategoryTo(ObjectType $objectType): void
+    {
+        $this->categoryTargetObjectType = $objectType;
     }
 
     public function getCode(): string

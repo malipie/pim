@@ -139,6 +139,7 @@ final class DuplicateProductApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'CAT-500',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ])->toArray();
 
