@@ -82,11 +82,9 @@ export function ObjectTypeWizard() {
   const [code, setCode] = useState<string>('');
   const [icon, setIcon] = useState<string>(DEFAULT_WIZARD_ICONS[0]);
   const [color, setColor] = useState<string>(DEFAULT_WIZARD_COLORS[0]);
-  const [hierarchical, setHierarchical] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
   const [hasMultimedia, setHasMultimedia] = useState(false);
   const [isCategorizable, setIsCategorizable] = useState(false);
-  const [abstractFlag, setAbstractFlag] = useState(false);
   const [exposeToMainMenu, setExposeToMainMenu] = useState(false);
   const [pickedGroupIds, setPickedGroupIds] = useState<Set<string>>(new Set());
   // MODR-04 (#926) — display_mode per picked group. Defaults to 'tab'
@@ -216,9 +214,7 @@ export function ObjectTypeWizard() {
           ),
           icon,
           color,
-          hierarchical,
           hasVariants,
-          abstract: abstractFlag,
         },
       });
 
@@ -691,16 +687,6 @@ export function ObjectTypeWizard() {
                   {t('object_type_wizard.step_3_label', { defaultValue: 'Ustawienia' })}
                 </div>
                 <SettingToggleRow
-                  label={t('object_types.setting_hierarchical_label', {
-                    defaultValue: 'Is hierarchical',
-                  })}
-                  description={t('object_types.setting_hierarchical_desc', {
-                    defaultValue: 'Obiekty mogą tworzyć drzewo (jak Category)',
-                  })}
-                  checked={hierarchical}
-                  onChange={setHierarchical}
-                />
-                <SettingToggleRow
                   label={t('object_types.setting_variants_label', {
                     defaultValue: 'Czy mają warianty?',
                   })}
@@ -732,14 +718,6 @@ export function ObjectTypeWizard() {
                   })}
                   checked={isCategorizable}
                   onChange={setIsCategorizable}
-                />
-                <SettingToggleRow
-                  label={t('object_types.setting_abstract_label', { defaultValue: 'Is abstract' })}
-                  description={t('object_types.setting_abstract_desc', {
-                    defaultValue: 'Nie można tworzyć instancji bezpośrednio (tylko przez sub-typy)',
-                  })}
-                  checked={abstractFlag}
-                  onChange={setAbstractFlag}
                 />
                 {/* VIEW-08 (#427) — main menu candidacy. Mirrors show.tsx
                     so operator can promote the new ObjectType in the
@@ -926,12 +904,6 @@ export function ObjectTypeWizard() {
                   •{' '}
                   {t('object_type_wizard.tip_name_visibility', {
                     defaultValue: 'Nazwa pojawia się w UI i navbarze',
-                  })}
-                </li>
-                <li>
-                  •{' '}
-                  {t('object_type_wizard.tip_hierarchical', {
-                    defaultValue: 'Hierarchical = drzewo (jak Category)',
                   })}
                 </li>
                 <li>
