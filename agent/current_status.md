@@ -8,7 +8,8 @@
 - **PR-C [#1123]** — FE: `ObjectTypeFilterDropdown` listuje wszystkie `is_categorizable` (built-in+custom), emituje objectId; `categories/list` filtruje per drzewo; `categories/new` tworzy w wybranym drzewie; reword etykiety `is_categorizable` → „Czy obiekty mogą być przypisane do drzewa kategorii?".
 - **Live smoke (main)**: custom OT „Salony" → włącz categorizable → utwórz kategorię → drzewo Salony zawiera tylko ją, drzewo Product osobno (izolacja potwierdzona). Stan przywrócony.
 - **DECYZJE operatora**: bramka = `is_categorizable`; migracja = istniejące kategorie → Product, pozostałe OT bez drzewa (puste do utworzenia).
-- **ODŁOŻONE → #1121 (PR-D)**: walidacja cross-tree przypisania obiektów (defense-in-depth, nieosiągalne z UI) + `EffectiveAttributeGroups` `kind`→`objectId` dla preview dystrybucji w custom-OT drzewach.
+- **PR-D [#1124]** (część 1/2 z #1121, merged `cfbc399`): `CategoryTreeAssignmentGuard` — przypisanie obiektu do kategorii z obcego drzewa → 422 (product+poly assignment controllers + atomic create). PHPUnit 51/51. Live smoke: salony-tree cat → Product = 422.
+- **#1121 część 2 NADAL OTWARTA**: `EffectiveAttributeGroups` `kind`→`objectId` dla dystrybucji atrybutów w custom-OT drzewach — większy refaktor (declare/list/preview endpointy + resolver + FE panel, rozmiar ~PR-A). Potrzebne dopiero gdy operator deklaruje grupy atrybutów na custom-OT drzewach (built-in/Product działa). Rozpisać plan przed implementacją.
 
 ## 2026-05-30: feat — edytowalna nazwa obiektu + analiza/usunięcie odwrotnego attach (kontynuacja)
 
