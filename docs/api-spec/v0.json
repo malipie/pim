@@ -2004,6 +2004,18 @@
                         "explode": false
                     },
                     {
+                        "name": "categoryTargetObjectType",
+                        "in": "query",
+                        "description": "ADR-015 \u2014 scope categories to one ObjectType tree (UUID).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
                         "name": "order[id]",
                         "in": "query",
                         "description": "",
@@ -2312,6 +2324,18 @@
                         "name": "objectType",
                         "in": "query",
                         "description": "Scope the collection to a specific ObjectType by UUID. Drives the universal ObjectListView so a single endpoint serves every ObjectType (built-in product/category/asset/brand or custom).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "categoryTargetObjectType",
+                        "in": "query",
+                        "description": "ADR-015 \u2014 scope categories to one ObjectType tree (UUID).",
                         "required": false,
                         "deprecated": false,
                         "schema": {
@@ -2951,6 +2975,18 @@
                         "explode": false
                     },
                     {
+                        "name": "categoryTargetObjectType",
+                        "in": "query",
+                        "description": "ADR-015 \u2014 scope categories to one ObjectType tree (UUID).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
                         "name": "order[id]",
                         "in": "query",
                         "description": "",
@@ -3572,6 +3608,18 @@
                         "name": "objectType",
                         "in": "query",
                         "description": "Scope the collection to a specific ObjectType by UUID. Drives the universal ObjectListView so a single endpoint serves every ObjectType (built-in product/category/asset/brand or custom).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "categoryTargetObjectType",
+                        "in": "query",
+                        "description": "ADR-015 \u2014 scope categories to one ObjectType tree (UUID).",
                         "required": false,
                         "deprecated": false,
                         "schema": {

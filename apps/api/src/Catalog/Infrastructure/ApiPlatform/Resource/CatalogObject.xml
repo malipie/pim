@@ -82,6 +82,13 @@
             -->
             <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\ObjectTypeFilter</filter>
             <!--
+                ADR-015: `?categoryTargetObjectType={uuid}` scopes
+                /api/categories to a single ObjectType's tree (per-OT
+                category trees). Required so the modeling UI can isolate
+                one tree via the ObjectType selector.
+            -->
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\CategoryTreeFilter</filter>
+            <!--
                 OrderFilter + RangeFilter pinned to `id` are mandatory for
                 cursor pagination (`paginationViaCursor` below) — lessons #0.0.3
                 docu the AP4 trio. Without RangeFilter the `?id[lt]=...`
