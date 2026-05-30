@@ -1,5 +1,4 @@
 import { useOne } from '@refinedev/core';
-import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +8,6 @@ import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { HttpError, jsonFetch } from '@/lib/http';
 
@@ -62,24 +60,6 @@ export function CategoryShowPage() {
         ) : null}
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <h2 className="mb-3 text-sm font-medium">{t('categories.attributes_title')}</h2>
-          {Object.keys(attrs).length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('categories.no_attributes')}</p>
-          ) : (
-            <dl className="grid gap-3 sm:grid-cols-2">
-              {Object.entries(attrs).map(([code, value]) => (
-                <div key={code} className="rounded-md border bg-muted/40 px-3 py-2">
-                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">{code}</dt>
-                  <dd className="text-sm font-medium">{formatValue(value)}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-        </CardContent>
-      </Card>
-
       <EffectiveAttributesPreview categoryId={category.id} />
 
       <p className="text-xs text-muted-foreground">{t('categories.write_deferred_note')}</p>
@@ -102,22 +82,6 @@ interface EffectiveResponse {
   effectiveGroups: EffectiveGroupRow[];
 }
 
-interface CategorizableOt {
-  id: string;
-  code: string;
-  kind: string;
-  label?: Record<string, string> | string | null;
-  isCategorizable?: boolean;
-}
-
-function otLabel(opt: CategorizableOt, locale: string): string {
-  if (opt.label && typeof opt.label === 'object') {
-    return opt.label[locale] ?? opt.label.pl ?? opt.label.en ?? opt.code;
-  }
-  if (typeof opt.label === 'string' && opt.label !== '') return opt.label;
-  return opt.code;
-}
-
 /**
  * UI-08.14 (#269) — `<EffectiveAttributesPreview>`.
  *
@@ -131,43 +95,24 @@ function otLabel(opt: CategorizableOt, locale: string): string {
  * trees can be previewed (kind='custom' has no single built-in OT).
  */
 function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
-  const { t, i18n } = useTranslation();
-  const locale = i18n.language === 'pl' ? 'pl' : 'en';
-
-  const { data: ots } = useQuery<CategorizableOt[]>({
-    queryKey: ['modeling', 'categorizable-object-types'],
-    queryFn: async () => {
-      const list = await jsonFetch<CategorizableOt[]>('/api/object_types', {
-        accept: 'application/json',
-      });
-      return list.filter((o) => o.isCategorizable === true);
-    },
-    staleTime: 60_000,
-  });
-  const options = ots ?? [];
-
-  const [objectTypeId, setObjectTypeId] = useState<string>('');
-  // Default to the first categorizable ObjectType once the list loads.
-  useEffect(() => {
-    const first = options[0];
-    if (objectTypeId === '' && first !== undefined) setObjectTypeId(first.id);
-  }, [options, objectTypeId]);
+  const { t } = useTranslation();
 
   const [data, setData] = useState<EffectiveResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (objectTypeId === '') return;
     let cancelled = false;
     setLoading(true);
     setError(null);
     setData(null);
 
-    jsonFetch<EffectiveResponse>(
-      `/api/categories/${categoryId}/effective-groups?objectTypeId=${objectTypeId}`,
-      { accept: 'application/json' },
-    )
+    // #1134 — no per-kind selector: a category belongs to exactly one tree,
+    // so the backend resolves the preview against the category's own target
+    // ObjectType.
+    jsonFetch<EffectiveResponse>(`/api/categories/${categoryId}/effective-groups`, {
+      accept: 'application/json',
+    })
       .then((payload) => {
         if (!cancelled) setData(payload);
       })
@@ -186,40 +131,21 @@ function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [categoryId, objectTypeId, t]);
+  }, [categoryId, t]);
 
   return (
     <Card className="border-accent-violet/30 bg-accent-violet/5 soft-shadow">
       <CardContent className="space-y-4 pt-6">
-        <div className="flex items-end justify-between gap-3">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-accent-violet/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-violet">
-              effective preview
-            </div>
-            <h2 className="text-[15px] font-semibold text-ink">
-              {t('modeling.inheritance_preview.title')}
-            </h2>
-            <p className="text-[12px] text-muted-foreground">
-              {t('modeling.inheritance_preview.description')}
-            </p>
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-accent-violet/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-violet">
+            effective preview
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="preview-kind" className="text-xs uppercase tracking-wide">
-              {t('modeling.inheritance_preview.target_kind')}
-            </Label>
-            <select
-              id="preview-kind"
-              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-              value={objectTypeId}
-              onChange={(e) => setObjectTypeId(e.target.value)}
-            >
-              {options.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {otLabel(opt, locale)}
-                </option>
-              ))}
-            </select>
-          </div>
+          <h2 className="text-[15px] font-semibold text-ink">
+            {t('modeling.inheritance_preview.title')}
+          </h2>
+          <p className="text-[12px] text-muted-foreground">
+            {t('modeling.inheritance_preview.description')}
+          </p>
         </div>
 
         {loading ? (
@@ -280,11 +206,4 @@ function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
 function groupLabel(label: Record<string, string> | string): string {
   if (typeof label === 'string') return label;
   return label.en ?? label.pl ?? Object.values(label)[0] ?? '—';
-}
-
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined) return '—';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  return JSON.stringify(value);
 }

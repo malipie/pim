@@ -66,10 +66,18 @@ final class CategoryEffectiveGroupsController
             throw new BadRequestHttpException('No tenant context.');
         }
 
+        $category = $this->objects->findById(Uuid::fromString($id));
+        if (null === $category) {
+            throw new NotFoundHttpException(\sprintf('Category "%s" was not found.', $id));
+        }
+
         // ADR-015 — `objectTypeId` (UUID) takes precedence and supports custom
-        // ObjectType category trees; `objectTypeKind` stays as the built-in
-        // fallback for backward compatibility.
+        // ObjectType category trees; `objectTypeKind` is the built-in fallback.
+        // #1134 — when neither is supplied, resolve the category's OWN target
+        // ObjectType: a category belongs to exactly one tree scoped to a single
+        // target type, so the preview no longer needs a per-kind selector.
         $objectTypeIdParam = $request->query->get('objectTypeId');
+        $kindParam = $request->query->get('objectTypeKind');
         if (\is_string($objectTypeIdParam) && '' !== $objectTypeIdParam) {
             try {
                 $type = $this->objectTypes->findById(Uuid::fromString($objectTypeIdParam));
@@ -79,11 +87,7 @@ final class CategoryEffectiveGroupsController
             if (null === $type) {
                 throw new NotFoundHttpException(\sprintf('ObjectType "%s" was not found.', $objectTypeIdParam));
             }
-        } else {
-            $kindParam = $request->query->get('objectTypeKind');
-            if (!\is_string($kindParam) || '' === $kindParam) {
-                throw new BadRequestHttpException('objectTypeId or objectTypeKind query parameter is required.');
-            }
+        } elseif (\is_string($kindParam) && '' !== $kindParam) {
             try {
                 $kind = ObjectKind::from($kindParam);
             } catch (ValueError $e) {
@@ -93,11 +97,13 @@ final class CategoryEffectiveGroupsController
             if (null === $type) {
                 throw new NotFoundHttpException(\sprintf('Built-in ObjectType for kind "%s" not found.', $kindParam));
             }
-        }
-
-        $category = $this->objects->findById(Uuid::fromString($id));
-        if (null === $category) {
-            throw new NotFoundHttpException(\sprintf('Category "%s" was not found.', $id));
+        } else {
+            $type = $category->getCategoryTargetObjectType();
+            if (null === $type) {
+                throw new BadRequestHttpException(
+                    'objectTypeId or objectTypeKind query parameter is required (category has no target ObjectType).',
+                );
+            }
         }
 
         $groups = $this->resolver->resolveForCategoryPreview($type, $category);
