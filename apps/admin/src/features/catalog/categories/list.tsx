@@ -104,12 +104,21 @@ export function CategoriesTreePage() {
   // `is_categorizable=true`). The dropdown emits its choice via
   // `onChange` on mount when the URL param doesn't match anything, so an
   // empty default is correct here — the URL gets stamped on first render.
+  // ADR-015 — the tree is keyed by ObjectType id (`targetObjectTypeId`); the
+  // kind (`targetType`) is kept alongside for the legacy kind-based attribute-
+  // group declaration calls in the detail panel. Both are stamped by the
+  // dropdown on mount, so a reload restores the exact tree + kind.
+  const targetObjectTypeId = searchParams.get('targetObjectTypeId') ?? '';
   const targetType: string = searchParams.get('targetType') ?? 'product';
   const selectedId = searchParams.get('selected') ?? null;
 
   const { result } = useList<CategoryEntry>({
     resource: 'categories',
     pagination: { mode: 'off' },
+    filters: targetObjectTypeId
+      ? [{ field: 'categoryTargetObjectType', operator: 'eq', value: targetObjectTypeId }]
+      : [],
+    queryOptions: { enabled: targetObjectTypeId !== '' },
   });
 
   const tree = useMemo(
@@ -136,9 +145,12 @@ export function CategoriesTreePage() {
     setSearchParams(next, { replace: true });
   };
 
-  const handleTargetChange = (kind: string) => {
+  const handleTargetChange = (objectTypeId: string, kind: string) => {
     const next = new URLSearchParams(searchParams);
+    next.set('targetObjectTypeId', objectTypeId);
     next.set('targetType', kind);
+    // Switching trees invalidates the selected node (it lived in the old tree).
+    next.delete('selected');
     setSearchParams(next, { replace: true });
   };
 
@@ -155,8 +167,17 @@ export function CategoriesTreePage() {
             'Drzewo kategorii deklaruje jakie grupy atrybutów mają obiekty w tej gałęzi. Dziedziczenie idzie w dół — Ortopeda dziedziczy wszystko od Lekarz + Chirurg, plus własne. Inheritance preview pokazuje co użytkownik zobaczy w formularzu.',
         })}
         ctaLabel={t('categories.create_action', { defaultValue: '+ Nowa kategoria' })}
-        ctaTo="/modeling/categories/new"
-        trailing={<ObjectTypeFilterDropdown value={targetType} onChange={handleTargetChange} />}
+        ctaTo={
+          targetObjectTypeId
+            ? `/modeling/categories/new?targetObjectTypeId=${targetObjectTypeId}`
+            : '/modeling/categories/new'
+        }
+        trailing={
+          <ObjectTypeFilterDropdown
+            value={targetObjectTypeId || null}
+            onChange={handleTargetChange}
+          />
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">

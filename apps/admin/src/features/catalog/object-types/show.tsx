@@ -746,7 +746,7 @@ export function ObjectTypeShowPage() {
           <div className="border-t border-zinc-100 pt-5">
             <SettingToggleRow
               label={t('object_types.setting_categorizable_label', {
-                defaultValue: 'Czy można je przypisywać do kategorii?',
+                defaultValue: 'Czy obiekty mogą być przypisane do drzewa kategorii?',
               })}
               description={t('object_types.setting_categorizable_desc', {
                 defaultValue:
