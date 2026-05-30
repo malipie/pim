@@ -7,7 +7,7 @@ namespace App\Asset\Presentation\Controller;
 use App\Asset\Domain\Entity\AssetVariant;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
 use App\Asset\Domain\ThumbnailsStatus;
-use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Identity\Contracts\Attribute\NoPermissionRequired;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
@@ -50,7 +50,7 @@ final readonly class PreviewAssetController
     }
 
     #[Route(path: '/api/assets/{id}/preview', name: 'pim_assets_preview', methods: ['GET'])]
-    #[RequiresPermission(module: 'asset', action: 'read')]
+    #[NoPermissionRequired(reason: 'Registered under PUBLIC_ACCESS in security.yaml — <img> tags cannot send the Bearer token. Path-knowledge (UUID v7, 128-bit, non-enumerable) gates access; tenant isolation is by-id inside the handler. A RequiresPermission gate here would 403 every <img> request (anonymous principal) and break all thumbnails.')]
     public function __invoke(string $id, ?string $variant = null): StreamedResponse
     {
         $assetId = Uuid::fromString($id);
