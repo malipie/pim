@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useLogin } from '@refinedev/core';
+import { type AuthActionResponse, useLogin } from '@refinedev/core';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -15,81 +16,167 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const mfaSchema = z.object({
+  code: z.string().min(1),
+});
+
 type LoginValues = z.infer<typeof loginSchema>;
+type MfaValues = z.infer<typeof mfaSchema>;
+
+/** Variables accepted by the auth provider's `login` — password step OR 2FA step. */
+type LoginVariables = Partial<LoginValues> & { mfaToken?: string; code?: string };
+
+interface MfaChallengeResult {
+  mfaRequired?: boolean;
+  mfaToken?: string;
+}
 
 export function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { mutate: login, isPending } = useLogin<LoginValues>();
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setError,
-  } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
+  const { mutate: login, isPending } = useLogin<LoginVariables>();
 
-  const submit = handleSubmit((values) => {
+  // #1141 — once the password step reports `mfa_required`, we hold the
+  // short-lived challenge token and switch the form to the code step.
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+
+  const passwordForm = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
+  const mfaForm = useForm<MfaValues>({ resolver: zodResolver(mfaSchema) });
+
+  const goTo = (response: AuthActionResponse | undefined): void => {
+    const target = response?.redirectTo ?? '/dashboard';
+    navigate(typeof target === 'string' ? target : '/dashboard', { replace: true });
+  };
+
+  const submitPassword = passwordForm.handleSubmit((values) => {
     login(values, {
       onSuccess: (response) => {
-        // Refine collapses both validation and HTTP failures into a successful
-        // mutation with `success: false`; the routerProvider would normally
-        // honor the redirect — we do it manually since the admin uses plain
-        // react-router-7 instead of @refinedev/react-router.
-        if (response?.success === false) {
-          const message =
-            (response.error as { message?: string } | undefined)?.message ?? 'auth.login_failed';
-          setError('root', { message });
+        const result = response as (AuthActionResponse & MfaChallengeResult) | undefined;
+        if (result?.mfaRequired === true && typeof result.mfaToken === 'string') {
+          setMfaToken(result.mfaToken);
+          mfaForm.reset();
           return;
         }
-        const target = response?.redirectTo ?? '/dashboard';
-        navigate(typeof target === 'string' ? target : '/dashboard', { replace: true });
+        if (result?.success === false) {
+          passwordForm.setError('root', {
+            message: result.error?.message ?? 'auth.login_failed',
+          });
+          return;
+        }
+        goTo(result);
       },
       onError: () => {
-        setError('root', { message: 'auth.login_failed' });
+        passwordForm.setError('root', { message: 'auth.login_failed' });
       },
     });
   });
 
-  const rootErrorKey = errors.root?.message ?? null;
+  const submitMfa = mfaForm.handleSubmit((values) => {
+    if (mfaToken === null) {
+      return;
+    }
+    login(
+      { mfaToken, code: values.code },
+      {
+        onSuccess: (response) => {
+          if (response?.success === false) {
+            mfaForm.setError('root', {
+              message: response.error?.message ?? 'auth.mfa_invalid_code',
+            });
+            return;
+          }
+          goTo(response);
+        },
+        onError: () => {
+          mfaForm.setError('root', { message: 'auth.mfa_invalid_code' });
+        },
+      },
+    );
+  });
+
+  const backToPassword = (): void => {
+    setMfaToken(null);
+    mfaForm.reset();
+  };
+
+  const passwordRootError = passwordForm.formState.errors.root?.message ?? null;
+  const mfaRootError = mfaForm.formState.errors.root?.message ?? null;
+  const inMfaStep = mfaToken !== null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>{t('auth.login_title')}</CardTitle>
-          <CardDescription>{t('auth.login_subtitle')}</CardDescription>
+          <CardTitle>{inMfaStep ? t('auth.mfa_title') : t('auth.login_title')}</CardTitle>
+          <CardDescription>
+            {inMfaStep ? t('auth.mfa_subtitle') : t('auth.login_subtitle')}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={submit} className="space-y-4" noValidate>
-            <div className="space-y-2">
-              <Label htmlFor="email">{t('auth.email')}</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="username"
-                aria-invalid={errors.email ? 'true' : 'false'}
-                {...register('email')}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">{t('auth.password')}</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                aria-invalid={errors.password ? 'true' : 'false'}
-                {...register('password')}
-              />
-            </div>
-            {rootErrorKey ? (
-              <p className="text-sm text-destructive" role="alert">
-                {t(rootErrorKey)}
-              </p>
-            ) : null}
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? t('auth.submitting') : t('auth.submit')}
-            </Button>
-          </form>
+          {inMfaStep ? (
+            <form onSubmit={submitMfa} className="space-y-4" noValidate>
+              <div className="space-y-2">
+                <Label htmlFor="mfa-code">{t('auth.mfa_code')}</Label>
+                <Input
+                  id="mfa-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  aria-invalid={mfaForm.formState.errors.code ? 'true' : 'false'}
+                  {...mfaForm.register('code')}
+                />
+              </div>
+              {mfaRootError ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {t(mfaRootError)}
+                </p>
+              ) : null}
+              <Button type="submit" className="w-full" disabled={isPending}>
+                {isPending ? t('auth.submitting') : t('auth.mfa_submit')}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={backToPassword}
+                disabled={isPending}
+              >
+                {t('auth.mfa_back')}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={submitPassword} className="space-y-4" noValidate>
+              <div className="space-y-2">
+                <Label htmlFor="email">{t('auth.email')}</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="username"
+                  aria-invalid={passwordForm.formState.errors.email ? 'true' : 'false'}
+                  {...passwordForm.register('email')}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">{t('auth.password')}</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  aria-invalid={passwordForm.formState.errors.password ? 'true' : 'false'}
+                  {...passwordForm.register('password')}
+                />
+              </div>
+              {passwordRootError ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {t(passwordRootError)}
+                </p>
+              ) : null}
+              <Button type="submit" className="w-full" disabled={isPending}>
+                {isPending ? t('auth.submitting') : t('auth.submit')}
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
