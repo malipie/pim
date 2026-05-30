@@ -1,5 +1,11 @@
 # Current Status
 
+## 2026-05-30: polish drzew kategorii custom-OT (#1126 + #1127)
+- **#1126** (PR #1128, `0951f55`): drzewo kategorii widoczne przy pierwszym wejściu /modeling/categories — auto-select OT w `ObjectTypeFilterDropdown` przeniesiony z render-phase do `useEffect` (URL `targetObjectTypeId` stempluje się niezawodnie → `useList` enabled).
+- **#1127** (PR #1129, `1f5541f`): `categories/show.tsx` `EffectiveAttributesPreview` — preview po `objectTypeId` + lista categorizable OT (built-in+custom) zamiast hardcoded PREVIEW_KINDS; fix błędu „Built-in ObjectType for kind 'custom'". Default = pierwszy categorizable (GET category nie serializuje categoryTargetObjectType — default-to-own-tree = ewent. drobny follow-up).
+
+# Current Status
+
 ## 2026-05-30: feat — ADR-015 osobne drzewa kategorii per ObjectType (3 PR-y, kompletne)
 
 **ADR-015** (nowy ADR w `01-architektura-pim.md`): drzewo kategorii partycjonowane per docelowy ObjectType (`objects.category_target_object_type_id`). Dostarczone 3 PR-ami, wszystkie merged do main (`916c3cc`):
