@@ -9,7 +9,8 @@
 - **Live smoke (main)**: custom OT „Salony" → włącz categorizable → utwórz kategorię → drzewo Salony zawiera tylko ją, drzewo Product osobno (izolacja potwierdzona). Stan przywrócony.
 - **DECYZJE operatora**: bramka = `is_categorizable`; migracja = istniejące kategorie → Product, pozostałe OT bez drzewa (puste do utworzenia).
 - **PR-D [#1124]** (część 1/2 z #1121, merged `cfbc399`): `CategoryTreeAssignmentGuard` — przypisanie obiektu do kategorii z obcego drzewa → 422 (product+poly assignment controllers + atomic create). PHPUnit 51/51. Live smoke: salony-tree cat → Product = 422.
-- **#1121 część 2 NADAL OTWARTA**: `EffectiveAttributeGroups` `kind`→`objectId` dla dystrybucji atrybutów w custom-OT drzewach — większy refaktor (declare/list/preview endpointy + resolver + FE panel, rozmiar ~PR-A). Potrzebne dopiero gdy operator deklaruje grupy atrybutów na custom-OT drzewach (built-in/Product działa). Rozpisać plan przed implementacją.
+- **PR-E [#1125]** (część 2 #1121 — dostarczona, merged `41400a2`): custom-OT drzewa kategorii — (a) declare/list/effective `kind`→`objectId` (`CategoryAttributeGroupController` + `CategoryEffectiveGroupsController` akceptują `targetObjectTypeId`/`objectTypeId`; FE panel + dialog declare przekazują id) → fix błędu „Built-in ObjectType for kind 'custom' not found" przy deklarowaniu grupy na drzewie Samochody; (b) redirect po utworzeniu kategorii zachowuje scope drzewa. PHPUnit 9/9 + `declareByObjectTypeIdWorksForCustomTree`. Live smoke (main): declare na drzewie Salony → 201, effective-groups po objectId → 200.
+- **#1121 ZAMKNIĘTE** — część 1 (cross-tree guard, PR-D) + część 2 (declare/list/effective objectId, PR-E) dostarczone. Pozostałość: `categories/show.tsx` `PREVIEW_KINDS` hardcoded product/category/asset (osobny detail-page preview widget, nie flow operatora) — drobny nice-to-have, poza zakresem.
 
 ## 2026-05-30: feat — edytowalna nazwa obiektu + analiza/usunięcie odwrotnego attach (kontynuacja)
 
