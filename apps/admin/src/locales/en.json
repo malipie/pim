@@ -2324,5 +2324,8 @@
     "go_login": "Go to sign in",
     "toast_success": "Account activated. Welcome!",
     "toast_accepted_login_required": "Account activated. Please sign in to continue."
+  },
+  "object_detail": {
+    "name_placeholder": "Name"
   }
 }

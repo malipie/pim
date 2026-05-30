@@ -45,6 +45,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
 import { AttrGroupCard } from '@/features/catalog/products/components/attr-group-card';
 import { AttrRow } from '@/features/catalog/products/components/attr-row';
@@ -418,9 +419,23 @@ export function UniversalDetailPage({
                     : t('products.detail.status.inactive', { defaultValue: 'Nieaktywny' })}
                 </span>
               </div>
-              <h1 className="font-display mt-1 text-[26px] font-semibold leading-tight tracking-tight">
-                {nameValue}
-              </h1>
+              {isEditing ? (
+                <Input
+                  aria-label={t('object_detail.name_placeholder', { defaultValue: 'Nazwa' })}
+                  placeholder={t('object_detail.name_placeholder', { defaultValue: 'Nazwa' })}
+                  value={
+                    typeof fieldValue('name') === 'string'
+                      ? (fieldValue('name') as string)
+                      : nameValue
+                  }
+                  onChange={(event) => setFieldValue('name', event.target.value)}
+                  className="font-display mt-1 h-11 rounded-lg border-zinc-200 bg-white text-[26px] font-semibold tracking-tight"
+                />
+              ) : (
+                <h1 className="font-display mt-1 text-[26px] font-semibold leading-tight tracking-tight">
+                  {nameValue}
+                </h1>
+              )}
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <span className="soft-shadow rounded-full bg-white px-2 py-1 text-[11px] font-medium text-zinc-700">
                   {objectTypeLabel}
