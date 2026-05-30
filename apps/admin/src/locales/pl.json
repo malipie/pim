@@ -2374,5 +2374,8 @@
     "go_login": "Przejdź do logowania",
     "toast_success": "Konto aktywowane. Witaj!",
     "toast_accepted_login_required": "Konto aktywowane. Zaloguj się, żeby kontynuować."
+  },
+  "object_detail": {
+    "name_placeholder": "Nazwa"
   }
 }

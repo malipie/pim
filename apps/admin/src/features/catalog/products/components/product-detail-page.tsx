@@ -672,9 +672,23 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                         : t('products.detail.status.inactive', { defaultValue: 'Nieaktywny' })}
                     </span>
                   </div>
-                  <h1 className="font-display mt-1 text-[26px] font-semibold leading-tight tracking-tight">
-                    {nameValue}
-                  </h1>
+                  {isEditing ? (
+                    <Input
+                      aria-label={t('products.detail.create.placeholder.name', {
+                        defaultValue: 'Nazwa produktu',
+                      })}
+                      placeholder={t('products.detail.create.placeholder.name', {
+                        defaultValue: 'Nazwa produktu',
+                      })}
+                      value={nameValue}
+                      onChange={(event) => setFieldValue('name', event.target.value)}
+                      className="font-display mt-1 h-11 rounded-lg border-zinc-200 bg-white text-[26px] font-semibold tracking-tight"
+                    />
+                  ) : (
+                    <h1 className="font-display mt-1 text-[26px] font-semibold leading-tight tracking-tight">
+                      {nameValue}
+                    </h1>
+                  )}
                   {objectTypeName !== null ? (
                     <div className="mt-2.5 flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-zinc-700 soft-shadow">
