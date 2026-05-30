@@ -61,6 +61,7 @@ final class ObjectCategoryAssignmentController
         private readonly CatalogObjectRepositoryInterface $objects,
         private readonly ObjectCategoryRepositoryInterface $assignments,
         private readonly TenantContext $tenantContext,
+        private readonly \App\Catalog\Application\CategoryTreeAssignmentGuard $treeGuard,
     ) {
     }
 
@@ -141,7 +142,8 @@ final class ObjectCategoryAssignmentController
         }
 
         foreach ($categoryUuids as $uuid) {
-            $this->mustFindCategory($uuid->toRfc4122());
+            $category = $this->mustFindCategory($uuid->toRfc4122());
+            $this->treeGuard->assertSameTree($object, $category);
         }
 
         $this->assignments->replaceForProduct($object, $categoryUuids, $primaryUuid);
@@ -172,6 +174,7 @@ final class ObjectCategoryAssignmentController
             throw new UnprocessableEntityHttpException(\sprintf('"categoryId" is not a valid UUID: %s.', $rawCategory), $e);
         }
         $category = $this->mustFindCategory($categoryUuid->toRfc4122());
+        $this->treeGuard->assertSameTree($object, $category);
 
         $isPrimary = (bool) ($payload['isPrimary'] ?? false);
 
