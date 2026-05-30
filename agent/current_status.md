@@ -1,5 +1,11 @@
 # Current Status
 
+## 2026-05-30: feat — edytowalna nazwa obiektu + analiza/usunięcie odwrotnego attach (kontynuacja)
+
+- **Edytowalna nazwa obiektu** — Issue #1116 → PR [#1117](../../pull/1117) (merged, `61f6ca5`). Tytuł H1 na karcie obiektu/produktu był read-only dla istniejących wpisów (name edytowalny tylko jako zaszyte pole „Name"). Teraz w trybie edycji tytuł = `<Input>` spięty z atrybutem `name` (ten sam flow co create), w `universal-detail-page.tsx` + `product-detail-page.tsx` + i18n `object_detail.name_placeholder`. Bez zmian BE. Browser smoke oba widoki: edycja→zapis→persist→restore.
+- **Usunięcie karty „TYPY OBIEKTÓW"** ze strony atrybutu — Issue #1114 → PR #1115 (merged). Lustrzane wejście do junctiona `object_type_attributes`; po analizie architektonicznej (junction = load-bearing: 21/21 atrybutów Product + name/description custom OT) usunięto tylko mylący odwrotny widok FE, mechanizm bez zmian.
+- **ODŁOŻONE — osobne drzewa kategorii per ObjectType** (żądanie #2 operatora): zmiana architektoniczna ADR-014 (dziś jest JEDNO wspólne drzewo + select tylko zmienia target dystrybucji atrybutów; custom OT wykluczone z dropdownu — `ObjectTypeFilterDropdown` filtruje `builtIn && isCategorizable`, komentarz: „custom OT support waits on a backend ticket"). Wymaga ADR + Plan Mode + migracja + filtr API objectTypeId. **Do zrobienia w osobnej sesji.**
+
 ## 2026-05-30: bug-fix — karta obiektu: puste grupy + i18n effective_model
 
 Zgłoszenie operatora na `/objects/salony_sprzedazy/{id}`. Po researchu rozdzielone na 3 wątki:
