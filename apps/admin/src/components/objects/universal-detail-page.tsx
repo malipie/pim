@@ -124,13 +124,18 @@ export function UniversalDetailPage({
   const navigate = useNavigate();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
 
+  // #1150 — active locale drives the object read + write. Declared before
+  // the object query so it can be part of the query key (switching the
+  // picker refetches the locale-resolved reading).
+  const [locale, setLocale] = useState<ProductLocale>('pl');
+
   // UP-07 — poly-kind GET /api/objects/{id} (existing AP4 ApiResource).
   const objectQuery = useQuery({
-    queryKey: ['object', objectId],
+    queryKey: ['object', objectId, locale],
     enabled: objectId !== '',
     staleTime: 30_000,
     queryFn: async (): Promise<CatalogObjectDto> => {
-      return jsonFetch<CatalogObjectDto>(`/api/objects/${objectId}`, {
+      return jsonFetch<CatalogObjectDto>(`/api/objects/${objectId}?locale=${locale}`, {
         accept: 'application/ld+json',
       });
     },
@@ -200,7 +205,6 @@ export function UniversalDetailPage({
   }, [tabModeGroups, isCategorizable, hasMultimedia, hasVariants]);
 
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
-  const [locale, setLocale] = useState<ProductLocale>('pl');
   const [channel, setChannel] = useState<ProductChannel | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
@@ -224,6 +228,11 @@ export function UniversalDetailPage({
     setLocale(def.code);
     setDidInitLocale(true);
   }, [locales, didInitLocale]);
+
+  // #1150 — switching locale discards unsaved edits (saves before switch).
+  useEffect(() => {
+    setDirtyFields({});
+  }, [locale]);
 
   const [didExpandInitial, setDidExpandInitial] = useState(false);
   useEffect(() => {
@@ -260,7 +269,9 @@ export function UniversalDetailPage({
     setIsSaving(true);
     try {
       const attributes = stripAttributes(dirtyFields);
-      await jsonFetch(`/api/objects/${objectId}`, {
+      // #1150 — write in the active locale (BE routes localizable attrs to
+      // that locale, others stay global).
+      await jsonFetch(`/api/objects/${objectId}?locale=${locale}`, {
         method: 'PATCH',
         contentType: 'application/merge-patch+json',
         body: { attributes },

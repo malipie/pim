@@ -1,4 +1,3 @@
-import { useOne } from '@refinedev/core';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
@@ -130,10 +129,19 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     return searchParams.get('primary');
   }, [mode, searchParams]);
 
-  const { result, query } = useOne<CatalogObjectDto>({
-    resource: 'products',
-    id,
-    queryOptions: { enabled: isEditMode && id !== '' },
+  const [locale, setLocale] = useState<ProductLocale>('pl');
+
+  // #1150 — load the product in the active locale so localizable values
+  // reflect the picker. Replaces Refine's useOne (its getOne drops the
+  // query string); the locale is part of the query key, so switching the
+  // picker refetches the locale-resolved reading.
+  const productQuery = useQuery<CatalogObjectDto>({
+    queryKey: ['products', id, locale],
+    queryFn: () =>
+      jsonFetch<CatalogObjectDto>(`/api/products/${id}?locale=${locale}`, {
+        accept: 'application/ld+json',
+      }),
+    enabled: isEditMode && id !== '',
   });
 
   const { objectTypeId } = useDefaultObjectType('product');
@@ -146,7 +154,6 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   const hasMultimediaCapability = schemaQuery.data?.objectType.has_multimedia ?? false;
 
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
-  const [locale, setLocale] = useState<ProductLocale>('pl');
   const [channel, setChannel] = useState<ProductChannel | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(!isEditMode);
   const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
@@ -193,7 +200,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     }));
   }, [mode, createCategoryIds, createPrimaryId, categoriesListQuery.data]);
 
-  const product = isEditMode ? result : null;
+  const product = isEditMode ? (productQuery.data ?? null) : null;
   const attrs = useMemo(
     () =>
       unwrapAttributesIndexed(product?.attributesIndexed as Record<string, unknown> | undefined),
@@ -261,6 +268,12 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     setLocale(def.code);
     setDidInitLocale(true);
   }, [locales, didInitLocale]);
+
+  // #1150 — switching locale discards unsaved edits so a pl edit is never
+  // written to the en row; the operator saves before switching.
+  useEffect(() => {
+    setDirtyFields({});
+  }, [locale]);
 
   // MODR-03 (#925) — tab list derived dynamically from `groups`:
   // every group with `display_mode='tab'` becomes its own tab; groups
@@ -421,12 +434,14 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
           return;
         }
         const attributes = stripAttributes(dirtyFields);
-        await jsonFetch(`/api/products/${id}`, {
+        // #1150 — write in the active locale: localizable attributes land
+        // on that locale's row, others stay global (BE decides per flag).
+        await jsonFetch(`/api/products/${id}?locale=${locale}`, {
           method: 'PATCH',
           contentType: 'application/merge-patch+json',
           body: { attributes },
         });
-        await query.refetch();
+        await productQuery.refetch();
         setDirtyFields({});
         setIsEditing(false);
         toast.success(t('products.detail.save.success', { defaultValue: 'Zapisano zmiany' }));
@@ -469,10 +484,10 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   // still-loading and pinned the page on an infinite "Ładowanie…". Refine's
   // `useOne` returns `isLoading=false`, `isError=true`, `data=undefined`
   // after a 404, so we now check `isError` explicitly.
-  if (isEditMode && query.isLoading) {
+  if (isEditMode && productQuery.isLoading) {
     return <DetailLoadingState />;
   }
-  if (isEditMode && (query.isError || product === null || product === undefined)) {
+  if (isEditMode && (productQuery.isError || product === null || product === undefined)) {
     return (
       <DetailNotFoundState
         id={id}
