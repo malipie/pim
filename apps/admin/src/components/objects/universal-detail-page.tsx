@@ -57,6 +57,7 @@ import type {
   AttributeMeta,
   CatalogObjectDto,
   GroupMeta,
+  LocaleOption,
   ProductChannel,
   ProductLocale,
 } from '@/features/catalog/products/components/types';
@@ -136,12 +137,14 @@ export function UniversalDetailPage({
   });
 
   // UP-07a — poly-kind /api/objects/{id}/effective-attribute-groups.
-  const groupsQuery = useQuery<{ groups: GroupMeta[] }>({
+  const groupsQuery = useQuery<{ groups: GroupMeta[]; locales?: LocaleOption[] }>({
     queryKey: ['object', objectId, 'effective-attribute-groups'],
     enabled: objectId !== '',
     staleTime: 5_000,
     queryFn: () =>
-      jsonFetch<{ groups: GroupMeta[] }>(`/api/objects/${objectId}/effective-attribute-groups`),
+      jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
+        `/api/objects/${objectId}/effective-attribute-groups`,
+      ),
     placeholderData: (prev) => prev,
   });
 
@@ -169,6 +172,12 @@ export function UniversalDetailPage({
   // empty groups; here we only render groups that contribute attributes.
   const groups = useMemo(
     () => (groupsQuery.data?.groups ?? []).filter((g) => g.attributes.length > 0),
+    [groupsQuery.data],
+  );
+
+  // #1149 — dynamic locale picker from the tenant's enabled locales.
+  const locales = useMemo<LocaleOption[]>(
+    () => groupsQuery.data?.locales ?? [],
     [groupsQuery.data],
   );
 
@@ -205,6 +214,16 @@ export function UniversalDetailPage({
       setActiveTab('attributes');
     }
   }, [activeTab, visibleTabs]);
+
+  // #1149 — default the picker to the tenant default locale once loaded.
+  const [didInitLocale, setDidInitLocale] = useState(false);
+  useEffect(() => {
+    if (didInitLocale || locales.length === 0) return;
+    const def = locales.find((l) => l.is_default) ?? locales[0];
+    if (def === undefined) return;
+    setLocale(def.code);
+    setDidInitLocale(true);
+  }, [locales, didInitLocale]);
 
   const [didExpandInitial, setDidExpandInitial] = useState(false);
   useEffect(() => {
@@ -495,6 +514,7 @@ export function UniversalDetailPage({
             channel={channel}
             onLocaleChange={setLocale}
             onChannelChange={setChannel}
+            locales={locales}
           />
         </div>
       </header>

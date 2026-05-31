@@ -6,9 +6,19 @@
  *   GET /api/products/{id}/effective-attribute-groups → { groups: [...] }
  */
 
-export type ProductLocale = 'pl' | 'en' | 'de' | 'cs';
+// #1149 — a locale code is whatever the tenant has enabled, not a fixed
+// union. The real list comes from the effective-attribute-groups payload
+// (`locales`); PRODUCT_LOCALES is only a static fallback for pre-#1149
+// callers / first paint before the list loads.
+export type ProductLocale = string;
 
 export const PRODUCT_LOCALES: readonly ProductLocale[] = ['pl', 'en', 'de', 'cs'] as const;
+
+/** One enabled tenant locale, surfaced by `effective-attribute-groups` (#1149). */
+export interface LocaleOption {
+  code: string;
+  is_default: boolean;
+}
 
 export type ProductChannel = 'shopify' | 'baselinker' | 'allegro';
 
@@ -97,6 +107,8 @@ export interface GroupMeta {
 
 export interface EffectiveAttributeGroups {
   groups: GroupMeta[];
+  /** #1149 — tenant's enabled locales for the detail-page picker. */
+  locales?: LocaleOption[];
 }
 
 export type ProductDetailMode = 'edit' | 'create';
