@@ -46,10 +46,12 @@ import { LocaleChannelToolbar } from './locale-channel-toolbar';
 import { PreviewButton } from './preview-button';
 import { ProductMultimediaTab } from './product-multimedia-tab';
 import { RelationsTab } from './relations-tab';
+import { scopeQuery } from './scope';
 import { SyncStatusCard } from './sync-status-card';
 import type {
   AttributeMeta,
   CatalogObjectDto,
+  ChannelOption,
   GroupMeta,
   LocaleOption,
   ProductChannel,
@@ -130,15 +132,17 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   }, [mode, searchParams]);
 
   const [locale, setLocale] = useState<ProductLocale>('pl');
+  const [channel, setChannel] = useState<ProductChannel | null>(null);
 
-  // #1150 — load the product in the active locale so localizable values
-  // reflect the picker. Replaces Refine's useOne (its getOne drops the
-  // query string); the locale is part of the query key, so switching the
-  // picker refetches the locale-resolved reading.
+  // #1150 / #1155 — load the product in the active locale + channel so
+  // localizable / channel-scoped values reflect the picker. Replaces
+  // Refine's useOne (its getOne drops the query string); locale + channel
+  // are part of the query key, so switching either refetches the
+  // scope-resolved reading.
   const productQuery = useQuery<CatalogObjectDto>({
-    queryKey: ['products', id, locale],
+    queryKey: ['products', id, locale, channel],
     queryFn: () =>
-      jsonFetch<CatalogObjectDto>(`/api/products/${id}?locale=${locale}`, {
+      jsonFetch<CatalogObjectDto>(`/api/products/${id}${scopeQuery(locale, channel)}`, {
         accept: 'application/ld+json',
       }),
     enabled: isEditMode && id !== '',
@@ -154,7 +158,6 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   const hasMultimediaCapability = schemaQuery.data?.objectType.has_multimedia ?? false;
 
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
-  const [channel, setChannel] = useState<ProductChannel | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(!isEditMode);
   const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -269,11 +272,26 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     setDidInitLocale(true);
   }, [locales, didInitLocale]);
 
-  // #1150 — switching locale discards unsaved edits so a pl edit is never
-  // written to the en row; the operator saves before switching.
+  // #1155 — channel picker fed from /api/channels (tenant's real channels).
+  const channelsQuery = useQuery<ChannelOption[]>({
+    queryKey: ['channels', 'picker'],
+    queryFn: async () => {
+      const response = await jsonFetch<{ member?: ChannelOption[] } | ChannelOption[]>(
+        '/api/channels',
+        { accept: 'application/ld+json' },
+      );
+      return Array.isArray(response) ? response : (response.member ?? []);
+    },
+    enabled: isEditMode,
+    staleTime: 60_000,
+  });
+  const channels = channelsQuery.data ?? [];
+
+  // #1150 / #1155 — switching locale or channel discards unsaved edits so an
+  // edit is never written to the wrong scope; the operator saves first.
   useEffect(() => {
     setDirtyFields({});
-  }, [locale]);
+  }, [locale, channel]);
 
   // MODR-03 (#925) — tab list derived dynamically from `groups`:
   // every group with `display_mode='tab'` becomes its own tab; groups
@@ -434,9 +452,10 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
           return;
         }
         const attributes = stripAttributes(dirtyFields);
-        // #1150 — write in the active locale: localizable attributes land
-        // on that locale's row, others stay global (BE decides per flag).
-        await jsonFetch(`/api/products/${id}?locale=${locale}`, {
+        // #1150 / #1155 — write in the active locale + channel: localizable
+        // / scopable attributes land on that scope's row, others stay
+        // global (BE decides per flag).
+        await jsonFetch(`/api/products/${id}${scopeQuery(locale, channel)}`, {
           method: 'PATCH',
           contentType: 'application/merge-patch+json',
           body: { attributes },
@@ -791,6 +810,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
               onLocaleChange={setLocale}
               onChannelChange={setChannel}
               locales={locales}
+              channels={channels}
             />
           ) : null}
         </div>

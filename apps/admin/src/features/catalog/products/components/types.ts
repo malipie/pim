@@ -20,13 +20,22 @@ export interface LocaleOption {
   is_default: boolean;
 }
 
-export type ProductChannel = 'shopify' | 'baselinker' | 'allegro';
+// #1155 — a channel code is whatever the tenant configured (Settings →
+// Channels), not a fixed union. The real list comes from `/api/channels`;
+// PRODUCT_CHANNELS is only a static fallback before that loads.
+export type ProductChannel = string;
 
 export const PRODUCT_CHANNELS: readonly ProductChannel[] = [
   'shopify',
   'baselinker',
   'allegro',
 ] as const;
+
+/** One tenant channel for the detail-page picker (#1155). */
+export interface ChannelOption {
+  code: string;
+  label?: Record<string, string>;
+}
 
 export interface CatalogObjectDto {
   id: string;
