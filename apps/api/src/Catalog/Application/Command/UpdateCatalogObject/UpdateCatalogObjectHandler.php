@@ -6,9 +6,11 @@ namespace App\Catalog\Application\Command\UpdateCatalogObject;
 
 use App\Catalog\Application\ObjectAttributesUpserter;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Shared\Domain\Tenant;
 use Doctrine\ORM\OptimisticLockException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -79,7 +81,16 @@ final readonly class UpdateCatalogObjectHandler
         }
 
         if (null !== $command->attributes && [] !== $command->attributes) {
-            $this->attributesUpserter->upsert($object, $command->attributes);
+            $tenant = $object->getTenant();
+            if (null !== $command->locale
+                && $tenant instanceof Tenant
+                && !$tenant->isLocaleEnabled($command->locale)) {
+                throw new UnprocessableEntityHttpException(\sprintf(
+                    'Locale "%s" is not enabled for this tenant.',
+                    $command->locale,
+                ));
+            }
+            $this->attributesUpserter->upsert($object, $command->attributes, locale: $command->locale);
         }
     }
 }

@@ -42,11 +42,19 @@ final readonly class ObjectAttributesUpserter
 
     /**
      * @param array<string, mixed> $payload
+     * @param ?string              $locale  active locale scope (#1148). When set
+     *                                      AND the attribute is localizable AND the
+     *                                      locale is not the tenant's primary, the
+     *                                      value is written to that locale; otherwise
+     *                                      it lands on the global (locale=null) row.
+     *                                      Default locale === global keeps legacy data
+     *                                      and non-localizable attributes shared.
      */
     public function upsert(
         CatalogObject $object,
         array $payload,
         Provenance $provenance = Provenance::Manual,
+        ?string $locale = null,
     ): void {
         $tenant = $object->getTenant();
         if (!$tenant instanceof Tenant) {
@@ -55,6 +63,8 @@ final readonly class ObjectAttributesUpserter
             // listener has already run by the time this service is called.
             return;
         }
+
+        $isNonPrimaryLocale = null !== $locale && $locale !== $tenant->getPrimaryLocale();
 
         foreach ($payload as $code => $rawValue) {
             if ('' === $code) {
@@ -66,9 +76,11 @@ final readonly class ObjectAttributesUpserter
                 continue;
             }
 
+            $targetLocale = $isNonPrimaryLocale && $attribute->isLocalizable() ? $locale : null;
+
             $jsonbValue = $this->wrapValue($rawValue);
 
-            $existing = $this->values->findOneByScope($object, $attribute);
+            $existing = $this->values->findOneByScope($object, $attribute, null, $targetLocale);
             if ($existing instanceof ObjectValue) {
                 $existing->updateValue($jsonbValue);
                 $existing->changeProvenance($provenance);
@@ -82,6 +94,7 @@ final readonly class ObjectAttributesUpserter
                 attribute: $attribute,
                 value: $jsonbValue,
                 provenance: $provenance,
+                locale: $targetLocale,
             );
             $this->values->save($value);
         }

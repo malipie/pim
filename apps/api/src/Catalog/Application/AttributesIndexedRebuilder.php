@@ -17,13 +17,12 @@ use Doctrine\ORM\EntityManagerInterface;
  *   - synchronously from the Doctrine listener after a single-edit flush,
  *   - asynchronously from the bulk-rebuild Messenger handler.
  *
- * Indexing strategy: every `ObjectValue` row contributes one entry under
- * its Attribute.code with the JSONB `value` payload. Per-channel /
- * per-locale variants overlay the global value — we keep the latest
- * (channel-first, then locale-first ordering) so the cache reflects the
- * most-specific entry. The full lookup-priority logic lives in the read
- * path (ApiResource serializer in #41); here we just lay them down in
- * a stable ordering.
+ * Indexing strategy (#1148): the cache holds only the GLOBAL reading
+ * (locale=null, channel=null) — one entry per Attribute.code with its
+ * JSONB `value` payload. Per-locale / per-channel `ObjectValue` rows are
+ * skipped here and overlaid on the read path
+ * ({@see \App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectLocaleOverlayProvider}).
+ * Keeping the cache global keeps list views + Meilisearch deterministic.
  *
  * Completeness reads `ObjectType.completeness_rules.required` (a list of
  * Attribute codes) and reports how many of those have at least one
@@ -51,11 +50,16 @@ final readonly class AttributesIndexedRebuilder
 
         $indexed = [];
         foreach ($values as $value) {
-            $code = $value->getAttribute()->getCode();
-            // Single global row wins by default; channel/locale overrides
-            // overlay in deterministic order. The serializer in #41 picks
-            // the most specific reading.
-            $indexed[$code] = $value->getValue();
+            // #1148 — the denormalised cache holds ONLY the global reading
+            // (locale=null, channel=null). Per-locale / per-channel rows are
+            // surfaced on the read path by CatalogObjectLocaleOverlayProvider;
+            // letting them into the cache makes lists + Meilisearch flicker
+            // by last-written scope (non-deterministic) and miscounts global
+            // completeness. Per-scope search/completeness is deferred (#1152).
+            if (null !== $value->getLocale() || null !== $value->getChannelId()) {
+                continue;
+            }
+            $indexed[$value->getAttribute()->getCode()] = $value->getValue();
         }
 
         $object->updateAttributeIndex($indexed);

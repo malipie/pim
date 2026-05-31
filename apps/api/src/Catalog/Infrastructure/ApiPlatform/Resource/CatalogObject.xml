@@ -122,6 +122,7 @@
             <operation class="ApiPlatform\Metadata\Get"
                        uriTemplate="/products/{id}{._format}"
                        name="products_get"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectLocaleOverlayProvider"
                        security="is_granted('READ', object)">
                 <extraProperties>
                     <values>
@@ -205,6 +206,7 @@
             <operation class="ApiPlatform\Metadata\Get"
                        uriTemplate="/categories/{id}{._format}"
                        name="categories_get"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectLocaleOverlayProvider"
                        security="is_granted('READ', object)">
                 <extraProperties>
                     <values>
@@ -331,6 +333,7 @@
             <operation class="ApiPlatform\Metadata\Get"
                        uriTemplate="/objects/{id}{._format}"
                        name="objects_get"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectLocaleOverlayProvider"
                        security="is_granted('READ', object)"/>
 
             <!-- Poly-kind create (#981) — relation picker modal's
