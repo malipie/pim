@@ -8,11 +8,14 @@ use App\Import\Application\Service\ImportObjectCreator;
 use App\Import\Application\Service\ImportProgressPublisher;
 use App\Import\Application\Service\ImportRowReader;
 use App\Import\Application\Service\ImportValidationService;
+use App\Import\Domain\ColumnHeader;
 use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Message\ImportRunMessage;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
 use App\Import\Domain\ReservedMappingTarget;
+use App\Import\Domain\SystemColumn;
+use App\Import\Domain\ValueObject\ResolvedImportValue;
 use App\Import\Domain\ValueObject\ValidationError;
 use App\Shared\Application\AbstractBatchHandler;
 use App\Shared\Application\BulkOperationInProgressException;
@@ -168,11 +171,11 @@ final class ImportRunHandler extends AbstractBatchHandler
                 $rowOk = [] === $blockingErrors;
 
                 if ($rowOk) {
-                    $valueByAttributeCode = $this->materialiseValues($cells, $columnMapping);
+                    $resolvedValues = $this->materialiseValues($cells, $columnMapping);
                     $this->creator->create(
                         objectType: $session->getTargetObjectType(),
-                        sku: $valueByAttributeCode['sku'] ?? \sprintf('IMPORT-%d', $rowNumber),
-                        valueByAttributeCode: $valueByAttributeCode,
+                        sku: $this->skuFrom($resolvedValues, $rowNumber),
+                        resolvedValues: $resolvedValues,
                         attributesByCode: $attributesByCode,
                         importSessionId: $session->getId(),
                         categoryCode: $this->extractCategoryCode($cells, $columnMapping),
@@ -266,22 +269,55 @@ final class ImportRunHandler extends AbstractBatchHandler
     }
 
     /**
+     * Resolves every mapped, non-system column into a {@see ResolvedImportValue}
+     * carrying the attribute code + the locale parsed from its dotted
+     * header. A list (not a flat map) keeps several localised columns that
+     * target the same attribute (`name.pl`, `name.en`) distinct (#1130).
+     *
      * @param array<string, string|null> $cells
      * @param array<string, string>      $columnMapping
      *
-     * @return array<string, string|null>
+     * @return list<ResolvedImportValue>
      */
     private function materialiseValues(array $cells, array $columnMapping): array
     {
         $out = [];
         foreach ($columnMapping as $columnHeader => $attributeCode) {
+            if (SystemColumn::isSystem($columnHeader)) {
+                continue;
+            }
             if ('' === $attributeCode || ReservedMappingTarget::isReserved($attributeCode)) {
                 continue;
             }
-            $out[$attributeCode] = $cells[$columnHeader] ?? null;
+            $out[] = new ResolvedImportValue(
+                attributeCode: $attributeCode,
+                locale: ColumnHeader::localeOf($columnHeader),
+                rawValue: $cells[$columnHeader] ?? null,
+            );
         }
 
         return $out;
+    }
+
+    /**
+     * SKU is non-localised — the first resolved `sku` value with content
+     * wins. Falls back to a synthetic code so a row that somehow passed
+     * validation without one still persists rather than collides on an
+     * empty unique key.
+     *
+     * @param list<ResolvedImportValue> $resolvedValues
+     */
+    private function skuFrom(array $resolvedValues, int $rowNumber): string
+    {
+        foreach ($resolvedValues as $resolved) {
+            if ('sku' === $resolved->attributeCode
+                && null !== $resolved->rawValue
+                && '' !== $resolved->rawValue) {
+                return $resolved->rawValue;
+            }
+        }
+
+        return \sprintf('IMPORT-%d', $rowNumber);
     }
 
     /**

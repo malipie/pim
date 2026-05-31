@@ -55,6 +55,14 @@ final readonly class ImportRowReader
     }
 
     /**
+     * Maps cells by their column letter (`A`, `B`, …) rather than by the
+     * iterator position. Exported XLSX files omit empty cells, so the
+     * data row can jump `A2 → C2` (skipping a blank `parent_sku`). A
+     * positional `headers[$i] => cells[$i]` mapping would then shift every
+     * value left of the gap onto the wrong header. Keying both the header
+     * row and each data row on the column coordinate keeps them aligned
+     * regardless of which cells the file materialises (#1130).
+     *
      * @return Generator<int, array<string, string|null>>
      */
     private function iterateXlsx(string $absolutePath): Generator
@@ -64,22 +72,32 @@ final readonly class ImportRowReader
         $spreadsheet = $reader->load($absolutePath);
         $sheet = $spreadsheet->getSheet(0);
 
-        $headers = [];
+        /** @var array<string, string> $headersByColumn column letter → header label */
+        $headersByColumn = [];
         $rowNumber = 0;
         foreach ($sheet->getRowIterator() as $row) {
             ++$rowNumber;
-            $cells = [];
+
+            $cellsByColumn = [];
             foreach ($row->getCellIterator() as $cell) {
                 $value = $cell->getValue();
-                $cells[] = null === $value ? null : (string) (\is_scalar($value) ? $value : '');
+                $cellsByColumn[$cell->getColumn()] = null === $value
+                    ? null
+                    : (string) (\is_scalar($value) ? $value : '');
             }
+
             if (1 === $rowNumber) {
-                $headers = array_map(static fn (?string $v): string => $v ?? '', $cells);
+                foreach ($cellsByColumn as $column => $label) {
+                    if (null !== $label && '' !== $label) {
+                        $headersByColumn[$column] = $label;
+                    }
+                }
                 continue;
             }
+
             $assoc = [];
-            foreach ($headers as $index => $header) {
-                $assoc[$header] = $cells[$index] ?? null;
+            foreach ($headersByColumn as $column => $header) {
+                $assoc[$header] = $cellsByColumn[$column] ?? null;
             }
             yield $rowNumber - 1 => $assoc;
         }

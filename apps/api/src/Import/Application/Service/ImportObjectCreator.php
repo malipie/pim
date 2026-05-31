@@ -13,6 +13,7 @@ use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Provenance;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Import\Domain\ValueObject\ResolvedImportValue;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -36,22 +37,24 @@ final class ImportObjectCreator
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly CatalogObjectRepositoryInterface $catalogObjects,
+        private readonly CompositeValueParser $compositeValueParser,
     ) {
     }
 
     /**
-     * @param array<string, string|null> $valueByAttributeCode
-     * @param array<string, Attribute>   $attributesByCode
-     * @param ?string                    $categoryCode         `code` of the category to assign the new
-     *                                                         product to. Single category per row
-     *                                                         (becomes primary). Silently skipped when
-     *                                                         the lookup fails — the validator emitted
-     *                                                         the CategoryNotFound warning earlier.
+     * @param list<ResolvedImportValue> $resolvedValues   mapped cells with the locale parsed from
+     *                                                    their dotted header (`name.pl` → `pl`)
+     * @param array<string, Attribute>  $attributesByCode
+     * @param ?string                   $categoryCode     `code` of the category to assign the new
+     *                                                    product to. Single category per row
+     *                                                    (becomes primary). Silently skipped when
+     *                                                    the lookup fails — the validator emitted
+     *                                                    the CategoryNotFound warning earlier.
      */
     public function create(
         ObjectType $objectType,
         string $sku,
-        array $valueByAttributeCode,
+        array $resolvedValues,
         array $attributesByCode,
         Uuid $importSessionId,
         ?string $categoryCode = null,
@@ -61,11 +64,12 @@ final class ImportObjectCreator
         $object->assignImportSession($importSessionId);
         $this->em->persist($object);
 
-        foreach ($valueByAttributeCode as $attributeCode => $rawValue) {
+        foreach ($resolvedValues as $resolved) {
+            $rawValue = $resolved->rawValue;
             if (null === $rawValue || '' === $rawValue) {
                 continue;
             }
-            $attribute = $attributesByCode[$attributeCode] ?? null;
+            $attribute = $attributesByCode[$resolved->attributeCode] ?? null;
             if (!$attribute instanceof Attribute) {
                 continue;
             }
@@ -80,6 +84,7 @@ final class ImportObjectCreator
                 attribute: $attribute,
                 value: $valuePayload,
                 provenance: Provenance::Import,
+                locale: $resolved->locale,
             ));
         }
 
@@ -99,18 +104,27 @@ final class ImportObjectCreator
     }
 
     /**
-     * Maps the raw CSV cell into the JSONB shape expected by
-     * {@see ObjectValue::$value}. Returns null when the value is
-     * uninterpretable for the attribute type — that path stays out of
-     * the import (the validator already flagged it as InvalidType).
+     * Maps the raw CSV / XLSX cell into the JSONB shape stored on
+     * {@see ObjectValue::$value} for the attribute type (shapes documented
+     * on the entity + docs/api/jsonb-schemas.md). Returns null when the
+     * value is uninterpretable — that path stays out of the import (the
+     * validator already flagged it as InvalidType).
      *
      * @return array<string, mixed>|null
      */
     private function buildValuePayload(Attribute $attribute, string $raw): ?array
     {
         return match ($attribute->getType()) {
-            AttributeType::Number, AttributeType::Price, AttributeType::Metric => $this->numericPayload($raw),
+            AttributeType::Number => $this->numericPayload($raw),
+            // Composite envelopes mirror the exporter: price keeps
+            // {amount, currency}, metric keeps {value, unit} (#1130).
+            AttributeType::Price => $this->compositeValueParser->parsePrice($raw),
+            AttributeType::Metric => $this->compositeValueParser->parseMetric($raw),
             AttributeType::Boolean => ['value' => $this->parseBoolean($raw)],
+            AttributeType::Select => ['option_code' => $raw],
+            AttributeType::Multiselect => $this->multiSelectPayload($raw),
+            AttributeType::Asset => ['asset_id' => $raw],
+            AttributeType::Relation, AttributeType::Reference => ['object_id' => $raw],
             default => ['value' => $raw],
         };
     }
@@ -126,6 +140,23 @@ final class ImportObjectCreator
         }
 
         return ['value' => (float) $normalised];
+    }
+
+    /**
+     * Splits the pipe-joined token list the exporter writes for
+     * multiselect values (`ValueSerializer::MULTI_VALUE_GLUE`) back into
+     * an option-code array.
+     *
+     * @return array{option_codes: list<string>}
+     */
+    private function multiSelectPayload(string $raw): array
+    {
+        $codes = array_values(array_filter(
+            array_map('trim', explode('|', $raw)),
+            static fn (string $code): bool => '' !== $code,
+        ));
+
+        return ['option_codes' => $codes];
     }
 
     private function parseBoolean(string $raw): bool

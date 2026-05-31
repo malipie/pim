@@ -106,6 +106,53 @@ final class AutoMapperTest extends TestCase
     }
 
     #[Test]
+    public function localisedHeaderMatchesItsAttributeBase(): void
+    {
+        // Re-importing an export: `name.pl` / `description.en` must auto-map
+        // to their attribute (the locale is re-derived from the header
+        // later), not fall through to manual (#1130).
+        $mapper = $this->mapperWithDictionary([
+            'name' => ['aliases' => ['name', 'nazwa']],
+            'description' => ['aliases' => ['description', 'opis']],
+        ]);
+
+        $suggestions = $mapper->map(
+            ['name', 'description'],
+            ['name.pl', 'description.en'],
+            [],
+        );
+
+        self::assertSame('name', $suggestions[0]->suggestedAttributeCode);
+        self::assertSame(MappingConfidence::Auto, $suggestions[0]->confidence);
+        self::assertSame('description', $suggestions[1]->suggestedAttributeCode);
+        self::assertSame(MappingConfidence::Auto, $suggestions[1]->confidence);
+    }
+
+    #[Test]
+    public function systemColumnsAreSuggestedAsSkip(): void
+    {
+        $mapper = $this->mapperWithDictionary([
+            'sku' => ['aliases' => ['sku']],
+        ]);
+
+        $suggestions = $mapper->map(
+            ['sku'],
+            ['sku', 'created_at', 'updated_at', 'completeness_pct', 'status', 'enabled', 'parent_sku'],
+            [],
+        );
+
+        self::assertSame(MappingConfidence::Auto, $suggestions[0]->confidence, 'sku still auto-maps.');
+        foreach (\array_slice($suggestions, 1) as $suggestion) {
+            self::assertSame(
+                MappingConfidence::Skip,
+                $suggestion->confidence,
+                \sprintf('System column "%s" should be Skip.', $suggestion->columnHeader),
+            );
+            self::assertNull($suggestion->suggestedAttributeCode);
+        }
+    }
+
+    #[Test]
     public function diacriticsAreNormalisedThroughTheStripper(): void
     {
         $mapper = $this->mapperWithRealDictionary();

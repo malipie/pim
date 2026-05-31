@@ -10,10 +10,12 @@ use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Import\Domain\ColumnHeader;
 use App\Import\Domain\Enum\FileEncoding;
 use App\Import\Domain\Enum\ImportErrorType;
 use App\Import\Domain\Enum\ImportLogLevel;
 use App\Import\Domain\ReservedMappingTarget;
+use App\Import\Domain\SystemColumn;
 use App\Import\Domain\ValueObject\ValidationError;
 use App\Import\Domain\ValueObject\ValidationResult;
 use App\Shared\Application\TenantContext;
@@ -45,6 +47,7 @@ final readonly class ImportValidationService
         private CatalogObjectRepositoryInterface $catalogObjects,
         private TenantContext $tenantContext,
         private ImportRowReader $rowReader,
+        private CompositeValueParser $compositeValueParser,
     ) {
     }
 
@@ -130,10 +133,25 @@ final readonly class ImportValidationService
     ): array {
         $errors = [];
 
-        $valueByAttribute = [];
+        // Each entry is one mapped cell with the locale parsed from its
+        // dotted header (`name.pl` → locale `pl`). Several localised
+        // columns can target the same attribute, so we keep a list rather
+        // than a flat code → value map (which the round-trip export would
+        // otherwise collapse — #1130).
+        /** @var list<array{code: string, locale: ?string, value: ?string, header: string}> $cellValues */
+        $cellValues = [];
+        // Tracks whether an attribute has a non-empty value in ANY locale
+        // column — drives the required-attribute check.
+        $presentByAttribute = [];
         $categoryCellValue = null;
         $categoryColumnName = null;
         foreach ($columnMapping as $columnHeader => $attributeCode) {
+            // System / read-only export columns (timestamps, status,
+            // completeness, …) never carry an Attribute value — skip them
+            // so re-importing an export does not flag them.
+            if (SystemColumn::isSystem($columnHeader)) {
+                continue;
+            }
             if (ReservedMappingTarget::SKIP === $attributeCode || '' === $attributeCode) {
                 continue;
             }
@@ -149,14 +167,24 @@ final readonly class ImportValidationService
                 }
                 continue;
             }
-            $valueByAttribute[$attributeCode] = $cells[$columnHeader] ?? null;
+            $cell = $cells[$columnHeader] ?? null;
+            $cellValues[] = [
+                'code' => $attributeCode,
+                'locale' => ColumnHeader::localeOf($columnHeader),
+                'value' => $cell,
+                'header' => $columnHeader,
+            ];
+            if (null !== $cell && '' !== $cell) {
+                $presentByAttribute[$attributeCode] = true;
+            }
         }
 
-        $sku = $valueByAttribute[self::SKU_ATTRIBUTE_CODE] ?? null;
+        $sku = $this->firstNonEmptyValueFor(self::SKU_ATTRIBUTE_CODE, $cellValues);
 
         foreach (self::REQUIRED_ATTRIBUTE_CODES as $requiredCode) {
-            $value = $valueByAttribute[$requiredCode] ?? null;
-            if (null === $value || '' === $value) {
+            // A localised required attribute (`name.pl`/`name.en`) is
+            // satisfied when any one locale carries a value.
+            if (!isset($presentByAttribute[$requiredCode])) {
                 $errors[] = new ValidationError(
                     rowNumber: $rowNumber,
                     sku: $sku,
@@ -164,7 +192,7 @@ final readonly class ImportValidationService
                     level: ImportLogLevel::Error,
                     message: \sprintf('Missing required attribute "%s".', $requiredCode),
                     columnName: $requiredCode,
-                    columnValue: $value,
+                    columnValue: null,
                 );
             }
         }
@@ -196,11 +224,12 @@ final readonly class ImportValidationService
             }
         }
 
-        foreach ($valueByAttribute as $attributeCode => $value) {
+        foreach ($cellValues as $cellValue) {
+            $value = $cellValue['value'];
             if (null === $value || '' === $value) {
                 continue;
             }
-            $attribute = $attributesByCode[$attributeCode] ?? null;
+            $attribute = $attributesByCode[$cellValue['code']] ?? null;
             if (!$attribute instanceof Attribute) {
                 continue;
             }
@@ -212,7 +241,7 @@ final readonly class ImportValidationService
                     errorType: ImportErrorType::InvalidType,
                     level: ImportLogLevel::Error,
                     message: $typeError,
-                    columnName: $attributeCode,
+                    columnName: $cellValue['header'],
                     columnValue: $value,
                 );
             }
@@ -274,9 +303,15 @@ final readonly class ImportValidationService
     private function validateScalarType(Attribute $attribute, string $value): ?string
     {
         return match ($attribute->getType()) {
-            AttributeType::Number, AttributeType::Price, AttributeType::Metric => is_numeric(str_replace(',', '.', $value))
-                    ? null
-                    : \sprintf('"%s" is not a valid number for "%s".', $value, $attribute->getCode()),
+            AttributeType::Number => is_numeric(str_replace(',', '.', $value))
+                ? null
+                : \sprintf('"%s" is not a valid number for "%s".', $value, $attribute->getCode()),
+            // Price + metric round-trip as `<number> <currency|unit>`
+            // (e.g. "20.99 EUR", "0.3 g") — accept the composite form the
+            // exporter emits, not just a bare number.
+            AttributeType::Price, AttributeType::Metric => $this->compositeValueParser->isNumericOrComposite($value)
+                ? null
+                : \sprintf('"%s" is not a valid number for "%s".', $value, $attribute->getCode()),
             AttributeType::Date => false === strtotime($value)
                 ? \sprintf('"%s" is not a valid date for "%s".', $value, $attribute->getCode())
                 : null,
@@ -285,5 +320,26 @@ final readonly class ImportValidationService
                 : \sprintf('"%s" is not a valid boolean for "%s".', $value, $attribute->getCode()),
             default => null,
         };
+    }
+
+    /**
+     * First non-empty cell value targeting the given attribute code,
+     * across every (locale) column that maps to it.
+     *
+     * @param list<array{code: string, locale: ?string, value: ?string, header: string}> $cellValues
+     */
+    private function firstNonEmptyValueFor(string $attributeCode, array $cellValues): ?string
+    {
+        foreach ($cellValues as $cellValue) {
+            if ($cellValue['code'] !== $attributeCode) {
+                continue;
+            }
+            $value = $cellValue['value'];
+            if (null !== $value && '' !== $value) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 }
