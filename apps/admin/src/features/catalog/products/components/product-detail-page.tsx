@@ -52,6 +52,7 @@ import type {
   AttributeMeta,
   CatalogObjectDto,
   GroupMeta,
+  LocaleOption,
   ProductChannel,
   ProductDetailMode,
   ProductLocale,
@@ -204,7 +205,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   // immune to invalidation). In create mode the query keys flip between
   // the preview endpoint (when categories are selected) and the bare
   // ObjectType endpoint (when none are selected yet).
-  const groupsQuery = useQuery<{ groups: GroupMeta[] }>({
+  const groupsQuery = useQuery<{ groups: GroupMeta[]; locales?: LocaleOption[] }>({
     queryKey:
       isEditMode && id !== ''
         ? ['products', id, 'effective-attribute-groups']
@@ -216,13 +217,15 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
           ],
     queryFn: async () => {
       if (isEditMode && id !== '') {
-        return jsonFetch<{ groups: GroupMeta[] }>(`/api/products/${id}/effective-attribute-groups`);
+        return jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
+          `/api/products/${id}/effective-attribute-groups`,
+        );
       }
       if (objectTypeId === null) {
         return { groups: [] };
       }
       if (createCategoryIds.length > 0) {
-        return jsonFetch<{ groups: GroupMeta[] }>(
+        return jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
           `/api/object_types/${objectTypeId}/effective-attribute-groups/preview`,
           {
             method: 'POST',
@@ -232,7 +235,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
           },
         );
       }
-      return jsonFetch<{ groups: GroupMeta[] }>(
+      return jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
         `/api/object_types/${objectTypeId}/effective-attribute-groups`,
       );
     },
@@ -242,6 +245,22 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   });
 
   const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data]);
+
+  // #1149 — the locale picker is fed from the tenant's real enabled locales
+  // (shipped by effective-attribute-groups). Default the selection to the
+  // tenant default once, then respect manual switches.
+  const locales = useMemo<LocaleOption[]>(
+    () => groupsQuery.data?.locales ?? [],
+    [groupsQuery.data],
+  );
+  const [didInitLocale, setDidInitLocale] = useState(false);
+  useEffect(() => {
+    if (didInitLocale || locales.length === 0) return;
+    const def = locales.find((l) => l.is_default) ?? locales[0];
+    if (def === undefined) return;
+    setLocale(def.code);
+    setDidInitLocale(true);
+  }, [locales, didInitLocale]);
 
   // MODR-03 (#925) — tab list derived dynamically from `groups`:
   // every group with `display_mode='tab'` becomes its own tab; groups
@@ -756,6 +775,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
               channel={channel}
               onLocaleChange={setLocale}
               onChannelChange={setChannel}
+              locales={locales}
             />
           ) : null}
         </div>

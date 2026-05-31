@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import {
+  type LocaleOption,
   PRODUCT_CHANNELS,
   PRODUCT_LOCALES,
   type ProductChannel,
@@ -23,6 +24,11 @@ export interface LocaleChannelToolbarProps {
   channel: ProductChannel | null;
   onLocaleChange: (next: ProductLocale) => void;
   onChannelChange: (next: ProductChannel | null) => void;
+  /**
+   * #1149 — the tenant's enabled locales (from `effective-attribute-groups`).
+   * Falls back to the static PRODUCT_LOCALES on first paint / when absent.
+   */
+  locales?: LocaleOption[];
 }
 
 const CHANNEL_LABELS: Record<ProductChannel, string> = {
@@ -42,8 +48,11 @@ export function LocaleChannelToolbar({
   channel,
   onLocaleChange,
   onChannelChange,
+  locales,
 }: LocaleChannelToolbarProps) {
   const { t } = useTranslation();
+  const localeCodes: readonly string[] =
+    locales !== undefined && locales.length > 0 ? locales.map((l) => l.code) : PRODUCT_LOCALES;
 
   return (
     <div className="flex items-center gap-2">
@@ -64,7 +73,7 @@ export function LocaleChannelToolbar({
             {t('products.detail.locale.label', { defaultValue: 'Język' })}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {PRODUCT_LOCALES.map((option) => (
+          {localeCodes.map((option) => (
             <DropdownMenuItem
               key={option}
               onClick={() => onLocaleChange(option)}
