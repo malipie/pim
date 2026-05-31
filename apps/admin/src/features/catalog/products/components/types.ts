@@ -53,6 +53,14 @@ export interface AttributeMeta {
   type: string;
   label: { pl?: string; en?: string };
   is_system: boolean;
+  /**
+   * #1151 — whether the attribute carries a distinct value per locale.
+   * Replaces the old code-suffix heuristic for the AttrRow locale chip and
+   * gates the per-locale read/write flow (#1150). `is_scopable` is its
+   * channel-axis counterpart (#1147).
+   */
+  is_localizable?: boolean;
+  is_scopable?: boolean;
   position: number;
   is_required_in_group: boolean;
   visible_when?: unknown;

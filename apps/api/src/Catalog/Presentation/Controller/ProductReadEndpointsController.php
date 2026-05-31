@@ -14,6 +14,7 @@ use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
 use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Shared\Domain\Tenant;
 use App\Shared\Infrastructure\Audit\CursorCodec;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
@@ -302,7 +303,33 @@ final class ProductReadEndpointsController
         return new JsonResponse([
             'product_id' => $product->getId()->toRfc4122(),
             'groups' => $effective,
+            // #1149 — the locale picker is fed from here (a `products.view`
+            // endpoint the detail page already calls) rather than the
+            // permission-gated /api/tenant-locales, so an operator without
+            // settings access still gets the tenant's real locales.
+            'locales' => $this->serializeTenantLocales($product),
         ]);
+    }
+
+    /**
+     * @return list<array{code: string, is_default: bool}>
+     */
+    private function serializeTenantLocales(CatalogObject $product): array
+    {
+        $tenant = $product->getTenant();
+        if (!$tenant instanceof Tenant) {
+            return [];
+        }
+        $primary = $tenant->getPrimaryLocale();
+
+        $locales = [];
+        foreach ($tenant->getEnabledLocales() as $code) {
+            $locales[] = ['code' => $code, 'is_default' => $code === $primary];
+        }
+        // Primary first so the picker defaults to it deterministically.
+        usort($locales, static fn (array $a, array $b): int => ($b['is_default'] ? 1 : 0) <=> ($a['is_default'] ? 1 : 0));
+
+        return $locales;
     }
 
     private function mustFindProduct(string $id): CatalogObject
@@ -370,6 +397,12 @@ final class ProductReadEndpointsController
             'type' => $attribute->getType()->value,
             'label' => $attribute->getLabel(),
             'is_system' => $attribute->isSystem(),
+            // #1151 — drives the per-locale value flow on the detail page:
+            // the AttrRow chip + per-locale read/write switch on this flag
+            // instead of the old code-suffix heuristic. is_scopable pairs
+            // it for the channels epic (#1147).
+            'is_localizable' => $attribute->isLocalizable(),
+            'is_scopable' => $attribute->isScopable(),
             'position' => $position,
             'is_required_in_group' => $isRequiredInGroup,
             'visible_when' => $visibleWhen,

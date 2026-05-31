@@ -109,6 +109,80 @@ final class EffectiveAttributeGroupsApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function exposesIsLocalizablePerAttributeAndTenantLocales(): void
+    {
+        $client = $this->authenticatedClient();
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+
+        $productType = self::getContainer()
+            ->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert(null !== $productType);
+
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenantContext->set($tenant);
+
+        $localized = new Attribute('loc_title_eag', ['pl' => 'Tytuł', 'en' => 'Title'], AttributeType::Text);
+        $localized->changeLocalizable(true);
+        $shared = new Attribute('shared_brand_eag', ['pl' => 'Marka', 'en' => 'Brand'], AttributeType::Text);
+        $em = $this->em();
+        $em->persist($localized);
+        $em->persist($shared);
+        $em->flush();
+
+        $service = self::getContainer()->get(ObjectTypeService::class);
+        $service->assignAttribute($productType, $localized, required: false, sortOrder: 0);
+        $service->assignAttribute($productType, $shared, required: false, sortOrder: 1);
+        $tenantContext->clear();
+
+        $created = $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'EAG-LOC',
+                'objectTypeId' => $productType->getId()->toRfc4122(),
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray();
+        $id = $created['id'] ?? null;
+        \assert(\is_string($id));
+
+        $body = $client->request('GET', '/api/products/'.$id.'/effective-attribute-groups')->toArray();
+
+        // is_localizable exposed per attribute.
+        $groups = $body['groups'] ?? [];
+        \assert(\is_array($groups));
+        $byCode = [];
+        foreach ($groups as $group) {
+            \assert(\is_array($group));
+            $attributes = $group['attributes'] ?? [];
+            \assert(\is_array($attributes));
+            foreach ($attributes as $attr) {
+                \assert(\is_array($attr) && \is_string($attr['code'] ?? null));
+                $byCode[$attr['code']] = $attr;
+            }
+        }
+        self::assertArrayHasKey('loc_title_eag', $byCode);
+        self::assertTrue($byCode['loc_title_eag']['is_localizable']);
+        self::assertArrayHasKey('shared_brand_eag', $byCode);
+        self::assertFalse($byCode['shared_brand_eag']['is_localizable']);
+
+        // Tenant locales surfaced for the picker (default first).
+        $locales = $body['locales'] ?? [];
+        \assert(\is_array($locales) && [] !== $locales);
+        $codes = [];
+        foreach ($locales as $entry) {
+            \assert(\is_array($entry) && \is_string($entry['code'] ?? null));
+            $codes[] = $entry['code'];
+        }
+        self::assertContains('pl', $codes);
+        self::assertContains('en', $codes);
+        $first = $locales[0];
+        \assert(\is_array($first));
+        self::assertTrue($first['is_default'], 'Default locale is listed first.');
+        self::assertSame('pl', $first['code']);
+    }
+
+    #[Test]
     public function exposesDisplayModePerGroupAndSyntheticGroupIsStacked(): void
     {
         // MODR-03 (#925) — every group in the payload carries a
