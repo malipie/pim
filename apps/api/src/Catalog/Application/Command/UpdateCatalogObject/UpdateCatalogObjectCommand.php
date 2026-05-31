@@ -43,6 +43,12 @@ final readonly class UpdateCatalogObjectCommand
          * throws 409 on mismatch.
          */
         public ?int $expectedVersion = null,
+        /**
+         * #1148 — locale scope for the attribute write. NULL = global
+         * (default). A non-primary tenant locale routes localizable
+         * attributes to that locale; non-localizable ones stay global.
+         */
+        public ?string $locale = null,
     ) {
     }
 }

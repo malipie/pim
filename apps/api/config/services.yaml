@@ -123,6 +123,14 @@ services:
         arguments:
             $decorated: '@.inner'
 
+    # #1148 — GET-item provider that overlays per-locale attribute values
+    # when `?locale=` is present. Wraps the default Doctrine ORM item
+    # provider (autowire cannot resolve the generic ProviderInterface to
+    # that specific service, so bind it explicitly).
+    App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectLocaleOverlayProvider:
+        arguments:
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+
     # Context-scope decorator (#42 / 0.4.2). Wraps the KindAware decorator
     # so the chain is: AP4 default → KindAware (per-kind groups, opt-in)
     # → ContextScope (?context=integration|public override). Explicit
