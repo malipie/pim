@@ -56,10 +56,14 @@ final class SystemAttributesAuditGroupTest extends TestCase
     }
 
     #[Test]
-    public function datetimeAndReferenceTypesAreSystemTypes(): void
+    public function onlyReferenceIsASystemType(): void
     {
-        self::assertTrue(AttributeType::Datetime->isSystemType());
+        // #1177 — `datetime` became a user-facing, validated type; `created_at`/
+        // `updated_at` stay read-only via the instance `isSystem` flag (see
+        // markSystemFlipsTheFlag), not via the type. Only `reference` remains
+        // a system type.
         self::assertTrue(AttributeType::Reference->isSystemType());
+        self::assertFalse(AttributeType::Datetime->isSystemType());
         self::assertFalse(AttributeType::Text->isSystemType());
         self::assertFalse(AttributeType::Date->isSystemType());
         self::assertFalse(AttributeType::Relation->isSystemType());

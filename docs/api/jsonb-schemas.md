@@ -95,9 +95,10 @@ Schema unionowa — pole `validation_rules` jest interpretowane przez validator 
   "properties": {
     "max_length":   { "type": "integer", "minimum": 1, "description": "text, wysiwyg" },
     "min_length":   { "type": "integer", "minimum": 0, "description": "text, wysiwyg" },
-    "pattern":      { "type": "string", "description": "text — regex JS-compatible" },
-    "min":          { "type": "number", "description": "number, metric, price" },
-    "max":          { "type": "number", "description": "number, metric, price" },
+    "pattern":      { "type": "string", "description": "text, email — regex JS-compatible (email: extra domain allow-list on top of RFC 5322 check)" },
+    "color_format": { "enum": ["hex", "rgb"], "description": "color (#1177) — `hex` (#RRGGBB, default) or `rgb` (rgb(r, g, b))" },
+    "min":          { "type": ["number", "string"], "description": "number, metric, price (number); date, datetime (ISO 8601 string — floor)" },
+    "max":          { "type": ["number", "string"], "description": "number, metric, price (number); date, datetime (ISO 8601 string — ceil)" },
     "min_amount":   { "type": "number", "description": "price — wymóg na amount" },
     "max_amount":   { "type": "number", "description": "price" },
     "currencies":   { "type": "array", "items": { "type": "string", "minLength": 3, "maxLength": 3 }, "description": "price — allowed ISO 4217 codes" },

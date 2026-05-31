@@ -198,6 +198,38 @@ export function AttrRow({
               onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
               className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 text-[13.5px]"
             />
+          ) : attribute.type === 'color' ? (
+            // #1177 — native colour picker paired with a hex text field so
+            // operators can paste an exact `#RRGGBB` or pick visually. The
+            // picker falls back to black when the stored value is not a
+            // valid hex (e.g. empty / legacy rgb), but the text field keeps
+            // showing the raw value for editing.
+            <div className="flex items-center gap-2">
+              <input
+                id={`attr-${attribute.code}`}
+                type="color"
+                value={isHexColor(stringValue) ? stringValue : '#000000'}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-9 w-12 cursor-pointer rounded-lg border border-zinc-200 bg-white p-1"
+                aria-label={label}
+              />
+              <Input
+                type="text"
+                value={stringValue}
+                onChange={(event) => onChange(event.target.value)}
+                placeholder="#RRGGBB"
+                className="w-32 rounded-xl border-zinc-200 bg-white px-3 py-2 font-mono text-[13px]"
+              />
+            </div>
+          ) : attribute.type === 'email' ? (
+            <Input
+              id={`attr-${attribute.code}`}
+              type="email"
+              value={stringValue}
+              onChange={(event) => onChange(event.target.value)}
+              placeholder="name@example.com"
+              className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 text-[13.5px]"
+            />
           ) : attribute.type === 'select' ? (
             <Combobox
               options={toComboboxOptions(selectOptions, lang)}
@@ -229,6 +261,21 @@ export function AttrRow({
           )
         ) : attribute.type === 'wysiwyg' ? (
           <WysiwygEditor value={stringValue} onChange={() => undefined} readOnly />
+        ) : attribute.type === 'color' && isHexColor(stringValue) ? (
+          <div className="flex items-center gap-2 px-3 py-2 text-[13.5px]">
+            <span
+              className="size-4 rounded border border-zinc-200"
+              style={{ background: stringValue }}
+              aria-hidden
+            />
+            <span className="font-mono text-[13px] text-ink">{stringValue}</span>
+          </div>
+        ) : attribute.type === 'email' && stringValue !== '' ? (
+          <div className="px-3 py-2 text-[13.5px]">
+            <a href={`mailto:${stringValue}`} className="text-accent-blue hover:underline">
+              {stringValue}
+            </a>
+          </div>
         ) : (
           <div
             className={cn(
@@ -347,6 +394,14 @@ function readDatetimeValue(value: unknown): string {
   if (typeof value !== 'string') return '';
   const head = value.slice(0, 16);
   return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(head) ? head : '';
+}
+
+/**
+ * `<input type="color">` only accepts a `#rrggbb` value. #1177 — used to
+ * decide whether the stored colour can drive the native picker / swatch.
+ */
+function isHexColor(value: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(value);
 }
 
 /**

@@ -215,7 +215,9 @@ final readonly class GetObjectTypeListSchemaHandler
         }
 
         return match ($attribute->getType()) {
-            AttributeType::Text, AttributeType::Wysiwyg => true,
+            // #1177 — textarea is free-form text content scored well by
+            // Meilisearch full-text; color/email are exact-match, not searchable.
+            AttributeType::Text, AttributeType::Wysiwyg, AttributeType::Textarea => true,
             default => false,
         };
     }

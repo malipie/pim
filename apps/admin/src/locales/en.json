@@ -10,6 +10,24 @@
     "brand_subtitle_fallback": "Workspace",
     "delete_error": "Failed to delete"
   },
+  "attribute_type": {
+    "text": "Text",
+    "textarea": "Text area",
+    "number": "Number",
+    "select": "Select",
+    "multiselect": "Multi-select",
+    "date": "Date",
+    "datetime": "Date & time",
+    "boolean": "Yes/No",
+    "asset": "Asset",
+    "reference": "Reference",
+    "relation": "Relation",
+    "price": "Price",
+    "metric": "Metric",
+    "wysiwyg": "Rich text",
+    "color": "Color",
+    "email": "Email"
+  },
   "user_menu": {
     "aria_label": "User menu",
     "account": "Account",

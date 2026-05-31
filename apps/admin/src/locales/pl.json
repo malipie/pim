@@ -10,6 +10,24 @@
     "brand_subtitle_fallback": "Workspace",
     "delete_error": "Nie udało się usunąć"
   },
+  "attribute_type": {
+    "text": "Tekst",
+    "textarea": "Pole tekstowe",
+    "number": "Liczba",
+    "select": "Lista wyboru",
+    "multiselect": "Wielokrotny wybór",
+    "date": "Data",
+    "datetime": "Data i czas",
+    "boolean": "Tak/Nie",
+    "asset": "Zasób",
+    "reference": "Referencja",
+    "relation": "Relacja",
+    "price": "Cena",
+    "metric": "Miara",
+    "wysiwyg": "Tekst sformatowany",
+    "color": "Kolor",
+    "email": "E-mail"
+  },
   "user_menu": {
     "aria_label": "Menu użytkownika",
     "account": "Konto",

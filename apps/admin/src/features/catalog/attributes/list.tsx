@@ -33,6 +33,7 @@ const TYPE_FILTERS = [
   'all',
   'system',
   'text',
+  'textarea',
   'number',
   'boolean',
   'select',
@@ -45,6 +46,8 @@ const TYPE_FILTERS = [
   'price',
   'metric',
   'wysiwyg',
+  'color',
+  'email',
 ] as const;
 
 type TypeFilter = (typeof TYPE_FILTERS)[number];
@@ -150,19 +153,23 @@ export function AttributesListPage() {
             className="flex-1 min-w-[180px] bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground"
           />
           <div className="flex flex-wrap items-center gap-1">
-            {TYPE_FILTERS.map((t) => (
+            {TYPE_FILTERS.map((opt) => (
               <button
-                key={t}
+                key={opt}
                 type="button"
-                onClick={() => setFilter(t)}
+                onClick={() => setFilter(opt)}
                 className={cn(
                   'flex h-7 items-center rounded-lg px-2.5 text-[11.5px] font-medium transition',
-                  filter === t
+                  filter === opt
                     ? 'bg-zinc-900 text-white'
                     : 'text-muted-foreground hover:bg-zinc-100',
                 )}
               >
-                {t === 'all' ? 'wszystkie' : t}
+                {opt === 'all'
+                  ? t('attributes.filter.all', { defaultValue: 'wszystkie' })
+                  : opt === 'system'
+                    ? t('attributes.filter.system', { defaultValue: 'system' })
+                    : t(`attribute_type.${opt}`, { defaultValue: opt })}
               </button>
             ))}
           </div>
@@ -287,7 +294,7 @@ function TypeBadge({ type }: { type: string }) {
   const tone =
     type === 'number' || type === 'metric' || type === 'price'
       ? 'bg-accent-blue/10 text-accent-blue'
-      : type === 'select' || type === 'multiselect'
+      : type === 'select' || type === 'multiselect' || type === 'color'
         ? 'bg-accent-amber/10 text-accent-amber'
         : type === 'boolean'
           ? 'bg-accent-emerald/10 text-accent-emerald'

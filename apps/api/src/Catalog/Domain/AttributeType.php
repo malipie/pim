@@ -8,7 +8,7 @@ namespace App\Catalog\Domain;
  * Catalog of attribute types supported in MVP.
  *
  * Per ADR-006 (hybrid attribute model): every catalog attribute carries a
- * type that drives storage, validation, and rendering. The 10 cases below
+ * type that drives storage, validation, and rendering. The cases below
  * cover MVP needs — adding a new type is a coordinated change across:
  *   - this enum (new case);
  *   - per-type validator (#39 / 0.3.9);
@@ -51,19 +51,50 @@ enum AttributeType: string
     case Wysiwyg = 'wysiwyg';
 
     /**
-     * UI-08.3 (#258) — system attribute types. Used by `created_at`/
-     * `updated_at` (Datetime) and `created_by`/`updated_by` (Reference, with
-     * `validation_rules.target_entity = 'user'` per epik plan §12.2).
+     * UI-08.3 (#258) — date + time value.
      *
-     * Read-only in MVP: no AttributeValueValidator binding because system
-     * attributes are never written via the catalog write path — they are
-     * stamped on the `objects` row by Doctrine listeners and surfaced in the
-     * form schema for display only. A future ticket adds renderers; until
-     * then the dispatcher's "no validator registered" branch is the safe
-     * fallback if anyone ever tries to POST a value against these.
+     * Originally introduced as a read-only *system* type backing
+     * `created_at`/`updated_at`. Since #1177 it is also a user-facing,
+     * writable type (release date + time, promotion deadline, delivery
+     * schedule) with a {@see TypeValidator\DatetimeValidator} binding.
+     * The system fields stay read-only via the instance-level
+     * {@see Attribute::isSystem()} flag, not via the type, so the two
+     * use-cases coexist on one enum case.
      */
     case Datetime = 'datetime';
+
+    /**
+     * UI-08.3 (#258) — system attribute type. Used by `created_by`/
+     * `updated_by` (Reference, with `validation_rules.target_entity = 'user'`
+     * per epik plan §12.2).
+     *
+     * Read-only in MVP: no AttributeValueValidator binding because the
+     * reference values are stamped on the `objects` row by Doctrine
+     * listeners and surfaced in the form schema for display only. The
+     * dispatcher's "no validator registered" branch is the safe fallback
+     * if anyone ever tries to POST a value against it.
+     */
     case Reference = 'reference';
+
+    /**
+     * #1177 — short plain-text without HTML. Distinct from `wysiwyg`
+     * (rich HTML) and `text` (single line): renders a multi-line
+     * `<textarea>` and keeps CSV export readable. Stored as a single
+     * `string` in `object_values.value->>'value'`.
+     */
+    case Textarea = 'textarea';
+
+    /**
+     * #1177 — colour value as a hex (`#RRGGBB`) or `rgb(...)` string.
+     * UI renders a colour picker + swatch chip; usable as a visual filter.
+     */
+    case Color = 'color';
+
+    /**
+     * #1177 — email address (manufacturer/supplier contact). Validated
+     * against an RFC 5322-lite pattern; UI renders an `<input type="email">`.
+     */
+    case Email = 'email';
 
     public function usesOptions(): bool
     {
@@ -72,6 +103,6 @@ enum AttributeType: string
 
     public function isSystemType(): bool
     {
-        return self::Datetime === $this || self::Reference === $this;
+        return self::Reference === $this;
     }
 }
