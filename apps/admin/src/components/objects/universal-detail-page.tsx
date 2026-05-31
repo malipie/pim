@@ -53,9 +53,11 @@ import { CompletenessRing } from '@/features/catalog/products/components/complet
 import { EffectiveModelCard } from '@/features/catalog/products/components/effective-model-card';
 import { LocaleChannelToolbar } from '@/features/catalog/products/components/locale-channel-toolbar';
 import { ProductMultimediaTab } from '@/features/catalog/products/components/product-multimedia-tab';
+import { scopeQuery } from '@/features/catalog/products/components/scope';
 import type {
   AttributeMeta,
   CatalogObjectDto,
+  ChannelOption,
   GroupMeta,
   LocaleOption,
   ProductChannel,
@@ -128,14 +130,16 @@ export function UniversalDetailPage({
   // the object query so it can be part of the query key (switching the
   // picker refetches the locale-resolved reading).
   const [locale, setLocale] = useState<ProductLocale>('pl');
+  const [channel, setChannel] = useState<ProductChannel | null>(null);
 
   // UP-07 — poly-kind GET /api/objects/{id} (existing AP4 ApiResource).
+  // #1150 / #1155 — locale + channel scope the read (part of the query key).
   const objectQuery = useQuery({
-    queryKey: ['object', objectId, locale],
+    queryKey: ['object', objectId, locale, channel],
     enabled: objectId !== '',
     staleTime: 30_000,
     queryFn: async (): Promise<CatalogObjectDto> => {
-      return jsonFetch<CatalogObjectDto>(`/api/objects/${objectId}?locale=${locale}`, {
+      return jsonFetch<CatalogObjectDto>(`/api/objects/${objectId}${scopeQuery(locale, channel)}`, {
         accept: 'application/ld+json',
       });
     },
@@ -205,7 +209,6 @@ export function UniversalDetailPage({
   }, [tabModeGroups, isCategorizable, hasMultimedia, hasVariants]);
 
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
-  const [channel, setChannel] = useState<ProductChannel | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -229,10 +232,24 @@ export function UniversalDetailPage({
     setDidInitLocale(true);
   }, [locales, didInitLocale]);
 
-  // #1150 — switching locale discards unsaved edits (saves before switch).
+  // #1155 — channel picker fed from /api/channels (tenant's real channels).
+  const channelsQuery = useQuery<ChannelOption[]>({
+    queryKey: ['channels', 'picker'],
+    queryFn: async () => {
+      const response = await jsonFetch<{ member?: ChannelOption[] } | ChannelOption[]>(
+        '/api/channels',
+        { accept: 'application/ld+json' },
+      );
+      return Array.isArray(response) ? response : (response.member ?? []);
+    },
+    staleTime: 60_000,
+  });
+  const channels = channelsQuery.data ?? [];
+
+  // #1150 / #1155 — switching locale or channel discards unsaved edits.
   useEffect(() => {
     setDirtyFields({});
-  }, [locale]);
+  }, [locale, channel]);
 
   const [didExpandInitial, setDidExpandInitial] = useState(false);
   useEffect(() => {
@@ -269,9 +286,9 @@ export function UniversalDetailPage({
     setIsSaving(true);
     try {
       const attributes = stripAttributes(dirtyFields);
-      // #1150 — write in the active locale (BE routes localizable attrs to
-      // that locale, others stay global).
-      await jsonFetch(`/api/objects/${objectId}?locale=${locale}`, {
+      // #1150 / #1155 — write in the active locale + channel (BE routes
+      // localizable/scopable attrs to that scope, others stay global).
+      await jsonFetch(`/api/objects/${objectId}${scopeQuery(locale, channel)}`, {
         method: 'PATCH',
         contentType: 'application/merge-patch+json',
         body: { attributes },
@@ -526,6 +543,7 @@ export function UniversalDetailPage({
             onLocaleChange={setLocale}
             onChannelChange={setChannel}
             locales={locales}
+            channels={channels}
           />
         </div>
       </header>
