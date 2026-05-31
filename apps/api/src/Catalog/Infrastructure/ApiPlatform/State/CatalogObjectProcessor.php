@@ -158,8 +158,11 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
         // param (`?locale=en`), not a body field: JSON Merge Patch cannot
         // tell an absent locale from an explicit null, and a body key would
         // collide with the attribute payload.
-        $localeParam = $this->requestStack->getCurrentRequest()?->query->get('locale');
+        $request = $this->requestStack->getCurrentRequest();
+        $localeParam = $request?->query->get('locale');
+        $channelParam = $request?->query->get('channel');
         $locale = \is_string($localeParam) && '' !== $localeParam ? $localeParam : null;
+        $channel = \is_string($channelParam) && '' !== $channelParam ? $channelParam : null;
 
         $command = new UpdateCatalogObjectCommand(
             id: $id,
@@ -172,6 +175,7 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
             attributes: $data->attributes,
             expectedVersion: $data->expectedVersion,
             locale: $locale,
+            channel: $channel,
         );
         $this->dispatch($command);
 

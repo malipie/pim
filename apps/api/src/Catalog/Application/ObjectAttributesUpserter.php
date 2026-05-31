@@ -11,6 +11,7 @@ use App\Catalog\Domain\Provenance;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Shared\Domain\Tenant;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Map a flat `{attribute_code => value}` payload into `ObjectValue`
@@ -42,19 +43,24 @@ final readonly class ObjectAttributesUpserter
 
     /**
      * @param array<string, mixed> $payload
-     * @param ?string              $locale  active locale scope (#1148). When set
-     *                                      AND the attribute is localizable AND the
-     *                                      locale is not the tenant's primary, the
-     *                                      value is written to that locale; otherwise
-     *                                      it lands on the global (locale=null) row.
-     *                                      Default locale === global keeps legacy data
-     *                                      and non-localizable attributes shared.
+     * @param ?string              $locale    active locale scope (#1148). When set
+     *                                        AND the attribute is localizable AND the
+     *                                        locale is not the tenant's primary, the
+     *                                        value is written to that locale; otherwise
+     *                                        it lands on the global (locale=null) row.
+     *                                        Default locale === global keeps legacy data
+     *                                        and non-localizable attributes shared.
+     * @param ?Uuid                $channelId resolved active channel scope (#1154). When set
+     *                                        AND the attribute is scopable, the value is written
+     *                                        to that channel; otherwise it lands on the global
+     *                                        (channel=null) row.
      */
     public function upsert(
         CatalogObject $object,
         array $payload,
         Provenance $provenance = Provenance::Manual,
         ?string $locale = null,
+        ?Uuid $channelId = null,
     ): void {
         $tenant = $object->getTenant();
         if (!$tenant instanceof Tenant) {
@@ -77,10 +83,11 @@ final readonly class ObjectAttributesUpserter
             }
 
             $targetLocale = $isNonPrimaryLocale && $attribute->isLocalizable() ? $locale : null;
+            $targetChannel = null !== $channelId && $attribute->isScopable() ? $channelId : null;
 
             $jsonbValue = $this->wrapValue($rawValue);
 
-            $existing = $this->values->findOneByScope($object, $attribute, null, $targetLocale);
+            $existing = $this->values->findOneByScope($object, $attribute, $targetChannel, $targetLocale);
             if ($existing instanceof ObjectValue) {
                 $existing->updateValue($jsonbValue);
                 $existing->changeProvenance($provenance);
@@ -94,6 +101,7 @@ final readonly class ObjectAttributesUpserter
                 attribute: $attribute,
                 value: $jsonbValue,
                 provenance: $provenance,
+                channelId: $targetChannel,
                 locale: $targetLocale,
             );
             $this->values->save($value);

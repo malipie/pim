@@ -44,9 +44,13 @@ final readonly class CatalogObjectLocaleOverlayProvider implements ProviderInter
             return null;
         }
 
-        $locale = $this->requestStack->getCurrentRequest()?->query->get('locale');
-        if (\is_string($locale) && '' !== $locale) {
-            return $this->overlay->apply($object, $locale);
+        $request = $this->requestStack->getCurrentRequest();
+        $localeParam = $request?->query->get('locale');
+        $channelParam = $request?->query->get('channel');
+        $locale = \is_string($localeParam) && '' !== $localeParam ? $localeParam : null;
+        $channel = \is_string($channelParam) && '' !== $channelParam ? $channelParam : null;
+        if (null !== $locale || null !== $channel) {
+            return $this->overlay->apply($object, $locale, $channel);
         }
 
         return $object;
