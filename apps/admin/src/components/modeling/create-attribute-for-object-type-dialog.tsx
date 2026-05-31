@@ -36,6 +36,7 @@ interface ObjectTypePickerRow {
 
 const TYPES = [
   'text',
+  'textarea',
   'number',
   'select',
   'multiselect',
@@ -48,6 +49,8 @@ const TYPES = [
   'price',
   'metric',
   'wysiwyg',
+  'color',
+  'email',
 ] as const;
 
 interface Props {
@@ -298,7 +301,7 @@ export function CreateAttributeForObjectTypeDialog({
                 >
                   {TYPES.map((opt) => (
                     <option key={opt} value={opt}>
-                      {opt}
+                      {t(`attribute_type.${opt}`, { defaultValue: opt })}
                     </option>
                   ))}
                 </select>

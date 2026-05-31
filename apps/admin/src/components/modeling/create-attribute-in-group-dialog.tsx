@@ -36,6 +36,7 @@ interface ObjectTypePickerRow {
 
 const TYPES = [
   'text',
+  'textarea',
   'number',
   'select',
   'multiselect',
@@ -48,6 +49,8 @@ const TYPES = [
   'price',
   'metric',
   'wysiwyg',
+  'color',
+  'email',
 ] as const;
 
 interface Props {
@@ -264,9 +267,9 @@ export function CreateAttributeInGroupDialog({
                   onChange={(e) => setType(e.target.value as (typeof TYPES)[number])}
                   className="mt-1.5 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-[13px] font-medium"
                 >
-                  {TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
+                  {TYPES.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {t(`attribute_type.${opt}`, { defaultValue: opt })}
                     </option>
                   ))}
                 </select>

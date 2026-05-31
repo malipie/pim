@@ -25,6 +25,7 @@ interface UsageResp {
 const TYPE_OPTIONS = [
   'all',
   'text',
+  'textarea',
   'number',
   'boolean',
   'select',
@@ -37,6 +38,8 @@ const TYPE_OPTIONS = [
   'price',
   'metric',
   'wysiwyg',
+  'color',
+  'email',
 ] as const;
 
 interface Props {
@@ -200,9 +203,13 @@ export function AddAttributesFromLibraryDialog({
             onChange={(e) => setTypeFilter(e.target.value as (typeof TYPE_OPTIONS)[number])}
             className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-[13px] font-medium"
           >
-            {TYPE_OPTIONS.map((t) => (
-              <option key={t} value={t}>
-                {t === 'all' ? 'Wszystkie typy' : t}
+            {TYPE_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt === 'all'
+                  ? t('modeling.attributeGroups.add_from_library.all_types', {
+                      defaultValue: 'Wszystkie typy',
+                    })
+                  : t(`attribute_type.${opt}`, { defaultValue: opt })}
               </option>
             ))}
           </select>

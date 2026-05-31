@@ -52,10 +52,10 @@ final class AttributeValueValidatorTest extends TestCase
         $validator = AttributeValueValidator::default();
 
         // Smoke: every non-system AttributeType case must dispatch to a real
-        // validator, not the unsupported_type fallback. System types
-        // (`datetime`, `reference` per UI-08.3) are intentionally read-only
-        // — they have no validator binding and the dispatcher's fallback is
-        // expected behaviour for them.
+        // validator, not the unsupported_type fallback. The only system type
+        // (`reference` per UI-08.3) is intentionally read-only — it has no
+        // validator binding and the dispatcher's fallback is expected
+        // behaviour for it. `datetime` became user-facing in #1177.
         foreach (AttributeType::cases() as $type) {
             if ($type->isSystemType()) {
                 continue;
@@ -76,12 +76,13 @@ final class AttributeValueValidatorTest extends TestCase
     {
         $validator = AttributeValueValidator::default();
 
-        foreach ([AttributeType::Datetime, AttributeType::Reference] as $type) {
-            $attribute = new Attribute('sys_'.$type->value, ['en' => 'sys'], $type);
-            $errors = $validator->validate($attribute, []);
+        // `reference` is the only remaining read-only system type (#1177
+        // promoted `datetime` to a user-facing, validated type).
+        $type = AttributeType::Reference;
+        $attribute = new Attribute('sys_'.$type->value, ['en' => 'sys'], $type);
+        $errors = $validator->validate($attribute, []);
 
-            self::assertNotEmpty($errors);
-            self::assertSame('attribute.unsupported_type', $errors[0]->code);
-        }
+        self::assertNotEmpty($errors);
+        self::assertSame('attribute.unsupported_type', $errors[0]->code);
     }
 }

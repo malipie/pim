@@ -7599,7 +7599,10 @@
                             "metric",
                             "wysiwyg",
                             "datetime",
-                            "reference"
+                            "reference",
+                            "textarea",
+                            "color",
+                            "email"
                         ]
                     },
                     "validationRules": {
@@ -7711,7 +7714,11 @@
                             "relation",
                             "price",
                             "metric",
-                            "wysiwyg"
+                            "wysiwyg",
+                            "datetime",
+                            "textarea",
+                            "color",
+                            "email"
                         ],
                         "default": "text",
                         "type": "string"
@@ -7944,7 +7951,10 @@
                                     "metric",
                                     "wysiwyg",
                                     "datetime",
-                                    "reference"
+                                    "reference",
+                                    "textarea",
+                                    "color",
+                                    "email"
                                 ]
                             },
                             "validationRules": {

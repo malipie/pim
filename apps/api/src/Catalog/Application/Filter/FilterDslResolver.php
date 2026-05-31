@@ -82,6 +82,20 @@ final class FilterDslResolver
             self::OP_EQ, self::OP_NEQ, self::OP_IS_EMPTY, self::OP_IS_NOT_EMPTY,
             self::OP_STARTS_WITH, self::OP_ENDS_WITH, self::OP_CONTAINS, self::OP_NOT_CONTAINS,
         ],
+        // #1177 — textarea/email share the text operator set (free-form
+        // strings); color is exact-match / set membership (visual filter).
+        'textarea' => [
+            self::OP_EQ, self::OP_NEQ, self::OP_IS_EMPTY, self::OP_IS_NOT_EMPTY,
+            self::OP_STARTS_WITH, self::OP_ENDS_WITH, self::OP_CONTAINS, self::OP_NOT_CONTAINS,
+        ],
+        'email' => [
+            self::OP_EQ, self::OP_NEQ, self::OP_IS_EMPTY, self::OP_IS_NOT_EMPTY,
+            self::OP_STARTS_WITH, self::OP_ENDS_WITH, self::OP_CONTAINS, self::OP_NOT_CONTAINS,
+        ],
+        'color' => [
+            self::OP_EQ, self::OP_NEQ, self::OP_IN, self::OP_NOT_IN,
+            self::OP_IS_EMPTY, self::OP_IS_NOT_EMPTY,
+        ],
         'number' => [
             self::OP_EQ, self::OP_NEQ, self::OP_LT, self::OP_GT, self::OP_LTE, self::OP_GTE,
             self::OP_BETWEEN, self::OP_IS_EMPTY, self::OP_IS_NOT_EMPTY,
