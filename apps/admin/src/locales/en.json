@@ -1542,6 +1542,14 @@
       "completeness": {
         "aria": "Completeness {{pct}}%"
       },
+      "asset": {
+        "picker_title": "Choose asset",
+        "picker_body": "Pick an asset from the media library for this field.",
+        "choose": "Choose asset",
+        "change": "Change asset",
+        "clear": "Remove",
+        "none": "No asset selected"
+      },
       "has_variants": "Variant · {{count}} variants",
       "no_variants": "No variants",
       "status": {
