@@ -293,12 +293,10 @@ function relationTooltip(
 }
 
 function isLocaleScoped(attribute: AttributeMeta): boolean {
-  // Heuristic until backend exposes `is_localized` on AttributeMeta:
-  // PL/EN suffixed codes (`name_pl`, `description_en`) and richtext/text
-  // attributes flagged as system are treated as content surfaces that
-  // benefit from a locale chip in the row label.
-  if (/_pl$|_en$|_de$|_cs$/i.test(attribute.code)) return true;
-  return attribute.type === 'richtext' || attribute.type === 'textarea';
+  // #1150 — the backend now ships the real `is_localizable` flag (#1151),
+  // so the locale chip reflects whether the value is actually per-locale
+  // instead of guessing from the code suffix / type.
+  return attribute.is_localizable === true;
 }
 
 function optionLabel(option: AttributeOptionMeta, lang: 'pl' | 'en'): string {
