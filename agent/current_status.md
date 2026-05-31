@@ -1,5 +1,16 @@
 # Current Status
 
+## 2026-05-31: 🏁 batch bug-fix smoke 2026-05-30 (#1130–#1147) — kompletny
+
+Wszystkie 18 zgłoszeń z manualnego smoke testu operatora wdrożone na main. Ta sesja domknęła ostatnie 4 (#1130/#1138 + epiki #1146/#1147):
+
+- **#1130 import round-trip** (PR #1167): importer kompatybilny z formatem eksportu — composite price/metric (`20.99 EUR`/`0.3 g`), kolumny lokalizowane (`name.pl`→atrybut+locale), auto-SKIP kolumn systemowych, reader XLSX po cell-coordinate. Nowe: `ColumnHeader`, `CompositeValueParser`, `SystemColumn`, `ResolvedImportValue`.
+- **#1138 atrybut asset jako picker** (PR #1168): `AssetField` + `AssetAttributePicker` w `attr-row.tsx` (case `asset`) — picker biblioteki + miniatura zamiast tekstu. BE `AssetValidator` bez zmian.
+- **#1146 wersje językowe epik** — 4 PR-y (#1169 BE read/write `?locale=`, #1170 ekspozycja `is_localizable`+`locales[]`, #1171 dynamiczny picker, #1172 per-locale values). #1152 (completeness per-locale) świadomie deferred.
+- **#1147 kanały epik** — 3 PR-y (#1173 BE read/write `?channel=`, #1174 E2E ustawień kanałów — strona już istniała, #1175 picker+values). #1156 (mapowanie aliasów) deferred do Fazy 1.
+
+**Architektura locale/channel (ADR-relevant)**: `CatalogObjectLocaleOverlayProvider` (GET-item, decorating) nakłada wiersze `ObjectValue` per (locale,channel) na globalny `attributes_indexed`, **na klonie** (bez wycieku na identity map); `attributes_indexed`/Meilisearch pozostają **global-only** (search na primary). Zapis przez `?locale=`/`?channel=` query-param → upserter routuje localizable→locale, scopable→channel, reszta global. Cross-BC: `Channel\Contracts\ChannelResolverInterface` (code→id, Deptrac-safe).
+
 ## 2026-05-30: polish drzew kategorii custom-OT (#1126 + #1127)
 - **#1126** (PR #1128, `0951f55`): drzewo kategorii widoczne przy pierwszym wejściu /modeling/categories — auto-select OT w `ObjectTypeFilterDropdown` przeniesiony z render-phase do `useEffect` (URL `targetObjectTypeId` stempluje się niezawodnie → `useList` enabled).
 - **#1127** (PR #1129, `1f5541f`): `categories/show.tsx` `EffectiveAttributesPreview` — preview po `objectTypeId` + lista categorizable OT (built-in+custom) zamiast hardcoded PREVIEW_KINDS; fix błędu „Built-in ObjectType for kind 'custom'". Default = pierwszy categorizable (GET category nie serializuje categoryTargetObjectType — default-to-own-tree = ewent. drobny follow-up).

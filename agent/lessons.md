@@ -2,6 +2,25 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z batcha smoke 2026-05-30 (#1130–#1147, import + asset + locale/channel epiki)
+
+### Patterns to Follow
+- **Read-shaping w ApiPlatform provider → na KLONIE, nie na managed encji.** Nakładanie overlay (per-locale/channel) przez `$object->updateAttributeIndex(...)` na managed encji WYCIEKA na Doctrine identity map → kolejny odczyt tego samego obiektu w tym samym EM (np. bare GET po `?locale=en` GET) serwuje zmutowaną wartość. W produkcji maskowane (EM resetowany per-request w worker mode), ale w shared-EM ApiTestCase pęka. Fix: `$copy = clone $object; $copy->updateAttributeIndex(...); return $copy;` — klon dzieli referencje relacji (objectType/tenant), więc serializer + voter działają; mutowana jest tylko skalarna tablica (kopiowana by-value przy clone). Wzór: `ObjectValueLocaleOverlay`.
+- **Cross-BC zależność tylko przez `<BC>\Contracts`.** Catalog potrzebował resolucji channel code→id; Deptrac dopuszcza `Catalog_Internals → Channel_Contracts` (NIE `Channel_Internals`/Domain). Rozwiązanie: port `Channel\Contracts\ChannelResolverInterface` + impl w `Channel\Infrastructure`. Autowire auto-aliasuje interfejs→jedyną impl (potwierdzone `lint:container`).
+- **Scope jako query-param na PATCH, nie pole w body.** `?locale=`/`?channel=` czytane w processorze z `RequestStack` → command. JSON Merge-Patch nie odróżnia absent-vs-null i kolidowałby z payloadem atrybutów.
+- **Per-locale/channel cache = global-only.** `AttributesIndexedRebuilder` indeksuje TYLKO wiersz globalny (pomija `locale!=null || channel!=null`), inaczej lista/Meilisearch migają wg ostatnio zapisanego scope (niedeterministyczne). Lokalizowane/kanałowe odczyty idą z overlay na read-path.
+
+### Patterns to Avoid
+- **Nie zakładaj że feature „prawdopodobnie brak" bez sprawdzenia.** #1147 parent twierdził brak strony ustawień kanałów — a `/features/channel/channels/` (CRUD + pickery) istniał od maja. Zweryfikuj `debug:router` + `features/` ZANIM zaczniesz budować. #1153 zredukowało się do dodania brakującego E2E.
+- **Playwright spec tworzący dane przez API zaśmieca demo DB.** Atrybuty przypięte do OT pojawiają się na KAŻDYM formularzu produktu; kanały — w każdym pickerze. Po runie sprzątaj artefakty SQL-em (scoped po code-pattern + tenant). Dotyczy #1138/#1146/#1147 spec-ów.
+
+### Package Quirks
+- **Krótkie vs pełne kody locale.** Tenant/ObjectValue locale = krótkie (`pl`, `en`); globalny katalog `locales` + `Channel.locales`/`Channel.currencies` = pełne (`pl_PL`, `en_US`) + walidowane przeciw istniejącym wierszom. Channel create przez `/api/channels` wymaga `locales:["pl_PL"]` + `currencies:["PLN"]` (≥1 każde), nie `["pl"]`.
+- **`?locale=`/`?channel=` czytane przez RequestStack w processorze/provider — NIE są zadeklarowane jako parametry OpenAPI** (świadome odejście; API-first follow-up jeśli potrzebny w spec).
+
+### Decyzje świadome
+- #1152 (completeness per-locale + mandatory/fallback) i #1156 (UI mapowania aliasów per-channel) — deferred (Faza 1 / razem z konektorami). Per-locale/channel wartości NIE są searchable (cache global-only). Activate/deactivate kanału — poza zakresem (encja `Channel` bez `isActive`).
+
 ## Lessons z MODRC-01..05 (2026-05-28, optional relations AttributeGroup — Option Y)
 
 ### Patterns to Follow
