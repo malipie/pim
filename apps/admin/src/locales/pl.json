@@ -1590,6 +1590,14 @@
       "completeness": {
         "aria": "Kompletność {{pct}}%"
       },
+      "asset": {
+        "picker_title": "Wybierz zasób",
+        "picker_body": "Wskaż zasób z biblioteki multimediów dla tego pola.",
+        "choose": "Wybierz zasób",
+        "change": "Zmień zasób",
+        "clear": "Usuń",
+        "none": "Brak wybranego zasobu"
+      },
       "has_variants": "Wariantowy · {{count}} wariantów",
       "no_variants": "Bez wariantów",
       "status": {

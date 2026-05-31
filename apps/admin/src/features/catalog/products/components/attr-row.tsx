@@ -9,6 +9,7 @@ import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-selec
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
+import { AssetField } from './asset-field';
 import { RelationInlineEditor } from './relation-inline-editor';
 import type { AttributeMeta, AttributeOptionMeta, ProductLocale } from './types';
 
@@ -126,9 +127,20 @@ export function AttrRow({
             never live behind `editable`. Pre-#1093 the synthetic Relations
             tab rendered RelationsTab standalone, also bypassing the page
             toggle; this preserves that UX for the inline path. */}
-        {attribute.type === 'relation' &&
-        typeof relationContextProductId === 'string' &&
-        relationContextProductId.length > 0 ? (
+        {attribute.type === 'asset' ? (
+          // #1138 — asset attrs render a library picker + thumbnail
+          // instead of a plain text input. AssetField is self-contained
+          // (own preview query, modal picker) and handles both the edit
+          // and read-only states via `isEditing`.
+          <AssetField
+            value={value}
+            isEditing={editable}
+            onChange={(next) => onChange(next)}
+            ariaLabel={label}
+          />
+        ) : attribute.type === 'relation' &&
+          typeof relationContextProductId === 'string' &&
+          relationContextProductId.length > 0 ? (
           <RelationInlineEditor
             productId={relationContextProductId}
             attributeId={attribute.id}
