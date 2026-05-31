@@ -11,6 +11,7 @@ use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Import\Application\Service\CompositeValueParser;
 use App\Import\Application\Service\DelimiterDetector;
 use App\Import\Application\Service\EncodingDetector;
 use App\Import\Application\Service\ImportRowReader;
@@ -52,6 +53,7 @@ final class ImportValidationServiceTest extends TestCase
             catalogObjects: $catalogRepo,
             tenantContext: $tenantContext,
             rowReader: new ImportRowReader(new EncodingDetector(), new DelimiterDetector()),
+            compositeValueParser: new CompositeValueParser(),
         );
 
         $csv = "sku;name;price\nOK-1;Foo;9.99\nEXISTING-1;Bar;14.99\n;Anon;5\nDUP-1;Dup;1\nDUP-1;Dup again;2\nBAD-1;Has bad price;not-a-number\n";
@@ -75,6 +77,59 @@ final class ImportValidationServiceTest extends TestCase
             self::assertContains(ImportErrorType::MissingRequired->value, $errorTypes);
             self::assertContains(ImportErrorType::DuplicateSkuInFile->value, $errorTypes);
             self::assertContains(ImportErrorType::InvalidType->value, $errorTypes);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    #[Test]
+    public function roundTripExportColumnsValidateWithoutBlockingErrors(): void
+    {
+        $tenant = new Tenant('demo', 'Demo');
+        $attributeRepo = new InMemoryAttributeRepository([
+            'sku' => new Attribute('sku', ['en' => 'SKU'], AttributeType::Text),
+            'name' => new Attribute('name', ['en' => 'Name'], AttributeType::Text),
+            'price' => new Attribute('price', ['en' => 'Price'], AttributeType::Price),
+            'weight' => new Attribute('weight', ['en' => 'Weight'], AttributeType::Metric),
+        ]);
+        $catalogRepo = new InMemoryCatalogObjectRepository([]);
+
+        $tenantContext = new TenantContext();
+        $tenantContext->set($tenant);
+
+        $service = new ImportValidationService(
+            attributes: $attributeRepo,
+            catalogObjects: $catalogRepo,
+            tenantContext: $tenantContext,
+            rowReader: new ImportRowReader(new EncodingDetector(), new DelimiterDetector()),
+            compositeValueParser: new CompositeValueParser(),
+        );
+
+        // The exporter's own format: a system column (created_at), a
+        // localised name (name.pl) standing in for the bare required
+        // `name`, and composite price / metric cells.
+        $csv = "sku;created_at;name.pl;price;weight\n"
+            ."RT-1;2026-05-28T20:14:59+00:00;Buty;20.99 EUR;0.3 g\n";
+        $path = $this->writeTempCsv($csv);
+
+        try {
+            $product = new ObjectType('product', ObjectKind::Product, ['en' => 'Product']);
+            $result = $service->validate(
+                absolutePath: $path,
+                columnMapping: [
+                    'sku' => 'sku',
+                    'created_at' => 'skip',
+                    'name.pl' => 'name',
+                    'price' => 'price',
+                    'weight' => 'weight',
+                ],
+                target: $product,
+            );
+
+            self::assertSame(1, $result->totalRows);
+            self::assertSame(1, $result->successCount, 'Round-trip export row validates clean.');
+            self::assertSame(0, $result->errorCount);
+            self::assertSame([], $result->errors);
         } finally {
             @unlink($path);
         }
