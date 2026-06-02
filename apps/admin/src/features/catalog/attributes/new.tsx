@@ -17,6 +17,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { CREATABLE_ATTRIBUTE_TYPES } from '@/lib/attribute-types';
 import { HttpError, jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
@@ -89,19 +90,10 @@ interface ObjectTypePickerRow {
   label?: Record<string, string> | string | null;
 }
 
-const TYPES = [
-  'text',
-  'number',
-  'select',
-  'multiselect',
-  'date',
-  'boolean',
-  'asset',
-  'relation',
-  'price',
-  'metric',
-  'wysiwyg',
-] as const;
+// #1210 follow-up — shared with the create dialogs so the type grid never
+// drifts again (this page lagged the dialogs on textarea/datetime/color/email/
+// identifier).
+const TYPES = CREATABLE_ATTRIBUTE_TYPES;
 
 export function AttributeCreatePage() {
   const { t, i18n } = useTranslation();
