@@ -7,8 +7,8 @@ namespace App\Catalog\Application;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
-use App\Channel\Application\Locale\LocaleFallbackResolver;
 use App\Channel\Contracts\ChannelResolverInterface;
+use App\Channel\Contracts\LocaleFallbackResolverInterface;
 use App\Shared\Domain\Tenant;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
@@ -38,7 +38,7 @@ final readonly class ObjectValueLocaleOverlay
     public function __construct(
         private ObjectValueRepositoryInterface $values,
         private ChannelResolverInterface $channels,
-        private LocaleFallbackResolver $localeFallback,
+        private LocaleFallbackResolverInterface $localeFallback,
     ) {
     }
 

@@ -14,8 +14,8 @@ use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
-use App\Channel\Application\Locale\LocaleFallbackResolver;
 use App\Channel\Contracts\ChannelResolverInterface;
+use App\Channel\Contracts\LocaleFallbackResolverInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Domain\Tenant;
 use App\Shared\Infrastructure\Audit\CursorCodec;
@@ -74,7 +74,7 @@ final class ProductReadEndpointsController
         private readonly ObjectTypeAttributeRepositoryInterface $objectTypeAttributes,
         private readonly AttributeOptionRepositoryInterface $attributeOptions,
         private readonly ObjectValueRepositoryInterface $objectValues,
-        private readonly LocaleFallbackResolver $localeFallback,
+        private readonly LocaleFallbackResolverInterface $localeFallback,
         private readonly ChannelResolverInterface $channels,
     ) {
     }
