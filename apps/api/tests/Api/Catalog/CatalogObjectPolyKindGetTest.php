@@ -92,14 +92,19 @@ final class CatalogObjectPolyKindGetTest extends CatalogApiTestCase
 
         self::assertArrayHasKey('created_at', $indexed);
         self::assertArrayHasKey('updated_at', $indexed);
-        self::assertMatchesRegularExpression(
-            '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/',
-            $indexed['created_at']['value'] ?? '',
-        );
 
-        self::assertArrayHasKey('created_by', $indexed);
-        self::assertSame(self::ADMIN_EMAIL, $indexed['created_by']['value'] ?? null);
-        self::assertSame(self::ADMIN_EMAIL, $indexed['updated_by']['value'] ?? null);
+        $createdAt = $indexed['created_at'];
+        self::assertIsArray($createdAt);
+        $createdAtValue = $createdAt['value'] ?? null;
+        self::assertIsString($createdAtValue);
+        self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/', $createdAtValue);
+
+        $createdBy = $indexed['created_by'] ?? null;
+        $updatedBy = $indexed['updated_by'] ?? null;
+        self::assertIsArray($createdBy);
+        self::assertIsArray($updatedBy);
+        self::assertSame(self::ADMIN_EMAIL, $createdBy['value'] ?? null);
+        self::assertSame(self::ADMIN_EMAIL, $updatedBy['value'] ?? null);
     }
 
     #[Test]
