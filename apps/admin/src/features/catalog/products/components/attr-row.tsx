@@ -230,6 +230,17 @@ export function AttrRow({
               placeholder="name@example.com"
               className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 text-[13.5px]"
             />
+          ) : attribute.type === 'identifier' ? (
+            // #1179 — EAN/GTIN/ISBN/SKU. Monospace so codes are easy to scan;
+            // uniqueness per ObjectType is enforced server-side (409 on save).
+            <Input
+              id={`attr-${attribute.code}`}
+              type="text"
+              inputMode="text"
+              value={stringValue}
+              onChange={(event) => onChange(event.target.value)}
+              className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 font-mono text-[13px]"
+            />
           ) : attribute.type === 'select' ? (
             <Combobox
               options={toComboboxOptions(selectOptions, lang)}

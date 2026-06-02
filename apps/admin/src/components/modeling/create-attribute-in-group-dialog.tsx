@@ -37,6 +37,7 @@ interface ObjectTypePickerRow {
 const TYPES = [
   'text',
   'textarea',
+  'identifier',
   'number',
   'select',
   'multiselect',

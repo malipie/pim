@@ -26,6 +26,7 @@ const TYPE_OPTIONS = [
   'all',
   'text',
   'textarea',
+  'identifier',
   'number',
   'boolean',
   'select',

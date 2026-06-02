@@ -46,7 +46,7 @@ final class AttributeInput
     public ?array $help = null;
 
     #[Assert\NotBlank]
-    #[Assert\Choice(choices: ['text', 'number', 'select', 'multiselect', 'date', 'boolean', 'asset', 'relation', 'price', 'metric', 'wysiwyg', 'datetime', 'textarea', 'color', 'email'])]
+    #[Assert\Choice(choices: ['text', 'number', 'select', 'multiselect', 'date', 'boolean', 'asset', 'relation', 'price', 'metric', 'wysiwyg', 'datetime', 'textarea', 'color', 'email', 'identifier'])]
     #[Groups(['attribute:create'])]
     public string $type = 'text';
 
