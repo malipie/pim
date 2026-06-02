@@ -34,6 +34,7 @@ import { ArrowLeft, MoreHorizontal, Pencil, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
+import { CategoryPickerDialog } from '@/components/catalog/category-picker-dialog';
 import { DetailLoadingState } from '@/components/catalog/detail-loading-state';
 import { DetailNotFoundState } from '@/components/catalog/detail-not-found-state';
 import type { Provenance } from '@/components/provenance-badge';
@@ -101,7 +102,8 @@ export interface UniversalDetailPageProps {
 
 interface CategoryAssignment {
   categoryId: string;
-  code: string;
+  // The poly-kind endpoint returns `categoryCode` (not `code`).
+  categoryCode: string;
   isPrimary: boolean;
   position: number;
 }
@@ -115,7 +117,6 @@ interface CategoriesResponse {
 
 export function UniversalDetailPage({
   objectId,
-  objectTypeCode,
   objectTypeLabel,
   backHref,
   isCategorizable,
@@ -593,7 +594,11 @@ export function UniversalDetailPage({
                 <CategoriesPanel
                   data={categoriesQuery.data}
                   isLoading={categoriesQuery.isLoading}
-                  objectTypeCode={objectTypeCode}
+                  objectId={objectId}
+                  objectTypeId={product.objectType?.id}
+                  onChanged={() => {
+                    void categoriesQuery.refetch();
+                  }}
                 />
               );
             }
@@ -659,13 +664,19 @@ export function UniversalDetailPage({
 function CategoriesPanel({
   data,
   isLoading,
-  objectTypeCode,
+  objectId,
+  objectTypeId,
+  onChanged,
 }: {
   data: CategoriesResponse | undefined;
   isLoading: boolean;
-  objectTypeCode: string;
+  objectId: string;
+  objectTypeId: string | undefined;
+  onChanged: () => void;
 }) {
   const { t } = useTranslation();
+  const [pickerOpen, setPickerOpen] = useState(false);
+
   if (isLoading) {
     return (
       <p className="text-[12.5px] text-muted-foreground">
@@ -673,32 +684,66 @@ function CategoriesPanel({
       </p>
     );
   }
+
   const assignments = data?.assignments ?? [];
+  // #1209 — CategoriesResponse assignments ({categoryId, isPrimary}) map 1:1
+  // to the picker's CurrentAssignment.
+  const currentAssignments = assignments.map((a) => ({
+    categoryId: a.categoryId,
+    isPrimary: a.isPrimary,
+  }));
+
+  const editButton = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        setPickerOpen(true);
+      }}
+    >
+      {t('object_detail.categories.edit', { defaultValue: 'Edytuj kategorie' })}
+    </Button>
+  );
+
+  const picker = (
+    <CategoryPickerDialog
+      open={pickerOpen}
+      onOpenChange={setPickerOpen}
+      productId={objectId}
+      endpoint="objects"
+      objectTypeId={objectTypeId}
+      currentAssignments={currentAssignments}
+      onSaved={onChanged}
+    />
+  );
+
   if (assignments.length === 0) {
     return (
-      <div className="border-line bg-surface rounded-2xl border border-dashed p-6 text-center">
-        <p className="text-ink text-[13px] font-medium">
-          {t('object_detail.categories.empty', {
-            defaultValue: 'Brak przypisanych kategorii.',
-          })}
-        </p>
-        <p className="mt-1 text-[11.5px] text-muted-foreground">
-          {t('object_detail.categories.empty_hint', {
-            defaultValue:
-              'Edycja kategorii dla custom kindów dochodzi w UP-07 follow-upie (CategoryPickerDialog universal refactor).',
-          })}
-        </p>
-      </div>
+      <section className="space-y-3">
+        <div className="border-line bg-surface flex flex-col items-center gap-3 rounded-2xl border border-dashed p-6 text-center">
+          <p className="text-ink text-[13px] font-medium">
+            {t('object_detail.categories.empty', {
+              defaultValue: 'Brak przypisanych kategorii.',
+            })}
+          </p>
+          {editButton}
+        </div>
+        {picker}
+      </section>
     );
   }
+
   return (
     <section className="space-y-3">
-      <p className="text-[11.5px] text-muted-foreground">
-        {t('object_detail.categories.read_only_hint', {
-          defaultValue:
-            'Lista kategorii (read-only w UP-07 MVP — picker dialog dla custom kindów w follow-upie).',
-        })}
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11.5px] text-muted-foreground">
+          {t('object_detail.categories.assigned_hint', {
+            defaultValue: 'Przypisane kategorie (★ = główna).',
+          })}
+        </p>
+        {editButton}
+      </div>
       <ul className="flex flex-wrap gap-2">
         {assignments.map((a) => (
           <li
@@ -711,13 +756,11 @@ function CategoriesPanel({
             )}
           >
             {a.isPrimary ? <span aria-hidden>★</span> : null}
-            <span className="font-medium">{a.code}</span>
+            <span className="font-medium">{a.categoryCode}</span>
           </li>
         ))}
       </ul>
-      <p className="text-[11px] text-zinc-400">
-        objectType: <span className="font-mono">{objectTypeCode}</span>
-      </p>
+      {picker}
     </section>
   );
 }
