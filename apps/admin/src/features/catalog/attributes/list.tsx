@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { jsonFetch } from '@/lib/http';
@@ -235,7 +234,6 @@ function AttributeRowItem({
       <span className="min-w-0">
         <span className="flex items-center gap-2">
           <span className="truncate font-mono text-[13.5px] font-medium">{row.code}</span>
-          {row.system ? <BuiltInLockBadge /> : null}
           {row.unique ? (
             <span className="rounded bg-amber-50 px-1 py-0.5 font-mono text-[10px] text-amber-700">
               unique

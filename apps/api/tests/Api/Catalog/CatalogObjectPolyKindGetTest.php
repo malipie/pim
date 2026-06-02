@@ -75,6 +75,34 @@ final class CatalogObjectPolyKindGetTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function getInjectsSystemAttributeValues(): void
+    {
+        // #1207 — created_at/updated_at + created_by/updated_by are surfaced in
+        // attributesIndexed at read time (they are never stored as ObjectValue
+        // rows). Creating authenticated stamps the blameable actor (e-mail).
+        $client = $this->authenticatedClient();
+        $id = $this->createObject($client, '/api/products', 'SKU-SYSTEM-ATTRS', ObjectKind::Product);
+
+        $response = $client->request('GET', '/api/objects/'.$id, [
+            'headers' => ['accept' => 'application/ld+json'],
+        ]);
+        self::assertResponseIsSuccessful();
+        $indexed = $response->toArray()['attributesIndexed'] ?? [];
+        self::assertIsArray($indexed);
+
+        self::assertArrayHasKey('created_at', $indexed);
+        self::assertArrayHasKey('updated_at', $indexed);
+        self::assertMatchesRegularExpression(
+            '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/',
+            $indexed['created_at']['value'] ?? '',
+        );
+
+        self::assertArrayHasKey('created_by', $indexed);
+        self::assertSame(self::ADMIN_EMAIL, $indexed['created_by']['value'] ?? null);
+        self::assertSame(self::ADMIN_EMAIL, $indexed['updated_by']['value'] ?? null);
+    }
+
+    #[Test]
     public function getReturns404ForUnknownUuid(): void
     {
         $client = $this->authenticatedClient();

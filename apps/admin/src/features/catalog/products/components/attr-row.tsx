@@ -106,7 +106,11 @@ export function AttrRow({
             {localeChip}
           </span>
         ) : null}
-        {isLocked ? <Lock className="size-3 text-zinc-300" aria-hidden /> : null}
+        {/* #1207 — system attributes (created_at/by, updated_at/by) stay
+            read-only but are treated as normal fields: no lock chrome. */}
+        {isLocked && !attribute.is_system ? (
+          <Lock className="size-3 text-zinc-300" aria-hidden />
+        ) : null}
         {attribute.is_required_in_group ? (
           <span
             className="text-rose-500"
