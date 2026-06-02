@@ -1,5 +1,19 @@
 # Current Status
 
+## 2026-06-02: 🏁 batch drobnych poprawek (smoke) + dokończenie #1179 — kompletny
+
+5 PR-ów merged do main, każdy z quality gates + live-stack smoke (CLOSED MEANS CLOSED):
+
+- **#1179 identyfikator** (PR [#1204](../../pull/1204)) — typ atrybutu `identifier` (EAN/GTIN/ISBN/SKU) z unikalnością per ObjectType **DB-enforced** (trigger + denorm kolumny + partial unique index) + app-level 409. Dokończenie zacommitowanego WIP. Smoke: dup EAN → 409.
+- **#1205 usuwanie presetów Smart Filter** (PR [#1206](../../pull/1206)) — `SmartFilterPresetsRow` + `onDelete` (× na hover/focus dla własnych presetów) + `DeletePresetDialog` (confirm) w universal + legacy list. Backend/hook już istniały. FE-only.
+- **#1207 atrybuty systemowe** (PR [#1208](../../pull/1208)) — created_at/updated_at/created_by/updated_by: usunięty lock badge (lista + 2 dialogi + attr-row), auto-treść via read overlay (`SystemAttributeReadOverlay` w GET-item provider, klon) + **blameable** (`Shared\Application\Blameable` + `BlameableAssignmentListener` onFlush, snapshot e-maila aktora — bez coupling Catalog↔Identity). Migracja: `objects.created_by/updated_by`. Smoke: GET obiektu → 4 wartości.
+- **#1209 kategorie dla custom kindów** (PR [#1210](../../pull/1210)) — `CategoryPickerDialog` zgeneralizowany (`endpoint='objects'` + `objectTypeId` tree scoping ADR-015) + wpięty w `CategoriesPanel` (universal detail); usunięty placeholder „UP-07 follow-up". Fix chipu: `categoryCode` (nie `code`). Backend generyczny już był. Smoke: custom OT → PUT 200 → chip.
+- **#1211 typy na /modeling/attributes/new** (PR [#1212](../../pull/1212)) — współdzielona stała `lib/attribute-types.ts` `CREATABLE_ATTRIBUTE_TYPES` (lustro backend whitelist) używana przez new.tsx + 2 create-dialogi → koniec driftu; dodane textarea/datetime/identifier/color/email, usunięty system-only `reference`.
+
+**Świadome odejścia**: (a) `video` jako typ atrybutu — NIE dodany, brak w `AttributeType` enum; wymaga osobnego feat ticketu (część 3/3 batcha nowych typów). (b) Guard usuwania `is_system` zostaje (auto-pola systemowe). (c) created_by/updated_by istniejących obiektów = NULL (brak backfill) → „—" do następnej edycji.
+
+**Uwaga (dev DB)**: w trakcie sesji odkryto, że custom OTs operatora (Usługi/Samochody) **zniknęły z dev DB** (wcześniejszy `pim:db:reset`) — feature'y działają dla nowo utworzonych custom kindów; operator może odtworzyć OTs przez UI. Patrz lessons + memory `feedback_pim_db_reset_wipes_operator_state`.
+
 ## 2026-05-31: 🏁 batch bug-fix smoke 2026-05-30 (#1130–#1147) — kompletny
 
 Wszystkie 18 zgłoszeń z manualnego smoke testu operatora wdrożone na main. Ta sesja domknęła ostatnie 4 (#1130/#1138 + epiki #1146/#1147):
