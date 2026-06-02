@@ -69,6 +69,7 @@ const ExportModal = lazy(() =>
   import('@/features/exports/wizard/ExportModal').then((m) => ({ default: m.ExportModal })),
 );
 
+import { DeletePresetDialog } from '@/components/catalog/delete-preset-dialog';
 import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
 import { type ExcelColumn, ExcelLikeGrid } from '@/components/catalog/excel-like-grid';
 import { FilterChipsBar } from '@/components/catalog/filter-chips-bar';
@@ -247,8 +248,10 @@ export function ProductListPage() {
     presets: smartPresets,
     isLoading: smartPresetsLoading,
     create: createSmartPreset,
+    remove: removeSmartPreset,
   } = useSmartPresets({ withCounts: true });
   const [activeSmartPresetId, setActiveSmartPresetId] = useState<string | null>(null);
+  const [presetToDelete, setPresetToDelete] = useState<SmartFilterPreset | null>(null);
   const [advancedPanelOpen, setAdvancedPanelOpen] = useState(false);
   const [panelConditions, setPanelConditions] = useState<FilterCondition[]>([]);
   const [matchOperator, setMatchOperator] = useState<'AND' | 'OR'>('AND');
@@ -586,7 +589,21 @@ export function ProductListPage() {
           }
           setShowSaveAsPresetModal(true);
         }}
+        onDelete={(preset) => {
+          setPresetToDelete(preset);
+        }}
         isLoading={smartPresetsLoading}
+      />
+
+      <DeletePresetDialog
+        preset={presetToDelete}
+        onClose={() => {
+          setPresetToDelete(null);
+        }}
+        onDeleted={(presetId) => {
+          if (activeSmartPresetId === presetId) handleApplySmartPreset(null);
+        }}
+        remove={removeSmartPreset}
       />
 
       <div className="flex flex-wrap items-center gap-3">
