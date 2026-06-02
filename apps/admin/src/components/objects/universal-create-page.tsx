@@ -255,6 +255,7 @@ export function UniversalCreatePage({
           value={dirtyFields[attr.code]}
           provenance="manual"
           locale={locale}
+          channel={null}
           isEditing={true}
           isLocked={attr.is_system}
           onChange={(next) => setFieldValue(attr.code, next)}

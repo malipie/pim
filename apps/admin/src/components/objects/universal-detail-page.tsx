@@ -248,6 +248,7 @@ export function UniversalDetailPage({
   const channels = channelsQuery.data ?? [];
 
   // #1150 / #1155 — switching locale or channel discards unsaved edits.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on scope change
   useEffect(() => {
     setDirtyFields({});
   }, [locale, channel]);
@@ -577,6 +578,7 @@ export function UniversalDetailPage({
                     value={fieldValue(attr.code)}
                     provenance={resolveProvenance(attr, product)}
                     locale={locale}
+                    channel={channel}
                     isEditing={isEditing}
                     isLocked={attr.is_system}
                     onChange={(next) => setFieldValue(attr.code, next)}
