@@ -64,7 +64,7 @@ import type {
   ProductLocale,
 } from '@/features/catalog/products/components/types';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
-import { jsonFetch } from '@/lib/http';
+import { httpErrorDetail, jsonFetch } from '@/lib/http';
 import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { cn } from '@/lib/utils';
 
@@ -297,8 +297,14 @@ export function UniversalDetailPage({
       setDirtyFields({});
       setIsEditing(false);
       toast.success(t('products.detail.save.success', { defaultValue: 'Zapisano zmiany' }));
-    } catch {
-      toast.error(t('products.detail.save.failed', { defaultValue: 'Nie udało się zapisać' }));
+    } catch (error) {
+      // Surface the server's Problem Details `detail` (e.g. #1179 duplicate
+      // identifier 409) instead of a generic message, so the operator knows
+      // what to fix. Falls back to the generic copy for opaque failures.
+      toast.error(
+        httpErrorDetail(error) ??
+          t('products.detail.save.failed', { defaultValue: 'Nie udało się zapisać' }),
+      );
     } finally {
       setIsSaving(false);
     }
