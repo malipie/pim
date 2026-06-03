@@ -52,20 +52,26 @@ final class ColumnResolver
 
     /**
      * @param iterable<string> $selectedColumns
+     * @param list<string>     $channelCodes    channel codes active for the session (#1229);
+     *                                          a `code.modifier` whose modifier is one of these
+     *                                          resolves to a channel-scoped column, otherwise locale
      *
      * @return array<int, ColumnDefinition>
      */
-    public function resolve(iterable $selectedColumns): array
+    public function resolve(iterable $selectedColumns, array $channelCodes = []): array
     {
         $resolved = [];
         foreach ($selectedColumns as $key) {
-            $resolved[] = $this->resolveOne($key);
+            $resolved[] = $this->resolveOne($key, $channelCodes);
         }
 
         return $resolved;
     }
 
-    public function resolveOne(string $key): ColumnDefinition
+    /**
+     * @param list<string> $channelCodes
+     */
+    public function resolveOne(string $key, array $channelCodes = []): ColumnDefinition
     {
         if (\array_key_exists($key, self::BUILT_INS)) {
             return new ColumnDefinition(
@@ -85,10 +91,21 @@ final class ColumnResolver
 
         [$code, $modifier] = explode('.', $key, 2);
 
-        // PRD §5.3: locale codes are short (`pl`, `en`, `de`) and channels
-        // are kebab-cased identifiers (`shopify`, `baselinker`). The
-        // builder asks the row context to disambiguate when both are
-        // possible — channels know themselves by `code`.
+        // #1229: a modifier naming one of the session's active channels is a
+        // channel-scoped column (`description.shopify`); anything else is a
+        // locale (`description.pl`). Disambiguating by membership beats a
+        // "short = locale, kebab = channel" heuristic, which would collide on
+        // a 2-letter channel code. Combined notation (`description.pl.shopify`)
+        // stays deferred (PRD §5.3); `explode(..., 2)` keeps the tail intact.
+        if (\in_array($modifier, $channelCodes, true)) {
+            return new ColumnDefinition(
+                key: $key,
+                kind: ColumnDefinition::KIND_ATTRIBUTE,
+                code: $code,
+                channel: $modifier,
+            );
+        }
+
         return new ColumnDefinition(
             key: $key,
             kind: ColumnDefinition::KIND_ATTRIBUTE,
