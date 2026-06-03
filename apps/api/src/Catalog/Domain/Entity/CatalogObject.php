@@ -10,6 +10,7 @@ use App\Catalog\Contracts\Event\ObjectCreated;
 use App\Catalog\Contracts\Event\ObjectEnabledChanged;
 use App\Catalog\Contracts\Event\ObjectPublished;
 use App\Catalog\Domain\ObjectKind;
+use App\Shared\Application\Blameable;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\AggregateRoot;
 use App\Shared\Domain\Tenant;
@@ -50,13 +51,20 @@ use const ARRAY_FILTER_USE_BOTH;
  *   - `kind='product'` for variants (size/color of a parent SKU);
  *   - `kind='category'` for the tree (parent category in ltree).
  */
-class CatalogObject extends AggregateRoot implements TenantScoped
+class CatalogObject extends AggregateRoot implements TenantScoped, Blameable
 {
     public const string STATUS_DRAFT = 'draft';
     public const string STATUS_PUBLISHED = 'published';
     public const string STATUS_ARCHIVED = 'archived';
     private Uuid $id;
     private ?Tenant $tenant = null;
+    /**
+     * #1207 — snapshot of the actor (e-mail) who created / last updated this
+     * row, stamped by {@see \App\Shared\Infrastructure\Doctrine\EventListener\BlameableAssignmentListener}.
+     * Null for rows written without a security context (CLI seeders, import).
+     */
+    private ?string $createdBy = null;
+    private ?string $updatedBy = null;
     private ObjectType $objectType;
     private ObjectKind $kind;
     #[Assert\NotBlank]
@@ -414,6 +422,40 @@ class CatalogObject extends AggregateRoot implements TenantScoped
     public function getUpdatedAt(): DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function getCreatedBy(): ?string
+    {
+        return $this->createdBy;
+    }
+
+    public function getUpdatedBy(): ?string
+    {
+        return $this->updatedBy;
+    }
+
+    public function stampCreatedBy(?string $actor): void
+    {
+        $this->createdBy = $actor;
+    }
+
+    public function stampUpdatedBy(?string $actor): void
+    {
+        $this->updatedBy = $actor;
+    }
+
+    /**
+     * #1207 / #1146 — replace the indexed map for a read-only response overlay
+     * (system attributes, locale/channel overlay). Unlike
+     * {@see updateAttributeIndex()} it does NOT touch `updatedAt` nor record a
+     * domain event, so it is safe to call on a detached clone inside a GET
+     * provider without spurious side effects or accidental persistence.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    public function overlayAttributesIndexedForRead(array $attributes): void
+    {
+        $this->attributesIndexed = $attributes;
     }
 
     /**
