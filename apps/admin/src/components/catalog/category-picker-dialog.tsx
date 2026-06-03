@@ -48,6 +48,20 @@ interface Props {
    * local state until the parent POST is fired.
    */
   onSelect?: (categoryIds: string[], primaryCategoryId: string | null) => void;
+  /**
+   * #1209 — which API surface to autosave against. `products` (default) keeps
+   * the legacy `/api/products/{id}/categories` behaviour for the product
+   * detail; `objects` targets the poly-kind `/api/objects/{id}/categories`
+   * so custom kinds (and any ObjectType) can assign categories too.
+   */
+  endpoint?: 'products' | 'objects';
+  /**
+   * #1209 — ADR-015 tree scope. When set, the picker only lists categories
+   * belonging to this ObjectType's tree (`?categoryTargetObjectType=`), so a
+   * custom kind never sees product categories (and the backend
+   * `assertSameTree` guard never rejects the save).
+   */
+  objectTypeId?: string;
 }
 
 /**
@@ -72,6 +86,8 @@ export function CategoryPickerDialog({
   currentAssignments,
   onSaved,
   onSelect,
+  endpoint = 'products',
+  objectTypeId,
 }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -101,11 +117,18 @@ export function CategoryPickerDialog({
   }, [open, currentAssignments]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['categories', 'picker'],
+    // #1209 — key by tree so a custom kind's scoped list does not collide
+    // with the product (all-trees) list in the cache.
+    queryKey: ['categories', 'picker', objectTypeId ?? 'all'],
     queryFn: async () => {
       // Refine convention: itemsPerPage with a generous cap; the picker
-      // is for admin-paced selection, not infinite-scroll.
-      return jsonFetch<CategoriesListResponse>('/api/categories?itemsPerPage=200');
+      // is for admin-paced selection, not infinite-scroll. When scoped to an
+      // ObjectType (ADR-015) only that tree's categories are listed.
+      const treeFilter =
+        objectTypeId !== undefined && objectTypeId !== ''
+          ? `&categoryTargetObjectType=${encodeURIComponent(objectTypeId)}`
+          : '';
+      return jsonFetch<CategoriesListResponse>(`/api/categories?itemsPerPage=200${treeFilter}`);
     },
     enabled: open,
     staleTime: 60_000,
@@ -187,20 +210,23 @@ export function CategoryPickerDialog({
         return;
       }
 
-      await jsonFetch(`/api/products/${productId}/categories`, {
+      await jsonFetch(`/api/${endpoint}/${productId}/categories`, {
         method: 'PUT',
         contentType: 'application/json',
         accept: 'application/json',
         body: { primaryCategoryId: primary, categoryIds },
       });
       // Burst the affected cache keys so the chip list, the effective
-      // schema, and any product-level reads pick up the change.
+      // schema, and any object-level reads pick up the change. The universal
+      // detail page (#1209) keys reads under `['object', id, …]`; the legacy
+      // product detail keys under `['products', id, …]`.
+      const base = endpoint === 'objects' ? 'object' : 'products';
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['products', productId, 'categories'] }),
+        queryClient.invalidateQueries({ queryKey: [base, productId, 'categories'] }),
         queryClient.invalidateQueries({
-          queryKey: ['products', productId, 'effective-attribute-groups'],
+          queryKey: [base, productId, 'effective-attribute-groups'],
         }),
-        queryClient.invalidateQueries({ queryKey: ['products', productId] }),
+        queryClient.invalidateQueries({ queryKey: [base, productId] }),
       ]);
       onSaved();
       onOpenChange(false);

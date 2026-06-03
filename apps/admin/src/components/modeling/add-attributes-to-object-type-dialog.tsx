@@ -3,7 +3,6 @@ import { Check, Layers, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { resolveLabel } from '@/features/catalog/attributes/list';
@@ -262,7 +261,6 @@ export function AddAttributesToObjectTypeDialog({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="truncate font-mono text-[13px] font-medium">{a.code}</span>
-                        {a.system ? <BuiltInLockBadge /> : null}
                         {isExisting ? (
                           <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-zinc-700">
                             {t('modeling.objectTypes.add_attributes.attached_badge', {
