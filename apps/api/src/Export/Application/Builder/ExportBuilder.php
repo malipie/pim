@@ -8,6 +8,7 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
+use App\Channel\Contracts\ChannelResolverInterface;
 use App\Export\Domain\Entity\ExportSession;
 use Generator;
 use LogicException;
@@ -45,6 +46,7 @@ final class ExportBuilder
         private readonly ObjectCategoryRepositoryInterface $categories,
         private readonly ColumnResolver $columnResolver,
         private readonly ValueSerializer $serializer,
+        private readonly ChannelResolverInterface $channels,
     ) {
     }
 
@@ -55,29 +57,44 @@ final class ExportBuilder
      */
     public function build(iterable $objects, ExportSession $session): Generator
     {
-        if (null === $session->getTenant()) {
+        $tenant = $session->getTenant();
+        if (null === $tenant) {
             throw new LogicException('Export session must carry a tenant before build().');
         }
 
-        $columns = $this->columnResolver->resolve($session->getSelectedColumns());
+        $channelCodes = $session->getChannels() ?? [];
+        $columns = $this->columnResolver->resolve($session->getSelectedColumns(), $channelCodes);
+
+        // #1229: ObjectValue rows key the channel scope by UUID, so resolve
+        // each session channel code to its id once up-front. A code with no
+        // matching tenant channel is dropped here and degrades to a blank
+        // cell in cellFor() (stale profile, R-47) rather than 500-ing.
+        $channelIdByCode = [];
+        foreach ($channelCodes as $code) {
+            $id = $this->channels->resolveId($code, $tenant);
+            if (null !== $id) {
+                $channelIdByCode[$code] = $id->toRfc4122();
+            }
+        }
 
         foreach ($objects as $object) {
-            yield $this->renderRow($object, $columns);
+            yield $this->renderRow($object, $columns, $channelIdByCode);
         }
     }
 
     /**
      * @param array<int, ColumnDefinition> $columns
+     * @param array<string, string>        $channelIdByCode channel code => UUID RFC 4122 (#1229)
      *
      * @return array<string, string>
      */
-    private function renderRow(CatalogObject $object, array $columns): array
+    private function renderRow(CatalogObject $object, array $columns, array $channelIdByCode): array
     {
         $valueIndex = $this->indexValuesByObject($object);
         $row = [];
 
         foreach ($columns as $column) {
-            $row[$column->key] = $this->cellFor($object, $column, $valueIndex);
+            $row[$column->key] = $this->cellFor($object, $column, $valueIndex, $channelIdByCode);
         }
 
         return $row;
@@ -108,19 +125,30 @@ final class ExportBuilder
 
     /**
      * @param array<string, ObjectValue> $valueIndex
+     * @param array<string, string>      $channelIdByCode channel code => UUID RFC 4122 (#1229)
      */
     private function cellFor(
         CatalogObject $object,
         ColumnDefinition $column,
         array $valueIndex,
+        array $channelIdByCode,
     ): string {
         if ($column->isBuiltIn()) {
             return $this->builtIn($object, $column->code);
         }
 
-        // Attribute lookup. Channel-scoped variant deferred to Faza 1
-        // (PRD §6.1) — MVP exports use locale-only narrowing.
-        $key = $this->indexKey($column->code, $column->locale, null);
+        // #1229: channel-scoped column (`description.shopify`) narrows the
+        // lookup to the channel's UUID; a channel that didn't resolve yields
+        // a blank cell rather than silently falling back to the global value.
+        $channelId = null;
+        if (null !== $column->channel) {
+            $channelId = $channelIdByCode[$column->channel] ?? null;
+            if (null === $channelId) {
+                return '';
+            }
+        }
+
+        $key = $this->indexKey($column->code, $column->locale, $channelId);
         $value = $valueIndex[$key] ?? null;
 
         // Stale profile / missing attribute (R-47 from PRD §14). Don't

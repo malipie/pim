@@ -54,6 +54,28 @@ final class ColumnResolverTest extends TestCase
     }
 
     #[Test]
+    public function modifierMatchingASessionChannelResolvesAsChannel(): void
+    {
+        // #1229 — a modifier naming one of the session's channels is a
+        // channel-scoped column, not a locale.
+        $col = new ColumnResolver()->resolveOne('description.shopify', ['shopify', 'baselinker']);
+        self::assertTrue($col->isAttribute());
+        self::assertSame('description', $col->code);
+        self::assertSame('shopify', $col->channel);
+        self::assertNull($col->locale);
+    }
+
+    #[Test]
+    public function modifierNotAmongSessionChannelsStaysLocale(): void
+    {
+        // #1229 — disambiguation by membership: `pl` is not a channel, so it
+        // stays a locale even when channels are present.
+        $col = new ColumnResolver()->resolveOne('description.pl', ['shopify']);
+        self::assertSame('pl', $col->locale);
+        self::assertNull($col->channel);
+    }
+
+    #[Test]
     public function resolveArrayReturnsDefinitionsInOrder(): void
     {
         $resolver = new ColumnResolver();

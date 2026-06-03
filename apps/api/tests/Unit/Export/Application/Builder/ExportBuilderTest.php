@@ -13,6 +13,7 @@ use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
+use App\Channel\Contracts\ChannelResolverInterface;
 use App\Export\Application\Builder\ColumnResolver;
 use App\Export\Application\Builder\ExportBuilder;
 use App\Export\Application\Builder\ValueSerializer;
@@ -92,6 +93,43 @@ final class ExportBuilderTest extends TestCase
     }
 
     #[Test]
+    public function rendersAttributeColumnsWithChannelScoping(): void
+    {
+        // #1229 — `description.shopify` resolves to the channel-scoped value;
+        // the bare `description` column still emits the global value, and a
+        // channel column whose channel does not resolve stays blank (it does
+        // NOT silently fall back to the global value).
+        $product = $this->newProduct('SKU-CH');
+        $desc = $this->newAttribute('description', AttributeType::Text);
+        $shopifyId = Uuid::v7();
+
+        $valuesByObject = [
+            spl_object_id($product) => [
+                new ObjectValue($product, $desc, ['value' => 'Global desc']),
+                new ObjectValue($product, $desc, ['value' => 'Shopify desc'], channelId: $shopifyId),
+            ],
+        ];
+
+        $builder = $this->newBuilder(
+            valuesByObject: $valuesByObject,
+            categoriesByObject: [],
+            channelIds: ['shopify' => $shopifyId],
+        );
+        $session = $this->newSessionWithTenant(
+            ['sku', 'description', 'description.shopify', 'description.allegro'],
+            channels: ['shopify', 'allegro'],
+        );
+        $rows = iterator_to_array($builder->build([$product], $session));
+
+        self::assertSame([
+            'sku' => 'SKU-CH',
+            'description' => 'Global desc',
+            'description.shopify' => 'Shopify desc',
+            'description.allegro' => '',
+        ], $rows[0]);
+    }
+
+    #[Test]
     public function missingAttributeYieldsBlankCell(): void
     {
         // R-47 from PRD §14 — profile references attribute that does not
@@ -156,9 +194,13 @@ final class ExportBuilderTest extends TestCase
     /**
      * @param array<int, list<ObjectValue>>    $valuesByObject     keyed by spl_object_id($product)
      * @param array<int, list<ObjectCategory>> $categoriesByObject same
+     * @param array<string, Uuid>              $channelIds         channel code => id (#1229)
      */
-    private function newBuilder(array $valuesByObject, array $categoriesByObject): ExportBuilder
-    {
+    private function newBuilder(
+        array $valuesByObject,
+        array $categoriesByObject,
+        array $channelIds = [],
+    ): ExportBuilder {
         $values = $this->createStub(ObjectValueRepositoryInterface::class);
         $values->method('findByObject')->willReturnCallback(
             static fn (CatalogObject $object): array => $valuesByObject[spl_object_id($object)] ?? []
@@ -169,11 +211,17 @@ final class ExportBuilderTest extends TestCase
             static fn (CatalogObject $object): array => $categoriesByObject[spl_object_id($object)] ?? []
         );
 
+        $channels = $this->createStub(ChannelResolverInterface::class);
+        $channels->method('resolveId')->willReturnCallback(
+            static fn (string $code): ?Uuid => $channelIds[$code] ?? null
+        );
+
         return new ExportBuilder(
             values: $values,
             categories: $categories,
             columnResolver: new ColumnResolver(),
             serializer: new ValueSerializer(),
+            channels: $channels,
         );
     }
 
@@ -203,9 +251,10 @@ final class ExportBuilderTest extends TestCase
     }
 
     /**
-     * @param list<string> $selectedColumns
+     * @param list<string>      $selectedColumns
+     * @param list<string>|null $channels
      */
-    private function newSession(array $selectedColumns): ExportSession
+    private function newSession(array $selectedColumns, ?array $channels = null): ExportSession
     {
         return new ExportSession(
             userId: Uuid::v7(),
@@ -213,15 +262,17 @@ final class ExportBuilderTest extends TestCase
             format: ExportFormat::Xlsx,
             targetScope: ExportTargetScope::Selected,
             selectedColumns: $selectedColumns,
+            channels: $channels,
         );
     }
 
     /**
-     * @param list<string> $selectedColumns
+     * @param list<string>      $selectedColumns
+     * @param list<string>|null $channels
      */
-    private function newSessionWithTenant(array $selectedColumns): ExportSession
+    private function newSessionWithTenant(array $selectedColumns, ?array $channels = null): ExportSession
     {
-        $session = $this->newSession($selectedColumns);
+        $session = $this->newSession($selectedColumns, $channels);
         $session->assignTenant(new Tenant('demo', 'Demo'));
 
         return $session;
