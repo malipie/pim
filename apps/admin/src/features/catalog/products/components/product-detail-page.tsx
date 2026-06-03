@@ -57,6 +57,7 @@ import type {
   ProductChannel,
   ProductDetailMode,
   ProductLocale,
+  ScopeStatus,
 } from './types';
 import { VariantsListCard } from './variants-list-card';
 import { VariantsTabHost } from './variants-tab-host';
@@ -287,8 +288,22 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   });
   const channels = channelsQuery.data ?? [];
 
+  // #1222 — scope-status: per-attribute inherited indicator.
+  // Only fetched in edit mode (detail page), not in create mode.
+  // Enabled only when a non-primary locale is active (primary locale
+  // values are global — nothing can be "inherited from another locale").
+  const scopeStatusQuery = useQuery<ScopeStatus>({
+    queryKey: ['products', id, 'scope-status', locale, channel],
+    queryFn: () =>
+      jsonFetch<ScopeStatus>(`/api/products/${id}/scope-status${scopeQuery(locale, channel)}`),
+    enabled: isEditMode && id !== '' && locale !== null,
+    staleTime: 30_000,
+  });
+  const scopeStatus = scopeStatusQuery.data ?? {};
+
   // #1150 / #1155 — switching locale or channel discards unsaved edits so an
   // edit is never written to the wrong scope; the operator saves first.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on scope change
   useEffect(() => {
     setDirtyFields({});
   }, [locale, channel]);
@@ -849,10 +864,16 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                     value={fieldValue(attr.code)}
                     provenance={resolveProvenance(attr, product)}
                     locale={locale}
+                    channel={channel}
                     isEditing={isEditing}
                     isLocked={attr.is_system}
                     onChange={(next) => setFieldValue(attr.code, next)}
                     relationContextProductId={isEditMode ? id : undefined}
+                    isInherited={
+                      scopeStatus[attr.code]?.has_override === false &&
+                      scopeStatus[attr.code]?.inherited_from != null
+                    }
+                    inheritedFrom={scopeStatus[attr.code]?.inherited_from ?? null}
                   />
                 ))}
               </AttrGroupCard>
