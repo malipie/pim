@@ -928,7 +928,9 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
             }
 
             if (mode === 'edit' && isSpecialTab(activeTab)) {
-              return <OtherTabs activeTab={activeTab} productId={id} />;
+              return (
+                <OtherTabs activeTab={activeTab} productId={id} locale={locale} channel={channel} />
+              );
             }
 
             return null;
@@ -1106,7 +1108,17 @@ function resolveProvenance(
   return 'manual';
 }
 
-function OtherTabs({ activeTab, productId }: { activeTab: SpecialTabKey; productId: string }) {
+function OtherTabs({
+  activeTab,
+  productId,
+  locale,
+  channel,
+}: {
+  activeTab: SpecialTabKey;
+  productId: string;
+  locale: ProductLocale;
+  channel: ProductChannel | null;
+}) {
   // UX bug fix #2 — Multimedia is back as a special tab gated by
   // `ObjectType.hasMultimedia` (UX-02 removed it from the AttributeGroup
   // dispatcher; mirroring the UniversalDetailPage gating brings the
@@ -1114,7 +1126,8 @@ function OtherTabs({ activeTab, productId }: { activeTab: SpecialTabKey; product
   if (activeTab === 'multimedia') return <ProductMultimediaTab productId={productId} />;
   if (activeTab === 'categories') return <CategoriesTab productId={productId} />;
   if (activeTab === 'history') return <HistoryStub />;
-  if (activeTab === 'variants') return <VariantsTabHost productId={productId} />;
+  if (activeTab === 'variants')
+    return <VariantsTabHost productId={productId} locale={locale} channel={channel} />;
   return null;
 }
 
