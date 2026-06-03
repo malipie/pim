@@ -120,6 +120,21 @@ export interface EffectiveAttributeGroups {
   locales?: LocaleOption[];
 }
 
+/**
+ * #1222 — per-attribute scope status returned by
+ * `GET /api/products/{id}/scope-status?locale=&channel=`.
+ *
+ * - `has_override=true`  → an ObjectValue row exists for the exact requested scope.
+ * - `has_override=false, inherited_from="en"` → value comes from a fallback locale.
+ * - `has_override=false, inherited_from=null`  → global value used.
+ */
+export interface ScopeStatusEntry {
+  has_override: boolean;
+  inherited_from: string | null;
+}
+
+export type ScopeStatus = Record<string, ScopeStatusEntry>;
+
 export type ProductDetailMode = 'edit' | 'create';
 
 /**

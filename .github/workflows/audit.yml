@@ -29,7 +29,7 @@ jobs:
           extensions: ctype, iconv, intl
           tools: composer:v2
       - name: composer audit
-        run: composer audit --no-dev --abandoned=fail
+        run: composer audit --no-dev --abandoned=fail --locked
 
   pnpm-audit:
     name: pnpm audit
