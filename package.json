@@ -50,5 +50,8 @@
     "overrides": {
       "fast-uri": ">=3.1.2"
     }
+  },
+  "dependencies": {
+    "react-hook-form": "7.77.0"
   }
 }
