@@ -9,7 +9,8 @@ import { jsonFetch } from '@/lib/http';
 
 import { AttrGroupCard } from './attr-group-card';
 import { AttrRow } from './attr-row';
-import type { AttributeMeta, GroupMeta, ProductLocale } from './types';
+import { scopeQuery } from './scope';
+import type { AttributeMeta, GroupMeta, ProductChannel, ProductLocale } from './types';
 
 interface VariantRow {
   id: string;
@@ -25,6 +26,14 @@ interface VariantsResponse {
 
 export interface VariantsTabHostProps {
   productId: string;
+  /**
+   * #1226 — active locale from the parent product card. Scopes the variant
+   * value read + write so per-locale overrides land in the right row
+   * (localizable attrs route to that locale; others stay global).
+   */
+  locale: ProductLocale;
+  /** #1226 — active channel (null = all channels / global). */
+  channel: ProductChannel | null;
 }
 
 /**
@@ -36,7 +45,7 @@ export interface VariantsTabHostProps {
  * variants" action that replaces the ProvenanceBadge in the variant
  * RHS slot.
  */
-export function VariantsTabHost({ productId }: VariantsTabHostProps) {
+export function VariantsTabHost({ productId, locale, channel }: VariantsTabHostProps) {
   const { t } = useTranslation();
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [groups, setGroups] = useState<GroupMeta[]>([]);
@@ -46,12 +55,16 @@ export function VariantsTabHost({ productId }: VariantsTabHostProps) {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [reloadKey, setReloadKey] = useState<number>(0);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey is the intentional re-fetch trigger after Generate/Save (bumped via setReloadKey).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey is the intentional re-fetch trigger after Generate/Save (bumped via setReloadKey); locale/channel re-fetch the scoped variant values (#1226).
   useEffect(() => {
     let cancelled = false;
     if (productId === '') return;
+    // #1226 — the variant list goes through the collection locale/channel
+    // overlay (#1223), so the values reflect the active scope. The list URL
+    // already carries `?parent_id`, hence the leading `?` becomes `&`.
+    const scope = scopeQuery(locale, channel).replace('?', '&');
     Promise.all([
-      jsonFetch<VariantsResponse>(`/api/products?parent_id=${productId}`).then((body) => {
+      jsonFetch<VariantsResponse>(`/api/products?parent_id=${productId}${scope}`).then((body) => {
         if (cancelled) return;
         const list = body.member ?? body['hydra:member'] ?? [];
         const arr = Array.isArray(list) ? list : [];
@@ -68,7 +81,14 @@ export function VariantsTabHost({ productId }: VariantsTabHostProps) {
     return () => {
       cancelled = true;
     };
-  }, [productId, reloadKey]);
+  }, [productId, reloadKey, locale, channel]);
+
+  // #1226 — switching scope discards unsaved variant edits so an edit is
+  // never written to the wrong locale/channel (mirrors the product card).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on scope change
+  useEffect(() => {
+    setDirtyByVariant({});
+  }, [locale, channel]);
 
   const variantAttributes = useMemo<AttributeMeta[]>(() => {
     return groups.flatMap((g) => g.attributes.filter((a) => !a.is_system));
@@ -141,7 +161,7 @@ export function VariantsTabHost({ productId }: VariantsTabHostProps) {
     setIsSaving(true);
     const results = await Promise.allSettled(
       targets.map(([id, attributes]) =>
-        jsonFetch(`/api/products/${id}`, {
+        jsonFetch(`/api/products/${id}${scopeQuery(locale, channel)}`, {
           method: 'PATCH',
           contentType: 'application/merge-patch+json',
           body: { attributes },
@@ -268,8 +288,8 @@ export function VariantsTabHost({ productId }: VariantsTabHostProps) {
                       attribute={attr}
                       value={fieldValue(variant.id, attr.code, baseAttrs)}
                       provenance={resolveProv(attr, variant.attributesIndexed)}
-                      locale={'pl' satisfies ProductLocale}
-                      channel={null}
+                      locale={locale}
+                      channel={channel}
                       isEditing={isEditing && !attr.is_system}
                       isLocked={attr.is_system}
                       onChange={(next) => setVariantField(variant.id, attr.code, next)}
