@@ -131,6 +131,12 @@ services:
         arguments:
             $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
 
+    # #1223 — GetCollection provider that overlays per-locale/channel values
+    # on the full collection result page (N+1 prevention via batch load).
+    App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectCollectionLocaleOverlayProvider:
+        arguments:
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
+
     # Context-scope decorator (#42 / 0.4.2). Wraps the KindAware decorator
     # so the chain is: AP4 default → KindAware (per-kind groups, opt-in)
     # → ContextScope (?context=integration|public override). Explicit

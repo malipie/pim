@@ -26,7 +26,8 @@
     "metric": "Metric",
     "wysiwyg": "Rich text",
     "color": "Color",
-    "email": "Email"
+    "email": "Email",
+    "identifier": "Identifier"
   },
   "user_menu": {
     "aria_label": "User menu",
