@@ -79,6 +79,7 @@ final readonly class AttributeValueValidator
             AttributeType::Textarea->value => new TypeValidator\TextareaValidator(),
             AttributeType::Color->value => new TypeValidator\ColorValidator(),
             AttributeType::Email->value => new TypeValidator\EmailValidator(),
+            AttributeType::Identifier->value => new TypeValidator\IdentifierValidator(),
         ]);
     }
 }
