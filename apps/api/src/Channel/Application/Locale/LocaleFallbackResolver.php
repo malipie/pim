@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Channel\Application\Locale;
 
+use App\Channel\Contracts\LocaleFallbackResolverInterface;
 use App\Channel\Domain\Entity\TenantLocale;
 use App\Channel\Domain\Repository\TenantLocaleRepositoryInterface;
 use App\Shared\Domain\Tenant;
@@ -27,7 +28,7 @@ use App\Shared\Domain\Tenant;
  * memory map alone, and a Redis layer would add an invalidation surface
  * (`LocaleDeactivated`, `LocaleUpdated`, …) that LOC-04 should not own.
  */
-final class LocaleFallbackResolver
+final class LocaleFallbackResolver implements LocaleFallbackResolverInterface
 {
     /**
      * @var array<string, list<string>>

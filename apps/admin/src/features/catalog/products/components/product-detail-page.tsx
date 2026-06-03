@@ -29,7 +29,7 @@ import { MockBadge } from '@/components/ui/mock-badge';
 import { toast } from '@/components/ui/toast';
 import { useListSchema } from '@/hooks/use-list-schema';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
-import { jsonFetch } from '@/lib/http';
+import { httpErrorDetail, jsonFetch } from '@/lib/http';
 import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { cn } from '@/lib/utils';
 import { useDefaultObjectType } from '../use-default-object-type';
@@ -57,6 +57,7 @@ import type {
   ProductChannel,
   ProductDetailMode,
   ProductLocale,
+  ScopeStatus,
 } from './types';
 import { VariantsListCard } from './variants-list-card';
 import { VariantsTabHost } from './variants-tab-host';
@@ -287,8 +288,22 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   });
   const channels = channelsQuery.data ?? [];
 
+  // #1222 — scope-status: per-attribute inherited indicator.
+  // Only fetched in edit mode (detail page), not in create mode.
+  // Enabled only when a non-primary locale is active (primary locale
+  // values are global — nothing can be "inherited from another locale").
+  const scopeStatusQuery = useQuery<ScopeStatus>({
+    queryKey: ['products', id, 'scope-status', locale, channel],
+    queryFn: () =>
+      jsonFetch<ScopeStatus>(`/api/products/${id}/scope-status${scopeQuery(locale, channel)}`),
+    enabled: isEditMode && id !== '' && locale !== null,
+    staleTime: 30_000,
+  });
+  const scopeStatus = scopeStatusQuery.data ?? {};
+
   // #1150 / #1155 — switching locale or channel discards unsaved edits so an
   // edit is never written to the wrong scope; the operator saves first.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on scope change
   useEffect(() => {
     setDirtyFields({});
   }, [locale, channel]);
@@ -465,8 +480,14 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
         setIsEditing(false);
         toast.success(t('products.detail.save.success', { defaultValue: 'Zapisano zmiany' }));
       }
-    } catch {
-      toast.error(t('products.detail.save.failed', { defaultValue: 'Nie udało się zapisać' }));
+    } catch (error) {
+      // #1179 — surface the server's Problem Details `detail` (e.g. duplicate
+      // identifier 409) instead of the generic copy, so the operator knows
+      // what to fix.
+      toast.error(
+        httpErrorDetail(error) ??
+          t('products.detail.save.failed', { defaultValue: 'Nie udało się zapisać' }),
+      );
     } finally {
       setIsSaving(false);
     }
@@ -843,10 +864,16 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                     value={fieldValue(attr.code)}
                     provenance={resolveProvenance(attr, product)}
                     locale={locale}
+                    channel={channel}
                     isEditing={isEditing}
                     isLocked={attr.is_system}
                     onChange={(next) => setFieldValue(attr.code, next)}
                     relationContextProductId={isEditMode ? id : undefined}
+                    isInherited={
+                      scopeStatus[attr.code]?.has_override === false &&
+                      scopeStatus[attr.code]?.inherited_from != null
+                    }
+                    inheritedFrom={scopeStatus[attr.code]?.inherited_from ?? null}
                   />
                 ))}
               </AttrGroupCard>
