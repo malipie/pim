@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application;
 
+use App\Catalog\Application\Validation\AttributeValueValidator;
+use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\Provenance;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
+use App\Catalog\Domain\Validator\IdentifierUniquenessValidator;
 use App\Shared\Domain\Tenant;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Map a flat `{attribute_code => value}` payload into `ObjectValue`
@@ -34,19 +40,53 @@ use App\Shared\Domain\Tenant;
  */
 final readonly class ObjectAttributesUpserter
 {
+    /**
+     * #1216 — types whose value validator reads the canonical `{value: scalar}`
+     * shape and carries a real format rule, so it is safe + meaningful to
+     * enforce on every write path. Structural types (select/multiselect/asset/
+     * relation/price/metric) are intentionally excluded: their validators read
+     * different keys (option_code/asset_id/object_id/…) than the `{value}`
+     * shape the admin actually stores, so running them here would false-reject
+     * valid data. Lenient scalar types (text/number/date/boolean/wysiwyg) are
+     * left out to avoid surfacing pre-existing data on edit; they can be added
+     * once backfilled.
+     *
+     * @var list<AttributeType>
+     */
+    private const array VALUE_VALIDATED_TYPES = [
+        AttributeType::Email,
+        AttributeType::Color,
+        AttributeType::Identifier,
+    ];
+
     public function __construct(
         private AttributeRepositoryInterface $attributes,
         private ObjectValueRepositoryInterface $values,
+        private IdentifierUniquenessValidator $identifierUniqueness,
+        private AttributeValueValidator $valueValidator,
     ) {
     }
 
     /**
      * @param array<string, mixed> $payload
+     * @param ?string              $locale    active locale scope (#1148). When set
+     *                                        AND the attribute is localizable AND the
+     *                                        locale is not the tenant's primary, the
+     *                                        value is written to that locale; otherwise
+     *                                        it lands on the global (locale=null) row.
+     *                                        Default locale === global keeps legacy data
+     *                                        and non-localizable attributes shared.
+     * @param ?Uuid                $channelId resolved active channel scope (#1154). When set
+     *                                        AND the attribute is scopable, the value is written
+     *                                        to that channel; otherwise it lands on the global
+     *                                        (channel=null) row.
      */
     public function upsert(
         CatalogObject $object,
         array $payload,
         Provenance $provenance = Provenance::Manual,
+        ?string $locale = null,
+        ?Uuid $channelId = null,
     ): void {
         $tenant = $object->getTenant();
         if (!$tenant instanceof Tenant) {
@@ -55,6 +95,8 @@ final readonly class ObjectAttributesUpserter
             // listener has already run by the time this service is called.
             return;
         }
+
+        $isNonPrimaryLocale = null !== $locale && $locale !== $tenant->getPrimaryLocale();
 
         foreach ($payload as $code => $rawValue) {
             if ('' === $code) {
@@ -66,9 +108,44 @@ final readonly class ObjectAttributesUpserter
                 continue;
             }
 
+            $targetLocale = $isNonPrimaryLocale && $attribute->isLocalizable() ? $locale : null;
+            $targetChannel = null !== $channelId && $attribute->isScopable() ? $channelId : null;
+
             $jsonbValue = $this->wrapValue($rawValue);
 
-            $existing = $this->values->findOneByScope($object, $attribute);
+            // #1216 — enforce per-type value validation (email format, color
+            // hex/rgb, identifier shape) on every write path. Empty values are
+            // skipped — clearing an attribute is always allowed.
+            $scalar = $jsonbValue['value'] ?? null;
+            if (\in_array($attribute->getType(), self::VALUE_VALIDATED_TYPES, true)
+                && null !== $scalar && '' !== $scalar) {
+                $errors = $this->valueValidator->validate($attribute, $jsonbValue);
+                if ([] !== $errors) {
+                    throw new UnprocessableEntityHttpException(\sprintf(
+                        'Attribute "%s": %s',
+                        $code,
+                        $errors[0]->message,
+                    ));
+                }
+            }
+
+            // #1179 — identifier values are unique per ObjectType. Pre-check
+            // here for a clean 409 (the DB partial unique index is the
+            // race-proof backstop). Skip empty/non-string values — clearing
+            // an identifier is allowed.
+            if (AttributeType::Identifier === $attribute->getType()) {
+                $candidate = $jsonbValue['value'] ?? null;
+                if (\is_string($candidate) && '' !== $candidate
+                    && $this->identifierUniqueness->isDuplicate($object, $attribute, $candidate)) {
+                    throw new ConflictHttpException(\sprintf(
+                        'Identifier "%s" is already assigned to another %s.',
+                        $candidate,
+                        $object->getObjectType()->getCode(),
+                    ));
+                }
+            }
+
+            $existing = $this->values->findOneByScope($object, $attribute, $targetChannel, $targetLocale);
             if ($existing instanceof ObjectValue) {
                 $existing->updateValue($jsonbValue);
                 $existing->changeProvenance($provenance);
@@ -82,6 +159,8 @@ final readonly class ObjectAttributesUpserter
                 attribute: $attribute,
                 value: $jsonbValue,
                 provenance: $provenance,
+                channelId: $targetChannel,
+                locale: $targetLocale,
             );
             $this->values->save($value);
         }

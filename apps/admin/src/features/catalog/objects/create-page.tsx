@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Navigate, useParams } from 'react-router';
 
 import { UniversalCreatePage } from '@/components/objects/universal-create-page';
+import { useListSchema } from '@/hooks/use-list-schema';
 import { jsonFetch } from '@/lib/http';
 
 /**
@@ -54,13 +55,15 @@ export function ObjectCreatePage() {
     },
   });
 
+  const schemaQuery = useListSchema(lookup.data?.id);
+
   const typeLabel = useMemo(() => {
     if (!lookup.data) return '';
     const labels = lookup.data.label ?? {};
     return labels[locale] ?? labels.en ?? lookup.data.code;
   }, [lookup.data, locale]);
 
-  if (lookup.isLoading) {
+  if (lookup.isLoading || (lookup.data && schemaQuery.isLoading)) {
     return (
       <div
         aria-busy="true"
@@ -88,6 +91,11 @@ export function ObjectCreatePage() {
     return <Navigate to={legacyRedirect} replace />;
   }
 
+  // #1104 — schema is needed to gate the Multimedia tab; fall back to
+  // `false` if the schema query failed so a transient BE error never
+  // hides the rest of the create form.
+  const hasMultimedia = schemaQuery.data?.objectType.has_multimedia ?? false;
+
   return (
     <UniversalCreatePage
       objectTypeId={lookup.data.id}
@@ -95,6 +103,7 @@ export function ObjectCreatePage() {
       objectTypeLabel={typeLabel}
       backHref={`/objects/${code}`}
       detailPathFor={(id) => `/objects/${code}/${id}`}
+      hasMultimedia={hasMultimedia}
     />
   );
 }

@@ -104,12 +104,21 @@ export function CategoriesTreePage() {
   // `is_categorizable=true`). The dropdown emits its choice via
   // `onChange` on mount when the URL param doesn't match anything, so an
   // empty default is correct here — the URL gets stamped on first render.
+  // ADR-015 — the tree is keyed by ObjectType id (`targetObjectTypeId`); the
+  // kind (`targetType`) is kept alongside for the legacy kind-based attribute-
+  // group declaration calls in the detail panel. Both are stamped by the
+  // dropdown on mount, so a reload restores the exact tree + kind.
+  const targetObjectTypeId = searchParams.get('targetObjectTypeId') ?? '';
   const targetType: string = searchParams.get('targetType') ?? 'product';
   const selectedId = searchParams.get('selected') ?? null;
 
   const { result } = useList<CategoryEntry>({
     resource: 'categories',
     pagination: { mode: 'off' },
+    filters: targetObjectTypeId
+      ? [{ field: 'categoryTargetObjectType', operator: 'eq', value: targetObjectTypeId }]
+      : [],
+    queryOptions: { enabled: targetObjectTypeId !== '' },
   });
 
   const tree = useMemo(
@@ -136,9 +145,12 @@ export function CategoriesTreePage() {
     setSearchParams(next, { replace: true });
   };
 
-  const handleTargetChange = (kind: string) => {
+  const handleTargetChange = (objectTypeId: string, kind: string) => {
     const next = new URLSearchParams(searchParams);
+    next.set('targetObjectTypeId', objectTypeId);
     next.set('targetType', kind);
+    // Switching trees invalidates the selected node (it lived in the old tree).
+    next.delete('selected');
     setSearchParams(next, { replace: true });
   };
 
@@ -155,8 +167,17 @@ export function CategoriesTreePage() {
             'Drzewo kategorii deklaruje jakie grupy atrybutów mają obiekty w tej gałęzi. Dziedziczenie idzie w dół — Ortopeda dziedziczy wszystko od Lekarz + Chirurg, plus własne. Inheritance preview pokazuje co użytkownik zobaczy w formularzu.',
         })}
         ctaLabel={t('categories.create_action', { defaultValue: '+ Nowa kategoria' })}
-        ctaTo="/modeling/categories/new"
-        trailing={<ObjectTypeFilterDropdown value={targetType} onChange={handleTargetChange} />}
+        ctaTo={
+          targetObjectTypeId
+            ? `/modeling/categories/new?targetObjectTypeId=${targetObjectTypeId}`
+            : '/modeling/categories/new'
+        }
+        trailing={
+          <ObjectTypeFilterDropdown
+            value={targetObjectTypeId || null}
+            onChange={handleTargetChange}
+          />
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
@@ -185,6 +206,7 @@ export function CategoriesTreePage() {
           {selectedId ? (
             <CategoryDetailPanel
               categoryId={selectedId}
+              targetObjectTypeId={targetObjectTypeId}
               targetType={targetType}
               locale={i18n.language}
               tree={tree}
@@ -206,11 +228,13 @@ export function CategoriesTreePage() {
 
 function CategoryDetailPanel({
   categoryId,
+  targetObjectTypeId,
   targetType,
   locale,
   tree,
 }: {
   categoryId: string;
+  targetObjectTypeId: string;
   targetType: string;
   locale: string;
   tree: CategoryTreeNode[];
@@ -220,23 +244,27 @@ function CategoryDetailPanel({
 
   const node = useMemo(() => findNode(tree, categoryId), [tree, categoryId]);
 
+  // ADR-015 — resolve declared/effective groups by ObjectType id so custom-OT
+  // category trees work (kind='custom' has no single built-in OT).
   const { data: declared, refetch: refetchDeclared } = useQuery<DeclaredGroupsResponse>({
-    queryKey: ['categories', categoryId, 'attribute_groups', targetType],
+    queryKey: ['categories', categoryId, 'attribute_groups', targetObjectTypeId],
     queryFn: () =>
       jsonFetch<DeclaredGroupsResponse>(
-        `/api/categories/${categoryId}/attribute_groups?targetObjectTypeKind=${targetType}`,
+        `/api/categories/${categoryId}/attribute_groups?targetObjectTypeId=${targetObjectTypeId}`,
         { accept: 'application/json' },
       ),
+    enabled: targetObjectTypeId !== '',
     staleTime: 10_000,
   });
 
   const { data: effective, refetch: refetchEffective } = useQuery<EffectiveResponse>({
-    queryKey: ['categories', categoryId, 'effective-groups', targetType],
+    queryKey: ['categories', categoryId, 'effective-groups', targetObjectTypeId],
     queryFn: () =>
       jsonFetch<EffectiveResponse>(
-        `/api/categories/${categoryId}/effective-groups?objectTypeKind=${targetType}`,
+        `/api/categories/${categoryId}/effective-groups?objectTypeId=${targetObjectTypeId}`,
         { accept: 'application/json' },
       ),
+    enabled: targetObjectTypeId !== '',
     staleTime: 10_000,
   });
 
@@ -489,6 +517,7 @@ function CategoryDetailPanel({
         open={declareOpen}
         onOpenChange={setDeclareOpen}
         categoryId={categoryId}
+        targetObjectTypeId={targetObjectTypeId}
         targetObjectTypeKind={targetType}
         declaredGroupIds={declaredGroupIds}
         inheritedFromMap={inheritedFromMap}

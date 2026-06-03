@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { jsonFetch } from '@/lib/http';
@@ -37,8 +38,10 @@ interface ObjectTypeOption {
 }
 
 interface Props {
+  /** Selected ObjectType id (UUID). ADR-015 — trees are keyed by objectTypeId. */
   value: string | null;
-  onChange: (next: string) => void;
+  /** Emits the chosen ObjectType id + its kind (kind kept for legacy kind-based calls). */
+  onChange: (objectTypeId: string, kind: string) => void;
   className?: string;
 }
 
@@ -63,7 +66,9 @@ export function ObjectTypeFilterDropdown({ value, onChange, className }: Props) 
       const data = await jsonFetch<ObjectTypeOption[]>('/api/object_types', {
         accept: 'application/json',
       });
-      return data.filter((ot) => ot.builtIn === true && ot.isCategorizable === true);
+      // ADR-015 — every categorizable ObjectType (built-in OR custom) owns
+      // its own category tree, so the selector lists all of them.
+      return data.filter((ot) => ot.isCategorizable === true);
     },
     staleTime: 60_000,
   });
@@ -73,11 +78,21 @@ export function ObjectTypeFilterDropdown({ value, onChange, className }: Props) 
   // Auto-select the first option when the URL param doesn't match anything
   // in the fetched list (initial render OR after the operator demoted the
   // previously-selected OT via toggle).
+  //
+  // #1126 — this MUST run in an effect, not during render. The parent
+  // (CategoriesTreePage) gates its category `useList` on the URL param this
+  // emits; calling `onChange` (→ setSearchParams) during a child's render is
+  // unreliable in React and left the param empty on first load, so the tree
+  // rendered empty until the operator manually toggled the select. A
+  // post-commit effect stamps the URL reliably → the list enables + loads.
   const firstOption = options[0];
-  const valueMatches = options.some((ot) => ot.kind === value);
-  if (!query.isLoading && firstOption !== undefined && !valueMatches) {
-    onChange(firstOption.kind);
-  }
+  const valueMatches = options.some((ot) => ot.id === value);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `onChange` is recreated each render by the parent; `valueMatches` gates re-emits so omitting it avoids a render loop.
+  useEffect(() => {
+    if (!query.isLoading && firstOption !== undefined && !valueMatches) {
+      onChange(firstOption.id, firstOption.kind);
+    }
+  }, [query.isLoading, firstOption?.id, firstOption?.kind, valueMatches]);
 
   if (query.isLoading) {
     return (
@@ -136,14 +151,17 @@ export function ObjectTypeFilterDropdown({ value, onChange, className }: Props) 
       </span>
       <select
         className="bg-transparent font-medium outline-none"
-        value={value ?? firstOption?.kind ?? ''}
-        onChange={(e) => onChange(e.target.value)}
+        value={value ?? firstOption?.id ?? ''}
+        onChange={(e) => {
+          const picked = options.find((ot) => ot.id === e.target.value);
+          if (picked !== undefined) onChange(picked.id, picked.kind);
+        }}
         aria-label={t('categories.target_type_aria', {
           defaultValue: 'Filter declared groups by target ObjectType',
         })}
       >
         {options.map((opt) => (
-          <option key={opt.id} value={opt.kind}>
+          <option key={opt.id} value={opt.id}>
             {optionLabel(opt, locale)}
           </option>
         ))}

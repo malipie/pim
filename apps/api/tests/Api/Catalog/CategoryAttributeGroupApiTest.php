@@ -199,6 +199,7 @@ final class CategoryAttributeGroupApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => $code,
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
         $id = $response->toArray()['id'] ?? null;
@@ -220,5 +221,54 @@ final class CategoryAttributeGroupApiTest extends CatalogApiTestCase
         self::getContainer()->get(AttributeGroupRepositoryInterface::class)->save($group);
 
         return $group->getId()->toRfc4122();
+    }
+
+    #[Test]
+    public function declareByObjectTypeIdWorksForCustomTree(): void
+    {
+        // ADR-015 PR-E — declaring a group on a custom-OT category tree via
+        // targetObjectTypeId works (previously kind='custom' → 404
+        // "Built-in ObjectType for kind 'custom' not found").
+        $client = $this->authenticatedClient();
+        $customOt = $this->seedCategorizableObjectType('cars_declare', 'Cars declare');
+        $categoryId = $client->request('POST', '/api/categories', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'cars_root',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $customOt,
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray()['id'] ?? null;
+        \assert(\is_string($categoryId));
+        $groupId = $this->createBusinessGroup('cars_group');
+
+        $response = $client->request('POST', "/api/categories/{$categoryId}/attribute_groups", [
+            'headers' => ['content-type' => 'application/json'],
+            'body' => json_encode([
+                'groupId' => $groupId,
+                'targetObjectTypeId' => $customOt,
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertResponseStatusCodeSame(201);
+        $targetObjectType = $response->toArray()['targetObjectType'] ?? null;
+        \assert(\is_array($targetObjectType));
+        self::assertSame($customOt, $targetObjectType['id'] ?? null);
+    }
+
+    private function seedCategorizableObjectType(string $code, string $label): string
+    {
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $ctx = self::getContainer()->get(\App\Shared\Application\TenantContext::class);
+        $ctx->set($tenant);
+
+        $ot = new \App\Catalog\Domain\Entity\ObjectType($code, ObjectKind::Custom, ['pl' => $label, 'en' => $label]);
+        $ot->setCategorizable(true);
+        $em = $this->em();
+        $em->persist($ot);
+        $em->flush();
+        $ctx->clear();
+
+        return $ot->getId()->toRfc4122();
     }
 }

@@ -6,17 +6,36 @@
  *   GET /api/products/{id}/effective-attribute-groups → { groups: [...] }
  */
 
-export type ProductLocale = 'pl' | 'en' | 'de' | 'cs';
+// #1149 — a locale code is whatever the tenant has enabled, not a fixed
+// union. The real list comes from the effective-attribute-groups payload
+// (`locales`); PRODUCT_LOCALES is only a static fallback for pre-#1149
+// callers / first paint before the list loads.
+export type ProductLocale = string;
 
 export const PRODUCT_LOCALES: readonly ProductLocale[] = ['pl', 'en', 'de', 'cs'] as const;
 
-export type ProductChannel = 'shopify' | 'baselinker' | 'allegro';
+/** One enabled tenant locale, surfaced by `effective-attribute-groups` (#1149). */
+export interface LocaleOption {
+  code: string;
+  is_default: boolean;
+}
+
+// #1155 — a channel code is whatever the tenant configured (Settings →
+// Channels), not a fixed union. The real list comes from `/api/channels`;
+// PRODUCT_CHANNELS is only a static fallback before that loads.
+export type ProductChannel = string;
 
 export const PRODUCT_CHANNELS: readonly ProductChannel[] = [
   'shopify',
   'baselinker',
   'allegro',
 ] as const;
+
+/** One tenant channel for the detail-page picker (#1155). */
+export interface ChannelOption {
+  code: string;
+  label?: Record<string, string>;
+}
 
 export interface CatalogObjectDto {
   id: string;
@@ -53,6 +72,14 @@ export interface AttributeMeta {
   type: string;
   label: { pl?: string; en?: string };
   is_system: boolean;
+  /**
+   * #1151 — whether the attribute carries a distinct value per locale.
+   * Replaces the old code-suffix heuristic for the AttrRow locale chip and
+   * gates the per-locale read/write flow (#1150). `is_scopable` is its
+   * channel-axis counterpart (#1147).
+   */
+  is_localizable?: boolean;
+  is_scopable?: boolean;
   position: number;
   is_required_in_group: boolean;
   visible_when?: unknown;
@@ -89,7 +116,24 @@ export interface GroupMeta {
 
 export interface EffectiveAttributeGroups {
   groups: GroupMeta[];
+  /** #1149 — tenant's enabled locales for the detail-page picker. */
+  locales?: LocaleOption[];
 }
+
+/**
+ * #1222 — per-attribute scope status returned by
+ * `GET /api/products/{id}/scope-status?locale=&channel=`.
+ *
+ * - `has_override=true`  → an ObjectValue row exists for the exact requested scope.
+ * - `has_override=false, inherited_from="en"` → value comes from a fallback locale.
+ * - `has_override=false, inherited_from=null`  → global value used.
+ */
+export interface ScopeStatusEntry {
+  has_override: boolean;
+  inherited_from: string | null;
+}
+
+export type ScopeStatus = Record<string, ScopeStatusEntry>;
 
 export type ProductDetailMode = 'edit' | 'create';
 

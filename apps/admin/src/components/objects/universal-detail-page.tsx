@@ -34,6 +34,9 @@ import { ArrowLeft, MoreHorizontal, Pencil, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
+import { CategoryPickerDialog } from '@/components/catalog/category-picker-dialog';
+import { DetailLoadingState } from '@/components/catalog/detail-loading-state';
+import { DetailNotFoundState } from '@/components/catalog/detail-not-found-state';
 import type { Provenance } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -43,6 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
 import { AttrGroupCard } from '@/features/catalog/products/components/attr-group-card';
 import { AttrRow } from '@/features/catalog/products/components/attr-row';
@@ -50,15 +54,19 @@ import { CompletenessRing } from '@/features/catalog/products/components/complet
 import { EffectiveModelCard } from '@/features/catalog/products/components/effective-model-card';
 import { LocaleChannelToolbar } from '@/features/catalog/products/components/locale-channel-toolbar';
 import { ProductMultimediaTab } from '@/features/catalog/products/components/product-multimedia-tab';
+import { scopeQuery } from '@/features/catalog/products/components/scope';
 import type {
   AttributeMeta,
   CatalogObjectDto,
+  ChannelOption,
   GroupMeta,
+  LocaleOption,
   ProductChannel,
   ProductLocale,
 } from '@/features/catalog/products/components/types';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
-import { jsonFetch } from '@/lib/http';
+import { httpErrorDetail, jsonFetch } from '@/lib/http';
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { cn } from '@/lib/utils';
 
 const SPECIAL_TABS = ['attributes', 'categories', 'multimedia', 'variants'] as const;
@@ -94,7 +102,8 @@ export interface UniversalDetailPageProps {
 
 interface CategoryAssignment {
   categoryId: string;
-  code: string;
+  // The poly-kind endpoint returns `categoryCode` (not `code`).
+  categoryCode: string;
   isPrimary: boolean;
   position: number;
 }
@@ -108,7 +117,6 @@ interface CategoriesResponse {
 
 export function UniversalDetailPage({
   objectId,
-  objectTypeCode,
   objectTypeLabel,
   backHref,
   isCategorizable,
@@ -119,25 +127,34 @@ export function UniversalDetailPage({
   const navigate = useNavigate();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
 
+  // #1150 — active locale drives the object read + write. Declared before
+  // the object query so it can be part of the query key (switching the
+  // picker refetches the locale-resolved reading).
+  const [locale, setLocale] = useState<ProductLocale>('pl');
+  const [channel, setChannel] = useState<ProductChannel | null>(null);
+
   // UP-07 — poly-kind GET /api/objects/{id} (existing AP4 ApiResource).
+  // #1150 / #1155 — locale + channel scope the read (part of the query key).
   const objectQuery = useQuery({
-    queryKey: ['object', objectId],
+    queryKey: ['object', objectId, locale, channel],
     enabled: objectId !== '',
     staleTime: 30_000,
     queryFn: async (): Promise<CatalogObjectDto> => {
-      return jsonFetch<CatalogObjectDto>(`/api/objects/${objectId}`, {
+      return jsonFetch<CatalogObjectDto>(`/api/objects/${objectId}${scopeQuery(locale, channel)}`, {
         accept: 'application/ld+json',
       });
     },
   });
 
   // UP-07a — poly-kind /api/objects/{id}/effective-attribute-groups.
-  const groupsQuery = useQuery<{ groups: GroupMeta[] }>({
+  const groupsQuery = useQuery<{ groups: GroupMeta[]; locales?: LocaleOption[] }>({
     queryKey: ['object', objectId, 'effective-attribute-groups'],
     enabled: objectId !== '',
     staleTime: 5_000,
     queryFn: () =>
-      jsonFetch<{ groups: GroupMeta[] }>(`/api/objects/${objectId}/effective-attribute-groups`),
+      jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
+        `/api/objects/${objectId}/effective-attribute-groups`,
+      ),
     placeholderData: (prev) => prev,
   });
 
@@ -158,7 +175,21 @@ export function UniversalDetailPage({
       unwrapAttributesIndexed(product?.attributesIndexed as Record<string, unknown> | undefined),
     [product?.attributesIndexed],
   );
-  const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data]);
+  // Hide empty groups (0 attributes) from the object card: after an
+  // operator deletes the last attribute of a group, the backend still
+  // returns the now-empty group (it's a valid modeling construct), but
+  // rendering it as an empty "0/0" tab/card is noise. Modeling views keep
+  // empty groups; here we only render groups that contribute attributes.
+  const groups = useMemo(
+    () => (groupsQuery.data?.groups ?? []).filter((g) => g.attributes.length > 0),
+    [groupsQuery.data],
+  );
+
+  // #1149 — dynamic locale picker from the tenant's enabled locales.
+  const locales = useMemo<LocaleOption[]>(
+    () => groupsQuery.data?.locales ?? [],
+    [groupsQuery.data],
+  );
 
   const tabModeGroups = useMemo(
     () => groups.filter((g) => (g.display_mode ?? 'tab') === 'tab'),
@@ -179,8 +210,6 @@ export function UniversalDetailPage({
   }, [tabModeGroups, isCategorizable, hasMultimedia, hasVariants]);
 
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
-  const [locale, setLocale] = useState<ProductLocale>('pl');
-  const [channel, setChannel] = useState<ProductChannel | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -193,6 +222,36 @@ export function UniversalDetailPage({
       setActiveTab('attributes');
     }
   }, [activeTab, visibleTabs]);
+
+  // #1149 — default the picker to the tenant default locale once loaded.
+  const [didInitLocale, setDidInitLocale] = useState(false);
+  useEffect(() => {
+    if (didInitLocale || locales.length === 0) return;
+    const def = locales.find((l) => l.is_default) ?? locales[0];
+    if (def === undefined) return;
+    setLocale(def.code);
+    setDidInitLocale(true);
+  }, [locales, didInitLocale]);
+
+  // #1155 — channel picker fed from /api/channels (tenant's real channels).
+  const channelsQuery = useQuery<ChannelOption[]>({
+    queryKey: ['channels', 'picker'],
+    queryFn: async () => {
+      const response = await jsonFetch<{ member?: ChannelOption[] } | ChannelOption[]>(
+        '/api/channels',
+        { accept: 'application/ld+json' },
+      );
+      return Array.isArray(response) ? response : (response.member ?? []);
+    },
+    staleTime: 60_000,
+  });
+  const channels = channelsQuery.data ?? [];
+
+  // #1150 / #1155 — switching locale or channel discards unsaved edits.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on scope change
+  useEffect(() => {
+    setDirtyFields({});
+  }, [locale, channel]);
 
   const [didExpandInitial, setDidExpandInitial] = useState(false);
   useEffect(() => {
@@ -229,7 +288,9 @@ export function UniversalDetailPage({
     setIsSaving(true);
     try {
       const attributes = stripAttributes(dirtyFields);
-      await jsonFetch(`/api/objects/${objectId}`, {
+      // #1150 / #1155 — write in the active locale + channel (BE routes
+      // localizable/scopable attrs to that scope, others stay global).
+      await jsonFetch(`/api/objects/${objectId}${scopeQuery(locale, channel)}`, {
         method: 'PATCH',
         contentType: 'application/merge-patch+json',
         body: { attributes },
@@ -238,8 +299,14 @@ export function UniversalDetailPage({
       setDirtyFields({});
       setIsEditing(false);
       toast.success(t('products.detail.save.success', { defaultValue: 'Zapisano zmiany' }));
-    } catch {
-      toast.error(t('products.detail.save.failed', { defaultValue: 'Nie udało się zapisać' }));
+    } catch (error) {
+      // Surface the server's Problem Details `detail` (e.g. #1179 duplicate
+      // identifier 409) instead of a generic message, so the operator knows
+      // what to fix. Falls back to the generic copy for opaque failures.
+      toast.error(
+        httpErrorDetail(error) ??
+          t('products.detail.save.failed', { defaultValue: 'Nie udało się zapisać' }),
+      );
     } finally {
       setIsSaving(false);
     }
@@ -269,14 +336,30 @@ export function UniversalDetailPage({
     }
   };
 
-  if (objectQuery.isLoading || product === null) {
-    return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
+  // Issue #1043 — order matters: check `isLoading` FIRST (covers initial
+  // mount), then the not-found bucket. The previous order had `product
+  // === null` in the loading guard, so a 404 stayed on `Ładowanie…`
+  // forever because `objectQuery.data ?? null` is null after a failed
+  // fetch and the error branch below was unreachable.
+  if (objectQuery.isLoading) {
+    return <DetailLoadingState />;
   }
-  if (objectQuery.isError) {
+  if (objectQuery.isError || product === null || product === undefined) {
     return (
-      <div className="rounded border border-destructive bg-destructive/5 p-6 text-sm text-destructive">
-        {t('object_detail.errors.load_failed', { defaultValue: 'Could not load object.' })}
-      </div>
+      <DetailNotFoundState
+        id={objectId}
+        backHref={backHref}
+        title={t('object_detail.errors.not_found_title', {
+          defaultValue: 'Obiekt nie znaleziony',
+        })}
+        description={t('object_detail.errors.not_found_description', {
+          defaultValue: 'Obiekt o ID "{{id}}" nie istnieje lub został usunięty.',
+          id: objectId,
+        })}
+        backLabel={t('object_detail.errors.back_to_list', {
+          defaultValue: 'Wróć do listy',
+        })}
+      />
     );
   }
 
@@ -391,9 +474,23 @@ export function UniversalDetailPage({
                     : t('products.detail.status.inactive', { defaultValue: 'Nieaktywny' })}
                 </span>
               </div>
-              <h1 className="font-display mt-1 text-[26px] font-semibold leading-tight tracking-tight">
-                {nameValue}
-              </h1>
+              {isEditing ? (
+                <Input
+                  aria-label={t('object_detail.name_placeholder', { defaultValue: 'Nazwa' })}
+                  placeholder={t('object_detail.name_placeholder', { defaultValue: 'Nazwa' })}
+                  value={
+                    typeof fieldValue('name') === 'string'
+                      ? (fieldValue('name') as string)
+                      : nameValue
+                  }
+                  onChange={(event) => setFieldValue('name', event.target.value)}
+                  className="font-display mt-1 h-11 rounded-lg border-zinc-200 bg-white text-[26px] font-semibold tracking-tight"
+                />
+              ) : (
+                <h1 className="font-display mt-1 text-[26px] font-semibold leading-tight tracking-tight">
+                  {nameValue}
+                </h1>
+              )}
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <span className="soft-shadow rounded-full bg-white px-2 py-1 text-[11px] font-medium text-zinc-700">
                   {objectTypeLabel}
@@ -453,6 +550,8 @@ export function UniversalDetailPage({
             channel={channel}
             onLocaleChange={setLocale}
             onChannelChange={setChannel}
+            locales={locales}
+            channels={channels}
           />
         </div>
       </header>
@@ -470,7 +569,7 @@ export function UniversalDetailPage({
                 totalCount={group.attributes.length}
                 expanded={expandedGroups.has(group.id)}
                 onToggle={() => toggleGroup(group.id)}
-                isSystem={group.code === 'audit'}
+                isSystem={isLegacyOptionalSystemGroupCode(group.code)}
               >
                 {group.attributes.map((attr) => (
                   <AttrRow
@@ -479,9 +578,11 @@ export function UniversalDetailPage({
                     value={fieldValue(attr.code)}
                     provenance={resolveProvenance(attr, product)}
                     locale={locale}
+                    channel={channel}
                     isEditing={isEditing}
                     isLocked={attr.is_system}
                     onChange={(next) => setFieldValue(attr.code, next)}
+                    relationContextProductId={objectId}
                   />
                 ))}
               </AttrGroupCard>
@@ -495,7 +596,11 @@ export function UniversalDetailPage({
                 <CategoriesPanel
                   data={categoriesQuery.data}
                   isLoading={categoriesQuery.isLoading}
-                  objectTypeCode={objectTypeCode}
+                  objectId={objectId}
+                  objectTypeId={product.objectType?.id}
+                  onChanged={() => {
+                    void categoriesQuery.refetch();
+                  }}
                 />
               );
             }
@@ -561,13 +666,19 @@ export function UniversalDetailPage({
 function CategoriesPanel({
   data,
   isLoading,
-  objectTypeCode,
+  objectId,
+  objectTypeId,
+  onChanged,
 }: {
   data: CategoriesResponse | undefined;
   isLoading: boolean;
-  objectTypeCode: string;
+  objectId: string;
+  objectTypeId: string | undefined;
+  onChanged: () => void;
 }) {
   const { t } = useTranslation();
+  const [pickerOpen, setPickerOpen] = useState(false);
+
   if (isLoading) {
     return (
       <p className="text-[12.5px] text-muted-foreground">
@@ -575,32 +686,66 @@ function CategoriesPanel({
       </p>
     );
   }
+
   const assignments = data?.assignments ?? [];
+  // #1209 — CategoriesResponse assignments ({categoryId, isPrimary}) map 1:1
+  // to the picker's CurrentAssignment.
+  const currentAssignments = assignments.map((a) => ({
+    categoryId: a.categoryId,
+    isPrimary: a.isPrimary,
+  }));
+
+  const editButton = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        setPickerOpen(true);
+      }}
+    >
+      {t('object_detail.categories.edit', { defaultValue: 'Edytuj kategorie' })}
+    </Button>
+  );
+
+  const picker = (
+    <CategoryPickerDialog
+      open={pickerOpen}
+      onOpenChange={setPickerOpen}
+      productId={objectId}
+      endpoint="objects"
+      objectTypeId={objectTypeId}
+      currentAssignments={currentAssignments}
+      onSaved={onChanged}
+    />
+  );
+
   if (assignments.length === 0) {
     return (
-      <div className="border-line bg-surface rounded-2xl border border-dashed p-6 text-center">
-        <p className="text-ink text-[13px] font-medium">
-          {t('object_detail.categories.empty', {
-            defaultValue: 'Brak przypisanych kategorii.',
-          })}
-        </p>
-        <p className="mt-1 text-[11.5px] text-muted-foreground">
-          {t('object_detail.categories.empty_hint', {
-            defaultValue:
-              'Edycja kategorii dla custom kindów dochodzi w UP-07 follow-upie (CategoryPickerDialog universal refactor).',
-          })}
-        </p>
-      </div>
+      <section className="space-y-3">
+        <div className="border-line bg-surface flex flex-col items-center gap-3 rounded-2xl border border-dashed p-6 text-center">
+          <p className="text-ink text-[13px] font-medium">
+            {t('object_detail.categories.empty', {
+              defaultValue: 'Brak przypisanych kategorii.',
+            })}
+          </p>
+          {editButton}
+        </div>
+        {picker}
+      </section>
     );
   }
+
   return (
     <section className="space-y-3">
-      <p className="text-[11.5px] text-muted-foreground">
-        {t('object_detail.categories.read_only_hint', {
-          defaultValue:
-            'Lista kategorii (read-only w UP-07 MVP — picker dialog dla custom kindów w follow-upie).',
-        })}
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11.5px] text-muted-foreground">
+          {t('object_detail.categories.assigned_hint', {
+            defaultValue: 'Przypisane kategorie (★ = główna).',
+          })}
+        </p>
+        {editButton}
+      </div>
       <ul className="flex flex-wrap gap-2">
         {assignments.map((a) => (
           <li
@@ -613,13 +758,11 @@ function CategoriesPanel({
             )}
           >
             {a.isPrimary ? <span aria-hidden>★</span> : null}
-            <span className="font-medium">{a.code}</span>
+            <span className="font-medium">{a.categoryCode}</span>
           </li>
         ))}
       </ul>
-      <p className="text-[11px] text-zinc-400">
-        objectType: <span className="font-mono">{objectTypeCode}</span>
-      </p>
+      {picker}
     </section>
   );
 }

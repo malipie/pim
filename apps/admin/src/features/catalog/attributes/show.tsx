@@ -9,6 +9,7 @@ import {
   Pencil,
   Save,
   Shield,
+  Trash2,
   TriangleAlert,
   X,
   Zap,
@@ -29,6 +30,7 @@ import {
 import { WhereUsedList } from '@/components/modeling/where-used-list';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -138,6 +140,8 @@ function Editor({
   const [filterable, setFilterable] = useState(attribute.filterable ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // ADR-014 / MOD-13 (#905) — relation config state, hydrated from the
   // attribute payload. Initial JSONB shape: validation_rules.advanced_fields.
@@ -329,8 +333,76 @@ function Editor({
     onClose();
   };
 
+  // Destructive: deletes the attribute and returns to the library. The BE
+  // rejects system attributes (422) and in-use attributes (409); on the
+  // latter we surface the human-readable `detail` so the operator knows to
+  // detach / migrate first. Success bubbles up via `onClose` → the list
+  // refetches on mount and the row is gone.
+  const deleteAttribute = async () => {
+    setDeleting(true);
+    try {
+      await jsonFetch(`/api/attributes/${attribute.id}`, {
+        method: 'DELETE',
+        accept: 'application/json',
+      });
+      setDeleteOpen(false);
+      toast.success(t('attributes.delete.success', { defaultValue: 'Atrybut został usunięty.' }));
+      onClose();
+    } catch (err) {
+      setDeleteOpen(false);
+      if (err instanceof HttpError) {
+        const detail =
+          err.body && typeof err.body === 'object' && 'detail' in err.body
+            ? String((err.body as Record<string, unknown>).detail)
+            : null;
+        toast.error(
+          detail ??
+            t('attributes.delete.error_in_use', {
+              defaultValue:
+                'Nie można usunąć atrybutu, który jest w użyciu. Odepnij go lub zmigruj.',
+            }),
+        );
+      } else {
+        toast.error(t('app.delete_error', { defaultValue: 'Nie udało się usunąć' }));
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className={cn('space-y-6', dirty ? 'pb-24' : '')}>
+      <Dialog open={deleteOpen} onOpenChange={(next) => (!next ? setDeleteOpen(false) : undefined)}>
+        <DialogContent>
+          <div className="space-y-2">
+            <DialogTitle>
+              {t('attributes.delete.confirm_title', { defaultValue: 'Usunąć atrybut?' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('attributes.delete.confirm_body', {
+                defaultValue:
+                  'Atrybut "{{code}}" zostanie trwale usunięty wraz z jego wartościami słownikowymi. Tej operacji nie można cofnąć.',
+                code: attribute.code,
+              })}
+            </DialogDescription>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+              {t('app.cancel', { defaultValue: 'Anuluj' })}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleting}
+              onClick={() => {
+                void deleteAttribute();
+              }}
+            >
+              {t('attributes.delete.confirm_submit', { defaultValue: 'Usuń atrybut' })}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex items-center justify-between">
         <Button asChild variant="ghost" size="sm" className="-ml-3">
           <Link to="/modeling/attributes">
@@ -384,6 +456,19 @@ function Editor({
                 <TriangleAlert className="size-4" />
                 {t('modeling.attributes.migration.action_label', { defaultValue: 'Migruj typ' })}
               </Link>
+            </Button>
+          ) : null}
+          {!isSystem ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              aria-label={t('attributes.delete.action', { defaultValue: 'Usuń atrybut' })}
+              onClick={() => setDeleteOpen(true)}
+              className="h-9 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100"
+            >
+              <Trash2 className="size-4" />
+              {t('attributes.delete.action', { defaultValue: 'Usuń atrybut' })}
             </Button>
           ) : null}
           {!isSystem ? (
@@ -522,8 +607,6 @@ function Editor({
         </Card>
 
         <AttachedGroupsCard attribute={attribute} locale={locale} />
-
-        <AttachedObjectTypesCard attribute={attribute} locale={locale} />
 
         {attribute.type === 'relation' ? (
           <RelationConfigPanel
@@ -1026,169 +1109,6 @@ function AttachedGroupsCard({ attribute, locale }: { attribute: AttributeDetail;
           void attachByCodes([group.code]);
         }}
       />
-    </Card>
-  );
-}
-
-interface ObjectTypeRow {
-  id: string;
-  code: string;
-  kind: string;
-  label?: Record<string, string> | string | null;
-}
-
-/**
- * #979 — toggle-chip card for `object_type_attributes` ownership. Operator
- * picks which ObjectTypes carry this attribute directly from the Attribute
- * detail view; previously the only path was navigating into each
- * ObjectType edit screen. Without a row in the junction the attribute is
- * invisible on product/category/asset detail tabs even when assigned to a
- * group that's already attached to the ObjectType — group membership and
- * ObjectType ownership are two separate junctions by design (ADR-009).
- */
-function AttachedObjectTypesCard({
-  attribute,
-  locale,
-}: {
-  attribute: AttributeDetail;
-  locale: string;
-}) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
-  const [pendingId, setPendingId] = useState<string | null>(null);
-
-  const allObjectTypesQuery = useQuery<ObjectTypeRow[]>({
-    queryKey: ['object_types', 'all'],
-    queryFn: async () => {
-      const data = await jsonFetch<ObjectTypeRow[] | { member?: ObjectTypeRow[] }>(
-        '/api/object_types?itemsPerPage=200',
-        { accept: 'application/json' },
-      );
-      if (Array.isArray(data)) return data;
-      return data.member ?? [];
-    },
-    staleTime: 60_000,
-  });
-
-  const ownerIdsQuery = useQuery<{ objectTypeIds: string[] }>({
-    queryKey: ['attribute', attribute.id, 'owner_object_types'],
-    queryFn: () =>
-      jsonFetch<{ attributeId: string; objectTypeIds: string[] }>(
-        `/api/attributes/${attribute.id}/owner_object_types`,
-        { accept: 'application/json' },
-      ),
-    staleTime: 30_000,
-  });
-
-  const isSystem = attribute.system === true;
-  const ownerIds = new Set(ownerIdsQuery.data?.objectTypeIds ?? []);
-  const allObjectTypes = allObjectTypesQuery.data ?? [];
-
-  const reload = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: ['attribute', attribute.id, 'owner_object_types'],
-      }),
-      queryClient.invalidateQueries({ queryKey: ['attribute', attribute.id] }),
-      queryClient.invalidateQueries({ queryKey: ['attributes'] }),
-    ]);
-  };
-
-  const toggle = async (otId: string, attached: boolean) => {
-    setError(null);
-    setPendingId(otId);
-    try {
-      await jsonFetch(`/api/object_types/${otId}/attributes/${attribute.id}`, {
-        method: attached ? 'DELETE' : 'POST',
-        accept: 'application/json',
-      });
-      await reload();
-      toast.success(
-        attached
-          ? t('modeling.attributes.object_type_detach_success', {
-              defaultValue: 'Odpięto atrybut od typu obiektu.',
-            })
-          : t('modeling.attributes.object_type_attach_success', {
-              defaultValue: 'Dodano atrybut do typu obiektu.',
-            }),
-      );
-    } catch (err) {
-      if (err instanceof HttpError) {
-        const detail =
-          err.body && typeof err.body === 'object' && 'detail' in err.body
-            ? String((err.body as Record<string, unknown>).detail)
-            : null;
-        setError(detail ?? `HTTP ${err.status}`);
-      } else {
-        setError(
-          t('modeling.attributes.object_type_toggle_error', {
-            defaultValue: 'Nie udało się zmienić przypisania.',
-          }),
-        );
-      }
-    } finally {
-      setPendingId(null);
-    }
-  };
-
-  const labelFor = (ot: ObjectTypeRow): string => {
-    if (ot.label === null || ot.label === undefined) return ot.code;
-    if (typeof ot.label === 'string') return ot.label;
-    return ot.label[locale] ?? ot.label.pl ?? ot.label.en ?? ot.code;
-  };
-
-  return (
-    <Card className="p-6">
-      <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        {t('modeling.attributes.attached_object_types_title', {
-          defaultValue: 'Typy obiektów',
-        })}
-      </div>
-      <p className="mb-3 text-[11.5px] text-muted-foreground">
-        {t('modeling.attributes.attached_object_types_help', {
-          defaultValue:
-            'Wybierz typy obiektów, na których atrybut ma być dostępny. Aby pojawił się np. na karcie produktu, musi być dołączony do odpowiedniego typu.',
-        })}
-      </p>
-
-      {allObjectTypes.length === 0 ? (
-        <p className="text-[11.5px] text-muted-foreground">
-          {t('modeling.attributes.attached_object_types_empty', {
-            defaultValue: 'Brak dostępnych typów obiektów w tenancie.',
-          })}
-        </p>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {allObjectTypes.map((ot) => {
-            const attached = ownerIds.has(ot.id);
-            const isPending = pendingId === ot.id;
-            return (
-              <button
-                key={ot.id}
-                type="button"
-                aria-pressed={attached}
-                disabled={isSystem || isPending}
-                onClick={() => {
-                  void toggle(ot.id, attached);
-                }}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12.5px] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-1',
-                  attached
-                    ? 'border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-100'
-                    : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100',
-                  (isSystem || isPending) && 'cursor-not-allowed opacity-60',
-                )}
-              >
-                <span className="font-medium">{labelFor(ot)}</span>
-                <span className="font-mono text-[10.5px] text-muted-foreground">({ot.code})</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {error !== null ? <p className="mt-3 text-[12px] text-destructive">{error}</p> : null}
     </Card>
   );
 }

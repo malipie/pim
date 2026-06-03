@@ -82,6 +82,13 @@
             -->
             <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\ObjectTypeFilter</filter>
             <!--
+                ADR-015: `?categoryTargetObjectType={uuid}` scopes
+                /api/categories to a single ObjectType's tree (per-OT
+                category trees). Required so the modeling UI can isolate
+                one tree via the ObjectType selector.
+            -->
+            <filter>App\Catalog\Infrastructure\ApiPlatform\Filter\CategoryTreeFilter</filter>
+            <!--
                 OrderFilter + RangeFilter pinned to `id` are mandatory for
                 cursor pagination (`paginationViaCursor` below) — lessons #0.0.3
                 docu the AP4 trio. Without RangeFilter the `?id[lt]=...`
@@ -101,6 +108,7 @@
                        uriTemplate="/products{._format}"
                        name="products_get_collection"
                        paginationType="cursor"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectCollectionLocaleOverlayProvider"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
                 <extraProperties>
                     <values>
@@ -115,6 +123,7 @@
             <operation class="ApiPlatform\Metadata\Get"
                        uriTemplate="/products/{id}{._format}"
                        name="products_get"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectLocaleOverlayProvider"
                        security="is_granted('READ', object)">
                 <extraProperties>
                     <values>
@@ -184,6 +193,7 @@
                        uriTemplate="/categories{._format}"
                        name="categories_get_collection"
                        paginationType="cursor"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectCollectionLocaleOverlayProvider"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
                 <extraProperties>
                     <values>
@@ -198,6 +208,7 @@
             <operation class="ApiPlatform\Metadata\Get"
                        uriTemplate="/categories/{id}{._format}"
                        name="categories_get"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectLocaleOverlayProvider"
                        security="is_granted('READ', object)">
                 <extraProperties>
                     <values>
@@ -267,6 +278,7 @@
                        uriTemplate="/assets{._format}"
                        name="assets_get_collection"
                        paginationType="cursor"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectCollectionLocaleOverlayProvider"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
                 <extraProperties>
                     <values>
@@ -308,6 +320,7 @@
                        uriTemplate="/objects{._format}"
                        name="objects_get_collection"
                        paginationType="cursor"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectCollectionLocaleOverlayProvider"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
                 <paginationViaCursor>
                     <paginationField field="id" direction="DESC"/>
@@ -324,6 +337,7 @@
             <operation class="ApiPlatform\Metadata\Get"
                        uriTemplate="/objects/{id}{._format}"
                        name="objects_get"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectLocaleOverlayProvider"
                        security="is_granted('READ', object)"/>
 
             <!-- Poly-kind create (#981) — relation picker modal's

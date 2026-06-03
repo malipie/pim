@@ -19,7 +19,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Save } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import { AttrGroupCard } from '@/features/catalog/products/components/attr-group
 import { AttrRow } from '@/features/catalog/products/components/attr-row';
 import type { GroupMeta, ProductLocale } from '@/features/catalog/products/components/types';
 import { jsonFetch } from '@/lib/http';
+import { cn } from '@/lib/utils';
 
 export interface UniversalCreatePageProps {
   objectTypeId: string;
@@ -38,6 +39,14 @@ export interface UniversalCreatePageProps {
   backHref: string;
   /** Builder for the detail route after successful create. */
   detailPathFor: (id: string) => string;
+  /**
+   * #1104 — when `true`, surfaces a Multimedia tab next to the
+   * attribute tabs. Uploads need the post-create object id, so the
+   * panel renders a disclaimer pointing the operator at the detail
+   * page; the tab itself stays visible so the capability advertised
+   * in modeling matches what the operator sees here.
+   */
+  hasMultimedia?: boolean;
 }
 
 const GROUP_ICONS: Record<string, string> = {
@@ -53,12 +62,16 @@ const GROUP_ICONS: Record<string, string> = {
   cennik: '💰',
 };
 
+const ATTRIBUTES_TAB = 'attributes';
+const MULTIMEDIA_TAB = 'multimedia';
+
 export function UniversalCreatePage({
   objectTypeId,
   objectTypeCode,
   objectTypeLabel,
   backHref,
   detailPathFor,
+  hasMultimedia = false,
 }: UniversalCreatePageProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -68,16 +81,24 @@ export function UniversalCreatePage({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [locale] = useState<ProductLocale>('pl');
+  const [activeTab, setActiveTab] = useState<string>(ATTRIBUTES_TAB);
 
   // UP-08 — fetch the ObjectType's effective groups without an object
   // context (no categories selected). Uses the `/preview` POST endpoint
   // with an empty categoryIds payload so the response shape mirrors
   // the detail page; category-driven overlay during create is a
   // follow-up.
+  //
+  // #1098 — `refetchOnMount: 'always'` keeps the tab list aligned with
+  // modeling changes the operator just made. Without it the 5-minute
+  // staleTime + lack of cross-page invalidation hides newly attached
+  // groups (e.g. operator attaches a second AttributeGroup in
+  // modeling, navigates back here, and only sees the cached payload).
   const groupsQuery = useQuery<{ groups: GroupMeta[] }>({
     queryKey: ['object-type', objectTypeId, 'effective-attribute-groups', 'preview', 'empty'],
     enabled: objectTypeId !== '',
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30_000,
+    refetchOnMount: 'always',
     queryFn: () =>
       jsonFetch<{ groups: GroupMeta[] }>(
         `/api/object_types/${objectTypeId}/effective-attribute-groups/preview`,
@@ -89,8 +110,53 @@ export function UniversalCreatePage({
         },
       ),
   });
-  const groups = groupsQuery.data?.groups ?? [];
-  const stackedGroups = groups.filter((g) => (g.display_mode ?? 'tab') === 'stacked');
+  // Hide empty groups (0 attributes) — mirror universal-detail-page so the
+  // create form never shows an empty "0/0" tab for a group whose attributes
+  // were all removed in modeling. Modeling views keep empty groups.
+  const groups = useMemo(
+    () => (groupsQuery.data?.groups ?? []).filter((g) => g.attributes.length > 0),
+    [groupsQuery.data],
+  );
+
+  // #1098 — mirror MODR-04 split from product-detail-page: tab-mode
+  // groups become their own tab, stacked-mode groups live inline
+  // inside the default "Atrybuty" tab. Operator gets the same mental
+  // model in create as in detail.
+  const tabModeGroups = useMemo(
+    () => groups.filter((g) => (g.display_mode ?? 'tab') === 'tab'),
+    [groups],
+  );
+  const stackedGroups = useMemo(
+    () => groups.filter((g) => (g.display_mode ?? 'tab') === 'stacked'),
+    [groups],
+  );
+
+  const visibleTabs: readonly string[] = useMemo(() => {
+    if (groups.length === 0 && !hasMultimedia) return [];
+    const tabs: string[] = [];
+    // Hide the synthetic Atrybuty tab when no stacked groups exist —
+    // otherwise the operator stares at an empty default tab before
+    // they realise the data lives behind a different chip.
+    if (stackedGroups.length > 0 || (tabModeGroups.length === 0 && groups.length > 0)) {
+      tabs.push(ATTRIBUTES_TAB);
+    }
+    for (const group of tabModeGroups) tabs.push(group.code);
+    // #1104 — surface Multimedia capability flagged in modeling.
+    // The panel renders a disclaimer that uploads live on the detail
+    // page (they need the post-create object id).
+    if (hasMultimedia) tabs.push(MULTIMEDIA_TAB);
+    return tabs;
+  }, [groups, stackedGroups, tabModeGroups, hasMultimedia]);
+
+  // Keep activeTab valid when the visible tab set changes (e.g. groups
+  // arrive after first render, operator attaches a new group via
+  // modeling and the refetch lands).
+  useEffect(() => {
+    if (visibleTabs.length === 0) return;
+    if (!visibleTabs.includes(activeTab)) {
+      setActiveTab(visibleTabs[0] ?? ATTRIBUTES_TAB);
+    }
+  }, [activeTab, visibleTabs]);
 
   const toggleGroup = (groupId: string): void => {
     setExpandedGroups((prev) => {
@@ -116,29 +182,99 @@ export function UniversalCreatePage({
     }
     setIsSaving(true);
     try {
-      const attributes = stripAttributes(dirtyFields);
+      // #1102 — relation values live in `object_relations`, not
+      // `object_values`. The POST /api/objects payload only handles
+      // the latter, so split the dirty dict in two: ordinary attrs
+      // ride along with the POST, relation attrs get one PUT each
+      // after the main row exists.
+      const relationCodes = collectRelationCodes(groups);
+      const { normal, relations } = splitDirtyAttributes(dirtyFields, relationCodes);
       const body: Record<string, unknown> = {
         objectTypeId,
         code: trimmedCode,
       };
-      if (Object.keys(attributes).length > 0) body.attributes = attributes;
+      if (Object.keys(normal).length > 0) body.attributes = normal;
       const created = await jsonFetch<{ id: string }>('/api/objects', {
         method: 'POST',
         contentType: 'application/ld+json',
         body,
       });
-      toast.success(
-        t('object_create.success', {
-          defaultValue: 'Utworzono {{code}}',
-          code: trimmedCode,
-        }),
-      );
+
+      const relationFailures: string[] = [];
+      for (const [attrCode, targets] of Object.entries(relations)) {
+        if (targets.length === 0) continue;
+        try {
+          await jsonFetch(`/api/objects/${created.id}/relations/${attrCode}`, {
+            method: 'PUT',
+            contentType: 'application/json',
+            body: { targets: targets.map((id) => ({ id })) },
+          });
+        } catch {
+          relationFailures.push(attrCode);
+        }
+      }
+
+      if (relationFailures.length > 0) {
+        toast.error(
+          t('object_create.relations_partial_error', {
+            defaultValue: 'Obiekt utworzony, ale relacje nie zapisane: {{codes}}',
+            codes: relationFailures.join(', '),
+          }),
+        );
+      } else {
+        toast.success(
+          t('object_create.success', {
+            defaultValue: 'Utworzono {{code}}',
+            code: trimmedCode,
+          }),
+        );
+      }
       navigate(detailPathFor(created.id));
     } catch {
       toast.error(t('object_create.failed', { defaultValue: 'Nie udało się utworzyć obiektu' }));
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const renderGroup = (group: GroupMeta) => (
+    <AttrGroupCard
+      key={group.id}
+      id={group.id}
+      title={group.label[lang] ?? group.code}
+      icon={GROUP_ICONS[group.code]}
+      filledCount={countFilled(group, dirtyFields)}
+      totalCount={group.attributes.length}
+      expanded={expandedGroups.has(group.id) || expandedGroups.size === 0}
+      onToggle={() => toggleGroup(group.id)}
+    >
+      {group.attributes.map((attr) => (
+        <AttrRow
+          key={attr.id}
+          attribute={attr}
+          value={dirtyFields[attr.code]}
+          provenance="manual"
+          locale={locale}
+          channel={null}
+          isEditing={true}
+          isLocked={attr.is_system}
+          onChange={(next) => setFieldValue(attr.code, next)}
+          createMode={true}
+        />
+      ))}
+    </AttrGroupCard>
+  );
+
+  const tabLabel = (tab: string): string => {
+    if (tab === ATTRIBUTES_TAB) {
+      return t('object_create.tabs.attributes', { defaultValue: 'Atrybuty' });
+    }
+    if (tab === MULTIMEDIA_TAB) {
+      return t('object_create.tabs.multimedia', { defaultValue: 'Multimedia' });
+    }
+    const group = tabModeGroups.find((g) => g.code === tab);
+    if (group === undefined) return tab;
+    return group.label[lang] ?? group.code;
   };
 
   return (
@@ -212,13 +348,62 @@ export function UniversalCreatePage({
             </div>
           </div>
         </div>
+
+        {visibleTabs.length > 1 ? (
+          <div className="flex items-center gap-1 border-t border-zinc-100 px-7">
+            <div
+              className="flex flex-1 items-center gap-1"
+              role="tablist"
+              aria-label={t('object_create.tabs.aria', { defaultValue: 'Zakładki typu obiektu' })}
+            >
+              {visibleTabs.map((tab) => {
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setActiveTab(tab)}
+                    className={cn(
+                      'relative inline-flex h-[44px] items-center gap-2 px-3.5 text-[13px] font-medium tracking-tight',
+                      isActive ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-800',
+                    )}
+                  >
+                    {tabLabel(tab)}
+                    {isActive ? (
+                      <span
+                        className="absolute -bottom-px left-0 right-0 h-[2px] rounded-t bg-zinc-900"
+                        aria-hidden
+                      />
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </header>
 
       <div className="grid grid-cols-1 gap-5 px-7 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-3">
           {groupsQuery.isLoading ? (
             <p className="text-sm text-muted-foreground">{t('app.loading')}</p>
-          ) : stackedGroups.length === 0 ? (
+          ) : activeTab === MULTIMEDIA_TAB ? (
+            <div className="border-line bg-surface rounded-2xl border border-dashed p-6 text-center">
+              <p className="text-ink text-[13px] font-medium">
+                {t('object_create.multimedia.unavailable', {
+                  defaultValue: 'Multimedia dostępne po pierwszym zapisie',
+                })}
+              </p>
+              <p className="mt-1 text-[11.5px] text-muted-foreground">
+                {t('object_create.multimedia.hint', {
+                  defaultValue:
+                    'Najpierw utwórz obiekt (Kod + Utwórz). Zdjęcia i pliki dodasz w karcie obiektu po zapisie.',
+                })}
+              </p>
+            </div>
+          ) : groups.length === 0 ? (
             <div className="border-line bg-surface rounded-2xl border border-dashed p-6 text-center">
               <p className="text-ink text-[13px] font-medium">
                 {t('object_create.no_attributes', {
@@ -233,32 +418,14 @@ export function UniversalCreatePage({
                 })}
               </p>
             </div>
+          ) : activeTab === ATTRIBUTES_TAB ? (
+            stackedGroups.map(renderGroup)
           ) : (
-            stackedGroups.map((group) => (
-              <AttrGroupCard
-                key={group.id}
-                id={group.id}
-                title={group.label[lang] ?? group.code}
-                icon={GROUP_ICONS[group.code]}
-                filledCount={countFilled(group, dirtyFields)}
-                totalCount={group.attributes.length}
-                expanded={expandedGroups.has(group.id) || expandedGroups.size === 0}
-                onToggle={() => toggleGroup(group.id)}
-              >
-                {group.attributes.map((attr) => (
-                  <AttrRow
-                    key={attr.id}
-                    attribute={attr}
-                    value={dirtyFields[attr.code]}
-                    provenance="manual"
-                    locale={locale}
-                    isEditing={true}
-                    isLocked={attr.is_system}
-                    onChange={(next) => setFieldValue(attr.code, next)}
-                  />
-                ))}
-              </AttrGroupCard>
-            ))
+            (() => {
+              const tabGroup = tabModeGroups.find((g) => g.code === activeTab);
+              if (tabGroup === undefined) return null;
+              return renderGroup(tabGroup);
+            })()
           )}
         </div>
 
@@ -281,13 +448,39 @@ export function UniversalCreatePage({
   );
 }
 
-function stripAttributes(dirty: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
+function collectRelationCodes(groups: GroupMeta[]): Set<string> {
+  const codes = new Set<string>();
+  for (const group of groups) {
+    for (const attr of group.attributes) {
+      if (attr.type === 'relation') codes.add(attr.code);
+    }
+  }
+  return codes;
+}
+
+function splitDirtyAttributes(
+  dirty: Record<string, unknown>,
+  relationCodes: Set<string>,
+): { normal: Record<string, unknown>; relations: Record<string, string[]> } {
+  const normal: Record<string, unknown> = {};
+  const relations: Record<string, string[]> = {};
   for (const [k, v] of Object.entries(dirty)) {
     if (k === 'sku' || k === 'code') continue;
-    out[k] = v;
+    if (relationCodes.has(k)) {
+      relations[k] = toIdList(v);
+      continue;
+    }
+    normal[k] = v;
   }
-  return out;
+  return { normal, relations };
+}
+
+function toIdList(value: unknown): string[] {
+  if (typeof value === 'string' && value !== '') return [value];
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string' && v !== '');
+  }
+  return [];
 }
 
 function countFilled(group: GroupMeta, dirty: Record<string, unknown>): number {

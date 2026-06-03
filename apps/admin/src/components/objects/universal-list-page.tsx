@@ -38,6 +38,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { BulkBar } from '@/components/catalog/bulk-bar';
+import { DeletePresetDialog } from '@/components/catalog/delete-preset-dialog';
 import { type ExcelColumn, ExcelLikeGrid } from '@/components/catalog/excel-like-grid';
 import { FilterChipsBar } from '@/components/catalog/filter-chips-bar';
 import {
@@ -278,8 +279,10 @@ export function UniversalListPage({
     presets: smartPresets,
     isLoading: smartPresetsLoading,
     create: createSmartPreset,
+    remove: removeSmartPreset,
   } = useSmartPresets({ withCounts: true, resource: objectTypeCode });
   const [activeSmartPresetId, setActiveSmartPresetId] = useState<string | null>(null);
+  const [presetToDelete, setPresetToDelete] = useState<SmartFilterPreset | null>(null);
   const [advancedPanelOpen, setAdvancedPanelOpen] = useState(false);
   const [panelConditions, setPanelConditions] = useState<FilterCondition[]>([]);
   const [matchOperator, setMatchOperator] = useState<'AND' | 'OR'>('AND');
@@ -613,7 +616,22 @@ export function UniversalListPage({
           }
           setShowSaveAsPresetModal(true);
         }}
+        onDelete={(preset) => {
+          setPresetToDelete(preset);
+        }}
         isLoading={smartPresetsLoading}
+      />
+
+      <DeletePresetDialog
+        preset={presetToDelete}
+        onClose={() => {
+          setPresetToDelete(null);
+        }}
+        onDeleted={(presetId) => {
+          // Drop the active filter if the deleted preset was applied.
+          if (activeSmartPresetId === presetId) handleApplySmartPreset(null);
+        }}
+        remove={removeSmartPreset}
       />
 
       <div className="flex flex-wrap items-center gap-3">
@@ -661,7 +679,7 @@ export function UniversalListPage({
         <Button asChild className="h-11 rounded-2xl px-4">
           <Link to={createPath}>
             <Plus className="size-4" />
-            {t('products.toolbar.new_product', { defaultValue: 'Dodaj' })}
+            {t('products.toolbar.add', { defaultValue: 'Dodaj' })}
             <kbd className="ml-1.5 rounded bg-white/15 px-1 py-0.5 font-mono text-[10px]">⌘N</kbd>
           </Link>
         </Button>

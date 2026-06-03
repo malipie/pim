@@ -23,6 +23,10 @@ interface DangerZoneCardProps {
   onConfirm: () => void | Promise<void>;
 }
 
+interface DangerZoneError {
+  message: string;
+}
+
 /**
  * VIEW-01 (#372) — Danger zone card on custom ObjectType detail
  * (object-types.jsx lines 221–240). Confirm dialog uses the shared
@@ -41,15 +45,32 @@ export function DangerZoneCard({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<DangerZoneError | null>(null);
 
   const handleConfirm = async () => {
     setPending(true);
+    setError(null);
     try {
       await onConfirm();
       setOpen(false);
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message.length > 0
+          ? err.message
+          : typeof err === 'string'
+            ? err
+            : t('modeling.danger_zone.generic_error', {
+                defaultValue: 'Operacja nie powiodła się.',
+              });
+      setError({ message });
     } finally {
       setPending(false);
     }
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setError(null);
   };
 
   return (
@@ -75,10 +96,18 @@ export function DangerZoneCard({
           </Button>
         </div>
       </CardContent>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent>
           <DialogTitle>{confirmTitle}</DialogTitle>
           <DialogDescription className="mt-2">{confirmDescription}</DialogDescription>
+          {error !== null ? (
+            <p
+              role="alert"
+              className="mt-4 rounded-md bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700"
+            >
+              {error.message}
+            </p>
+          ) : null}
           <div className="mt-6 flex justify-end gap-2">
             <DialogClose asChild>
               <Button variant="ghost" disabled={pending}>

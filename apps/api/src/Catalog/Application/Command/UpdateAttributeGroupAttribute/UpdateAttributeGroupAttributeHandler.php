@@ -76,7 +76,7 @@ final readonly class UpdateAttributeGroupAttributeHandler
      * limits the field picker to attribute codes inside the same group.
      * Server-side check guards the API path: the referenced attribute
      * code must exist in the same AttributeGroup OR be one of the
-     * always-present system audit attributes.
+     * platform-owned system audit attributes.
      */
     private function assertFieldExistsInGroup(\App\Catalog\Domain\Entity\AttributeGroup $group, string $field): void
     {

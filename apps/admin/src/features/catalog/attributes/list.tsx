@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { jsonFetch } from '@/lib/http';
@@ -33,6 +32,8 @@ const TYPE_FILTERS = [
   'all',
   'system',
   'text',
+  'textarea',
+  'identifier',
   'number',
   'boolean',
   'select',
@@ -45,6 +46,8 @@ const TYPE_FILTERS = [
   'price',
   'metric',
   'wysiwyg',
+  'color',
+  'email',
 ] as const;
 
 type TypeFilter = (typeof TYPE_FILTERS)[number];
@@ -83,8 +86,17 @@ export function AttributesListPage() {
   const optionCounts = useOptionCounts(attributes);
 
   const visible = attributes.filter((row) => {
-    if (filter === 'system' && row.system !== true) return false;
-    if (filter !== 'all' && filter !== 'system' && row.type !== filter) return false;
+    // System audit attributes (created_at/updated_at/created_by/updated_by)
+    // are read-only infrastructure — hide them from the default ("all") and
+    // type-filtered views, surfacing them only under the dedicated "system"
+    // chip. Refs #1136.
+    if (filter === 'system') {
+      if (row.system !== true) return false;
+    } else if (row.system === true) {
+      return false;
+    } else if (filter !== 'all' && row.type !== filter) {
+      return false;
+    }
     if (query.length > 0) {
       const q = query.toLowerCase();
       const code = row.code.toLowerCase();
@@ -141,19 +153,23 @@ export function AttributesListPage() {
             className="flex-1 min-w-[180px] bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground"
           />
           <div className="flex flex-wrap items-center gap-1">
-            {TYPE_FILTERS.map((t) => (
+            {TYPE_FILTERS.map((opt) => (
               <button
-                key={t}
+                key={opt}
                 type="button"
-                onClick={() => setFilter(t)}
+                onClick={() => setFilter(opt)}
                 className={cn(
                   'flex h-7 items-center rounded-lg px-2.5 text-[11.5px] font-medium transition',
-                  filter === t
+                  filter === opt
                     ? 'bg-zinc-900 text-white'
                     : 'text-muted-foreground hover:bg-zinc-100',
                 )}
               >
-                {t === 'all' ? 'wszystkie' : t}
+                {opt === 'all'
+                  ? t('attributes.filter.all', { defaultValue: 'wszystkie' })
+                  : opt === 'system'
+                    ? t('attributes.filter.system', { defaultValue: 'system' })
+                    : t(`attribute_type.${opt}`, { defaultValue: opt })}
               </button>
             ))}
           </div>
@@ -218,7 +234,6 @@ function AttributeRowItem({
       <span className="min-w-0">
         <span className="flex items-center gap-2">
           <span className="truncate font-mono text-[13.5px] font-medium">{row.code}</span>
-          {row.system ? <BuiltInLockBadge /> : null}
           {row.unique ? (
             <span className="rounded bg-amber-50 px-1 py-0.5 font-mono text-[10px] text-amber-700">
               unique
@@ -278,7 +293,7 @@ function TypeBadge({ type }: { type: string }) {
   const tone =
     type === 'number' || type === 'metric' || type === 'price'
       ? 'bg-accent-blue/10 text-accent-blue'
-      : type === 'select' || type === 'multiselect'
+      : type === 'select' || type === 'multiselect' || type === 'color'
         ? 'bg-accent-amber/10 text-accent-amber'
         : type === 'boolean'
           ? 'bg-accent-emerald/10 text-accent-emerald'
@@ -288,7 +303,9 @@ function TypeBadge({ type }: { type: string }) {
               ? 'bg-accent-violet/10 text-accent-violet'
               : type === 'reference' || type === 'relation'
                 ? 'bg-accent-rose/10 text-accent-rose'
-                : 'bg-muted text-muted-foreground';
+                : type === 'identifier'
+                  ? 'bg-accent-zinc/10 text-accent-zinc'
+                  : 'bg-muted text-muted-foreground';
   return (
     <span className={cn('rounded-md px-2 py-0.5 text-[11px] font-medium uppercase', tone)}>
       {type}

@@ -8,9 +8,8 @@ use App\Catalog\Application\BuiltInObjectTypeSeeder;
 use App\Catalog\Application\BuiltInSystemAttributesSeeder;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
-use App\Catalog\Domain\Entity\AttributeGroup;
+use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
-use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
@@ -24,9 +23,8 @@ use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
 
 /**
- * Integration coverage for UI-08.3 (#258) — system attributes + auto-attached
- * audit group. Exercises the {@see BuiltInSystemAttributesSeeder} + the
- * Doctrine listener that wires the audit group to future ObjectTypes.
+ * Integration coverage for system audit attributes. Audit metadata is seeded
+ * as attributes only; display grouping is explicit modeling configuration.
  */
 final class SystemAttributesAuditGroupTest extends KernelTestCase
 {
@@ -46,20 +44,16 @@ final class SystemAttributesAuditGroupTest extends KernelTestCase
         $em->flush();
         $this->tenantContext()->set($this->tenant);
 
-        // Built-in ObjectTypes are seeded *before* the audit group exists,
-        // mirroring the AppFixtures + onboarding order.
         self::getContainer()->get(BuiltInObjectTypeSeeder::class)->seed($this->tenant);
     }
 
     #[Test]
-    public function seederMintsSystemAttributesAndAuditGroup(): void
+    public function seederMintsSystemAttributesWithoutAuditGroup(): void
     {
         self::getContainer()->get(BuiltInSystemAttributesSeeder::class)->seed($this->tenant);
 
         $auditGroup = $this->attributeGroupRepository()->findByCode('audit', $this->tenant);
-        self::assertInstanceOf(AttributeGroup::class, $auditGroup);
-        self::assertTrue($auditGroup->isSystemGroup());
-        self::assertTrue($auditGroup->isAutoAttached());
+        self::assertNull($auditGroup, 'Audit AttributeGroup is optional and must not be seeded.');
 
         $attrs = $this->attributeRepository();
         foreach (['created_at', 'updated_at', 'created_by', 'updated_by'] as $code) {
@@ -79,64 +73,31 @@ final class SystemAttributesAuditGroupTest extends KernelTestCase
     }
 
     #[Test]
-    public function auditGroupIsAttachedToEveryBuiltInObjectTypeAfterSeeding(): void
+    public function seedingDoesNotAttachAuditGroupToBuiltInObjectTypes(): void
     {
         self::getContainer()->get(BuiltInSystemAttributesSeeder::class)->seed($this->tenant);
 
-        $em = $this->em();
-        $em->clear();
-
-        $auditGroup = $this->attributeGroupRepository()->findByCode('audit', $this->tenant);
-        self::assertNotNull($auditGroup);
-
-        $junctions = $em
-            ->createQuery(
-                'SELECT j FROM '.ObjectTypeAttributeGroup::class.' j WHERE j.attributeGroup = :g'
-            )
-            ->setParameter('g', $auditGroup)
-            ->getResult();
-
-        // ADR-014 / MOD-10 (#902): Brand removed from built-in pool — three
-        // built-ins remain (product/category/asset), each gets the audit
-        // group auto-attached.
-        self::assertCount(3, $junctions, 'Audit group must be attached to all 3 built-in ObjectTypes (product/category/asset).');
-        foreach ($junctions as $junction) {
-            self::assertInstanceOf(ObjectTypeAttributeGroup::class, $junction);
-            self::assertSame(999, $junction->getPosition());
-        }
+        self::assertSame(0, $this->auditJunctionCount());
     }
 
     #[Test]
-    public function listenerAutoAttachesAuditGroupToObjectTypesPersistedAfterSeeding(): void
+    public function laterObjectTypesAreNotAutoAttachedToAuditGroup(): void
     {
         self::getContainer()->get(BuiltInSystemAttributesSeeder::class)->seed($this->tenant);
 
         $em = $this->em();
 
-        // A fresh ObjectType persisted *after* the audit group exists must
-        // pick up the junction via AutoAttachAuditGroupListener::postPersist.
         $service = new ObjectType('service', ObjectKind::Custom, ['en' => 'Service', 'pl' => 'Usługa']);
         $em->persist($service);
         $em->flush();
         $em->clear();
 
         $auditGroup = $this->attributeGroupRepository()->findByCode('audit', $this->tenant);
-        self::assertNotNull($auditGroup);
+        self::assertNull($auditGroup);
 
         $reloaded = $this->objectTypeRepository()->findByCode('service', $this->tenant);
         self::assertNotNull($reloaded);
-
-        $junction = $em
-            ->createQuery(
-                'SELECT j FROM '.ObjectTypeAttributeGroup::class.' j'
-                .' WHERE j.objectType = :ot AND j.attributeGroup = :g'
-            )
-            ->setParameter('ot', $reloaded)
-            ->setParameter('g', $auditGroup)
-            ->getOneOrNullResult();
-
-        self::assertInstanceOf(ObjectTypeAttributeGroup::class, $junction);
-        self::assertSame(999, $junction->getPosition());
+        self::assertSame(0, $this->auditJunctionCount());
     }
 
     #[Test]
@@ -145,12 +106,57 @@ final class SystemAttributesAuditGroupTest extends KernelTestCase
         $seeder = self::getContainer()->get(BuiltInSystemAttributesSeeder::class);
         $seeder->seed($this->tenant);
         $beforeAttrs = $this->systemAttributeCount();
-        $beforeJunctions = $this->auditJunctionCount();
 
         $seeder->seed($this->tenant);
 
         self::assertSame($beforeAttrs, $this->systemAttributeCount());
-        self::assertSame($beforeJunctions, $this->auditJunctionCount());
+        self::assertSame(0, $this->auditJunctionCount());
+    }
+
+    #[Test]
+    public function catalogObjectPersistsSystemTimestampsWithoutAuditGroup(): void
+    {
+        // #1077 AC1: audit AttributeGroup is missing (per #1074 migration), but
+        // the platform timestamps must still be populated on every persist /
+        // update. The test reads the raw `objects.created_at` / `updated_at`
+        // columns to confirm — independent of any form-schema visibility logic.
+        self::getContainer()->get(BuiltInSystemAttributesSeeder::class)->seed($this->tenant);
+
+        $em = $this->em();
+        $productType = $this->objectTypeRepository()->findBuiltInByKind(ObjectKind::Product, $this->tenant);
+        self::assertNotNull($productType);
+
+        self::assertNull($this->attributeGroupRepository()->findByCode('audit', $this->tenant));
+
+        $product = new CatalogObject($productType, 'SKU-1077-A');
+        $em->persist($product);
+        $em->flush();
+
+        $row = $em->getConnection()->fetchAssociative(
+            'SELECT created_at, updated_at FROM objects WHERE id = ?',
+            [$product->getId()->toRfc4122()],
+        );
+        self::assertIsArray($row);
+        self::assertNotEmpty($row['created_at'] ?? null);
+        self::assertNotEmpty($row['updated_at'] ?? null);
+        $createdAt = $row['created_at'];
+        \assert(\is_string($createdAt));
+
+        // Mutate the entity → updated_at must move forward; created_at frozen.
+        // Sleep one second so the column-level granularity (TIMESTAMP) cannot
+        // alias the two values.
+        sleep(1);
+        $product->changeEnabled(false);
+        $em->flush();
+        $em->clear();
+
+        $rowAfter = $em->getConnection()->fetchAssociative(
+            'SELECT created_at, updated_at FROM objects WHERE id = ?',
+            [$product->getId()->toRfc4122()],
+        );
+        self::assertIsArray($rowAfter);
+        self::assertSame($createdAt, $rowAfter['created_at']);
+        self::assertGreaterThanOrEqual($createdAt, $rowAfter['updated_at']);
     }
 
     private function systemAttributeCount(): int

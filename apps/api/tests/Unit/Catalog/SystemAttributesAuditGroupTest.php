@@ -12,10 +12,9 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Covers UI-08.3 (#258): system attribute flag + audit AttributeGroup
- * invariants. The migration handles seeding + listener auto-attach is
- * exercised by integration tests; this file pins the entity-level
- * contracts that block accidental mutations of system rows.
+ * Covers system attribute and system AttributeGroup invariants. Runtime
+ * seeders create platform-owned audit attributes only; AttributeGroup
+ * visibility is explicit modeling configuration.
  */
 final class SystemAttributesAuditGroupTest extends TestCase
 {
@@ -57,10 +56,14 @@ final class SystemAttributesAuditGroupTest extends TestCase
     }
 
     #[Test]
-    public function datetimeAndReferenceTypesAreSystemTypes(): void
+    public function onlyReferenceIsASystemType(): void
     {
-        self::assertTrue(AttributeType::Datetime->isSystemType());
+        // #1177 — `datetime` became a user-facing, validated type; `created_at`/
+        // `updated_at` stay read-only via the instance `isSystem` flag (see
+        // markSystemFlipsTheFlag), not via the type. Only `reference` remains
+        // a system type.
         self::assertTrue(AttributeType::Reference->isSystemType());
+        self::assertFalse(AttributeType::Datetime->isSystemType());
         self::assertFalse(AttributeType::Text->isSystemType());
         self::assertFalse(AttributeType::Date->isSystemType());
         self::assertFalse(AttributeType::Relation->isSystemType());

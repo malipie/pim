@@ -10,6 +10,7 @@ use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -60,29 +61,49 @@ final class CategoryEffectiveGroupsController
     #[RequiresPermission(module: 'categories', action: 'view')]
     public function __invoke(string $id, Request $request): JsonResponse
     {
-        $kindParam = $request->query->get('objectTypeKind');
-        if (!\is_string($kindParam) || '' === $kindParam) {
-            throw new BadRequestHttpException('objectTypeKind query parameter is required.');
-        }
-        try {
-            $kind = ObjectKind::from($kindParam);
-        } catch (ValueError $e) {
-            throw new BadRequestHttpException(\sprintf('Unknown objectTypeKind "%s".', $kindParam), $e);
-        }
-
         $tenant = $this->tenantContext->get();
         if (null === $tenant) {
             throw new BadRequestHttpException('No tenant context.');
         }
 
-        $type = $this->objectTypes->findBuiltInByKind($kind, $tenant);
-        if (null === $type) {
-            throw new NotFoundHttpException(\sprintf('Built-in ObjectType for kind "%s" not found.', $kindParam));
-        }
-
         $category = $this->objects->findById(Uuid::fromString($id));
         if (null === $category) {
             throw new NotFoundHttpException(\sprintf('Category "%s" was not found.', $id));
+        }
+
+        // ADR-015 — `objectTypeId` (UUID) takes precedence and supports custom
+        // ObjectType category trees; `objectTypeKind` is the built-in fallback.
+        // #1134 — when neither is supplied, resolve the category's OWN target
+        // ObjectType: a category belongs to exactly one tree scoped to a single
+        // target type, so the preview no longer needs a per-kind selector.
+        $objectTypeIdParam = $request->query->get('objectTypeId');
+        $kindParam = $request->query->get('objectTypeKind');
+        if (\is_string($objectTypeIdParam) && '' !== $objectTypeIdParam) {
+            try {
+                $type = $this->objectTypes->findById(Uuid::fromString($objectTypeIdParam));
+            } catch (InvalidArgumentException $e) {
+                throw new BadRequestHttpException(\sprintf('Invalid objectTypeId "%s".', $objectTypeIdParam), $e);
+            }
+            if (null === $type) {
+                throw new NotFoundHttpException(\sprintf('ObjectType "%s" was not found.', $objectTypeIdParam));
+            }
+        } elseif (\is_string($kindParam) && '' !== $kindParam) {
+            try {
+                $kind = ObjectKind::from($kindParam);
+            } catch (ValueError $e) {
+                throw new BadRequestHttpException(\sprintf('Unknown objectTypeKind "%s".', $kindParam), $e);
+            }
+            $type = $this->objectTypes->findBuiltInByKind($kind, $tenant);
+            if (null === $type) {
+                throw new NotFoundHttpException(\sprintf('Built-in ObjectType for kind "%s" not found.', $kindParam));
+            }
+        } else {
+            $type = $category->getCategoryTargetObjectType();
+            if (null === $type) {
+                throw new BadRequestHttpException(
+                    'objectTypeId or objectTypeKind query parameter is required (category has no target ObjectType).',
+                );
+            }
         }
 
         $groups = $this->resolver->resolveForCategoryPreview($type, $category);

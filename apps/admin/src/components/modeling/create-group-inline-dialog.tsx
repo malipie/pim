@@ -2,6 +2,7 @@ import { Check, FolderPlus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { SettingToggleRow } from '@/components/modeling/setting-toggle-row';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -48,6 +49,9 @@ export function CreateGroupInlineDialog({ open, onOpenChange, onCreated }: Props
   const [descPl, setDescPl] = useState('');
   const [color, setColor] = useState(SWATCHES[0] ?? '#71717a');
   const [icon, setIcon] = useState(ICONS[0] ?? '📦');
+  // #1139 — Behavior parity with the full-page form (shared / required section).
+  const [shared, setShared] = useState(true);
+  const [requiredSection, setRequiredSection] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +62,8 @@ export function CreateGroupInlineDialog({ open, onOpenChange, onCreated }: Props
       setDescPl('');
       setColor(SWATCHES[0] ?? '#71717a');
       setIcon(ICONS[0] ?? '📦');
+      setShared(true);
+      setRequiredSection(false);
       setError(null);
     }
   }, [open]);
@@ -74,6 +80,8 @@ export function CreateGroupInlineDialog({ open, onOpenChange, onCreated }: Props
         label: { pl: namePl.trim() },
         color,
         icon,
+        shared,
+        requiredSection,
       };
       if (descPl.trim().length > 0) body.description = { pl: descPl.trim() };
       const created = await jsonFetch<CreatedAttributeGroupResponse>('/api/attribute_groups', {
@@ -216,6 +224,32 @@ export function CreateGroupInlineDialog({ open, onOpenChange, onCreated }: Props
                 ))}
               </div>
             </div>
+          </div>
+
+          <div className="space-y-2 border-t border-zinc-100 pt-4">
+            <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+              {t('modeling.attributeGroups.behavior_title', { defaultValue: 'Zachowanie' })}
+            </div>
+            <SettingToggleRow
+              label={t('modeling.attributeGroups.behavior_shared_label', {
+                defaultValue: 'Współdzielona',
+              })}
+              description={t('modeling.attributeGroups.behavior_shared_desc', {
+                defaultValue: 'Może być dołączona do wielu ObjectType',
+              })}
+              checked={shared}
+              onChange={setShared}
+            />
+            <SettingToggleRow
+              label={t('modeling.attributeGroups.behavior_required_section_label', {
+                defaultValue: 'Wymagana sekcja',
+              })}
+              description={t('modeling.attributeGroups.behavior_required_section_desc', {
+                defaultValue: 'Grupa zawsze widoczna w formularzu',
+              })}
+              checked={requiredSection}
+              onChange={setRequiredSection}
+            />
           </div>
         </div>
 

@@ -14,7 +14,7 @@
 >
 > **POZA ZAKRESEM:** Multimedia (idzie ścieżką **Droga B — Moduł Media Library**, osobny refactor) i Kategorie (osobny System Module). Ten batch dotyczy WYŁĄCZNIE Powiązań.
 >
-> **4 tickety, ~17-26h** (~3-5 dni solo dev).
+> **4 tickety, ~13-20h** (~3-4 dni solo dev).
 
 ---
 
@@ -43,7 +43,7 @@ MODRC-01 (kasuj seed grupy „Powiązania" — supersedes MODR-02 dla Powiązań
 
 ---
 
-## MODRC-01 / #1067: refactor(catalog): remove seeded "Powiązania" AttributeGroup — un-seed, supersedes MODR-02
+## MODRC-01 / TBD: refactor(catalog): remove seeded "Powiązania" AttributeGroup — un-seed, supersedes MODR-02
 
 **Typ:** `refactor` | **Epik:** UI-08 | **Estymacja:** **2-4h**
 
@@ -52,7 +52,7 @@ MODRC-01 (kasuj seed grupy „Powiązania" — supersedes MODR-02 dla Powiązań
 **Dependencies:** Blocks MODRC-02, MODRC-03. Blocked by — brak.
 
 **Risk flags:**
-- Jeśli seedowana grupa `relations` istnieje w bazie i ma przypięte atrybuty typu `relation` — migracja musi zdecydować, co z nimi zrobić: (a) zostawić atrybuty bez grupy (orphaned), (b) przepisać do grupy „Niezgrupowane" / "Default", (c) zostawić grupę ale zdjąć z niej built-in flag (user może ją usunąć ręcznie). Decyzja w pre-flight.
+- Jeśli seedowana grupa `relations` istnieje w bazie i ma przypięte atrybuty typu `relation` — migracja musi zdecydować, co z nimi zrobić: (a) zostawić atrybuty bez grupy (orphaned), (b) przepisać do grupy „Niezgrupowane" / „Default", (c) zostawić grupę ale zdjąć z niej built-in flag (user może ją usunąć ręcznie). Decyzja w pre-flight.
 - Pre-flight: zweryfikować obecny stan — czy MODR-02 (#924) został zmergowany? Jeśli tak, grupa `relations` jest w DB i trzeba ją odseedować. Jeśli nie — MODRC-01 po prostu odwołuje plan MODR-02 dla Powiązań.
 
 **Cel:** Usunąć systemową seedowaną grupę „Powiązania" jako built-in byt. Każda grupa atrybutów (w tym ta, w której user trzyma relacje) musi być utworzona świadomie przez usera. Brak hardcoded i brak seed dla Powiązań.
@@ -61,7 +61,7 @@ MODRC-01 (kasuj seed grupy „Powiązania" — supersedes MODR-02 dla Powiązań
 - Jeśli MODR-02 zmergowane: migracja DOWN seedu grupy `relations` — usunąć grupę i jej built-in flag.
 - Jeśli MODR-02 niezmergowane: usuń scope „grupa relations" z planu MODR-02; zostaje (lub anuluj cały MODR-02 jeśli nic więcej w nim nie ma poza Multimedia, która idzie osobno).
 - Decyzja migracyjna dla istniejących atrybutów `relation` przypisanych do skasowanej grupy (jeden z wariantów a/b/c — udokumentuj wybór w PR description).
-- Build-in flag na żadnej grupie typu „Powiązania" nie istnieje po tym ticket.
+- Built-in flag na żadnej grupie typu „Powiązania" nie istnieje po tym ticket.
 
 **Acceptance criteria:**
 - [ ] AC-1: Brak seedowanej grupy `relations`/„Powiązania" w bazie po migracji
@@ -79,7 +79,7 @@ MODRC-01 (kasuj seed grupy „Powiązania" — supersedes MODR-02 dla Powiązań
 
 ---
 
-## MODRC-02 / #1068: feat(admin): relation attribute configurator — no default group, inline create-group action
+## MODRC-02 / TBD: feat(admin): relation attribute configurator — no default group, inline create-group action
 
 **Typ:** `feat` | **Epik:** UI-08 | **Estymacja:** **3-5h**
 
@@ -118,7 +118,7 @@ MODRC-01 (kasuj seed grupy „Powiązania" — supersedes MODR-02 dla Powiązań
 
 ---
 
-## MODRC-03 / #1069: feat(admin): system "Powiązania zwrotne" section — auto-rendered when object is target of reverse relations
+## MODRC-03 / TBD: feat(admin): system "Powiązania zwrotne" section — auto-rendered when object is target of reverse relations
 
 **Typ:** `feat` | **Epik:** UI-08 | **Estymacja:** **6-8h**
 
@@ -161,7 +161,7 @@ MODRC-01 (kasuj seed grupy „Powiązania" — supersedes MODR-02 dla Powiązań
 
 ---
 
-## MODRC-04 / #1070: docs(modeling): §3.5 mini-spec + ADR-014 + lessons.md — Option Y (full un-seed)
+## MODRC-04 / TBD: docs(modeling): §3.5 mini-spec + ADR-014 + lessons.md — Option Y (full un-seed)
 
 **Typ:** `docs` | **Epik:** UI-08 | **Estymacja:** **2-3h**
 

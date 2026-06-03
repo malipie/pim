@@ -2004,6 +2004,18 @@
                         "explode": false
                     },
                     {
+                        "name": "categoryTargetObjectType",
+                        "in": "query",
+                        "description": "ADR-015 \u2014 scope categories to one ObjectType tree (UUID).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
                         "name": "order[id]",
                         "in": "query",
                         "description": "",
@@ -2312,6 +2324,18 @@
                         "name": "objectType",
                         "in": "query",
                         "description": "Scope the collection to a specific ObjectType by UUID. Drives the universal ObjectListView so a single endpoint serves every ObjectType (built-in product/category/asset/brand or custom).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "categoryTargetObjectType",
+                        "in": "query",
+                        "description": "ADR-015 \u2014 scope categories to one ObjectType tree (UUID).",
                         "required": false,
                         "deprecated": false,
                         "schema": {
@@ -2951,6 +2975,18 @@
                         "explode": false
                     },
                     {
+                        "name": "categoryTargetObjectType",
+                        "in": "query",
+                        "description": "ADR-015 \u2014 scope categories to one ObjectType tree (UUID).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
                         "name": "order[id]",
                         "in": "query",
                         "description": "",
@@ -3572,6 +3608,18 @@
                         "name": "objectType",
                         "in": "query",
                         "description": "Scope the collection to a specific ObjectType by UUID. Drives the universal ObjectListView so a single endpoint serves every ObjectType (built-in product/category/asset/brand or custom).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "categoryTargetObjectType",
+                        "in": "query",
+                        "description": "ADR-015 \u2014 scope categories to one ObjectType tree (UUID).",
                         "required": false,
                         "deprecated": false,
                         "schema": {
@@ -7551,7 +7599,11 @@
                             "metric",
                             "wysiwyg",
                             "datetime",
-                            "reference"
+                            "reference",
+                            "textarea",
+                            "color",
+                            "email",
+                            "identifier"
                         ]
                     },
                     "validationRules": {
@@ -7663,7 +7715,12 @@
                             "relation",
                             "price",
                             "metric",
-                            "wysiwyg"
+                            "wysiwyg",
+                            "datetime",
+                            "textarea",
+                            "color",
+                            "email",
+                            "identifier"
                         ],
                         "default": "text",
                         "type": "string"
@@ -7896,7 +7953,11 @@
                                     "metric",
                                     "wysiwyg",
                                     "datetime",
-                                    "reference"
+                                    "reference",
+                                    "textarea",
+                                    "color",
+                                    "email",
+                                    "identifier"
                                 ]
                             },
                             "validationRules": {
@@ -8044,7 +8105,7 @@
             },
             "AttributeGroup.AttributeGroupInput-attribute_group.create": {
                 "type": "object",
-                "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system (e.g. the auto-\nattached \"Audit\" group #UI-08.3) \u2014 not deletable, not detachable from\nObjectType, code is immutable. `auto_attached=true` means the group is\nautomatically wired to every new ObjectType (currently only Audit).",
+                "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system \u2014 not deletable,\nnot detachable from ObjectType, code is immutable. Legacy `audit` rows are\nthe exception after #1074/#1075: audit visibility is user-managed modeling\nconfiguration, not platform infrastructure.",
                 "required": [
                     "code",
                     "label"
@@ -8109,7 +8170,7 @@
             },
             "AttributeGroup.AttributeGroupPatchInput-attribute_group.patch.jsonMergePatch": {
                 "type": "object",
-                "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system (e.g. the auto-\nattached \"Audit\" group #UI-08.3) \u2014 not deletable, not detachable from\nObjectType, code is immutable. `auto_attached=true` means the group is\nautomatically wired to every new ObjectType (currently only Audit).",
+                "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system \u2014 not deletable,\nnot detachable from ObjectType, code is immutable. Legacy `audit` rows are\nthe exception after #1074/#1075: audit visibility is user-managed modeling\nconfiguration, not platform infrastructure.",
                 "properties": {
                     "label": {
                         "type": [
@@ -8250,7 +8311,7 @@
                         ]
                     }
                 ],
-                "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system (e.g. the auto-\nattached \"Audit\" group #UI-08.3) \u2014 not deletable, not detachable from\nObjectType, code is immutable. `auto_attached=true` means the group is\nautomatically wired to every new ObjectType (currently only Audit)."
+                "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system \u2014 not deletable,\nnot detachable from ObjectType, code is immutable. Legacy `audit` rows are\nthe exception after #1074/#1075: audit visibility is user-managed modeling\nconfiguration, not platform infrastructure."
             },
             "CatalogObject-admin.read": {
                 "type": "object",
@@ -8415,6 +8476,17 @@
                     "primaryCategoryId": {
                         "format": "uuid",
                         "description": "#891 \u2014 id of the \"primary\" category among `$categoryIds`. The\npartial unique index `WHERE is_primary = true` enforces that at\nmost one assignment per product carries the primary flag. When\n`$categoryIds` is provided and non-empty, `$primaryCategoryId`\nMUST be one of those ids (validated in the handler).",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "categoryTargetObjectTypeId": {
+                        "format": "uuid",
+                        "description": "ADR-015 \u2014 id of the categorizable {@see \\App\\Catalog\\Domain\\Entity\\ObjectType}\nwhose category tree this new category joins. Required when the sugar\npath is `/api/categories` (the handler raises 422 if missing or if the\ntarget ObjectType is not `is_categorizable`). Ignored for other kinds.",
                         "externalDocs": {
                             "url": "https://schema.org/identifier"
                         },
@@ -11116,7 +11188,7 @@
         },
         {
             "name": "AttributeGroup",
-            "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system (e.g. the auto-\nattached \"Audit\" group #UI-08.3) \u2014 not deletable, not detachable from\nObjectType, code is immutable. `auto_attached=true` means the group is\nautomatically wired to every new ObjectType (currently only Audit)."
+            "description": "Container that groups attributes for admin UX (e.g. \"SEO\", \"Logistics\",\n\"Marketing\"). After ADR-012 a group is a first-class entity with its own\nURL / audit / icon / colour, used as the unit of attachment to ObjectType\n(global) and Category (inherited down the tree).\n\n`label` is JSONB `{pl: \"...\", en: \"...\"}` so the same row carries every\nsupported locale \u2014 no separate translations table. `description` follows\nthe same pattern.\n\nTwo attachment paths to attributes coexist during the UI-08 migration:\n - legacy 1:N `Attribute.group_id` (still alive, written by 0.3.X seeders),\n - first-class M:N via `attribute_group_attributes` junction (ADR-012).\n\n`is_system_group=true` marks groups managed by the system \u2014 not deletable,\nnot detachable from ObjectType, code is immutable. Legacy `audit` rows are\nthe exception after #1074/#1075: audit visibility is user-managed modeling\nconfiguration, not platform infrastructure."
         },
         {
             "name": "CatalogObject",

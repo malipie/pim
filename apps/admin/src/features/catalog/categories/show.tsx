@@ -1,5 +1,5 @@
 import { useOne } from '@refinedev/core';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
@@ -8,7 +8,7 @@ import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { HttpError, jsonFetch } from '@/lib/http';
 
@@ -32,6 +32,12 @@ export function CategoryShowPage() {
     queryOptions: { enabled: id.length > 0 },
   });
 
+  // #1137 — inline category rename (writes the `name` attribute value).
+  const [editing, setEditing] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   if (query.isLoading || !result) {
     return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
   }
@@ -39,6 +45,40 @@ export function CategoryShowPage() {
   const category = result;
   const attrs = unwrapAttributesIndexed(category.attributesIndexed);
   const name = typeof attrs.name === 'string' ? attrs.name : category.code;
+
+  const startEdit = () => {
+    setDraftName(name);
+    setSaveError(null);
+    setEditing(true);
+  };
+
+  const saveName = async () => {
+    const trimmed = draftName.trim();
+    if (trimmed === '' || trimmed === name) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await jsonFetch(`/api/categories/${category.id}`, {
+        method: 'PATCH',
+        contentType: 'application/merge-patch+json',
+        accept: 'application/ld+json',
+        body: { attributes: { name: trimmed } },
+      });
+      await query.refetch();
+      setEditing(false);
+    } catch (err) {
+      setSaveError(
+        err instanceof HttpError
+          ? `HTTP ${err.status}`
+          : t('categories.rename_error', { defaultValue: 'Nie udało się zmienić nazwy.' }),
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -52,7 +92,47 @@ export function CategoryShowPage() {
           </Button>
           <AuditLogIndicator />
         </div>
-        <h1 className="display text-[28px] font-semibold leading-tight text-ink">{name}</h1>
+        {editing ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              autoFocus
+              aria-label={t('categories.rename', { defaultValue: 'Zmień nazwę kategorii' })}
+              className="h-11 max-w-md text-[20px] font-semibold"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void saveName();
+                if (e.key === 'Escape') setEditing(false);
+              }}
+            />
+            <Button size="sm" onClick={() => void saveName()} disabled={saving}>
+              {saving
+                ? t('app.saving', { defaultValue: 'Zapisywanie…' })
+                : t('app.save', { defaultValue: 'Zapisz' })}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={saving}>
+              {t('app.cancel', { defaultValue: 'Anuluj' })}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <h1 className="display text-[28px] font-semibold leading-tight text-ink">{name}</h1>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              onClick={startEdit}
+              aria-label={t('categories.rename', { defaultValue: 'Zmień nazwę kategorii' })}
+            >
+              <Pencil className="size-4" />
+            </Button>
+          </div>
+        )}
+        {saveError !== null ? (
+          <p className="text-sm text-destructive" role="alert">
+            {saveError}
+          </p>
+        ) : null}
         <p className="font-mono text-[12px] text-ink-2">{category.code}</p>
         {category.path ? (
           <p className="text-[12px] text-muted-foreground">
@@ -61,27 +141,7 @@ export function CategoryShowPage() {
         ) : null}
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <h2 className="mb-3 text-sm font-medium">{t('categories.attributes_title')}</h2>
-          {Object.keys(attrs).length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('categories.no_attributes')}</p>
-          ) : (
-            <dl className="grid gap-3 sm:grid-cols-2">
-              {Object.entries(attrs).map(([code, value]) => (
-                <div key={code} className="rounded-md border bg-muted/40 px-3 py-2">
-                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">{code}</dt>
-                  <dd className="text-sm font-medium">{formatValue(value)}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-        </CardContent>
-      </Card>
-
       <EffectiveAttributesPreview categoryId={category.id} />
-
-      <p className="text-xs text-muted-foreground">{t('categories.write_deferred_note')}</p>
     </div>
   );
 }
@@ -101,21 +161,21 @@ interface EffectiveResponse {
   effectiveGroups: EffectiveGroupRow[];
 }
 
-const PREVIEW_KINDS = ['product', 'category', 'asset'] as const;
-
-type PreviewKind = (typeof PREVIEW_KINDS)[number];
-
 /**
  * UI-08.14 (#269) — `<EffectiveAttributesPreview>`.
  *
- * Hits /api/categories/{id}/effective-groups?objectTypeKind=... and
- * renders the deduplicated AttributeGroup list a hypothetical object of
- * the picked kind would see if placed under this category. The killer
- * feature competitors (Akeneo, Pimcore) lack natively.
+ * Hits /api/categories/{id}/effective-groups?objectTypeId=... and renders the
+ * deduplicated AttributeGroup list a hypothetical object of the picked
+ * ObjectType would see if placed under this category. The killer feature
+ * competitors (Akeneo, Pimcore) lack natively.
+ *
+ * ADR-015 (#1127) — picks the target by ObjectType id (not kind) and lists
+ * every categorizable ObjectType (built-in + custom), so custom-OT category
+ * trees can be previewed (kind='custom' has no single built-in OT).
  */
 function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
   const { t } = useTranslation();
-  const [kind, setKind] = useState<PreviewKind>('product');
+
   const [data, setData] = useState<EffectiveResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -126,10 +186,12 @@ function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
     setError(null);
     setData(null);
 
-    jsonFetch<EffectiveResponse>(
-      `/api/categories/${categoryId}/effective-groups?objectTypeKind=${kind}`,
-      { accept: 'application/json' },
-    )
+    // #1134 — no per-kind selector: a category belongs to exactly one tree,
+    // so the backend resolves the preview against the category's own target
+    // ObjectType.
+    jsonFetch<EffectiveResponse>(`/api/categories/${categoryId}/effective-groups`, {
+      accept: 'application/json',
+    })
       .then((payload) => {
         if (!cancelled) setData(payload);
       })
@@ -148,40 +210,21 @@ function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [categoryId, kind, t]);
+  }, [categoryId, t]);
 
   return (
     <Card className="border-accent-violet/30 bg-accent-violet/5 soft-shadow">
       <CardContent className="space-y-4 pt-6">
-        <div className="flex items-end justify-between gap-3">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-accent-violet/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-violet">
-              effective preview
-            </div>
-            <h2 className="text-[15px] font-semibold text-ink">
-              {t('modeling.inheritance_preview.title')}
-            </h2>
-            <p className="text-[12px] text-muted-foreground">
-              {t('modeling.inheritance_preview.description')}
-            </p>
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-accent-violet/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-violet">
+            effective preview
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="preview-kind" className="text-xs uppercase tracking-wide">
-              {t('modeling.inheritance_preview.target_kind')}
-            </Label>
-            <select
-              id="preview-kind"
-              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-              value={kind}
-              onChange={(e) => setKind(e.target.value as PreviewKind)}
-            >
-              {PREVIEW_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
-          </div>
+          <h2 className="text-[15px] font-semibold text-ink">
+            {t('modeling.inheritance_preview.title')}
+          </h2>
+          <p className="text-[12px] text-muted-foreground">
+            {t('modeling.inheritance_preview.description')}
+          </p>
         </div>
 
         {loading ? (
@@ -242,11 +285,4 @@ function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
 function groupLabel(label: Record<string, string> | string): string {
   if (typeof label === 'string') return label;
   return label.en ?? label.pl ?? Object.values(label)[0] ?? '—';
-}
-
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined) return '—';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  return JSON.stringify(value);
 }

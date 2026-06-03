@@ -1,0 +1,52 @@
+import { expect, test } from '@playwright/test';
+
+import { loginAsAdmin, uniqueSku } from './helpers/auth';
+
+/**
+ * #1153 (channels epic) — the channels settings page (`/settings/channels`)
+ * already ships full CRUD over `/api/channels` (list / create / edit /
+ * delete + locale & currency pickers). This spec is the missing E2E gate:
+ * it verifies an operator can create a channel end-to-end and see it in
+ * the list.
+ *
+ * `test.fixme` in CI for the shared auth-rate-limiter storageState gap.
+ */
+const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
+
+test('operator creates a channel via the settings page', async ({ page }) => {
+  test.fixme(!!process.env.CI, CI_BLOCKED);
+  test.setTimeout(180_000);
+
+  await loginAsAdmin(page);
+  // Warm the refresh cookie so a full-page goto re-establishes the JWT.
+  const refresh = await page.request.post('/api/auth/refresh');
+  expect(refresh.status()).toBe(200);
+
+  const code = `chan_${uniqueSku('E2E')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '_')}`;
+
+  await page.goto('/settings/channels/new');
+  await expect(page.locator('#channel-code')).toBeVisible();
+  await page.locator('#channel-code').fill(code);
+  await page.locator('#channel-label-pl').fill('Kanał E2E');
+  await page.locator('#channel-label-en').fill('E2E Channel');
+
+  // Pick one locale + one currency from the real catalogs.
+  await page.getByRole('button').filter({ hasText: /pl_PL/ }).first().click();
+  await page.getByRole('button').filter({ hasText: /PLN/ }).first().click();
+
+  const createResponse = page.waitForResponse(
+    (r) => r.url().includes('/api/channels') && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: /(Utwórz|Create|Zapisz|Save)/i }).click();
+  const created = await createResponse;
+  expect(created.status(), await created.text()).toBe(201);
+
+  // Lands on the channel detail page showing the new code.
+  await expect(page.getByText(code).first()).toBeVisible();
+
+  // And it appears in the channels list.
+  await page.goto('/settings/channels');
+  await expect(page.getByText(code).first()).toBeVisible();
+});

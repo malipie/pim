@@ -26,6 +26,7 @@ import { AddAttributesFromLibraryDialog } from '@/components/modeling/add-attrib
 import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { CreateAttributeInGroupDialog } from '@/components/modeling/create-attribute-in-group-dialog';
+import { DangerZoneCard } from '@/components/modeling/danger-zone-card';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { HttpError, jsonFetch } from '@/lib/http';
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { cn } from '@/lib/utils';
 
 interface AttributeGroupDetail {
@@ -146,6 +148,8 @@ function Editor({
   const [createOpen, setCreateOpen] = useState(false);
 
   const isSystem = group.systemGroup === true;
+  const isLegacyOptionalGroup = isLegacyOptionalSystemGroupCode(group.code);
+  const isLockedSystemGroup = isSystem && !isLegacyOptionalGroup;
 
   const { data: members = [], refetch: refetchMembers } = useQuery<MemberRow[]>({
     queryKey: ['attribute_groups', group.id, 'attributes'],
@@ -194,7 +198,7 @@ function Editor({
       const nextDescription = stripEmpty({ pl: descPl });
       if (JSON.stringify(nextDescription) !== JSON.stringify(initialDescription))
         body.description = nextDescription;
-      if (!isSystem) {
+      if (!isLockedSystemGroup) {
         if (color !== initialColor) body.color = color;
       }
       await jsonFetch(`/api/attribute_groups/${group.id}`, {
@@ -225,7 +229,7 @@ function Editor({
     initialColor,
     initialDescription,
     initialLabel,
-    isSystem,
+    isLockedSystemGroup,
     labelEn,
     labelPl,
     onSaved,
@@ -258,6 +262,42 @@ function Editor({
       // ignored — the next reload will resync
     }
   };
+
+  const navigate = useNavigate();
+
+  const deleteGroup = useCallback(async () => {
+    try {
+      await jsonFetch(`/api/attribute_groups/${group.id}`, {
+        method: 'DELETE',
+        accept: 'application/json',
+      });
+      queryClient.invalidateQueries({ queryKey: ['attribute_groups'] });
+      navigate('/modeling/attribute-groups');
+    } catch (err) {
+      // Re-thrown so DangerZoneCard surfaces the message inline.
+      if (err instanceof HttpError) {
+        const detail =
+          err.body && typeof err.body === 'object' && 'detail' in err.body
+            ? String((err.body as Record<string, unknown>).detail)
+            : null;
+        throw new Error(
+          detail ??
+            t('modeling.attributeGroups.delete_error_generic', {
+              defaultValue: 'Nie udało się usunąć grupy (HTTP {{status}}).',
+              status: err.status,
+            }),
+        );
+      }
+      throw err instanceof Error
+        ? err
+        : new Error(
+            t('modeling.attributeGroups.delete_error_generic', {
+              defaultValue: 'Nie udało się usunąć grupy.',
+              status: 0,
+            }),
+          );
+    }
+  }, [group.id, navigate, queryClient, t]);
 
   const toggleRequired = async (attributeId: string, next: boolean) => {
     try {
@@ -339,7 +379,7 @@ function Editor({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-display text-[22px] font-semibold tracking-tight">{groupName}</h1>
-            {isSystem ? <BuiltInLockBadge /> : null}
+            {isLockedSystemGroup ? <BuiltInLockBadge /> : null}
           </div>
           <div className="mt-0.5 font-mono text-[12px] text-muted-foreground">
             /modeling/attribute-groups/{group.code}
@@ -347,7 +387,7 @@ function Editor({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <AuditLogIndicator />
-          {!isSystem ? (
+          {!isLockedSystemGroup ? (
             <Button
               size="sm"
               disabled={saving}
@@ -404,7 +444,7 @@ function Editor({
               onChange={(e) =>
                 activeLocale === 'pl' ? setLabelPl(e.target.value) : setLabelEn(e.target.value)
               }
-              disabled={isSystem}
+              disabled={isLockedSystemGroup}
               placeholder={t('modeling.attributeGroups.fields.name_placeholder', {
                 defaultValue: 'Nazwa grupy',
               })}
@@ -420,11 +460,11 @@ function Editor({
             </FieldRow>
             <FieldRow
               label={t('modeling.attributeGroups.fields.color', { defaultValue: 'Color' })}
-              lock={isSystem}
+              lock={isLockedSystemGroup}
             >
               <span className="inline-flex items-center gap-2">
                 <span className="size-4 rounded" style={{ background: color }} aria-hidden />
-                {isSystem ? (
+                {isLockedSystemGroup ? (
                   <span className="font-mono text-[12px]">{color}</span>
                 ) : (
                   <Input
@@ -446,7 +486,7 @@ function Editor({
               rows={2}
               value={descPl}
               onChange={(e) => setDescPl(e.target.value)}
-              disabled={isSystem}
+              disabled={isLockedSystemGroup}
               className="mt-1.5"
               placeholder={t('modeling.attributeGroups.fields.description_placeholder', {
                 defaultValue: 'Krótki opis grupy — kiedy używać, jakie atrybuty zawiera.',
@@ -629,6 +669,34 @@ function Editor({
             />
           </div>
         </Card>
+
+        {!isLockedSystemGroup ? (
+          <DangerZoneCard
+            title={t('modeling.attributeGroups.danger_zone_title', {
+              defaultValue: 'Usuń grupę atrybutów',
+            })}
+            description={t('modeling.attributeGroups.danger_zone_description', {
+              defaultValue:
+                'Trwałe usunięcie grupy. Atrybuty przypisane do grupy pozostają w bibliotece. Backend zablokuje usunięcie, jeśli grupa jest jeszcze przypięta do ObjectType lub kategorii.',
+            })}
+            destructiveLabel={t('modeling.attributeGroups.danger_zone_action', {
+              defaultValue: 'Usuń grupę',
+            })}
+            blockedLabel={t('modeling.attributeGroups.danger_zone_action_blocked', {
+              defaultValue: 'Usuwanie zablokowane',
+            })}
+            blocked={false}
+            confirmTitle={t('modeling.attributeGroups.danger_zone_confirm_title', {
+              defaultValue: 'Usunąć grupę „{{name}}"?',
+              name: groupName,
+            })}
+            confirmDescription={t('modeling.attributeGroups.danger_zone_confirm_description', {
+              defaultValue:
+                'Operacja jest nieodwracalna. Atrybuty zostaną odpięte od grupy, ale pozostaną dostępne w bibliotece.',
+            })}
+            onConfirm={deleteGroup}
+          />
+        ) : null}
       </div>
 
       {dirty ? (

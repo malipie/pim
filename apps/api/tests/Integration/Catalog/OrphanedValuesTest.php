@@ -57,19 +57,22 @@ final class OrphanedValuesTest extends KernelTestCase
         $em = $this->em();
         $productType = $this->productType();
 
-        // Effective model contains only audit group (system attrs).
+        $this->attachEffectiveAttribute($productType, 'visible_orphan_guard');
+
+        // Effective model contains an unrelated explicit attribute.
         // We declare a `required` list with two codes:
         //   - `sku`         — NOT in effective model (orphaned requirement)
-        //   - `updated_at`  — IS in effective model (audit group)
-        // MOD-09 filter projects required onto the effective set; only
-        // `updated_at` remains. Since it has a value, completeness = 100%.
+        //   - `updated_at`  — NOT in effective model unless explicitly grouped
+        // MOD-09 filter projects required onto the effective set; no
+        // requirements remain, so completeness = 100%.
         $productType->updateCompletenessRules(['required' => ['sku', 'updated_at']]);
 
         $product = new CatalogObject($productType, 'SKU-ORPH-1');
         $em->persist($product);
         $em->flush();
 
-        // Persist an updated_at value to satisfy the lone effective requirement.
+        // Persist an updated_at value anyway; orphaned stored values must not
+        // influence completeness until the attribute becomes effective.
         $updatedAtAttribute = $em->getRepository(Attribute::class)
             ->findOneBy(['code' => 'updated_at']);
         \assert(null !== $updatedAtAttribute);
@@ -80,7 +83,7 @@ final class OrphanedValuesTest extends KernelTestCase
         $rebuilder = self::getContainer()->get(AttributesIndexedRebuilder::class);
         $rebuilder->rebuild($product);
 
-        // `sku` was filtered out (orphaned), only `updated_at` counts and is present → 100.
+        // Both required codes were filtered out as orphaned → 100.
         $completeness = $product->getCompleteness();
         self::assertSame(100, $completeness['global']);
     }
@@ -91,8 +94,10 @@ final class OrphanedValuesTest extends KernelTestCase
         $em = $this->em();
         $productType = $this->productType();
 
-        // Two required codes, both ABSENT from the effective model (audit
-        // group only). MOD-09 filter projects required to empty set →
+        $this->attachEffectiveAttribute($productType, 'visible_required_guard');
+
+        // Two required codes, both ABSENT from the non-empty effective model.
+        // MOD-09 filter projects required to empty set →
         // completeness = 100% (rather than 0%).
         $productType->updateCompletenessRules(['required' => ['ghost_a', 'ghost_b']]);
 
@@ -142,6 +147,19 @@ final class OrphanedValuesTest extends KernelTestCase
         \assert(null !== $type);
 
         return $type;
+    }
+
+    private function attachEffectiveAttribute(\App\Catalog\Domain\Entity\ObjectType $productType, string $code): void
+    {
+        $em = $this->em();
+        $group = new AttributeGroup($code.'_group', ['en' => 'Visible guard']);
+        $attribute = new Attribute($code, ['en' => 'Visible guard'], AttributeType::Text);
+        $em->persist($group);
+        $em->persist($attribute);
+        $em->flush();
+        $em->persist(new AttributeGroupAttribute($group, $attribute, 1));
+        $em->persist(new ObjectTypeAttributeGroup($productType, $group, position: 1));
+        $em->flush();
     }
 
     private function em(): EntityManagerInterface

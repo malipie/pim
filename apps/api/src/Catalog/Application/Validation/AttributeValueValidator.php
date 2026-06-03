@@ -75,6 +75,11 @@ final readonly class AttributeValueValidator
             AttributeType::Price->value => new TypeValidator\PriceValidator(),
             AttributeType::Metric->value => new TypeValidator\MetricValidator(),
             AttributeType::Wysiwyg->value => new TypeValidator\WysiwygValidator(),
+            AttributeType::Datetime->value => new TypeValidator\DatetimeValidator(),
+            AttributeType::Textarea->value => new TypeValidator\TextareaValidator(),
+            AttributeType::Color->value => new TypeValidator\ColorValidator(),
+            AttributeType::Email->value => new TypeValidator\EmailValidator(),
+            AttributeType::Identifier->value => new TypeValidator\IdentifierValidator(),
         ]);
     }
 }

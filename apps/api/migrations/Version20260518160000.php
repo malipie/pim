@@ -80,16 +80,22 @@ final class Version20260518160000 extends AbstractMigration
         SQL);
 
         // ─── 3. role_attribute_permissions (per-attribute override) ─────
+        // Column `permission_level` follows the entity ORM mapping
+        // ({@see RoleAttributePermission.orm.xml}). An earlier draft of
+        // this migration used `permission`; aligned here so a fresh
+        // migrate-up matches what entity auto-schema produces, and the
+        // {@see AttributePermissionPolicy} resolver does not have to
+        // branch on the column name.
         $this->addSql(<<<'SQL'
             CREATE TABLE role_attribute_permissions (
                 role_id UUID NOT NULL,
                 attribute_id UUID NOT NULL,
-                permission VARCHAR(16) NOT NULL,
+                permission_level VARCHAR(16) NOT NULL,
                 created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (role_id, attribute_id),
                 CONSTRAINT chk_role_attribute_permissions_value
-                    CHECK (permission IN ('restricted', 'view', 'edit')),
+                    CHECK (permission_level IN ('restricted', 'view', 'edit')),
                 CONSTRAINT fk_role_attribute_permissions_role
                     FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
                 CONSTRAINT fk_role_attribute_permissions_attribute
@@ -100,16 +106,17 @@ final class Version20260518160000 extends AbstractMigration
         $this->addSql('CREATE INDEX idx_role_attribute_permissions_attribute ON role_attribute_permissions (attribute_id)');
 
         // ─── 4. role_attribute_group_permissions (per-group override) ───
+        // Same column-name convention as #3 (`permission_level`).
         $this->addSql(<<<'SQL'
             CREATE TABLE role_attribute_group_permissions (
                 role_id UUID NOT NULL,
                 attribute_group_id UUID NOT NULL,
-                permission VARCHAR(16) NOT NULL,
+                permission_level VARCHAR(16) NOT NULL,
                 created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (role_id, attribute_group_id),
                 CONSTRAINT chk_role_attribute_group_permissions_value
-                    CHECK (permission IN ('restricted', 'view', 'edit')),
+                    CHECK (permission_level IN ('restricted', 'view', 'edit')),
                 CONSTRAINT fk_role_attribute_group_permissions_role
                     FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
                 CONSTRAINT fk_role_attribute_group_permissions_group

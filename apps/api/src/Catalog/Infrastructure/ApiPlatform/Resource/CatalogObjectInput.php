@@ -95,4 +95,14 @@ final class CatalogObjectInput
     #[Assert\Uuid(versions: [Assert\Uuid::V7_MONOTONIC])]
     #[Groups(['object:create'])]
     public ?string $primaryCategoryId = null;
+
+    /**
+     * ADR-015 — id of the categorizable {@see \App\Catalog\Domain\Entity\ObjectType}
+     * whose category tree this new category joins. Required when the sugar
+     * path is `/api/categories` (the handler raises 422 if missing or if the
+     * target ObjectType is not `is_categorizable`). Ignored for other kinds.
+     */
+    #[Assert\Uuid(versions: [Assert\Uuid::V7_MONOTONIC])]
+    #[Groups(['object:create'])]
+    public ?string $categoryTargetObjectTypeId = null;
 }

@@ -54,6 +54,7 @@ final class CatalogObjectsPickerEndpointTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'CAT-POLY',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
 

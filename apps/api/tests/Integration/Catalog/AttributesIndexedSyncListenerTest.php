@@ -99,6 +99,28 @@ final class AttributesIndexedSyncListenerTest extends KernelTestCase
     }
 
     #[Test]
+    public function perLocaleRowsStayOutOfTheGlobalCache(): void
+    {
+        $em = $this->em();
+        $object = new CatalogObject($this->productType, 'SKU-LOC');
+        $em->persist($object);
+        $em->flush();
+
+        // Global (locale=null) reading.
+        $em->persist(new ObjectValue($object, $this->name, ['value' => 'Nazwa PL']));
+        $em->flush();
+        // Per-locale reading must NOT leak into attributes_indexed (#1148):
+        // the cache stays global so lists + Meilisearch are deterministic.
+        $em->persist(new ObjectValue($object, $this->name, ['value' => 'Name EN'], locale: 'en'));
+        $em->flush();
+
+        $em->clear();
+        $reloaded = $this->repository()->findByCode('SKU-LOC', ObjectKind::Product, $this->tenant);
+        self::assertNotNull($reloaded);
+        self::assertSame(['value' => 'Nazwa PL'], $reloaded->getAttributesIndexed()['name']);
+    }
+
+    #[Test]
     public function completenessReportsHundredWhenRulesAreEmpty(): void
     {
         $em = $this->em();

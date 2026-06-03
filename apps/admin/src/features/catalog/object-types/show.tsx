@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { HttpError, jsonFetch } from '@/lib/http';
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { useCurrentWorkspace } from '@/lib/use-current-workspace';
 
 interface ObjectTypeDetail {
@@ -201,6 +202,16 @@ export function ObjectTypeShowPage() {
     }
   };
 
+  const handleDetachGroup = async (group: AttachedGroup) => {
+    setError(null);
+    try {
+      await jsonFetch(`/api/object_types/${id}/groups/${group.id}`, { method: 'DELETE' });
+      await refreshGroups();
+    } catch (e) {
+      setError(e instanceof HttpError ? `${e.status}` : e instanceof Error ? e.message : 'unknown');
+    }
+  };
+
   const handleDetachAttribute = async (attributeId: string) => {
     setError(null);
     try {
@@ -258,6 +269,12 @@ export function ObjectTypeShowPage() {
 
   const builtInGroups = (groups.data ?? []).filter((g) => g.system);
   const customGroups = (groups.data ?? []).filter((g) => !g.system);
+  // #1100 — the BUILT-IN ATTRIBUTE GROUPS section was removed from
+  // this view; only the legacy optional system groups (audit, relations)
+  // are still surfaced because they are operator-editable and live
+  // inside the CUSTOM ATTRIBUTE GROUPS card alongside true custom ones.
+  const legacyOptionalGroups = builtInGroups.filter((g) => isLegacyOptionalSystemGroupCode(g.code));
+  const editableGroups = [...legacyOptionalGroups, ...customGroups];
   const enabledLocales = workspace.data?.enabledLocales ?? ['pl', 'en'];
   const primaryLocale = workspace.data?.primaryLocale ?? 'pl';
 
@@ -459,42 +476,6 @@ export function ObjectTypeShowPage() {
 
       <Card>
         <CardContent className="space-y-3 p-6">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-              {t('object_types.builtin_groups_section', {
-                defaultValue: 'Built-in attribute groups',
-              })}
-            </span>
-            <BuiltInLockBadge />
-            <span className="ml-1 text-[11px] text-zinc-400">
-              —{' '}
-              {t('object_types.builtin_groups_tagline', {
-                defaultValue: 'dołączane automatycznie',
-              })}
-            </span>
-          </div>
-          {builtInGroups.length === 0 ? (
-            <p className="text-[12.5px] text-muted-foreground">
-              {t('object_types.no_builtin_groups', { defaultValue: 'Brak built-in grup.' })}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {builtInGroups.map((g) => (
-                <GroupCard
-                  key={g.id}
-                  group={g}
-                  language={i18n.language}
-                  locked
-                  onDisplayModeChange={handleDisplayModeChange}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="space-y-3 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
@@ -532,7 +513,15 @@ export function ObjectTypeShowPage() {
               </Button>
             </div>
           </div>
-          {customGroups.length === 0 ? (
+          {legacyOptionalGroups.length > 0 ? (
+            <div className="rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2 text-[12px] text-amber-800">
+              {t('object_types.legacy_optional_groups_note', {
+                defaultValue:
+                  'Legacy system groups (audit, relations) are listed below as removable modeling configuration. The underlying attributes remain system-owned, but their form visibility is no longer automatic.',
+              })}
+            </div>
+          ) : null}
+          {editableGroups.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-8 text-center text-[12.5px] text-zinc-500">
               {t('object_types.custom_groups_empty', {
                 defaultValue:
@@ -541,12 +530,15 @@ export function ObjectTypeShowPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {customGroups.map((g) => (
+              {editableGroups.map((g) => (
                 <GroupCard
                   key={g.id}
                   group={g}
                   language={i18n.language}
-                  onEdit={() => navigate(`/modeling/attribute-groups/${g.id}`)}
+                  onEdit={
+                    g.system ? undefined : () => navigate(`/modeling/attribute-groups/${g.id}`)
+                  }
+                  onRemove={handleDetachGroup}
                   onDisplayModeChange={handleDisplayModeChange}
                 />
               ))}
@@ -654,17 +646,6 @@ export function ObjectTypeShowPage() {
             {t('object_types.settings_section', { defaultValue: 'Settings' })}
           </div>
           <SettingToggleRow
-            label={t('object_types.setting_hierarchical_label', {
-              defaultValue: 'Is hierarchical',
-            })}
-            description={t('object_types.setting_hierarchical_desc', {
-              defaultValue: 'Obiekty mogą tworzyć drzewo (jak Category)',
-            })}
-            checked={Boolean(objectType.hierarchical)}
-            locked={isBuiltIn}
-            onChange={(next) => void handlePatch({ hierarchical: next })}
-          />
-          <SettingToggleRow
             label={t('object_types.setting_variants_label', {
               defaultValue: 'Czy mają warianty?',
             })}
@@ -695,15 +676,6 @@ export function ObjectTypeShowPage() {
               })}
             </div>
           ) : null}
-          <SettingToggleRow
-            label={t('object_types.setting_abstract_label', { defaultValue: 'Is abstract' })}
-            description={t('object_types.setting_abstract_desc', {
-              defaultValue: 'Nie można tworzyć instancji bezpośrednio (tylko przez sub-typy)',
-            })}
-            checked={Boolean(objectType.abstract)}
-            locked={isBuiltIn}
-            onChange={(next) => void handlePatch({ abstract: next })}
-          />
           {/* VIEW-08 (#427) — main menu candidacy. Asset is locked because
               /assets has its own DAM page; the generic listing route would
               404 in MVP (ships in B-2). */}
@@ -754,7 +726,7 @@ export function ObjectTypeShowPage() {
           <div className="border-t border-zinc-100 pt-5">
             <SettingToggleRow
               label={t('object_types.setting_categorizable_label', {
-                defaultValue: 'Czy można je przypisywać do kategorii?',
+                defaultValue: 'Czy obiekty mogą być przypisane do drzewa kategorii?',
               })}
               description={t('object_types.setting_categorizable_desc', {
                 defaultValue:
@@ -772,43 +744,6 @@ export function ObjectTypeShowPage() {
                 })}
               </div>
             ) : null}
-          </div>
-          <div className="border-t border-zinc-100 pt-5">
-            <div className="mb-2 text-[11.5px] font-medium text-zinc-500">
-              {t('object_types.allowed_parent_types_label', {
-                defaultValue: 'Allowed parent types',
-              })}
-            </div>
-            <div className="flex items-center gap-2">
-              {(objectType.allowedParentTypeIds ?? []).length === 0 ? (
-                <span className="text-[12px] text-muted-foreground">
-                  {t('object_types.allowed_parent_types_empty', {
-                    defaultValue: 'Brak — typ nie posiada rodzica.',
-                  })}
-                </span>
-              ) : (
-                (objectType.allowedParentTypeIds ?? []).map((parentId) => (
-                  <span
-                    key={parentId}
-                    className="rounded-lg bg-zinc-100 px-2.5 py-1 text-[12px] font-medium text-zinc-700"
-                  >
-                    {parentId}
-                  </span>
-                ))
-              )}
-              {!isBuiltIn ? (
-                <button
-                  type="button"
-                  className="rounded-lg border border-dashed border-zinc-200 px-2.5 py-1 text-[12px] text-zinc-500 hover:border-zinc-400 hover:text-zinc-900"
-                  disabled
-                  title={t('object_types.add_parent_deferred', {
-                    defaultValue: 'Implementacja w VIEW-04 (Categories).',
-                  })}
-                >
-                  + {t('object_types.add_parent_type', { defaultValue: 'Add parent type' })}
-                </button>
-              ) : null}
-            </div>
           </div>
         </CardContent>
       </Card>

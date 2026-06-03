@@ -1,4 +1,3 @@
-import { useOne } from '@refinedev/core';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
@@ -14,6 +13,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 
+import { DetailLoadingState } from '@/components/catalog/detail-loading-state';
+import { DetailNotFoundState } from '@/components/catalog/detail-not-found-state';
 import type { Provenance } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -28,7 +29,8 @@ import { MockBadge } from '@/components/ui/mock-badge';
 import { toast } from '@/components/ui/toast';
 import { useListSchema } from '@/hooks/use-list-schema';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
-import { jsonFetch } from '@/lib/http';
+import { httpErrorDetail, jsonFetch } from '@/lib/http';
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { cn } from '@/lib/utils';
 import { useDefaultObjectType } from '../use-default-object-type';
 import { AgentSuggestionsCard } from './agent-suggestions-card';
@@ -44,14 +46,18 @@ import { LocaleChannelToolbar } from './locale-channel-toolbar';
 import { PreviewButton } from './preview-button';
 import { ProductMultimediaTab } from './product-multimedia-tab';
 import { RelationsTab } from './relations-tab';
+import { scopeQuery } from './scope';
 import { SyncStatusCard } from './sync-status-card';
 import type {
   AttributeMeta,
   CatalogObjectDto,
+  ChannelOption,
   GroupMeta,
+  LocaleOption,
   ProductChannel,
   ProductDetailMode,
   ProductLocale,
+  ScopeStatus,
 } from './types';
 import { VariantsListCard } from './variants-list-card';
 import { VariantsTabHost } from './variants-tab-host';
@@ -126,10 +132,21 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     return searchParams.get('primary');
   }, [mode, searchParams]);
 
-  const { result, query } = useOne<CatalogObjectDto>({
-    resource: 'products',
-    id,
-    queryOptions: { enabled: isEditMode && id !== '' },
+  const [locale, setLocale] = useState<ProductLocale>('pl');
+  const [channel, setChannel] = useState<ProductChannel | null>(null);
+
+  // #1150 / #1155 — load the product in the active locale + channel so
+  // localizable / channel-scoped values reflect the picker. Replaces
+  // Refine's useOne (its getOne drops the query string); locale + channel
+  // are part of the query key, so switching either refetches the
+  // scope-resolved reading.
+  const productQuery = useQuery<CatalogObjectDto>({
+    queryKey: ['products', id, locale, channel],
+    queryFn: () =>
+      jsonFetch<CatalogObjectDto>(`/api/products/${id}${scopeQuery(locale, channel)}`, {
+        accept: 'application/ld+json',
+      }),
+    enabled: isEditMode && id !== '',
   });
 
   const { objectTypeId } = useDefaultObjectType('product');
@@ -142,8 +159,6 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   const hasMultimediaCapability = schemaQuery.data?.objectType.has_multimedia ?? false;
 
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
-  const [locale, setLocale] = useState<ProductLocale>('pl');
-  const [channel, setChannel] = useState<ProductChannel | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(!isEditMode);
   const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -189,7 +204,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     }));
   }, [mode, createCategoryIds, createPrimaryId, categoriesListQuery.data]);
 
-  const product = isEditMode ? result : null;
+  const product = isEditMode ? (productQuery.data ?? null) : null;
   const attrs = useMemo(
     () =>
       unwrapAttributesIndexed(product?.attributesIndexed as Record<string, unknown> | undefined),
@@ -201,7 +216,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   // immune to invalidation). In create mode the query keys flip between
   // the preview endpoint (when categories are selected) and the bare
   // ObjectType endpoint (when none are selected yet).
-  const groupsQuery = useQuery<{ groups: GroupMeta[] }>({
+  const groupsQuery = useQuery<{ groups: GroupMeta[]; locales?: LocaleOption[] }>({
     queryKey:
       isEditMode && id !== ''
         ? ['products', id, 'effective-attribute-groups']
@@ -213,13 +228,15 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
           ],
     queryFn: async () => {
       if (isEditMode && id !== '') {
-        return jsonFetch<{ groups: GroupMeta[] }>(`/api/products/${id}/effective-attribute-groups`);
+        return jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
+          `/api/products/${id}/effective-attribute-groups`,
+        );
       }
       if (objectTypeId === null) {
         return { groups: [] };
       }
       if (createCategoryIds.length > 0) {
-        return jsonFetch<{ groups: GroupMeta[] }>(
+        return jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
           `/api/object_types/${objectTypeId}/effective-attribute-groups/preview`,
           {
             method: 'POST',
@@ -229,7 +246,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
           },
         );
       }
-      return jsonFetch<{ groups: GroupMeta[] }>(
+      return jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
         `/api/object_types/${objectTypeId}/effective-attribute-groups`,
       );
     },
@@ -239,6 +256,57 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   });
 
   const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data]);
+
+  // #1149 — the locale picker is fed from the tenant's real enabled locales
+  // (shipped by effective-attribute-groups). Default the selection to the
+  // tenant default once, then respect manual switches.
+  const locales = useMemo<LocaleOption[]>(
+    () => groupsQuery.data?.locales ?? [],
+    [groupsQuery.data],
+  );
+  const [didInitLocale, setDidInitLocale] = useState(false);
+  useEffect(() => {
+    if (didInitLocale || locales.length === 0) return;
+    const def = locales.find((l) => l.is_default) ?? locales[0];
+    if (def === undefined) return;
+    setLocale(def.code);
+    setDidInitLocale(true);
+  }, [locales, didInitLocale]);
+
+  // #1155 — channel picker fed from /api/channels (tenant's real channels).
+  const channelsQuery = useQuery<ChannelOption[]>({
+    queryKey: ['channels', 'picker'],
+    queryFn: async () => {
+      const response = await jsonFetch<{ member?: ChannelOption[] } | ChannelOption[]>(
+        '/api/channels',
+        { accept: 'application/ld+json' },
+      );
+      return Array.isArray(response) ? response : (response.member ?? []);
+    },
+    enabled: isEditMode,
+    staleTime: 60_000,
+  });
+  const channels = channelsQuery.data ?? [];
+
+  // #1222 — scope-status: per-attribute inherited indicator.
+  // Only fetched in edit mode (detail page), not in create mode.
+  // Enabled only when a non-primary locale is active (primary locale
+  // values are global — nothing can be "inherited from another locale").
+  const scopeStatusQuery = useQuery<ScopeStatus>({
+    queryKey: ['products', id, 'scope-status', locale, channel],
+    queryFn: () =>
+      jsonFetch<ScopeStatus>(`/api/products/${id}/scope-status${scopeQuery(locale, channel)}`),
+    enabled: isEditMode && id !== '' && locale !== null,
+    staleTime: 30_000,
+  });
+  const scopeStatus = scopeStatusQuery.data ?? {};
+
+  // #1150 / #1155 — switching locale or channel discards unsaved edits so an
+  // edit is never written to the wrong scope; the operator saves first.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on scope change
+  useEffect(() => {
+    setDirtyFields({});
+  }, [locale, channel]);
 
   // MODR-03 (#925) — tab list derived dynamically from `groups`:
   // every group with `display_mode='tab'` becomes its own tab; groups
@@ -267,11 +335,15 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     staleTime: 30_000,
   });
   const hasReverseRelations = reverseRelationsQuery.data?.hasReverse ?? false;
-  const hasForwardRelationsGroup = useMemo(
-    () => groups.some((g) => g.code === 'relations'),
-    [groups],
-  );
-  const shouldSurfaceRelationsTab = hasForwardRelationsGroup || hasReverseRelations;
+  // Issue #1092 — forward relation attributes are normal attributes
+  // now: they render inline through their natural group placement
+  // (stacked-mode group → inline in the `attributes` tab; tab-mode
+  // group → its own dedicated tab via `tabModeGroups`). The synthetic
+  // `relations` tab only survives for the reverse-only case (object is
+  // pointed at from elsewhere but has no forward relation attribute of
+  // its own) — that path still needs the bespoke `RelationsTab` because
+  // `effective-attribute-groups` has no concept of "incoming links".
+  const shouldSurfaceRelationsTab = hasReverseRelations;
 
   const visibleTabs: readonly TabKey[] = useMemo(() => {
     if (mode === 'create') return ['attributes'];
@@ -395,18 +467,27 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
           return;
         }
         const attributes = stripAttributes(dirtyFields);
-        await jsonFetch(`/api/products/${id}`, {
+        // #1150 / #1155 — write in the active locale + channel: localizable
+        // / scopable attributes land on that scope's row, others stay
+        // global (BE decides per flag).
+        await jsonFetch(`/api/products/${id}${scopeQuery(locale, channel)}`, {
           method: 'PATCH',
           contentType: 'application/merge-patch+json',
           body: { attributes },
         });
-        await query.refetch();
+        await productQuery.refetch();
         setDirtyFields({});
         setIsEditing(false);
         toast.success(t('products.detail.save.success', { defaultValue: 'Zapisano zmiany' }));
       }
-    } catch {
-      toast.error(t('products.detail.save.failed', { defaultValue: 'Nie udało się zapisać' }));
+    } catch (error) {
+      // #1179 — surface the server's Problem Details `detail` (e.g. duplicate
+      // identifier 409) instead of the generic copy, so the operator knows
+      // what to fix.
+      toast.error(
+        httpErrorDetail(error) ??
+          t('products.detail.save.failed', { defaultValue: 'Nie udało się zapisać' }),
+      );
     } finally {
       setIsSaving(false);
     }
@@ -438,8 +519,31 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     }
   };
 
-  if (isEditMode && (query.isLoading || product === null || product === undefined)) {
-    return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
+  // Issue #1043 — split the original mixed guard into loading + not-found.
+  // The previous condition treated `product === undefined` (post-404) as
+  // still-loading and pinned the page on an infinite "Ładowanie…". Refine's
+  // `useOne` returns `isLoading=false`, `isError=true`, `data=undefined`
+  // after a 404, so we now check `isError` explicitly.
+  if (isEditMode && productQuery.isLoading) {
+    return <DetailLoadingState />;
+  }
+  if (isEditMode && (productQuery.isError || product === null || product === undefined)) {
+    return (
+      <DetailNotFoundState
+        id={id}
+        backHref="/products"
+        title={t('products.detail.errors.not_found_title', {
+          defaultValue: 'Produkt nie znaleziony',
+        })}
+        description={t('products.detail.errors.not_found_description', {
+          defaultValue: 'Produkt o ID "{{id}}" nie istnieje lub został usunięty.',
+          id,
+        })}
+        backLabel={t('products.detail.errors.back_to_list', {
+          defaultValue: 'Wróć do listy produktów',
+        })}
+      />
+    );
   }
 
   const skuValue =
@@ -642,9 +746,23 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                         : t('products.detail.status.inactive', { defaultValue: 'Nieaktywny' })}
                     </span>
                   </div>
-                  <h1 className="font-display mt-1 text-[26px] font-semibold leading-tight tracking-tight">
-                    {nameValue}
-                  </h1>
+                  {isEditing ? (
+                    <Input
+                      aria-label={t('products.detail.create.placeholder.name', {
+                        defaultValue: 'Nazwa produktu',
+                      })}
+                      placeholder={t('products.detail.create.placeholder.name', {
+                        defaultValue: 'Nazwa produktu',
+                      })}
+                      value={nameValue}
+                      onChange={(event) => setFieldValue('name', event.target.value)}
+                      className="font-display mt-1 h-11 rounded-lg border-zinc-200 bg-white text-[26px] font-semibold tracking-tight"
+                    />
+                  ) : (
+                    <h1 className="font-display mt-1 text-[26px] font-semibold leading-tight tracking-tight">
+                      {nameValue}
+                    </h1>
+                  )}
                   {objectTypeName !== null ? (
                     <div className="mt-2.5 flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-zinc-700 soft-shadow">
@@ -712,6 +830,8 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
               channel={channel}
               onLocaleChange={setLocale}
               onChannelChange={setChannel}
+              locales={locales}
+              channels={channels}
             />
           ) : null}
         </div>
@@ -735,7 +855,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                 totalCount={group.attributes.length}
                 expanded={expandedGroups.has(group.id)}
                 onToggle={() => toggleGroup(group.id)}
-                isSystem={group.code === 'audit'}
+                isSystem={isLegacyOptionalSystemGroupCode(group.code)}
               >
                 {group.attributes.map((attr) => (
                   <AttrRow
@@ -744,9 +864,16 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                     value={fieldValue(attr.code)}
                     provenance={resolveProvenance(attr, product)}
                     locale={locale}
+                    channel={channel}
                     isEditing={isEditing}
                     isLocked={attr.is_system}
                     onChange={(next) => setFieldValue(attr.code, next)}
+                    relationContextProductId={isEditMode ? id : undefined}
+                    isInherited={
+                      scopeStatus[attr.code]?.has_override === false &&
+                      scopeStatus[attr.code]?.inherited_from != null
+                    }
+                    inheritedFrom={scopeStatus[attr.code]?.inherited_from ?? null}
                   />
                 ))}
               </AttrGroupCard>

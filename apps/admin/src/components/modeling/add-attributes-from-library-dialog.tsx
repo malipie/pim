@@ -3,7 +3,6 @@ import { Check, Layers, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { resolveLabel } from '@/features/catalog/attributes/list';
@@ -25,6 +24,8 @@ interface UsageResp {
 const TYPE_OPTIONS = [
   'all',
   'text',
+  'textarea',
+  'identifier',
   'number',
   'boolean',
   'select',
@@ -37,6 +38,8 @@ const TYPE_OPTIONS = [
   'price',
   'metric',
   'wysiwyg',
+  'color',
+  'email',
 ] as const;
 
 interface Props {
@@ -200,9 +203,13 @@ export function AddAttributesFromLibraryDialog({
             onChange={(e) => setTypeFilter(e.target.value as (typeof TYPE_OPTIONS)[number])}
             className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-[13px] font-medium"
           >
-            {TYPE_OPTIONS.map((t) => (
-              <option key={t} value={t}>
-                {t === 'all' ? 'Wszystkie typy' : t}
+            {TYPE_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt === 'all'
+                  ? t('modeling.attributeGroups.add_from_library.all_types', {
+                      defaultValue: 'Wszystkie typy',
+                    })
+                  : t(`attribute_type.${opt}`, { defaultValue: opt })}
               </option>
             ))}
           </select>
@@ -243,7 +250,6 @@ export function AddAttributesFromLibraryDialog({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="truncate font-mono text-[13px] font-medium">{a.code}</span>
-                        {a.system ? <BuiltInLockBadge /> : null}
                         {isExisting ? (
                           <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-zinc-700">
                             {t('modeling.attributeGroups.add_from_library.in_group_badge', {

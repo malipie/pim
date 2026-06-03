@@ -74,12 +74,78 @@ final class CatalogObjectPolyKindPostTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'poly_post_category',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                // ADR-015 — a category must declare the categorizable
+                // ObjectType tree it joins (Product is the only built-in).
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
         $body = $response->toArray();
         self::assertSame('poly_post_category', $body['code'] ?? null);
         self::assertSame('category', $body['kind'] ?? null);
+    }
+
+    #[Test]
+    public function postCategoryWithoutTargetObjectTypeReturns422(): void
+    {
+        // ADR-015 — categoryTargetObjectTypeId is mandatory for categories.
+        $client = $this->authenticatedClient();
+
+        $client->request('POST', '/api/objects', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'adr015_noscope',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    #[Test]
+    public function postCategoryWithNonCategorizableTargetReturns422(): void
+    {
+        // ADR-015 — the target ObjectType must be is_categorizable. Asset is not.
+        $client = $this->authenticatedClient();
+
+        $client->request('POST', '/api/objects', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'adr015_asset_scope',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Asset),
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    #[Test]
+    public function sameCategoryCodeAllowedInDifferentTrees(): void
+    {
+        // ADR-015 — per-tree code uniqueness. Make a second categorizable OT,
+        // then create the same code in both Product's tree and its tree.
+        $client = $this->authenticatedClient();
+        $secondTreeOtId = $this->seedCategorizableObjectType('cars_adr015', 'Cars ADR015');
+
+        $first = $client->request('POST', '/api/objects', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'adr015_dup',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertSame(Response::HTTP_CREATED, $first->getStatusCode());
+
+        $second = $client->request('POST', '/api/objects', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'adr015_dup',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $secondTreeOtId,
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        // Same code, different tree → allowed.
+        self::assertSame(Response::HTTP_CREATED, $second->getStatusCode());
     }
 
     #[Test]
@@ -146,6 +212,7 @@ final class CatalogObjectPolyKindPostTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => 'POLY-POST-MISMATCH',
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
         self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -160,6 +227,25 @@ final class CatalogObjectPolyKindPostTest extends CatalogApiTestCase
         $tenantContext->set($tenant);
 
         $ot = new ObjectType($code, ObjectKind::Custom, ['pl' => $label, 'en' => $label]);
+        $em = $this->em();
+        $em->persist($ot);
+        $em->flush();
+
+        $tenantContext->clear();
+
+        return $ot->getId()->toRfc4122();
+    }
+
+    private function seedCategorizableObjectType(string $code, string $label): string
+    {
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenantContext->set($tenant);
+
+        $ot = new ObjectType($code, ObjectKind::Custom, ['pl' => $label, 'en' => $label]);
+        $ot->setCategorizable(true);
         $em = $this->em();
         $em->persist($ot);
         $em->flush();

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Import\Application\Service;
 
+use App\Import\Domain\ColumnHeader;
 use App\Import\Domain\Enum\MappingConfidence;
+use App\Import\Domain\SystemColumn;
 use App\Import\Domain\ValueObject\ColumnMappingSuggestion;
 
 /**
@@ -42,8 +44,28 @@ final readonly class AutoMapper
 
         $suggestions = [];
         foreach ($columnHeaders as $index => $header) {
-            $normalised = $this->normalise($header);
             $sampleValues = $this->sliceSample($sampleRows, $index);
+
+            // Read-only / system export columns (timestamps, status,
+            // completeness, …) have no Attribute behind them — suggest
+            // Skip so re-importing an export is a one-click round-trip
+            // rather than a wall of manual rows (#1130).
+            if (SystemColumn::isSystem($header)) {
+                $suggestions[] = new ColumnMappingSuggestion(
+                    columnIndex: $index,
+                    columnHeader: $header,
+                    suggestedAttributeCode: null,
+                    confidence: MappingConfidence::Skip,
+                    sampleValues: $sampleValues,
+                );
+                continue;
+            }
+
+            // Localised export columns carry a dotted locale suffix
+            // (`name.pl`). Match on the attribute base so they auto-map to
+            // their attribute; the locale is re-derived from the header at
+            // validation / persistence time.
+            $normalised = $this->normalise(ColumnHeader::baseOf($header));
 
             if ('' === $normalised) {
                 $suggestions[] = new ColumnMappingSuggestion(

@@ -7,6 +7,7 @@ import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { HttpError, jsonFetch } from '@/lib/http';
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { cn } from '@/lib/utils';
 
 interface AttributeGroupRow {
@@ -24,6 +25,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categoryId: string;
+  /** ADR-015 — ObjectType id the declaration targets (supports custom-OT trees). */
+  targetObjectTypeId: string;
   /** ObjectKind discriminator the declaration targets (`product` / `service` / `category` / ...). */
   targetObjectTypeKind: string;
   /** AttributeGroup IDs already declared on this category for this target — disabled with a tooltip. */
@@ -48,6 +51,7 @@ export function DeclareAttributeGroupDialog({
   open,
   onOpenChange,
   categoryId,
+  targetObjectTypeId,
   targetObjectTypeKind,
   declaredGroupIds,
   inheritedFromMap,
@@ -119,14 +123,15 @@ export function DeclareAttributeGroupDialog({
         await jsonFetch(`/api/categories/${categoryId}/attribute_groups`, {
           method: 'POST',
           contentType: 'application/json',
-          body: { groupId, targetObjectTypeKind },
+          // ADR-015 — declare by ObjectType id (BE prefers it; supports custom-OT trees).
+          body: { groupId, targetObjectTypeId },
         });
       }
       await queryClient.invalidateQueries({
-        queryKey: ['categories', categoryId, 'attribute_groups', targetObjectTypeKind],
+        queryKey: ['categories', categoryId, 'attribute_groups', targetObjectTypeId],
       });
       await queryClient.invalidateQueries({
-        queryKey: ['categories', categoryId, 'effective-groups', targetObjectTypeKind],
+        queryKey: ['categories', categoryId, 'effective-groups', targetObjectTypeId],
       });
       onDeclared();
       onOpenChange(false);
@@ -194,7 +199,12 @@ export function DeclareAttributeGroupDialog({
                 const isInherited = !isDeclared && Boolean(inheritedFrom);
                 const isDisabled = isDeclared || isInherited;
                 const isPicked = picked.has(g.id);
-                const isSystem = Boolean(g.is_system_group ?? g.isSystemGroup);
+                // Legacy `audit` (#1074) and `relations` (#1080) are user-managed
+                // modeling config: skip the lock badge so they aren't presented
+                // as permanent.
+                const isLockedSystem =
+                  Boolean(g.is_system_group ?? g.isSystemGroup) &&
+                  !isLegacyOptionalSystemGroupCode(g.code);
 
                 return (
                   <button
@@ -246,7 +256,7 @@ export function DeclareAttributeGroupDialog({
                         <span className="text-[13.5px] font-medium tracking-tight">
                           {labelString(g.label) || g.code}
                         </span>
-                        {isSystem ? <BuiltInLockBadge tone="quiet" /> : null}
+                        {isLockedSystem ? <BuiltInLockBadge tone="quiet" /> : null}
                       </div>
                       <div className="font-mono text-[11px] text-zinc-400">{g.code}</div>
                     </div>
