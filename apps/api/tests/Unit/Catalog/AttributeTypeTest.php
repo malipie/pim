@@ -18,7 +18,7 @@ final class AttributeTypeTest extends TestCase
         // + `datetime`/`reference` (UI-08.3 #258) + `textarea`/`color`/`email`
         // (#1177). `datetime` is now user-facing (#1177); only `reference`
         // stays a system type. Guard against accidental case removal/addition.
-        self::assertCount(16, AttributeType::cases());
+        self::assertCount(17, AttributeType::cases());
         self::assertCount(1, array_filter(AttributeType::cases(), static fn (AttributeType $t) => $t->isSystemType()));
         self::assertTrue(AttributeType::Reference->isSystemType());
         self::assertFalse(AttributeType::Datetime->isSystemType());
@@ -55,6 +55,7 @@ final class AttributeTypeTest extends TestCase
         yield 'textarea does not use options' => [AttributeType::Textarea, false];
         yield 'color does not use options' => [AttributeType::Color, false];
         yield 'email does not use options' => [AttributeType::Email, false];
+        yield 'identifier does not use options' => [AttributeType::Identifier, false];
     }
 
     #[Test]

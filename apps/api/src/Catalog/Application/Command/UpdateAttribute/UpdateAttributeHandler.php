@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application\Command\UpdateAttribute;
 
+use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Validator\RelationAttributeConfigValidator;
 use App\Shared\Application\TenantContext;
@@ -73,11 +74,15 @@ final readonly class UpdateAttributeHandler
             return;
         }
 
+        // #1179 — identifier values are unique per ObjectType and must
+        // resolve to one value per object, so localizable/scopable stay off
+        // regardless of the payload.
+        $isIdentifier = AttributeType::Identifier === $attribute->getType();
         if (null !== $command->localizable) {
-            $attribute->changeLocalizable($command->localizable);
+            $attribute->changeLocalizable(!$isIdentifier && $command->localizable);
         }
         if (null !== $command->scopable) {
-            $attribute->changeScopable($command->scopable);
+            $attribute->changeScopable(!$isIdentifier && $command->scopable);
         }
         if (null !== $command->required) {
             $attribute->changeRequired($command->required);
