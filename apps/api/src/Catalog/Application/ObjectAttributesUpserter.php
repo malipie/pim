@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application;
 
+use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\Provenance;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
+use App\Catalog\Domain\Validator\IdentifierUniquenessValidator;
 use App\Shared\Domain\Tenant;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -38,6 +41,7 @@ final readonly class ObjectAttributesUpserter
     public function __construct(
         private AttributeRepositoryInterface $attributes,
         private ObjectValueRepositoryInterface $values,
+        private IdentifierUniquenessValidator $identifierUniqueness,
     ) {
     }
 
@@ -86,6 +90,22 @@ final readonly class ObjectAttributesUpserter
             $targetChannel = null !== $channelId && $attribute->isScopable() ? $channelId : null;
 
             $jsonbValue = $this->wrapValue($rawValue);
+
+            // #1179 — identifier values are unique per ObjectType. Pre-check
+            // here for a clean 409 (the DB partial unique index is the
+            // race-proof backstop). Skip empty/non-string values — clearing
+            // an identifier is allowed.
+            if (AttributeType::Identifier === $attribute->getType()) {
+                $candidate = $jsonbValue['value'] ?? null;
+                if (\is_string($candidate) && '' !== $candidate
+                    && $this->identifierUniqueness->isDuplicate($object, $attribute, $candidate)) {
+                    throw new ConflictHttpException(\sprintf(
+                        'Identifier "%s" is already assigned to another %s.',
+                        $candidate,
+                        $object->getObjectType()->getCode(),
+                    ));
+                }
+            }
 
             $existing = $this->values->findOneByScope($object, $attribute, $targetChannel, $targetLocale);
             if ($existing instanceof ObjectValue) {
