@@ -63,6 +63,7 @@ import type {
   LocaleOption,
   ProductChannel,
   ProductLocale,
+  ScopeStatus,
 } from '@/features/catalog/products/components/types';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { httpErrorDetail, jsonFetch } from '@/lib/http';
@@ -246,6 +247,19 @@ export function UniversalDetailPage({
     staleTime: 60_000,
   });
   const channels = channelsQuery.data ?? [];
+
+  // #1225 — scope-status: per-attribute inherited indicator, mirroring the
+  // product detail card (#1222). Fetched only while editing (the locale
+  // picker lives in the edit-mode toolbar) and when a locale is active;
+  // primary-locale values are global, so nothing reads as "inherited".
+  const scopeStatusQuery = useQuery<ScopeStatus>({
+    queryKey: ['object', objectId, 'scope-status', locale, channel],
+    queryFn: () =>
+      jsonFetch<ScopeStatus>(`/api/objects/${objectId}/scope-status${scopeQuery(locale, channel)}`),
+    enabled: isEditing && objectId !== '' && locale !== '',
+    staleTime: 30_000,
+  });
+  const scopeStatus = scopeStatusQuery.data ?? {};
 
   // #1150 / #1155 — switching locale or channel discards unsaved edits.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on scope change
@@ -545,14 +559,19 @@ export function UniversalDetailPage({
               );
             })}
           </div>
-          <LocaleChannelToolbar
-            locale={locale}
-            channel={channel}
-            onLocaleChange={setLocale}
-            onChannelChange={setChannel}
-            locales={locales}
-            channels={channels}
-          />
+          {/* #1225 — the scope switcher only makes sense while editing; in
+              view mode there is nothing to write, so hide it (parity with
+              the product detail card, which gates it on edit mode). */}
+          {isEditing ? (
+            <LocaleChannelToolbar
+              locale={locale}
+              channel={channel}
+              onLocaleChange={setLocale}
+              onChannelChange={setChannel}
+              locales={locales}
+              channels={channels}
+            />
+          ) : null}
         </div>
       </header>
 
@@ -583,6 +602,11 @@ export function UniversalDetailPage({
                     isLocked={attr.is_system}
                     onChange={(next) => setFieldValue(attr.code, next)}
                     relationContextProductId={objectId}
+                    isInherited={
+                      scopeStatus[attr.code]?.has_override === false &&
+                      scopeStatus[attr.code]?.inherited_from != null
+                    }
+                    inheritedFrom={scopeStatus[attr.code]?.inherited_from ?? null}
                   />
                 ))}
               </AttrGroupCard>
