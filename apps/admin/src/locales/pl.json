@@ -26,7 +26,8 @@
     "metric": "Miara",
     "wysiwyg": "Tekst sformatowany",
     "color": "Kolor",
-    "email": "E-mail"
+    "email": "E-mail",
+    "identifier": "Identyfikator"
   },
   "user_menu": {
     "aria_label": "Menu użytkownika",

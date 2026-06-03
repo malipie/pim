@@ -1,4 +1,4 @@
-import { Copy, Link2, Lock } from 'lucide-react';
+import { Copy, CornerDownRight, Link2, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WysiwygEditor } from '@/components/catalog/wysiwyg-editor';
 import { RelationCreateField } from '@/components/objects/relation-create-field';
@@ -46,6 +46,23 @@ export interface AttrRowProps {
    * after the main POST succeeds.
    */
   createMode?: boolean;
+  /**
+   * #1220 — active channel code (e.g. "shopify"). When provided and
+   * the attribute has `is_scopable=true`, a sky-coloured channel chip
+   * is rendered next to the label — mirroring the locale chip for
+   * `is_localizable` attributes.
+   */
+  channel?: string | null;
+  /**
+   * #1222 — when true the value shown is inherited from a fallback
+   * locale (not an exact match for the requested locale).
+   */
+  isInherited?: boolean;
+  /**
+   * #1222 — the locale code the value was inherited from
+   * (e.g. "en" when requested "de" fell back to "en").
+   */
+  inheritedFrom?: string | null;
 }
 
 /**
@@ -66,6 +83,9 @@ export function AttrRow({
   onCopyToOthers,
   relationContextProductId,
   createMode = false,
+  channel = null,
+  isInherited = false,
+  inheritedFrom = null,
 }: AttrRowProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
@@ -73,6 +93,7 @@ export function AttrRow({
   const editable = isEditing && !isLocked;
   const stringValue = typeof value === 'string' ? value : value == null ? '' : String(value);
   const localeChip = isLocaleScoped(attribute) ? locale : null;
+  const channelChip = attribute.is_scopable === true && channel ? channel : null;
   const isSelectLike = attribute.type === 'select' || attribute.type === 'multiselect';
   const selectOptions = isSelectLike ? (attribute.options ?? []) : [];
 
@@ -106,7 +127,40 @@ export function AttrRow({
             {localeChip}
           </span>
         ) : null}
-        {isLocked ? <Lock className="size-3 text-zinc-300" aria-hidden /> : null}
+        {channelChip ? (
+          <span
+            title={t('products.detail.field.channel_aria', {
+              channel: channelChip.toUpperCase(),
+              defaultValue: 'Kanał {{channel}}',
+            })}
+            className="rounded bg-sky-100 px-1 py-0.5 font-mono text-[9px] uppercase text-sky-600"
+          >
+            {channelChip}
+          </span>
+        ) : null}
+        {isInherited && inheritedFrom ? (
+          <span
+            title={t('products.detail.field.inherited_from', {
+              locale: inheritedFrom.toUpperCase(),
+              defaultValue: 'Wartość z [{{locale}}]',
+            })}
+            className="inline-flex items-center text-amber-400"
+          >
+            <CornerDownRight
+              className="size-3"
+              aria-hidden
+              aria-label={t('products.detail.field.inherited_from', {
+                locale: inheritedFrom.toUpperCase(),
+                defaultValue: 'Wartość z [{{locale}}]',
+              })}
+            />
+          </span>
+        ) : null}
+        {/* #1207 — system attributes (created_at/by, updated_at/by) stay
+            read-only but are treated as normal fields: no lock chrome. */}
+        {isLocked && !attribute.is_system ? (
+          <Lock className="size-3 text-zinc-300" aria-hidden />
+        ) : null}
         {attribute.is_required_in_group ? (
           <span
             className="text-rose-500"
@@ -229,6 +283,17 @@ export function AttrRow({
               onChange={(event) => onChange(event.target.value)}
               placeholder="name@example.com"
               className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 text-[13.5px]"
+            />
+          ) : attribute.type === 'identifier' ? (
+            // #1179 — EAN/GTIN/ISBN/SKU. Monospace so codes are easy to scan;
+            // uniqueness per ObjectType is enforced server-side (409 on save).
+            <Input
+              id={`attr-${attribute.code}`}
+              type="text"
+              inputMode="text"
+              value={stringValue}
+              onChange={(event) => onChange(event.target.value)}
+              className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 font-mono text-[13px]"
             />
           ) : attribute.type === 'select' ? (
             <Combobox

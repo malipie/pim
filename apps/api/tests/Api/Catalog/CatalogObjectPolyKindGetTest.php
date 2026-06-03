@@ -75,6 +75,39 @@ final class CatalogObjectPolyKindGetTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function getInjectsSystemAttributeValues(): void
+    {
+        // #1207 — created_at/updated_at + created_by/updated_by are surfaced in
+        // attributesIndexed at read time (they are never stored as ObjectValue
+        // rows). Creating authenticated stamps the blameable actor (e-mail).
+        $client = $this->authenticatedClient();
+        $id = $this->createObject($client, '/api/products', 'SKU-SYSTEM-ATTRS', ObjectKind::Product);
+
+        $response = $client->request('GET', '/api/objects/'.$id, [
+            'headers' => ['accept' => 'application/ld+json'],
+        ]);
+        self::assertResponseIsSuccessful();
+        $indexed = $response->toArray()['attributesIndexed'] ?? [];
+        self::assertIsArray($indexed);
+
+        self::assertArrayHasKey('created_at', $indexed);
+        self::assertArrayHasKey('updated_at', $indexed);
+
+        $createdAt = $indexed['created_at'];
+        self::assertIsArray($createdAt);
+        $createdAtValue = $createdAt['value'] ?? null;
+        self::assertIsString($createdAtValue);
+        self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/', $createdAtValue);
+
+        $createdBy = $indexed['created_by'] ?? null;
+        $updatedBy = $indexed['updated_by'] ?? null;
+        self::assertIsArray($createdBy);
+        self::assertIsArray($updatedBy);
+        self::assertSame(self::ADMIN_EMAIL, $createdBy['value'] ?? null);
+        self::assertSame(self::ADMIN_EMAIL, $updatedBy['value'] ?? null);
+    }
+
+    #[Test]
     public function getReturns404ForUnknownUuid(): void
     {
         $client = $this->authenticatedClient();
