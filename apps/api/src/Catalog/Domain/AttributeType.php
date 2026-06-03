@@ -96,6 +96,20 @@ enum AttributeType: string
      */
     case Email = 'email';
 
+    /**
+     * #1179 — unique identifier (EAN-13, GTIN-14, ISBN, internal SKU).
+     * Stored as a single `string` in `object_values.value->>'value'`.
+     *
+     * Value uniqueness is enforced **per ObjectType at the DB level** via
+     * trigger-maintained columns + a partial unique index on
+     * `object_values` (migration #1179), with an application pre-check
+     * ({@see Validator\IdentifierUniquenessValidator})
+     * for a clean 409 before the constraint. Identifier attributes are
+     * coerced to non-localizable / non-scopable on create so exactly one
+     * value exists per object.
+     */
+    case Identifier = 'identifier';
+
     public function usesOptions(): bool
     {
         return self::Select === $this || self::Multiselect === $this;
