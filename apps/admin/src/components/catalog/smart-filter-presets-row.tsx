@@ -1,4 +1,4 @@
-import { Plus, Sparkles } from 'lucide-react';
+import { Plus, Sparkles, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { SmartFilterPreset } from '@/lib/filters/use-smart-presets';
@@ -28,6 +28,13 @@ interface SmartFilterPresetsRowProps {
   onSelect: (preset: SmartFilterPreset | null) => void;
   onCreate: () => void;
   isLoading?: boolean;
+  /**
+   * #1205 — when provided, user-created presets (not built-in/system) get a
+   * hover/focus-revealed delete affordance. Built-in and system presets are
+   * never deletable (the backend rejects them anyway), so the control is
+   * suppressed for them.
+   */
+  onDelete?: (preset: SmartFilterPreset) => void;
 }
 
 export function SmartFilterPresetsRow({
@@ -36,6 +43,7 @@ export function SmartFilterPresetsRow({
   onSelect,
   onCreate,
   isLoading = false,
+  onDelete,
 }: SmartFilterPresetsRowProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
@@ -85,37 +93,62 @@ export function SmartFilterPresetsRow({
             const labelKey = BUILT_IN_LABEL_KEY[preset.slug];
             const fallbackLabel = preset.name[lang] ?? preset.name.pl;
             const label = labelKey ? t(labelKey, { defaultValue: fallbackLabel }) : fallbackLabel;
+            const isDeletable = onDelete !== undefined && !preset.is_built_in && !preset.is_system;
             return (
-              <button
-                key={preset.id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => {
-                  onSelect(isActive ? null : preset);
-                }}
-                className={cn(
-                  'group shrink-0 inline-flex items-center gap-2 h-9 px-3 rounded-2xl text-[12.5px] font-medium transition border focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
-                  isActive
-                    ? 'bg-zinc-900 text-white border-zinc-900'
-                    : 'bg-zinc-50 text-zinc-700 border-zinc-100 hover:bg-white hover:border-zinc-200',
-                )}
-              >
-                <span className="text-[14px] leading-none" aria-hidden="true">
-                  {preset.icon}
-                </span>
-                <span>{label}</span>
-                {preset.count !== undefined && (
-                  <span
+              // Wrapper keeps the select chip and the delete control as
+              // siblings (a button cannot be nested inside another button).
+              <div key={preset.id} className="group/preset relative shrink-0 inline-flex">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => {
+                    onSelect(isActive ? null : preset);
+                  }}
+                  className={cn(
+                    'inline-flex items-center gap-2 h-9 px-3 rounded-2xl text-[12.5px] font-medium transition border focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
+                    isDeletable && 'pr-7',
+                    isActive
+                      ? 'bg-zinc-900 text-white border-zinc-900'
+                      : 'bg-zinc-50 text-zinc-700 border-zinc-100 hover:bg-white hover:border-zinc-200',
+                  )}
+                >
+                  <span className="text-[14px] leading-none" aria-hidden="true">
+                    {preset.icon}
+                  </span>
+                  <span>{label}</span>
+                  {preset.count !== undefined && (
+                    <span
+                      className={cn(
+                        'text-[10.5px] tabular-nums font-mono',
+                        isActive ? 'text-white/60' : 'text-zinc-400',
+                      )}
+                    >
+                      {preset.count}
+                    </span>
+                  )}
+                </button>
+                {isDeletable && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDelete(preset);
+                    }}
+                    aria-label={t('products.smart_filters.delete_aria', {
+                      defaultValue: 'Usuń preset {{name}}',
+                      name: label,
+                    })}
                     className={cn(
-                      'text-[10.5px] tabular-nums font-mono',
-                      isActive ? 'text-white/60' : 'text-zinc-400',
+                      'absolute right-1 top-1/2 -translate-y-1/2 grid h-5 w-5 place-items-center rounded-full opacity-0 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 group-hover/preset:opacity-100 group-focus-within/preset:opacity-100',
+                      isActive
+                        ? 'text-white/70 hover:bg-white/20 hover:text-white'
+                        : 'text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700',
                     )}
                   >
-                    {preset.count}
-                  </span>
+                    <X className="size-3" />
+                  </button>
                 )}
-              </button>
+              </div>
             );
           })}
       </div>

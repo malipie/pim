@@ -7,6 +7,7 @@ namespace App\Catalog\Infrastructure\ApiPlatform\State;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\Catalog\Application\ObjectValueLocaleOverlay;
+use App\Catalog\Application\SystemAttributeReadOverlay;
 use App\Catalog\Domain\Entity\CatalogObject;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -32,6 +33,7 @@ final readonly class CatalogObjectLocaleOverlayProvider implements ProviderInter
     public function __construct(
         private ProviderInterface $itemProvider,
         private ObjectValueLocaleOverlay $overlay,
+        private SystemAttributeReadOverlay $systemOverlay,
         private RequestStack $requestStack,
     ) {
     }
@@ -50,9 +52,11 @@ final readonly class CatalogObjectLocaleOverlayProvider implements ProviderInter
         $locale = \is_string($localeParam) && '' !== $localeParam ? $localeParam : null;
         $channel = \is_string($channelParam) && '' !== $channelParam ? $channelParam : null;
         if (null !== $locale || null !== $channel) {
-            return $this->overlay->apply($object, $locale, $channel);
+            $object = $this->overlay->apply($object, $locale, $channel);
         }
 
-        return $object;
+        // #1207 — always surface the system attributes (created_at/updated_at +
+        // created_by/updated_by) so they render real values instead of "—".
+        return $this->systemOverlay->apply($object);
     }
 }

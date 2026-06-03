@@ -88,9 +88,14 @@ final readonly class CreateAttributeHandler
             label: $command->label,
             type: $type,
         );
+        // #1179 — an identifier (EAN/GTIN/SKU) must resolve to exactly one
+        // value per object so its per-ObjectType uniqueness scope stays
+        // unambiguous; it never varies by locale or channel.
+        $isIdentifier = AttributeType::Identifier === $type;
+
         $attribute->updateHelp($command->help);
-        $attribute->changeLocalizable($command->localizable);
-        $attribute->changeScopable($command->scopable);
+        $attribute->changeLocalizable(!$isIdentifier && $command->localizable);
+        $attribute->changeScopable(!$isIdentifier && $command->scopable);
         $attribute->changeRequired($command->required);
         $attribute->changeFilterable($command->filterable);
         $attribute->updateValidationRules($command->validationRules);

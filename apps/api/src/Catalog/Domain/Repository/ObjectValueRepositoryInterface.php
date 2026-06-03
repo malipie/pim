@@ -18,6 +18,16 @@ interface ObjectValueRepositoryInterface
      */
     public function findByObject(CatalogObject $object): array;
 
+    /**
+     * Batch-load ObjectValue rows for multiple objects in a single query.
+     * Used by the collection overlay provider to avoid N+1 queries.
+     *
+     * @param list<Uuid> $objectIds
+     *
+     * @return array<string, list<ObjectValue>> keyed by object UUID (RFC 4122)
+     */
+    public function findByObjectIds(array $objectIds): array;
+
     public function findOneByScope(
         CatalogObject $object,
         Attribute $attribute,
