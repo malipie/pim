@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import type { FilterDsl } from '@/lib/filters/filter-dsl';
 import type { SmartFilterPreset } from '@/lib/filters/use-smart-presets';
+import { httpErrorDetail } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 const ICON_CHOICES = ['🔧', '⚙️', '⚡', '🛠️', '🏷️', '📦', '🔍', '🌟', '🚀', '🎯', '💡', '📊'];
@@ -61,7 +62,10 @@ export function SaveAsSmartPresetModal({
       onSaved(preset);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'unknown');
+      // #1218 — surface the server's Problem Details reason (e.g. "Operator
+      // '=' not supported for attribute 'created_by' of type 'reference'")
+      // instead of the opaque "HTTP 400", so the operator knows what to fix.
+      setError(httpErrorDetail(e) ?? (e instanceof Error ? e.message : 'unknown'));
     } finally {
       setIsPending(false);
     }
