@@ -35,6 +35,25 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * Pull the RFC 7807 `detail` out of a thrown {@see HttpError} so callers can
+ * show the server's reason (e.g. #1179 duplicate-identifier 409) instead of a
+ * generic message. Returns null for non-HttpError throwables or bodies
+ * without a string `detail`.
+ */
+export function httpErrorDetail(error: unknown): string | null {
+  if (
+    error instanceof HttpError &&
+    typeof error.body === 'object' &&
+    error.body !== null &&
+    'detail' in error.body &&
+    typeof (error.body as { detail: unknown }).detail === 'string'
+  ) {
+    return (error.body as { detail: string }).detail;
+  }
+  return null;
+}
+
 export function getAccessToken(): string | null {
   return accessToken;
 }

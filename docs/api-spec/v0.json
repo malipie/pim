@@ -7602,7 +7602,8 @@
                             "reference",
                             "textarea",
                             "color",
-                            "email"
+                            "email",
+                            "identifier"
                         ]
                     },
                     "validationRules": {
@@ -7718,7 +7719,8 @@
                             "datetime",
                             "textarea",
                             "color",
-                            "email"
+                            "email",
+                            "identifier"
                         ],
                         "default": "text",
                         "type": "string"
@@ -7954,7 +7956,8 @@
                                     "reference",
                                     "textarea",
                                     "color",
-                                    "email"
+                                    "email",
+                                    "identifier"
                                 ]
                             },
                             "validationRules": {
