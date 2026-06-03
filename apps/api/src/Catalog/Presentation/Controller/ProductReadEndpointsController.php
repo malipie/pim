@@ -12,7 +12,10 @@ use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
+use App\Channel\Contracts\ChannelResolverInterface;
+use App\Channel\Contracts\LocaleFallbackResolverInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Domain\Tenant;
 use App\Shared\Infrastructure\Audit\CursorCodec;
@@ -70,6 +73,9 @@ final class ProductReadEndpointsController
         private readonly Connection $connection,
         private readonly ObjectTypeAttributeRepositoryInterface $objectTypeAttributes,
         private readonly AttributeOptionRepositoryInterface $attributeOptions,
+        private readonly ObjectValueRepositoryInterface $objectValues,
+        private readonly LocaleFallbackResolverInterface $localeFallback,
+        private readonly ChannelResolverInterface $channels,
     ) {
     }
 
@@ -330,6 +336,119 @@ final class ProductReadEndpointsController
         usort($locales, static fn (array $a, array $b): int => ($b['is_default'] ? 1 : 0) <=> ($a['is_default'] ? 1 : 0));
 
         return $locales;
+    }
+
+    /**
+     * #1222 — returns per-attribute scope status for a requested locale/channel.
+     *
+     * Response shape:
+     *   { "attribute_code": { "has_override": bool, "inherited_from": string|null } }
+     *
+     * - `has_override=true`  → an ObjectValue row exists for the exact requested locale/channel.
+     * - `has_override=false, inherited_from="en"` → value shown comes from a fallback locale.
+     * - `has_override=false, inherited_from=null`  → global value is used (primary locale or no locale scope).
+     */
+    #[Route(
+        '/api/products/{id}/scope-status',
+        name: 'pim_products_scope_status',
+        requirements: ['id' => self::UUID_REGEX],
+        methods: ['GET'],
+        priority: 200,
+    )]
+    #[Route(
+        '/api/objects/{id}/scope-status',
+        name: 'pim_objects_scope_status',
+        requirements: ['id' => self::UUID_REGEX],
+        methods: ['GET'],
+        priority: 200,
+    )]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
+    public function scopeStatus(string $id, Request $request): JsonResponse
+    {
+        $object = $this->mustFindObject($id);
+        $tenant = $object->getTenant();
+        if (!$tenant instanceof Tenant) {
+            return new JsonResponse([]);
+        }
+
+        $requestedLocale = $request->query->get('locale');
+        $requestedChannel = $request->query->get('channel');
+
+        // Primary locale is stored as global (null) — treat as no locale scope.
+        $effectiveLocale = null !== $requestedLocale
+            && $requestedLocale !== $tenant->getPrimaryLocale()
+            ? $requestedLocale
+            : null;
+
+        $channelId = null;
+        if (null !== $requestedChannel) {
+            $channelId = $this->channels->resolveId($requestedChannel, $tenant);
+        }
+
+        // Build locale fallback chain for inheritance detection.
+        $localeChain = null !== $effectiveLocale
+            ? $this->localeFallback->resolve($effectiveLocale, $tenant)
+            : [];
+
+        // Index: locale code → chain position (0 = most specific).
+        $localeRankMap = [];
+        foreach ($localeChain as $pos => $code) {
+            $localeRankMap[$code] = $pos;
+        }
+
+        // Load all ObjectValue rows for this object.
+        $allValues = $this->objectValues->findByObject($object);
+
+        // Per attribute: find the best row and determine if it is exact or inherited.
+        $maxChainLen = \count($localeChain);
+        /** @var array<string, array{rank: int, locale: ?string}> $best */
+        $best = [];
+        foreach ($allValues as $value) {
+            $valueLocale = $value->getLocale();
+            $valueChannel = $value->getChannelId();
+
+            if (null !== $valueLocale) {
+                if (!isset($localeRankMap[$valueLocale])) {
+                    continue;
+                }
+                $localeRankContrib = ($maxChainLen - $localeRankMap[$valueLocale]) * 2;
+            } else {
+                $localeRankContrib = 0;
+            }
+
+            if (null !== $valueChannel) {
+                if (null === $channelId || !$valueChannel->equals($channelId)) {
+                    continue;
+                }
+                $channelRankContrib = 1;
+            } else {
+                $channelRankContrib = 0;
+            }
+
+            $rank = $localeRankContrib + $channelRankContrib;
+            if (0 === $rank) {
+                continue; // global row — not a scoped override
+            }
+
+            $code = $value->getAttribute()->getCode();
+            if (!isset($best[$code]) || $rank > $best[$code]['rank']) {
+                $best[$code] = ['rank' => $rank, 'locale' => $valueLocale];
+            }
+        }
+
+        // Build response: for each attribute with a scoped value, report
+        // whether it is an exact match or inherited from a fallback locale.
+        $result = [];
+        foreach ($best as $attrCode => $entry) {
+            $isExact = $entry['locale'] === $effectiveLocale;
+            $result[$attrCode] = [
+                'has_override' => $isExact,
+                'inherited_from' => $isExact ? null : $entry['locale'],
+            ];
+        }
+
+        return new JsonResponse($result);
     }
 
     private function mustFindProduct(string $id): CatalogObject

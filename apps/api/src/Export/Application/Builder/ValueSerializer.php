@@ -55,7 +55,7 @@ final class ValueSerializer
             // #1177 — textarea/color/email all store a scalar string in
             // `value->>'value'`, so they serialise like Text (keeps CSV
             // export readable, which is a primary driver for `textarea`).
-            AttributeType::Textarea, AttributeType::Color, AttributeType::Email => $this->pickValue($payload),
+            AttributeType::Textarea, AttributeType::Color, AttributeType::Email, AttributeType::Identifier => $this->pickValue($payload),
             AttributeType::Number => $this->pickValue($payload),
             AttributeType::Date, AttributeType::Datetime => $this->pickValue($payload),
             AttributeType::Boolean => $this->boolOf($payload),
