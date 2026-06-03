@@ -20,6 +20,7 @@ use App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectInput;
 use App\Catalog\Infrastructure\ApiPlatform\Resource\CatalogObjectPatchInput;
 use InvalidArgumentException;
 use LogicException;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
@@ -55,6 +56,7 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
         private MessageBusInterface $bus,
         private CatalogObjectRepositoryInterface $catalogObjects,
         private ObjectTypeRepositoryInterface $objectTypes,
+        private RequestStack $requestStack,
     ) {
     }
 
@@ -106,6 +108,12 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
             ? Uuid::fromString($data->primaryCategoryId)
             : null;
 
+        // ADR-015 — scope of the category tree this category joins.
+        $categoryTargetObjectTypeId = null !== $data->categoryTargetObjectTypeId
+            && '' !== $data->categoryTargetObjectTypeId
+            ? Uuid::fromString($data->categoryTargetObjectTypeId)
+            : null;
+
         $command = new CreateCatalogObjectCommand(
             objectTypeId: Uuid::fromString($data->objectTypeId),
             code: $data->code,
@@ -114,6 +122,7 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
             attributes: $data->attributes ?? [],
             categoryIds: $categoryIds,
             primaryCategoryId: $primaryCategoryId,
+            categoryTargetObjectTypeId: $categoryTargetObjectTypeId,
         );
 
         $envelope = $this->dispatch($command);
@@ -145,6 +154,16 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
             throw new NotFoundHttpException(\sprintf('CatalogObject "%s" was not found.', $id->toRfc4122()));
         }
 
+        // #1148 — locale scope for the attribute write travels as a query
+        // param (`?locale=en`), not a body field: JSON Merge Patch cannot
+        // tell an absent locale from an explicit null, and a body key would
+        // collide with the attribute payload.
+        $request = $this->requestStack->getCurrentRequest();
+        $localeParam = $request?->query->get('locale');
+        $channelParam = $request?->query->get('channel');
+        $locale = \is_string($localeParam) && '' !== $localeParam ? $localeParam : null;
+        $channel = \is_string($channelParam) && '' !== $channelParam ? $channelParam : null;
+
         $command = new UpdateCatalogObjectCommand(
             id: $id,
             enabled: $data->enabled,
@@ -155,6 +174,8 @@ final readonly class CatalogObjectProcessor implements ProcessorInterface
             clearPath: false,
             attributes: $data->attributes,
             expectedVersion: $data->expectedVersion,
+            locale: $locale,
+            channel: $channel,
         );
         $this->dispatch($command);
 

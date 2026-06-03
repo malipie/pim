@@ -25,8 +25,8 @@ final class AttributeGroupsApiTest extends CatalogApiTestCase
 
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
         \assert($tenant instanceof Tenant);
-        // System attrs seeder also creates the audit AttributeGroup which
-        // these tests assert is delete-protected.
+        // System attributes are seeded as Attribute rows only. AttributeGroup
+        // visibility is explicit modeling configuration.
         self::getContainer()->get(BuiltInSystemAttributesSeeder::class)->seed($tenant);
     }
 
@@ -114,14 +114,57 @@ final class AttributeGroupsApiTest extends CatalogApiTestCase
     public function deleteBlocksWhenGroupIsSystemManaged(): void
     {
         $client = $this->authenticatedClient();
+        $tenantContext = self::getContainer()->get(TenantContext::class);
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
         \assert($tenant instanceof Tenant);
-        $audit = self::getContainer()->get(AttributeGroupRepositoryInterface::class)->findByCode('audit', $tenant);
-        \assert($audit instanceof AttributeGroup);
+        $tenantContext->set($tenant);
+        $systemGroup = new AttributeGroup('core_system', ['en' => 'Core system'], isSystemGroup: true);
+        $this->em()->persist($systemGroup);
+        $this->em()->flush();
+        $tenantContext->clear();
+
+        $delete = $client->request('DELETE', '/api/attribute_groups/'.$systemGroup->getId()->toRfc4122());
+
+        self::assertSame(422, $delete->getStatusCode());
+    }
+
+    #[Test]
+    public function deleteAllowsLegacyAuditSystemGroup(): void
+    {
+        $client = $this->authenticatedClient();
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $tenantContext->set($tenant);
+        $audit = new AttributeGroup('audit', ['en' => 'Audit'], isSystemGroup: true, autoAttached: true);
+        $this->em()->persist($audit);
+        $this->em()->flush();
+        $tenantContext->clear();
 
         $delete = $client->request('DELETE', '/api/attribute_groups/'.$audit->getId()->toRfc4122());
 
-        self::assertSame(422, $delete->getStatusCode());
+        self::assertSame(204, $delete->getStatusCode());
+    }
+
+    #[Test]
+    public function deleteAllowsLegacyRelationsSystemGroup(): void
+    {
+        // MODRC-01 (#1080) — relations group is now user-managed. Legacy
+        // rows from BuiltInProductRelationAttributesSeeder pre-#1080 are
+        // removable via DELETE just like the audit row.
+        $client = $this->authenticatedClient();
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $tenantContext->set($tenant);
+        $relations = new AttributeGroup('relations', ['en' => 'Relations'], isSystemGroup: true);
+        $this->em()->persist($relations);
+        $this->em()->flush();
+        $tenantContext->clear();
+
+        $delete = $client->request('DELETE', '/api/attribute_groups/'.$relations->getId()->toRfc4122());
+
+        self::assertSame(204, $delete->getStatusCode());
     }
 
     #[Test]

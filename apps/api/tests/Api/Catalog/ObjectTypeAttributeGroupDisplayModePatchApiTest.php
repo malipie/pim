@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Api\Catalog;
 
 use App\Catalog\Application\BuiltInSystemAttributesSeeder;
+use App\Catalog\Domain\AttributeType;
+use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Entity\AttributeGroup;
+use App\Catalog\Domain\Entity\AttributeGroupAttribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
@@ -36,11 +39,12 @@ final class ObjectTypeAttributeGroupDisplayModePatchApiTest extends CatalogApiTe
     public function patchChangesDisplayModeToStacked(): void
     {
         $productId = $this->objectTypeIdFor(ObjectKind::Product);
-        $auditGroupId = $this->seededAuditGroupId();
+        $groupCode = 'display_mode_specs';
+        $groupId = $this->attachGroupToProductType($groupCode);
 
         $client = $this->authenticatedClient();
 
-        $client->request('PATCH', '/api/object_types/'.$productId.'/groups/'.$auditGroupId, [
+        $client->request('PATCH', '/api/object_types/'.$productId.'/groups/'.$groupId, [
             'json' => ['display_mode' => 'stacked'],
             'headers' => ['content-type' => 'application/json'],
         ]);
@@ -58,26 +62,26 @@ final class ObjectTypeAttributeGroupDisplayModePatchApiTest extends CatalogApiTe
         $payload = $response->toArray();
         $groups = $payload['effectiveGroups'];
         self::assertIsArray($groups);
-        $audit = null;
+        $patchedGroup = null;
         foreach ($groups as $group) {
             \assert(\is_array($group));
-            if (($group['code'] ?? null) === 'audit') {
-                $audit = $group;
+            if (($group['code'] ?? null) === $groupCode) {
+                $patchedGroup = $group;
                 break;
             }
         }
-        self::assertIsArray($audit);
-        self::assertSame('stacked', $audit['display_mode']);
+        self::assertIsArray($patchedGroup);
+        self::assertSame('stacked', $patchedGroup['display_mode']);
     }
 
     #[Test]
     public function patchRejectsInvalidDisplayMode(): void
     {
         $productId = $this->objectTypeIdFor(ObjectKind::Product);
-        $auditGroupId = $this->seededAuditGroupId();
+        $groupId = $this->attachGroupToProductType('display_mode_invalid');
 
         $client = $this->authenticatedClient();
-        $client->request('PATCH', '/api/object_types/'.$productId.'/groups/'.$auditGroupId, [
+        $client->request('PATCH', '/api/object_types/'.$productId.'/groups/'.$groupId, [
             'json' => ['display_mode' => 'accordion'],
             'headers' => ['content-type' => 'application/json'],
         ]);
@@ -104,10 +108,10 @@ final class ObjectTypeAttributeGroupDisplayModePatchApiTest extends CatalogApiTe
     public function patchReturnsBadRequestWhenBodyMissingField(): void
     {
         $productId = $this->objectTypeIdFor(ObjectKind::Product);
-        $auditGroupId = $this->seededAuditGroupId();
+        $groupId = $this->attachGroupToProductType('display_mode_missing');
 
         $client = $this->authenticatedClient();
-        $client->request('PATCH', '/api/object_types/'.$productId.'/groups/'.$auditGroupId, [
+        $client->request('PATCH', '/api/object_types/'.$productId.'/groups/'.$groupId, [
             'json' => [],
             'headers' => ['content-type' => 'application/json'],
         ]);
@@ -123,24 +127,57 @@ final class ObjectTypeAttributeGroupDisplayModePatchApiTest extends CatalogApiTe
         $type = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
             ->findBuiltInByKind(ObjectKind::Product, $tenant);
         \assert(null !== $type);
-        $group = self::getContainer()->get(AttributeGroupRepositoryInterface::class)
-            ->findByCode('audit', $tenant);
-        \assert(null !== $group);
+        $group = $this->seedGroup('display_mode_entity');
 
         $this->expectException(InvalidArgumentException::class);
 
         new ObjectTypeAttributeGroup($type, $group, 0, 'invalid_mode');
     }
 
-    private function seededAuditGroupId(): string
+    private function attachGroupToProductType(string $code): string
     {
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
         \assert($tenant instanceof Tenant);
-        $group = self::getContainer()->get(AttributeGroupRepositoryInterface::class)
-            ->findByCode('audit', $tenant);
-        \assert(null !== $group);
+
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenantContext->set($tenant);
+
+        $type = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert(null !== $type);
+
+        $group = new AttributeGroup($code, ['en' => 'Display mode test']);
+        $attribute = new Attribute($code.'_field', ['en' => 'Display mode field'], AttributeType::Text);
+
+        $em = $this->em();
+        $em->persist($group);
+        $em->persist($attribute);
+        $em->flush();
+        $em->persist(new AttributeGroupAttribute($group, $attribute, 1));
+        $em->persist(new ObjectTypeAttributeGroup($type, $group, 1));
+        $em->flush();
+
+        $tenantContext->clear();
 
         return $group->getId()->toRfc4122();
+    }
+
+    private function seedGroup(string $code): AttributeGroup
+    {
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenantContext->set($tenant);
+
+        $group = new AttributeGroup($code, ['en' => 'Display mode entity']);
+        $em = $this->em();
+        $em->persist($group);
+        $em->flush();
+
+        $tenantContext->clear();
+
+        return $group;
     }
 
     private function seedProduct(string $code): CatalogObject

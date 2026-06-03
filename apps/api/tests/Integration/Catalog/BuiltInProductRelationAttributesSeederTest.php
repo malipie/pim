@@ -7,11 +7,13 @@ namespace App\Tests\Integration\Catalog;
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
 use App\Catalog\Application\BuiltInProductRelationAttributesSeeder;
 use App\Catalog\Domain\AttributeType;
+use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\RelationCardinality;
 use App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -53,23 +55,49 @@ final class BuiltInProductRelationAttributesSeederTest extends KernelTestCase
             self::assertSame(RelationCardinality::Many, $attribute->getRelationCardinality(), "{$code} cardinality");
             self::assertFalse($attribute->isRelationAdvanced(), "{$code} advanced");
             self::assertSame([$productTypeId], $attribute->getRelationTargetObjectTypeIds(), "{$code} target");
-            self::assertTrue($attribute->isSystem(), "{$code} system flag");
+            // Issue #1092 — built-in relation attrs are NO LONGER marked
+            // system. They behave like normal attributes (operator can
+            // detach / group / remove them freely). The seeder lost its
+            // `markSystem()` call and migration Version20260528110000
+            // backfills `is_system=false` for any historic rows.
+            self::assertFalse($attribute->isSystem(), "{$code} system flag");
         }
     }
 
     #[Test]
-    public function seedAttachesPowiazaniaGroupToProductObjectType(): void
+    public function seedDoesNotCreateRelationsAttributeGroup(): void
     {
+        // MODRC-01 (#1080): the legacy "Powiązania" AttributeGroup is no
+        // longer seeded. Operators group relation attributes themselves
+        // via custom AttributeGroups (analogous to audit after #1074).
         $tenant = $this->createTenant('demo');
         $this->builtInObjectTypeSeeder()->seed($tenant);
 
         $this->seeder()->seed($tenant);
 
         $group = $this->attributeGroupRepository()->findByCode('relations', $tenant);
-        self::assertNotNull($group, 'relations AttributeGroup should be seeded');
-        self::assertSame('relations', $group->getCode());
-        self::assertSame(['pl' => 'Powiązania', 'en' => 'Relations'], $group->getLabel());
-        self::assertTrue($group->isSystemGroup());
+        self::assertNull($group, 'relations AttributeGroup must not be seeded');
+    }
+
+    #[Test]
+    public function seedAttachesRelationAttributesDirectlyToProductObjectType(): void
+    {
+        $tenant = $this->createTenant('demo');
+        $this->builtInObjectTypeSeeder()->seed($tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+
+        $this->seeder()->seed($tenant);
+
+        $productType = $this->objectTypeRepository()->findBuiltInByKind(ObjectKind::Product, $tenant);
+        self::assertNotNull($productType);
+        $em = $this->em();
+        foreach (self::EXPECTED_CODES as $code) {
+            $attribute = $this->attributeRepository()->findByCode($code, $tenant);
+            self::assertNotNull($attribute);
+            $junction = $em->getRepository(ObjectTypeAttribute::class)
+                ->findOneBy(['objectType' => $productType, 'attribute' => $attribute]);
+            self::assertNotNull($junction, "ObjectTypeAttribute missing for {$code}");
+        }
     }
 
     #[Test]
@@ -121,12 +149,19 @@ final class BuiltInProductRelationAttributesSeederTest extends KernelTestCase
 
     private function createTenant(string $code): Tenant
     {
-        $em = self::getContainer()->get('doctrine')->getManager();
-        \assert($em instanceof EntityManagerInterface);
+        $em = $this->em();
         $tenant = new Tenant($code, ucfirst($code).' Tenant');
         $em->persist($tenant);
         $em->flush();
 
         return $tenant;
+    }
+
+    private function em(): EntityManagerInterface
+    {
+        $em = self::getContainer()->get('doctrine')->getManager();
+        \assert($em instanceof EntityManagerInterface);
+
+        return $em;
     }
 }

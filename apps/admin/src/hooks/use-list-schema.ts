@@ -17,6 +17,7 @@ export interface ListSchemaObjectType {
   label: Record<string, string>;
   is_categorizable: boolean;
   has_variants: boolean;
+  has_multimedia: boolean;
   expose_to_main_menu: boolean;
 }
 

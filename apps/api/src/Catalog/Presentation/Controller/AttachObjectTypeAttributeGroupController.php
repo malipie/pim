@@ -27,7 +27,8 @@ use Symfony\Component\Uid\Uuid;
  * tolerant on DELETE (already-detached returns 204).
  *
  * Built-in junction protection: system groups (`is_system_group=true`)
- * cannot be detached — they are platform-mandated for every ObjectType.
+ * cannot be detached unless they are legacy `audit` rows from the previous
+ * auto-attached model. Audit visibility is now explicit modeling config.
  */
 final class AttachObjectTypeAttributeGroupController
 {
@@ -91,7 +92,7 @@ final class AttachObjectTypeAttributeGroupController
             // Already gone — idempotent on the group side.
             return new JsonResponse(null, Response::HTTP_NO_CONTENT);
         }
-        if ($group->isSystemGroup()) {
+        if ($group->isSystemGroup() && 'audit' !== $group->getCode()) {
             throw new HttpException(
                 Response::HTTP_FORBIDDEN,
                 \sprintf('AttributeGroup "%s" is a system group and cannot be detached.', $group->getCode()),

@@ -325,16 +325,10 @@ export function AttributeGroupCreatePage() {
                 checked={values.shared}
                 onChange={(next) => setValues({ ...values, shared: next })}
               />
-              <SettingToggleRow
-                label={t('modeling.attributeGroups.behavior_conditional_label', {
-                  defaultValue: 'Conditional visibility',
-                })}
-                description={t('modeling.attributeGroups.behavior_conditional_desc', {
-                  defaultValue: 'Pokaż grupę warunkowo (visible_when)',
-                })}
-                checked={values.conditionalVisibility}
-                onChange={(next) => setValues({ ...values, conditionalVisibility: next })}
-              />
+              {/* #1140 — "Conditional visibility" toggle hidden until the
+                  per-attribute visible_when rule editor ships (#UI-08.13).
+                  A toggle with no way to define the rule is dead UI. The
+                  field stays false in the payload (backend default). */}
             </div>
           </Section>
 

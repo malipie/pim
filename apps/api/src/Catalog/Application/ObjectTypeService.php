@@ -141,6 +141,12 @@ final readonly class ObjectTypeService
             $objectType->setColor($color);
         }
 
+        // Structural flags (`hierarchical`, `abstract`, `allowedParentTypeIds`,
+        // `completenessRules`) remain locked for built-in rows because they
+        // shape the entity model itself. The three capability flags below
+        // (`hasVariants`, `isCategorizable`, `hasMultimedia`) drive *which
+        // tabs* the operator sees in a detail page and are deliberately
+        // user-editable on Product too — UX-03 unlock per operator decision.
         if (null !== $hierarchical) {
             if ($isBuiltIn && $objectType->isHierarchical() !== $hierarchical) {
                 throw BuiltInObjectTypeException::fieldLocked($objectType, 'hierarchical');
@@ -148,9 +154,6 @@ final readonly class ObjectTypeService
             $objectType->setHierarchical($hierarchical);
         }
         if (null !== $hasVariants) {
-            if ($isBuiltIn && $objectType->hasVariants() !== $hasVariants) {
-                throw BuiltInObjectTypeException::fieldLocked($objectType, 'hasVariants');
-            }
             $objectType->setHasVariants($hasVariants);
         }
         if (null !== $abstract) {
@@ -184,14 +187,11 @@ final readonly class ObjectTypeService
             $objectType->setExposeToMainMenu($exposeToMainMenu);
         }
         if (null !== $isCategorizable) {
-            // ADR-014 / MOD-11 (#903): operator-driven toggle. Reused
-            // ObjectKind::Category exclusion — a category that participates
-            // in its own attribute overlay creates a circular dependency
-            // with the resolver. Other kinds (Product, Asset, custom) are
-            // free to flip; built-in `is_built_in=true` ObjectTypes do NOT
-            // lock this flag because the operator may want Asset to become
-            // categorizable in the future (today: AC blocks via UI hint,
-            // not by service-layer 422).
+            // ADR-014 / MOD-11 (#903): a category that participates in its
+            // own attribute overlay creates a circular dependency with the
+            // resolver. Other kinds (Product, Asset, custom) are free to
+            // flip; built-in `is_built_in=true` rows DO NOT lock this flag
+            // — operator may want Asset to become categorizable later.
             if ($isCategorizable && ObjectKind::Category === $objectType->getKind()) {
                 throw new LogicException(
                     'Category ObjectType cannot be flagged as categorizable — categories drive the overlay, they don\'t consume it.',
@@ -210,6 +210,15 @@ final readonly class ObjectTypeService
                 && $objectType->hasMultimedia() !== $hasMultimedia
             ) {
                 throw BuiltInObjectTypeException::fieldLocked($objectType, 'hasMultimedia');
+            }
+            // UX-03: Asset is itself a multimedia object; promoting an Asset
+            // ObjectType to host a Multimedia tab creates a recursive UI
+            // (the multimedia tab would list assets pointing at assets).
+            // Symmetric to the Category exclusion above.
+            if ($hasMultimedia && ObjectKind::Asset === $objectType->getKind()) {
+                throw new LogicException(
+                    'Asset ObjectType cannot have a Multimedia capability — the DAM workflow is the multimedia surface itself.',
+                );
             }
             $objectType->setHasMultimedia($hasMultimedia);
         }

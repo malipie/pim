@@ -39,15 +39,19 @@ test('VIEW-01 Modeling · Object Types — list + detail + wizard smoke', async 
   await detailLinks.first().click();
   await expect(page).toHaveURL(/\/modeling\/object-types\/[0-9a-f-]{36}/);
 
+  // #1100 — the "BUILT-IN ATTRIBUTE GROUPS" card was removed from this
+  // view; built-in scope is implied by the heading badge and the
+  // CUSTOM ATTRIBUTE GROUPS card still surfaces editable legacy system
+  // groups (audit, relations) alongside true custom ones.
   for (const heading of [
     /identyfikacja|identification/i,
-    /built-in attribute groups/i,
     /custom attribute groups/i,
     /settings|ustawienia/i,
     /where used/i,
   ]) {
     await expect(page.getByText(heading).first()).toBeVisible();
   }
+  await expect(page.getByText(/built-in attribute groups/i)).toHaveCount(0);
 
   // 3. Built-in lock: settings toggles report aria-disabled.
   const togglesAriaDisabled = await page

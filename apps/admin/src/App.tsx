@@ -108,13 +108,17 @@ const ObjectTypeShowPage = lazyPage(
   () => import('@/features/catalog/object-types/show'),
   'ObjectTypeShowPage',
 );
-const ObjectListingPlaceholder = lazyPage(
-  () => import('@/features/catalog/objects/placeholder'),
-  'ObjectListingPlaceholder',
-);
 const UniversalObjectListPage = lazyPage(
   () => import('@/features/catalog/objects/list-page'),
   'ObjectListPage',
+);
+const UniversalObjectShowPage = lazyPage(
+  () => import('@/features/catalog/objects/show-page'),
+  'ObjectShowPage',
+);
+const UniversalObjectCreatePage = lazyPage(
+  () => import('@/features/catalog/objects/create-page'),
+  'ObjectCreatePage',
 );
 const ProductCreatePage = lazyPage(
   () => import('@/features/catalog/products/create'),
@@ -123,6 +127,10 @@ const ProductCreatePage = lazyPage(
 const ProductListPage = lazyPage(
   () => import('@/features/catalog/products/list'),
   'ProductListPage',
+);
+const ProductsUniversalListPage = lazyPage(
+  () => import('@/features/catalog/products/universal-list'),
+  'ProductsUniversalListPage',
 );
 const ProductShowPage = lazyPage(
   () => import('@/features/catalog/products/show'),
@@ -399,13 +407,31 @@ function App() {
               >
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/products" element={<ProductListPage />} />
+                {/* UP-10 (#1026) — `/products` default is now
+                    UniversalListPage parametrized for the built-in
+                    product ObjectType (ADR-009 pixel-perfect parity
+                    with /objects/:slug). Legacy ProductListPage is
+                    kept mounted at `/products/legacy` for 1 sprint as
+                    operator-validated dual-maintenance safety net. */}
+                <Route path="/products" element={<ProductsUniversalListPage />} />
+                <Route path="/products/legacy" element={<ProductListPage />} />
                 <Route path="/products/new" element={<ProductCreatePage />} />
                 {/* ULV-08 (#990) — universal /objects/{slug} route renders
                     the ObjectListView for any ObjectType by code. The
                     legacy /products / /categories / /assets routes keep
                     pointing at their own pages until ULV-11 cuts over. */}
                 <Route path="/objects/:slug" element={<UniversalObjectListPage />} />
+                {/* UP-08 (#1029) — universal /objects/:slug/new full-page
+                    create wizard. Built-in product/category/asset slugs
+                    redirect to their legacy create routes inside
+                    ObjectCreatePage; custom kinds render
+                    UniversalCreatePage. */}
+                <Route path="/objects/:slug/new" element={<UniversalObjectCreatePage />} />
+                {/* UP-07 (#1023) — universal /objects/:slug/:id detail route.
+                    Built-in product/category/asset slugs redirect to their
+                    legacy detail routes inside ObjectShowPage; custom kinds
+                    render UniversalDetailPage. */}
+                <Route path="/objects/:slug/:id" element={<UniversalObjectShowPage />} />
                 {/* VIEW-07 (#420): edit page is now inline-edit on /products/:id.
                     Keep the legacy path as a back-compat redirect for bookmarks
                     and Refine resource lookups that still ask for `edit`. */}
@@ -465,10 +491,6 @@ function App() {
                 />
                 <Route path="/assets" element={<AssetsListPage />} />
                 <Route path="/assets/:id" element={<AssetShowPage />} />
-                {/* VIEW-08 (#427): generic listing for custom ObjectTypes
-                    promoted to the main menu. Placeholder until B-2 ships
-                    the metadata-driven `<ObjectListingPage />`. */}
-                <Route path="/objects/:code" element={<ObjectListingPlaceholder />} />
                 <Route path="/catalogs-pdf" element={<CatalogsPdfPage />} />
                 <Route path="/settings" element={<SettingsLayout />}>
                   <Route index element={<SettingsIndex />} />

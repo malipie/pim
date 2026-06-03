@@ -8,6 +8,9 @@ use App\Identity\Application\PermissionResolverInterface;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\AttributePermission;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\DatabaseObjectNotFoundException;
+use Doctrine\DBAL\Exception\InvalidFieldNameException;
+use Doctrine\DBAL\Exception\TableNotFoundException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -132,8 +135,12 @@ readonly class AttributePermissionPolicy
     private function resolveForRole(string $roleId, Uuid $attributeId): AttributePermission
     {
         // 1. Per-attribute override — direct lookup, primary-key indexed.
+        //    The column name (`permission_level`) follows the entity ORM
+        //    mapping in {@see RoleAttributePermission.orm.xml}; an older
+        //    iteration of {@see Version20260518160000} declared `permission`
+        //    and never landed.
         $perAttr = $this->connection->fetchOne(
-            'SELECT permission FROM role_attribute_permissions WHERE role_id = :role_id AND attribute_id = :attribute_id',
+            'SELECT permission_level FROM role_attribute_permissions WHERE role_id = :role_id AND attribute_id = :attribute_id',
             ['role_id' => $roleId, 'attribute_id' => $attributeId->toRfc4122()],
         );
         if (false !== $perAttr && \is_string($perAttr)) {
@@ -142,36 +149,73 @@ readonly class AttributePermissionPolicy
 
         // 2. Per-group override — attribute may belong to multiple groups;
         //    take the most-permissive group grant for this role.
-        $perGroup = $this->connection->fetchOne(
-            <<<'SQL'
-                SELECT rgp.permission
-                  FROM role_attribute_group_permissions rgp
-                  JOIN attribute_group_attributes aga ON aga.attribute_group_id = rgp.attribute_group_id
-                 WHERE rgp.role_id = :role_id
-                   AND aga.attribute_id = :attribute_id
-                 ORDER BY CASE rgp.permission
-                              WHEN 'edit' THEN 2
-                              WHEN 'view' THEN 1
-                              ELSE 0
-                          END DESC
-                 LIMIT 1
-                SQL,
-            ['role_id' => $roleId, 'attribute_id' => $attributeId->toRfc4122()],
-        );
-        if (false !== $perGroup && \is_string($perGroup)) {
-            return AttributePermission::from($perGroup);
+        //
+        //    `role_attribute_group_permissions` is only present on DBs that
+        //    ran {@see Version20260518160000}. Local stacks bootstrapped
+        //    via `doctrine:schema:create` from entities never get the
+        //    table (no entity exists for it). Treat a missing table as
+        //    "no per-group override" — same outcome as an empty row set.
+        try {
+            $perGroup = $this->connection->fetchOne(
+                <<<'SQL'
+                    SELECT rgp.permission_level
+                      FROM role_attribute_group_permissions rgp
+                      JOIN attribute_group_attributes aga ON aga.attribute_group_id = rgp.attribute_group_id
+                     WHERE rgp.role_id = :role_id
+                       AND aga.attribute_id = :attribute_id
+                     ORDER BY CASE rgp.permission_level
+                                  WHEN 'edit' THEN 2
+                                  WHEN 'view' THEN 1
+                                  ELSE 0
+                              END DESC
+                     LIMIT 1
+                    SQL,
+                ['role_id' => $roleId, 'attribute_id' => $attributeId->toRfc4122()],
+            );
+            if (false !== $perGroup && \is_string($perGroup)) {
+                return AttributePermission::from($perGroup);
+            }
+        } catch (TableNotFoundException|InvalidFieldNameException|DatabaseObjectNotFoundException) {
+            // schema not migrated yet — drop through to role default
         }
 
         // 3. Role default — column defaults to 'edit' for tenant-level
         //    roles, 'view' for viewer, 'restricted' for explicit setups.
-        $default = $this->connection->fetchOne(
-            'SELECT default_attribute_permission FROM roles WHERE id = :role_id',
-            ['role_id' => $roleId],
-        );
-        if (false !== $default && \is_string($default)) {
-            return AttributePermission::from($default);
+        //    Same compatibility note: `roles.default_attribute_permission`
+        //    only exists when the original migration ran; otherwise we
+        //    infer from `roles.code` to preserve the migration's intent
+        //    (viewer → View, everyone else → Edit).
+        try {
+            $default = $this->connection->fetchOne(
+                'SELECT default_attribute_permission FROM roles WHERE id = :role_id',
+                ['role_id' => $roleId],
+            );
+            if (false !== $default && \is_string($default)) {
+                return AttributePermission::from($default);
+            }
+        } catch (InvalidFieldNameException|DatabaseObjectNotFoundException) {
+            return $this->inferDefaultFromRoleCode($roleId);
         }
 
-        return AttributePermission::Restricted;
+        return $this->inferDefaultFromRoleCode($roleId);
+    }
+
+    /**
+     * Compatibility fallback when `roles.default_attribute_permission`
+     * is missing (DB created from entities, not migrations). Mirrors the
+     * UPDATEs from {@see Version20260518160000}: `viewer` → View,
+     * everyone else who already passed the broad gate → Edit.
+     */
+    private function inferDefaultFromRoleCode(string $roleId): AttributePermission
+    {
+        $code = $this->connection->fetchOne(
+            'SELECT code FROM roles WHERE id = :role_id',
+            ['role_id' => $roleId],
+        );
+        if (false === $code || !\is_string($code)) {
+            return AttributePermission::Restricted;
+        }
+
+        return 'viewer' === $code ? AttributePermission::View : AttributePermission::Edit;
     }
 }

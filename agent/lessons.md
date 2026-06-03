@@ -2,6 +2,122 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z batcha smoke 2026-05-30 (#1130–#1147, import + asset + locale/channel epiki)
+
+### Patterns to Follow
+- **Read-shaping w ApiPlatform provider → na KLONIE, nie na managed encji.** Nakładanie overlay (per-locale/channel) przez `$object->updateAttributeIndex(...)` na managed encji WYCIEKA na Doctrine identity map → kolejny odczyt tego samego obiektu w tym samym EM (np. bare GET po `?locale=en` GET) serwuje zmutowaną wartość. W produkcji maskowane (EM resetowany per-request w worker mode), ale w shared-EM ApiTestCase pęka. Fix: `$copy = clone $object; $copy->updateAttributeIndex(...); return $copy;` — klon dzieli referencje relacji (objectType/tenant), więc serializer + voter działają; mutowana jest tylko skalarna tablica (kopiowana by-value przy clone). Wzór: `ObjectValueLocaleOverlay`.
+- **Cross-BC zależność tylko przez `<BC>\Contracts`.** Catalog potrzebował resolucji channel code→id; Deptrac dopuszcza `Catalog_Internals → Channel_Contracts` (NIE `Channel_Internals`/Domain). Rozwiązanie: port `Channel\Contracts\ChannelResolverInterface` + impl w `Channel\Infrastructure`. Autowire auto-aliasuje interfejs→jedyną impl (potwierdzone `lint:container`).
+- **Scope jako query-param na PATCH, nie pole w body.** `?locale=`/`?channel=` czytane w processorze z `RequestStack` → command. JSON Merge-Patch nie odróżnia absent-vs-null i kolidowałby z payloadem atrybutów.
+- **Per-locale/channel cache = global-only.** `AttributesIndexedRebuilder` indeksuje TYLKO wiersz globalny (pomija `locale!=null || channel!=null`), inaczej lista/Meilisearch migają wg ostatnio zapisanego scope (niedeterministyczne). Lokalizowane/kanałowe odczyty idą z overlay na read-path.
+
+### Patterns to Avoid
+- **Nie zakładaj że feature „prawdopodobnie brak" bez sprawdzenia.** #1147 parent twierdził brak strony ustawień kanałów — a `/features/channel/channels/` (CRUD + pickery) istniał od maja. Zweryfikuj `debug:router` + `features/` ZANIM zaczniesz budować. #1153 zredukowało się do dodania brakującego E2E.
+- **Playwright spec tworzący dane przez API zaśmieca demo DB.** Atrybuty przypięte do OT pojawiają się na KAŻDYM formularzu produktu; kanały — w każdym pickerze. Po runie sprzątaj artefakty SQL-em (scoped po code-pattern + tenant). Dotyczy #1138/#1146/#1147 spec-ów.
+
+### Package Quirks
+- **Krótkie vs pełne kody locale.** Tenant/ObjectValue locale = krótkie (`pl`, `en`); globalny katalog `locales` + `Channel.locales`/`Channel.currencies` = pełne (`pl_PL`, `en_US`) + walidowane przeciw istniejącym wierszom. Channel create przez `/api/channels` wymaga `locales:["pl_PL"]` + `currencies:["PLN"]` (≥1 każde), nie `["pl"]`.
+- **`?locale=`/`?channel=` czytane przez RequestStack w processorze/provider — NIE są zadeklarowane jako parametry OpenAPI** (świadome odejście; API-first follow-up jeśli potrzebny w spec).
+
+### Decyzje świadome
+- #1152 (completeness per-locale + mandatory/fallback) i #1156 (UI mapowania aliasów per-channel) — deferred (Faza 1 / razem z konektorami). Per-locale/channel wartości NIE są searchable (cache global-only). Activate/deactivate kanału — poza zakresem (encja `Channel` bez `isActive`).
+
+## Lessons z MODRC-01..05 (2026-05-28, optional relations AttributeGroup — Option Y)
+
+### Patterns to Follow
+
+1. **Detekcja po typie atrybutu, nie po code'u grupy** — gdy wyświetlanie zakładki / tab'u zależało od konkretnego code'u grupy (`groups.some(g => g.code === 'relations')`), un-seed tej grupy rozwala UX. Lepiej detect-by-attribute-type (`g.attributes.some(a => a.type === 'relation')`) bo: (a) niezależne od code'u, (b) działa w syntetycznej grupie default, (c) pozwala operatorowi przenosić atrybuty między grupami bez tracenia funkcjonalności. Pattern zwalidowany w MODRC-01 po Playwright failure na 975-spec.
+
+2. **Shared FE allow-list dla legacy optional system groups** — gdy drugi legacy code (`relations` po `audit`) trzeba dodać do tej samej logiki w 6+ plikach, refactor do shared helper `apps/admin/src/lib/legacy-attribute-groups.ts` z constant + type guard. Ułatwia trzeciego addowania i utrzymanie BE/FE w synchronie (mirror constant w `DeleteAttributeGroupHandler::LEGACY_USER_MANAGED_SYSTEM_GROUP_CODES`).
+
+### Patterns to Avoid
+
+1. **Nie wycinać seedu grupy bez wcześniejszego sprawdzenia FE detection logic** — MODRC-01 zminął seed, ale UI w `product-detail-page.tsx` linia 272 wciąż polegał na `code === 'relations'`. Playwright spec na Relations tab failed. Lesson: przed un-seed → grep `code === '<legacy_code>'` po `apps/admin/src` i zaplanować przejście na detection po typie/flagach atrybutu, nie po code'u grupy.
+
+### Decyzje świadome
+
+- **MODR-02/06/07 superseded przez MODRC-01..05 (Option Y)** — zero seedu grupy `relations`, zero flagi `has_relations`, zero magicznych tabów. Forward tab pojawia się po obecności atrybutów `type='relation'` (niezależnie od grupy); reverse w dedykowanej systemowej sekcji (MODRC-03); inline editor w `attr-row` daje parytę z innymi typami atrybutów (MODRC-05). Powód: discoverability + symetria + brak proliferacji flag (anti-pattern Pimcore Classes).
+
+---
+
+## Lessons z #1074/#1075 (2026-05-27, optional audit AttributeGroup)
+
+### Patterns to Follow
+
+1. **Rozdzielić `Attribute.isSystem` od widoczności formularza** — systemowe atrybuty (`created_at`, `updated_at`, `created_by`, `updated_by`) mogą być platform-owned i immutable, ale NIE oznacza to automatycznej sekcji formularza. Widoczność idzie wyłącznie przez jawne `AttributeGroup` membership + `ObjectTypeAttributeGroup` / category overlay.
+
+2. **Legacy system group exceptions muszą być spójne BE+FE** — po zmianie kontraktu `audit` jest wyjątkiem od locked system groups: backend pozwala usunąć/detachować legacy `code='audit'`, frontend nie pokazuje jej w locked built-in groups i renderuje jako removable modeling config.
+
+### Patterns to Avoid
+
+1. **Nie aktualizować tylko seederów bez testów CRUD** — usunięcie seedowania `audit` łamie testy, które zakładały delete-protection na grupie tworzonej przez seeder. Zawsze grep po starym założeniu (`auto-attached audit`, `System attrs seeder also creates`) i przepisać test na explicit non-audit system group.
+
+### Decyzje świadome
+
+- **`audit` AttributeGroup staje się legacy/user-managed modeling config** — migracja usuwa legacy auto-attached system rows, ale systemowe Attribute rows zostają. Jeśli operator chce sekcję audytu w konkretnym ObjectType, tworzy/przypina grupę jawnie.
+
+---
+
+## Lessons z marathonu UX-01..UX-09 (2026-05-26, capability flags + cutover guard)
+
+### Patterns to Follow
+
+1. **Symmetric kind guards dla capability flag** — `isCategorizable=true` blocked dla Category (circular dependency w resolverze), `hasMultimedia=true` blocked dla Asset (asset IS multimedia). Wzór: jeśli flaga semantically oznacza "ma X w sobie", a kind sam JEST X, to flag musi być rejected na warstwie service. UI lock w show.tsx mirror'uje BE rejection. Symmetric guards ułatwiają debugowanie + dokumentowanie + tests pisanie ("rejects hasMultimedia=true on Asset" + "rejects isCategorizable=true on Category" = mirror tests).
+
+2. **Stack PR-ów oszczędza czas marathonu** — UX-09 wymagał prop'ów z UX-08 (`hasMultimedia`, `hasVariants` w `UniversalDetailPage`). Branch UX-09 utworzony od UX-08 + PR `base=main`. Po merge UX-08 → main, `git rebase origin/main` + `git push --force-with-lease` = clean single-commit diff. Każdy ticket = własny CI cycle bez czekania na sąsiednie merge'e. Stack do 3-4 PR-ów manageable; powyżej rebase chains zaczynają boleć.
+
+3. **`single follow-up PATCH bundle` po POST** — `POST /api/object_types` przyjmuje tylko core + `hasVariants`; capability flags (`hasMultimedia`, `isCategorizable`, `exposeToMainMenu`) wymagają osobnego PATCH. UX-07 wzorzec: jeden PATCH z mergeniem 3 opt-in flagów, nie 3 round-tripy. Jeden network call + jedna error obsługa.
+
+4. **Multiple #[Route] attrs dla poly-kind w custom Symfony controller (NIE ApiPlatform Resource)** — UX-04 dodaje `/api/objects/{id}/assets` jako alias `/api/products/{id}/assets` przez drugi `#[Route]` attribute na istniejących metodach. Tożsame z UP-04 wzorcem dla ApiPlatform Resource methods. Backend kind-agnostic (link table `product_assets.product_id` faktycznie przechowuje CatalogObject UUID — `product_id` to legacy nazwa kolumny). Frontend może pass'ować `productId={objectId}` do legacy komponentu i działa.
+
+### Patterns to Avoid
+
+1. **NIE flipować default'u na cutoverze bez sprawdzenia wszystkich E2E spec'ów na docelowej route** — UX-09 początkowo flipował default `/products/:id` na `UniversalDetailPage`. Lokalnie typecheck/lint zielone, ale Playwright `apps/admin/e2e/975-relation-picker-candidates.spec.ts` zfailowało na missing "Dodaj powiązanie" CTA. Cutover zepsuł flow który wymagał legacy-only komponentu (`RelationsTab`). Lesson: każdy "cutover" PR wymaga manual smoke listy istniejących E2E spec'ów na docelowej route PRZED merge. Default flip to operacja wyłącznie po pełnym feature parity, NIE w środku marathonu. Solution: ship opt-in path (`?universal=1`) jako preview, zostaw default na legacy. Default flip = osobny ticket po follow-up'ach.
+
+2. **PHPStan max może lokalnie passować, ale CI failuje na cross-file zależnościach** — UX-01 PHPStan lokalnie pass, CI failed na `ObjectKindRouter::BUILT_IN_ROUTES` z `'brand'` key — file deklarował phpdoc `array<value-of<ObjectKind>, ...>` ale ObjectKind nie miał już case Brand. Lokalne PHPStan cache nie miał invalidowanej tej referencji. Lesson: po usunięciu enum case z `Domain/ObjectKind.php`, **ZAWSZE** `rg "ObjectKind::<Case>|case <Case>|'<value>'"` na CAŁY `apps/api/src` PRZED commitem. Cache invalidation po enum changes wymaga full rerun.
+
+3. **Subject `feat(scope): ABC..XYZ` z myślnikiem może przekroczyć 72 znaki commitlint limit** — UX-09 początkowy commit fail bo subject `feat(admin): UX-09 cutover /products/:id to UniversalDetailPage + ?legacy=1 fallback` = 80 znaków. Lesson: pre-emptive count subject length, target ≤65 znaków + body opisuje resztę.
+
+### Package Quirks
+
+1. **`pnpm biome format --write <file>` auto-fix formatting** — gdy Biome zgłasza format error w pre-commit, ręczne edytowanie zatkanej linii jest wolne. `pnpm biome format --write <path/to/file.tsx>` rozwiązuje większość przypadków (string break, parameter wrap). Lokalne `pnpm lint --fix` szerszy zakres ale `format --write` na single file = punktowy fix.
+
+2. **`docker compose exec -T -e APP_ENV=test api ./bin/phpunit ...`** — bez `APP_ENV=test` PHPUnit kernel boots w dev mode → "Could not find service test.service_container" failure. Wzór dla każdej PHPUnit run w docker.
+
+### Decyzje świadome (UX marathon)
+
+- **Multimedia jako capability, nie AttributeGroup** (operator decision): `BuiltInProductMediaAttributesSeeder` deleted, migration czyszcząca grupę 'media' z bazy. Multimedia tab pojawia się na podstawie `ObjectType.hasMultimedia` flag, nie obecności group w `effective_attribute_groups`. Sterowanie capability'ami przez toggle UI, nie przez attribute group attach/detach.
+- **Category + Asset hidden z `/modeling/object-types`** — `<Navigate>` redirect dla `kind IN ('category','asset')`. Operator: "tego już nie będziemy potrzebować". API endpoint /api/object_types nadal zwraca wszystkie kindy (potrzebne dla slug resolution w UniversalListPage).
+- **Brand demoted z built-in do zwykłego atrybutu** — ObjectKind::Brand enum case removed, RbacMatrix '`brand'` resource dropped, BuiltInObjectTypeSeeder usunięty. Demo data + tests używające `'brand'` jako attribute code (Text) zostają — operator: "Brand zostawiamy jako zwykły atrybut".
+- **UX-09 opt-in zamiast full cutover** — Playwright złapał regresję RelationsTab. Default `/products/:id` zostaje legacy ProductDetailPage. `?universal=1` to opt-in preview UniversalDetailPage. 4 follow-up tickety przed final flip.
+
+---
+
+## Lessons z Epiku UP (2026-05-25, Universal Page Parity — extraction zamiast parallel MVP)
+
+### Patterns to Follow
+
+1. **Multiple `#[Route]` attributes na jednej metodzie kontrolera** (Symfony 7.x) → poly-kind endpoints bez duplikowania handlera. Wzorzec użyty w UP-02 (`BulkActionsController::preview/apply` z drugim Route na `/api/objects/bulk-actions/*`), UP-04 (`GenerateVariantsController` z `/api/objects/{master}/generate-variants`), UP-07a (`ProductReadEndpointsController::effectiveAttributeGroups` z `/api/objects/{id}/effective-attribute-groups`). Tańsze niż osobny controller per `/api/objects/*` mirror i niższe ryzyko regresji w istniejących product routes. Wymagana zmiana: helper `mustFindObject()` bez kind-gate obok istniejącego `mustFindProduct()`.
+
+2. **Capability gate via flag zamiast kind check** — UP-04 zamiast `ObjectKind::Product !== $master->getKind()` używa `!$master->getObjectType()->hasVariants()`. UP-03 używa `!$object->getObjectType()->isCategorizable()`. Wzór: gdy zachowanie zależy od capability per ObjectType, gate na flagę boolean (412/422), NIE hard-code kind w controller. Operatorka może odznaczyć/zaznaczyć capability w modeling wizard bez code change.
+
+3. **Optional `panelAttrs?: ReadonlyArray<PanelAttr>` prop z legacy default** — UP-09 ekstrakcji hardcoded `PANEL_ATTRS` przez nowy prop. Brak prop = legacy list (backward compatible). Pattern dla wszystkich uniwersalnych komponentów: optional prop z legacy fallback chroni stare wywołania (`/products` nieraz przekazuje undefined) podczas marathon refactoringu.
+
+4. **Dual maintenance safety net w cutover ticketach** — UP-10 dodał `/products/legacy` route dla starego `ProductListPage` na 1 sprint. Operator dostaje toggle do A/B porównania w trakcie sprintu adopcji. Po sprint follow-up ticket usuwa legacy. Pattern dla każdego gold-standard view refactor: cutover ticket nie usuwa legacy, dodaje równoległą route + dokumentuje cleanup follow-up.
+
+### Patterns to Avoid
+
+1. **Anti-pattern: parallel MVP zamiast extraction istniejącego komponentu** — UI-08 (ULV epik) zbudował parallel `ObjectListView` od zera zamiast wydzielić istniejący `ProductListPage`. Po manual smoke operator słusznie odrzucił jako "półśrodek": custom kindy second-class citizens, dwa kody do utrzymania, drift inevitable. Cytat operatora: "jak to możliwe, że on jest inny niż w produktach, to znaczy, że tamten jest hardcoded?". Lesson: gdy operator gold-standard view istnieje, ZAWSZE extract zamiast budować równoległy MVP. ULV-06 startowy plan był błędny; UP-06 spłacił dług. Reguła: jeśli operator-facing widok ma "rich features", to NIE robimy MVP równoległy — wydzielamy.
+
+### Package Quirks
+
+1. **FrankenPHP worker mode caches routes w pamięci** — po dodaniu nowej `#[Route]`, `composer cache:clear` nie wystarczy żeby route dotarł do live workerów. Smoke test zwraca 404 mimo że `php bin/console debug:router` widzi route. Workaround: `docker compose exec api kill -USR1 1` (graceful restart workerów) LUB `docker compose restart api`. Pattern: po dodaniu/zmianie Route attribute na żywym dev stacku, ALWAYS restart workerów przed smoke testem.
+
+### Decyzje świadome
+
+- **UniversalDetailPage (UP-07) NIE klonuje wszystkich product-specific features** — variants tab, multimedia tab, sync status, duplicate, preview, agent suggestions zostają na `/products/{id}` legacy route. Cytat operatora: "Edycja Objektu - wyrenderowane jak w produkacah, tj. zakłądki, dodawanie atrybutów - wszystko". Świadomie shipped attribute editing + tabs + delete; reszta jako "follow-up po universal CategoryPicker refactor". Dual maintenance UP-10 (`/products/{id}` legacy) chroni przed regresją w product detail.
+- **UP-08 UniversalCreatePage POSTuje `/api/objects` bez category pre-selection** — `/products/new` ma rich wizard z category-driven attribute overlay (przez `effective-attribute-groups/preview` POST z `categoryIds`). UniversalCreatePage MVP używa pustego payload — operator po utworzeniu obiektu może edytować przez UniversalDetailPage. Acceptable bo CategoryPicker dialog jest product-specific (UP-07 follow-up).
+
+
 ## Lessons z post-smoke fix #1 (2026-05-23, #891 — kategoria + dynamiczne atrybuty + modal warning)
 
 ### Patterns to Follow
@@ -2126,3 +2242,21 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **EXP-02 audit jako blocker przed implementacją** — read-only audit IMP-01..15 zwrócił 4/4 FAIL przed startem EXP-03+. Result: 4 follow-up tickety IMP-16..IMP-19 utworzone od razu, marathon kontynuował z świadomym round-trip-deferred (EXP-15 dokumentuje). Wzorzec: jeśli round-trip / kontrakt z innym epikiem jest KILLER feature, zrób read-only audit ZANIM zaczniesz implementację — wynik kształtuje plan.
 
 - **Vite TypeScript noEmit OOM w 1024MB Node** — `pnpm typecheck` w admin container failuje na heap exhaustion bez `NODE_OPTIONS=--max-old-space-size=2048`. Pattern dla każdej sesji FE: prefix `NODE_OPTIONS='--max-old-space-size=2048'` przed typecheck/biome jeśli OOM się powtarza.
+
+## Lessons z batcha drobnych poprawek 2026-06-02 (#1179, #1205, #1207, #1209, #1211)
+
+- **PHPStan zielony lokalnie ≠ zielony w CI** — `composer phpstan` może dać `[OK] No errors` lokalnie, ale CI failuje, bo analizuje świeżo zwarmowany kontener. Najczęściej łapie pliki testowe dodane PO wcześniejszym passie (`$body['x']['value']` na `mixed` → `offsetAccess.nonOffsetAccessible`/`argument.type`). Wzorzec: przed zaufaniem zielonemu PHPStan odpal `cache:warmup --env=dev` i `composer phpstan`; w testach zwężaj `mixed` przez `assertIsArray`/`assertIsString` do typed-locali zanim użyjesz offsetu. (memory `feedback_phpstan_warmup_dev_vs_ci`)
+
+- **Branch-switch w marathonie → stale FrankenPHP DI container → 500** — gdy przełączysz się na branch sprzed zmiany konstruktora serwisu (np. `ObjectAttributesUpserter` 2-arg vs 3-arg po dodaniu `IdentifierUniquenessValidator`), dev cache trzyma stary compiled container → `Too few arguments to __construct()`. Fix: `cache:clear --env=dev` + `docker compose restart api` po każdym checkoutcie który zmienia DI. Pipeline'uj tylko FE-only tickety bez DI-zmian; BE-tickety rób sekwencyjnie na czystym main.
+
+- **Read-overlay na encji: klon + setter bez side-effectów, NIE `updateAttributeIndex`** — `CatalogObject::updateAttributeIndex()` woła `touch()` + `recordThat(ObjectAttributesChanged)` → wstrzykiwanie syntetycznych wartości w GET providerze tym setterem zapisałoby domain-event/updatedAt. Wzorzec (#1207): dedykowany `overlayAttributesIndexedForRead()` (samo przypisanie pola) na `clone $object` — jak istniejący `ObjectValueLocaleOverlay`. GET nie flushuje, ale klon + czysty setter to bezpieczny kontrakt.
+
+- **Blameable bez cross-context coupling** — created_by/updated_by jako **snapshot e-maila** (`Shared\Application\Blameable` + `onFlush` listener czytający `TokenStorage->getToken()?->getUser()?->getUserIdentifier()`), NIE FK do `Identity\User`. Symfony Security = framework infra (Deptrac-clean wszędzie), encja Catalog trzyma tylko string. Komendy create/update obiektu są **sync** (nie ma ich w `messenger.yaml` routing) → security context dostępny w listenerze. Background writes (CLI/import) → null → render „—".
+
+- **`/objects/product/{id}` deleguje do ProductDetailPage, nie UniversalDetailPage** — universal show route renderuje per-kind: product → bogata `ProductDetailPage` (własny categories-tab), reszta (category/asset/custom) → `UniversalDetailPage`. Test/feature dla universal CategoriesPanel wymaga **custom kind** (categorizable), nie product. Pole assignmentu z `/api/objects/{id}/categories` to `categoryCode` (nie `code`) — FE interface to mylił (chipy puste).
+
+- **Custom kind E2E setup (flag ON w `.env`)** — `CATALOG_ENABLE_CUSTOM_OBJECT_TYPES=true` w `apps/api/.env`. Pełny setup: `POST /api/object_types` (kind=custom) → `PATCH /api/object_types/{id} {isCategorizable:true}` → `POST /api/categories {categoryTargetObjectTypeId:<customOT>}` → `POST /api/objects {objectTypeId:<customOT>}`. To minimalny przepis na test categorizable custom kind.
+
+- **Biome: warningi nie blokują, formatter-diff blokuje** — `useExhaustiveDependencies`/`useLiteralKeys`/`noConsole` to warningi (pre-existing, exit 0). „Formatter would have printed…" = ERROR (exit 1, blokuje pre-commit hook + CI). Fix: `biome check --write <pliki>` przed commit. Pre-commit lint-staged dla PHP odpala php-cs-fixer config-driven (bez ścieżek) — wieloplikowy `--dry-run <ścieżki>` daje fałszywy „multiple paths config required".
+
+- **Operator custom OTs zwipowane z dev DB** — Usługi/Samochody zniknęły (wcześniejszy `pim:db:reset`); `/api/object_types` zwracał tylko 3 built-iny. Dotyczy #1205 (lista samochody) i #1209 (kategorie custom). Feature'y działają dla nowo utworzonych; operator odtwarza OTs przez UI. (memory `feedback_pim_db_reset_wipes_operator_state`)

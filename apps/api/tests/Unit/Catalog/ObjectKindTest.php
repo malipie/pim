@@ -12,12 +12,12 @@ use PHPUnit\Framework\TestCase;
 final class ObjectKindTest extends TestCase
 {
     #[Test]
-    public function fiveCasesAreDefinedExactly(): void
+    public function fourCasesAreDefinedExactly(): void
     {
-        // ADR-009 + ADR-012 fix the kind enum at five values (Product +
-        // Category + Asset + Brand built-ins, plus Custom escape hatch);
-        // guard against drift.
-        self::assertCount(5, ObjectKind::cases());
+        // ADR-009 fixes the kind enum at four values (Product + Category +
+        // Asset built-ins, plus Custom escape hatch). Brand was reverted by
+        // ADR-014 / MOD-10 (#902) and the enum case removed by UX-01.
+        self::assertCount(4, ObjectKind::cases());
     }
 
     #[Test]
@@ -37,7 +37,6 @@ final class ObjectKindTest extends TestCase
         yield 'product is built-in' => [ObjectKind::Product, true];
         yield 'category is built-in' => [ObjectKind::Category, true];
         yield 'asset is built-in' => [ObjectKind::Asset, true];
-        yield 'brand is built-in' => [ObjectKind::Brand, true];
         yield 'custom is NOT built-in' => [ObjectKind::Custom, false];
     }
 

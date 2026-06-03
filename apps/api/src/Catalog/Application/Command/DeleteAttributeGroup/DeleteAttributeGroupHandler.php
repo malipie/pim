@@ -14,6 +14,13 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final readonly class DeleteAttributeGroupHandler
 {
+    /**
+     * Codes that were once seeded as `is_system_group=true` but are now
+     * user-managed (#1074 audit, #1080 relations). Legacy databases may
+     * still carry these rows; DELETE is allowed so operators can clean up.
+     */
+    private const array LEGACY_USER_MANAGED_SYSTEM_GROUP_CODES = ['audit', 'relations'];
+
     public function __construct(
         private AttributeGroupRepositoryInterface $repository,
         private EntityManagerInterface $em,
@@ -30,9 +37,13 @@ final readonly class DeleteAttributeGroupHandler
             ));
         }
 
-        // System groups (audit) are never deletable — UI marks them with
-        // a 🔒 lock badge and the API enforces it on the wire.
-        if ($group->isSystemGroup()) {
+        // System-owned groups are never deletable, with one allow-list for
+        // legacy codes that are now user-managed modeling config (#1074
+        // audit, #1080 relations).
+        if (
+            $group->isSystemGroup()
+            && !\in_array($group->getCode(), self::LEGACY_USER_MANAGED_SYSTEM_GROUP_CODES, true)
+        ) {
             throw new UnprocessableEntityHttpException(\sprintf(
                 'AttributeGroup "%s" is system-managed and cannot be deleted.',
                 $group->getCode(),

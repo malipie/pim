@@ -23,6 +23,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
@@ -96,6 +97,13 @@ final class GenerateVariantsController
         methods: ['POST'],
         priority: 200,
     )]
+    #[Route(
+        '/api/objects/{master_id}/generate-variants',
+        name: 'pim_objects_generate_variants',
+        requirements: ['master_id' => self::UUID_REGEX],
+        methods: ['POST'],
+        priority: 200,
+    )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     #[RequiresPermission(module: 'products', action: 'add')]
     public function __invoke(string $master_id, Request $request): JsonResponse
@@ -110,9 +118,21 @@ final class GenerateVariantsController
             throw new BadRequestHttpException('No tenant context.');
         }
 
+        // UP-04 (#1021) — capability gate replaces the product-only kind
+        // check. Built-in product is seeded `hasVariants=true`, so the
+        // legacy `/api/products/...` route keeps working without regression.
+        // Custom kinds with `hasVariants=true` (operator opted in via the
+        // modeling wizard) now reach the same code path via
+        // `/api/objects/...`.
         $master = $this->objects->findById(Uuid::fromString($master_id));
-        if (!$master instanceof CatalogObject || ObjectKind::Product !== $master->getKind()) {
-            throw new NotFoundHttpException(\sprintf('Master product %s not found.', $master_id));
+        if (!$master instanceof CatalogObject) {
+            throw new NotFoundHttpException(\sprintf('Master object %s not found.', $master_id));
+        }
+        if (!$master->getObjectType()->hasVariants()) {
+            throw new UnprocessableEntityHttpException(\sprintf(
+                'ObjectType "%s" does not have variants enabled; flip the hasVariants capability flag in the modeling wizard before generating variants.',
+                $master->getObjectType()->getCode(),
+            ));
         }
         if (null !== $master->getParent()) {
             throw new ConflictHttpException('Cannot generate variants from a variant — pick the master row.');

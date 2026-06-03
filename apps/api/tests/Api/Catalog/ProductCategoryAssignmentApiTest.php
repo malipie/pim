@@ -292,11 +292,59 @@ final class ProductCategoryAssignmentApiTest extends CatalogApiTestCase
             'body' => json_encode([
                 'code' => $code,
                 'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $this->objectTypeIdFor(ObjectKind::Product),
             ], JSON_THROW_ON_ERROR),
         ]);
         $id = $response->toArray()['id'] ?? null;
         \assert(\is_string($id));
 
         return $id;
+    }
+
+    #[Test]
+    public function putRejectsCrossTreeCategoryWith422(): void
+    {
+        // ADR-015 PR-D — a product cannot be assigned a category from a
+        // different ObjectType's tree.
+        $client = $this->authenticatedClient();
+        $productId = $this->createProduct($client, 'sku_crosstree');
+        $otherTreeOt = $this->seedCategorizableObjectType('cars_crosstree', 'Cars cross-tree');
+        $foreignCategory = $client->request('POST', '/api/categories', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'foreign_tree_cat',
+                'objectTypeId' => $this->objectTypeIdFor(ObjectKind::Category),
+                'categoryTargetObjectTypeId' => $otherTreeOt,
+            ], JSON_THROW_ON_ERROR),
+        ])->toArray()['id'] ?? null;
+        \assert(\is_string($foreignCategory));
+
+        $client->request('PUT', "/api/products/{$productId}/categories", [
+            'headers' => ['content-type' => 'application/json'],
+            'body' => json_encode([
+                'categoryIds' => [$foreignCategory],
+                'primaryCategoryId' => $foreignCategory,
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    private function seedCategorizableObjectType(string $code, string $label): string
+    {
+        $ctx = self::getContainer()->get(\App\Shared\Application\TenantContext::class);
+        $tenant = self::getContainer()->get(\Doctrine\ORM\EntityManagerInterface::class)
+            ->getRepository(\App\Shared\Domain\Tenant::class)
+            ->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof \App\Shared\Domain\Tenant);
+        $ctx->set($tenant);
+
+        $ot = new \App\Catalog\Domain\Entity\ObjectType($code, ObjectKind::Custom, ['pl' => $label, 'en' => $label]);
+        $ot->setCategorizable(true);
+        $em = self::getContainer()->get(\Doctrine\ORM\EntityManagerInterface::class);
+        $em->persist($ot);
+        $em->flush();
+        $ctx->clear();
+
+        return $ot->getId()->toRfc4122();
     }
 }

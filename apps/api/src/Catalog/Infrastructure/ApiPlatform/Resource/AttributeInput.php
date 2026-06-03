@@ -18,7 +18,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  *   - code (snake_case, immutable post-create)
  *   - label (JSONB { pl, en, ... })
  *   - help (JSONB, optional)
- *   - type (one of 10 AttributeType enum values)
+ *   - type (one of the user-facing AttributeType enum values)
  *   - flags: localizable, scopable, required
  *   - validationRules (JSONB, e.g. { max_length: 280 })
  */
@@ -46,7 +46,7 @@ final class AttributeInput
     public ?array $help = null;
 
     #[Assert\NotBlank]
-    #[Assert\Choice(choices: ['text', 'number', 'select', 'multiselect', 'date', 'boolean', 'asset', 'relation', 'price', 'metric', 'wysiwyg'])]
+    #[Assert\Choice(choices: ['text', 'number', 'select', 'multiselect', 'date', 'boolean', 'asset', 'relation', 'price', 'metric', 'wysiwyg', 'datetime', 'textarea', 'color', 'email', 'identifier'])]
     #[Groups(['attribute:create'])]
     public string $type = 'text';
 

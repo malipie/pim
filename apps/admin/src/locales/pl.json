@@ -7,7 +7,27 @@
     "close": "Zamknij",
     "cancel": "Anuluj",
     "save": "Zapisz",
-    "brand_subtitle_fallback": "Workspace"
+    "brand_subtitle_fallback": "Workspace",
+    "delete_error": "Nie udało się usunąć"
+  },
+  "attribute_type": {
+    "text": "Tekst",
+    "textarea": "Pole tekstowe",
+    "number": "Liczba",
+    "select": "Lista wyboru",
+    "multiselect": "Wielokrotny wybór",
+    "date": "Data",
+    "datetime": "Data i czas",
+    "boolean": "Tak/Nie",
+    "asset": "Zasób",
+    "reference": "Referencja",
+    "relation": "Relacja",
+    "price": "Cena",
+    "metric": "Miara",
+    "wysiwyg": "Tekst sformatowany",
+    "color": "Kolor",
+    "email": "E-mail",
+    "identifier": "Identyfikator"
   },
   "user_menu": {
     "aria_label": "Menu użytkownika",
@@ -35,6 +55,13 @@
     "submitting": "Logowanie...",
     "invalid_credentials": "Nieprawidłowy e-mail lub hasło.",
     "login_failed": "Nie udało się zalogować. Spróbuj ponownie.",
+    "mfa_title": "Weryfikacja dwuetapowa",
+    "mfa_subtitle": "Wpisz kod z aplikacji uwierzytelniającej lub kod zapasowy.",
+    "mfa_code": "Kod weryfikacyjny",
+    "mfa_submit": "Zweryfikuj",
+    "mfa_back": "Wróć do logowania",
+    "mfa_required": "Wymagana weryfikacja dwuetapowa.",
+    "mfa_invalid_code": "Nieprawidłowy lub przeterminowany kod. Spróbuj ponownie.",
     "session_expired": "Sesja wygasła. Zaloguj się ponownie.",
     "first_login_password": {
       "title": "Pierwsze logowanie — zmień hasło",
@@ -1018,6 +1045,14 @@
     },
     "actions": {
       "view": "Podgląd"
+    },
+    "delete": {
+      "action": "Usuń atrybut",
+      "confirm_title": "Usunąć atrybut?",
+      "confirm_body": "Atrybut \"{{code}}\" zostanie trwale usunięty wraz z jego wartościami słownikowymi. Tej operacji nie można cofnąć.",
+      "confirm_submit": "Usuń atrybut",
+      "success": "Atrybut został usunięty.",
+      "error_in_use": "Nie można usunąć atrybutu, który jest w użyciu. Odepnij go lub zmigruj."
     }
   },
   "attribute_groups": {
@@ -1371,6 +1406,7 @@
       "more_filters": "Więcej",
       "import": "Import",
       "new_product": "Nowy produkt",
+      "add": "Dodaj",
       "channel_filter_pending": "Filtr per kanał czeka na epik 0.6 (channel_publications)"
     },
     "counter": {
@@ -1573,6 +1609,14 @@
       "completeness": {
         "aria": "Kompletność {{pct}}%"
       },
+      "asset": {
+        "picker_title": "Wybierz zasób",
+        "picker_body": "Wskaż zasób z biblioteki multimediów dla tego pola.",
+        "choose": "Wybierz zasób",
+        "change": "Zmień zasób",
+        "clear": "Usuń",
+        "none": "Brak wybranego zasobu"
+      },
       "has_variants": "Wariantowy · {{count}} wariantów",
       "no_variants": "Bez wariantów",
       "status": {
@@ -1606,6 +1650,7 @@
           "title": "Warianty"
         },
         "effective_model": {
+          "title": "Efektywny model",
           "intro": "Atrybuty obiektu pochodzą z:",
           "see_in_modeling": "Zobacz w Modelowanie →"
         }
@@ -2364,5 +2409,8 @@
     "go_login": "Przejdź do logowania",
     "toast_success": "Konto aktywowane. Witaj!",
     "toast_accepted_login_required": "Konto aktywowane. Zaloguj się, żeby kontynuować."
+  },
+  "object_detail": {
+    "name_placeholder": "Nazwa"
   }
 }

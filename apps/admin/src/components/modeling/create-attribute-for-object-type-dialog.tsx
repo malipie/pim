@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { CREATABLE_ATTRIBUTE_TYPES } from '@/lib/attribute-types';
 import { HttpError, jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
@@ -34,21 +35,9 @@ interface ObjectTypePickerRow {
   label?: Record<string, string> | string | null;
 }
 
-const TYPES = [
-  'text',
-  'number',
-  'select',
-  'multiselect',
-  'date',
-  'datetime',
-  'boolean',
-  'asset',
-  'reference',
-  'relation',
-  'price',
-  'metric',
-  'wysiwyg',
-] as const;
+// #1210 follow-up — shared source of truth (drops the system-only `reference`
+// the create endpoint rejects; aligns this dialog with /modeling/attributes/new).
+const TYPES = CREATABLE_ATTRIBUTE_TYPES;
 
 interface Props {
   open: boolean;
@@ -298,7 +287,7 @@ export function CreateAttributeForObjectTypeDialog({
                 >
                   {TYPES.map((opt) => (
                     <option key={opt} value={opt}>
-                      {opt}
+                      {t(`attribute_type.${opt}`, { defaultValue: opt })}
                     </option>
                   ))}
                 </select>

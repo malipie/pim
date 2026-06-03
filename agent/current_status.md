@@ -1,5 +1,239 @@
 # Current Status
 
+## 2026-06-02: 🏁 batch drobnych poprawek (smoke) + dokończenie #1179 — kompletny
+
+5 PR-ów merged do main, każdy z quality gates + live-stack smoke (CLOSED MEANS CLOSED):
+
+- **#1179 identyfikator** (PR [#1204](../../pull/1204)) — typ atrybutu `identifier` (EAN/GTIN/ISBN/SKU) z unikalnością per ObjectType **DB-enforced** (trigger + denorm kolumny + partial unique index) + app-level 409. Dokończenie zacommitowanego WIP. Smoke: dup EAN → 409.
+- **#1205 usuwanie presetów Smart Filter** (PR [#1206](../../pull/1206)) — `SmartFilterPresetsRow` + `onDelete` (× na hover/focus dla własnych presetów) + `DeletePresetDialog` (confirm) w universal + legacy list. Backend/hook już istniały. FE-only.
+- **#1207 atrybuty systemowe** (PR [#1208](../../pull/1208)) — created_at/updated_at/created_by/updated_by: usunięty lock badge (lista + 2 dialogi + attr-row), auto-treść via read overlay (`SystemAttributeReadOverlay` w GET-item provider, klon) + **blameable** (`Shared\Application\Blameable` + `BlameableAssignmentListener` onFlush, snapshot e-maila aktora — bez coupling Catalog↔Identity). Migracja: `objects.created_by/updated_by`. Smoke: GET obiektu → 4 wartości.
+- **#1209 kategorie dla custom kindów** (PR [#1210](../../pull/1210)) — `CategoryPickerDialog` zgeneralizowany (`endpoint='objects'` + `objectTypeId` tree scoping ADR-015) + wpięty w `CategoriesPanel` (universal detail); usunięty placeholder „UP-07 follow-up". Fix chipu: `categoryCode` (nie `code`). Backend generyczny już był. Smoke: custom OT → PUT 200 → chip.
+- **#1211 typy na /modeling/attributes/new** (PR [#1212](../../pull/1212)) — współdzielona stała `lib/attribute-types.ts` `CREATABLE_ATTRIBUTE_TYPES` (lustro backend whitelist) używana przez new.tsx + 2 create-dialogi → koniec driftu; dodane textarea/datetime/identifier/color/email, usunięty system-only `reference`.
+
+**Świadome odejścia**: (a) `video` jako typ atrybutu — NIE dodany, brak w `AttributeType` enum; wymaga osobnego feat ticketu (część 3/3 batcha nowych typów). (b) Guard usuwania `is_system` zostaje (auto-pola systemowe). (c) created_by/updated_by istniejących obiektów = NULL (brak backfill) → „—" do następnej edycji.
+
+**Uwaga (dev DB)**: w trakcie sesji odkryto, że custom OTs operatora (Usługi/Samochody) **zniknęły z dev DB** (wcześniejszy `pim:db:reset`) — feature'y działają dla nowo utworzonych custom kindów; operator może odtworzyć OTs przez UI. Patrz lessons + memory `feedback_pim_db_reset_wipes_operator_state`.
+
+## 2026-05-31: 🏁 batch bug-fix smoke 2026-05-30 (#1130–#1147) — kompletny
+
+Wszystkie 18 zgłoszeń z manualnego smoke testu operatora wdrożone na main. Ta sesja domknęła ostatnie 4 (#1130/#1138 + epiki #1146/#1147):
+
+- **#1130 import round-trip** (PR #1167): importer kompatybilny z formatem eksportu — composite price/metric (`20.99 EUR`/`0.3 g`), kolumny lokalizowane (`name.pl`→atrybut+locale), auto-SKIP kolumn systemowych, reader XLSX po cell-coordinate. Nowe: `ColumnHeader`, `CompositeValueParser`, `SystemColumn`, `ResolvedImportValue`.
+- **#1138 atrybut asset jako picker** (PR #1168): `AssetField` + `AssetAttributePicker` w `attr-row.tsx` (case `asset`) — picker biblioteki + miniatura zamiast tekstu. BE `AssetValidator` bez zmian.
+- **#1146 wersje językowe epik** — 4 PR-y (#1169 BE read/write `?locale=`, #1170 ekspozycja `is_localizable`+`locales[]`, #1171 dynamiczny picker, #1172 per-locale values). #1152 (completeness per-locale) świadomie deferred.
+- **#1147 kanały epik** — 3 PR-y (#1173 BE read/write `?channel=`, #1174 E2E ustawień kanałów — strona już istniała, #1175 picker+values). #1156 (mapowanie aliasów) deferred do Fazy 1.
+
+**Architektura locale/channel (ADR-relevant)**: `CatalogObjectLocaleOverlayProvider` (GET-item, decorating) nakłada wiersze `ObjectValue` per (locale,channel) na globalny `attributes_indexed`, **na klonie** (bez wycieku na identity map); `attributes_indexed`/Meilisearch pozostają **global-only** (search na primary). Zapis przez `?locale=`/`?channel=` query-param → upserter routuje localizable→locale, scopable→channel, reszta global. Cross-BC: `Channel\Contracts\ChannelResolverInterface` (code→id, Deptrac-safe).
+
+## 2026-05-30: polish drzew kategorii custom-OT (#1126 + #1127)
+- **#1126** (PR #1128, `0951f55`): drzewo kategorii widoczne przy pierwszym wejściu /modeling/categories — auto-select OT w `ObjectTypeFilterDropdown` przeniesiony z render-phase do `useEffect` (URL `targetObjectTypeId` stempluje się niezawodnie → `useList` enabled).
+- **#1127** (PR #1129, `1f5541f`): `categories/show.tsx` `EffectiveAttributesPreview` — preview po `objectTypeId` + lista categorizable OT (built-in+custom) zamiast hardcoded PREVIEW_KINDS; fix błędu „Built-in ObjectType for kind 'custom'". Default = pierwszy categorizable (GET category nie serializuje categoryTargetObjectType — default-to-own-tree = ewent. drobny follow-up).
+
+# Current Status
+
+## 2026-05-30: feat — ADR-015 osobne drzewa kategorii per ObjectType (3 PR-y, kompletne)
+
+**ADR-015** (nowy ADR w `01-architektura-pim.md`): drzewo kategorii partycjonowane per docelowy ObjectType (`objects.category_target_object_type_id`). Dostarczone 3 PR-ami, wszystkie merged do main (`916c3cc`):
+- **PR-A [#1119]** — migracja `Version20260530120000` (kolumna+FK+backfill do Product+partial unique per-tree), encja `CatalogObject.categoryTargetObjectType`, create flow (wymaga scope dla kategorii, walidacja categorizable + same-tree parent), seeder, ADR-015 doc. PHPUnit + 10 plików testów zaktualizowanych.
+- **PR-B [#1120]** — `CategoryTreeFilter`: `GET /api/categories?categoryTargetObjectType=<uuid>` scope per drzewo.
+- **PR-C [#1123]** — FE: `ObjectTypeFilterDropdown` listuje wszystkie `is_categorizable` (built-in+custom), emituje objectId; `categories/list` filtruje per drzewo; `categories/new` tworzy w wybranym drzewie; reword etykiety `is_categorizable` → „Czy obiekty mogą być przypisane do drzewa kategorii?".
+- **Live smoke (main)**: custom OT „Salony" → włącz categorizable → utwórz kategorię → drzewo Salony zawiera tylko ją, drzewo Product osobno (izolacja potwierdzona). Stan przywrócony.
+- **DECYZJE operatora**: bramka = `is_categorizable`; migracja = istniejące kategorie → Product, pozostałe OT bez drzewa (puste do utworzenia).
+- **PR-D [#1124]** (część 1/2 z #1121, merged `cfbc399`): `CategoryTreeAssignmentGuard` — przypisanie obiektu do kategorii z obcego drzewa → 422 (product+poly assignment controllers + atomic create). PHPUnit 51/51. Live smoke: salony-tree cat → Product = 422.
+- **PR-E [#1125]** (część 2 #1121 — dostarczona, merged `41400a2`): custom-OT drzewa kategorii — (a) declare/list/effective `kind`→`objectId` (`CategoryAttributeGroupController` + `CategoryEffectiveGroupsController` akceptują `targetObjectTypeId`/`objectTypeId`; FE panel + dialog declare przekazują id) → fix błędu „Built-in ObjectType for kind 'custom' not found" przy deklarowaniu grupy na drzewie Samochody; (b) redirect po utworzeniu kategorii zachowuje scope drzewa. PHPUnit 9/9 + `declareByObjectTypeIdWorksForCustomTree`. Live smoke (main): declare na drzewie Salony → 201, effective-groups po objectId → 200.
+- **#1121 ZAMKNIĘTE** — część 1 (cross-tree guard, PR-D) + część 2 (declare/list/effective objectId, PR-E) dostarczone. Pozostałość: `categories/show.tsx` `PREVIEW_KINDS` hardcoded product/category/asset (osobny detail-page preview widget, nie flow operatora) — drobny nice-to-have, poza zakresem.
+
+## 2026-05-30: feat — edytowalna nazwa obiektu + analiza/usunięcie odwrotnego attach (kontynuacja)
+
+- **Edytowalna nazwa obiektu** — Issue #1116 → PR [#1117](../../pull/1117) (merged, `61f6ca5`). Tytuł H1 na karcie obiektu/produktu był read-only dla istniejących wpisów (name edytowalny tylko jako zaszyte pole „Name"). Teraz w trybie edycji tytuł = `<Input>` spięty z atrybutem `name` (ten sam flow co create), w `universal-detail-page.tsx` + `product-detail-page.tsx` + i18n `object_detail.name_placeholder`. Bez zmian BE. Browser smoke oba widoki: edycja→zapis→persist→restore.
+- **Usunięcie karty „TYPY OBIEKTÓW"** ze strony atrybutu — Issue #1114 → PR #1115 (merged). Lustrzane wejście do junctiona `object_type_attributes`; po analizie architektonicznej (junction = load-bearing: 21/21 atrybutów Product + name/description custom OT) usunięto tylko mylący odwrotny widok FE, mechanizm bez zmian.
+- **ODŁOŻONE — osobne drzewa kategorii per ObjectType** (żądanie #2 operatora): zmiana architektoniczna ADR-014 (dziś jest JEDNO wspólne drzewo + select tylko zmienia target dystrybucji atrybutów; custom OT wykluczone z dropdownu — `ObjectTypeFilterDropdown` filtruje `builtIn && isCategorizable`, komentarz: „custom OT support waits on a backend ticket"). Wymaga ADR + Plan Mode + migracja + filtr API objectTypeId. **Do zrobienia w osobnej sesji.**
+
+## 2026-05-30: bug-fix — karta obiektu: puste grupy + i18n effective_model
+
+Zgłoszenie operatora na `/objects/salony_sprzedazy/{id}`. Po researchu rozdzielone na 3 wątki:
+
+- **Empty-group (właściwy bug)** — Issue #1112 → PR [#1113](../../pull/1113) (merged, `3da4919`). Po usunięciu ostatniego atrybutu grupy backend nadal zwraca pustą grupę; FE renderował ją jako zakładkę „0/0". Fix: filtr `attributes.length > 0` w `universal-detail-page.tsx` + `universal-create-page.tsx` (modeling i kontrakt API bez zmian). Browser smoke: pusta zakładka znika, niepuste grupy zostają.
+- **i18n effective_model** — Issue #1110 → PR [#1111](../../pull/1111) (merged). `effective-model-card.tsx` wołał klucz-obiekt jako string → sidebar pokazywał komunikat błędu zamiast „Efektywny model". Fix: dodany `effective_model.title` (pl/en).
+- **Select „nie działa" (NIE bug)** — zweryfikowane wyczerpująco na main (detail+create × stacked+tab × select+multiselect × zapis/persist) — select działa end-to-end (naprawiony wcześniej przez #1107 popover clipping). Bez zmiany kodu.
+- **„TYPY OBIEKTÓW" na stronie atrybutu (NIE bug)** — operator brał `AttachedObjectTypesCard` (#979) za artefakt; to działające toggle-chipy junction `object_type_attributes` (przypięcie atrybutu do typów). Operator potwierdził działanie używając go (stąd `pracownicy` zyskał atrybut). Kandydat na poprawę afordancji (chipy wyglądają jak statyczne etykiety) — opcjonalny follow-up.
+- **Lekcja:** zgłoszenie „X nie działa" warto zawęzić AskUserQuestion + odtworzyć wizualnie (Playwright + screenshot) ZANIM się naprawia — tu „select" okazał się działać, a realny bug (puste grupy) był gdzie indziej. Nie fabrykować fixu pod nieodtworzony objaw.
+
+## 2026-05-29: bug-fix — usuwanie atrybutów z UI + guard 409 (in-use)
+
+**Issue #1108 → PR [#1109](../../pull/1109) (merged, squash 6643074).** Operator: „dodaj możliwość usuwania atrybutów" na `/modeling/attributes`.
+
+- **Root cause:** niedokończony feature — `DELETE /api/attributes/{id}` istniał od VIEW-02 (#374), ale FE nigdy nie dostał triggera; dodatkowo usunięcie atrybutu w użyciu leciało 500 (FK RESTRICT) zamiast 409.
+- **BE:** `DeleteAttributeHandler` — pre-check przez `UsageQueryService::forAttribute()` (objectTypes/instanceCount) → `ConflictHttpException` 409; catch `ForeignKeyConstraintViolationException` jako safety-net dla 60s cache race. Grupy (CASCADE) nie blokują.
+- **FE:** przycisk „Usuń atrybut" + dialog potwierdzenia w `attributes/show.tsx` (tylko `!isSystem`); `jsonFetch` DELETE + toast + redirect; i18n `attributes.delete.*` pl+en.
+- **Test:** `deleteRejectsAttributeInUseWith409` w `AttributesCrudApiTest` (9/9). Playwright `attributes-delete.spec.ts` (`test.fixme` w CI — rate limiter).
+- **Live smoke (main):** unused→204, `cross_sell` in-use→409 z detail, system→422.
+- **Lekcja (potwierdzenie znanego patternu):** dodanie argumentu do konstruktora handlera → po edycie w żywym kontenerze `cache:clear --env=dev` + `docker compose restart api`, inaczej stary DI container → 500 (ArgumentCountError). Memory: `feedback_frankenphp_worker_cache_restart`.
+
+## 2026-05-28: 🏁 Option Y — relations AttributeGroup optional, full marathon closed (5/5 + audit finalize)
+
+**Milestone:** MODRC-01..05 (PR-y #1085/#1086/#1087/#1088/#1089) + #1079 audit finalize. Operator decision (po sukcesie #1074 dla audit): zrobić to samo dla seedowanej grupy „Powiązania" + zapewnić aby relacja działała jak każdy inny atrybut (inline LUB tab).
+
+### Shipped (all merged)
+
+| Ticket | PR | Scope | Status |
+|---|---|---|---|
+| #1076/#1077 audit finalize | [#1079](../../pull/1079) | Frontend lock UX cleanup (DangerZone delete na show.tsx, declare-dialog audit guard, section divider lock only-when-locked) + PHPUnit dla timestamps + form-schema audit-not-auto-rendered | ✅ merged |
+| MODRC-01 #1080 | [#1085](../../pull/1085) | Un-seed `relations` AttributeGroup; `BuiltInProductRelationAttributesSeeder` mints attributes + loose `ObjectTypeAttribute` only; migracja `Version20260528100000`; `DeleteAttributeGroupHandler` generalizes allow-list to `['audit', 'relations']` | ✅ merged |
+| MODRC-02 #1081 | [#1086](../../pull/1086) | `legacy-attribute-groups.ts` helper (`LEGACY_OPTIONAL_SYSTEM_GROUP_CODES`); refactor 6 admin files od `code === 'audit'` do helpera; E2E `1081-relations-group-no-lock.spec.ts` mirror audit | ✅ merged |
+| MODRC-03 #1082 | [#1088](../../pull/1088) | `SystemReverseRelationsSection` component z `system` badge + zinc styling + klikalnymi sources; extract z `relations-tab.tsx` | ✅ merged |
+| MODRC-04 #1083 | [#1087](../../pull/1087) | docs: `feature-modeling-data-model.md` §3.5 rewritten + §12.0 (3 odrzucone alternatywy); ADR-014 supplementary note; `lessons.md` MODRC-01..05 entry; cross-reference w `feature-modeling-relations-ux-tickets.md` | ✅ merged |
+| MODRC-05 #1084 | [#1089](../../pull/1089) | `RelationInlineEditor` wrapper + `RelationGroupCard` export + `relationContextProductId` prop w AttrRow → inline picker dla relation attrs w stacked groups | ✅ merged |
+
+### Świadome odejścia / lekcje
+
+- **Detection-by-type, nie code-of-group** — MODRC-01 początkowo nie zaktualizował `hasForwardRelationsGroup = groups.some(g => g.code === 'relations')` w `product-detail-page.tsx`. Playwright 975-spec failed na missing "Powiązania" tab. Fix: detection przez `g.attributes.some(a => a.type === 'relation')`. Pattern zapisany w `lessons.md`.
+- **MODRC-05 reuse, nie reimplement** — zamiast nowego inline editora ekstraktuje `RelationGroupCard` z `relations-tab.tsx` przez export + wrapper. Shared cache key `['objects', productId, 'relations']` keeps inline editor i tab w sync.
+- **MODR-02/06/07 (#924/#928/#929) z poprzedniego batchu MODR-01..11 SUPERSEDED przez MODRC-01..03/05** — pozostałe MODR-y (01, 03, 04, 05, 08, 09, 10, 11) zachowują ważność, banner SUPERSEDED w `feature-modeling-relations-ux-tickets.md`.
+
+### Live-stack smoke test (proof end-to-end MODRC-01..05)
+
+1. Login admin@demo.localhost / changeme → 200, JWT minted.
+2. POST `/api/attribute_groups` `{code:polecane}` → 201, `systemGroup=false`.
+3. POST `/api/object_types/{product}/groups/{polecane}` → 204 (attached).
+4. PATCH same junction `{display_mode:stacked}` → 204.
+5. POST `/api/attribute_groups/{polecane}/attributes/bulk-attach` `{attributeCodes:[cross_sell]}` → 200 `{attached:[cross_sell]}`.
+6. GET `/api/objects/{product}/form-schema` → `effectiveGroups[0] = {code: polecane, display_mode: stacked, attributes: [cross_sell]}` — relacja w stacked custom group.
+7. PUT `/api/objects/{product}/relations/cross_sell` `{targets:[{id:{target}}]}` → 204; subsequent GET confirms link persisted.
+8. GET `/api/objects/{target}/relations/reverse/count` → `{hasReverse: true, count: 1}` + full reverse list contains `cross_sell` from source product.
+9. DELETE migration test: legacy `relations` row pre-merge (`is_system_group=true`) → DELETE → 204 (bo allow-list rozszerzony).
+
+Wszystkie kroki ✅ — Option Y end-to-end works.
+
+### Następny krok
+
+- Operator decision: czy odpalić kolejny widok / inny refactor. Wszystkie 5 MODRC + #1079 audit zamknięte; ekran `/modeling/attribute-groups` nie pokazuje już legacy `audit`/`relations` na stałe, relacje placeable w dowolnej grupie (stacked/tab) z prawdziwym inline picker'em.
+
+### Blokery / uwagi
+
+- `Project Plan/UI/feature-modeling-relations-option-y-tickets.md` + `plan-audytu-code-review.md` zostają jako untracked (out-of-scope materiał z sesji planowania, decyzja operatora czy commitować osobno).
+
+---
+
+## 2026-05-27: 🔧 #1074/#1075 — audit AttributeGroup optional (PR prep)
+
+**Branch:** `fix/1074-optional-audit-group`
+
+**Cel:** systemowe atrybuty audytowe (`created_at`, `updated_at`, `created_by`, `updated_by`) zostają seedowane i zbierają wartości, ale `AttributeGroup(code='audit')` nie jest już runtime-seedowana, auto-attached ani traktowana jako wymuszona sekcja formularza. Widoczność pól audytowych = jawna konfiguracja modelowania.
+
+### Ostatnie 3 akcje
+
+1. Usunięto runtime seedowanie/auto-attach grupy `audit` (`BuiltInSystemAttributesSeeder`, delete `AutoAttachAuditGroupListener`) i dodano migrację cleanup `Version20260527100000.php` dla legacy auto-attached audit rows.
+2. Zaktualizowano BE/FE kontrakty i testy: legacy `audit` jest wyjątkiem od blokady system group delete/detach; UI pokazuje ją jako removable modeling config, a locked built-in groups nie obejmują `audit`.
+3. Quality gates zielone: backend PHPStan, targeted PHPUnit (`47 tests, 141 assertions`) oraz admin lint/typecheck/build. Admin lint ma tylko istniejące warnings/infos.
+
+### Następny krok
+
+- Przygotować commit/PR dla #1074/#1075 bez dodawania unrelated untracked docs.
+
+### Blokery / uwagi
+
+- Brak aktywnego blokera. `git status` pokazuje dwa untracked pliki w `Project Plan/UI/*` niezwiązane z tym branchem — nie dodawać bez weryfikacji scope.
+
+---
+
+## 2026-05-26: 🏁 Epik UX (Modeling/Object-Types polish) — marathon closed (9/9 shipped)
+
+**Milestone:** Marathon UX-01..UX-09 (PR-y #1045/#1047/#1049/#1053/#1051/#1055/#1057/#1059/#1061) dla operatora po wątpliwościach przy `/modeling/object-types` ("multimedia są hardcoded a powinny być capability flag", "kategorie/asset nie mają sensu w modeling"). Kapitalna decyzja: trzy capability flags (`hasVariants` / `isCategorizable` / `hasMultimedia`) sterują *którymi zakładkami* operator widzi, nie strukturą encji. Multimedia przestaje być AttributeGroup.
+
+### Final PR record
+
+| Ticket | PR | Scope shipped | Status |
+|---|---|---|---|
+| UX-01 | [#1045](../../pull/1045) | Remove `ObjectKind::Brand` enum case + RbacMatrix/IndexSettings/MenuConfig refs + admin SECONDARY_LABEL / icon map + migration deleting legacy `kind='brand'` rows | ✅ merged |
+| UX-02 | [#1047](../../pull/1047) | Delete `BuiltInProductMediaAttributesSeeder` + AppFixtures wiring + migration purging `attribute_groups` rows with `code IN ('media','multimedia')` + dispatch usuwany w `ProductDetailPage` | ✅ merged |
+| UX-03 | [#1049](../../pull/1049) | `ObjectTypeService::update()` accepts `hasMultimedia`; drops fieldLocked guards on `hasVariants`/`isCategorizable`/`hasMultimedia` (built-in editable); Asset rejected for `hasMultimedia=true`; serializer exposes the flag | ✅ merged |
+| UX-04 | [#1053](../../pull/1053) | Poly-kind `/api/objects/{id}/assets` (GET/POST/DELETE) via multiple `#[Route]` on `ProductAssetsController` — handler kind-agnostic for all multimedia paths | ✅ merged |
+| UX-05 | [#1051](../../pull/1051) | `/modeling/object-types` list hides `kind IN ('category','asset')`; deep-link guard `<Navigate>` na show.tsx dla tych kindów | ✅ merged |
+| UX-06 | [#1055](../../pull/1055) | `show.tsx` Settings card: new `hasMultimedia` toggle (Asset locked), relabel `hasVariants` → "Czy mają warianty?", relabel `isCategorizable` → "Czy można je przypisywać do kategorii?", built-in unlock | ✅ merged |
+| UX-07 | [#1057](../../pull/1057) | `ObjectTypeWizard` Step 3 Settings: new `hasMultimedia` + `isCategorizable` toggles + relabel; single follow-up PATCH bundles `exposeToMainMenu` + new flags (POST endpoint doesn't accept them in body) | ✅ merged |
+| UX-08 | [#1059](../../pull/1059) | `UniversalDetailPage` adds conditional Multimedia (delegates to `ProductMultimediaTab` with objectId — backend kind-agnostic via UX-04 alias) and Variants (minimal poly-kind reader `?parent_id=`) tabs; `useListSchema` exposes `has_multimedia` | ✅ merged |
+| UX-09 | [#1061](../../pull/1061) | `/products/:id?universal=1` opt-in preview path → `UniversalDetailPage`; default render stays legacy `ProductDetailPage` (Playwright caught RelationsTab regression) — flip to default after 4 follow-up power-feature migrations | 🟡 opt-in preview shipped, default cutover deferred |
+
+### Świadome odejścia (consolidated)
+
+- **UX-09** nie flippuje defaultu — `/products/:id` zostaje legacy `ProductDetailPage` (gold-standard z RelationsTab + Variants editor + Sync/Agent sidebars + Duplicate/Preview). `?universal=1` to opt-in preview. Cztery follow-up tickety przed final cutover:
+  1. Poly-kind `RelationsTab` + "Dodaj powiązanie" CTA
+  2. Variants full editor (axis matrix + bulk generator)
+  3. `SyncStatusCard` + `AgentSuggestionsCard` (sidebar)
+  4. `DuplicateButton` + `PreviewButton` (header)
+- **UX-08** Variants panel: minimal read-only list (`/api/objects?parent_id=`). Full editor zostaje legacy.
+- **UX-08** Multimedia tab: delegacja do `ProductMultimediaTab(productId={objectId})` zamiast nowy `ObjectMultimediaTab` — refactor komponentu na `apiPath` prop = follow-up.
+- **UX-02** migration `down()` irreversible by design (seeder już deleted).
+- **UX-01** Brand jako `text` attribute code w demo data zostaje — operator wprost: "Brand zostawiamy jako zwykły atrybut".
+
+### Bottom-line stan po marathonie
+
+- `/modeling/object-types` → tylko Product (built-in) + custom widoczne. Category/Asset/Brand redirect na list.
+- ObjectType detail (show.tsx) → 3 capability toggles edytowalne dla każdego kindu (z Asset/Category symmetric guards).
+- ObjectType wizard (new) → te same 3 capability toggles w Step 3 (bundle PATCH po POST).
+- `/objects/{slug}/{id}` (custom kindy) → `UniversalDetailPage` z conditional Multimedia + Categories + Variants tabs sterowanymi flagami.
+- `/products/{id}` → default legacy (gold-standard) + `?universal=1` opt-in preview.
+- Backend: `BuiltInProductMediaAttributesSeeder` deleted, Brand enum case removed, capability flags unlocked dla built-in (Product editable), poly-kind `/api/objects/{id}/assets` action.
+
+### Lessons (do `lessons.md` osobnym PR-em)
+
+- **Playwright catches semantic regressions, not just visual** — UX-09 początkowo flipował default na UniversalDetailPage. Lokalnie typecheck/lint zielone, ale Playwright `975-relation-picker` E2E zawiódł na missing "Dodaj powiązanie" CTA. Cutover ZEPSUŁ flow który nie miał poly-kind RelationsTab. Lesson: każdy "cutover" PR wymaga sprawdzenia LISTY istniejących E2E spec'ów na docelowej route przed merge. Default flip to operacja wyłącznie po pełnym feature parity, NIE w środku marathonu.
+- **PRZED `composer phpstan` lokalnie zawsze sprawdź wszystkie referencje per file: PHPStan max widzi cross-file** — UX-01 PHPStan lokalnie pass, ale CI failed na `ObjectKindRouter::BUILT_IN_ROUTES` z `'brand'` key — file którego nie touchowałem ale który deklarował phpdoc type kompatybilny z usuniętym enum case. Lesson: po usunięciu enum case z `Domain/ObjectKind.php`, `rg "ObjectKind::Brand|case Brand|'brand'"` PRZED commitem na CAŁY apps/api.
+- **API Platform XML serializer groups vs ApiResource definition** — UX-03 wymagało dodania `<attribute name="hasMultimedia">` w `Catalog/Infrastructure/Serializer/ObjectType.xml` (NIE w `ApiPlatform/Resource/ObjectType.xml`). Resource XML pokazuje grupy normalizacyjne (`admin:read`), serializer XML mapuje atrybuty na grupy. Dwa odrębne miejsca.
+- **Stack PR-ów oszczędza czas marathonu** — UX-09 musiał używać prop'ów z UX-08 (`hasMultimedia`, `hasVariants`). Branch UX-09 utworzony od UX-08 + PR base=main. Po merge UX-08 → main, rebase UX-09 + force-push = clean single-commit diff. Każdy ticket = własny CI cycle bez czekania na sąsiednie merge'e.
+- **Symmetric kind guards for capability flags** — `isCategorizable=true` blocked dla Category (circular dependency), `hasMultimedia=true` blocked dla Asset (asset IS multimedia). Wzór: jeśli flaga semantically oznacza "ma X w sobie", a kind sam JEST X, to flag musi być rejected. Symmetric guards ułatwiają debugowanie + dokumentowanie.
+- **PR opening podczas heavy CI** — w marathonie UX-01..UX-09 7 PR-ów było jednocześnie open. Każdy własny CI cycle 5-15 min. Merge "as soon as green" w kolejności zaimplementowania (nie zależności logicznej) pozwala na maksymalne wykorzystanie czasu CI.
+
+---
+
+## 2026-05-25: 🏁 Epik UP (Universal Page Parity) — marathon closed (12/12 shipped)
+
+**Milestone:** Epik UP zamknięty drugim ciągiem maratońskim po Epiku UI-08. Operator po post-UI-08 manual smoke teście odrzucił MVP `ObjectListView` jako "półśrodek" — Epik UP wydziela `/products` *list/show/create* (1085+1033+5 linii) do parametryzowanych komponentów konsumowanych przez `/products` ORAZ `/objects/:slug`. ADR-009 finalna realizacja.
+
+### Final PR record (12 tickets)
+
+| Ticket | PR | Scope shipped | Status |
+|---|---|---|---|
+| UP-00 | [#1030](../../pull/1030) | `object_types.has_multimedia` capability flag + Doctrine ORM + seed Product=true | ✅ merged |
+| UP-01 | [#1031](../../pull/1031) | Poly-kind `PATCH` + `DELETE /api/objects/{id}` (AP4 ApiResource ops) | ✅ merged |
+| UP-02 | [#1035](../../pull/1035) | Universal `POST /api/objects/bulk-actions/preview` + `/api/objects/bulk-actions/{action}` (mirror 14 akcji, capability gates) | ✅ merged |
+| UP-03 | [#1032](../../pull/1032) | Poly-kind `/api/objects/{id}/categories` CRUD (gate na `isCategorizable`) | ✅ merged |
+| UP-04 | [#1033](../../pull/1033) | Poly-kind `/api/objects/{master}/generate-variants` (gate na `hasVariants`) | ✅ merged |
+| UP-05 | [#1034](../../pull/1034) | `SmartFilterPreset.resource` column + `?resource=` filter w `SmartFilterPresetController` | ✅ merged |
+| UP-06 | [#1037](../../pull/1037) | `UniversalListPage` (~900 linii) + `/api/search/objects?objectTypeId=` + `useCatalogSearch` discriminated-union mode + `ProductsGrid.detailPathFor` | ✅ merged |
+| UP-07 | [#1038](../../pull/1038) | `UniversalDetailPage` + `mustFindObject()` + poly-kind `/api/objects/{id}/effective-attribute-groups` + `/objects/:slug/:id` route | ✅ merged |
+| UP-07b | [#1036](../../pull/1036) | ObjectType wizard: `has_multimedia` toggle (Capability flags section) | ✅ merged |
+| UP-08 | [#1039](../../pull/1039) | `UniversalCreatePage` full-page wizard + `/objects/:slug/new` route | ✅ merged |
+| UP-09 | [#1040](../../pull/1040) | `AdvancedFilterPanel.panelAttrs` prop (per-ObjectType attribute catalog, legacy fallback preserved) | ✅ merged |
+| UP-10 | [#1041](../../pull/1041) | Cutover `/products` → `ProductsUniversalListPage` (UniversalListPage wrapper) + `/products/legacy` safety net + DELETE MVP (`ObjectListView`, `CreateObjectDialog`, `EmptyStateObject`, `placeholder.tsx`) | ✅ merged |
+
+### Świadome odejścia (consolidated)
+
+UniversalDetailPage (UP-07) szyje attribute editing + tabs dynamicznie + delete; **kategorie tab w trybie read-only** (CategoryPickerDialog jest produktowy, universal refactor deferred). **VariantsTab, MultimediaTab, SyncStatusCard, AgentSuggestionsCard, DuplicateButton, PreviewButton** zostają na `/products/{id}` legacy route — dual maintenance per operator decision (1-sprint window). UniversalCreatePage (UP-08) MVP: code + flat attribute groups + POST `/api/objects`; category pre-selection deferred (depends UP-07 picker refactor). UniversalListPage (UP-06) `select-all-matching` dla non-product gates → toast hint; `/api/objects/select-all-matching` poly-kind endpoint jest deferred. UP-09 `panelAttrs` prop shipped, wiring w UniversalListPage czeka na schema endpoint extension z `attribute.type`. UP-10 NIE usuwa legacy `ProductListPage` — fallback przez 1 sprint za `?legacy=1` toggle.
+
+### Bottom-line stan po marathonie
+
+- `/products` → `UniversalListPage` (objectTypeId=built-in product) — pixel-perfect z poprzednim wyglądem, ten sam component renderuje `/objects/samochody`.
+- `/products/legacy` → legacy `ProductListPage` (dual-maintenance fallback, 1-sprint).
+- `/products/:id` → legacy `ProductDetailPage` (rich product detail: variants/multimedia/sync).
+- `/products/new` → legacy create wizard (category overlay + variant generator + multimedia uploader).
+- `/objects/:slug` → `UniversalListPage` (per-kind via slug resolver; built-in product/category/asset też mountable).
+- `/objects/:slug/:id` → built-in product/category/asset REDIRECT do legacy detail routes; custom → `UniversalDetailPage` (attribute editing + delete + read-only categories tab).
+- `/objects/:slug/new` → built-in product/category/asset REDIRECT do legacy create; custom → `UniversalCreatePage` (full-page wizard, POST `/api/objects`).
+- ADR-009 obietnica „każdy ObjectType pierwszej klasy" zrealizowana: identyczny `UniversalListPage` component dla `/products` + `/objects/samochody`.
+
+### Lessons (UP epik, do `lessons.md` w tym samym PR)
+
+- **Multiple `#[Route]` per controller method** (Symfony 7.x) → poly-kind endpoints bez duplicating handler. UP-02 (bulk-actions) + UP-04 (generate-variants) + UP-07a (effective-attribute-groups) wykorzystują wzorzec. Tańsze niż nowy controller per `/api/objects/*` mirror.
+- **FrankenPHP worker mode caches routes w pamięci** — `composer cache:clear` nie wystarczy żeby nowe route dotarły do live workerów. Po dodaniu nowej `#[Route]` w działającym stacku → `docker compose exec api kill -USR1 1` (graceful restart workerów) LUB `docker compose restart api`. Bez tego smoke test zwraca 404 mimo że `debug:router` widzi route.
+- **`useSmartPresets` resource scoping** — `localStorage` keys + smart preset queries per (user, resource). Universal list używa `resource: objectTypeCode` (np. `samochody`) tak żeby presets nie wyciekały między ObjectTypes. System-shipped presets (`resource=NULL` w DB) są zawsze widoczne — globalne.
+- **`detailPathFor` prop default** — kompatybilne wstecz: `ProductsGrid` nadal działa bez tej props (default `/products/{id}`). UniversalListPage przekazuje per-kind builder. Wzór dla universalnych komponentów: optional props z legacy defaults.
+- **Anti-pattern: parallel MVP zamiast extraction** — pre-Epik UP `ObjectListView` był parallel MVP zbudowany od zera zamiast wydzielić istniejący `ProductListPage`. Po post-UI-08 manual smoke operator słusznie odrzucił jako "półśrodek": custom kindy second-class citizens, dwa kody do utrzymania, drift inevitable. **Lesson**: gdy operator gold-standard view istnieje, ZAWSZE extract zamiast budować równoległy MVP. ULV-06 startowy plan był błędny; UP-06 spłacił dług.
+- **Operator-friendly dual maintenance** — UP-10 nie usuwa starego `ProductListPage`; mountuje go pod `/products/legacy`. Operator dostaje toggle na 1 sprint do porównań. Zwiększa koszt utrzymania (2 codepaths) ale chroni przed regression w gold-standard widoku. Po sprint follow-up ticket usuwa legacy.
+
+---
+
 ## 2026-05-25: 🏁 Epik UI-08 Universal Object List View — marathon closed (13/13 shipped, 10 full + 3 minimum-viable)
 
 **Milestone:** [Epik UI-08 Universal Object List View](https://github.com/malipie/PIM/milestone/16). 13 ticketów (ULV-01..ULV-12 z 04 split na 04a/04b). Każdy ticket zamknięty osobnym PR per EPIK MARATHON RULE.

@@ -1,6 +1,7 @@
 import { Pencil, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { cn } from '@/lib/utils';
 
 import { BuiltInLockBadge } from './built-in-lock-badge';
@@ -56,7 +57,8 @@ export function GroupCard({
   onDisplayModeChange,
 }: GroupCardProps) {
   const { t } = useTranslation();
-  const isLocked = Boolean(locked || group.system);
+  const isLegacyOptionalGroup = isLegacyOptionalSystemGroupCode(group.code);
+  const isLocked = Boolean(locked || (group.system && !isLegacyOptionalGroup));
 
   const labelText = resolveGroupLabel(group, language);
   const previewVisible = group.attrsPreview.slice(0, 8);

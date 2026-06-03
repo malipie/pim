@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 
 import { IconPicker } from '@/components/modeling/icon-picker';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,10 @@ export function CategoryCreatePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  // ADR-015 — which ObjectType tree this new category joins (carried from
+  // the categories list selector via ?targetObjectTypeId=).
+  const targetObjectTypeId = searchParams.get('targetObjectTypeId') ?? '';
 
   const [code, setCode] = useState('');
   const [parentId, setParentId] = useState<string>('');
@@ -64,6 +68,10 @@ export function CategoryCreatePage() {
   const { result: parents } = useList<CategoryEntry>({
     resource: 'categories',
     pagination: { mode: 'off' },
+    // ADR-015 — parents must come from the same tree as the new category.
+    filters: targetObjectTypeId
+      ? [{ field: 'categoryTargetObjectType', operator: 'eq', value: targetObjectTypeId }]
+      : [],
   });
 
   const { result: objectTypes } = useList<ObjectTypeRow>({
@@ -114,6 +122,10 @@ export function CategoryCreatePage() {
         code,
         objectTypeId: categoryObjectTypeId,
       };
+      // ADR-015 — the categorizable ObjectType tree this category joins.
+      if (targetObjectTypeId) {
+        body.categoryTargetObjectTypeId = targetObjectTypeId;
+      }
       if (parentId) {
         body.parentId = parentId;
       }
@@ -125,11 +137,18 @@ export function CategoryCreatePage() {
       });
       const newId = created.id;
       await queryClient.invalidateQueries({ queryKey: ['categories'] });
-      if (newId) {
-        navigate(`/modeling/categories?selected=${newId}`);
-      } else {
-        navigate('/modeling/categories');
+      // ADR-015 — return to the SAME tree the category was created in, else
+      // the list defaults to the first tree (Product) and the freshly created
+      // category is invisible until the operator re-picks its ObjectType.
+      const params = new URLSearchParams();
+      if (targetObjectTypeId) {
+        params.set('targetObjectTypeId', targetObjectTypeId);
+        const targetKind = (objectTypes.data ?? []).find((t) => t.id === targetObjectTypeId)?.kind;
+        if (targetKind) params.set('targetType', targetKind);
       }
+      if (newId) params.set('selected', newId);
+      const qs = params.toString();
+      navigate(qs ? `/modeling/categories?${qs}` : '/modeling/categories');
     } catch (err) {
       setError(
         err instanceof HttpError

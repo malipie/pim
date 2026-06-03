@@ -1,8 +1,9 @@
 # Feature (mini-spec) — Uniwersalny widok listy dla każdego ObjectType
 
 **Typ dokumentu:** Mini-spec implementacyjny (kontrakt) — gotowy do rozpisania na GitHub Issues przez agenta kodującego
-**Status:** Draft
+**Status:** Final realisation shipped via Epik UI-08 (ULV-01..ULV-12 MVP slice, 2026-05-25) + Epik UP (UP-00..UP-11 extraction marathon, 2026-05-25)
 **Data:** 2026-05-25
+**Realizacja:** ADR-009 spłacony przez Epik UP — `/products/{list,show,create}` wydzielone do `UniversalListPage` + `UniversalDetailPage` + `UniversalCreatePage`, mountowane na `/products` ORAZ `/objects/:slug`. ULV epik (parallel MVP `ObjectListView`) świadomie odrzucony przez operatora jako „półśrodek" — UP epik = canonical implementation. Patrz `agent/current_status.md` per-PR record.
 **Powiązane:**
 - [ADR-009](../01-architektura-pim.md) — *„ObjectType jako koncept pierwszej klasy"* (ten feature jest jego bezpośrednią konsekwencją)
 - [`PRD-PIM-list-advanced.md`](../PRD/PRD-PIM-list-advanced.md) — spec zaawansowanej listy (wyszukiwarka, filtry, saved views, Excel-like grid)

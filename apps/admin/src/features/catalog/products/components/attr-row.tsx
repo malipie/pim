@@ -1,6 +1,7 @@
-import { Copy, Link2, Lock } from 'lucide-react';
+import { Copy, CornerDownRight, Link2, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WysiwygEditor } from '@/components/catalog/wysiwyg-editor';
+import { RelationCreateField } from '@/components/objects/relation-create-field';
 import { type Provenance, ProvenanceBadge } from '@/components/provenance-badge';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,8 @@ import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-selec
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
+import { AssetField } from './asset-field';
+import { RelationInlineEditor } from './relation-inline-editor';
 import type { AttributeMeta, AttributeOptionMeta, ProductLocale } from './types';
 
 export interface AttrRowProps {
@@ -26,6 +29,40 @@ export interface AttrRowProps {
    * tooltip so we don't lose it for Faza 2 inheritance work.
    */
   onCopyToOthers?: () => void;
+  /**
+   * MODRC-05 (#1084) — when supplied and the attribute is `type='relation'`,
+   * AttrRow renders the inline relation editor (picker + grid) instead of
+   * a plain text input. The parent passes the current object id so the
+   * editor can fetch `/api/objects/{id}/relations` and reuse the same
+   * cache key as the dedicated Relations tab.
+   */
+  relationContextProductId?: string;
+  /**
+   * #1102 — opt-in: in the object create flow (`UniversalCreatePage`)
+   * there is no productId yet, so a relation attribute renders
+   * `RelationCreateField` (search + multi-select of target objects).
+   * The chosen ids land in the parent's dirty-fields dict and are
+   * sent through PUT `/api/objects/{newId}/relations/{attributeCode}`
+   * after the main POST succeeds.
+   */
+  createMode?: boolean;
+  /**
+   * #1220 — active channel code (e.g. "shopify"). When provided and
+   * the attribute has `is_scopable=true`, a sky-coloured channel chip
+   * is rendered next to the label — mirroring the locale chip for
+   * `is_localizable` attributes.
+   */
+  channel?: string | null;
+  /**
+   * #1222 — when true the value shown is inherited from a fallback
+   * locale (not an exact match for the requested locale).
+   */
+  isInherited?: boolean;
+  /**
+   * #1222 — the locale code the value was inherited from
+   * (e.g. "en" when requested "de" fell back to "en").
+   */
+  inheritedFrom?: string | null;
 }
 
 /**
@@ -44,6 +81,11 @@ export function AttrRow({
   isLocked,
   onChange,
   onCopyToOthers,
+  relationContextProductId,
+  createMode = false,
+  channel = null,
+  isInherited = false,
+  inheritedFrom = null,
 }: AttrRowProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
@@ -51,6 +93,7 @@ export function AttrRow({
   const editable = isEditing && !isLocked;
   const stringValue = typeof value === 'string' ? value : value == null ? '' : String(value);
   const localeChip = isLocaleScoped(attribute) ? locale : null;
+  const channelChip = attribute.is_scopable === true && channel ? channel : null;
   const isSelectLike = attribute.type === 'select' || attribute.type === 'multiselect';
   const selectOptions = isSelectLike ? (attribute.options ?? []) : [];
 
@@ -84,7 +127,40 @@ export function AttrRow({
             {localeChip}
           </span>
         ) : null}
-        {isLocked ? <Lock className="size-3 text-zinc-300" aria-hidden /> : null}
+        {channelChip ? (
+          <span
+            title={t('products.detail.field.channel_aria', {
+              channel: channelChip.toUpperCase(),
+              defaultValue: 'Kanał {{channel}}',
+            })}
+            className="rounded bg-sky-100 px-1 py-0.5 font-mono text-[9px] uppercase text-sky-600"
+          >
+            {channelChip}
+          </span>
+        ) : null}
+        {isInherited && inheritedFrom ? (
+          <span
+            title={t('products.detail.field.inherited_from', {
+              locale: inheritedFrom.toUpperCase(),
+              defaultValue: 'Wartość z [{{locale}}]',
+            })}
+            className="inline-flex items-center text-amber-400"
+          >
+            <CornerDownRight
+              className="size-3"
+              aria-hidden
+              aria-label={t('products.detail.field.inherited_from', {
+                locale: inheritedFrom.toUpperCase(),
+                defaultValue: 'Wartość z [{{locale}}]',
+              })}
+            />
+          </span>
+        ) : null}
+        {/* #1207 — system attributes (created_at/by, updated_at/by) stay
+            read-only but are treated as normal fields: no lock chrome. */}
+        {isLocked && !attribute.is_system ? (
+          <Lock className="size-3 text-zinc-300" aria-hidden />
+        ) : null}
         {attribute.is_required_in_group ? (
           <span
             className="text-rose-500"
@@ -97,7 +173,36 @@ export function AttrRow({
       </div>
 
       <div className="min-w-0">
-        {editable ? (
+        {/* Issue #1094 — relation attrs render their full inline editor
+            regardless of the page-level Edytuj toggle. RelationInlineEditor
+            is self-contained: own query (`['objects', productId, 'relations']`),
+            modal-driven picker, mutations against /api/objects/{id}/relations.
+            It does not participate in the dirty-fields flow, so it should
+            never live behind `editable`. Pre-#1093 the synthetic Relations
+            tab rendered RelationsTab standalone, also bypassing the page
+            toggle; this preserves that UX for the inline path. */}
+        {attribute.type === 'asset' ? (
+          // #1138 — asset attrs render a library picker + thumbnail
+          // instead of a plain text input. AssetField is self-contained
+          // (own preview query, modal picker) and handles both the edit
+          // and read-only states via `isEditing`.
+          <AssetField
+            value={value}
+            isEditing={editable}
+            onChange={(next) => onChange(next)}
+            ariaLabel={label}
+          />
+        ) : attribute.type === 'relation' &&
+          typeof relationContextProductId === 'string' &&
+          relationContextProductId.length > 0 ? (
+          <RelationInlineEditor
+            productId={relationContextProductId}
+            attributeId={attribute.id}
+            attributeCode={attribute.code}
+          />
+        ) : attribute.type === 'relation' && createMode && editable ? (
+          <RelationCreateField attribute={attribute} value={value} onChange={onChange} />
+        ) : editable ? (
           attribute.type === 'wysiwyg' ? (
             <WysiwygEditor
               value={stringValue}
@@ -147,6 +252,49 @@ export function AttrRow({
               onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
               className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 text-[13.5px]"
             />
+          ) : attribute.type === 'color' ? (
+            // #1177 — native colour picker paired with a hex text field so
+            // operators can paste an exact `#RRGGBB` or pick visually. The
+            // picker falls back to black when the stored value is not a
+            // valid hex (e.g. empty / legacy rgb), but the text field keeps
+            // showing the raw value for editing.
+            <div className="flex items-center gap-2">
+              <input
+                id={`attr-${attribute.code}`}
+                type="color"
+                value={isHexColor(stringValue) ? stringValue : '#000000'}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-9 w-12 cursor-pointer rounded-lg border border-zinc-200 bg-white p-1"
+                aria-label={label}
+              />
+              <Input
+                type="text"
+                value={stringValue}
+                onChange={(event) => onChange(event.target.value)}
+                placeholder="#RRGGBB"
+                className="w-32 rounded-xl border-zinc-200 bg-white px-3 py-2 font-mono text-[13px]"
+              />
+            </div>
+          ) : attribute.type === 'email' ? (
+            <Input
+              id={`attr-${attribute.code}`}
+              type="email"
+              value={stringValue}
+              onChange={(event) => onChange(event.target.value)}
+              placeholder="name@example.com"
+              className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 text-[13.5px]"
+            />
+          ) : attribute.type === 'identifier' ? (
+            // #1179 — EAN/GTIN/ISBN/SKU. Monospace so codes are easy to scan;
+            // uniqueness per ObjectType is enforced server-side (409 on save).
+            <Input
+              id={`attr-${attribute.code}`}
+              type="text"
+              inputMode="text"
+              value={stringValue}
+              onChange={(event) => onChange(event.target.value)}
+              className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 font-mono text-[13px]"
+            />
           ) : attribute.type === 'select' ? (
             <Combobox
               options={toComboboxOptions(selectOptions, lang)}
@@ -178,6 +326,21 @@ export function AttrRow({
           )
         ) : attribute.type === 'wysiwyg' ? (
           <WysiwygEditor value={stringValue} onChange={() => undefined} readOnly />
+        ) : attribute.type === 'color' && isHexColor(stringValue) ? (
+          <div className="flex items-center gap-2 px-3 py-2 text-[13.5px]">
+            <span
+              className="size-4 rounded border border-zinc-200"
+              style={{ background: stringValue }}
+              aria-hidden
+            />
+            <span className="font-mono text-[13px] text-ink">{stringValue}</span>
+          </div>
+        ) : attribute.type === 'email' && stringValue !== '' ? (
+          <div className="px-3 py-2 text-[13.5px]">
+            <a href={`mailto:${stringValue}`} className="text-accent-blue hover:underline">
+              {stringValue}
+            </a>
+          </div>
         ) : (
           <div
             className={cn(
@@ -242,12 +405,10 @@ function relationTooltip(
 }
 
 function isLocaleScoped(attribute: AttributeMeta): boolean {
-  // Heuristic until backend exposes `is_localized` on AttributeMeta:
-  // PL/EN suffixed codes (`name_pl`, `description_en`) and richtext/text
-  // attributes flagged as system are treated as content surfaces that
-  // benefit from a locale chip in the row label.
-  if (/_pl$|_en$|_de$|_cs$/i.test(attribute.code)) return true;
-  return attribute.type === 'richtext' || attribute.type === 'textarea';
+  // #1150 — the backend now ships the real `is_localizable` flag (#1151),
+  // so the locale chip reflects whether the value is actually per-locale
+  // instead of guessing from the code suffix / type.
+  return attribute.is_localizable === true;
 }
 
 function optionLabel(option: AttributeOptionMeta, lang: 'pl' | 'en'): string {
@@ -298,6 +459,14 @@ function readDatetimeValue(value: unknown): string {
   if (typeof value !== 'string') return '';
   const head = value.slice(0, 16);
   return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(head) ? head : '';
+}
+
+/**
+ * `<input type="color">` only accepts a `#rrggbb` value. #1177 — used to
+ * decide whether the stored colour can drive the native picker / swatch.
+ */
+function isHexColor(value: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(value);
 }
 
 /**

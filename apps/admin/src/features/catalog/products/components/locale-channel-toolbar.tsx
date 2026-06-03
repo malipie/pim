@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import {
+  type ChannelOption,
+  type LocaleOption,
   PRODUCT_CHANNELS,
   PRODUCT_LOCALES,
   type ProductChannel,
@@ -23,9 +25,19 @@ export interface LocaleChannelToolbarProps {
   channel: ProductChannel | null;
   onLocaleChange: (next: ProductLocale) => void;
   onChannelChange: (next: ProductChannel | null) => void;
+  /**
+   * #1149 — the tenant's enabled locales (from `effective-attribute-groups`).
+   * Falls back to the static PRODUCT_LOCALES on first paint / when absent.
+   */
+  locales?: LocaleOption[];
+  /**
+   * #1155 — the tenant's channels (from `/api/channels`). Falls back to the
+   * static PRODUCT_CHANNELS on first paint / when absent.
+   */
+  channels?: ChannelOption[];
 }
 
-const CHANNEL_LABELS: Record<ProductChannel, string> = {
+const CHANNEL_LABELS: Record<string, string> = {
   shopify: 'Shopify',
   baselinker: 'BaseLinker',
   allegro: 'Allegro',
@@ -42,8 +54,22 @@ export function LocaleChannelToolbar({
   channel,
   onLocaleChange,
   onChannelChange,
+  locales,
+  channels,
 }: LocaleChannelToolbarProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language === 'pl' ? 'pl' : 'en';
+  const localeCodes: readonly string[] =
+    locales !== undefined && locales.length > 0 ? locales.map((l) => l.code) : PRODUCT_LOCALES;
+
+  // #1155 — channel options from the tenant's real channels, falling back
+  // to the static list before /api/channels resolves.
+  const channelList: { code: string; label: string }[] =
+    channels !== undefined && channels.length > 0
+      ? channels.map((c) => ({ code: c.code, label: c.label?.[lang] ?? c.label?.en ?? c.code }))
+      : PRODUCT_CHANNELS.map((c) => ({ code: c, label: CHANNEL_LABELS[c] ?? c }));
+  const channelLabel = (code: string): string =>
+    channelList.find((c) => c.code === code)?.label ?? CHANNEL_LABELS[code] ?? code;
 
   return (
     <div className="flex items-center gap-2">
@@ -64,7 +90,7 @@ export function LocaleChannelToolbar({
             {t('products.detail.locale.label', { defaultValue: 'Język' })}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {PRODUCT_LOCALES.map((option) => (
+          {localeCodes.map((option) => (
             <DropdownMenuItem
               key={option}
               onClick={() => onLocaleChange(option)}
@@ -91,7 +117,7 @@ export function LocaleChannelToolbar({
           >
             {channel === null
               ? t('products.detail.channel.none', { defaultValue: 'Wszystkie kanały' })
-              : CHANNEL_LABELS[channel]}
+              : channelLabel(channel)}
             <ChevronDown className="size-3" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
@@ -108,13 +134,13 @@ export function LocaleChannelToolbar({
               {t('products.detail.channel.none', { defaultValue: 'Wszystkie kanały' })}
             </span>
           </DropdownMenuItem>
-          {PRODUCT_CHANNELS.map((option) => (
+          {channelList.map((option) => (
             <DropdownMenuItem
-              key={option}
-              onClick={() => onChannelChange(option)}
-              className={option === channel ? 'bg-secondary' : ''}
+              key={option.code}
+              onClick={() => onChannelChange(option.code)}
+              className={option.code === channel ? 'bg-secondary' : ''}
             >
-              <span className="text-xs font-medium">{CHANNEL_LABELS[option]}</span>
+              <span className="text-xs font-medium">{option.label}</span>
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>

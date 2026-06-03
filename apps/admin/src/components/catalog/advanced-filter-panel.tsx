@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
  * (BE base64 blob) that has to be maintained.
  */
 
-type PanelAttr = {
+export type PanelAttr = {
   code: string;
   name: string;
   type: keyof typeof FILTER_OPERATORS_BY_TYPE;
@@ -37,6 +37,13 @@ const FIRST_PANEL_ATTR: PanelAttr = {
   star: true,
 };
 
+/**
+ * Default product-flavoured attribute catalog for the panel. Kept as
+ * the fallback so the legacy /products list keeps its rich type
+ * inference (brand=relation, price=metric, …) without a downstream
+ * schema fetch on every render. UP-06 universal list passes a
+ * schema-derived `panelAttrs` prop instead.
+ */
 const PANEL_ATTRS: ReadonlyArray<PanelAttr> = [
   FIRST_PANEL_ATTR,
   { code: 'category', name: 'Kategoria', type: 'relation', star: true },
@@ -63,6 +70,15 @@ interface AdvancedFilterPanelProps {
   onSaveAsView?: () => void;
   onSaveAsPreset?: () => void;
   resultCount?: number;
+  /**
+   * UP-09 (#1027) — per-ObjectType attribute catalog. When supplied,
+   * replaces the hardcoded product-flavoured PANEL_ATTRS so custom
+   * kinds (`samochody`, `vacancies`) see their own attributes in the
+   * picker. Operators on /products keep the legacy list (`undefined`
+   * prop) so brand/price/category retain their richer type inference
+   * without a schema round-trip on every render.
+   */
+  panelAttrs?: ReadonlyArray<PanelAttr>;
 }
 
 export function AdvancedFilterPanel({
@@ -77,7 +93,11 @@ export function AdvancedFilterPanel({
   onSaveAsView,
   onSaveAsPreset,
   resultCount,
+  panelAttrs,
 }: AdvancedFilterPanelProps) {
+  const effectivePanelAttrs: ReadonlyArray<PanelAttr> =
+    panelAttrs && panelAttrs.length > 0 ? panelAttrs : PANEL_ATTRS;
+  const firstPanelAttr = effectivePanelAttrs[0] ?? FIRST_PANEL_ATTR;
   const { t } = useTranslation();
   // VIEW-22a (#553) — draft state. Panel edits go into draftConditions and
   // are committed to the parent (and thereby to the search) ONLY when the
@@ -106,9 +126,7 @@ export function AdvancedFilterPanel({
     setDraftConditions(draftConditions.filter((_, i) => i !== idx));
   };
   const addCondition = (): void => {
-    const defaultAttr = PANEL_ATTRS[0];
-    if (!defaultAttr) return;
-    setDraftConditions([...draftConditions, { attr: defaultAttr.code, op: '=', value: '' }]);
+    setDraftConditions([...draftConditions, { attr: firstPanelAttr.code, op: '=', value: '' }]);
   };
 
   const commitAndApply = (): void => {
@@ -117,7 +135,7 @@ export function AdvancedFilterPanel({
     // resetting mid-keystroke. Normalize to a number at apply time so
     // the DSL serializer + Meili filter expression see the right type.
     const normalised = draftConditions.map((cond) => {
-      const meta = PANEL_ATTRS.find((a) => a.code === cond.attr);
+      const meta = effectivePanelAttrs.find((a) => a.code === cond.attr);
       const isNumeric = meta?.type === 'number' || meta?.type === 'metric';
       if (!isNumeric || typeof cond.value !== 'string') return cond;
       const trimmed = cond.value.replace(',', '.');
@@ -168,7 +186,8 @@ export function AdvancedFilterPanel({
       <div className="p-5">
         <div className="space-y-2">
           {draftConditions.map((cond, idx) => {
-            const attrMeta = PANEL_ATTRS.find((a) => a.code === cond.attr) ?? FIRST_PANEL_ATTR;
+            const attrMeta =
+              effectivePanelAttrs.find((a) => a.code === cond.attr) ?? firstPanelAttr;
             const ops = FILTER_OPERATORS_BY_TYPE[attrMeta.type] ?? CORE_OPERATORS;
             const isEmpty = cond.op === 'IS EMPTY' || cond.op === 'IS NOT EMPTY';
 
@@ -199,11 +218,11 @@ export function AdvancedFilterPanel({
                   value={cond.attr}
                   onChange={(picked) => {
                     if (picked === null) return;
-                    const nextAttrMeta = PANEL_ATTRS.find((a) => a.code === picked.code);
+                    const nextAttrMeta = effectivePanelAttrs.find((a) => a.code === picked.code);
                     const inferredType =
                       nextAttrMeta?.type ??
                       (picked.type as undefined | keyof typeof FILTER_OPERATORS_BY_TYPE) ??
-                      FIRST_PANEL_ATTR.type;
+                      firstPanelAttr.type;
                     const nextOps = FILTER_OPERATORS_BY_TYPE[inferredType] ?? CORE_OPERATORS;
                     updateCondition(idx, {
                       attr: picked.code,

@@ -106,6 +106,56 @@ final class SmartFilterPresetsApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function resourceScopedPresetAppearsOnlyForItsResource(): void
+    {
+        $client = $this->authenticatedClient();
+
+        // #1145 regression: the FE must send `resource` on create. Without
+        // it the backend defaults to 'products', so a preset created from a
+        // custom-object list (e.g. `samochody`) was filtered out of that
+        // list's `?resource=samochody` fetch and never appeared.
+        $client->request('POST', '/api/smart-filter-presets', [
+            'json' => [
+                'name' => ['pl' => 'Samochody nowe', 'en' => 'New cars'],
+                'icon' => '🚗',
+                'query' => ['attr' => 'status', 'op' => '=', 'value' => 'new'],
+                'resource' => 'samochody',
+            ],
+        ]);
+        self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
+
+        // Visible when listing that resource (next to cross-kind NULL presets).
+        $forSamochody = $client->request('GET', '/api/smart-filter-presets?resource=samochody')->toArray();
+        self::assertContains('samochody-nowe', $this->slugsOf($forSamochody));
+
+        // Hidden when listing a different resource.
+        $forProducts = $client->request('GET', '/api/smart-filter-presets?resource=products')->toArray();
+        self::assertNotContains('samochody-nowe', $this->slugsOf($forProducts));
+    }
+
+    /**
+     * @param array<array-key, mixed> $body
+     *
+     * @return list<string>
+     */
+    private function slugsOf(array $body): array
+    {
+        $data = $body['data'] ?? [];
+        \assert(\is_array($data));
+
+        $slugs = [];
+        foreach ($data as $row) {
+            \assert(\is_array($row));
+            $slug = $row['slug'] ?? null;
+            if (\is_string($slug)) {
+                $slugs[] = $slug;
+            }
+        }
+
+        return $slugs;
+    }
+
+    #[Test]
     public function createRejectsMalformedName(): void
     {
         $client = $this->authenticatedClient();

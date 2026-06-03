@@ -8,13 +8,18 @@
             table="objects"
             repository-class="App\Catalog\Infrastructure\Doctrine\Repository\DoctrineCatalogObjectRepository">
 
-        <unique-constraints>
-            <unique-constraint name="objects_tenant_kind_code_uniq" columns="tenant_id,kind,code"/>
-        </unique-constraints>
-
+        <!--
+            ADR-015: per-tenant `code` uniqueness is enforced by two PARTIAL
+            unique indexes (kind <> 'category', and kind = 'category' scoped by
+            category_target_object_type_id) defined in migration
+            Version20260530120000. Partial indexes can't be expressed in ORM
+            XML, so — like the ltree GIST/BTree indexes — they live in the
+            migration only.
+        -->
         <indexes>
             <index name="objects_tenant_type_idx" columns="tenant_id,object_type_id"/>
             <index name="objects_tenant_kind_idx" columns="tenant_id,kind"/>
+            <index name="objects_category_target_ot_idx" columns="category_target_object_type_id"/>
             <!--
                 HARD-01: composite index for tree-mode product list (PR #514)
                 and category-children listing. Lets the planner satisfy
@@ -43,6 +48,11 @@
 
         <many-to-one field="parent" target-entity="App\Catalog\Domain\Entity\CatalogObject">
             <join-column name="parent_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <!-- ADR-015 — the ObjectType tree this category belongs to (NULL for non-category rows). -->
+        <many-to-one field="categoryTargetObjectType" target-entity="App\Catalog\Domain\Entity\ObjectType">
+            <join-column name="category_target_object_type_id" referenced-column-name="id" nullable="true" on-delete="RESTRICT"/>
         </many-to-one>
 
         <field name="enabled" type="boolean">
@@ -98,6 +108,11 @@
 
         <field name="createdAt" type="datetime_immutable" column="created_at"/>
         <field name="updatedAt" type="datetime_immutable" column="updated_at"/>
+
+        <!-- #1207 — blameable actor snapshot (e-mail), nullable for writes
+             with no security context (CLI seeders, import). -->
+        <field name="createdBy" type="string" length="255" column="created_by" nullable="true"/>
+        <field name="updatedBy" type="string" length="255" column="updated_by" nullable="true"/>
 
         <!-- MODR-10 (#932) — optimistic locking. Doctrine increments on every UPDATE. -->
         <field name="version" type="integer" column="version" version="true">

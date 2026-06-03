@@ -12,8 +12,12 @@ use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
+use App\Channel\Contracts\ChannelResolverInterface;
+use App\Channel\Contracts\LocaleFallbackResolverInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Shared\Domain\Tenant;
 use App\Shared\Infrastructure\Audit\CursorCodec;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
@@ -69,6 +73,9 @@ final class ProductReadEndpointsController
         private readonly Connection $connection,
         private readonly ObjectTypeAttributeRepositoryInterface $objectTypeAttributes,
         private readonly AttributeOptionRepositoryInterface $attributeOptions,
+        private readonly ObjectValueRepositoryInterface $objectValues,
+        private readonly LocaleFallbackResolverInterface $localeFallback,
+        private readonly ChannelResolverInterface $channels,
     ) {
     }
 
@@ -177,11 +184,23 @@ final class ProductReadEndpointsController
         methods: ['GET'],
         priority: 200,
     )]
+    // UP-07 (#1023) — poly-kind mirror so /objects/:slug/:id detail view
+    // can resolve effective groups (overlay-by-category) for any
+    // ObjectType, not just kind=product. mustFindObject relaxes the kind
+    // gate; the resolver itself is kind-agnostic (operates on
+    // CatalogObject + ObjectType).
+    #[Route(
+        '/api/objects/{id}/effective-attribute-groups',
+        name: 'pim_objects_effective_attribute_groups',
+        requirements: ['id' => self::UUID_REGEX],
+        methods: ['GET'],
+        priority: 200,
+    )]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     #[RequiresPermission(module: 'products', action: 'view')]
     public function effectiveAttributeGroups(string $id): JsonResponse
     {
-        $product = $this->mustFindProduct($id);
+        $product = $this->mustFindObject($id);
 
         $groups = $this->resolver->resolve($product);
         $byGroup = $this->resolver->loadGroupAttributes($groups);
@@ -244,9 +263,9 @@ final class ProductReadEndpointsController
 
         // VIEW-07.1 (#421+) — surface ObjectType-attached attributes
         // that are not declared in any AttributeGroup. Without this the
-        // detail page renders only the audit group whenever an
-        // ObjectType uses "loose" attributes (the default Klimas seed
-        // pattern). The synthetic group is appended last so curated
+        // detail page would hide loose ObjectType attributes whenever the
+        // ObjectType has no explicit AttributeGroup memberships. The
+        // synthetic group is appended last so curated
         // grouping always wins the sort order; an all-zero UUID acts as
         // a sentinel for the frontend to recognise + hide it from the
         // "Effective model" sidebar listing.
@@ -290,7 +309,146 @@ final class ProductReadEndpointsController
         return new JsonResponse([
             'product_id' => $product->getId()->toRfc4122(),
             'groups' => $effective,
+            // #1149 — the locale picker is fed from here (a `products.view`
+            // endpoint the detail page already calls) rather than the
+            // permission-gated /api/tenant-locales, so an operator without
+            // settings access still gets the tenant's real locales.
+            'locales' => $this->serializeTenantLocales($product),
         ]);
+    }
+
+    /**
+     * @return list<array{code: string, is_default: bool}>
+     */
+    private function serializeTenantLocales(CatalogObject $product): array
+    {
+        $tenant = $product->getTenant();
+        if (!$tenant instanceof Tenant) {
+            return [];
+        }
+        $primary = $tenant->getPrimaryLocale();
+
+        $locales = [];
+        foreach ($tenant->getEnabledLocales() as $code) {
+            $locales[] = ['code' => $code, 'is_default' => $code === $primary];
+        }
+        // Primary first so the picker defaults to it deterministically.
+        usort($locales, static fn (array $a, array $b): int => ($b['is_default'] ? 1 : 0) <=> ($a['is_default'] ? 1 : 0));
+
+        return $locales;
+    }
+
+    /**
+     * #1222 — returns per-attribute scope status for a requested locale/channel.
+     *
+     * Response shape:
+     *   { "attribute_code": { "has_override": bool, "inherited_from": string|null } }
+     *
+     * - `has_override=true`  → an ObjectValue row exists for the exact requested locale/channel.
+     * - `has_override=false, inherited_from="en"` → value shown comes from a fallback locale.
+     * - `has_override=false, inherited_from=null`  → global value is used (primary locale or no locale scope).
+     */
+    #[Route(
+        '/api/products/{id}/scope-status',
+        name: 'pim_products_scope_status',
+        requirements: ['id' => self::UUID_REGEX],
+        methods: ['GET'],
+        priority: 200,
+    )]
+    #[Route(
+        '/api/objects/{id}/scope-status',
+        name: 'pim_objects_scope_status',
+        requirements: ['id' => self::UUID_REGEX],
+        methods: ['GET'],
+        priority: 200,
+    )]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'products', action: 'view')]
+    public function scopeStatus(string $id, Request $request): JsonResponse
+    {
+        $object = $this->mustFindObject($id);
+        $tenant = $object->getTenant();
+        if (!$tenant instanceof Tenant) {
+            return new JsonResponse([]);
+        }
+
+        $requestedLocale = $request->query->get('locale');
+        $requestedChannel = $request->query->get('channel');
+
+        // Primary locale is stored as global (null) — treat as no locale scope.
+        $effectiveLocale = null !== $requestedLocale
+            && $requestedLocale !== $tenant->getPrimaryLocale()
+            ? $requestedLocale
+            : null;
+
+        $channelId = null;
+        if (null !== $requestedChannel) {
+            $channelId = $this->channels->resolveId($requestedChannel, $tenant);
+        }
+
+        // Build locale fallback chain for inheritance detection.
+        $localeChain = null !== $effectiveLocale
+            ? $this->localeFallback->resolve($effectiveLocale, $tenant)
+            : [];
+
+        // Index: locale code → chain position (0 = most specific).
+        $localeRankMap = [];
+        foreach ($localeChain as $pos => $code) {
+            $localeRankMap[$code] = $pos;
+        }
+
+        // Load all ObjectValue rows for this object.
+        $allValues = $this->objectValues->findByObject($object);
+
+        // Per attribute: find the best row and determine if it is exact or inherited.
+        $maxChainLen = \count($localeChain);
+        /** @var array<string, array{rank: int, locale: ?string}> $best */
+        $best = [];
+        foreach ($allValues as $value) {
+            $valueLocale = $value->getLocale();
+            $valueChannel = $value->getChannelId();
+
+            if (null !== $valueLocale) {
+                if (!isset($localeRankMap[$valueLocale])) {
+                    continue;
+                }
+                $localeRankContrib = ($maxChainLen - $localeRankMap[$valueLocale]) * 2;
+            } else {
+                $localeRankContrib = 0;
+            }
+
+            if (null !== $valueChannel) {
+                if (null === $channelId || !$valueChannel->equals($channelId)) {
+                    continue;
+                }
+                $channelRankContrib = 1;
+            } else {
+                $channelRankContrib = 0;
+            }
+
+            $rank = $localeRankContrib + $channelRankContrib;
+            if (0 === $rank) {
+                continue; // global row — not a scoped override
+            }
+
+            $code = $value->getAttribute()->getCode();
+            if (!isset($best[$code]) || $rank > $best[$code]['rank']) {
+                $best[$code] = ['rank' => $rank, 'locale' => $valueLocale];
+            }
+        }
+
+        // Build response: for each attribute with a scoped value, report
+        // whether it is an exact match or inherited from a fallback locale.
+        $result = [];
+        foreach ($best as $attrCode => $entry) {
+            $isExact = $entry['locale'] === $effectiveLocale;
+            $result[$attrCode] = [
+                'has_override' => $isExact,
+                'inherited_from' => $isExact ? null : $entry['locale'],
+            ];
+        }
+
+        return new JsonResponse($result);
     }
 
     private function mustFindProduct(string $id): CatalogObject
@@ -301,6 +459,22 @@ final class ProductReadEndpointsController
         }
 
         return $product;
+    }
+
+    /**
+     * UP-07 (#1023) — poly-kind lookup for the universal
+     * `/api/objects/{id}/effective-attribute-groups` route. No kind
+     * gate; tenant + voter scoping happens upstream via
+     * `CatalogObjectRepository`.
+     */
+    private function mustFindObject(string $id): CatalogObject
+    {
+        $object = $this->objects->findById(Uuid::fromString($id));
+        if (!$object instanceof CatalogObject) {
+            throw new NotFoundHttpException(\sprintf('Object %s not found.', $id));
+        }
+
+        return $object;
     }
 
     /**
@@ -342,6 +516,12 @@ final class ProductReadEndpointsController
             'type' => $attribute->getType()->value,
             'label' => $attribute->getLabel(),
             'is_system' => $attribute->isSystem(),
+            // #1151 — drives the per-locale value flow on the detail page:
+            // the AttrRow chip + per-locale read/write switch on this flag
+            // instead of the old code-suffix heuristic. is_scopable pairs
+            // it for the channels epic (#1147).
+            'is_localizable' => $attribute->isLocalizable(),
+            'is_scopable' => $attribute->isScopable(),
             'position' => $position,
             'is_required_in_group' => $isRequiredInGroup,
             'visible_when' => $visibleWhen,

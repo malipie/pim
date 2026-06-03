@@ -30,7 +30,6 @@ const SECONDARY_LABEL: Record<string, string> = {
   product: 'Products',
   category: 'Categories',
   asset: 'Assets',
-  brand: 'Brands',
 };
 
 /**
@@ -55,7 +54,11 @@ export function ObjectTypesListPage() {
   const instanceCounts = useObjectTypeInstanceCounts(types);
   const groupCounts = useObjectTypeGroupCounts(types);
 
-  const builtIn = types.filter((row) => row.builtIn !== false);
+  // UX-05 — Category and Asset are system-managed; the operator never
+  // models them through this page. Surface only Product among built-ins
+  // (plus any future built-in kinds explicitly enabled in modeling).
+  const HIDDEN_KINDS = new Set(['category', 'asset']);
+  const builtIn = types.filter((row) => row.builtIn !== false && !HIDDEN_KINDS.has(row.kind));
   const custom = types.filter((row) => row.builtIn === false);
 
   const totalInstances = (rows: ObjectTypeRow[]): number =>
