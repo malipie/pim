@@ -9,6 +9,7 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
 
@@ -31,6 +32,35 @@ class DoctrineObjectValueRepository extends ServiceEntityRepository implements O
         $rows = $this->findBy(['object' => $object]);
 
         return $rows;
+    }
+
+    /**
+     * @param list<Uuid> $objectIds
+     *
+     * @return array<string, list<ObjectValue>> keyed by object UUID (RFC 4122)
+     */
+    public function findByObjectIds(array $objectIds): array
+    {
+        if ([] === $objectIds) {
+            return [];
+        }
+
+        $rfcIds = array_map(static fn (Uuid $id): string => $id->toRfc4122(), $objectIds);
+
+        /** @var list<ObjectValue> $rows */
+        $rows = $this->createQueryBuilder('v')
+            ->join('v.object', 'o', Join::WITH, 'o.id IN (:ids)')
+            ->setParameter('ids', $rfcIds)
+            ->getQuery()
+            ->getResult();
+
+        $byObject = [];
+        foreach ($rows as $row) {
+            $key = $row->getObject()->getId()->toRfc4122();
+            $byObject[$key][] = $row;
+        }
+
+        return $byObject;
     }
 
     public function findOneByScope(
