@@ -108,6 +108,7 @@
                        uriTemplate="/products{._format}"
                        name="products_get_collection"
                        paginationType="cursor"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectCollectionLocaleOverlayProvider"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
                 <extraProperties>
                     <values>
@@ -192,6 +193,7 @@
                        uriTemplate="/categories{._format}"
                        name="categories_get_collection"
                        paginationType="cursor"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectCollectionLocaleOverlayProvider"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
                 <extraProperties>
                     <values>
@@ -276,6 +278,7 @@
                        uriTemplate="/assets{._format}"
                        name="assets_get_collection"
                        paginationType="cursor"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectCollectionLocaleOverlayProvider"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
                 <extraProperties>
                     <values>
@@ -317,6 +320,7 @@
                        uriTemplate="/objects{._format}"
                        name="objects_get_collection"
                        paginationType="cursor"
+                       provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectCollectionLocaleOverlayProvider"
                        security="is_granted('READ', 'App\\Catalog\\Domain\\Entity\\CatalogObject')">
                 <paginationViaCursor>
                     <paginationField field="id" direction="DESC"/>

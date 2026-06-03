@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { jsonFetch } from '@/lib/http';
@@ -34,6 +33,7 @@ const TYPE_FILTERS = [
   'system',
   'text',
   'textarea',
+  'identifier',
   'number',
   'boolean',
   'select',
@@ -234,7 +234,6 @@ function AttributeRowItem({
       <span className="min-w-0">
         <span className="flex items-center gap-2">
           <span className="truncate font-mono text-[13.5px] font-medium">{row.code}</span>
-          {row.system ? <BuiltInLockBadge /> : null}
           {row.unique ? (
             <span className="rounded bg-amber-50 px-1 py-0.5 font-mono text-[10px] text-amber-700">
               unique
@@ -304,7 +303,9 @@ function TypeBadge({ type }: { type: string }) {
               ? 'bg-accent-violet/10 text-accent-violet'
               : type === 'reference' || type === 'relation'
                 ? 'bg-accent-rose/10 text-accent-rose'
-                : 'bg-muted text-muted-foreground';
+                : type === 'identifier'
+                  ? 'bg-accent-zinc/10 text-accent-zinc'
+                  : 'bg-muted text-muted-foreground';
   return (
     <span className={cn('rounded-md px-2 py-0.5 text-[11px] font-medium uppercase', tone)}>
       {type}
