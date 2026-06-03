@@ -200,6 +200,17 @@ final readonly class ObjectTypeService
             $objectType->setCategorizable($isCategorizable);
         }
         if (null !== $hasMultimedia) {
+            // UP-07b (#1022): built-in Product is locked TRUE (legacy
+            // multimedia tab behaviour). Other kinds (built-in + custom)
+            // are free to flip. Toggle gates the Multimedia tab on
+            // UniversalDetailPage (UP-07).
+            if (
+                $isBuiltIn
+                && ObjectKind::Product === $objectType->getKind()
+                && $objectType->hasMultimedia() !== $hasMultimedia
+            ) {
+                throw BuiltInObjectTypeException::fieldLocked($objectType, 'hasMultimedia');
+            }
             // UX-03: Asset is itself a multimedia object; promoting an Asset
             // ObjectType to host a Multimedia tab creates a recursive UI
             // (the multimedia tab would list assets pointing at assets).
