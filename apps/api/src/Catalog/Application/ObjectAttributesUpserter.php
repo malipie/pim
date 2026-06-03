@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application;
 
+use App\Catalog\Application\Validation\AttributeValueValidator;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -14,6 +15,7 @@ use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Catalog\Domain\Validator\IdentifierUniquenessValidator;
 use App\Shared\Domain\Tenant;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -38,10 +40,30 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class ObjectAttributesUpserter
 {
+    /**
+     * #1216 — types whose value validator reads the canonical `{value: scalar}`
+     * shape and carries a real format rule, so it is safe + meaningful to
+     * enforce on every write path. Structural types (select/multiselect/asset/
+     * relation/price/metric) are intentionally excluded: their validators read
+     * different keys (option_code/asset_id/object_id/…) than the `{value}`
+     * shape the admin actually stores, so running them here would false-reject
+     * valid data. Lenient scalar types (text/number/date/boolean/wysiwyg) are
+     * left out to avoid surfacing pre-existing data on edit; they can be added
+     * once backfilled.
+     *
+     * @var list<AttributeType>
+     */
+    private const array VALUE_VALIDATED_TYPES = [
+        AttributeType::Email,
+        AttributeType::Color,
+        AttributeType::Identifier,
+    ];
+
     public function __construct(
         private AttributeRepositoryInterface $attributes,
         private ObjectValueRepositoryInterface $values,
         private IdentifierUniquenessValidator $identifierUniqueness,
+        private AttributeValueValidator $valueValidator,
     ) {
     }
 
@@ -90,6 +112,22 @@ final readonly class ObjectAttributesUpserter
             $targetChannel = null !== $channelId && $attribute->isScopable() ? $channelId : null;
 
             $jsonbValue = $this->wrapValue($rawValue);
+
+            // #1216 — enforce per-type value validation (email format, color
+            // hex/rgb, identifier shape) on every write path. Empty values are
+            // skipped — clearing an attribute is always allowed.
+            $scalar = $jsonbValue['value'] ?? null;
+            if (\in_array($attribute->getType(), self::VALUE_VALIDATED_TYPES, true)
+                && null !== $scalar && '' !== $scalar) {
+                $errors = $this->valueValidator->validate($attribute, $jsonbValue);
+                if ([] !== $errors) {
+                    throw new UnprocessableEntityHttpException(\sprintf(
+                        'Attribute "%s": %s',
+                        $code,
+                        $errors[0]->message,
+                    ));
+                }
+            }
 
             // #1179 — identifier values are unique per ObjectType. Pre-check
             // here for a clean 409 (the DB partial unique index is the
