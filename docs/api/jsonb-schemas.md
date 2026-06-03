@@ -97,6 +97,7 @@ Schema unionowa — pole `validation_rules` jest interpretowane przez validator 
     "min_length":   { "type": "integer", "minimum": 0, "description": "text, wysiwyg" },
     "pattern":      { "type": "string", "description": "text, email — regex JS-compatible (email: extra domain allow-list on top of RFC 5322 check)" },
     "color_format": { "enum": ["hex", "rgb"], "description": "color (#1177) — `hex` (#RRGGBB, default) or `rgb` (rgb(r, g, b))" },
+    "format":       { "enum": ["ean13", "gtin14", "isbn13", "isbn10"], "description": "identifier (#1179) — digit count + check digit (GTIN mod-10 / ISBN-10 mod-11)" },
     "min":          { "type": ["number", "string"], "description": "number, metric, price (number); date, datetime (ISO 8601 string — floor)" },
     "max":          { "type": ["number", "string"], "description": "number, metric, price (number); date, datetime (ISO 8601 string — ceil)" },
     "min_amount":   { "type": "number", "description": "price — wymóg na amount" },
@@ -125,6 +126,7 @@ Schema unionowa — pole `validation_rules` jest interpretowane przez validator 
 
 - **Pusta mapa `{}` = brak walidacji** poza built-in `Attribute::type` constraints.
 - **Klucze nieznane danego typu** są ignorowane przez validator (nie błąd). To pozwala dorzucić nowy klucz dla nowego typu bez breaking migration.
+- **`identifier` (#1179) — unikalność per ObjectType na poziomie DB.** Wartość trzymana w `object_values.value->>'value'` jest mirrorowana przez trigger `object_values_sync_identifier_trg` do kolumn `identifier_value` + `identifier_object_type_id` (NULL dla nie-identifier rows). Partial `UNIQUE INDEX object_values_identifier_uniq (tenant_id, identifier_object_type_id, attribute_id, identifier_value) WHERE identifier_value IS NOT NULL` egzekwuje unikalność; app-level pre-check (`IdentifierUniquenessValidator`) daje czytelne 409 przed constraintem. Identifier attrs są wymuszane jako non-localizable + non-scopable (jedna wartość per obiekt). Kolumny są zarządzane wyłącznie przez trigger — Doctrine ich nie mapuje ani nie zapisuje.
 
 ---
 

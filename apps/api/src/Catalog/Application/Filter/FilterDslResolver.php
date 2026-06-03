@@ -96,6 +96,12 @@ final class FilterDslResolver
             self::OP_EQ, self::OP_NEQ, self::OP_IN, self::OP_NOT_IN,
             self::OP_IS_EMPTY, self::OP_IS_NOT_EMPTY,
         ],
+        // #1179 — identifier (EAN/GTIN/SKU): exact match / set membership /
+        // prefix lookup (e.g. SKU starts with a series code).
+        'identifier' => [
+            self::OP_EQ, self::OP_NEQ, self::OP_IN, self::OP_NOT_IN,
+            self::OP_STARTS_WITH, self::OP_IS_EMPTY, self::OP_IS_NOT_EMPTY,
+        ],
         'number' => [
             self::OP_EQ, self::OP_NEQ, self::OP_LT, self::OP_GT, self::OP_LTE, self::OP_GTE,
             self::OP_BETWEEN, self::OP_IS_EMPTY, self::OP_IS_NOT_EMPTY,
