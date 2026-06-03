@@ -269,6 +269,7 @@ export function VariantsTabHost({ productId }: VariantsTabHostProps) {
                       value={fieldValue(variant.id, attr.code, baseAttrs)}
                       provenance={resolveProv(attr, variant.attributesIndexed)}
                       locale={'pl' satisfies ProductLocale}
+                      channel={null}
                       isEditing={isEditing && !attr.is_system}
                       isLocked={attr.is_system}
                       onChange={(next) => setVariantField(variant.id, attr.code, next)}
