@@ -343,6 +343,7 @@ final readonly class DemoCatalogSeeder
             // Only a small slice (i <= 5) keeps the demo light while still
             // proving the overlay works end-to-end after a DB reset.
             if ($i <= 5) {
+                // Per-locale (EN) overrides — locale switch shows different text.
                 $this->em->persist(new ObjectValue(
                     $product,
                     $attributes['name'],
@@ -359,6 +360,14 @@ final readonly class DemoCatalogSeeder
                     null,
                     'en',
                 ));
+                $this->em->persist(new ObjectValue(
+                    $product,
+                    $attributes['short_description'],
+                    ['value' => \sprintf('Short EN tagline for %s.', $sku)],
+                    Provenance::Import,
+                    null,
+                    'en',
+                ));
 
                 if (null !== $demoChannelId) {
                     // Allegro charges a different price — per-channel override.
@@ -366,6 +375,17 @@ final readonly class DemoCatalogSeeder
                         $product,
                         $attributes['price'],
                         ['amount' => 24.99 + $i, 'currency' => $currency],
+                        Provenance::Import,
+                        $demoChannelId,
+                        null,
+                    ));
+                    // short_description is localizable AND scopable — give it an
+                    // Allegro-specific tagline so the row shows both a PL chip and
+                    // an Allegro chip with genuinely different content.
+                    $this->em->persist(new ObjectValue(
+                        $product,
+                        $attributes['short_description'],
+                        ['value' => \sprintf('Allegro tagline for %s.', $sku)],
                         Provenance::Import,
                         $demoChannelId,
                         null,
@@ -408,7 +428,12 @@ final readonly class DemoCatalogSeeder
             'short_description' => [
                 'label' => ['pl' => 'Krótki opis', 'en' => 'Short description'],
                 'type' => AttributeType::Text,
+                // #1259 — both localizable AND scopable: marketing copy differs
+                // per language and per channel. On the product card this row
+                // shows a PL chip + an Allegro chip side by side once a channel
+                // is selected — the exact "channel next to locale" affordance.
                 'localizable' => true,
+                'scopable' => true,
                 'rules' => ['max_length' => 280],
             ],
             'brand' => [
