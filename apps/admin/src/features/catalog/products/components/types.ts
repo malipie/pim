@@ -21,15 +21,10 @@ export interface LocaleOption {
 }
 
 // #1155 — a channel code is whatever the tenant configured (Settings →
-// Channels), not a fixed union. The real list comes from `/api/channels`;
-// PRODUCT_CHANNELS is only a static fallback before that loads.
+// Channels), not a fixed union. The real list comes from `/api/channels`.
+// #1259 — removed the PRODUCT_CHANNELS static fallback: an empty channel
+// list must render an empty picker, never a hardcoded mock trio.
 export type ProductChannel = string;
-
-export const PRODUCT_CHANNELS: readonly ProductChannel[] = [
-  'shopify',
-  'baselinker',
-  'allegro',
-] as const;
 
 /** One tenant channel for the detail-page picker (#1155). */
 export interface ChannelOption {

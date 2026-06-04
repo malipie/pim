@@ -14,7 +14,6 @@ import {
 import {
   type ChannelOption,
   type LocaleOption,
-  PRODUCT_CHANNELS,
   PRODUCT_LOCALES,
   type ProductChannel,
   type ProductLocale,
@@ -31,17 +30,13 @@ export interface LocaleChannelToolbarProps {
    */
   locales?: LocaleOption[];
   /**
-   * #1155 — the tenant's channels (from `/api/channels`). Falls back to the
-   * static PRODUCT_CHANNELS on first paint / when absent.
+   * #1155 — the tenant's channels (from `/api/channels`). #1259 — when the
+   * tenant has no channels the picker shows ONLY "Wszystkie kanały"; we no
+   * longer fall back to a hardcoded shopify/baselinker/allegro list, which
+   * looked like real channels but was a mock.
    */
   channels?: ChannelOption[];
 }
-
-const CHANNEL_LABELS: Record<string, string> = {
-  shopify: 'Shopify',
-  baselinker: 'BaseLinker',
-  allegro: 'Allegro',
-};
 
 /**
  * VIEW-07 (#420) — toolbar replacing the prototype's segmented PL/EN/DE/CS
@@ -62,14 +57,15 @@ export function LocaleChannelToolbar({
   const localeCodes: readonly string[] =
     locales !== undefined && locales.length > 0 ? locales.map((l) => l.code) : PRODUCT_LOCALES;
 
-  // #1155 — channel options from the tenant's real channels, falling back
-  // to the static list before /api/channels resolves.
-  const channelList: { code: string; label: string }[] =
-    channels !== undefined && channels.length > 0
-      ? channels.map((c) => ({ code: c.code, label: c.label?.[lang] ?? c.label?.en ?? c.code }))
-      : PRODUCT_CHANNELS.map((c) => ({ code: c, label: CHANNEL_LABELS[c] ?? c }));
+  // #1155 / #1259 — channel options come ONLY from the tenant's real
+  // channels (`/api/channels`). No tenant channels → empty list, so the
+  // picker offers just "Wszystkie kanały". No hardcoded mock fallback.
+  const channelList: { code: string; label: string }[] = (channels ?? []).map((c) => ({
+    code: c.code,
+    label: c.label?.[lang] ?? c.label?.en ?? c.code,
+  }));
   const channelLabel = (code: string): string =>
-    channelList.find((c) => c.code === code)?.label ?? CHANNEL_LABELS[code] ?? code;
+    channelList.find((c) => c.code === code)?.label ?? code;
 
   return (
     <div className="flex items-center gap-2">

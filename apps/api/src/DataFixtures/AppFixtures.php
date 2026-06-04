@@ -13,6 +13,7 @@ use App\Catalog\Application\DemoCatalogSeeder;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Channel\Domain\Entity\Channel;
 use App\Channel\Domain\Entity\Currency;
 use App\Channel\Domain\Entity\Locale;
 use App\Channel\Domain\Entity\TenantLocale;
@@ -96,13 +97,19 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
             $manager->persist($locale);
             $localesByCode[$entry['code']] = $locale;
         }
+        $pln = null;
         foreach ([
             ['PLN', 'zł', 'Polish złoty'],
             ['EUR', '€', 'Euro'],
             ['USD', '$', 'United States dollar'],
         ] as [$code, $symbol, $label]) {
-            $manager->persist(new Currency($code, $symbol, $label));
+            $currency = new Currency($code, $symbol, $label);
+            $manager->persist($currency);
+            if ('PLN' === $code) {
+                $pln = $currency;
+            }
         }
+        \assert($pln instanceof Currency);
 
         $tenants = [
             new Tenant('demo', 'Demo Tenant'),
@@ -205,12 +212,25 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
         }
         $manager->flush();
 
-        // Demo tenant: full ADR-009 dataset (#40). 100 products + 5
-        // categories with own user-defined attributes + 10 assets +
-        // ~19 attributes spanning all 10 AttributeType cases.
+        // #1259 — seed one real demo channel (Allegro) for the demo tenant so
+        // the product card's channel picker has actual data after a DB reset,
+        // instead of falling back to a hardcoded mock list on the frontend.
+        // Built-in ObjectTypes already exist (builtInSeeder above), so the
+        // ChannelCreated subscriber provisions default publication profiles.
         $demoTenant = $tenants[0];
         \assert('demo' === $demoTenant->getCode());
-        $this->demoCatalogSeeder->seed($demoTenant);
+        $allegro = new Channel('allegro', ['pl' => 'Allegro', 'en' => 'Allegro']);
+        $allegro->addLocale($plPL);
+        $allegro->addCurrency($pln);
+        $allegro->assignTenant($demoTenant);
+        $manager->persist($allegro);
+        $manager->flush();
+
+        // Full ADR-009 dataset (#40). 100 products + 5 categories with own
+        // user-defined attributes + 10 assets + ~19 attributes spanning all
+        // 10 AttributeType cases. Passing the Allegro channel id seeds
+        // per-channel price overrides on the first few products (#1259).
+        $this->demoCatalogSeeder->seed($demoTenant, $allegro->getId());
 
         // Acme tenant: minimal smoke dataset (3 SKUs, no attribute graph).
         // Existing isolation tests + admin e2e probes assume the legacy shape;

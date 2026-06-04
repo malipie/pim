@@ -21,6 +21,7 @@ use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Idempotent demo dataset seeder for ticket #40 (0.3.10).
@@ -56,7 +57,13 @@ final readonly class DemoCatalogSeeder
     ) {
     }
 
-    public function seed(Tenant $tenant): void
+    /**
+     * @param ?Uuid $demoChannelId when provided, a handful of demo products get
+     *                             per-channel `price` overrides for this channel
+     *                             (#1259 — makes the channel picker show a real
+     *                             difference instead of a hardcoded mock)
+     */
+    public function seed(Tenant $tenant, ?Uuid $demoChannelId = null): void
     {
         $previous = $this->tenantContext->get();
         $this->tenantContext->set($tenant);
@@ -89,7 +96,7 @@ final readonly class DemoCatalogSeeder
             $assets = $this->seedAssets($assetType, $tenant, $attributes);
             $this->em->flush();
 
-            $this->seedProducts($productType, $categories, $assets, $attributes);
+            $this->seedProducts($productType, $categories, $assets, $attributes, $demoChannelId);
             $this->em->flush();
         } finally {
             $this->bulkContext->setBulk(false);
@@ -118,6 +125,7 @@ final readonly class DemoCatalogSeeder
             $attribute = new Attribute($code, $def['label'], $def['type']);
             $attribute->changeRequired($def['required'] ?? false);
             $attribute->changeLocalizable($def['localizable'] ?? false);
+            $attribute->changeScopable($def['scopable'] ?? false);
             $attribute->updateValidationRules($def['rules'] ?? []);
             $attribute->reorder($position++);
             $this->em->persist($attribute);
@@ -278,7 +286,7 @@ final readonly class DemoCatalogSeeder
      * @param list<CatalogObject>      $categories
      * @param list<Asset>              $assets
      */
-    private function seedProducts(ObjectType $type, array $categories, array $assets, array $attributes): void
+    private function seedProducts(ObjectType $type, array $categories, array $assets, array $attributes, ?Uuid $demoChannelId = null): void
     {
         $brands = ['Acme', 'Globex', 'Soylent', 'Initech', 'Hooli', 'Festo', 'Bosch'];
         $colors = ['red', 'green', 'blue', 'black', 'white'];
@@ -328,11 +336,67 @@ final readonly class DemoCatalogSeeder
             $product->updateAttributeIndex($indexed);
             $product->recordCompleteness(['global' => 100]);
             $this->em->persist($product);
+
+            // #1259 — give the first few products real per-locale + per-channel
+            // overrides so the product card's locale/channel pickers show a
+            // visible difference (not just a fallback to the global value).
+            // Only a small slice (i <= 5) keeps the demo light while still
+            // proving the overlay works end-to-end after a DB reset.
+            if ($i <= 5) {
+                // Per-locale (EN) overrides — locale switch shows different text.
+                $this->em->persist(new ObjectValue(
+                    $product,
+                    $attributes['name'],
+                    ['value' => \sprintf('Demo product %03d (EN)', $i)],
+                    Provenance::Import,
+                    null,
+                    'en',
+                ));
+                $this->em->persist(new ObjectValue(
+                    $product,
+                    $attributes['description'],
+                    ['value' => \sprintf('English description for SKU %s, brand %s.', $sku, $brand)],
+                    Provenance::Import,
+                    null,
+                    'en',
+                ));
+                $this->em->persist(new ObjectValue(
+                    $product,
+                    $attributes['short_description'],
+                    ['value' => \sprintf('Short EN tagline for %s.', $sku)],
+                    Provenance::Import,
+                    null,
+                    'en',
+                ));
+
+                if (null !== $demoChannelId) {
+                    // Allegro charges a different price — per-channel override.
+                    $this->em->persist(new ObjectValue(
+                        $product,
+                        $attributes['price'],
+                        ['amount' => 24.99 + $i, 'currency' => $currency],
+                        Provenance::Import,
+                        $demoChannelId,
+                        null,
+                    ));
+                    // short_description is localizable AND scopable — give it an
+                    // Allegro-specific tagline so the row shows both a PL chip and
+                    // an Allegro chip with genuinely different content.
+                    $this->em->persist(new ObjectValue(
+                        $product,
+                        $attributes['short_description'],
+                        ['value' => \sprintf('Allegro tagline for %s.', $sku)],
+                        Provenance::Import,
+                        $demoChannelId,
+                        null,
+                    ));
+                }
+            }
         }
     }
 
     /**
-     * @return array<string, array{label: array<string, string>, type: AttributeType, required?: bool, localizable?: bool, rules?: array<string, mixed>, options?: list<array{0: string, 1: array<string, string>, 2?: string|null, 3?: bool, 4?: bool}>}>
+     * @return array<string, array{label: array<string, string>, type: AttributeType, required?: bool, localizable?: bool, scopable?: bool, rules?: array<string, mixed>, options?: list<array{0: string, 1: array<string, string>, 2?: string|null, 3?: bool, 4?: bool}>}>
      */
     private static function attributeDefinitions(): array
     {
@@ -364,7 +428,12 @@ final readonly class DemoCatalogSeeder
             'short_description' => [
                 'label' => ['pl' => 'Krótki opis', 'en' => 'Short description'],
                 'type' => AttributeType::Text,
+                // #1259 — both localizable AND scopable: marketing copy differs
+                // per language and per channel. On the product card this row
+                // shows a PL chip + an Allegro chip side by side once a channel
+                // is selected — the exact "channel next to locale" affordance.
                 'localizable' => true,
+                'scopable' => true,
                 'rules' => ['max_length' => 280],
             ],
             'brand' => [
@@ -411,6 +480,10 @@ final readonly class DemoCatalogSeeder
             'price' => [
                 'label' => ['pl' => 'Cena', 'en' => 'Price'],
                 'type' => AttributeType::Price,
+                // #1259 — scopable so the demo carries per-channel price overrides
+                // (Allegro charges a different amount); makes the channel picker
+                // on the product card show a real difference, not a mock.
+                'scopable' => true,
                 'rules' => ['min_amount' => 0, 'currencies' => ['PLN', 'EUR', 'USD']],
             ],
             'weight' => [
