@@ -32,8 +32,8 @@ final class ChannelPublicationProfileApiTest extends ChannelApiTestCase
         $channelId = $response->toArray()['id'];
         self::assertIsString($channelId);
 
+        /** @var ChannelPublicationProfileRepositoryInterface $repo */
         $repo = self::getContainer()->get(ChannelPublicationProfileRepositoryInterface::class);
-        \assert($repo instanceof ChannelPublicationProfileRepositoryInterface);
 
         $em = $this->em();
         $tenant = $em->getRepository(\App\Shared\Domain\Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
