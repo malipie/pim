@@ -70,7 +70,10 @@ export interface CatalogObjectDto {
  */
 export interface AttributeOptionMeta {
   code: string;
-  label: { pl?: string; en?: string };
+  // #1262 — per-locale map keyed by any tenant locale (not just pl/en); the
+  // backend ships every enabled locale's label so the active value locale
+  // can resolve the option's display text.
+  label: Record<string, string>;
   color?: string | null;
   is_default?: boolean;
   is_deprecated?: boolean;
