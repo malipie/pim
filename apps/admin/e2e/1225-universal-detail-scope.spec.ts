@@ -3,18 +3,20 @@ import { expect, test } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
 
 /**
- * fix(admin) #1225 — locale/channel scope parity on the custom-ObjectType
- * detail card (`UniversalDetailPage`), mirroring the product detail card.
+ * fix(admin) #1225 / #1269 — locale/channel scope parity on the
+ * custom-ObjectType detail card (`UniversalDetailPage`), mirroring the
+ * product detail card.
  *
- * Two deterministic assertions:
- *   1. View mode: the locale/channel switcher is hidden (it only makes
- *      sense while editing — parity with the product card edit-gate).
- *   2. Edit mode: the switcher appears with the Język + Kanał pickers,
- *      and switching the locale issues the scoped read without crashing.
+ * #1269 revised the gate: the switcher is now ALWAYS visible (parity with
+ * the product card, which renders on `mode === 'edit'` — the route mode,
+ * always true for an existing object — NOT the Edit toggle). Switching the
+ * locale re-reads the object even in read-only view.
  *
- * The per-attribute inheritance indicator (amber "Wartość z [XX]") needs a
- * localizable attribute carrying a fallback value, which is data-dependent;
- * that path is covered by the manual live-stack smoke documented in the PR.
+ * Assertions:
+ *   1. View mode: the locale/channel switcher is visible (read-only scope
+ *      switching reflects the chosen scope's values).
+ *   2. Edit mode: the switcher persists; switching the locale issues the
+ *      scoped read without crashing.
  *
  * Marked `fixme` in CI for the shared-suite auth rate-limiter reason
  * (see object-name-edit.spec.ts / settings-channels-crud.spec.ts).
@@ -27,7 +29,7 @@ const E2E_BLOCKED_BY_RATE_LIMITER =
 const OBJECT_PATH = '/objects/samochody/019e89e1-7abe-7a01-bb4d-290472beabbf';
 
 test.describe('fix(admin) #1225 — universal detail scope switcher', () => {
-  test('switcher hidden in view mode, shown in edit mode', async ({ page }) => {
+  test('switcher visible in view mode and persists in edit mode', async ({ page }) => {
     test.fixme(true, E2E_BLOCKED_BY_RATE_LIMITER);
     await loginAsAdmin(page);
     await page.goto(OBJECT_PATH);
@@ -35,10 +37,11 @@ test.describe('fix(admin) #1225 — universal detail scope switcher', () => {
 
     const localePicker = page.getByRole('button', { name: /^język$|^language$/i });
 
-    // 1. View mode — the scope switcher must not be rendered.
-    await expect(localePicker).toHaveCount(0);
+    // 1. View mode — #1269: the scope switcher is visible (Język + Kanał).
+    await expect(localePicker.first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /^kanał$|^channel$/i }).first()).toBeVisible();
 
-    // 2. Enter edit mode — the switcher (Język + Kanał) appears.
+    // 2. Enter edit mode — the switcher persists.
     await page
       .getByRole('button', { name: /edytuj|^edit$/i })
       .first()
