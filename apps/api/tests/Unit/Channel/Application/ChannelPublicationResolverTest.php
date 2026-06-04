@@ -10,22 +10,27 @@ use App\Channel\Domain\Repository\ChannelPublicationProfileRepositoryInterface;
 use App\Channel\Domain\Repository\ChannelRepositoryInterface;
 use App\Channel\Infrastructure\ChannelPublicationResolver;
 use App\Shared\Domain\Tenant;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
+#[AllowMockObjectsWithoutExpectations]
 final class ChannelPublicationResolverTest extends TestCase
 {
-    private ChannelRepositoryInterface $channels;
-    private ChannelPublicationProfileRepositoryInterface $profiles;
+    /** @var MockObject&ChannelRepositoryInterface */
+    private MockObject $channels;
+    /** @var MockObject&ChannelPublicationProfileRepositoryInterface */
+    private MockObject $profiles;
     private ChannelPublicationResolver $resolver;
     private Tenant $tenant;
     private Uuid $objectTypeId;
 
     protected function setUp(): void
     {
-        $this->channels = $this->createStub(ChannelRepositoryInterface::class);
-        $this->profiles = $this->createStub(ChannelPublicationProfileRepositoryInterface::class);
+        $this->channels = $this->createMock(ChannelRepositoryInterface::class);
+        $this->profiles = $this->createMock(ChannelPublicationProfileRepositoryInterface::class);
         $this->resolver = new ChannelPublicationResolver($this->channels, $this->profiles);
         $this->tenant = new Tenant('demo', 'Demo Tenant');
         $this->objectTypeId = Uuid::v7();
