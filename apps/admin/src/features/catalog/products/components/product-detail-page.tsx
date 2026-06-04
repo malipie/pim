@@ -46,7 +46,7 @@ import { LocaleChannelToolbar } from './locale-channel-toolbar';
 import { PreviewButton } from './preview-button';
 import { ProductMultimediaTab } from './product-multimedia-tab';
 import { RelationsTab } from './relations-tab';
-import { scopeQuery } from './scope';
+import { scopedCompleteness, scopeQuery } from './scope';
 import { SyncStatusCard } from './sync-status-card';
 import type {
   AttributeMeta,
@@ -570,6 +570,14 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
         : '';
   const objectTypeName = product?.objectType?.name?.[lang] ?? null;
   const completenessPct = product?.completenessPct ?? 0;
+  // #1152 — the ring reflects the active locale/channel scope (Akeneo
+  // "readiness per target"); falls back to the global pct.
+  const { pct: scopedCompletenessPct, scope: completenessScope } = scopedCompleteness(
+    product?.completeness,
+    locale,
+    channel,
+    completenessPct,
+  );
   const breadcrumbCategory =
     typeof attrs.category === 'string' && attrs.category !== ''
       ? attrs.category
@@ -774,8 +782,19 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
               )}
             </div>
             {mode === 'edit' ? (
-              <div className="flex items-center">
-                <CompletenessRing pct={completenessPct} size={72} stroke={6} />
+              <div className="flex flex-col items-center gap-1">
+                <CompletenessRing pct={scopedCompletenessPct} size={72} stroke={6} />
+                {completenessScope !== null ? (
+                  <span
+                    className="num rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-zinc-500"
+                    title={t('products.completeness.scope_tooltip', {
+                      scope: completenessScope.toUpperCase(),
+                      defaultValue: 'Kompletność dla zakresu {{scope}}',
+                    })}
+                  >
+                    {completenessScope}
+                  </span>
+                ) : null}
               </div>
             ) : null}
           </div>

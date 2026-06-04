@@ -37,13 +37,28 @@ export interface ChannelOption {
   label?: Record<string, string>;
 }
 
+/**
+ * #1152 — per-scope completeness. `global` is the baseline; `per_channel`
+ * / `per_locale` map a scope code to its 0..100 pct (omitted when the
+ * tenant has no channels / non-primary locales).
+ */
+export interface CompletenessMap {
+  global?: number;
+  per_channel?: Record<string, number>;
+  per_locale?: Record<string, number>;
+}
+
 export interface CatalogObjectDto {
   id: string;
   code: string;
   enabled?: boolean;
   status?: string;
   kind?: string;
-  completeness?: { pct?: number; missing?: string[] } | null;
+  /**
+   * #1152 — per-scope completeness map written by AttributesIndexedRebuilder:
+   * `global` plus optional `per_channel` / `per_locale` (code → pct).
+   */
+  completeness?: CompletenessMap | null;
   completenessPct?: number;
   syncStatusAggregate?: 'gray' | 'green' | 'yellow' | 'red' | string;
   attributesIndexed?: Record<string, unknown>;

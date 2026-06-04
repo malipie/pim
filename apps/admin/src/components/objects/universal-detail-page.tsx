@@ -54,7 +54,7 @@ import { CompletenessRing } from '@/features/catalog/products/components/complet
 import { EffectiveModelCard } from '@/features/catalog/products/components/effective-model-card';
 import { LocaleChannelToolbar } from '@/features/catalog/products/components/locale-channel-toolbar';
 import { ProductMultimediaTab } from '@/features/catalog/products/components/product-multimedia-tab';
-import { scopeQuery } from '@/features/catalog/products/components/scope';
+import { scopedCompleteness, scopeQuery } from '@/features/catalog/products/components/scope';
 import type {
   AttributeMeta,
   CatalogObjectDto,
@@ -380,6 +380,13 @@ export function UniversalDetailPage({
   const skuValue = product.code ?? '';
   const nameValue = typeof attrs.name === 'string' ? attrs.name : skuValue;
   const completenessPct = product.completenessPct ?? 0;
+  // #1152 — ring reflects the active locale/channel scope, falling back to global.
+  const { pct: scopedCompletenessPct, scope: completenessScope } = scopedCompleteness(
+    product.completeness,
+    locale,
+    channel,
+    completenessPct,
+  );
 
   return (
     <div className="-mx-6 -mt-6 min-h-[calc(100vh-3rem)] bg-zinc-50">
@@ -511,8 +518,19 @@ export function UniversalDetailPage({
                 </span>
               </div>
             </div>
-            <div className="flex items-center">
-              <CompletenessRing pct={completenessPct} size={72} stroke={6} />
+            <div className="flex flex-col items-center gap-1">
+              <CompletenessRing pct={scopedCompletenessPct} size={72} stroke={6} />
+              {completenessScope !== null ? (
+                <span
+                  className="num rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-zinc-500"
+                  title={t('products.completeness.scope_tooltip', {
+                    scope: completenessScope.toUpperCase(),
+                    defaultValue: 'Kompletność dla zakresu {{scope}}',
+                  })}
+                >
+                  {completenessScope}
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
