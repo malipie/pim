@@ -1607,7 +1607,8 @@
         "none": "Wszystkie kanały"
       },
       "completeness": {
-        "aria": "Kompletność {{pct}}%"
+        "aria": "Kompletność {{pct}}%",
+        "scope_tooltip": "Kompletność dla zakresu {{scope}}"
       },
       "asset": {
         "picker_title": "Wybierz zasób",

@@ -30,6 +30,14 @@ class DoctrineChannelRepository extends ServiceEntityRepository implements Chann
         return parent::find($id->toRfc4122());
     }
 
+    /**
+     * @return list<Channel>
+     */
+    public function findAllForTenant(Tenant $tenant): array
+    {
+        return array_values($this->findBy(['tenant' => $tenant], ['code' => 'ASC']));
+    }
+
     public function save(Channel $entity): void
     {
         $em = $this->getEntityManager();
