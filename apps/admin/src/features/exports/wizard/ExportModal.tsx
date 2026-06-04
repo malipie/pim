@@ -1,5 +1,5 @@
 import { useApiUrl } from '@refinedev/core';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -82,8 +82,45 @@ export function ExportModal({
   const [saveAsProfile, setSaveAsProfile] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [profileError, setProfileError] = useState<string | null>(null);
+  // #1243 — activeLocales: all enabled locales selected by default (zero regression).
+  // null = not yet initialized (wait for catalog to load).
+  const [activeLocales, setActiveLocales] = useState<string[] | null>(null);
 
   const columnCatalog = useExportColumnCatalog();
+  const allLocales = columnCatalog.enabledLocales;
+
+  // Initialize activeLocales once catalog loads (idempotent — only sets once).
+  useEffect(() => {
+    if (activeLocales === null && allLocales.length > 0) {
+      setActiveLocales(allLocales);
+    }
+  }, [activeLocales, allLocales]);
+
+  const effectiveLocales = activeLocales ?? allLocales;
+
+  const toggleLocale = (locale: string, checked: boolean): void => {
+    const next = checked
+      ? [...effectiveLocales, locale]
+      : effectiveLocales.filter((l) => l !== locale);
+    setActiveLocales(next);
+    if (!checked) {
+      // Remove .{locale} suffix columns from the selected list.
+      setColumns((prev) => prev.filter((col) => !col.endsWith(`.${locale}`)));
+    }
+  };
+
+  // Filter available column groups to only show columns whose locale suffix
+  // is in the active set. Bare columns (no suffix) always pass through.
+  const filteredGroups = columnCatalog.groups.map((group) => ({
+    ...group,
+    columns: group.columns.filter((col) => {
+      const dot = col.key.lastIndexOf('.');
+      if (dot === -1) return true;
+      const suffix = col.key.slice(dot + 1);
+      // If suffix looks like a locale code (2-3 chars), filter by activeLocales.
+      return suffix.length <= 5 && effectiveLocales.includes(suffix);
+    }),
+  }));
 
   const onSubmit = async () => {
     if (columns.length === 0) {
@@ -112,6 +149,7 @@ export function ExportModal({
       target_scope: targetScope,
       selected_columns: columns,
       include_variants: true,
+      locales: effectiveLocales.length < allLocales.length ? effectiveLocales : undefined,
     };
     if (format === 'csv') {
       payload['encoding'] = encoding;
@@ -248,6 +286,30 @@ export function ExportModal({
           </DialogTitle>
         </DialogHeader>
         <div className="-mx-6 flex-1 space-y-6 overflow-y-auto px-6">
+          {/* Section 0 — Języki (#1243) */}
+          {allLocales.length > 1 && (
+            <section className="space-y-2">
+              <h3 className="text-sm font-medium">
+                {t('exports.modal.section_locales', { defaultValue: 'Języki' })}
+              </h3>
+              <div className="flex flex-wrap gap-3 text-sm">
+                {allLocales.map((locale) => (
+                  <label key={locale} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="size-4"
+                      checked={effectiveLocales.includes(locale)}
+                      onChange={(e) => {
+                        toggleLocale(locale, e.target.checked);
+                      }}
+                    />
+                    <span className="uppercase">{locale}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Section 1 — Kolumny */}
           <section>
             <h3 className="mb-2 text-sm font-medium">
@@ -266,11 +328,7 @@ export function ExportModal({
                 </span>
               ) : null}
             </h3>
-            <ColumnPicker
-              available={columnCatalog.groups}
-              selected={columns}
-              onChange={setColumns}
-            />
+            <ColumnPicker available={filteredGroups} selected={columns} onChange={setColumns} />
           </section>
 
           {/* Section 2 — Format + encoding */}
