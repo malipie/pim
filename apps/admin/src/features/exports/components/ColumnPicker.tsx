@@ -15,7 +15,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export interface ColumnGroup {
@@ -75,12 +76,65 @@ export interface ColumnPickerProps {
  *    (EXP-11) so the picker stays focused on "which columns",
  *    not "in how many variants".
  */
+/**
+ * Detects locale-variant columns (e.g. `description.pl`, `description.en`)
+ * and groups them under their parent attribute code.
+ *
+ * A "locale group" requires ≥2 columns sharing the same prefix before the
+ * last `.`. Single columns (or single-variant attributes) stay flat.
+ */
+function buildVisualGroups(columns: ColumnOption[]): VisualItem[] {
+  const byParent = new Map<string, ColumnOption[]>();
+  const order: string[] = [];
+
+  for (const col of columns) {
+    const dot = col.key.lastIndexOf('.');
+    const parent = dot !== -1 ? col.key.slice(0, dot) : null;
+    if (parent !== null) {
+      if (!byParent.has(parent)) {
+        byParent.set(parent, []);
+        order.push(parent);
+      }
+      // biome-ignore lint/style/noNonNullAssertion: guaranteed to exist
+      byParent.get(parent)!.push(col);
+    } else {
+      order.push(`__bare__${col.key}`);
+      byParent.set(`__bare__${col.key}`, [col]);
+    }
+  }
+
+  const result: VisualItem[] = [];
+  for (const key of order) {
+    const cols = byParent.get(key) ?? [];
+    if (cols.length >= 2 && !key.startsWith('__bare__')) {
+      result.push({ kind: 'locale-group', parentCode: key, variants: cols });
+    } else {
+      for (const col of cols) result.push(col);
+    }
+  }
+  return result;
+}
+
+interface LocaleGroupOption {
+  kind: 'locale-group';
+  parentCode: string;
+  variants: ColumnOption[];
+}
+
+type VisualItem = ColumnOption | LocaleGroupOption;
+
+function isLocaleGroup(item: VisualItem): item is LocaleGroupOption {
+  return 'kind' in item && item.kind === 'locale-group';
+}
+
 export function ColumnPicker({
   available,
   selected,
   onChange,
 }: ColumnPickerProps): React.ReactElement {
   const { t } = useTranslation();
+  // Track which locale-groups are expanded (by parentCode).
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -88,6 +142,26 @@ export function ColumnPicker({
   );
 
   const isSelected = (key: string) => selected.includes(key);
+
+  const toggleExpand = (parentCode: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(parentCode)) next.delete(parentCode);
+      else next.add(parentCode);
+      return next;
+    });
+  };
+
+  const toggleLocaleGroup = (group: LocaleGroupOption) => {
+    const keys = group.variants.map((v) => v.key);
+    const allSelected = keys.every((k) => selected.includes(k));
+    if (allSelected) {
+      onChange(selected.filter((k) => !keys.includes(k)));
+    } else {
+      const toAdd = keys.filter((k) => !selected.includes(k));
+      onChange([...selected, ...toAdd]);
+    }
+  };
 
   const toggle = (key: string) => {
     if (isSelected(key)) {
@@ -130,29 +204,114 @@ export function ColumnPicker({
           <span>{t('exports.column_picker.available_heading', { defaultValue: 'Dostępne' })}</span>
         </header>
         <div className="max-h-[60vh] space-y-3 overflow-y-auto p-3">
-          {available.map((group) => (
-            <div key={group.id}>
-              <div className="mb-1 text-xs font-medium text-muted-foreground">
-                {t(group.labelKey, { defaultValue: group.defaultLabel })}
+          {available.map((group) => {
+            const visualItems = buildVisualGroups(group.columns);
+            return (
+              <div key={group.id}>
+                <div className="mb-1 text-xs font-medium text-muted-foreground">
+                  {t(group.labelKey, { defaultValue: group.defaultLabel })}
+                </div>
+                <ul className="space-y-1">
+                  {visualItems.map((item) => {
+                    if (isLocaleGroup(item)) {
+                      const keys = item.variants.map((v) => v.key);
+                      const allSel = keys.every((k) => selected.includes(k));
+                      const someSel = !allSel && keys.some((k) => selected.includes(k));
+                      const expanded = expandedGroups.has(item.parentCode);
+                      const parentLabel = item.variants[0]
+                        ? t(item.variants[0].labelKey, {
+                            defaultValue: item.variants[0].defaultLabel,
+                          }).split(' [')[0]
+                        : item.parentCode;
+                      return (
+                        <li key={item.parentCode}>
+                          <div className="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-muted">
+                            <input
+                              type="checkbox"
+                              className="size-4 accent-zinc-900"
+                              checked={allSel}
+                              ref={(el) => {
+                                if (el) el.indeterminate = someSel;
+                              }}
+                              onChange={() => {
+                                toggleLocaleGroup(item);
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="flex flex-1 cursor-pointer items-center gap-1 text-left"
+                              onClick={() => {
+                                toggleExpand(item.parentCode);
+                              }}
+                            >
+                              {expanded ? (
+                                <ChevronDown
+                                  className="size-3 text-muted-foreground"
+                                  aria-hidden="true"
+                                />
+                              ) : (
+                                <ChevronRight
+                                  className="size-3 text-muted-foreground"
+                                  aria-hidden="true"
+                                />
+                              )}
+                              <span>{parentLabel}</span>
+                              <span className="ml-1 text-xs text-muted-foreground">
+                                ({keys.filter((k) => selected.includes(k)).length}/{keys.length})
+                              </span>
+                              <code className="ml-auto text-xs text-muted-foreground">
+                                {item.parentCode}
+                              </code>
+                            </button>
+                          </div>
+                          {expanded && (
+                            <ul className="ml-6 mt-0.5 space-y-0.5">
+                              {item.variants.map((col) => (
+                                <li key={col.key}>
+                                  <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted">
+                                    <input
+                                      type="checkbox"
+                                      className="size-4 accent-zinc-900"
+                                      checked={isSelected(col.key)}
+                                      onChange={() => {
+                                        toggle(col.key);
+                                      }}
+                                    />
+                                    <span>
+                                      {t(col.labelKey, { defaultValue: col.defaultLabel })}
+                                    </span>
+                                    <code className="ml-auto text-xs text-muted-foreground">
+                                      {col.key}
+                                    </code>
+                                  </label>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </li>
+                      );
+                    }
+                    return (
+                      <li key={item.key}>
+                        <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted">
+                          <input
+                            type="checkbox"
+                            className="size-4 accent-zinc-900"
+                            checked={isSelected(item.key)}
+                            onChange={() => {
+                              toggle(item.key);
+                            }}
+                          />
+                          <span>{t(item.labelKey, { defaultValue: item.defaultLabel })}</span>
+                          <code className="ml-auto text-xs text-muted-foreground">{item.key}</code>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
-              <ul className="space-y-1">
-                {group.columns.map((column) => (
-                  <li key={column.key}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted">
-                      <input
-                        type="checkbox"
-                        className="size-4 accent-zinc-900"
-                        checked={isSelected(column.key)}
-                        onChange={() => toggle(column.key)}
-                      />
-                      <span>{t(column.labelKey, { defaultValue: column.defaultLabel })}</span>
-                      <code className="ml-auto text-xs text-muted-foreground">{column.key}</code>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
