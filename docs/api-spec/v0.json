@@ -9416,7 +9416,7 @@
                     },
                     "status": {
                         "type": [
-                            "number",
+                            "integer",
                             "null"
                         ],
                         "examples": [
@@ -9465,7 +9465,7 @@
                             },
                             "status": {
                                 "type": [
-                                    "number",
+                                    "integer",
                                     "null"
                                 ],
                                 "examples": [
