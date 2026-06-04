@@ -7,14 +7,23 @@ namespace App\Catalog\Application\Validation\TypeValidator;
 use App\Catalog\Application\Validation\AttributeValueValidatorInterface;
 use App\Catalog\Application\Validation\ValidationError;
 use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
 
 /**
  * `multiselect` AttributeType validator.
  *
  * Rules: `option_codes` (list<string>), `min_count` / `max_count` (int).
+ * #1261 — each picked code must exist in the attribute's canonical option
+ * set (live `attribute_options` table via {@see AttributeOptionRepositoryInterface}),
+ * falling back to `validation_rules['option_codes']` when no repo is wired.
  */
-final class MultiselectValidator implements AttributeValueValidatorInterface
+final readonly class MultiselectValidator implements AttributeValueValidatorInterface
 {
+    public function __construct(
+        private ?AttributeOptionRepositoryInterface $options = null,
+    ) {
+    }
+
     public function validate(Attribute $attribute, array $value): array
     {
         $codes = $value['option_codes'] ?? null;
@@ -29,16 +38,16 @@ final class MultiselectValidator implements AttributeValueValidatorInterface
             }
         }
 
-        $rules = $attribute->getValidationRules();
-        $allowed = $rules['option_codes'] ?? null;
-        if (\is_array($allowed)) {
+        $allowed = $this->resolveAllowedCodes($attribute);
+        if (null !== $allowed) {
             foreach ($codes as $i => $code) {
-                if (\is_string($code) && !\in_array($code, $allowed, true)) {
-                    $errors[] = new ValidationError(\sprintf('value.option_codes.%d', $i), 'multiselect.unknown_option', \sprintf('Option "%s" is not in the configured option_codes set.', $code));
+                if (\is_string($code) && '' !== $code && !\in_array($code, $allowed, true)) {
+                    $errors[] = new ValidationError(\sprintf('value.option_codes.%d', $i), 'multiselect.unknown_option', \sprintf('Option "%s" is not a valid option for this attribute.', $code));
                 }
             }
         }
 
+        $rules = $attribute->getValidationRules();
         $count = \count($codes);
         $min = $rules['min_count'] ?? null;
         if (\is_int($min) && $count < $min) {
@@ -50,5 +59,22 @@ final class MultiselectValidator implements AttributeValueValidatorInterface
         }
 
         return $errors;
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    private function resolveAllowedCodes(Attribute $attribute): ?array
+    {
+        if (null !== $this->options) {
+            $dbCodes = $this->options->findCodesByAttribute($attribute);
+            if ([] !== $dbCodes) {
+                return $dbCodes;
+            }
+        }
+
+        $allowed = $attribute->getValidationRules()['option_codes'] ?? null;
+
+        return \is_array($allowed) ? array_values(array_filter($allowed, 'is_string')) : null;
     }
 }

@@ -18,6 +18,16 @@ interface AttributeOptionRepositoryInterface
     public function findByAttribute(Attribute $attribute): array;
 
     /**
+     * #1261 — lean query returning just the option codes for an attribute,
+     * used by Select/Multiselect value validation to enforce membership in
+     * the canonical option set (the `attribute_options` table) instead of
+     * the optional `validation_rules['option_codes']` mirror.
+     *
+     * @return list<string>
+     */
+    public function findCodesByAttribute(Attribute $attribute): array;
+
+    /**
      * Bulk variant of {@see findByAttribute}. Returns every option whose
      * parent Attribute is in `$attributes`, sorted by attribute then by
      * position. Used by the product detail / variants tab eager loader so
