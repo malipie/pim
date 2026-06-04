@@ -1,5 +1,18 @@
 # Current Status
 
+## 2026-06-04: 🏁 batch select/channel-locale fixów (#1259–#1263) — kompletny
+
+6 PR-ów merged do main (każdy quality gates + live-stack smoke):
+
+- **#1259 kanały/locale mock** (PR [#1260](../../pull/1260)) — FE: usunięty hardcoded `PRODUCT_CHANNELS` fallback (pusty `/api/channels` → pusty select). BE: `DemoCatalogSeeder` seeduje realny kanał Allegro + per-locale EN values + per-channel price override; `short_description` localizable+scopable (chip PL+Allegro razem). Smoke 4×: channel realny, locale/channel/both switch różne wartości.
+- **#1262 select label per locale** (PR [#1264](../../pull/1264)) — `attr-row.tsx`: label opcji select z `valueLang = locale ?? lang` (scope wartości, nie język interfejsu). `AttributeOptionMeta.label` → `Record<string,string>`. Smoke: `red → {pl:Czerwony, en:Red}`.
+- **#1261 select option_code walidacja** (PR [#1265](../../pull/1265)) — `Select/Multiselect` w `VALUE_VALIDATED_TYPES` + type-aware guard; validatory przeciw żywym `attribute_options` (`findCodesByAttribute`). Smoke: `color=red → 201`, `color=magenta → 422`.
+- **#1263 values.tsx tenant locales** (PR [#1266](../../pull/1266)) — edytor labeli opcji z `/api/workspaces/current` → `enabledLocales` zamiast hardcoded `['pl','en','de']`. Smoke: demo → pl+en (bez pustego de).
+
+**Genealogia**: operator zgłosił po manual smoke że kanały/locale na karcie produktu to mock po `pim:db:reset`. Backend overlay OK, brak danych demo + myący FE fallback. Przy okazji wykryto select label/walidację/hardcoded locale.
+
+**Lekcja krytyczna**: lokalne Api/* testy 2× zwipały dev DB (`ResetDatabase` Foundry). NIE uruchamiać Api testów lokalnie — push + CI.
+
 ## 2026-06-04: 🏁 Marathon #1227–#1245 (epik LC + EXP) — KOMPLETNY
 
 Wszystkie 10 ticketów zmergowane do main + zamknięte. Finalne PRy:

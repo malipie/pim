@@ -2274,3 +2274,19 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Squash merge usuwa historię chain-commits**: Squash merge na main „spłaszcza" całą historię feature-brancha. Rebased child-branch widzi te commity jako „już w main" → rebase --onto sprząta poprawnie; standardowy rebase może duplikować commity z regresją (wybierał --theirs → revertował fix). Używaj `git rebase --onto origin/main <first-exclusive-commit>` zamiast prostego `git rebase origin/main`.
 
 - **PR base auto-update**: GitHub nie auto-updatuje bazy PR gdy parent branch jest squash-merged. Zmień base ręcznie (`gh pr edit --base main`) przed merge'em lub utwórz nowy PR z właściwą bazą.
+
+## Lessons z select/channel-locale fixów (#1259–#1263, 2026-06-04)
+
+- **Channel/locale picker NIGDY hardcoded fallback** — pusty `/api/channels` → pusty select, nie `shopify/baselinker/allegro`. To wyglądało jak realne kanały (operator zgłosił jako mock). Seeduj realne demo dane (Allegro + per-locale/per-channel values) w `DemoCatalogSeeder`/`AppFixtures` żeby reset zostawiał testowalny stan. (memory `feedback_channel_empty_select_not_mock`)
+
+- **Lokalne uruchomienie Api/* testów WIPE'uje dev DB** — `ResetDatabase` (Foundry) hituje dev DB nawet gdy test erroruje na `test.service_container` (gap lokalny). Zdarzyło się 2× w jednej sesji. **NIE uruchamiaj Api/* testów lokalnie** — push i polluj CI. Po przypadkowym wipe: `doctrine:fixtures:load` przywraca (non-destructive bo pusta). (memory `feedback_phpunit_dev_db_collision`)
+
+- **Channel chip na attr-row wymaga scopable atrybutu + wybranego kanału** — chip (`attribute.is_scopable === true && channel`) nie pokazuje się jeśli demo nie ma scopable attrs. Demo nigdy ich nie miało do #1259. By chip pokazał się "obok PL" → atrybut musi być localizable I scopable jednocześnie (`short_description` w demo).
+
+- **Select option label = część WARTOŚCI, idzie za locale wartości nie językiem interfejsu** — `attr-row.tsx` używał `i18n.language` (interface) zamiast prop `locale` (scope). Fix: `valueLang = locale ?? lang` do `toComboboxOptions`/`toMultiSelectOptions`/`renderReadOnlyValue`. Label NAZWY atrybutu zostaje na interface (UI chrome). `AttributeOptionMeta.label` poszerzony `{pl?,en?}` → `Record<string,string>` dla dowolnego locale tenanta.
+
+- **Select/multiselect option_code walidacja — guard musi być type-aware** — `ObjectAttributesUpserter` guard `$jsonbValue['value']` pomijał select (envelope `option_code`, nie `value`). `VALUE_VALIDATED_TYPES` nie zawierał Select/Multiselect → validatory (choć zmapowane w factory) nigdy nie odpalały. Fix: dodać typy + `hasValidatableContent` per-envelope. Validatory walidują przeciw żywym `attribute_options` (`findCodesByAttribute`), nie tylko `validation_rules['option_codes']` (mirror często pusty). Repo opcjonalny (`?...=null`) → backward-compat dla `::default()` w unit testach.
+
+- **Hardcoded `['pl','en','de']` locale w modeling values.tsx** — pusta kolumna 'de' dla pl/en tenanta (wyglądało jak mock), brak edycji dla cs/fr. Fix: fetch `/api/workspaces/current` → `enabledLocales`, przekaż `LocaleChip[]` do PreviewCard + DefinitionCard (wzorzec #1149).
+
+- **Chained PR + `--delete-branch` = auto-close child PRs** — gdy mergujesz parent z `--delete-branch`, GitHub auto-zamyka PRy bazujące na nim. Lepiej: osobne tickety od main (niezależne branche), nie chain. Zastosowane w #1261/#1262/#1263 (3 osobne branche od main).
