@@ -1,8 +1,11 @@
 # Current Status
 
-## 2026-06-05: 🏁 follow-up fixy export global channel + custom OT toolbar (#1267, #1269) — kompletny
+## 2026-06-05: 🏁 follow-up fixy export (#1267, #1271) + custom OT toolbar (#1269) — kompletny
 
-2 PR-y merged (operator zgłosił po manual smoke):
+3 PR-y merged (operator zgłosił po manual smoke):
+
+- **#1271 eksport pustych cen** (PR [#1272](../../pull/1272)) — produkt z cenami (100/110/200) → eksport pustych kolumn price. Dwie warstwy: (FE) atrybut localizable+scopable wpadał w branch localizable-first → tylko per-locale (puste), gubił global+channel; (BE) `ValueSerializer::price` zwracał '' dla `{value:"100"}` (operator wpisał gołą liczbę, karta zapisuje `{value}` nie `{amount,currency}`). Fix: FE loc+scop → bare+locale+channel; BE price fallback `amount ?? value`. Smoke: `sku;price;price.allegro;price.en → DEMO-100;100;110;200`. Świadome odejście: attr-row renderuje price jako plain input (osobny UX ticket).
+
 
 - **#1267 export brak 'Wszystkie' channel** (PR [#1268](../../pull/1268)) — regresja z #1245: scopable attr fan-out produkował TYLKO `code.{channel}`, gubił bare `code` (global). Fix: scopable → bare global + per-channel; sekcja Kanały dostaje opcję "Wszystkie" (sentinel `__all__`) gatingującą bare scopable columns. Sentinel wykluczony z payload.
 - **#1269 custom OT bez locale/channel picker** (PR [#1270](../../pull/1270)) — `universal-detail-page` gatował toolbar przez `isEditing` (toggle, false); product gates przez `mode === 'edit'` (route, zawsze true). Komentarz #1225 błędnie zakładał parytet. Fix: toolbar zawsze widoczny (universal detail = zawsze istniejący obiekt); query refetchuje scope w read-only.

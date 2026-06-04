@@ -2290,3 +2290,13 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Hardcoded `['pl','en','de']` locale w modeling values.tsx** — pusta kolumna 'de' dla pl/en tenanta (wyglądało jak mock), brak edycji dla cs/fr. Fix: fetch `/api/workspaces/current` → `enabledLocales`, przekaż `LocaleChip[]` do PreviewCard + DefinitionCard (wzorzec #1149).
 
 - **Chained PR + `--delete-branch` = auto-close child PRs** — gdy mergujesz parent z `--delete-branch`, GitHub auto-zamyka PRy bazujące na nim. Lepiej: osobne tickety od main (niezależne branche), nie chain. Zastosowane w #1261/#1262/#1263 (3 osobne branche od main).
+
+## Lessons z eksportu cen + custom OT (#1267–#1271, 2026-06-05)
+
+- **Atrybut localizable AND scopable jednocześnie** — `attrToOptions` (export catalog) miał branche mutually-exclusive (localizable OR scopable), localizable sprawdzane pierwsze → loc+scop attr gubił bare global + per-channel, zwracał tylko per-locale. Fix: jawny case `isLoc && isScop` → bare + per-locale + per-channel. Pattern dla każdego "fan-out per wymiar": atrybut może mieć WIELE wymiarów scope naraz.
+
+- **Export ValueSerializer::price oczekiwał `{amount,currency}`, ale karta zapisuje `{value}`** — attr-row renderuje price jako plain `<Input type=text>` (brak amount+currency widgetu), więc operator wpisuje "100" → upserter wrapuje `{value:"100"}`. Serializer zwracał '' (brak klucza `amount`). Read path (karta) toleruje `{value}`, export nie → niespójność. Fix: `amount ?? value` fallback. Lekcja: serializery export muszą tolerować faktyczny kształt danych z write-path, nie tylko kanoniczny envelope.
+
+- **Custom OT (universal-detail-page) gating toolbar przez `isEditing`, product przez `mode==='edit'`** — komentarz #1225 błędnie zakładał parytet. `mode==='edit'` to ROUTE mode (zawsze true dla istniejącego obiektu), `isEditing` to TOGGLE (false do kliknięcia). Fix: universal toolbar zawsze widoczny (detail = zawsze istniejący obiekt). Lekcja: przy kopiowaniu wzorca z innego komponentu sprawdź FAKTYCZNY warunek, nie komentarz.
+
+- **Playwright E2E fail = często infra flaka, nie test** — `ERROR: unable to unpack /tmp/pear/download/redis-6.3.0.tgz` w buildzie Docker (PECL redis). `gh run rerun <id> --failed` naprawia. Sprawdź log PRZED debugowaniem kodu — jeśli "did not complete successfully: exit code 1" w `apk add`/`install-php-extensions`, to flaka sieciowa.
