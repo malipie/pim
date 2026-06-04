@@ -37,6 +37,23 @@ class DoctrineAttributeOptionRepository extends ServiceEntityRepository implemen
     }
 
     /**
+     * @return list<string>
+     */
+    public function findCodesByAttribute(Attribute $attribute): array
+    {
+        /** @var list<string> $codes */
+        $codes = $this->createQueryBuilder('o')
+            ->select('o.code')
+            ->andWhere('o.attribute = :attribute')
+            ->setParameter('attribute', $attribute)
+            ->orderBy('o.position', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return $codes;
+    }
+
+    /**
      * @param list<Attribute> $attributes
      *
      * @return list<AttributeOption>

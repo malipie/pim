@@ -107,7 +107,10 @@ services:
     # matching TypeValidator implementation.
     App\Catalog\Application\Validation\AttributeValueValidator:
         factory: ['App\Catalog\Application\Validation\AttributeValueValidator', 'default']
-        arguments: []
+        # #1261 — inject the option repository so Select/Multiselect validators
+        # enforce membership against the live `attribute_options` table.
+        arguments:
+            $optionRepository: '@App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface'
 
     # Kind-aware ApiResource hooks (#128). Built-in Product/Category/Asset
     # ship via dedicated sugar paths in #41; this layer holds the metadata

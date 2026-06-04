@@ -57,6 +57,10 @@ final readonly class ObjectAttributesUpserter
         AttributeType::Email,
         AttributeType::Color,
         AttributeType::Identifier,
+        // #1261 — select/multiselect option codes are validated against the
+        // live attribute_options set (SelectValidator/MultiselectValidator).
+        AttributeType::Select,
+        AttributeType::Multiselect,
     ];
 
     public function __construct(
@@ -113,12 +117,12 @@ final readonly class ObjectAttributesUpserter
 
             $jsonbValue = $this->wrapValue($rawValue);
 
-            // #1216 — enforce per-type value validation (email format, color
-            // hex/rgb, identifier shape) on every write path. Empty values are
-            // skipped — clearing an attribute is always allowed.
-            $scalar = $jsonbValue['value'] ?? null;
+            // #1216 / #1261 — enforce per-type value validation (email format,
+            // color hex/rgb, identifier shape, select/multiselect option
+            // membership) on every write path. Empty values are skipped —
+            // clearing an attribute is always allowed.
             if (\in_array($attribute->getType(), self::VALUE_VALIDATED_TYPES, true)
-                && null !== $scalar && '' !== $scalar) {
+                && self::hasValidatableContent($attribute->getType(), $jsonbValue)) {
                 $errors = $this->valueValidator->validate($attribute, $jsonbValue);
                 if ([] !== $errors) {
                     throw new UnprocessableEntityHttpException(\sprintf(
@@ -164,6 +168,33 @@ final readonly class ObjectAttributesUpserter
             );
             $this->values->save($value);
         }
+    }
+
+    /**
+     * #1261 — whether a wrapped value carries content worth validating, per
+     * the type's JSONB envelope. Clearing a value (empty option_code / empty
+     * option_codes / null-or-empty scalar) skips validation so operators can
+     * always blank a field.
+     *
+     * @param array<string, mixed> $jsonbValue
+     */
+    private static function hasValidatableContent(AttributeType $type, array $jsonbValue): bool
+    {
+        if (AttributeType::Select === $type) {
+            $optionCode = $jsonbValue['option_code'] ?? null;
+
+            return \is_string($optionCode) && '' !== $optionCode;
+        }
+
+        if (AttributeType::Multiselect === $type) {
+            $optionCodes = $jsonbValue['option_codes'] ?? null;
+
+            return \is_array($optionCodes) && [] !== $optionCodes;
+        }
+
+        $scalar = $jsonbValue['value'] ?? null;
+
+        return null !== $scalar && '' !== $scalar;
     }
 
     /**

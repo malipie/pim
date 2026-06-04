@@ -6,6 +6,7 @@ namespace App\Catalog\Application\Validation;
 
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
 
 /**
  * Per-AttributeType validator dispatcher.
@@ -61,13 +62,13 @@ final readonly class AttributeValueValidator
         return $validator->validate($attribute, $value);
     }
 
-    public static function default(): self
+    public static function default(?AttributeOptionRepositoryInterface $optionRepository = null): self
     {
         return new self([
             AttributeType::Text->value => new TypeValidator\TextValidator(),
             AttributeType::Number->value => new TypeValidator\NumberValidator(),
-            AttributeType::Select->value => new TypeValidator\SelectValidator(),
-            AttributeType::Multiselect->value => new TypeValidator\MultiselectValidator(),
+            AttributeType::Select->value => new TypeValidator\SelectValidator($optionRepository),
+            AttributeType::Multiselect->value => new TypeValidator\MultiselectValidator($optionRepository),
             AttributeType::Date->value => new TypeValidator\DateValidator(),
             AttributeType::Boolean->value => new TypeValidator\BooleanValidator(),
             AttributeType::Asset->value => new TypeValidator\AssetValidator(),
