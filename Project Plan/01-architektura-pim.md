@@ -262,7 +262,7 @@ System dzieli się na cztery główne konteksty domenowe (Bounded Contexts wg DD
 
 **Catalog Context** — typy obiektów domenowych (`ObjectType`), atrybuty, grupy atrybutów, instancje obiektów (produkty, kategorie, asocjacje), warianty. Rdzeń PIM po ADR-009. Encje: `ObjectType`, `ObjectTypeAttribute`, `Attribute`, `AttributeGroup`, `AttributeOption`, `Object` (poly: kind=`product`/`category`/`asset`/`custom`), `ObjectValue`, `ObjectVariant`, `Association`. Sub-context **Predefined Types** enkapsuluje predefiniowane fixture'y `Product`/`Category`/`Asset` (`is_built_in=true`) z dedykowanymi UX flow w admin UI i sugar paths w API. Pojęcie „Family" z poprzedniej iteracji jest deprecated — `ObjectType` przejmuje jego rolę i rozszerza ją na wszystkie byty domenowe.
 
-**Channel Context** — kanały sprzedaży, lokale, mappingi atrybutów per-kanał i per-`ObjectType`, completeness rules, publikacje. Encje: Channel, Locale, Currency, `ChannelObjectTypeMapping` (poly per `kind`), CompletenessRule.
+**Channel Context** — kanały sprzedaży, lokale, mappingi atrybutów per-kanał i per-`ObjectType`, completeness rules, publikacje. Encje: Channel, Locale, Currency, `ChannelObjectTypeMapping` (poly per `kind`), CompletenessRule, `ChannelPublicationProfile` (per-channel attribute/locale allow-list, ADR-0018).
 
 **Asset Context** — zarządzanie mediami (DAM), wersjonowanie, transformacje, metadane. Encje: Asset (predefined `ObjectType kind='asset'` + odrębna tabela storage), AssetVariant, AssetMetadata. User-defined metadata Asseta idzie przez `ObjectValue` (jednolity model atrybutów), storage szczegóły zostają w dedykowanych kolumnach `assets`.
 
@@ -1251,6 +1251,15 @@ Opcja (Y) zachowuje killer feature ADR-012 (dziedziczenie grup atrybutów po drz
 **Alternatywy odrzucone:** (a) status quo „jedno drzewo + multi-target" — nie spełnia żądania; (b) osobny category-kind ObjectType per drzewo — mnoży byty infrastrukturalne; (c) zachowanie współdzielenia kategorii między OT — niewykorzystane, komplikuje UX i unikalność ścieżek.
 
 **Referencje:** ADR-014 (rewidowany w zakresie scope drzewa; reszta — primary category overlay, cumulative resolution, EffectiveAttributeGroupResolver — w mocy). Plan implementacji: PR-A (#1118) schema+encja+create, PR-B API+resolver+walidacja przypisania, PR-C FE (dropdown all-categorizable + objectTypeId, list/new/show per drzewo, reword etykiety `is_categorizable` → „czy obiekty mogą być przypisane do drzewa").
+
+### ADR-0016, ADR-0017, ADR-0018 (per-file MADR)
+
+Decyzje ADR-0016 (format kluczy API + Argon2id), ADR-0017 (BYOK AES-256-GCM) i ADR-0018 (ChannelPublicationProfile — per-channel attribute/locale allow-list, `?publication=<channel>` oddzielne od `?channel=`) są zarchiwizowane w plikach per-file MADR w `docs/adr/`. Streszczenie ADR-0018:
+
+- Encja `ChannelPublicationProfile` w Channel BC (nie Catalog/Export); `published_attribute_codes=NULL` = publish-all (default).
+- Param `?publication=<channel>` dedykowany dla filtrowania atrybutów do profilu — NIE przeciążamy `?channel=` (który nadal znaczy overlay wartości).
+- Cross-BC dostęp przez `Channel\Contracts\ChannelPublicationResolverInterface` (Deptrac-safe).
+- Bare UUID refs (`channel_id`, `object_type_id`) zgodnie z ADR-015.
 
 ## 14. Roadmap rozwoju
 
