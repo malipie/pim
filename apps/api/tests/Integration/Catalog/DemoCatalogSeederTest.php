@@ -63,8 +63,10 @@ final class DemoCatalogSeederTest extends KernelTestCase
         // Composite PK on ObjectTypeAttribute prevents DQL COUNT — drop to DBAL.
         $junctions = $em->getConnection()->fetchOne('SELECT COUNT(*) FROM object_type_attributes');
         self::assertSame(23, (int) (\is_scalar($junctions) ? $junctions : 0));
-        // 100 × 15 + 5 × 3 + 10 × 2 = 1535 ObjectValue rows.
-        self::assertSame(1535, (int) $em->createQuery('SELECT COUNT(v) FROM '.ObjectValue::class.' v')->getSingleScalarResult());
+        // 100 × 15 + 5 × 3 + 10 × 2 = 1535 global ObjectValue rows
+        // + #1259: first 5 products each get a per-locale EN `name` + `description`
+        //   (5 × 2 = 10). No channelId passed here → no per-channel rows.
+        self::assertSame(1545, (int) $em->createQuery('SELECT COUNT(v) FROM '.ObjectValue::class.' v')->getSingleScalarResult());
     }
 
     #[Test]
@@ -136,6 +138,28 @@ final class DemoCatalogSeederTest extends KernelTestCase
 
         self::assertSame($beforeProducts, $this->countObjects(ObjectKind::Product));
         self::assertSame($beforeAttributes, (int) $this->em()->createQuery('SELECT COUNT(a) FROM '.Attribute::class.' a')->getSingleScalarResult());
+    }
+
+    #[Test]
+    public function seedsPerLocaleAndPerChannelDemoValues(): void
+    {
+        $channelId = \Symfony\Component\Uid\Uuid::v7();
+        $seeder = self::getContainer()->get(DemoCatalogSeeder::class);
+        $seeder->seed($this->tenant, $channelId);
+
+        $em = $this->em();
+
+        // First 5 products each get name(EN) + description(EN) → 10 per-locale rows.
+        $perLocale = (int) $em->createQuery(
+            'SELECT COUNT(v) FROM '.ObjectValue::class." v WHERE v.locale = 'en'",
+        )->getSingleScalarResult();
+        self::assertSame(10, $perLocale, 'First 5 products carry EN name + description.');
+
+        // First 5 products each get a per-channel price override → 5 rows.
+        $perChannel = (int) $em->createQuery(
+            'SELECT COUNT(v) FROM '.ObjectValue::class.' v WHERE v.channelId = :ch',
+        )->setParameter('ch', $channelId->toRfc4122())->getSingleScalarResult();
+        self::assertSame(5, $perChannel, 'First 5 products carry an Allegro price override.');
     }
 
     #[Test]
