@@ -118,6 +118,18 @@
                 <paginationViaCursor>
                     <paginationField field="id" direction="DESC"/>
                 </paginationViaCursor>
+                <parameters>
+                    <parameter key="locale" in="query"
+                               description="Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                    <parameter key="channel" in="query"
+                               description="Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                </parameters>
             </operation>
 
             <operation class="ApiPlatform\Metadata\Get"
@@ -130,6 +142,18 @@
                         <value name="kind">product</value>
                     </values>
                 </extraProperties>
+                <parameters>
+                    <parameter key="locale" in="query"
+                               description="Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                    <parameter key="channel" in="query"
+                               description="Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                </parameters>
             </operation>
 
             <operation class="ApiPlatform\Metadata\Post"
@@ -203,6 +227,18 @@
                 <paginationViaCursor>
                     <paginationField field="id" direction="DESC"/>
                 </paginationViaCursor>
+                <parameters>
+                    <parameter key="locale" in="query"
+                               description="Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                    <parameter key="channel" in="query"
+                               description="Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                </parameters>
             </operation>
 
             <operation class="ApiPlatform\Metadata\Get"
@@ -215,6 +251,18 @@
                         <value name="kind">category</value>
                     </values>
                 </extraProperties>
+                <parameters>
+                    <parameter key="locale" in="query"
+                               description="Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                    <parameter key="channel" in="query"
+                               description="Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                </parameters>
             </operation>
 
             <operation class="ApiPlatform\Metadata\Post"
@@ -288,6 +336,18 @@
                 <paginationViaCursor>
                     <paginationField field="id" direction="DESC"/>
                 </paginationViaCursor>
+                <parameters>
+                    <parameter key="locale" in="query"
+                               description="Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                    <parameter key="channel" in="query"
+                               description="Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                </parameters>
             </operation>
 
             <operation class="ApiPlatform\Metadata\Get"
@@ -325,6 +385,18 @@
                 <paginationViaCursor>
                     <paginationField field="id" direction="DESC"/>
                 </paginationViaCursor>
+                <parameters>
+                    <parameter key="locale" in="query"
+                               description="Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                    <parameter key="channel" in="query"
+                               description="Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                </parameters>
             </operation>
 
             <!-- Poly-kind detail counterpart to GetCollection above (#977).
@@ -338,7 +410,20 @@
                        uriTemplate="/objects/{id}{._format}"
                        name="objects_get"
                        provider="App\Catalog\Infrastructure\ApiPlatform\State\CatalogObjectLocaleOverlayProvider"
-                       security="is_granted('READ', object)"/>
+                       security="is_granted('READ', object)">
+                <parameters>
+                    <parameter key="locale" in="query"
+                               description="Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                    <parameter key="channel" in="query"
+                               description="Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values."
+                               required="false">
+                        <schema><values><value name="type">string</value></values></schema>
+                    </parameter>
+                </parameters>
+            </operation>
 
             <!-- Poly-kind create (#981) — relation picker modal's
                  "Utwórz i podepnij" submits here when the target ObjectType

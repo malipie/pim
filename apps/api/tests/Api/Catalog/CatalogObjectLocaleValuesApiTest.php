@@ -99,6 +99,27 @@ final class CatalogObjectLocaleValuesApiTest extends CatalogApiTestCase
     }
 
     /**
+     * #1230 — collection overlay provider must accept ?locale=pl (the tenant's
+     * primary/enabled locale) without 4xx. Uses 'pl' because the test tenant's
+     * enabledLocales default includes 'pl'; 'en' would also pass (default also
+     * includes it) but 'pl' is the primary and guaranteed available.
+     */
+    #[Test]
+    public function collectionWithEnabledLocaleParamYields200(): void
+    {
+        $client = $this->authenticatedClient();
+        $otId = $this->objectTypeIdFor(ObjectKind::Product);
+        $create = $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'json' => ['code' => 'LOC-COL-1', 'objectTypeId' => $otId],
+        ]);
+        self::assertSame(201, $create->getStatusCode());
+
+        // ?locale=pl: primary locale, always enabled, overlay no-ops (effectiveLocale=null).
+        self::assertSame(200, $client->request('GET', '/api/products?locale=pl')->getStatusCode());
+    }
+
+    /**
      * @return array<string, array<string, mixed>>
      */
     private function attrs(Client $client, string $id, ?string $locale, string $base = '/api/products/'): array
