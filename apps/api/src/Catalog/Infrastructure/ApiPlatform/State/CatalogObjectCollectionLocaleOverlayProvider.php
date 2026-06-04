@@ -12,10 +12,14 @@ use App\Catalog\Application\ObjectValueLocaleOverlay;
 use App\Catalog\Application\SystemAttributeReadOverlay;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
+use App\Channel\Contracts\ChannelPublicationResolverInterface;
+use App\Shared\Domain\Tenant;
 use ArrayIterator;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Uid\Uuid;
 use Traversable;
+
+use const ARRAY_FILTER_USE_KEY;
 
 /**
  * GetCollection provider for catalog sugar paths (`/api/products`,
@@ -41,6 +45,7 @@ final readonly class CatalogObjectCollectionLocaleOverlayProvider implements Pro
         private SystemAttributeReadOverlay $systemOverlay,
         private ObjectValueRepositoryInterface $objectValues,
         private RequestStack $requestStack,
+        private ChannelPublicationResolverInterface $publicationResolver,
     ) {
     }
 
@@ -54,8 +59,10 @@ final readonly class CatalogObjectCollectionLocaleOverlayProvider implements Pro
         $request = $this->requestStack->getCurrentRequest();
         $localeParam = $request?->query->get('locale');
         $channelParam = $request?->query->get('channel');
+        $publicationParam = $request?->query->get('publication');
         $locale = \is_string($localeParam) && '' !== $localeParam ? $localeParam : null;
         $channel = \is_string($channelParam) && '' !== $channelParam ? $channelParam : null;
+        $publication = \is_string($publicationParam) && '' !== $publicationParam ? $publicationParam : null;
 
         // Collect CatalogObject items from the paginator or array result.
         // API Platform may return an iterable paginator or a plain array.
@@ -79,8 +86,8 @@ final readonly class CatalogObjectCollectionLocaleOverlayProvider implements Pro
         }
 
         // Always apply system overlay so created_at/updated_at render.
-        // When no locale/channel scope is active, skip the value overlay.
-        if (null === $locale && null === $channel) {
+        // When no locale/channel scope and no publication filter, skip overlay.
+        if (null === $locale && null === $channel && null === $publication) {
             foreach ($objects as $object) {
                 $this->systemOverlay->apply($object);
             }
@@ -96,7 +103,15 @@ final readonly class CatalogObjectCollectionLocaleOverlayProvider implements Pro
         $valuesByObjectId = $this->objectValues->findByObjectIds($objectIds);
 
         // Apply locale/channel overlay on clones (no identity map mutation).
-        $overlaid = $this->overlay->applyBatch($objects, $valuesByObjectId, $locale, $channel);
+        $overlaid = (null !== $locale || null !== $channel)
+            ? $this->overlay->applyBatch($objects, $valuesByObjectId, $locale, $channel)
+            : array_map(static fn (CatalogObject $o): CatalogObject => clone $o, $objects);
+
+        // #1234 — ?publication=<channelCode> filters attributes_indexed per
+        // publication profile. Applied after value overlay.
+        if (null !== $publication) {
+            $overlaid = $this->applyPublicationFilter($overlaid, $publication);
+        }
 
         // Apply system overlay on the (already cloned) overlaid objects.
         $overlaid = array_map(
@@ -122,5 +137,39 @@ final readonly class CatalogObjectCollectionLocaleOverlayProvider implements Pro
         }
 
         return $overlaid;
+    }
+
+    /**
+     * Filters attributes_indexed to the publication allow-list for each object.
+     * Objects are already cloned; mutates the clone in-place.
+     *
+     * @param list<CatalogObject> $objects
+     *
+     * @return list<CatalogObject>
+     */
+    private function applyPublicationFilter(array $objects, string $channelCode): array
+    {
+        foreach ($objects as $object) {
+            $tenant = $object->getTenant();
+            if (!$tenant instanceof Tenant) {
+                continue;
+            }
+            $allowedCodes = $this->publicationResolver->resolvePublishedCodes(
+                $channelCode,
+                $object->getObjectType()->getId(),
+                $tenant,
+            );
+            if (null === $allowedCodes) {
+                continue;
+            }
+            $filtered = array_filter(
+                $object->getAttributesIndexed(),
+                static fn (string $code): bool => \in_array($code, $allowedCodes, true),
+                ARRAY_FILTER_USE_KEY,
+            );
+            $object->updateAttributeIndex($filtered);
+        }
+
+        return $objects;
     }
 }
