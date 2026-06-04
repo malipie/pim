@@ -18,6 +18,11 @@ type ExportFormat = 'xlsx' | 'csv';
 type ExportEncoding = 'utf8_bom' | 'windows_1250';
 type TargetScope = 'selected' | 'filter' | 'all';
 
+// #1267 — sentinel for the global (channel=null) export scope, shown as
+// "Wszystkie" in the channels section. Never sent to the backend as a
+// real channel code (the global value is the bare `code` column).
+const GLOBAL_CHANNEL = '__all__';
+
 interface ExportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -89,7 +94,11 @@ export function ExportModal({
 
   const columnCatalog = useExportColumnCatalog();
   const allLocales = columnCatalog.enabledLocales;
-  const allChannels = columnCatalog.enabledChannels;
+  const realChannels = columnCatalog.enabledChannels;
+  const scopableCodes = columnCatalog.scopableCodes;
+  // #1267 — the "Wszystkie" (global, channel=null) scope is a first-class
+  // export target for scopable attributes, shown alongside real channels.
+  const channelOptions = realChannels.length > 0 ? [GLOBAL_CHANNEL, ...realChannels] : [];
 
   // Initialize activeLocales / activeChannels once catalog loads (idempotent — only sets once).
   useEffect(() => {
@@ -98,13 +107,13 @@ export function ExportModal({
     }
   }, [activeLocales, allLocales]);
   useEffect(() => {
-    if (activeChannels === null && allChannels.length > 0) {
-      setActiveChannels(allChannels);
+    if (activeChannels === null && channelOptions.length > 0) {
+      setActiveChannels(channelOptions);
     }
-  }, [activeChannels, allChannels]);
+  }, [activeChannels, channelOptions]);
 
   const effectiveLocales = activeLocales ?? allLocales;
-  const effectiveChannels = activeChannels ?? allChannels;
+  const effectiveChannels = activeChannels ?? channelOptions;
 
   const toggleLocale = (locale: string, checked: boolean): void => {
     const next = checked
@@ -122,7 +131,12 @@ export function ExportModal({
       : effectiveChannels.filter((c) => c !== channel);
     setActiveChannels(next);
     if (!checked) {
-      setColumns((prev) => prev.filter((col) => !col.endsWith(`.${channel}`)));
+      if (channel === GLOBAL_CHANNEL) {
+        // Unchecking "Wszystkie" drops the bare global columns of scopable attrs.
+        setColumns((prev) => prev.filter((col) => !scopableCodes.includes(col)));
+      } else {
+        setColumns((prev) => prev.filter((col) => !col.endsWith(`.${channel}`)));
+      }
     }
   };
 
@@ -131,12 +145,19 @@ export function ExportModal({
     ...group,
     columns: group.columns.filter((col) => {
       const dot = col.key.lastIndexOf('.');
-      if (dot === -1) return true;
+      if (dot === -1) {
+        // #1267 — a bare scopable code is the GLOBAL value, gated by the
+        // "Wszystkie" option; bare non-scopable columns (sku, name) always show.
+        if (scopableCodes.includes(col.key)) {
+          return effectiveChannels.includes(GLOBAL_CHANNEL);
+        }
+        return true;
+      }
       const suffix = col.key.slice(dot + 1);
       if (effectiveLocales.includes(suffix)) return true;
       if (effectiveChannels.includes(suffix)) return true;
       // Suffix not in either active set — hide (it's a deselected locale or channel).
-      if (allLocales.includes(suffix) || allChannels.includes(suffix)) return false;
+      if (allLocales.includes(suffix) || realChannels.includes(suffix)) return false;
       return true;
     }),
   }));
@@ -163,13 +184,17 @@ export function ExportModal({
     setError(null);
     setProfileError(null);
 
+    // #1267 — the GLOBAL sentinel is a UI-only scope; the backend only takes
+    // real channel codes (the global value rides the bare `code` column).
+    const realEffectiveChannels = effectiveChannels.filter((c) => c !== GLOBAL_CHANNEL);
     const payload: Record<string, unknown> = {
       format,
       target_scope: targetScope,
       selected_columns: columns,
       include_variants: true,
       locales: effectiveLocales.length < allLocales.length ? effectiveLocales : undefined,
-      channels: effectiveChannels.length < allChannels.length ? effectiveChannels : undefined,
+      channels:
+        realEffectiveChannels.length < realChannels.length ? realEffectiveChannels : undefined,
     };
     if (format === 'csv') {
       payload['encoding'] = encoding;
@@ -330,14 +355,14 @@ export function ExportModal({
             </section>
           )}
 
-          {/* Section 0b — Kanały (#1245) */}
-          {allChannels.length > 0 && (
+          {/* Section 0b — Kanały (#1245 / #1267 global option) */}
+          {channelOptions.length > 0 && (
             <section className="space-y-2">
               <h3 className="text-sm font-medium">
                 {t('exports.modal.section_channels', { defaultValue: 'Kanały' })}
               </h3>
               <div className="flex flex-wrap gap-3 text-sm">
-                {allChannels.map((channel) => (
+                {channelOptions.map((channel) => (
                   <label key={channel} className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -347,7 +372,11 @@ export function ExportModal({
                         toggleChannel(channel, e.target.checked);
                       }}
                     />
-                    <span>{channel}</span>
+                    <span>
+                      {channel === GLOBAL_CHANNEL
+                        ? t('exports.modal.channel_all', { defaultValue: 'Wszystkie' })
+                        : channel}
+                    </span>
                   </label>
                 ))}
               </div>
