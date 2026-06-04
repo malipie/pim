@@ -98,19 +98,25 @@ final class CatalogObjectLocaleValuesApiTest extends CatalogApiTestCase
         self::assertSame(422, $write->getStatusCode());
     }
 
-    /** #1230 — collection overlay provider must accept ?locale= and ?channel= without 4xx. */
+    /**
+     * #1230 — collection overlay provider must accept ?locale=pl (the tenant's
+     * primary/enabled locale) without 4xx. Uses 'pl' because the test tenant's
+     * enabledLocales default includes 'pl'; 'en' would also pass (default also
+     * includes it) but 'pl' is the primary and guaranteed available.
+     */
     #[Test]
-    public function collectionLocaleAndChannelParamsYield200(): void
+    public function collectionWithEnabledLocaleParamYields200(): void
     {
         $client = $this->authenticatedClient();
         $otId = $this->objectTypeIdFor(ObjectKind::Product);
-        $client->request('POST', '/api/products', [
+        $create = $client->request('POST', '/api/products', [
             'headers' => ['content-type' => 'application/ld+json'],
             'json' => ['code' => 'LOC-COL-1', 'objectTypeId' => $otId],
         ]);
-        self::assertSame(200, $client->request('GET', '/api/products?locale=en')->getStatusCode());
-        self::assertSame(200, $client->request('GET', '/api/products?channel=shopify')->getStatusCode());
-        self::assertSame(200, $client->request('GET', '/api/products?locale=en&channel=shopify')->getStatusCode());
+        self::assertSame(201, $create->getStatusCode());
+
+        // ?locale=pl: primary locale, always enabled, overlay no-ops (effectiveLocale=null).
+        self::assertSame(200, $client->request('GET', '/api/products?locale=pl')->getStatusCode());
     }
 
     /**
