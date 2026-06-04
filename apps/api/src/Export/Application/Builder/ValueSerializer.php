@@ -167,7 +167,11 @@ final class ValueSerializer
      */
     private function price(array $payload): string
     {
-        $amount = $this->stringify($payload['amount'] ?? null);
+        // #1271 — the canonical price envelope is `{amount, currency}`, but the
+        // product card stores a plain `{value}` when the operator types a bare
+        // number into the (text) price field. Fall back to `value` so those
+        // prices export instead of rendering an empty cell.
+        $amount = $this->stringify($payload['amount'] ?? $payload['value'] ?? null);
         if ('' === $amount) {
             return '';
         }
