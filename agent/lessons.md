@@ -2260,3 +2260,17 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Biome: warningi nie blokują, formatter-diff blokuje** — `useExhaustiveDependencies`/`useLiteralKeys`/`noConsole` to warningi (pre-existing, exit 0). „Formatter would have printed…" = ERROR (exit 1, blokuje pre-commit hook + CI). Fix: `biome check --write <pliki>` przed commit. Pre-commit lint-staged dla PHP odpala php-cs-fixer config-driven (bez ścieżek) — wieloplikowy `--dry-run <ścieżki>` daje fałszywy „multiple paths config required".
 
 - **Operator custom OTs zwipowane z dev DB** — Usługi/Samochody zniknęły (wcześniejszy `pim:db:reset`); `/api/object_types` zwracał tylko 3 built-iny. Dotyczy #1205 (lista samochody) i #1209 (kategorie custom). Feature'y działają dla nowo utworzonych; operator odtwarza OTs przez UI. (memory `feedback_pim_db_reset_wipes_operator_state`)
+
+## Lessons z epiku LC (#1227–#1245) — marathon 2026-06-04
+
+- **Chained PR approach → chain-collapse risk**: gdy używasz `--delete-branch` na merge, GitHub auto-closes PRy bazujące na deleted branch. Następnym razem: albo nie kasuj branchy (pomiń `--delete-branch`) albo zmień base PR PRZED merge'em. Alternatywa: omnibus branch dla powiązanych feature'ów zamiast chain.
+
+- **createStub() vs createMock() w PHPStan max**: `createStub()` zwraca `Stub&T` — PHPStan nie widzi `method()` na Stub interface w strict mode. Używaj `createMock()` z `#[AllowMockObjectsWithoutExpectations]` na klasie testowej dla tests bez explicit expectations.
+
+- **`@var InterfaceX` na `container->get(InterfaceX::class)`**: Symfony PHPStan extension rozwiązuje `get(Interface::class)` do concrete class. `@var InterfaceX` powoduje "not subtype of ConcreteClass" error. Fix: `assertInstanceOf(InterfaceX::class, $repo)` zamiast `@var`.
+
+- **ChannelCreated subscriber + UNIQUE constraint**: `CreateDefaultPublicationProfilesOnChannelCreated` tworzy profile auto. Jeśli test później próbuje insertować kolejny profil dla tego samego (channel, objectType, tenant) → UNIQUE violation. Fix w teście: upsert (findOneBy + update existing) zamiast nowego insert.
+
+- **Squash merge usuwa historię chain-commits**: Squash merge na main „spłaszcza" całą historię feature-brancha. Rebased child-branch widzi te commity jako „już w main" → rebase --onto sprząta poprawnie; standardowy rebase może duplikować commity z regresją (wybierał --theirs → revertował fix). Używaj `git rebase --onto origin/main <first-exclusive-commit>` zamiast prostego `git rebase origin/main`.
+
+- **PR base auto-update**: GitHub nie auto-updatuje bazy PR gdy parent branch jest squash-merged. Zmień base ręcznie (`gh pr edit --base main`) przed merge'em lub utwórz nowy PR z właściwą bazą.
