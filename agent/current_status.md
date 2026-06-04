@@ -1,5 +1,26 @@
 # Current Status
 
+## 2026-06-04: 🏃 Marathon #1227–#1245 — implementacja w toku, PRy w CI
+
+10 ticketów epiku LC/EXP zaimplementowane. Pełna lista otwartych PRów oczekujących na merge:
+
+| PR | Ticket | Status |
+|---|---|---|
+| [#1246](../../pull/1246) merged | #1227 fix: locale=default tenanta w universal-create-page | ✅ merged |
+| [#1247](../../pull/1247) in CI | #1230 docs: ?locale/?channel QueryParameter OpenAPI | CI pending |
+| [#1248](../../pull/1248) merged | #1231 docs: ADR-0018 ChannelPublicationProfile | ✅ merged |
+| [#1249](../../pull/1249) in CI | #1232 feat: ChannelPublicationProfile entity+migration+seed | CI pending |
+| [#1250](../../pull/1250) in CI | #1233 feat: ChannelPublicationResolver cross-BC | CI pending |
+| [#1251](../../pull/1251) in CI | #1234 feat: API read ?publication=<channel> | CI pending |
+| [#1252](../../pull/1252) in CI | #1235 feat: PublicationColumnPlanner | CI pending |
+| [#1253](../../pull/1253) in CI | #1243 feat: sekcja Języki w ExportModal | CI pending |
+| [#1254](../../pull/1254) in CI | #1244 feat: grouped locale columns ColumnPicker | CI pending |
+| [#1255](../../pull/1255) in CI | #1245 feat: sekcja Kanały w ExportModal | CI pending |
+
+Aktualny stan: wszystkie 10 ticketów committed i w CI. Oczekuję na finalizację CI i merge.
+
+**Następny krok**: pollować CI → merge po zielonym PR-by-PR (z uwagi na dependency order: #1249→#1250→#1251→#1252 BE chained; #1253→#1254→#1255 FE chained).
+
 ## 2026-06-02: 🏁 batch drobnych poprawek (smoke) + dokończenie #1179 — kompletny
 
 5 PR-ów merged do main, każdy z quality gates + live-stack smoke (CLOSED MEANS CLOSED):
