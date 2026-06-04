@@ -27,7 +27,11 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
 import { AttrGroupCard } from '@/features/catalog/products/components/attr-group-card';
 import { AttrRow } from '@/features/catalog/products/components/attr-row';
-import type { GroupMeta, ProductLocale } from '@/features/catalog/products/components/types';
+import type {
+  GroupMeta,
+  LocaleOption,
+  ProductLocale,
+} from '@/features/catalog/products/components/types';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
@@ -80,7 +84,7 @@ export function UniversalCreatePage({
   const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
-  const [locale] = useState<ProductLocale>('pl');
+  const [locale, setLocale] = useState<ProductLocale>('pl');
   const [activeTab, setActiveTab] = useState<string>(ATTRIBUTES_TAB);
 
   // UP-08 — fetch the ObjectType's effective groups without an object
@@ -94,13 +98,13 @@ export function UniversalCreatePage({
   // staleTime + lack of cross-page invalidation hides newly attached
   // groups (e.g. operator attaches a second AttributeGroup in
   // modeling, navigates back here, and only sees the cached payload).
-  const groupsQuery = useQuery<{ groups: GroupMeta[] }>({
+  const groupsQuery = useQuery<{ groups: GroupMeta[]; locales?: LocaleOption[] }>({
     queryKey: ['object-type', objectTypeId, 'effective-attribute-groups', 'preview', 'empty'],
     enabled: objectTypeId !== '',
     staleTime: 30_000,
     refetchOnMount: 'always',
     queryFn: () =>
-      jsonFetch<{ groups: GroupMeta[] }>(
+      jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
         `/api/object_types/${objectTypeId}/effective-attribute-groups/preview`,
         {
           method: 'POST',
@@ -117,6 +121,20 @@ export function UniversalCreatePage({
     () => (groupsQuery.data?.groups ?? []).filter((g) => g.attributes.length > 0),
     [groupsQuery.data],
   );
+
+  // #1227 — initialize locale from tenant default once (mirrors product-detail-page #1149).
+  const locales = useMemo<LocaleOption[]>(
+    () => groupsQuery.data?.locales ?? [],
+    [groupsQuery.data],
+  );
+  const [didInitLocale, setDidInitLocale] = useState(false);
+  useEffect(() => {
+    if (didInitLocale || locales.length === 0) return;
+    const def = locales.find((l) => l.is_default) ?? locales[0];
+    if (def === undefined) return;
+    setLocale(def.code);
+    setDidInitLocale(true);
+  }, [locales, didInitLocale]);
 
   // #1098 — mirror MODR-04 split from product-detail-page: tab-mode
   // groups become their own tab, stacked-mode groups live inline
