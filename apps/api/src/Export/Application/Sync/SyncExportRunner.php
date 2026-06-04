@@ -9,6 +9,7 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Export\Application\Builder\ExportBuilder;
+use App\Export\Application\Builder\PublicationColumnPlanner;
 use App\Export\Domain\Entity\ExportSession;
 use App\Export\Domain\Enum\ExportEncoding;
 use App\Export\Domain\Enum\ExportFormat;
@@ -52,6 +53,7 @@ final class SyncExportRunner
         private readonly ExportSessionRepositoryInterface $sessions,
         private readonly FilterDslResolver $filterDsl,
         private readonly Connection $connection,
+        private readonly PublicationColumnPlanner $columnPlanner,
     ) {
     }
 
@@ -83,13 +85,21 @@ final class SyncExportRunner
      */
     public function runToFile(ExportSession $session, string $targetPath): int
     {
-        $columns = $session->getSelectedColumns();
-        if ([] === $columns) {
-            throw new InvalidArgumentException('Export session must list at least one column.');
-        }
-
         $targets = $this->resolveTargets($session);
         $session->setTargetCount(\count($targets));
+
+        $columns = $session->getSelectedColumns();
+        if ([] === $columns) {
+            // #1235 — when no manual columns, try to derive from publication profile.
+            $objectTypeIds = $this->collectObjectTypeIds($targets);
+            $planned = $objectTypeIds !== []
+                ? $this->columnPlanner->plan($session, $objectTypeIds)
+                : null;
+            if (null === $planned) {
+                throw new InvalidArgumentException('Export session must list at least one column.');
+            }
+            $columns = $planned;
+        }
 
         $writer = $this->openWriter($session->getFormat(), $session, $targetPath);
         $writer->writeHeaders($columns);
@@ -173,6 +183,24 @@ final class SyncExportRunner
         $uuids = array_map(static fn (string $id): Uuid => Uuid::fromString($id), $ids);
 
         return $this->objects->findByIds(array_map(static fn (Uuid $u): string => $u->toRfc4122(), $uuids));
+    }
+
+    /**
+     * Collects unique ObjectType IDs (as UUID RFC strings) from a set of objects.
+     *
+     * @param list<CatalogObject> $objects
+     *
+     * @return list<string>
+     */
+    private function collectObjectTypeIds(array $objects): array
+    {
+        $ids = [];
+        foreach ($objects as $object) {
+            $id = $object->getObjectType()->getId()->toRfc4122();
+            $ids[$id] = $id;
+        }
+
+        return array_values($ids);
     }
 
     private function openWriter(ExportFormat $format, ExportSession $session, string $path): RowWriter
