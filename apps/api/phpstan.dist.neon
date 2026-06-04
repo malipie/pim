@@ -122,6 +122,7 @@ parameters:
               - src/Export/Domain/Entity/ExportProfile.php
               - src/Backup/Domain/Entity/Backup.php
               - src/Channel/Domain/Entity/TenantLocale.php
+              - src/Channel/Domain/Entity/ChannelPublicationProfile.php
         # Tenant aggregate exposes legacy `$enabledLocales` + `$primaryLocale`
         # marked `@deprecated` by #870 (LOC-02) until LOC-07 (#875) migrates
         # `/settings/tenant` to consume `tenant_locales`. The Tenant class
