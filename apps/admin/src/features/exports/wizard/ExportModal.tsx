@@ -83,20 +83,28 @@ export function ExportModal({
   const [profileName, setProfileName] = useState('');
   const [profileError, setProfileError] = useState<string | null>(null);
   // #1243 — activeLocales: all enabled locales selected by default (zero regression).
-  // null = not yet initialized (wait for catalog to load).
+  // #1245 — activeChannels: all enabled channels selected by default.
   const [activeLocales, setActiveLocales] = useState<string[] | null>(null);
+  const [activeChannels, setActiveChannels] = useState<string[] | null>(null);
 
   const columnCatalog = useExportColumnCatalog();
   const allLocales = columnCatalog.enabledLocales;
+  const allChannels = columnCatalog.enabledChannels;
 
-  // Initialize activeLocales once catalog loads (idempotent — only sets once).
+  // Initialize activeLocales / activeChannels once catalog loads (idempotent — only sets once).
   useEffect(() => {
     if (activeLocales === null && allLocales.length > 0) {
       setActiveLocales(allLocales);
     }
   }, [activeLocales, allLocales]);
+  useEffect(() => {
+    if (activeChannels === null && allChannels.length > 0) {
+      setActiveChannels(allChannels);
+    }
+  }, [activeChannels, allChannels]);
 
   const effectiveLocales = activeLocales ?? allLocales;
+  const effectiveChannels = activeChannels ?? allChannels;
 
   const toggleLocale = (locale: string, checked: boolean): void => {
     const next = checked
@@ -104,21 +112,32 @@ export function ExportModal({
       : effectiveLocales.filter((l) => l !== locale);
     setActiveLocales(next);
     if (!checked) {
-      // Remove .{locale} suffix columns from the selected list.
       setColumns((prev) => prev.filter((col) => !col.endsWith(`.${locale}`)));
     }
   };
 
-  // Filter available column groups to only show columns whose locale suffix
-  // is in the active set. Bare columns (no suffix) always pass through.
+  const toggleChannel = (channel: string, checked: boolean): void => {
+    const next = checked
+      ? [...effectiveChannels, channel]
+      : effectiveChannels.filter((c) => c !== channel);
+    setActiveChannels(next);
+    if (!checked) {
+      setColumns((prev) => prev.filter((col) => !col.endsWith(`.${channel}`)));
+    }
+  };
+
+  // Filter available column groups by active locales AND active channels.
   const filteredGroups = columnCatalog.groups.map((group) => ({
     ...group,
     columns: group.columns.filter((col) => {
       const dot = col.key.lastIndexOf('.');
       if (dot === -1) return true;
       const suffix = col.key.slice(dot + 1);
-      // If suffix looks like a locale code (2-3 chars), filter by activeLocales.
-      return suffix.length <= 5 && effectiveLocales.includes(suffix);
+      if (effectiveLocales.includes(suffix)) return true;
+      if (effectiveChannels.includes(suffix)) return true;
+      // Suffix not in either active set — hide (it's a deselected locale or channel).
+      if (allLocales.includes(suffix) || allChannels.includes(suffix)) return false;
+      return true;
     }),
   }));
 
@@ -150,6 +169,7 @@ export function ExportModal({
       selected_columns: columns,
       include_variants: true,
       locales: effectiveLocales.length < allLocales.length ? effectiveLocales : undefined,
+      channels: effectiveChannels.length < allChannels.length ? effectiveChannels : undefined,
     };
     if (format === 'csv') {
       payload['encoding'] = encoding;
@@ -286,7 +306,7 @@ export function ExportModal({
           </DialogTitle>
         </DialogHeader>
         <div className="-mx-6 flex-1 space-y-6 overflow-y-auto px-6">
-          {/* Section 0 — Języki (#1243) */}
+          {/* Section 0a — Języki (#1243) */}
           {allLocales.length > 1 && (
             <section className="space-y-2">
               <h3 className="text-sm font-medium">
@@ -304,6 +324,30 @@ export function ExportModal({
                       }}
                     />
                     <span className="uppercase">{locale}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Section 0b — Kanały (#1245) */}
+          {allChannels.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-sm font-medium">
+                {t('exports.modal.section_channels', { defaultValue: 'Kanały' })}
+              </h3>
+              <div className="flex flex-wrap gap-3 text-sm">
+                {allChannels.map((channel) => (
+                  <label key={channel} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="size-4"
+                      checked={effectiveChannels.includes(channel)}
+                      onChange={(e) => {
+                        toggleChannel(channel, e.target.checked);
+                      }}
+                    />
+                    <span>{channel}</span>
                   </label>
                 ))}
               </div>
