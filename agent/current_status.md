@@ -1,5 +1,12 @@
 # Current Status
 
+## 2026-06-05: 🏁 follow-up fixy export global channel + custom OT toolbar (#1267, #1269) — kompletny
+
+2 PR-y merged (operator zgłosił po manual smoke):
+
+- **#1267 export brak 'Wszystkie' channel** (PR [#1268](../../pull/1268)) — regresja z #1245: scopable attr fan-out produkował TYLKO `code.{channel}`, gubił bare `code` (global). Fix: scopable → bare global + per-channel; sekcja Kanały dostaje opcję "Wszystkie" (sentinel `__all__`) gatingującą bare scopable columns. Sentinel wykluczony z payload.
+- **#1269 custom OT bez locale/channel picker** (PR [#1270](../../pull/1270)) — `universal-detail-page` gatował toolbar przez `isEditing` (toggle, false); product gates przez `mode === 'edit'` (route, zawsze true). Komentarz #1225 błędnie zakładał parytet. Fix: toolbar zawsze widoczny (universal detail = zawsze istniejący obiekt); query refetchuje scope w read-only.
+
 ## 2026-06-04: 🏁 batch select/channel-locale fixów (#1259–#1263) — kompletny
 
 6 PR-ów merged do main (każdy quality gates + live-stack smoke):
