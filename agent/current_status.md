@@ -1,25 +1,32 @@
 # Current Status
 
-## 2026-06-04: 🏃 Marathon #1227–#1245 — implementacja w toku, PRy w CI
+## 2026-06-04: 🏁 Marathon #1227–#1245 (epik LC + EXP) — KOMPLETNY
 
-10 ticketów epiku LC/EXP zaimplementowane. Pełna lista otwartych PRów oczekujących na merge:
+Wszystkie 10 ticketów zmergowane do main + zamknięte. Finalne PRy:
 
-| PR | Ticket | Status |
+| Ticket | PR (merged) | Opis |
 |---|---|---|
-| [#1246](../../pull/1246) merged | #1227 fix: locale=default tenanta w universal-create-page | ✅ merged |
-| [#1247](../../pull/1247) in CI | #1230 docs: ?locale/?channel QueryParameter OpenAPI | CI pending |
-| [#1248](../../pull/1248) merged | #1231 docs: ADR-0018 ChannelPublicationProfile | ✅ merged |
-| [#1249](../../pull/1249) in CI | #1232 feat: ChannelPublicationProfile entity+migration+seed | CI pending |
-| [#1250](../../pull/1250) in CI | #1233 feat: ChannelPublicationResolver cross-BC | CI pending |
-| [#1251](../../pull/1251) in CI | #1234 feat: API read ?publication=<channel> | CI pending |
-| [#1252](../../pull/1252) in CI | #1235 feat: PublicationColumnPlanner | CI pending |
-| [#1253](../../pull/1253) in CI | #1243 feat: sekcja Języki w ExportModal | CI pending |
-| [#1254](../../pull/1254) in CI | #1244 feat: grouped locale columns ColumnPicker | CI pending |
-| [#1255](../../pull/1255) in CI | #1245 feat: sekcja Kanały w ExportModal | CI pending |
+| #1227 | [#1246](../../pull/1246) | fix: locale=default tenanta w universal-create-page |
+| #1230 | [#1247](../../pull/1247) | docs: `?locale`/`?channel` QueryParameter w OpenAPI (CatalogObject.xml + snapshot) |
+| #1231 | [#1248](../../pull/1248) | docs: ADR-0018 ChannelPublicationProfile |
+| #1232 | [#1249](../../pull/1249) | feat: ChannelPublicationProfile entity + migracja + seed + ChannelCreated subscriber |
+| #1233 | [#1258](../../pull/1258) | feat: ChannelPublicationResolverInterface (Channel\Contracts, Deptrac-safe) |
+| #1234 | [#1258](../../pull/1258) | feat: API read `?publication=<channel>` (overlay providers filtrują attributes_indexed) |
+| #1235 | [#1258](../../pull/1258) | feat: PublicationColumnPlanner (profil → selected_columns w SyncExportRunner) |
+| #1243 | [#1253](../../pull/1253) | feat: sekcja Języki w ExportModal (global locale filter) |
+| #1244 | [#1256](../../pull/1256) | feat: grouped locale columns w ColumnPicker (collapsible parent + indeterminate) |
+| #1245 | [#1256](../../pull/1256) | feat: sekcja Kanały w ExportModal + scopable fan-out per kanał |
 
-Aktualny stan: wszystkie 10 ticketów committed i w CI. Oczekuję na finalizację CI i merge.
+**Architektura (ADR-0018)**: `ChannelPublicationProfile` w Channel BC per `(tenant, channel, objectType)`; `published_attribute_codes=NULL` = publish-all. Param `?publication=<channel>` dedykowany (NIE przeciąża `?channel=`). Cross-BC przez `Channel\Contracts\ChannelPublicationResolverInterface` (bare UUID refs ADR-015). Auto-profil na `ChannelCreated` event.
 
-**Następny krok**: pollować CI → merge po zielonym PR-by-PR (z uwagi na dependency order: #1249→#1250→#1251→#1252 BE chained; #1253→#1254→#1255 FE chained).
+**Live-stack smoke proof**:
+- #1232: `POST /api/channels` → 3 auto-profile (is_default, publish-all); `DELETE` → cascade clean.
+- #1234: profil allow-list `["name"]` → `GET ?publication=` redukuje 17→1 attr (+2 system).
+- #1230: `/api/docs.jsonopenapi` → 14 locale/channel params w spec.
+
+**Świadome odejścia**: brak — pełen scope każdego ticketu dostarczony. Profile publikacji (#1232–1235) to substrate pod publication management UI (Faza 1 pilot); consumer w API read (#1234) + export planner (#1235) działają, dedykowane UI profili odroczone do pierwszego pilota (zgodnie z memory `project_channels_justified_per_destination`).
+
+**Lekcje (lessons.md)**: chained-PR collapse przy `--delete-branch`, `createStub` vs `createMock` w PHPStan max, `@var` na `container->get()`, ChannelCreated subscriber + UNIQUE w testach, squash-merge rebase --onto.
 
 ## 2026-06-02: 🏁 batch drobnych poprawek (smoke) + dokończenie #1179 — kompletny
 
