@@ -30,9 +30,15 @@ interface WorkspaceRow {
   primaryLocale: string;
 }
 
+interface ChannelRow {
+  code: string;
+  label?: Record<string, string>;
+}
+
 export interface ExportColumnCatalog {
   groups: ColumnGroup[];
   enabledLocales: string[];
+  enabledChannels: string[];
   isLoading: boolean;
   error: Error | null;
 }
@@ -60,6 +66,7 @@ export function useExportColumnCatalog(): ExportColumnCatalog {
   const [attrs, setAttrs] = useState<AttributeRow[]>([]);
   const [attrGroups, setAttrGroups] = useState<AttributeGroupRow[]>([]);
   const [workspace, setWorkspace] = useState<WorkspaceRow | null>(null);
+  const [channels, setChannels] = useState<ChannelRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -74,13 +81,18 @@ export function useExportColumnCatalog(): ExportColumnCatalog {
       // locale fan-out). The hook only flips `error` if attributes
       // themselves cannot load; groups + workspace silently fall back to
       // their defaults so the modal still ships a useful picker.
-      const [attrsResult, groupsResult, workspaceResult] = await Promise.allSettled([
-        jsonFetch<AttributeRow[] | { member?: AttributeRow[] }>('/api/attributes?itemsPerPage=500'),
-        jsonFetch<AttributeGroupRow[] | { member?: AttributeGroupRow[] }>(
-          '/api/attribute_groups?itemsPerPage=100',
-        ),
-        jsonFetch<WorkspaceRow>('/api/workspaces/current'),
-      ]);
+      const [attrsResult, groupsResult, workspaceResult, channelsResult] = await Promise.allSettled(
+        [
+          jsonFetch<AttributeRow[] | { member?: AttributeRow[] }>(
+            '/api/attributes?itemsPerPage=500',
+          ),
+          jsonFetch<AttributeGroupRow[] | { member?: AttributeGroupRow[] }>(
+            '/api/attribute_groups?itemsPerPage=100',
+          ),
+          jsonFetch<WorkspaceRow>('/api/workspaces/current'),
+          jsonFetch<ChannelRow[] | { member?: ChannelRow[] }>('/api/channels?itemsPerPage=50'),
+        ],
+      );
 
       if (cancelled) return;
 
@@ -123,6 +135,19 @@ export function useExportColumnCatalog(): ExportColumnCatalog {
         setWorkspace(null);
       }
 
+      if (channelsResult.status === 'fulfilled') {
+        const value = channelsResult.value;
+        const list = Array.isArray(value) ? value : (value.member ?? []);
+        setChannels(list);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(
+          'export-column-catalog: channels fetch failed (scopable fan-out disabled)',
+          channelsResult.reason,
+        );
+        setChannels([]);
+      }
+
       setIsLoading(false);
     })();
 
@@ -132,13 +157,14 @@ export function useExportColumnCatalog(): ExportColumnCatalog {
   }, []);
 
   const enabledLocales = workspace?.enabledLocales ?? ['pl', 'en'];
+  const enabledChannels = channels.map((c) => c.code);
 
   const groups: ColumnGroup[] = [
     ...BUILT_IN_COLUMN_GROUPS,
-    ...buildAttributeGroups(attrs, attrGroups, enabledLocales),
+    ...buildAttributeGroups(attrs, attrGroups, enabledLocales, enabledChannels),
   ];
 
-  return { groups, enabledLocales, isLoading, error };
+  return { groups, enabledLocales, enabledChannels, isLoading, error };
 }
 
 /**
@@ -151,6 +177,7 @@ function buildAttributeGroups(
   attrs: AttributeRow[],
   groups: AttributeGroupRow[],
   enabledLocales: string[],
+  enabledChannels: string[] = [],
 ): ColumnGroup[] {
   const groupsByCode = new Map<string, AttributeGroupRow>();
   for (const g of groups) groupsByCode.set(g.code, g);
@@ -178,7 +205,7 @@ function buildAttributeGroups(
       id: `attr-group-${group.code}`,
       labelKey: `exports.column_picker.group_attr_${group.code}`,
       defaultLabel: localizedLabel(group.label, 'pl') ?? group.code,
-      columns: bucket.flatMap((attr) => attrToOptions(attr, enabledLocales)),
+      columns: bucket.flatMap((attr) => attrToOptions(attr, enabledLocales, enabledChannels)),
     });
   }
 
@@ -188,7 +215,7 @@ function buildAttributeGroups(
       id: 'attr-group-other',
       labelKey: 'exports.column_picker.group_other',
       defaultLabel: 'Inne atrybuty',
-      columns: orphans.flatMap((attr) => attrToOptions(attr, enabledLocales)),
+      columns: orphans.flatMap((attr) => attrToOptions(attr, enabledLocales, enabledChannels)),
     });
   }
 
@@ -207,6 +234,7 @@ function resolveBucketCode(
 function attrToOptions(
   attr: AttributeRow,
   enabledLocales: string[],
+  enabledChannels: string[] = [],
 ): Array<{ key: string; labelKey: string; defaultLabel: string }> {
   const baseLabel = localizedLabel(attr.label, 'pl') ?? attr.code;
   if (attr.localizable === true && enabledLocales.length > 0) {
@@ -214,6 +242,14 @@ function attrToOptions(
       key: `${attr.code}.${locale}`,
       labelKey: `exports.columns.${attr.code}.${locale}`,
       defaultLabel: `${baseLabel} [${locale}]`,
+    }));
+  }
+  // #1245 — scopable attributes fan out per active channel.
+  if (attr.scopable === true && enabledChannels.length > 0) {
+    return enabledChannels.map((channel) => ({
+      key: `${attr.code}.${channel}`,
+      labelKey: `exports.columns.${attr.code}.${channel}`,
+      defaultLabel: `${baseLabel} [${channel}]`,
     }));
   }
   return [
