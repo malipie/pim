@@ -98,6 +98,21 @@ final class CatalogObjectLocaleValuesApiTest extends CatalogApiTestCase
         self::assertSame(422, $write->getStatusCode());
     }
 
+    /** #1230 — collection overlay provider must accept ?locale= and ?channel= without 4xx. */
+    #[Test]
+    public function collectionLocaleAndChannelParamsYield200(): void
+    {
+        $client = $this->authenticatedClient();
+        $otId = $this->objectTypeIdFor(ObjectKind::Product);
+        $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'json' => ['code' => 'LOC-COL-1', 'objectTypeId' => $otId],
+        ]);
+        self::assertSame(200, $client->request('GET', '/api/products?locale=en')->getStatusCode());
+        self::assertSame(200, $client->request('GET', '/api/products?channel=shopify')->getStatusCode());
+        self::assertSame(200, $client->request('GET', '/api/products?locale=en&channel=shopify')->getStatusCode());
+    }
+
     /**
      * @return array<string, array<string, mixed>>
      */

@@ -2046,6 +2046,30 @@
                         },
                         "style": "form",
                         "explode": true
+                    },
+                    {
+                        "name": "locale",
+                        "in": "query",
+                        "description": "Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "channel",
+                        "in": "query",
+                        "description": "Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
                     }
                 ],
                 "x-cortex-permission": "products.view"
@@ -2375,6 +2399,30 @@
                         },
                         "style": "form",
                         "explode": true
+                    },
+                    {
+                        "name": "locale",
+                        "in": "query",
+                        "description": "Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "channel",
+                        "in": "query",
+                        "description": "Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
                     }
                 ],
                 "x-cortex-permission": "products.view"
@@ -2566,6 +2614,30 @@
                         },
                         "style": "simple",
                         "explode": false
+                    },
+                    {
+                        "name": "locale",
+                        "in": "query",
+                        "description": "Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "channel",
+                        "in": "query",
+                        "description": "Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
                     }
                 ],
                 "x-cortex-permission": "products.view"
@@ -3017,6 +3089,30 @@
                         },
                         "style": "form",
                         "explode": true
+                    },
+                    {
+                        "name": "locale",
+                        "in": "query",
+                        "description": "Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "channel",
+                        "in": "query",
+                        "description": "Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
                     }
                 ],
                 "x-cortex-permission": "products.view"
@@ -3208,6 +3304,30 @@
                         },
                         "style": "simple",
                         "explode": false
+                    },
+                    {
+                        "name": "locale",
+                        "in": "query",
+                        "description": "Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "channel",
+                        "in": "query",
+                        "description": "Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
                     }
                 ],
                 "x-cortex-permission": "products.view"
@@ -3659,6 +3779,30 @@
                         },
                         "style": "form",
                         "explode": true
+                    },
+                    {
+                        "name": "locale",
+                        "in": "query",
+                        "description": "Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "channel",
+                        "in": "query",
+                        "description": "Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
                     }
                 ],
                 "x-cortex-permission": "products.view"
@@ -3850,6 +3994,30 @@
                         },
                         "style": "simple",
                         "explode": false
+                    },
+                    {
+                        "name": "locale",
+                        "in": "query",
+                        "description": "Short locale code (e.g. pl, en). Overlays localizable attribute values from ObjectValue rows.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "channel",
+                        "in": "query",
+                        "description": "Channel code (e.g. shopify, allegro). Overlays channel-scoped attribute values.",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": true
                     }
                 ],
                 "x-cortex-permission": "products.view"
@@ -9248,7 +9416,7 @@
                     },
                     "status": {
                         "type": [
-                            "integer",
+                            "number",
                             "null"
                         ],
                         "examples": [
@@ -9297,7 +9465,7 @@
                             },
                             "status": {
                                 "type": [
-                                    "integer",
+                                    "number",
                                     "null"
                                 ],
                                 "examples": [
