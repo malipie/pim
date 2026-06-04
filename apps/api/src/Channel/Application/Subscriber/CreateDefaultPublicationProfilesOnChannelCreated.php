@@ -46,6 +46,7 @@ final readonly class CreateDefaultPublicationProfilesOnChannelCreated
         );
 
         foreach ($objectTypeIds as $rawId) {
+            \assert(\is_string($rawId) && '' !== $rawId);
             $objectTypeId = Uuid::fromString($rawId);
             $existing = $this->profiles->findByChannelAndObjectType($channelId, $objectTypeId, $tenant);
             if (null !== $existing) {
