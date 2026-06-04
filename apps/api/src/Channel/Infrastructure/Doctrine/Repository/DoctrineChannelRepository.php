@@ -35,7 +35,8 @@ class DoctrineChannelRepository extends ServiceEntityRepository implements Chann
      */
     public function findAllForTenant(Tenant $tenant): array
     {
-        return array_values($this->findBy(['tenant' => $tenant], ['code' => 'ASC']));
+        // findBy already returns a list<Channel>; no array_values needed.
+        return $this->findBy(['tenant' => $tenant], ['code' => 'ASC']);
     }
 
     public function save(Channel $entity): void
