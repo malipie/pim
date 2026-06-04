@@ -62,6 +62,25 @@ function pickLabel(label: Record<string, string>, locale: string): string {
   return label[locale] ?? label.pl ?? label.en ?? Object.values(label)[0] ?? '';
 }
 
+/** One editable locale column for the option-label editor + preview (#1263). */
+interface LocaleChip {
+  code: string;
+  flag?: string;
+}
+
+// #1263 — known flag glyphs; unknown tenant locales render without a flag
+// rather than being dropped (the old hardcoded ['pl','en','de'] list).
+const LOCALE_FLAGS: Record<string, string> = {
+  pl: '🇵🇱',
+  en: '🇬🇧',
+  de: '🇩🇪',
+  cs: '🇨🇿',
+  fr: '🇫🇷',
+  es: '🇪🇸',
+  it: '🇮🇹',
+  uk: '🇺🇦',
+};
+
 export function AttributeValuesPage() {
   const { t, i18n } = useTranslation();
   const params = useParams<{ id: string }>();
@@ -107,6 +126,19 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const queryKey: readonly string[] = ['attribute_options', attribute.code];
+
+  // #1263 — the editable locale columns come from the tenant's enabled
+  // locales (Settings → Locales), not a hardcoded pl/en/de list. Falls back
+  // to pl/en before the workspace resolves / when the call fails.
+  const { data: workspace } = useQuery<{ enabledLocales?: string[] }>({
+    queryKey: ['workspace', 'current', 'locales'],
+    queryFn: () => jsonFetch<{ enabledLocales?: string[] }>('/api/workspaces/current'),
+    staleTime: 60_000,
+  });
+  const localeChips: LocaleChip[] = (workspace?.enabledLocales ?? ['pl', 'en']).map((code) => ({
+    code,
+    flag: LOCALE_FLAGS[code],
+  }));
 
   const { data: options = [] } = useQuery<OptionRow[]>({
     queryKey,
@@ -346,10 +378,15 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
               attributeCode={attribute.code}
               option={active}
               options={options}
+              locales={localeChips}
               refresh={refresh}
               onDeleted={() => setActiveId(null)}
             />
-            <PreviewCard option={active} attributeName={pickLabel(attribute.label, locale)} />
+            <PreviewCard
+              option={active}
+              attributeName={pickLabel(attribute.label, locale)}
+              locales={localeChips}
+            />
             <AuditCard attributeCode={attribute.code} option={active} />
           </div>
         ) : (
@@ -373,13 +410,16 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
   );
 }
 
-function PreviewCard({ option, attributeName }: { option: OptionRow; attributeName: string }) {
+function PreviewCard({
+  option,
+  attributeName,
+  locales,
+}: {
+  option: OptionRow;
+  attributeName: string;
+  locales: LocaleChip[];
+}) {
   const { t } = useTranslation();
-  const locales: Array<{ code: string; flag: string }> = [
-    { code: 'pl', flag: '🇵🇱' },
-    { code: 'en', flag: '🇬🇧' },
-    { code: 'de', flag: '🇩🇪' },
-  ];
   return (
     <Card className="p-6">
       <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -612,18 +652,21 @@ function DefinitionCard({
   attributeCode,
   option,
   options,
+  locales,
   refresh,
   onDeleted,
 }: {
   attributeCode: string;
   option: OptionRow;
   options: OptionRow[];
+  locales: LocaleChip[];
   refresh: () => void;
   onDeleted: () => void;
 }) {
   const { t } = useTranslation();
   const [labelMap, setLabelMap] = useState<Record<string, string>>({ ...option.label });
-  const [activeLocale, setActiveLocale] = useState<string>('pl');
+  // #1263 — default the active tab to the tenant's first enabled locale.
+  const [activeLocale, setActiveLocale] = useState<string>(locales[0]?.code ?? 'pl');
   const [color, setColor] = useState<string | null>(option.color);
   const [isDefault, setIsDefault] = useState(option.default);
   const [isDeprecated, setIsDeprecated] = useState(option.deprecated);
@@ -651,12 +694,6 @@ function DefinitionCard({
   const setLabelFor = (locale: string, value: string) => {
     setLabelMap((prev) => ({ ...prev, [locale]: value }));
   };
-
-  const LOCALES = [
-    { code: 'pl', flag: '🇵🇱' },
-    { code: 'en', flag: '🇬🇧' },
-    { code: 'de', flag: '🇩🇪' },
-  ] as const;
 
   const save = async () => {
     setSaving(true);
@@ -789,7 +826,7 @@ function DefinitionCard({
             {t('attribute_values.labels_title', { defaultValue: 'Etykiety wyświetlane' })}
           </Label>
           <div className="flex items-center gap-1 border-b border-zinc-100">
-            {LOCALES.map(({ code, flag }) => {
+            {locales.map(({ code, flag }) => {
               const filled = (labelMap[code] ?? '').trim().length > 0;
               return (
                 <button
