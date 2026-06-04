@@ -577,19 +577,20 @@ export function UniversalDetailPage({
               );
             })}
           </div>
-          {/* #1225 — the scope switcher only makes sense while editing; in
-              view mode there is nothing to write, so hide it (parity with
-              the product detail card, which gates it on edit mode). */}
-          {isEditing ? (
-            <LocaleChannelToolbar
-              locale={locale}
-              channel={channel}
-              onLocaleChange={setLocale}
-              onChannelChange={setChannel}
-              locales={locales}
-              channels={channels}
-            />
-          ) : null}
+          {/* #1269 — the scope switcher is always visible (parity with the
+              product detail card, which gates on `mode === 'edit'`, i.e. the
+              route mode that is always true for an existing object — NOT the
+              Edit toggle). Switching locale/channel re-reads the object via
+              the `['object', id, locale, channel]` query even in read-only
+              view, so the displayed values reflect the chosen scope. */}
+          <LocaleChannelToolbar
+            locale={locale}
+            channel={channel}
+            onLocaleChange={setLocale}
+            onChannelChange={setChannel}
+            locales={locales}
+            channels={channels}
+          />
         </div>
       </header>
 
