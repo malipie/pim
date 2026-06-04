@@ -123,15 +123,27 @@ final class CatalogObjectPublicationFilterApiTest extends CatalogApiTestCase
             ->findBuiltInByKind(ObjectKind::Product, $tenant);
         \assert($product instanceof ObjectType);
 
-        $profile = new ChannelPublicationProfile(
-            channelId: $channel->getId(),
-            objectTypeId: $product->getId(),
-            publishedAttributeCodes: $allowedCodes,
-            isDefault: true,
-        );
-        $profile->assignTenant($tenant);
-        $em->persist($profile);
-        $em->flush();
+        // The channel POST above triggers CreateDefaultPublicationProfilesOnChannelCreated
+        // which already creates a default profile. Upsert: update existing profile's allow-list.
+        $existing = $em->getRepository(ChannelPublicationProfile::class)->findOneBy([
+            'channelId' => $channel->getId(),
+            'objectTypeId' => $product->getId(),
+            'tenant' => $tenant,
+        ]);
+        if ($existing instanceof ChannelPublicationProfile) {
+            $existing->setPublishedAttributeCodes($allowedCodes);
+            $em->flush();
+        } else {
+            $profile = new ChannelPublicationProfile(
+                channelId: $channel->getId(),
+                objectTypeId: $product->getId(),
+                publishedAttributeCodes: $allowedCodes,
+                isDefault: true,
+            );
+            $profile->assignTenant($tenant);
+            $em->persist($profile);
+            $em->flush();
+        }
 
         $client = $this->authenticatedClient();
         $create = $client->request('POST', '/api/products', [
