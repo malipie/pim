@@ -89,6 +89,11 @@ export function AttrRow({
 }: AttrRowProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
+  // #1262 — option labels are part of the VALUE, so they must follow the
+  // active value locale (the `locale` prop set by the PL/EN toolbar), not
+  // the interface language. The attribute NAME below stays on `lang`
+  // (UI chrome). Falls back to the interface lang when no scope is active.
+  const valueLang = locale ?? lang;
   const label = attribute.label[lang] ?? attribute.code;
   const editable = isEditing && !isLocked;
   const stringValue = typeof value === 'string' ? value : value == null ? '' : String(value);
@@ -297,7 +302,7 @@ export function AttrRow({
             />
           ) : attribute.type === 'select' ? (
             <Combobox
-              options={toComboboxOptions(selectOptions, lang)}
+              options={toComboboxOptions(selectOptions, valueLang)}
               value={typeof value === 'string' && value !== '' ? value : null}
               onChange={(next) => onChange(next)}
               placeholder={t('products.detail.field.select_placeholder', {
@@ -307,7 +312,7 @@ export function AttrRow({
             />
           ) : attribute.type === 'multiselect' ? (
             <MultiSelect
-              options={toMultiSelectOptions(selectOptions, lang)}
+              options={toMultiSelectOptions(selectOptions, valueLang)}
               value={readMultiselectValue(value)}
               onChange={(next) => onChange(next)}
               placeholder={t('products.detail.field.multiselect_placeholder', {
@@ -348,7 +353,7 @@ export function AttrRow({
               isLocked ? 'cursor-default text-zinc-700' : 'text-ink',
             )}
           >
-            {renderReadOnlyValue(attribute, value, selectOptions, lang) ?? (
+            {renderReadOnlyValue(attribute, value, selectOptions, valueLang) ?? (
               <span className="italic text-zinc-400">
                 {t('products.detail.field.empty', { defaultValue: '—' })}
               </span>
@@ -411,21 +416,18 @@ function isLocaleScoped(attribute: AttributeMeta): boolean {
   return attribute.is_localizable === true;
 }
 
-function optionLabel(option: AttributeOptionMeta, lang: 'pl' | 'en'): string {
+function optionLabel(option: AttributeOptionMeta, lang: string): string {
   return option.label[lang] ?? option.label.en ?? option.label.pl ?? option.code;
 }
 
-function toComboboxOptions(options: AttributeOptionMeta[], lang: 'pl' | 'en'): ComboboxOption[] {
+function toComboboxOptions(options: AttributeOptionMeta[], lang: string): ComboboxOption[] {
   return options.map((o) => ({
     value: o.code,
     label: optionLabel(o, lang),
   }));
 }
 
-function toMultiSelectOptions(
-  options: AttributeOptionMeta[],
-  lang: 'pl' | 'en',
-): MultiSelectOption[] {
+function toMultiSelectOptions(options: AttributeOptionMeta[], lang: string): MultiSelectOption[] {
   return options.map((o) => ({
     value: o.code,
     label: optionLabel(o, lang),
@@ -478,7 +480,7 @@ function renderReadOnlyValue(
   attribute: AttributeMeta,
   value: unknown,
   options: AttributeOptionMeta[],
-  lang: 'pl' | 'en',
+  lang: string,
 ): string | null {
   if (attribute.type === 'select') {
     if (typeof value !== 'string' || value === '') return null;
