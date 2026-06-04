@@ -91,6 +91,16 @@ final class ValueSerializerTest extends TestCase
     }
 
     #[Test]
+    public function priceFallsBackToPlainValueEnvelope(): void
+    {
+        // #1271 — a price typed as a bare number on the product card is stored
+        // as `{value: "100"}`; it must export instead of an empty cell.
+        $serializer = new ValueSerializer();
+        $value = $this->valueWithPayload(AttributeType::Price, ['value' => '100']);
+        self::assertSame('100', $serializer->serialize($value));
+    }
+
+    #[Test]
     public function metricCombinesValueAndUnit(): void
     {
         $serializer = new ValueSerializer();

@@ -241,38 +241,45 @@ function attrToOptions(
   enabledChannels: string[] = [],
 ): Array<{ key: string; labelKey: string; defaultLabel: string }> {
   const baseLabel = localizedLabel(attr.label, 'pl') ?? attr.code;
-  if (attr.localizable === true && enabledLocales.length > 0) {
-    return enabledLocales.map((locale) => ({
-      key: `${attr.code}.${locale}`,
-      labelKey: `exports.columns.${attr.code}.${locale}`,
-      defaultLabel: `${baseLabel} [${locale}]`,
-    }));
+  const isLoc = attr.localizable === true && enabledLocales.length > 0;
+  const isScop = attr.scopable === true && enabledChannels.length > 0;
+
+  const bare = {
+    key: attr.code,
+    labelKey: `exports.columns.${attr.code}`,
+    defaultLabel: baseLabel,
+  };
+  const localeCols = enabledLocales.map((locale) => ({
+    key: `${attr.code}.${locale}`,
+    labelKey: `exports.columns.${attr.code}.${locale}`,
+    defaultLabel: `${baseLabel} [${locale}]`,
+  }));
+  const channelCols = enabledChannels.map((channel) => ({
+    key: `${attr.code}.${channel}`,
+    labelKey: `exports.columns.${attr.code}.${channel}`,
+    defaultLabel: `${baseLabel} [${channel}]`,
+  }));
+
+  // #1271 — an attribute that is BOTH localizable and scopable carries a
+  // global value, per-locale values, AND per-channel overrides. Emit the
+  // bare `code` (global) + per-locale + per-channel so none of the three
+  // scopes is dropped. Previously the localizable branch won and only the
+  // (often empty) per-locale columns shipped, hiding the global + channel
+  // values entirely.
+  if (isLoc && isScop) {
+    return [bare, ...localeCols, ...channelCols];
   }
-  // #1245 / #1267 — scopable attributes carry a global value (channel=null)
-  // AND per-channel overrides. Emit the bare `code` (global, gated by the
-  // "Wszystkie" channel option in the modal) plus one `code.{channel}` per
-  // active channel — the global column was previously dropped (#1267).
-  if (attr.scopable === true && enabledChannels.length > 0) {
-    return [
-      {
-        key: attr.code,
-        labelKey: `exports.columns.${attr.code}`,
-        defaultLabel: baseLabel,
-      },
-      ...enabledChannels.map((channel) => ({
-        key: `${attr.code}.${channel}`,
-        labelKey: `exports.columns.${attr.code}.${channel}`,
-        defaultLabel: `${baseLabel} [${channel}]`,
-      })),
-    ];
+  // Pure localizable: the primary locale === the global value, so only the
+  // per-locale columns ship (no redundant bare column).
+  if (isLoc) {
+    return localeCols;
   }
-  return [
-    {
-      key: attr.code,
-      labelKey: `exports.columns.${attr.code}`,
-      defaultLabel: baseLabel,
-    },
-  ];
+  // #1245 / #1267 — pure scopable: bare global (gated by "Wszystkie") +
+  // per-channel overrides.
+  if (isScop) {
+    return [bare, ...channelCols];
+  }
+  return [bare];
 }
 
 function localizedLabel(label: Record<string, string> | undefined, locale: string): string | null {
