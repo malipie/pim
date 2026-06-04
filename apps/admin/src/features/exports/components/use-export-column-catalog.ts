@@ -39,6 +39,9 @@ export interface ExportColumnCatalog {
   groups: ColumnGroup[];
   enabledLocales: string[];
   enabledChannels: string[];
+  /** #1267 — codes of scopable attributes; their bare `code` column is the
+   *  global (channel=null) value, gated by the "Wszystkie" channel option. */
+  scopableCodes: string[];
   isLoading: boolean;
   error: Error | null;
 }
@@ -158,13 +161,14 @@ export function useExportColumnCatalog(): ExportColumnCatalog {
 
   const enabledLocales = workspace?.enabledLocales ?? ['pl', 'en'];
   const enabledChannels = channels.map((c) => c.code);
+  const scopableCodes = attrs.filter((a) => a.scopable === true).map((a) => a.code);
 
   const groups: ColumnGroup[] = [
     ...BUILT_IN_COLUMN_GROUPS,
     ...buildAttributeGroups(attrs, attrGroups, enabledLocales, enabledChannels),
   ];
 
-  return { groups, enabledLocales, enabledChannels, isLoading, error };
+  return { groups, enabledLocales, enabledChannels, scopableCodes, isLoading, error };
 }
 
 /**
@@ -244,13 +248,23 @@ function attrToOptions(
       defaultLabel: `${baseLabel} [${locale}]`,
     }));
   }
-  // #1245 — scopable attributes fan out per active channel.
+  // #1245 / #1267 — scopable attributes carry a global value (channel=null)
+  // AND per-channel overrides. Emit the bare `code` (global, gated by the
+  // "Wszystkie" channel option in the modal) plus one `code.{channel}` per
+  // active channel — the global column was previously dropped (#1267).
   if (attr.scopable === true && enabledChannels.length > 0) {
-    return enabledChannels.map((channel) => ({
-      key: `${attr.code}.${channel}`,
-      labelKey: `exports.columns.${attr.code}.${channel}`,
-      defaultLabel: `${baseLabel} [${channel}]`,
-    }));
+    return [
+      {
+        key: attr.code,
+        labelKey: `exports.columns.${attr.code}`,
+        defaultLabel: baseLabel,
+      },
+      ...enabledChannels.map((channel) => ({
+        key: `${attr.code}.${channel}`,
+        labelKey: `exports.columns.${attr.code}.${channel}`,
+        defaultLabel: `${baseLabel} [${channel}]`,
+      })),
+    ];
   }
   return [
     {
