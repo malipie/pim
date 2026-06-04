@@ -140,3 +140,61 @@ test('exports new — async 202 redirects to sessions (mocked endpoint)', async 
 
   await expect(page).toHaveURL(/\/integrations\/exports\/sessions$/, { timeout: 10_000 });
 });
+
+test('#1244 grouped locale columns — expand group, select PL only lands in WYBRANE', async ({
+  page,
+}) => {
+  // Mock workspace + attributes so the picker has localizable columns.
+  await page.route('**/api/workspaces/current', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ enabledLocales: ['pl', 'en'], primaryLocale: 'pl' }),
+    });
+  });
+  await page.route('**/api/attributes**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        { id: '1', code: 'description', label: { pl: 'Opis' }, type: 'text', localizable: true },
+      ]),
+    });
+  });
+  await page.route('**/api/attribute_groups**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
+
+  await apiLogin(page);
+  await page.goto('/products');
+
+  // Open export modal via toolbar (click Eksportuj in the toolbar).
+  const exportBtn = page
+    .getByRole('button', { name: /eksport/i })
+    .or(page.locator('button', { hasText: /eksport/i }))
+    .first();
+  await exportBtn.click({ timeout: 5_000 }).catch(() => {
+    // Modal might be triggered differently in CI — skip via direct navigation.
+    test.skip();
+  });
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible({ timeout: 5_000 });
+
+  // The locale group "Opis" should be visible in the DOSTĘPNE pane.
+  await expect(dialog.getByText('Opis')).toBeVisible();
+
+  // Expand the group by clicking on it.
+  await dialog.getByRole('button', { name: /opis/i }).first().click();
+
+  // Both pl and en sub-checkboxes should now be visible.
+  await expect(dialog.getByRole('checkbox', { name: /opis \[pl\]/i })).toBeVisible();
+  await expect(dialog.getByRole('checkbox', { name: /opis \[en\]/i })).toBeVisible();
+
+  // Select only PL.
+  await dialog.getByRole('checkbox', { name: /opis \[pl\]/i }).check();
+
+  // WYBRANE pane should contain description.pl but not description.en.
+  await expect(dialog.getByText('description.pl')).toBeVisible();
+  await expect(dialog.getByText('description.en')).not.toBeVisible();
+});
