@@ -155,13 +155,16 @@ export function AddLocaleModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-hidden p-0">
+      <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col overflow-hidden p-0">
         <DialogHeader className="border-b px-6 py-4">
           <DialogTitle>{t('settings.locales.add_modal.title')}</DialogTitle>
           <DialogDescription>{t('settings.locales.add_modal.intro')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 overflow-y-auto px-6 py-4">
+        <div
+          data-testid="locale-catalog-scroll"
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4"
+        >
           <div className="relative">
             <Search
               className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"

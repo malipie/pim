@@ -1,15 +1,14 @@
-import { useList } from '@refinedev/core';
+import { useQuery } from '@tanstack/react-query';
 import { Check, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import type {
+  TenantLocaleListItem,
+  TenantLocaleListResponse,
+} from '@/features/settings/locales/types';
+import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
-
-interface LocaleRow {
-  id: string;
-  code: string;
-  label: string;
-}
 
 interface LocalePickerProps {
   value: string[];
@@ -17,15 +16,27 @@ interface LocalePickerProps {
   ariaLabelledBy?: string;
 }
 
+/**
+ * Channel locale picker. Offers only the tenant's ACTIVE locales (configured
+ * under `/settings/locales`), not the global ISO catalog. The catalog lives at
+ * `GET /api/locales`; the tenant's activated subset is `GET /api/tenant-locales`
+ * (custom controller → `{items: [...]}`, hence `jsonFetch` rather than Refine's
+ * Hydra-shaped `useList`).
+ */
 export function LocalePicker({ value, onChange, ariaLabelledBy }: LocalePickerProps) {
-  const { t } = useTranslation();
-  const { result, query } = useList<LocaleRow>({
-    resource: 'locales',
-    pagination: { mode: 'off' },
+  const { t, i18n } = useTranslation();
+  const { data, isLoading } = useQuery({
+    queryKey: ['channel-form', 'tenant-locales'],
+    queryFn: () =>
+      jsonFetch<TenantLocaleListResponse>('/api/tenant-locales', {
+        accept: 'application/json',
+      }),
   });
 
-  const locales = result.data;
-  const isLoading = query.isLoading;
+  const locales = (data?.items ?? []).filter((l) => l.isActive);
+
+  const labelFor = (locale: TenantLocaleListItem) =>
+    locale.displayName?.[i18n.language] ?? locale.displayName?.en ?? locale.label;
 
   const toggle = (code: string) => {
     if (value.includes(code)) {
@@ -90,7 +101,7 @@ export function LocalePicker({ value, onChange, ariaLabelledBy }: LocalePickerPr
                 >
                   <Check className={cn('size-3.5', !checked && 'opacity-0')} />
                   <span>{locale.code}</span>
-                  <span className="ml-2 text-[11px] text-muted-foreground">{locale.label}</span>
+                  <span className="ml-2 text-[11px] text-muted-foreground">{labelFor(locale)}</span>
                 </Button>
               );
             })}
