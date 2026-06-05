@@ -34,6 +34,12 @@ export interface VariantsTabHostProps {
   locale: ProductLocale;
   /** #1226 — active channel (null = all channels / global). */
   channel: ProductChannel | null;
+  /**
+   * #1273 — poly-kind base path. `/api/products` keeps the legacy product
+   * detail working unchanged; the universal object card passes `/api/objects`
+   * so custom ObjectTypes share the same variant list + generator + editor.
+   */
+  basePath?: string;
 }
 
 /**
@@ -45,7 +51,12 @@ export interface VariantsTabHostProps {
  * variants" action that replaces the ProvenanceBadge in the variant
  * RHS slot.
  */
-export function VariantsTabHost({ productId, locale, channel }: VariantsTabHostProps) {
+export function VariantsTabHost({
+  productId,
+  locale,
+  channel,
+  basePath = '/api/products',
+}: VariantsTabHostProps) {
   const { t } = useTranslation();
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [groups, setGroups] = useState<GroupMeta[]>([]);
@@ -64,14 +75,14 @@ export function VariantsTabHost({ productId, locale, channel }: VariantsTabHostP
     // already carries `?parent_id`, hence the leading `?` becomes `&`.
     const scope = scopeQuery(locale, channel).replace('?', '&');
     Promise.all([
-      jsonFetch<VariantsResponse>(`/api/products?parent_id=${productId}${scope}`).then((body) => {
+      jsonFetch<VariantsResponse>(`${basePath}?parent_id=${productId}${scope}`).then((body) => {
         if (cancelled) return;
         const list = body.member ?? body['hydra:member'] ?? [];
         const arr = Array.isArray(list) ? list : [];
         setVariants(arr);
       }),
       jsonFetch<{ groups?: GroupMeta[] }>(
-        `/api/products/${productId}/effective-attribute-groups`,
+        `${basePath}/${productId}/effective-attribute-groups`,
       ).then((body) => {
         // Defensive — see saved-views-rail comment. Empty groups is a
         // valid state (product whose ObjectType has no attached groups).
@@ -81,7 +92,7 @@ export function VariantsTabHost({ productId, locale, channel }: VariantsTabHostP
     return () => {
       cancelled = true;
     };
-  }, [productId, reloadKey, locale, channel]);
+  }, [productId, reloadKey, locale, channel, basePath]);
 
   // #1226 — switching scope discards unsaved variant edits so an edit is
   // never written to the wrong locale/channel (mirrors the product card).
@@ -161,7 +172,7 @@ export function VariantsTabHost({ productId, locale, channel }: VariantsTabHostP
     setIsSaving(true);
     const results = await Promise.allSettled(
       targets.map(([id, attributes]) =>
-        jsonFetch(`/api/products/${id}${scopeQuery(locale, channel)}`, {
+        jsonFetch(`${basePath}/${id}${scopeQuery(locale, channel)}`, {
           method: 'PATCH',
           contentType: 'application/merge-patch+json',
           body: { attributes },
@@ -202,7 +213,11 @@ export function VariantsTabHost({ productId, locale, channel }: VariantsTabHostP
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-zinc-100 bg-zinc-50/40 p-1">
-        <VariantsTab masterProductId={productId} onGenerated={() => setReloadKey((k) => k + 1)} />
+        <VariantsTab
+          masterProductId={productId}
+          basePath={basePath}
+          onGenerated={() => setReloadKey((k) => k + 1)}
+        />
       </div>
 
       <div>

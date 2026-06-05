@@ -65,6 +65,7 @@ import type {
   ProductLocale,
   ScopeStatus,
 } from '@/features/catalog/products/components/types';
+import { VariantsTabHost } from '@/features/catalog/products/components/variants-tab-host';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { httpErrorDetail, jsonFetch } from '@/lib/http';
 import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
@@ -651,7 +652,14 @@ export function UniversalDetailPage({
               return <ObjectMultimediaPanel objectId={objectId} />;
             }
             if (activeTab === 'variants') {
-              return <ObjectVariantsPanel objectId={objectId} />;
+              return (
+                <VariantsTabHost
+                  productId={objectId}
+                  basePath="/api/objects"
+                  locale={locale}
+                  channel={channel}
+                />
+              );
             }
             const tabGroup = tabModeGroups.find((g) => g.code === activeTab);
             if (tabGroup) return renderStackedGroup(tabGroup);
@@ -882,72 +890,4 @@ function resolveProvenance(
  */
 function ObjectMultimediaPanel({ objectId }: { objectId: string }) {
   return <ProductMultimediaTab productId={objectId} />;
-}
-
-interface VariantSummary {
-  id: string;
-  code?: string;
-  attributesIndexed?: Record<string, unknown>;
-}
-
-/**
- * UX-08 — Variants tab driven by `ObjectType.hasVariants`.
- *
- * Minimal poly-kind list: queries `/api/objects?parent_id={objectId}`
- * for direct children and links each one back to the detail page via
- * its ObjectType slug. Full editor (axis matrix, generator) stays on
- * the legacy Product detail for now — the universal generator endpoint
- * landed in UP-04 but a generic editor UI is a follow-up.
- */
-function ObjectVariantsPanel({ objectId }: { objectId: string }) {
-  const { t } = useTranslation();
-  const query = useQuery({
-    queryKey: ['object', objectId, 'variants'],
-    enabled: objectId !== '',
-    staleTime: 30_000,
-    queryFn: async () => {
-      const data = await jsonFetch<{
-        member?: VariantSummary[];
-        'hydra:member'?: VariantSummary[];
-      }>(`/api/objects?parent_id=${objectId}&itemsPerPage=200`, { accept: 'application/ld+json' });
-      return data.member ?? data['hydra:member'] ?? [];
-    },
-  });
-
-  if (query.isLoading) {
-    return <p className="text-sm text-muted-foreground">{t('app.loading')}</p>;
-  }
-
-  const variants = query.data ?? [];
-  if (variants.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        {t('object_detail.variants.empty', {
-          defaultValue:
-            'Ten obiekt nie ma jeszcze wariantów. Generator wariantów ląduje w następnej iteracji.',
-        })}
-      </p>
-    );
-  }
-
-  return (
-    <ul className="space-y-2">
-      {variants.map((variant) => {
-        const indexed = variant.attributesIndexed ?? {};
-        const sku =
-          typeof variant.code === 'string' && variant.code.length > 0 ? variant.code : variant.id;
-        return (
-          <li key={variant.id} className="rounded-md border bg-card px-3 py-2 text-sm">
-            <div className="font-mono text-[12px] text-ink">{sku}</div>
-            <div className="text-[11px] text-muted-foreground">
-              {Object.entries(indexed)
-                .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
-                .slice(0, 3)
-                .join(' · ')}
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
 }
