@@ -211,6 +211,14 @@ test('#1278 scopable attribute appears once in column picker (no duplicate)', as
   // "Nowy eksport" link. This avoids a second full-page reload and keeps
   // the JWT alive so the attribute catalog API call is authenticated.
   await loginAsAdmin(page);
+
+  // Register the response listener BEFORE navigating so we don't miss
+  // the attributes fetch that fires immediately when the dialog mounts.
+  const attrsResponsePromise = page.waitForResponse(
+    (r) => r.url().includes('/api/attributes') && r.status() === 200,
+    { timeout: 30_000 },
+  );
+
   await page.goto('/integrations/exports');
   await page.getByRole('link', { name: /nowy eksport|new export/i }).click();
   await expect(page).toHaveURL(/\/integrations\/exports\/new$/);
@@ -218,20 +226,16 @@ test('#1278 scopable attribute appears once in column picker (no duplicate)', as
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 10_000 });
 
-  // The DOSTĘPNE pane is the first <section> inside the ColumnPicker grid,
-  // identified by its aria-label so we don't accidentally grab the "Języki"
-  // or "Kanały" sections that the export form renders above the picker.
+  // The DOSTĘPNE pane is identified by its aria-label so we don't grab
+  // the "Języki" or "Kanały" sections that sit above the column picker.
   const available = dialog.getByRole('region', {
     name: /dostępne kolumny|available columns/i,
   });
   await expect(available).toBeVisible();
 
-  // Wait for the attributes fetch to succeed (fired by useExportColumnCatalog
-  // when the dialog mounts). After the first 401 jsonFetch retries via refresh;
-  // we wait for the final 200 response.
-  await page.waitForResponse((r) => r.url().includes('/api/attributes') && r.status() === 200, {
-    timeout: 15_000,
-  });
+  // Wait for the attributes fetch to complete (fired by useExportColumnCatalog
+  // on dialog mount; jsonFetch retries on 401 via silent refresh).
+  await attrsResponsePromise;
 
   // Once attributes are fetched, React re-renders the catalog. The "name"
   // code label (locale-group header) must be in the DOM; it may sit below
