@@ -22,7 +22,6 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
                 'code' => 'shopify_pl',
                 'label' => ['pl' => 'Shopify PL', 'en' => 'Shopify PL'],
                 'locales' => ['pl_PL', 'en_US'],
-                'currencies' => ['PLN', 'EUR'],
             ],
         ]);
 
@@ -33,9 +32,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $locales = $payload['locales'];
         \assert(\is_array($locales));
         self::assertCount(2, $locales);
-        $currencies = $payload['currencies'];
-        \assert(\is_array($currencies));
-        self::assertCount(2, $currencies);
+        self::assertArrayNotHasKey('currencies', $payload);
     }
 
     #[Test]
@@ -48,7 +45,6 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
                 'code' => 'shopify_pl',
                 'label' => ['pl' => 'X', 'en' => 'X'],
                 'locales' => ['pl_PL'],
-                'currencies' => ['PLN'],
             ],
         ]);
         $second = $client->request('POST', '/api/channels', [
@@ -56,7 +52,6 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
                 'code' => 'shopify_pl',
                 'label' => ['pl' => 'Y', 'en' => 'Y'],
                 'locales' => ['pl_PL'],
-                'currencies' => ['PLN'],
             ],
         ]);
 
@@ -73,7 +68,6 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
                 'code' => 'INVALID-WITH-DASH',
                 'label' => ['pl' => 'X', 'en' => 'X'],
                 'locales' => ['pl_PL'],
-                'currencies' => ['PLN'],
             ],
         ]);
 
@@ -90,7 +84,6 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
                 'code' => 'shop',
                 'label' => ['pl' => 'X', 'en' => 'X'],
                 'locales' => ['xx_XX'],
-                'currencies' => ['PLN'],
             ],
         ]);
 
@@ -107,7 +100,6 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
                 'code' => 'shop',
                 'label' => ['pl' => 'Sklep', 'en' => 'Store'],
                 'locales' => ['pl_PL'],
-                'currencies' => ['PLN'],
             ],
         ]);
         $id = self::extractId($created->toArray());
@@ -131,7 +123,6 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
                 'code' => 'shop',
                 'label' => ['pl' => 'Sklep', 'en' => 'Store'],
                 'locales' => ['pl_PL'],
-                'currencies' => ['PLN'],
             ],
         ]);
         $id = self::extractId($created->toArray());
@@ -164,14 +155,13 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
     }
 
     #[Test]
-    public function currenciesEndpointReturnsSeededRows(): void
+    public function currenciesEndpointIsGone(): void
     {
+        // #1282 — Currency entity + /api/currencies removed entirely.
         $client = $this->authenticatedClient();
         $response = $client->request('GET', '/api/currencies');
 
-        self::assertSame(200, $response->getStatusCode());
-        $payload = $response->toArray();
-        self::assertGreaterThanOrEqual(2, $payload['totalItems']);
+        self::assertSame(404, $response->getStatusCode());
     }
 
     #[Test]
@@ -184,7 +174,6 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
                 'code' => 'shop',
                 'label' => ['pl' => 'Sklep', 'en' => 'Store'],
                 'locales' => ['pl_PL'],
-                'currencies' => ['PLN'],
             ],
         ]);
         $id = self::extractId($created->toArray());
@@ -206,7 +195,6 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
                 'code' => 'shop',
                 'label' => ['pl' => 'Sklep', 'en' => 'Store'],
                 'locales' => ['pl_PL'],
-                'currencies' => ['PLN'],
             ],
         ]);
         $channelId = self::extractId($created->toArray());

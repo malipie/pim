@@ -27,11 +27,6 @@
             <group>admin:write</group>
             <group>integration:read</group>
         </attribute>
-        <attribute name="currencies">
-            <group>admin:read</group>
-            <group>admin:write</group>
-            <group>integration:read</group>
-        </attribute>
         <attribute name="categoryTreeRootId">
             <group>admin:read</group>
             <group>admin:write</group>

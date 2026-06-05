@@ -1141,16 +1141,14 @@
   },
   "channels": {
     "list_title": "Channels",
-    "list_subtitle": "Publication targets — locales, currencies, and attribute mapping per kind.",
+    "list_subtitle": "Publication targets — locales and attribute mapping per kind.",
     "back": "Back to channels",
     "empty": "No channels for the current tenant.",
     "fields": {
       "code": "Code",
       "label": "Label",
       "locales": "Locales",
-      "currencies": "Currencies",
       "locales_count": "Locales count",
-      "currencies_count": "Currencies count",
       "category_root": "Category tree root",
       "actions": "Actions"
     },
@@ -1193,22 +1191,18 @@
         "label_pl": "Label (PL)",
         "label_en": "Label (EN)",
         "locales": "Locales",
-        "currencies": "Currencies",
         "category_root": "Category tree root"
       },
       "validation": {
         "required": "Field is required.",
         "code_format": "Only lowercase letters, digits, and underscores.",
         "code_taken": "Code is already taken.",
-        "locales_min": "Pick at least one locale.",
-        "currencies_min": "Pick at least one currency."
+        "locales_min": "Pick at least one locale."
       },
       "cancel": "Cancel",
       "remove_chip": "Remove",
       "locales_empty": "No locales selected.",
       "locales_none_available": "No locales available.",
-      "currencies_empty": "No currencies selected.",
-      "currencies_none_available": "No currencies available.",
       "category_root_empty": "No category root selected (optional).",
       "category_root_none": "No categories available.",
       "clear_category_root": "Clear"
@@ -1226,11 +1220,9 @@
     "show": {
       "tabs_aria": "Channel detail tabs",
       "no_locales": "No locales configured.",
-      "no_currencies": "No currencies configured.",
       "tabs": {
         "overview": "Overview",
         "locales": "Locales",
-        "currencies": "Currencies",
         "mapping": "Mapping",
         "preview": "Preview"
       },

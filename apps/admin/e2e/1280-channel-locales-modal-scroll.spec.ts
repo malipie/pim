@@ -50,12 +50,14 @@ test.describe('#1280 — channel locale picker + add-locale modal scroll', () =>
     const scroll = page.getByTestId('locale-catalog-scroll');
     await expect(scroll).toBeVisible();
 
+    // Wait for the real catalog rows to render (not the loading skeletons),
+    // otherwise the height check races the async `/api/locales` fetch.
+    await expect(scroll.getByRole('button').first()).toBeVisible();
+
     // Catalog overflows its container → the box is genuinely scrollable.
-    const { scrollHeight, clientHeight } = await scroll.evaluate((el) => ({
-      scrollHeight: el.scrollHeight,
-      clientHeight: el.clientHeight,
-    }));
-    expect(scrollHeight).toBeGreaterThan(clientHeight);
+    await expect
+      .poll(() => scroll.evaluate((el) => el.scrollHeight - el.clientHeight))
+      .toBeGreaterThan(0);
 
     // The last catalog row is reachable by scrolling (the bug: it was clipped).
     const lastRow = scroll.getByRole('button').last();

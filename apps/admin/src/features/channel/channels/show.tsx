@@ -17,25 +17,17 @@ interface LocaleRef {
   label?: string;
 }
 
-interface CurrencyRef {
-  id: string;
-  code: string;
-  symbol?: string;
-  label?: string;
-}
-
 interface ChannelDetail {
   id: string;
   code: string;
   label?: Record<string, string> | string | null;
   locales?: LocaleRef[];
-  currencies?: CurrencyRef[];
   categoryTreeRootId?: string | null;
 }
 
-type TabKey = 'overview' | 'locales' | 'currencies' | 'mapping' | 'preview';
+type TabKey = 'overview' | 'locales' | 'mapping' | 'preview';
 
-const TABS: TabKey[] = ['overview', 'locales', 'currencies', 'mapping', 'preview'];
+const TABS: TabKey[] = ['overview', 'locales', 'mapping', 'preview'];
 
 export function ChannelShowPage() {
   const { t, i18n } = useTranslation();
@@ -109,11 +101,6 @@ export function ChannelShowPage() {
                 values={(channel.locales ?? []).map((l) => l.code)}
                 emptyKey="channels.show.no_locales"
               />
-            ) : activeTab === 'currencies' ? (
-              <ListTab
-                values={(channel.currencies ?? []).map((c) => c.code)}
-                emptyKey="channels.show.no_currencies"
-              />
             ) : (
               <PlaceholderTab tab="preview" />
             )}
@@ -132,7 +119,6 @@ function OverviewTab({ channel }: { channel: ChannelDetail }) {
         <span className="font-mono text-xs">{channel.code}</span>
       </Row>
       <Row label={t('channels.fields.locales_count')}>{channel.locales?.length ?? 0}</Row>
-      <Row label={t('channels.fields.currencies_count')}>{channel.currencies?.length ?? 0}</Row>
       {channel.categoryTreeRootId ? (
         <Row label={t('channels.fields.category_root')}>
           <span className="font-mono text-xs">{channel.categoryTreeRootId}</span>

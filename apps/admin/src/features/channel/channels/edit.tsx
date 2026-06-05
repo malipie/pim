@@ -14,7 +14,6 @@ interface ChannelDetail {
   code: string;
   label?: Record<string, string> | null;
   locales?: Array<{ code: string }>;
-  currencies?: Array<{ code: string }>;
   categoryTreeRootId?: string | null;
 }
 
@@ -41,7 +40,6 @@ export function ChannelEditPage() {
       en: channel.label?.en ?? '',
     },
     locales: (channel.locales ?? []).map((l) => l.code),
-    currencies: (channel.currencies ?? []).map((c) => c.code),
     categoryTreeRootId: channel.categoryTreeRootId ?? null,
   };
 
@@ -57,7 +55,6 @@ export function ChannelEditPage() {
         values: {
           label: values.label,
           locales: values.locales,
-          currencies: values.currencies,
           categoryTreeRootId: values.categoryTreeRootId ?? '',
         },
       },

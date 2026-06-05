@@ -313,7 +313,6 @@ function App() {
             },
             { name: 'channel_object_type_mappings' },
             { name: 'locales' },
-            { name: 'currencies' },
             {
               name: 'api_profiles',
               list: '/integrations/api-configurator',

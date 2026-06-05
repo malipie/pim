@@ -5020,177 +5020,6 @@
                 "x-cortex-permission": "channel.write"
             }
         },
-        "/api/currencies": {
-            "get": {
-                "operationId": "api_currencies_get_collection",
-                "tags": [
-                    "Currency"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Currency collection",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "type": "object",
-                                    "description": "Currency.jsonld-currency.read collection.",
-                                    "allOf": [
-                                        {
-                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
-                                        },
-                                        {
-                                            "type": "object",
-                                            "required": [
-                                                "member"
-                                            ],
-                                            "properties": {
-                                                "member": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/Currency.jsonld-currency.read"
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    ]
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/Currency-currency.read"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    }
-                },
-                "summary": "Retrieves the collection of Currency resources.",
-                "description": "Retrieves the collection of Currency resources.",
-                "parameters": [
-                    {
-                        "name": "page",
-                        "in": "query",
-                        "description": "The collection page number",
-                        "required": false,
-                        "deprecated": false,
-                        "schema": {
-                            "type": "integer",
-                            "default": 1
-                        },
-                        "style": "form",
-                        "explode": true
-                    }
-                ],
-                "x-cortex-permission": "user.read"
-            }
-        },
-        "/api/currencies/{id}": {
-            "get": {
-                "operationId": "api_currencies_id_get",
-                "tags": [
-                    "Currency"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Currency resource",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Currency.jsonld-currency.read"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Currency-currency.read"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    },
-                    "404": {
-                        "description": "Not found",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    }
-                },
-                "summary": "Retrieves a Currency resource.",
-                "description": "Retrieves a Currency resource.",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Currency identifier",
-                        "required": true,
-                        "deprecated": false,
-                        "schema": {
-                            "type": "string"
-                        },
-                        "style": "simple",
-                        "explode": false
-                    }
-                ],
-                "x-cortex-permission": "user.read"
-            }
-        },
         "/api/import-profiles": {
             "get": {
                 "operationId": "api_import-profiles_get_collection",
@@ -8844,7 +8673,7 @@
             },
             "Channel-admin.read": {
                 "type": "object",
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
                 "properties": {
                     "id": {
                         "type": [
@@ -8869,12 +8698,6 @@
                             "$ref": "#/components/schemas/Locale-admin.read"
                         }
                     },
-                    "currencies": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/Currency-admin.read"
-                        }
-                    },
                     "categoryTreeRootId": {
                         "readOnly": true,
                         "description": "Stored as a bare UUID rather than a Doctrine relation to keep Channel\nDomain free of cross-BC entity imports \u2014 the FK lives at the DB layer\n(CASCADE-on-delete in the migration), the kind=category invariant is\nenforced by ChannelCategoryRootValidator via GetObjectSummary (RF-19).",
@@ -8891,12 +8714,11 @@
             },
             "Channel.ChannelInput-channel.create": {
                 "type": "object",
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
                 "required": [
                     "code",
                     "label",
-                    "locales",
-                    "currencies"
+                    "locales"
                 ],
                 "properties": {
                     "code": {
@@ -8921,14 +8743,6 @@
                             "type": "string"
                         }
                     },
-                    "currencies": {
-                        "minItems": 1,
-                        "description": "Currency codes (ISO 4217, e.g. `PLN`).",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
                     "categoryTreeRootId": {
                         "format": "uuid",
                         "externalDocs": {
@@ -8943,7 +8757,7 @@
             },
             "Channel.ChannelPatchInput-channel.update.jsonMergePatch": {
                 "type": "object",
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
                 "properties": {
                     "label": {
                         "minItems": 1,
@@ -8956,16 +8770,6 @@
                         }
                     },
                     "locales": {
-                        "minItems": 1,
-                        "type": [
-                            "array",
-                            "null"
-                        ],
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "currencies": {
                         "minItems": 1,
                         "type": [
                             "array",
@@ -9015,12 +8819,6 @@
                                     "$ref": "#/components/schemas/Locale.jsonld-admin.read"
                                 }
                             },
-                            "currencies": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/components/schemas/Currency.jsonld-admin.read"
-                                }
-                            },
                             "categoryTreeRootId": {
                                 "readOnly": true,
                                 "description": "Stored as a bare UUID rather than a Doctrine relation to keep Channel\nDomain free of cross-BC entity imports \u2014 the FK lives at the DB layer\n(CASCADE-on-delete in the migration), the kind=category invariant is\nenforced by ChannelCategoryRootValidator via GetObjectSummary (RF-19).",
@@ -9036,7 +8834,7 @@
                         ]
                     }
                 ],
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports."
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports."
             },
             "ChannelObjectTypeMapping-channel_mapping.read": {
                 "type": "object",
@@ -9276,123 +9074,6 @@
                     }
                 ],
                 "description": "Unprocessable entity"
-            },
-            "Currency-admin.read": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "uuid"
-                    },
-                    "code": {
-                        "maxLength": 8,
-                        "type": "string"
-                    },
-                    "symbol": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "code"
-                ]
-            },
-            "Currency-currency.read": {
-                "type": "object",
-                "description": "ISO 4217 currency code (`PLN`, `EUR`, `USD`, \u2026) shared across tenants.\n\nMirrors {@see Locale}: global, opt-in via the Channel \u2194 Currency M2M.",
-                "properties": {
-                    "id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "uuid"
-                    },
-                    "code": {
-                        "maxLength": 8,
-                        "type": "string"
-                    },
-                    "symbol": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "code"
-                ]
-            },
-            "Currency.jsonld-admin.read": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/HydraItemBaseSchema"
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "id": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ],
-                                "format": "uuid"
-                            },
-                            "code": {
-                                "maxLength": 8,
-                                "type": "string"
-                            },
-                            "symbol": {
-                                "type": "string"
-                            },
-                            "label": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "code"
-                        ]
-                    }
-                ],
-                "description": "ISO 4217 currency code (`PLN`, `EUR`, `USD`, \u2026) shared across tenants.\n\nMirrors {@see Locale}: global, opt-in via the Channel \u2194 Currency M2M."
-            },
-            "Currency.jsonld-currency.read": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/HydraItemBaseSchema"
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "id": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ],
-                                "format": "uuid"
-                            },
-                            "code": {
-                                "maxLength": 8,
-                                "type": "string"
-                            },
-                            "symbol": {
-                                "type": "string"
-                            },
-                            "label": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "code"
-                        ]
-                    }
-                ],
-                "description": "ISO 4217 currency code (`PLN`, `EUR`, `USD`, \u2026) shared across tenants.\n\nMirrors {@see Locale}: global, opt-in via the Channel \u2194 Currency M2M."
             },
             "Error": {
                 "type": "object",
@@ -11368,15 +11049,11 @@
         },
         {
             "name": "Channel",
-            "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - a set of supported `Currency` rows (M2M `channel_currencies`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports."
+            "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports."
         },
         {
             "name": "ChannelObjectTypeMapping",
             "description": "Per-channel \u00d7 per-ObjectType \u00d7 per-Attribute target field mapping.\n\nReplaces the pre-ADR-009 `ChannelAttributeMapping` \u2014 by adding\n`object_type_id` we get one row per (Channel, ObjectType, Attribute)\ntriple, so a single Channel can publish products with different field\nshapes than categories or assets. Example:\n\n  Channel \"shopify_pl\"\n    \u00d7 ObjectType=product \u00d7 Attribute=color \u2192 \"metafield.custom.color\"\n    \u00d7 ObjectType=product \u00d7 Attribute=name  \u2192 \"title\"\n    \u00d7 ObjectType=category \u00d7 Attribute=name \u2192 \"title\"\n\n`target_field` is a free-form string \u2014 every integration adapter\n(Shopify, BaseLinker, \u2026) interprets it; the schema does not enforce\nany shape. `is_published` lets admins disable a mapping without\ndeleting it (audit trail, A/B configurations).\n\nTenant scope is inherited via the parent Channel \u2014 no own `tenant_id`.\nThe table joins `INFRA_TABLES` allowlist in `pim:tenant:audit`."
-        },
-        {
-            "name": "Currency",
-            "description": "ISO 4217 currency code (`PLN`, `EUR`, `USD`, \u2026) shared across tenants.\n\nMirrors {@see Locale}: global, opt-in via the Channel \u2194 Currency M2M."
         },
         {
             "name": "Locale",

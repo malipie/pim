@@ -42,17 +42,6 @@
             </join-table>
         </many-to-many>
 
-        <many-to-many field="currencies" target-entity="App\Channel\Domain\Entity\Currency">
-            <join-table name="channel_currencies">
-                <join-columns>
-                    <join-column name="channel_id" referenced-column-name="id" on-delete="CASCADE"/>
-                </join-columns>
-                <inverse-join-columns>
-                    <join-column name="currency_id" referenced-column-name="id" on-delete="RESTRICT"/>
-                </inverse-join-columns>
-            </join-table>
-        </many-to-many>
-
         <field name="categoryTreeRootId" type="uuid" column="category_tree_root_object_id" nullable="true"/>
 
     </entity>

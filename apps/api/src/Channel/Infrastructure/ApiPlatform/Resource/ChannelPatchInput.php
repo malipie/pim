@@ -31,15 +31,6 @@ final class ChannelPatchInput
     public ?array $locales = null;
 
     /**
-     * @var array<int, string>|null
-     */
-    #[Assert\Type('array')]
-    #[Assert\Count(min: 1)]
-    #[Assert\All([new Assert\Type('string'), new Assert\NotBlank()])]
-    #[Groups(['channel:update'])]
-    public ?array $currencies = null;
-
-    /**
      * Pass empty string `""` to clear; null = no change.
      */
     #[Groups(['channel:update'])]

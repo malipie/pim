@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Channel\Application\Command\UpdateChannel;
 
 use App\Channel\Domain\Repository\ChannelRepositoryInterface;
-use App\Channel\Domain\Repository\CurrencyRepositoryInterface;
 use App\Channel\Domain\Repository\LocaleRepositoryInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
@@ -18,7 +17,6 @@ final readonly class UpdateChannelHandler
     public function __construct(
         private ChannelRepositoryInterface $channels,
         private LocaleRepositoryInterface $locales,
-        private CurrencyRepositoryInterface $currencies,
     ) {
     }
 
@@ -50,22 +48,6 @@ final readonly class UpdateChannelHandler
                     ));
                 }
                 $channel->addLocale($locale);
-            }
-        }
-
-        if (null !== $command->currencyCodes) {
-            foreach ($channel->getCurrencies() as $currency) {
-                $channel->removeCurrency($currency);
-            }
-            foreach ($command->currencyCodes as $code) {
-                $currency = $this->currencies->findByCode($code);
-                if (null === $currency) {
-                    throw new UnprocessableEntityHttpException(\sprintf(
-                        'Currency "%s" does not exist.',
-                        $code,
-                    ));
-                }
-                $channel->addCurrency($currency);
             }
         }
 
