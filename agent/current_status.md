@@ -1,5 +1,9 @@
 # Current Status
 
+## 2026-06-05: 🏁 fix(exports) #1278 — deduplicate scopable attributes in column picker — merged PR #1279
+
+Operator zgłosił duplikaty atrybutów (Nazwa, Cena) w liście DOSTĘPNE w konfiguracji eksportu. Root cause: `buildVisualGroups` w `ColumnPicker.tsx` tworzyło dwa osobne visual items (flat bare + locale-group) dla scopable atrybutów. Fix: scalenie bare bucket do channel/locale variants group gdy napotykamy pierwsze `.`-key dla danego parent kodu. Playwright test #1278 zielony. PR #1279 w CI.
+
 ## 2026-06-05: 🏁 follow-up fixy export (#1267, #1271) + custom OT toolbar (#1269) — kompletny
 
 3 PR-y merged (operator zgłosił po manual smoke):

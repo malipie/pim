@@ -2,6 +2,14 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z #1278 (2026-06-05, export column picker deduplicate)
+
+### Patterns to Follow
+- **`page.waitForResponse` rejestruj PRZED nawigacją, nie po.** `useExportColumnCatalog` hook wysyła fetch zaraz po mount-owaniu dialogu. Jeśli test czeka aż dialog będzie widoczny, a POTEM rejestruje `waitForResponse`, response już przyszedł i listener nigdy nie triggeruje → timeout 15s. Fix: `const p = page.waitForResponse(...); await page.goto(...); await p;`.
+- **`dialog.locator('section').first()` łapie pierwszą section w dialogu, nie DOSTĘPNE pane.** Dialog eksportu ma sekcje Języki/Kanały powyżej ColumnPicker-a. Użyj `aria-label`: `dialog.getByRole('region', { name: /dostępne kolumny/i })`.
+- **`apiLogin` + pełny `page.goto` do nowej strony = double-refresh hazard.** `apiLogin` robi `page.goto('/dashboard')` (1x refresh), potem test `page.goto('/nowa-strona')` (2x refresh). Jeśli `auth_refresh` rate limiter był wcześniej zużyty, druga navigacja ląduje na `/login`. Bezpieczniej: `loginAsAdmin` (forma) + jeden `page.goto` + client-side link click.
+- **buildVisualGroups i bare-key + channel-variants dają duplicate w DOSTĘPNE pane.** Atrybuty scopable emitują `[bare, ...channelCols]`. `buildVisualGroups` wkładało bare do `__bare__X` bucket a channel variants do `X` bucket → dwa osobne visual items. Fix: gdy napotykamy pierwszą channel variant i `__bare__X` istnieje, absorb bare jako pierwszy element grupy — efekt: jeden expandable group zamiast flat+group.
+
 ## Lessons z batcha smoke 2026-05-30 (#1130–#1147, import + asset + locale/channel epiki)
 
 ### Patterns to Follow
