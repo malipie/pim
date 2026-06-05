@@ -58,9 +58,17 @@ function buildDefaultSkuTemplate(axes: AxisDraft[]): string {
 export function VariantsTab({
   masterProductId,
   onGenerated,
+  basePath = '/api/products',
 }: {
   masterProductId: string;
   onGenerated?: () => void;
+  /**
+   * UP-04 follow-up (#1273) — poly-kind base path. `/api/products` keeps the
+   * legacy product detail working unchanged; the universal object card passes
+   * `/api/objects` so custom ObjectTypes with `hasVariants=true` reach the
+   * same generator endpoint.
+   */
+  basePath?: string;
 }) {
   const { t } = useTranslation();
   const [axes, setAxes] = useState<AxisDraft[]>([{ code: 'color', values: [] }]);
@@ -69,7 +77,7 @@ export function VariantsTab({
   useEffect(() => {
     let cancelled = false;
     jsonFetch<{ groups: SchemaGroup[] }>(
-      `/api/products/${masterProductId}/effective-attribute-groups`,
+      `${basePath}/${masterProductId}/effective-attribute-groups`,
     )
       .then((body) => {
         if (cancelled) return;
@@ -80,7 +88,7 @@ export function VariantsTab({
     return () => {
       cancelled = true;
     };
-  }, [masterProductId]);
+  }, [masterProductId, basePath]);
   const [skuTemplate, setSkuTemplate] = useState('');
   const [isPending, setIsPending] = useState(false);
   const [response, setResponse] = useState<GenerateVariantsResponse | null>(null);
@@ -135,7 +143,7 @@ export function VariantsTab({
         skuTemplate.trim() !== '' ? skuTemplate.trim() : buildDefaultSkuTemplate(axes);
       body.sku_template = template;
       const result = await jsonFetch<GenerateVariantsResponse>(
-        `/api/products/${masterProductId}/generate-variants`,
+        `${basePath}/${masterProductId}/generate-variants`,
         { method: 'POST', body },
       );
       setResponse(result);
