@@ -25,7 +25,6 @@ final class ChannelPublicationProfileApiTest extends ChannelApiTestCase
                 'code' => 'pub_profile_test',
                 'label' => ['pl' => 'Test', 'en' => 'Test'],
                 'locales' => ['pl_PL'],
-                'currencies' => ['PLN'],
             ],
         ]);
         self::assertSame(201, $response->getStatusCode());

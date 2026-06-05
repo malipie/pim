@@ -75,7 +75,6 @@ final readonly class ChannelProcessor implements ProcessorInterface
             code: $data->code,
             label: $data->label,
             localeCodes: $data->locales,
-            currencyCodes: $data->currencies,
             categoryTreeRootId: $data->categoryTreeRootId,
         );
 
@@ -118,7 +117,6 @@ final readonly class ChannelProcessor implements ProcessorInterface
             id: $id,
             label: $data->label,
             localeCodes: $data->locales,
-            currencyCodes: $data->currencies,
             categoryTreeRootId: null === $rootIdParam ? false : $rootIdParam,
         );
         $this->dispatch($command);

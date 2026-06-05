@@ -87,11 +87,8 @@ final readonly class PermissionOpenApiFactory implements OpenApiFactoryInterface
             'GET' => 'channel.read', 'POST' => 'channel.write',
             'PATCH' => 'channel.write', 'PUT' => 'channel.write', 'DELETE' => 'channel.write',
         ],
-        'Currency' => [
-            // Locale + Currency are read-only reference data for every authenticated user.
-            'GET' => 'user.read',
-        ],
         'Locale' => [
+            // Read-only reference data for every authenticated user.
             'GET' => 'user.read',
         ],
         'ImportProfile' => [

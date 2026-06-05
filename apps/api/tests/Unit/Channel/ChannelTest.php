@@ -8,7 +8,6 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Channel\Domain\Entity\Channel;
-use App\Channel\Domain\Entity\Currency;
 use App\Channel\Domain\Entity\Locale;
 use App\Shared\Domain\Tenant;
 use LogicException;
@@ -27,30 +26,23 @@ final class ChannelTest extends TestCase
         self::assertSame('ecommerce_pl', $channel->getCode());
         self::assertSame('Sklep PL', $channel->getLabel()['pl']);
         self::assertCount(0, $channel->getLocales());
-        self::assertCount(0, $channel->getCurrencies());
         self::assertNull($channel->getCategoryTreeRootId());
         self::assertNull($channel->getTenant());
     }
 
     #[Test]
-    public function localeAndCurrencyM2mIsIdempotent(): void
+    public function localeM2mIsIdempotent(): void
     {
         $channel = new Channel('ecommerce_pl', ['pl' => 'Sklep PL']);
         $pl = new Locale('pl_PL', 'Polski');
-        $pln = new Currency('PLN', 'zł', 'Polish złoty');
 
         $channel->addLocale($pl);
         $channel->addLocale($pl);
-        $channel->addCurrency($pln);
-        $channel->addCurrency($pln);
 
         self::assertCount(1, $channel->getLocales());
-        self::assertCount(1, $channel->getCurrencies());
 
         $channel->removeLocale($pl);
-        $channel->removeCurrency($pln);
         self::assertCount(0, $channel->getLocales());
-        self::assertCount(0, $channel->getCurrencies());
     }
 
     #[Test]
@@ -80,15 +72,11 @@ final class ChannelTest extends TestCase
     }
 
     #[Test]
-    public function localeAndCurrencyExposeBasicFields(): void
+    public function localeExposesBasicFields(): void
     {
         $pl = new Locale('pl_PL', 'Polski');
-        $pln = new Currency('PLN', 'zł', 'Polish złoty');
 
         self::assertSame('pl_PL', $pl->getCode());
         self::assertSame('Polski', $pl->getLabel());
-        self::assertSame('PLN', $pln->getCode());
-        self::assertSame('zł', $pln->getSymbol());
-        self::assertSame('Polish złoty', $pln->getLabel());
     }
 }

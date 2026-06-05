@@ -43,18 +43,6 @@ final class ChannelInput
     #[Groups(['channel:create'])]
     public array $locales = [];
 
-    /**
-     * Currency codes (ISO 4217, e.g. `PLN`).
-     *
-     * @var array<int, string>
-     */
-    #[Assert\NotBlank]
-    #[Assert\Type('array')]
-    #[Assert\Count(min: 1)]
-    #[Assert\All([new Assert\Type('string'), new Assert\NotBlank()])]
-    #[Groups(['channel:create'])]
-    public array $currencies = [];
-
     #[Assert\Uuid(strict: false)]
     #[Groups(['channel:create'])]
     public ?string $categoryTreeRootId = null;

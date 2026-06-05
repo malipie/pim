@@ -30,19 +30,11 @@ interface LocaleRef {
   label: string;
 }
 
-interface CurrencyRef {
-  id: string;
-  code: string;
-  symbol: string;
-  label: string;
-}
-
 export interface ChannelRow {
   id: string;
   code: string;
   label?: Record<string, string> | string | null;
   locales?: LocaleRef[];
-  currencies?: CurrencyRef[];
   categoryTreeRootId?: string | null;
 }
 
@@ -97,7 +89,6 @@ export function ChannelsListPage() {
               <TableHead className="w-[180px]">{t('channels.fields.code')}</TableHead>
               <TableHead>{t('channels.fields.label')}</TableHead>
               <TableHead className="w-[200px]">{t('channels.fields.locales')}</TableHead>
-              <TableHead className="w-[200px]">{t('channels.fields.currencies')}</TableHead>
               <TableHead className="w-[120px] text-right">
                 <span className="sr-only">{t('channels.fields.actions')}</span>
               </TableHead>
@@ -106,13 +97,13 @@ export function ChannelsListPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
                   {t('app.loading')}
                 </TableCell>
               </TableRow>
             ) : channels.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
                   {t('channels.list.empty')}
                 </TableCell>
               </TableRow>
@@ -129,11 +120,6 @@ export function ChannelsListPage() {
                   <TableCell className="space-x-1 text-xs">
                     {(row.locales ?? []).map((loc) => (
                       <Tag key={loc.id ?? loc.code}>{loc.code}</Tag>
-                    ))}
-                  </TableCell>
-                  <TableCell className="space-x-1 text-xs">
-                    {(row.currencies ?? []).map((cur) => (
-                      <Tag key={cur.id ?? cur.code}>{cur.code}</Tag>
                     ))}
                   </TableCell>
                   <TableCell className="text-right">

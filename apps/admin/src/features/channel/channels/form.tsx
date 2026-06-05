@@ -6,14 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { CategoryRootCombobox } from './category-root-combobox';
-import { CurrencyPicker } from './currency-picker';
 import { LocalePicker } from './locale-picker';
 
 export interface ChannelFormValues {
   code: string;
   label: { pl: string; en: string };
   locales: string[];
-  currencies: string[];
   categoryTreeRootId: string | null;
 }
 
@@ -29,7 +27,6 @@ const EMPTY: ChannelFormValues = {
   code: '',
   label: { pl: '', en: '' },
   locales: [],
-  currencies: [],
   categoryTreeRootId: null,
 };
 
@@ -51,7 +48,6 @@ export function ChannelForm({
       en: defaultValues?.label?.en ?? '',
     },
     locales: defaultValues?.locales ?? [],
-    currencies: defaultValues?.currencies ?? [],
     categoryTreeRootId: defaultValues?.categoryTreeRootId ?? null,
   });
 
@@ -71,9 +67,6 @@ export function ChannelForm({
   }
   if (values.locales.length === 0) {
     errors.locales = t('channels.form.validation.locales_min');
-  }
-  if (values.currencies.length === 0) {
-    errors.currencies = t('channels.form.validation.currencies_min');
   }
 
   const isValid = Object.keys(errors).length === 0;
@@ -164,22 +157,6 @@ export function ChannelForm({
         {errors.locales ? (
           <p role="alert" className="mt-2 text-xs text-destructive">
             {errors.locales}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="rounded-xl border bg-card p-6">
-        <Label id="channel-currencies-label" className="mb-3 block">
-          {t('channels.form.fields.currencies')}
-        </Label>
-        <CurrencyPicker
-          value={values.currencies}
-          onChange={(currencies) => setValues({ ...values, currencies })}
-          ariaLabelledBy="channel-currencies-label"
-        />
-        {errors.currencies ? (
-          <p role="alert" className="mt-2 text-xs text-destructive">
-            {errors.currencies}
           </p>
         ) : null}
       </div>

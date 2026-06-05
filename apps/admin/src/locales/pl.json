@@ -1160,9 +1160,7 @@
       "code": "Kod",
       "label": "Etykieta",
       "locales": "Locale",
-      "currencies": "Waluty",
       "locales_count": "Liczba locale",
-      "currencies_count": "Liczba walut",
       "category_root": "Korzeń drzewa kategorii",
       "actions": "Akcje"
     },
@@ -1205,22 +1203,18 @@
         "label_pl": "Etykieta (PL)",
         "label_en": "Label (EN)",
         "locales": "Wersje językowe",
-        "currencies": "Waluty",
         "category_root": "Korzeń kategorii"
       },
       "validation": {
         "required": "Pole wymagane.",
         "code_format": "Tylko małe litery, cyfry i podkreślenia.",
         "code_taken": "Kod jest już zajęty.",
-        "locales_min": "Wybierz co najmniej jedną wersję językową.",
-        "currencies_min": "Wybierz co najmniej jedną walutę."
+        "locales_min": "Wybierz co najmniej jedną wersję językową."
       },
       "cancel": "Anuluj",
       "remove_chip": "Usuń",
       "locales_empty": "Brak wybranych wersji językowych.",
       "locales_none_available": "Brak dostępnych wersji językowych.",
-      "currencies_empty": "Brak wybranych walut.",
-      "currencies_none_available": "Brak dostępnych walut.",
       "category_root_empty": "Nie wybrano korzenia kategorii (opcjonalne).",
       "category_root_none": "Brak dostępnych kategorii.",
       "clear_category_root": "Wyczyść"
@@ -1238,11 +1232,9 @@
     "show": {
       "tabs_aria": "Karty szczegółów kanału",
       "no_locales": "Brak skonfigurowanych locale.",
-      "no_currencies": "Brak skonfigurowanych walut.",
       "tabs": {
         "overview": "Przegląd",
         "locales": "Locale",
-        "currencies": "Waluty",
         "mapping": "Mapping",
         "preview": "Podgląd"
       },

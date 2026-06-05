@@ -6,7 +6,6 @@ namespace App\Tests\Api\Channel;
 
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
-use App\Channel\Domain\Entity\Currency;
 use App\Channel\Domain\Entity\Locale;
 use App\DataFixtures\Identity\PrdPermissionFixtures;
 use App\Identity\Application\RbacSeeder;
@@ -24,7 +23,7 @@ use Zenstruck\Foundry\Test\ResetDatabase;
 
 /**
  * VIEW-06 (#418) — Channel ApiTestCase scaffolding. Seeds tenant +
- * super_admin user + built-in ObjectTypes + global Locale/Currency rows
+ * super_admin user + built-in ObjectTypes + global Locale rows
  * so concrete tests only assert on the API surface.
  */
 abstract class ChannelApiTestCase extends ApiTestCase
@@ -74,8 +73,6 @@ abstract class ChannelApiTestCase extends ApiTestCase
         // Global infrastructure rows for Channel pickers + create tests.
         $em->persist(new Locale('pl_PL', 'Polski (Polska)'));
         $em->persist(new Locale('en_US', 'English (United States)'));
-        $em->persist(new Currency('PLN', 'zł', 'Polish złoty'));
-        $em->persist(new Currency('EUR', '€', 'Euro'));
         $em->flush();
     }
 

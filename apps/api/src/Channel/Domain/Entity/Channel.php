@@ -23,7 +23,6 @@ use Symfony\Component\Validator\Constraints as Assert;
  *
  *   - a label (`{pl, en}`) — what admins see in the UI;
  *   - a set of supported `Locale` rows (M2M `channel_locales`);
- *   - a set of supported `Currency` rows (M2M `channel_currencies`);
  *   - an optional `category_tree_root_object_id` pointing at a
  *     `CatalogObject` of `kind=category` — the root of the category tree
  *     this channel publishes. Validation ("the target must be a
@@ -57,11 +56,6 @@ class Channel extends AggregateRoot implements TenantScoped
     private Collection $locales;
 
     /**
-     * @var Collection<int, Currency>
-     */
-    private Collection $currencies;
-
-    /**
      * Stored as a bare UUID rather than a Doctrine relation to keep Channel
      * Domain free of cross-BC entity imports — the FK lives at the DB layer
      * (CASCADE-on-delete in the migration), the kind=category invariant is
@@ -78,7 +72,6 @@ class Channel extends AggregateRoot implements TenantScoped
         $this->code = $code;
         $this->label = $label;
         $this->locales = new ArrayCollection();
-        $this->currencies = new ArrayCollection();
     }
 
     public function getId(): Uuid
@@ -147,26 +140,6 @@ class Channel extends AggregateRoot implements TenantScoped
     public function removeLocale(Locale $locale): void
     {
         $this->locales->removeElement($locale);
-    }
-
-    /**
-     * @return Collection<int, Currency>
-     */
-    public function getCurrencies(): Collection
-    {
-        return $this->currencies;
-    }
-
-    public function addCurrency(Currency $currency): void
-    {
-        if (!$this->currencies->contains($currency)) {
-            $this->currencies->add($currency);
-        }
-    }
-
-    public function removeCurrency(Currency $currency): void
-    {
-        $this->currencies->removeElement($currency);
     }
 
     public function getCategoryTreeRootId(): ?Uuid

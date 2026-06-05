@@ -6,7 +6,6 @@ namespace App\Channel\Application\Command\CreateChannel;
 
 use App\Channel\Domain\Entity\Channel;
 use App\Channel\Domain\Repository\ChannelRepositoryInterface;
-use App\Channel\Domain\Repository\CurrencyRepositoryInterface;
 use App\Channel\Domain\Repository\LocaleRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use LogicException;
@@ -21,7 +20,6 @@ final readonly class CreateChannelHandler
     public function __construct(
         private ChannelRepositoryInterface $channels,
         private LocaleRepositoryInterface $locales,
-        private CurrencyRepositoryInterface $currencies,
         private TenantContext $tenantContext,
     ) {
     }
@@ -51,17 +49,6 @@ final readonly class CreateChannelHandler
                 ));
             }
             $channel->addLocale($locale);
-        }
-
-        foreach ($command->currencyCodes as $code) {
-            $currency = $this->currencies->findByCode($code);
-            if (null === $currency) {
-                throw new UnprocessableEntityHttpException(\sprintf(
-                    'Currency "%s" does not exist.',
-                    $code,
-                ));
-            }
-            $channel->addCurrency($currency);
         }
 
         if (null !== $command->categoryTreeRootId && '' !== $command->categoryTreeRootId) {

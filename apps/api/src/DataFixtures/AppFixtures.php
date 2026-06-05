@@ -14,7 +14,6 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Channel\Domain\Entity\Channel;
-use App\Channel\Domain\Entity\Currency;
 use App\Channel\Domain\Entity\Locale;
 use App\Channel\Domain\Entity\TenantLocale;
 use App\DataFixtures\Identity\PrdPermissionFixtures;
@@ -97,19 +96,6 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
             $manager->persist($locale);
             $localesByCode[$entry['code']] = $locale;
         }
-        $pln = null;
-        foreach ([
-            ['PLN', 'zł', 'Polish złoty'],
-            ['EUR', '€', 'Euro'],
-            ['USD', '$', 'United States dollar'],
-        ] as [$code, $symbol, $label]) {
-            $currency = new Currency($code, $symbol, $label);
-            $manager->persist($currency);
-            if ('PLN' === $code) {
-                $pln = $currency;
-            }
-        }
-        \assert($pln instanceof Currency);
 
         $tenants = [
             new Tenant('demo', 'Demo Tenant'),
@@ -221,7 +207,6 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
         \assert('demo' === $demoTenant->getCode());
         $allegro = new Channel('allegro', ['pl' => 'Allegro', 'en' => 'Allegro']);
         $allegro->addLocale($plPL);
-        $allegro->addCurrency($pln);
         $allegro->assignTenant($demoTenant);
         $manager->persist($allegro);
         $manager->flush();
