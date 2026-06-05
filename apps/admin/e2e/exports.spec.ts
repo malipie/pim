@@ -198,3 +198,55 @@ test('#1244 grouped locale columns — expand group, select PL only lands in WYB
   await expect(dialog.getByText('description.pl')).toBeVisible();
   await expect(dialog.getByText('description.en')).not.toBeVisible();
 });
+
+test('#1278 scopable attribute appears once in column picker (no duplicate)', async ({ page }) => {
+  // Uses real DB data — demo fixture has 4 scopable attributes (name, price,
+  // short_description, color) and 1 channel (allegro). Before the fix,
+  // buildVisualGroups rendered scopable attrs as two separate flat items:
+  // a bare row (code "name") + a channel row (code "name.allegro").
+  // After the fix they are merged into one expandable group — the channel
+  // row (name.allegro) is collapsed inside the group and not directly visible.
+  //
+  // Mirrors the hub MVP test: loginAsAdmin → goto exports hub → click
+  // "Nowy eksport" link. This avoids a second full-page reload and keeps
+  // the JWT alive so the attribute catalog API call is authenticated.
+  await loginAsAdmin(page);
+
+  // Register the response listener BEFORE navigating so we don't miss
+  // the attributes fetch that fires immediately when the dialog mounts.
+  const attrsResponsePromise = page.waitForResponse(
+    (r) => r.url().includes('/api/attributes') && r.status() === 200,
+    { timeout: 30_000 },
+  );
+
+  await page.goto('/integrations/exports');
+  await page.getByRole('link', { name: /nowy eksport|new export/i }).click();
+  await expect(page).toHaveURL(/\/integrations\/exports\/new$/);
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible({ timeout: 10_000 });
+
+  // The DOSTĘPNE pane is identified by its aria-label so we don't grab
+  // the "Języki" or "Kanały" sections that sit above the column picker.
+  const available = dialog.getByRole('region', {
+    name: /dostępne kolumny|available columns/i,
+  });
+  await expect(available).toBeVisible();
+
+  // Wait for the attributes fetch to complete (fired by useExportColumnCatalog
+  // on dialog mount; jsonFetch retries on 401 via silent refresh).
+  await attrsResponsePromise;
+
+  // Once attributes are fetched, React re-renders the catalog. The "name"
+  // code label (locale-group header) must be in the DOM; it may sit below
+  // the 60vh scroll fold so we use toBeAttached rather than toBeVisible.
+  await expect(available.locator('code').filter({ hasText: /^name$/ })).toBeAttached({
+    timeout: 5_000,
+  });
+
+  // WITH my fix: "name" (bare + locale cols + channel col) are merged into one
+  // locale-group → <code>name</code> appears exactly ONCE (the group header).
+  // WITHOUT the fix: bare "name" renders as a flat item (extra <code>name</code>),
+  // making it appear TWICE alongside the locale-group header.
+  await expect(available.locator('code').filter({ hasText: /^name$/ })).toHaveCount(1);
+});
