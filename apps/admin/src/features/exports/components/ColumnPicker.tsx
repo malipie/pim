@@ -94,6 +94,18 @@ function buildVisualGroups(columns: ColumnOption[]): VisualItem[] {
       if (!byParent.has(parent)) {
         byParent.set(parent, []);
         order.push(parent);
+        // Scopable attributes emit [bare, ...channelCols]. If the bare key was
+        // already queued as __bare__X, absorb it as the first variant so that
+        // the attribute appears exactly once (as a group) rather than twice
+        // (flat bare + expandable channel group).
+        const bareKey = `__bare__${parent}`;
+        if (byParent.has(bareKey)) {
+          // biome-ignore lint/style/noNonNullAssertion: checked above
+          byParent.get(parent)!.push(...byParent.get(bareKey)!);
+          byParent.delete(bareKey);
+          const idx = order.indexOf(bareKey);
+          if (idx !== -1) order.splice(idx, 1);
+        }
       }
       // biome-ignore lint/style/noNonNullAssertion: guaranteed to exist
       byParent.get(parent)!.push(col);
