@@ -65,6 +65,7 @@ import type {
   ProductLocale,
   ScopeStatus,
 } from '@/features/catalog/products/components/types';
+import { VariantsListCard } from '@/features/catalog/products/components/variants-list-card';
 import { VariantsTabHost } from '@/features/catalog/products/components/variants-tab-host';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { httpErrorDetail, jsonFetch } from '@/lib/http';
@@ -119,6 +120,7 @@ interface CategoriesResponse {
 
 export function UniversalDetailPage({
   objectId,
+  objectTypeCode,
   objectTypeLabel,
   backHref,
   isCategorizable,
@@ -671,6 +673,14 @@ export function UniversalDetailPage({
           className="space-y-3"
           aria-label={t('object_detail.sidebar.aria', { defaultValue: 'Panel boczny' })}
         >
+          {hasVariants ? (
+            <VariantsListCard
+              masterProductId={objectId}
+              basePath="/api/objects"
+              onSelectVariant={(variantId) => navigate(`/objects/${objectTypeCode}/${variantId}`)}
+              onCreateVariant={() => setActiveTab('variants')}
+            />
+          ) : null}
           <EffectiveModelCard groups={groups} objectTypeName={objectTypeLabel} />
         </aside>
       </div>

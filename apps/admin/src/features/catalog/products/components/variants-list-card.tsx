@@ -22,6 +22,12 @@ export interface VariantsListCardProps {
   masterProductId: string;
   onSelectVariant?: (variantId: string) => void;
   onCreateVariant?: () => void;
+  /**
+   * #1274 — poly-kind base path. `/api/products` keeps the legacy product
+   * sidebar unchanged; the universal object card passes `/api/objects` so
+   * custom ObjectTypes list their variants the same way.
+   */
+  basePath?: string;
 }
 
 /**
@@ -35,6 +41,7 @@ export function VariantsListCard({
   masterProductId,
   onSelectVariant,
   onCreateVariant,
+  basePath = '/api/products',
 }: VariantsListCardProps) {
   const { t } = useTranslation();
   const [variants, setVariants] = useState<VariantRow[]>([]);
@@ -43,7 +50,7 @@ export function VariantsListCard({
   useEffect(() => {
     let cancelled = false;
     if (masterProductId === '') return;
-    jsonFetch<VariantsResponse>(`/api/products?parent_id=${masterProductId}`)
+    jsonFetch<VariantsResponse>(`${basePath}?parent_id=${masterProductId}`)
       .then((body) => {
         if (cancelled) return;
         const list = body.member ?? body['hydra:member'] ?? [];
@@ -56,7 +63,7 @@ export function VariantsListCard({
     return () => {
       cancelled = true;
     };
-  }, [masterProductId]);
+  }, [masterProductId, basePath]);
 
   return (
     <Card className="rounded-2xl border-line bg-surface p-5 soft-shadow">
