@@ -1,5 +1,14 @@
 # Current Status
 
+## 2026-06-05: 🏁 settings localization polish — kanały używają locale tenanta + usunięcie walut (#1280, #1282)
+
+Operator zgłosił 3 poprawki w ustawieniach lokalizacji po manual smoke. Splitnięte na 2 PR-y (mały FE vs destrukcyjna migracja):
+
+- **#1280 (PR [#1281](../../pull/1281), merged)** — (a) formularz kanału `/settings/channels/new` pokazywał pełny katalog ISO; `LocalePicker` pobierał `useList resource:'locales'` (`/api/locales` = global ISO) zamiast `/api/tenant-locales` (aktywne locale tenanta). Fix: `useQuery` + `jsonFetch('/api/tenant-locales')` filtr `isActive`. (b) modal „Dodaj lokalizację" nie scrollował — `DialogContent` bez `flex flex-col`, scroll-div bez `flex-1 min-h-0`. Fix: layout flex-column. Smoke: `scrollHeight 692 > clientHeight 404`.
+- **#1282 (PR [#1283](../../pull/1283))** — pełne usunięcie walut z kanałów (decyzja operatora: + migracja DB). Drop encji `Currency` + tabel `currencies`/`channel_currencies` + cały UI (form/show/list/i18n) + walidacja `Count(min:1)`. Pricing produktów odsprzężone (string-kody + per-attr allowlist w `PriceValidator`). Smoke: `/api/currencies` → 404, create kanału bez walut → 201. Gates: PHPStan 0, PHPUnit Channel 95/95, OpenAPI regen.
+
+**Lekcja**: lokalny `pim:db:reset` drop blokuje połączenie workera FrankenPHP — `docker compose restart api` (worker idle, brak HTTP requestu) → potem `pim:db:reset` przechodzi. Drift danych (operator aktywował de_DE w UI) zfailował deterministyczny spec lokalnie — CI na świeżych fixture'ach zielony.
+
 ## 2026-06-05: 🏁 fix(exports) #1278 — deduplicate scopable attributes in column picker — merged PR #1279
 
 Operator zgłosił duplikaty atrybutów (Nazwa, Cena) w liście DOSTĘPNE w konfiguracji eksportu. Root cause: `buildVisualGroups` w `ColumnPicker.tsx` tworzyło dwa osobne visual items (flat bare + locale-group) dla scopable atrybutów. Fix: scalenie bare bucket do channel/locale variants group gdy napotykamy pierwsze `.`-key dla danego parent kodu. Playwright test #1278 zielony. PR #1279 w CI.
