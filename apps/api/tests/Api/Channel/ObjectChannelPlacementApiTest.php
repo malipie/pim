@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Channel;
 
+use ApiPlatform\Symfony\Bundle\Test\Client;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
@@ -16,7 +17,10 @@ use PHPUnit\Framework\Attributes\Test;
  */
 final class ObjectChannelPlacementApiTest extends ChannelApiTestCase
 {
-    private function createChannelWithNode(\ApiPlatform\Symfony\Bundle\Test\Client $client, string $code): array
+    /**
+     * @return array{channelId: string, nodeId: string}
+     */
+    private function createChannelWithNode(Client $client, string $code): array
     {
         $channel = $client->request('POST', '/api/channels', [
             'json' => ['code' => $code, 'label' => ['pl' => $code], 'locales' => ['pl_PL']],
@@ -55,6 +59,25 @@ final class ObjectChannelPlacementApiTest extends ChannelApiTestCase
         return $product->getId()->toRfc4122();
     }
 
+    /**
+     * @return list<array<array-key, mixed>>
+     */
+    private function rows(Client $client, string $productId): array
+    {
+        $body = $client->request('GET', "/api/products/{$productId}/channel-placements", [
+            'headers' => ['accept' => 'application/json'],
+        ])->toArray();
+        $member = $body['member'] ?? [];
+        \assert(\is_array($member));
+        $out = [];
+        foreach ($member as $row) {
+            \assert(\is_array($row));
+            $out[] = $row;
+        }
+
+        return $out;
+    }
+
     #[Test]
     public function listReturnsEveryChannelWithNullPlacementByDefault(): void
     {
@@ -62,11 +85,7 @@ final class ObjectChannelPlacementApiTest extends ChannelApiTestCase
         $this->createChannelWithNode($client, 'allegro');
         $productId = $this->makeProductId();
 
-        $response = $client->request('GET', "/api/products/{$productId}/channel-placements", [
-            'headers' => ['accept' => 'application/json'],
-        ]);
-        self::assertSame(200, $response->getStatusCode());
-        $rows = $response->toArray()['member'];
+        $rows = $this->rows($client, $productId);
         self::assertCount(1, $rows);
         self::assertSame('allegro', $rows[0]['channelCode']);
         self::assertNull($rows[0]['placement']);
@@ -83,17 +102,18 @@ final class ObjectChannelPlacementApiTest extends ChannelApiTestCase
             'json' => ['nodeId' => $nodeId],
         ]);
         self::assertSame(200, $put->getStatusCode());
-        $body = $put->toArray();
-        self::assertSame($nodeId, $body['placement']['nodeId']);
-        self::assertSame('manual', $body['placement']['source']);
-        self::assertStringContainsString('Telewizory', $body['placement']['nodePath']);
+        $placement = $put->toArray()['placement'] ?? null;
+        \assert(\is_array($placement));
+        self::assertSame($nodeId, $placement['nodeId']);
+        self::assertSame('manual', $placement['source']);
+        $nodePath = $placement['nodePath'] ?? '';
+        \assert(\is_string($nodePath));
+        self::assertStringContainsString('Telewizory', $nodePath);
 
-        $get = $client->request('GET', "/api/products/{$productId}/channel-placements", [
-            'headers' => ['accept' => 'application/json'],
-        ]);
-        $row = $get->toArray()['member'][0];
-        self::assertNotNull($row['placement']);
-        self::assertSame($nodeId, $row['placement']['nodeId']);
+        $rows = $this->rows($client, $productId);
+        $rowPlacement = $rows[0]['placement'];
+        \assert(\is_array($rowPlacement));
+        self::assertSame($nodeId, $rowPlacement['nodeId']);
     }
 
     #[Test]
@@ -125,10 +145,8 @@ final class ObjectChannelPlacementApiTest extends ChannelApiTestCase
         $delete = $client->request('DELETE', "/api/products/{$productId}/channel-placements/{$channelId}");
         self::assertSame(204, $delete->getStatusCode());
 
-        $get = $client->request('GET', "/api/products/{$productId}/channel-placements", [
-            'headers' => ['accept' => 'application/json'],
-        ]);
-        self::assertNull($get->toArray()['member'][0]['placement']);
+        $rows = $this->rows($client, $productId);
+        self::assertNull($rows[0]['placement']);
     }
 
     #[Test]
