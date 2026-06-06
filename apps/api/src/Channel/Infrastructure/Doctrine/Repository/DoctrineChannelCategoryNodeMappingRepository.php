@@ -42,6 +42,24 @@ class DoctrineChannelCategoryNodeMappingRepository extends ServiceEntityReposito
         return $result instanceof ChannelCategoryNodeMapping ? $result : null;
     }
 
+    /**
+     * @return list<ChannelCategoryNodeMapping>
+     */
+    public function findByMasterCategory(Uuid $masterCategoryId): array
+    {
+        /** @var list<ChannelCategoryNodeMapping> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->innerJoin('m.channel', 'c')
+            ->addSelect('c')
+            ->andWhere('m.masterCategoryId = :master')
+            ->setParameter('master', $masterCategoryId, 'uuid')
+            ->orderBy('c.code', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function upsert(Channel $channel, Uuid $masterCategoryId, array $channelNodeIds): ChannelCategoryNodeMapping
     {
         $existing = $this->findByChannelAndMaster($channel, $masterCategoryId);
