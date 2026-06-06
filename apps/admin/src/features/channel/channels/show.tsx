@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { cn } from '@/lib/utils';
 
+import { ChannelCategoryMappingEditor } from './category-mapping-editor';
 import { ChannelMappingEditor } from './mapping-editor';
 
 interface LocaleRef {
@@ -25,9 +26,9 @@ interface ChannelDetail {
   categoryTreeRootId?: string | null;
 }
 
-type TabKey = 'overview' | 'locales' | 'mapping' | 'preview';
+type TabKey = 'overview' | 'locales' | 'mapping' | 'categoryMapping' | 'preview';
 
-const TABS: TabKey[] = ['overview', 'locales', 'mapping', 'preview'];
+const TABS: TabKey[] = ['overview', 'locales', 'mapping', 'categoryMapping', 'preview'];
 
 export function ChannelShowPage() {
   const { t, i18n } = useTranslation();
@@ -91,6 +92,8 @@ export function ChannelShowPage() {
 
       {activeTab === 'mapping' ? (
         <ChannelMappingEditor channelId={channel.id} />
+      ) : activeTab === 'categoryMapping' ? (
+        <ChannelCategoryMappingEditor channelId={channel.id} />
       ) : (
         <Card>
           <CardContent className="pt-6">

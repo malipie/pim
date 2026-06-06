@@ -22,6 +22,15 @@ interface ObjectChannelPlacementRepositoryInterface
     public function findByObjectAndChannel(Uuid $objectId, Uuid $channelId): ?ObjectChannelPlacement;
 
     /**
+     * Number of products placed on each node of a channel, keyed by node id
+     * (RFC-4122). Drives the per-node "affected products" badge in the
+     * mapping UI (CHC-08). Nodes with no placements are absent from the map.
+     *
+     * @return array<string, int>
+     */
+    public function countByNodeForChannel(Channel $channel): array;
+
+    /**
      * Create the (object, channel) placement or re-point an existing one.
      */
     public function upsert(

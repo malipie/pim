@@ -9,6 +9,7 @@ use App\Channel\Domain\Entity\ChannelCategoryNodeMapping;
 use App\Channel\Domain\Repository\ChannelCategoryNodeMappingRepositoryInterface;
 use App\Channel\Domain\Repository\ChannelCategoryNodeRepositoryInterface;
 use App\Channel\Domain\Repository\ChannelRepositoryInterface;
+use App\Channel\Domain\Repository\ObjectChannelPlacementRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use Doctrine\ORM\EntityManagerInterface;
 use JsonException;
@@ -39,6 +40,7 @@ final class ChannelNodeMappingController
         private readonly ChannelRepositoryInterface $channels,
         private readonly ChannelCategoryNodeMappingRepositoryInterface $mappings,
         private readonly ChannelCategoryNodeRepositoryInterface $nodes,
+        private readonly ObjectChannelPlacementRepositoryInterface $placements,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -59,6 +61,46 @@ final class ChannelNodeMappingController
         );
 
         return new JsonResponse(['member' => $rows, 'totalItems' => \count($rows)]);
+    }
+
+    /**
+     * CHC-08 (#1291) — per-node "affected products" badge: how many products
+     * are placed on each navigation node of the channel.
+     */
+    #[Route('/api/channels/{channelId}/node-placement-counts', name: 'pim_channel_node_placement_counts', methods: ['GET'], format: 'json')]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'channel', action: 'read')]
+    public function placementCounts(string $channelId): JsonResponse
+    {
+        $channel = $this->requireChannel($channelId);
+
+        $rows = [];
+        foreach ($this->placements->countByNodeForChannel($channel) as $nodeId => $count) {
+            $rows[] = ['nodeId' => $nodeId, 'productCount' => $count];
+        }
+
+        return new JsonResponse(['member' => $rows, 'totalItems' => \count($rows)]);
+    }
+
+    /**
+     * CHC-08 (#1291) — bulk "clear all channel mappings". Removes every
+     * node mapping of the channel via tenant-filtered SELECT + per-row remove
+     * (a DQL bulk DELETE would bypass the tenant filter — not tenant-safe).
+     */
+    #[Route('/api/channels/{channelId}/node-mappings', name: 'pim_channel_node_mappings_clear', methods: ['DELETE'], format: 'json')]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'channel', action: 'write')]
+    public function clearAll(string $channelId): JsonResponse
+    {
+        $channel = $this->requireChannel($channelId);
+
+        $deleted = 0;
+        foreach ($this->mappings->findByChannel($channel) as $mapping) {
+            $this->mappings->remove($mapping);
+            ++$deleted;
+        }
+
+        return new JsonResponse(['deleted' => $deleted]);
     }
 
     #[Route('/api/channels/{channelId}/node-mappings/{masterCategoryId}', name: 'pim_channel_node_mappings_put', methods: ['PUT'], format: 'json')]
