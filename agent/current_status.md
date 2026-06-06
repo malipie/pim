@@ -1,5 +1,22 @@
 # Current Status
 
+## 2026-06-07: 🏁 Epik CHC — Channel Categories KOMPLETNY (CHC-01…08, #1284–#1291 wszystkie merged + closed)
+
+Marathon mode: 8 ticketów, 8 osobnych PR-ów (#1292–#1294 + #1295 hotfix, #1296, #1297, #1298, #1299, #1300), każdy quality gates + live-stack smoke przed `gh issue close`.
+
+- **CHC-01 (#1284→PR #1292)** `channel_category_nodes` + nawigacyjne drzewo kanału (custom controller, ltree z UUID-label) + usunięcie pickera korzenia.
+- **CHC-02 (#1285→PR #1293)** `object_channel_placements` (encja + repo, objectId soft-FK, UNIQUE tenant/object/channel).
+- **CHC-03 (#1286→PR #1294 + hotfix #1295)** zakładka „Kategorie" → sekcja „Gdzie trafia na kanałach" (GET/PUT/DELETE channel-placements, dual route) + ChannelNodePickerDialog. E2E.
+- **CHC-05 (#1287→PR #1296)** move-impact + 409 confirm gate przed przeniesieniem kategorii master + dispatch `CheckSchemaDriftForCategory`. FE modal deferred (brak MoveCategoryDialog).
+- **CHC-04 (#1288→PR #1297)** `objects.schema_snapshot` + `schema_drift` + `SchemaSnapshotListener` (capture once on `ObjectAttributesChanged`) + async `CheckSchemaDriftHandler` + acknowledge endpoint + `SchemaDriftBanner`.
+- **CHC-06 (#1289→PR #1298)** `channel_category_node_mappings` (master→węzły, JSONB nodeIds) + CRUD API + walidacje (kind=category, węzeł z kanału).
+- **CHC-07 (#1290→PR #1299)** event `ObjectPrimaryCategoryAssigned` (recorded na agregacie z `replaceForProduct`, routed async) + handler `AssignChannelPlacementsOnPrimaryCategoryAssigned` (auto placement per zmapowany kanał, **manual wygrywa**). Smoke: auto-assign + manual-wins zweryfikowane na żywo.
+- **CHC-08 (#1291→PR #1300)** split-view UI „Channel categories" (master ⟷ drzewo węzłów, [Map] M:N przez MultiSelect, badge produktów per węzeł, bulk-clear) + endpointy `node-placement-counts` + bulk `DELETE node-mappings`. E2E zielony lokalnie (fixme w CI jak CHC-03).
+
+**Świadome odejścia**: CHC-05 FE modal deferred (komponent nie istnieje); CHC-07 plain `#[AsMessageHandler]` zamiast AbstractBatchHandler (clear() niebezpieczny inline w postFlush) + mapping M:N→placement single-node bierze pierwszy węzeł + usunięcie primary nie kasuje auto-placements; CHC-08 taby ObjectType = kontekst (master tree wspólny bo mapping OT-agnostyczne), per-OT filtrowanie kategorii deferred.
+
+**Następny krok**: epik domknięty; brak otwartych CHC ticketów. Czekam na kolejny epik/zadanie operatora.
+
 ## 2026-06-06: 🚧 Epik CHC — Channel Categories (#1284–#1291); CHC-01 gotowy do PR
 
 8 issues rozpisanych z `Project Plan/CHC-channel-categories-tickets.md` (label `epik-CHC`, bez milestone). Kolejność zależności: #1284 CHC-01 → #1285 CHC-02 → #1286 CHC-03 / #1287 CHC-05 → #1288 CHC-04 (MVP + przed pilotem); #1289 CHC-06 → #1290 CHC-07 → #1291 CHC-08 (Faza 1). Marathon mode: każdy ticket osobny branch+PR+CI+merge.
