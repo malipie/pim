@@ -4,20 +4,30 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application\Message;
 
+use App\Shared\Application\TenantAwareMessage;
+use Symfony\Component\Uid\Uuid;
+
 /**
  * CHC-05 (#1287) — dispatched after a confirmed category move that affects
- * products. The asynchronous CHC-04 handler re-evaluates each affected
- * product's effective schema against its stored snapshot and flags drift.
+ * products. The asynchronous CHC-04 handler ({@see \App\Catalog\Application\Handler\CheckSchemaDriftHandler})
+ * re-evaluates each affected product's effective schema against its stored
+ * snapshot and flags drift.
  *
- * Routed `async`; with `allow_no_handlers` the dispatch is a no-op enqueue
- * until the CHC-04 handler lands. Carries the moved category id as an
- * RFC-4122 string (matching the project's async-message convention — no Uuid
- * objects across the transport boundary).
+ * Routed `async`. Carries category + tenant ids as RFC-4122 strings (no Uuid
+ * objects across the transport boundary). Implements {@see TenantAwareMessage}
+ * so the worker rebinds TenantContext on consume (there is no dispatch-side
+ * TenantStamp writer in this codebase).
  */
-final readonly class CheckSchemaDriftForCategory
+final readonly class CheckSchemaDriftForCategory implements TenantAwareMessage
 {
     public function __construct(
         public string $categoryId,
+        public string $tenantId,
     ) {
+    }
+
+    public function tenantId(): Uuid
+    {
+        return Uuid::fromString($this->tenantId);
     }
 }

@@ -89,6 +89,16 @@
             </options>
         </field>
         <field name="path" type="ltree" nullable="true"/>
+        <field name="schemaSnapshot" type="json" column="schema_snapshot" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <field name="schemaDrift" type="boolean" column="schema_drift">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
         <field name="variantAxes" type="json" column="variant_axes" nullable="true">
             <options>
                 <option name="jsonb">true</option>

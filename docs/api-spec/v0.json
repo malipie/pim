@@ -8399,6 +8399,12 @@
                             "null"
                         ]
                     },
+                    "schemaDrift": {
+                        "readOnly": true,
+                        "description": "CHC-04 (#1288) \u2014 true when a category move changed this product's\neffective schema vs its snapshot; cleared on operator acknowledge.",
+                        "default": false,
+                        "type": "boolean"
+                    },
                     "createdAt": {
                         "readOnly": true,
                         "type": "string",
@@ -8658,6 +8664,12 @@
                             "string",
                             "null"
                         ]
+                    },
+                    "schemaDrift": {
+                        "readOnly": true,
+                        "description": "CHC-04 (#1288) \u2014 true when a category move changed this product's\neffective schema vs its snapshot; cleared on operator acknowledge.",
+                        "default": false,
+                        "type": "boolean"
                     },
                     "createdAt": {
                         "readOnly": true,

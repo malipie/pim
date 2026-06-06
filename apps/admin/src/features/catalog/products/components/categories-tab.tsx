@@ -12,6 +12,7 @@ import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 import { ChannelPlacementsSection } from './channel-placements-section';
+import { SchemaDriftBanner } from './schema-drift-banner';
 
 interface AssignmentRow {
   categoryId: string;
@@ -111,6 +112,8 @@ export function CategoriesTab({ productId }: Props) {
 
   return (
     <section className="space-y-4">
+      <SchemaDriftBanner productId={productId} />
+
       <header className="flex items-center justify-between">
         <div>
           <h3 className="text-[13.5px] font-semibold text-ink">
