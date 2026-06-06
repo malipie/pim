@@ -112,10 +112,10 @@ final class SchemaDriftTest extends KernelTestCase
 
         // Snapshot == current effective set → no drift.
         $current = array_map(
-            static fn ($g) => $g->getId()->toRfc4122(),
+            static fn (\App\Catalog\Domain\Entity\AttributeGroup $g): string => $g->getId()->toRfc4122(),
             self::getContainer()->get(\App\Catalog\Domain\Service\EffectiveAttributeGroupResolver::class)->resolve($product),
         );
-        $product->recordSchemaSnapshot(['attributeGroupIds' => array_values($current), 'capturedAt' => 'x', 'masterCategoryId' => null]);
+        $product->recordSchemaSnapshot(['attributeGroupIds' => $current, 'capturedAt' => 'x', 'masterCategoryId' => null]);
         $this->em()->flush();
 
         $this->handler()(new CheckSchemaDriftForCategory(
