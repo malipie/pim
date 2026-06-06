@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Channel\Domain\Entity\ObjectChannelPlacement"
+            table="object_channel_placements"
+            repository-class="App\Channel\Infrastructure\Doctrine\Repository\DoctrineObjectChannelPlacementRepository">
+
+        <unique-constraints>
+            <unique-constraint name="object_channel_placements_tenant_object_channel_uniq" columns="tenant_id,object_id,channel_id"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="ocp_object_idx" columns="object_id"/>
+            <index name="ocp_channel_idx" columns="channel_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <many-to-one field="channel" target-entity="App\Channel\Domain\Entity\Channel">
+            <join-column name="channel_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <many-to-one field="node" target-entity="App\Channel\Domain\Entity\ChannelCategoryNode">
+            <join-column name="channel_category_node_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="objectId" type="uuid" column="object_id"/>
+        <field name="source" type="string" length="16" enum-type="App\Channel\Domain\ChannelPlacementSource"/>
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+        <field name="updatedAt" type="datetime_immutable" column="updated_at"/>
+
+    </entity>
+
+</doctrine-mapping>
