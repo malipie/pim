@@ -109,6 +109,7 @@ parameters:
               - src/Channel/Domain/Entity/Channel.php
               - src/Channel/Domain/Entity/ChannelCategoryNode.php
               - src/Channel/Domain/Entity/ObjectChannelPlacement.php
+              - src/Channel/Domain/Entity/ChannelCategoryNodeMapping.php
               - src/Asset/Domain/Entity/Asset.php
               - src/ApiConfigurator/Domain/Entity/ApiProfile.php
               - src/ApiConfigurator/Domain/Entity/ApiKey.php

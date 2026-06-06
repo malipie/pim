@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Channel\Domain\Entity\ChannelCategoryNodeMapping"
+            table="channel_category_node_mappings"
+            repository-class="App\Channel\Infrastructure\Doctrine\Repository\DoctrineChannelCategoryNodeMappingRepository">
+
+        <unique-constraints>
+            <unique-constraint name="ccnm_tenant_channel_master_uniq" columns="tenant_id,channel_id,master_cat_id"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="ccnm_channel_idx" columns="channel_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <many-to-one field="channel" target-entity="App\Channel\Domain\Entity\Channel">
+            <join-column name="channel_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="masterCategoryId" type="uuid" column="master_cat_id"/>
+        <field name="channelNodeIds" type="json" column="channel_node_ids">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+
+    </entity>
+
+</doctrine-mapping>
