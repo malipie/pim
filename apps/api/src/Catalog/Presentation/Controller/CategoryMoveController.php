@@ -91,7 +91,12 @@ final class CategoryMoveController
 
         if ($impact['affectedObjectsCount'] > 0) {
             // Re-check the schema snapshot of every affected product off-thread.
-            $this->bus->dispatch(new CheckSchemaDriftForCategory($category->getId()->toRfc4122()));
+            $tenant = $category->getTenant();
+            \assert(null !== $tenant);
+            $this->bus->dispatch(new CheckSchemaDriftForCategory(
+                $category->getId()->toRfc4122(),
+                $tenant->getId()->toRfc4122(),
+            ));
         }
 
         // Re-fetch after EM clear() in the service so the fresh path is reflected.

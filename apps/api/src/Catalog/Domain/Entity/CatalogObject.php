@@ -122,6 +122,22 @@ class CatalogObject extends AggregateRoot implements TenantScoped, Blameable
     private ?string $path = null;
 
     /**
+     * CHC-04 (#1288) — effective attribute-group snapshot captured on first
+     * fill: {"attributeGroupIds": ["uuid", ...], "capturedAt": ISO8601,
+     * "masterCategoryId": "uuid"|null}. The async drift handler compares it
+     * after a category move; null until the product is first filled.
+     *
+     * @var array<string, mixed>|null
+     */
+    private ?array $schemaSnapshot = null;
+
+    /**
+     * CHC-04 (#1288) — true when a category move changed this product's
+     * effective schema vs its snapshot; cleared on operator acknowledge.
+     */
+    private bool $schemaDrift = false;
+
+    /**
      * UI-02.6 (#296) — axis definition on a master product row, e.g.
      * `[{"code":"color","attribute_id":"...","values":["red","blue"]}]`.
      * NULL on variant + non-master rows. Only writable on `kind=product`.
@@ -395,6 +411,32 @@ class CatalogObject extends AggregateRoot implements TenantScoped, Blameable
     {
         $this->path = $path;
         $this->touch();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function getSchemaSnapshot(): ?array
+    {
+        return $this->schemaSnapshot;
+    }
+
+    /**
+     * @param array<string, mixed>|null $snapshot
+     */
+    public function recordSchemaSnapshot(?array $snapshot): void
+    {
+        $this->schemaSnapshot = $snapshot;
+    }
+
+    public function getSchemaDrift(): bool
+    {
+        return $this->schemaDrift;
+    }
+
+    public function flagSchemaDrift(bool $drifted): void
+    {
+        $this->schemaDrift = $drifted;
     }
 
     /**
