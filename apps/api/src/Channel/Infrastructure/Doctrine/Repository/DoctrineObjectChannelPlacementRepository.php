@@ -44,6 +44,29 @@ class DoctrineObjectChannelPlacementRepository extends ServiceEntityRepository i
         return $result instanceof ObjectChannelPlacement ? $result : null;
     }
 
+    /**
+     * @return array<string, int>
+     */
+    public function countByNodeForChannel(Channel $channel): array
+    {
+        // phpstan-doctrine infers the row shape from the partial SELECT:
+        // {nodeId: string, cnt: int<0, max>} — no manual @var/casts needed.
+        $rows = $this->createQueryBuilder('p')
+            ->select('IDENTITY(p.node) AS nodeId', 'COUNT(p.id) AS cnt')
+            ->andWhere('IDENTITY(p.channel) = :channelId')
+            ->setParameter('channelId', $channel->getId(), 'uuid')
+            ->groupBy('p.node')
+            ->getQuery()
+            ->getResult();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[$row['nodeId']] = $row['cnt'];
+        }
+
+        return $counts;
+    }
+
     public function upsert(
         Uuid $objectId,
         Channel $channel,

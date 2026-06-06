@@ -137,6 +137,49 @@ final class ChannelNodeMappingApiTest extends ChannelApiTestCase
     }
 
     #[Test]
+    public function clearAllRemovesEveryMappingForChannel(): void
+    {
+        $client = $this->authenticatedClient();
+        ['channelId' => $channelId, 'nodeId' => $nodeId] = $this->createChannelWithNode($client, 'allegro');
+        $masterA = $this->makeObjectId(ObjectKind::Category, 'cat_a');
+        $masterB = $this->makeObjectId(ObjectKind::Category, 'cat_b');
+
+        $client->request('PUT', "/api/channels/{$channelId}/node-mappings/{$masterA}", ['json' => ['nodeIds' => [$nodeId]]]);
+        $client->request('PUT', "/api/channels/{$channelId}/node-mappings/{$masterB}", ['json' => ['nodeIds' => [$nodeId]]]);
+        self::assertCount(2, $this->mappings($client, $channelId));
+
+        $clear = $client->request('DELETE', "/api/channels/{$channelId}/node-mappings");
+        self::assertSame(200, $clear->getStatusCode());
+        self::assertSame(2, $clear->toArray()['deleted'] ?? null);
+        self::assertCount(0, $this->mappings($client, $channelId));
+    }
+
+    #[Test]
+    public function placementCountsReportsProductsPerNode(): void
+    {
+        $client = $this->authenticatedClient();
+        ['channelId' => $channelId, 'nodeId' => $nodeId] = $this->createChannelWithNode($client, 'allegro');
+        $productId = $this->makeObjectId(ObjectKind::Product, 'SKU-COUNT');
+
+        // CHC-03 manual placement so the node has one product.
+        $place = $client->request('PUT', "/api/products/{$productId}/channel-placements/{$channelId}", [
+            'json' => ['nodeId' => $nodeId],
+        ]);
+        self::assertSame(200, $place->getStatusCode());
+
+        $body = $client->request('GET', "/api/channels/{$channelId}/node-placement-counts", [
+            'headers' => ['accept' => 'application/json'],
+        ])->toArray();
+        $member = $body['member'] ?? [];
+        \assert(\is_array($member));
+        self::assertCount(1, $member);
+        $first = $member[0];
+        \assert(\is_array($first));
+        self::assertSame($nodeId, $first['nodeId'] ?? null);
+        self::assertSame(1, $first['productCount'] ?? null);
+    }
+
+    #[Test]
     public function unauthenticatedIsRejected(): void
     {
         $client = static::createClient();

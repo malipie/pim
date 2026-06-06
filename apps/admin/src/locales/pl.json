@@ -1236,11 +1236,37 @@
         "overview": "Przegląd",
         "locales": "Locale",
         "mapping": "Mapping",
-        "preview": "Podgląd"
+        "preview": "Podgląd",
+        "categoryMapping": "Kategorie kanału"
       },
       "placeholder": {
         "preview": "Per-channel preview produktu dochodzi w 0.10.6 (API Configurator)."
       }
+    },
+    "category_mapping": {
+      "title": "Mapowanie kategorii master → węzły kanału",
+      "subtitle": "Połącz swoje kategorie master z węzłami nawigacji kanału. Po zapisaniu produkty z kategorii trafiają automatycznie na zmapowane węzły (placement „auto\").",
+      "loading": "Ładowanie mapowania kategorii...",
+      "master_panel": "Twoje kategorie (master)",
+      "channel_panel": "Drzewo kategorii kanału",
+      "map": "Mapuj",
+      "edit_mapping": "Zmień",
+      "mapped_count": "→ zmapowano do {{count}} węzł(ów)",
+      "no_categories": "Brak kategorii master.",
+      "no_nodes": "Kanał nie ma jeszcze drzewa kategorii. Dodaj węzły przez API lub import.",
+      "no_published_types": "Kanał nie publikuje żadnych typów obiektów — skonfiguruj najpierw mapowanie atrybutów.",
+      "ot_tabs_aria": "Typy obiektów publikowane przez kanał",
+      "dialog_title": "Mapuj: {{category}}",
+      "dialog_hint": "Wybierz jeden lub więcej węzłów kanału, na które trafią produkty z tej kategorii (M:N).",
+      "dialog_placeholder": "Wybierz węzły kanału...",
+      "save_success": "Mapowanie zapisane",
+      "save_error": "Nie udało się zapisać mapowania",
+      "clear_all": "Wyczyść wszystkie mapowania",
+      "clear_success": "Mapowania wyczyszczone",
+      "clear_error": "Nie udało się wyczyścić mapowań",
+      "clear_confirm_title": "Wyczyścić wszystkie mapowania kanału?",
+      "clear_confirm_body": "Usunie wszystkie mapowania kategorii → węzły dla tego kanału. Ręczne placements produktów pozostaną.",
+      "product_count": "{{count}} prod."
     }
   },
   "categories": {

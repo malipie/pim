@@ -1224,11 +1224,37 @@
         "overview": "Overview",
         "locales": "Locales",
         "mapping": "Mapping",
-        "preview": "Preview"
+        "preview": "Preview",
+        "categoryMapping": "Channel categories"
       },
       "placeholder": {
         "preview": "Per-channel product preview lands in 0.10.6 (API Configurator)."
       }
+    },
+    "category_mapping": {
+      "title": "Master category → channel node mapping",
+      "subtitle": "Wire your master categories to the channel's navigation nodes. After saving, products in a category land on the mapped nodes automatically (\"auto\" placement).",
+      "loading": "Loading category mapping...",
+      "master_panel": "Your categories (master)",
+      "channel_panel": "Channel category tree",
+      "map": "Map",
+      "edit_mapping": "Edit",
+      "mapped_count": "→ mapped to {{count}} node(s)",
+      "no_categories": "No master categories.",
+      "no_nodes": "This channel has no category tree yet. Add nodes via API or import.",
+      "no_published_types": "This channel publishes no object types — configure attribute mapping first.",
+      "ot_tabs_aria": "Object types published by the channel",
+      "dialog_title": "Map: {{category}}",
+      "dialog_hint": "Pick one or more channel nodes where products from this category will land (M:N).",
+      "dialog_placeholder": "Select channel nodes...",
+      "save_success": "Mapping saved",
+      "save_error": "Failed to save mapping",
+      "clear_all": "Clear all mappings",
+      "clear_success": "Mappings cleared",
+      "clear_error": "Failed to clear mappings",
+      "clear_confirm_title": "Clear all channel mappings?",
+      "clear_confirm_body": "Removes every category → node mapping for this channel. Manual product placements are kept.",
+      "product_count": "{{count}} prod."
     }
   },
   "categories": {
