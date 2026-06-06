@@ -18,6 +18,14 @@ interface ChannelCategoryNodeMappingRepositoryInterface
     public function findByChannelAndMaster(Channel $channel, Uuid $masterCategoryId): ?ChannelCategoryNodeMapping;
 
     /**
+     * Every mapping of a master category across all channels — the fan-out
+     * source for placement auto-assignment (CHC-07).
+     *
+     * @return list<ChannelCategoryNodeMapping>
+     */
+    public function findByMasterCategory(Uuid $masterCategoryId): array;
+
+    /**
      * Create the (channel, master) mapping or replace its node set.
      *
      * @param list<string> $channelNodeIds

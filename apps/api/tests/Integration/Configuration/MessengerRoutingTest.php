@@ -42,6 +42,11 @@ final class MessengerRoutingTest extends KernelTestCase
             \App\Catalog\Application\Message\ObjectValuesChangedMessage::class,
             'async',
         ];
+
+        yield 'catalog: primary category assigned (CHC-07 placement auto-assign)' => [
+            \App\Catalog\Contracts\Event\ObjectPrimaryCategoryAssigned::class,
+            'async',
+        ];
     }
 
     /**

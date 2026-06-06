@@ -121,6 +121,14 @@ final class DoctrineObjectCategoryRepository extends ServiceEntityRepository imp
                 $em->persist($assignment);
             }
 
+            if (null !== $primaryId) {
+                // CHC-07 (#1290): record the primary-category assignment on the
+                // aggregate so DomainEventDispatcher dispatches it after this
+                // flush commits. Channel placements are then auto-created from
+                // the master category's node mappings, off the request thread.
+                $product->recordPrimaryCategoryAssigned($primaryId);
+            }
+
             $em->flush();
         });
     }

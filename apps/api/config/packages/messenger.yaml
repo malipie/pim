@@ -75,6 +75,13 @@ framework:
             # makes this a safe no-op enqueue until the CHC-04 handler lands.
             App\Catalog\Application\Message\CheckSchemaDriftForCategory: async
 
+            # CHC-07 (#1290) — when a product's primary master category is
+            # (re)assigned, the Channel handler auto-creates channel placements
+            # from that category's node mappings off the request thread. The
+            # event is recorded on the CatalogObject aggregate and dispatched
+            # post-flush; routing it async keeps the assignment request fast.
+            App\Catalog\Contracts\Event\ObjectPrimaryCategoryAssigned: async
+
             # DAM thumbnail pipeline (#438). The upload request returns
             # 201 immediately and the worker generates the 200×200 +
             # 800×800 WebP variants out-of-band. In dev / test the
