@@ -69,6 +69,12 @@ framework:
             # behavior stays in-band without a worker.
             App\Catalog\Application\Message\ObjectValuesChangedMessage: async
 
+            # CHC-05 (#1287) — after a confirmed category move that affects
+            # products, the CHC-04 handler re-checks each product's schema
+            # snapshot for drift off the request thread. `allow_no_handlers`
+            # makes this a safe no-op enqueue until the CHC-04 handler lands.
+            App\Catalog\Application\Message\CheckSchemaDriftForCategory: async
+
             # DAM thumbnail pipeline (#438). The upload request returns
             # 201 immediately and the worker generates the 200×200 +
             # 800×800 WebP variants out-of-band. In dev / test the
