@@ -5,14 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { CategoryRootCombobox } from './category-root-combobox';
 import { LocalePicker } from './locale-picker';
 
 export interface ChannelFormValues {
   code: string;
   label: { pl: string; en: string };
   locales: string[];
-  categoryTreeRootId: string | null;
 }
 
 interface ChannelFormProps {
@@ -27,7 +25,6 @@ const EMPTY: ChannelFormValues = {
   code: '',
   label: { pl: '', en: '' },
   locales: [],
-  categoryTreeRootId: null,
 };
 
 const CODE_REGEX = /^[a-z0-9_]+$/;
@@ -48,7 +45,6 @@ export function ChannelForm({
       en: defaultValues?.label?.en ?? '',
     },
     locales: defaultValues?.locales ?? [],
-    categoryTreeRootId: defaultValues?.categoryTreeRootId ?? null,
   });
 
   const errors: Partial<Record<keyof ChannelFormValues | 'label_pl' | 'label_en', string>> = {};
@@ -159,17 +155,6 @@ export function ChannelForm({
             {errors.locales}
           </p>
         ) : null}
-      </div>
-
-      <div className="rounded-xl border bg-card p-6">
-        <Label id="channel-category-root-label" className="mb-3 block">
-          {t('channels.form.fields.category_root')}
-        </Label>
-        <CategoryRootCombobox
-          value={values.categoryTreeRootId}
-          onChange={(id) => setValues({ ...values, categoryTreeRootId: id })}
-          ariaLabelledBy="channel-category-root-label"
-        />
       </div>
 
       <div className="flex items-center justify-end gap-2">

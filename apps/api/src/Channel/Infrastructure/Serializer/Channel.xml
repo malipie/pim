@@ -29,7 +29,6 @@
         </attribute>
         <attribute name="categoryTreeRootId">
             <group>admin:read</group>
-            <group>admin:write</group>
         </attribute>
     </class>
 </serializer>

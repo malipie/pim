@@ -1,5 +1,17 @@
 # Current Status
 
+## 2026-06-06: 🚧 Epik CHC — Channel Categories (#1284–#1291); CHC-01 gotowy do PR
+
+8 issues rozpisanych z `Project Plan/CHC-channel-categories-tickets.md` (label `epik-CHC`, bez milestone). Kolejność zależności: #1284 CHC-01 → #1285 CHC-02 → #1286 CHC-03 / #1287 CHC-05 → #1288 CHC-04 (MVP + przed pilotem); #1289 CHC-06 → #1290 CHC-07 → #1291 CHC-08 (Faza 1). Marathon mode: każdy ticket osobny branch+PR+CI+merge.
+
+**CHC-01 (#1284) — `channel_category_nodes` + nawigacyjne drzewo kanału (gates zielone, do PR):**
+- Encja `ChannelCategoryNode` (ltree path z UUID-label, `external_code`, JSONB label) + migracja `Version20260606120000` (FK tenant/channel/parent CASCADE, GiST na path). Tabela `objects` + `EffectiveAttributeGroupResolver` nietknięte.
+- API: custom controller `ChannelNavigationTreeController` (nested route nie pasuje do AP sub-resource; wzorzec jak `ChannelLocaleMatrixController`): `GET/POST /api/channels/{id}/navigation-tree`, `POST/PATCH/DELETE .../nodes[/{nodeId}]` + CQRS commands.
+- `ChannelCategoryRootValidator` przepisany na `channel_category_nodes` (zniknęła zależność cross-BC Catalog + deptrac skip). `categoryTreeRootId` usunięty z write-path kanału (read-only); migracja zeruje stare wartości. FE: picker `CategoryRootCombobox` usunięty z formularza kanału.
+- Gates: PHPStan 0, Deptrac 0, Channel testy 103/103 (1 skip), nav-tree ApiTestCase 7/7, FE typecheck+biome 0, OpenAPI regen.
+
+**Następny krok**: commit + PR #1284 → CI → merge → smoke; potem CHC-02.
+
 ## 2026-06-05: 🏁 settings localization polish — kanały używają locale tenanta + usunięcie walut (#1280, #1282)
 
 Operator zgłosił 3 poprawki w ustawieniach lokalizacji po manual smoke. Splitnięte na 2 PR-y (mały FE vs destrukcyjna migracja):

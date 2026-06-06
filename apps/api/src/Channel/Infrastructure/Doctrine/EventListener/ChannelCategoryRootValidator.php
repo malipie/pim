@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Channel\Infrastructure\Doctrine\EventListener;
 
-use App\Catalog\Application\Query\GetObjectSummary\GetObjectSummaryHandler;
-use App\Catalog\Application\Query\GetObjectSummary\GetObjectSummaryQuery;
-use App\Catalog\Domain\ObjectKind;
 use App\Channel\Domain\Entity\Channel;
+use App\Channel\Domain\Repository\ChannelCategoryNodeRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\PrePersistEventArgs;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
@@ -16,22 +14,20 @@ use InvalidArgumentException;
 
 /**
  * Enforces that {@see Channel::$categoryTreeRootId}, when set, points at a
- * `CatalogObject` of `kind = category`.
+ * {@see \App\Channel\Domain\Entity\ChannelCategoryNode} that is the root (no
+ * parent) of THIS channel's navigation tree (CHC-01, #1284).
  *
- * After RF-19 the FK is just a Uuid column on Channel — Catalog identity
- * is not reachable through Doctrine's lazy-loaded entity graph anymore,
- * so the listener pulls a {@see \App\Catalog\Contracts\Query\ObjectSummary}
- * via the cross-BC query handler instead. The schema-level FK still keeps
- * orphans out; this listener gives a friendlier error message before the
- * row reaches downstream consumers (channel publisher, category-tree
- * renderer).
+ * Before CHC-01 the soft FK referenced a master `CatalogObject` of
+ * kind=category. The navigation tree now lives in its own table, so the
+ * validator stays inside the Channel context — the cross-BC Catalog
+ * dependency (and its deptrac skip) is gone.
  */
 #[AsDoctrineListener(event: Events::prePersist)]
 #[AsDoctrineListener(event: Events::preUpdate)]
 final readonly class ChannelCategoryRootValidator
 {
     public function __construct(
-        private GetObjectSummaryHandler $objectSummary,
+        private ChannelCategoryNodeRepositoryInterface $nodes,
     ) {
     }
 
@@ -58,20 +54,28 @@ final readonly class ChannelCategoryRootValidator
             return;
         }
 
-        $summary = ($this->objectSummary)(new GetObjectSummaryQuery($rootId));
-        if (null === $summary) {
+        $node = $this->nodes->findById($rootId);
+        if (null === $node) {
             throw new InvalidArgumentException(\sprintf(
-                'Channel "%s" category tree root %s does not exist.',
+                'Channel "%s" navigation root %s does not exist.',
                 $channel->getCode(),
                 $rootId->toRfc4122(),
             ));
         }
 
-        if (ObjectKind::Category !== $summary->kind) {
+        if (!$node->getChannel()->getId()->equals($channel->getId())) {
             throw new InvalidArgumentException(\sprintf(
-                'Channel "%s" category tree root must be an object with kind=category, got kind=%s.',
+                'Channel "%s" navigation root %s belongs to a different channel.',
                 $channel->getCode(),
-                $summary->kind->value,
+                $rootId->toRfc4122(),
+            ));
+        }
+
+        if (!$node->isRoot()) {
+            throw new InvalidArgumentException(\sprintf(
+                'Channel "%s" navigation root %s must be a tree root (no parent).',
+                $channel->getCode(),
+                $rootId->toRfc4122(),
             ));
         }
     }

@@ -4,14 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Channel;
 
-use App\Catalog\Application\Query\GetObjectSummary\GetObjectSummaryHandler;
-use App\Catalog\Domain\Entity\CatalogObject;
-use App\Catalog\Domain\Entity\ObjectType;
-use App\Catalog\Domain\ObjectKind;
-use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Channel\Domain\Entity\Channel;
+use App\Channel\Domain\Entity\ChannelCategoryNode;
+use App\Channel\Domain\Repository\ChannelCategoryNodeRepositoryInterface;
 use App\Channel\Infrastructure\Doctrine\EventListener\ChannelCategoryRootValidator;
-use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PrePersistEventArgs;
 use InvalidArgumentException;
@@ -35,7 +31,7 @@ final class ChannelCategoryRootValidatorTest extends TestCase
     public function nullRootIsAllowed(): void
     {
         $channel = new Channel('shop', ['pl' => 'Sklep']);
-        $validator = new ChannelCategoryRootValidator($this->summaryHandler());
+        $validator = new ChannelCategoryRootValidator(new InMemoryChannelCategoryNodeRepo());
 
         $validator->prePersist(new PrePersistEventArgs($channel, $this->em));
 
@@ -43,41 +39,19 @@ final class ChannelCategoryRootValidatorTest extends TestCase
     }
 
     #[Test]
-    public function categoryRootIsAccepted(): void
+    public function rootNodeOfSameChannelIsAccepted(): void
     {
-        $tenant = new Tenant('demo', 'Demo');
-        $type = new ObjectType('category', ObjectKind::Category, ['pl' => 'Kategoria']);
-        $type->assignTenant($tenant);
-        $root = new CatalogObject($type, 'root');
-        $root->assignTenant($tenant);
-
         $channel = new Channel('shop', ['pl' => 'Sklep']);
+        $root = new ChannelCategoryNode($channel, 'root', ['pl' => 'Root']);
         $channel->attachCategoryTreeRoot($root->getId());
 
-        $validator = new ChannelCategoryRootValidator($this->summaryHandler($root));
+        $repo = new InMemoryChannelCategoryNodeRepo();
+        $repo->store($root);
+        $validator = new ChannelCategoryRootValidator($repo);
 
         $validator->prePersist(new PrePersistEventArgs($channel, $this->em));
 
         self::assertSame($root->getId(), $channel->getCategoryTreeRootId());
-    }
-
-    #[Test]
-    public function productRootThrows(): void
-    {
-        $tenant = new Tenant('demo', 'Demo');
-        $type = new ObjectType('product', ObjectKind::Product, ['pl' => 'Produkt']);
-        $type->assignTenant($tenant);
-        $root = new CatalogObject($type, 'SKU-1');
-        $root->assignTenant($tenant);
-
-        $channel = new Channel('shop', ['pl' => 'Sklep']);
-        $channel->attachCategoryTreeRoot($root->getId());
-
-        $validator = new ChannelCategoryRootValidator($this->summaryHandler($root));
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('kind=category');
-        $validator->prePersist(new PrePersistEventArgs($channel, $this->em));
     }
 
     #[Test]
@@ -86,7 +60,7 @@ final class ChannelCategoryRootValidatorTest extends TestCase
         $channel = new Channel('shop', ['pl' => 'Sklep']);
         $channel->attachCategoryTreeRoot(Uuid::v7());
 
-        $validator = new ChannelCategoryRootValidator($this->summaryHandler());
+        $validator = new ChannelCategoryRootValidator(new InMemoryChannelCategoryNodeRepo());
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('does not exist');
@@ -94,66 +68,85 @@ final class ChannelCategoryRootValidatorTest extends TestCase
     }
 
     #[Test]
+    public function nodeFromAnotherChannelThrows(): void
+    {
+        $channelA = new Channel('a', ['pl' => 'A']);
+        $channelB = new Channel('b', ['pl' => 'B']);
+        $foreignRoot = new ChannelCategoryNode($channelB, 'root', ['pl' => 'Root']);
+        $channelA->attachCategoryTreeRoot($foreignRoot->getId());
+
+        $repo = new InMemoryChannelCategoryNodeRepo();
+        $repo->store($foreignRoot);
+        $validator = new ChannelCategoryRootValidator($repo);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('different channel');
+        $validator->prePersist(new PrePersistEventArgs($channelA, $this->em));
+    }
+
+    #[Test]
+    public function nonRootNodeThrows(): void
+    {
+        $channel = new Channel('shop', ['pl' => 'Sklep']);
+        $parent = new ChannelCategoryNode($channel, 'root', ['pl' => 'Root']);
+        $child = new ChannelCategoryNode($channel, 'child', ['pl' => 'Child'], $parent);
+        $channel->attachCategoryTreeRoot($child->getId());
+
+        $repo = new InMemoryChannelCategoryNodeRepo();
+        $repo->store($child);
+        $validator = new ChannelCategoryRootValidator($repo);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('must be a tree root');
+        $validator->prePersist(new PrePersistEventArgs($channel, $this->em));
+    }
+
+    #[Test]
     public function nonChannelEntityIsIgnored(): void
     {
         $unrelated = new stdClass();
-        $validator = new ChannelCategoryRootValidator($this->summaryHandler());
+        $validator = new ChannelCategoryRootValidator(new InMemoryChannelCategoryNodeRepo());
 
         $validator->prePersist(new PrePersistEventArgs($unrelated, $this->em));
 
         self::assertTrue(true);
-    }
-
-    private function summaryHandler(?CatalogObject $object = null): GetObjectSummaryHandler
-    {
-        $repo = new InMemoryCatalogObjectRepoForValidator();
-        if (null !== $object) {
-            $repo->store($object);
-        }
-
-        return new GetObjectSummaryHandler($repo);
     }
 }
 
 /**
  * Stand-in repository — only `findById` is exercised through the validator.
  */
-final class InMemoryCatalogObjectRepoForValidator implements CatalogObjectRepositoryInterface
+final class InMemoryChannelCategoryNodeRepo implements ChannelCategoryNodeRepositoryInterface
 {
-    /** @var array<string, CatalogObject> */
-    private array $objects = [];
+    /** @var array<string, ChannelCategoryNode> */
+    private array $nodes = [];
 
-    public function store(CatalogObject $object): void
+    public function store(ChannelCategoryNode $node): void
     {
-        $this->objects[$object->getId()->toRfc4122()] = $object;
+        $this->nodes[$node->getId()->toRfc4122()] = $node;
     }
 
-    public function findById(Uuid $id): ?CatalogObject
+    public function findById(Uuid $id): ?ChannelCategoryNode
     {
-        return $this->objects[$id->toRfc4122()] ?? null;
+        return $this->nodes[$id->toRfc4122()] ?? null;
     }
 
-    public function findByIds(array $idsRfc4122): array
-    {
-        throw new LogicException('not used in this test');
-    }
-
-    public function findByCode(string $code, ObjectKind $kind, Tenant $tenant): ?CatalogObject
+    public function findRootForChannel(Channel $channel): ?ChannelCategoryNode
     {
         throw new LogicException('not used in this test');
     }
 
-    public function findByKind(ObjectKind $kind, Tenant $tenant): array
+    public function findAllForChannel(Channel $channel): array
     {
         throw new LogicException('not used in this test');
     }
 
-    public function save(CatalogObject $object): void
+    public function save(ChannelCategoryNode $node): void
     {
         throw new LogicException('not used in this test');
     }
 
-    public function remove(CatalogObject $object): void
+    public function remove(ChannelCategoryNode $node): void
     {
         throw new LogicException('not used in this test');
     }
