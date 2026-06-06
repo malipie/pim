@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
+import { ChannelPlacementsSection } from './channel-placements-section';
+
 interface AssignmentRow {
   categoryId: string;
   code: string;
@@ -216,6 +218,8 @@ export function CategoriesTab({ productId }: Props) {
           })}
         </ul>
       )}
+
+      <ChannelPlacementsSection productId={productId} />
 
       <CategoryPickerDialog
         open={pickerOpen}
