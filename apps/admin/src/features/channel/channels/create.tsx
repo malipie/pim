@@ -26,7 +26,6 @@ export function ChannelCreatePage() {
           code: values.code,
           label: values.label,
           locales: values.locales,
-          categoryTreeRootId: values.categoryTreeRootId,
         },
       },
       {

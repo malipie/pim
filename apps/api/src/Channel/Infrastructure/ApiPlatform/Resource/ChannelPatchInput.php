@@ -29,10 +29,4 @@ final class ChannelPatchInput
     #[Assert\All([new Assert\Type('string'), new Assert\NotBlank()])]
     #[Groups(['channel:update'])]
     public ?array $locales = null;
-
-    /**
-     * Pass empty string `""` to clear; null = no change.
-     */
-    #[Groups(['channel:update'])]
-    public ?string $categoryTreeRootId = null;
 }

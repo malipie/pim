@@ -8742,16 +8742,6 @@
                         "items": {
                             "type": "string"
                         }
-                    },
-                    "categoryTreeRootId": {
-                        "format": "uuid",
-                        "externalDocs": {
-                            "url": "https://schema.org/identifier"
-                        },
-                        "type": [
-                            "string",
-                            "null"
-                        ]
                     }
                 }
             },
@@ -8778,13 +8768,6 @@
                         "items": {
                             "type": "string"
                         }
-                    },
-                    "categoryTreeRootId": {
-                        "description": "Pass empty string `\"\"` to clear; null = no change.",
-                        "type": [
-                            "string",
-                            "null"
-                        ]
                     }
                 }
             },

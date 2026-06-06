@@ -75,7 +75,7 @@ final readonly class ChannelProcessor implements ProcessorInterface
             code: $data->code,
             label: $data->label,
             localeCodes: $data->locales,
-            categoryTreeRootId: $data->categoryTreeRootId,
+            categoryTreeRootId: null,
         );
 
         $envelope = $this->dispatch($command);
@@ -110,14 +110,13 @@ final readonly class ChannelProcessor implements ProcessorInterface
             ));
         }
 
-        // categoryTreeRootId distinction: null = no change in PATCH semantics.
-        // To clear, send explicit empty string.
-        $rootIdParam = $data->categoryTreeRootId;
+        // The channel navigation root is managed through the navigation-tree
+        // endpoints (CHC-01, #1284), not channel PATCH — always unchanged here.
         $command = new UpdateChannelCommand(
             id: $id,
             label: $data->label,
             localeCodes: $data->locales,
-            categoryTreeRootId: null === $rootIdParam ? false : $rootIdParam,
+            categoryTreeRootId: false,
         );
         $this->dispatch($command);
 

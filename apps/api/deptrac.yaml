@@ -229,10 +229,6 @@ parameters:
         App\Channel\Domain\Repository\ChannelObjectTypeMappingRepositoryInterface:
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Entity\ObjectType
-        App\Channel\Infrastructure\Doctrine\EventListener\ChannelCategoryRootValidator:
-            - App\Catalog\Application\Query\GetObjectSummary\GetObjectSummaryHandler
-            - App\Catalog\Application\Query\GetObjectSummary\GetObjectSummaryQuery
-            - App\Catalog\Domain\ObjectKind
         App\Channel\Infrastructure\Doctrine\Repository\DoctrineChannelObjectTypeMappingRepository:
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Entity\ObjectType

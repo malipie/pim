@@ -40,7 +40,6 @@ export function ChannelEditPage() {
       en: channel.label?.en ?? '',
     },
     locales: (channel.locales ?? []).map((l) => l.code),
-    categoryTreeRootId: channel.categoryTreeRootId ?? null,
   };
 
   const headerTitle = `${t('channels.edit.title_prefix')} ${
@@ -55,7 +54,6 @@ export function ChannelEditPage() {
         values: {
           label: values.label,
           locales: values.locales,
-          categoryTreeRootId: values.categoryTreeRootId ?? '',
         },
       },
       {

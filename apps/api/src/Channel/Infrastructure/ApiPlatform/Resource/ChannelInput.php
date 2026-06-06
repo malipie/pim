@@ -42,8 +42,4 @@ final class ChannelInput
     #[Assert\All([new Assert\Type('string'), new Assert\NotBlank()])]
     #[Groups(['channel:create'])]
     public array $locales = [];
-
-    #[Assert\Uuid(strict: false)]
-    #[Groups(['channel:create'])]
-    public ?string $categoryTreeRootId = null;
 }
