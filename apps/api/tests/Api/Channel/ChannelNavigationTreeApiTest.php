@@ -75,20 +75,70 @@ final class ChannelNavigationTreeApiTest extends ChannelApiTestCase
     }
 
     #[Test]
-    public function rootCannotBeCreatedTwice(): void
+    public function multipleRootsAreAllowed(): void
     {
         $client = $this->authenticatedClient();
         $channelId = $this->createChannel($client);
 
+        // A channel tree is a forest — several top-level categories are allowed.
         $first = $client->request('POST', "/api/channels/{$channelId}/navigation-tree", [
-            'json' => ['label' => ['pl' => 'Korzeń']],
+            'json' => ['label' => ['pl' => 'RTV']],
         ]);
         self::assertSame(201, $first->getStatusCode());
 
         $second = $client->request('POST', "/api/channels/{$channelId}/navigation-tree", [
-            'json' => ['label' => ['pl' => 'Korzeń 2']],
+            'json' => ['label' => ['pl' => 'Moda']],
         ]);
-        self::assertSame(409, $second->getStatusCode());
+        self::assertSame(201, $second->getStatusCode());
+
+        $rootCount = 0;
+        foreach ($this->treeNodes($client, $channelId) as $node) {
+            if (\array_key_exists('parentId', $node) && null === $node['parentId']) {
+                ++$rootCount;
+            }
+        }
+        self::assertSame(2, $rootCount, 'both top-level categories are roots');
+    }
+
+    #[Test]
+    public function deletingOneRootKeepsTheOthers(): void
+    {
+        $client = $this->authenticatedClient();
+        $channelId = $this->createChannel($client);
+        $first = self::extractId($client->request('POST', "/api/channels/{$channelId}/navigation-tree", [
+            'json' => ['label' => ['pl' => 'RTV']],
+        ])->toArray());
+        $second = self::extractId($client->request('POST', "/api/channels/{$channelId}/navigation-tree", [
+            'json' => ['label' => ['pl' => 'Moda']],
+        ])->toArray());
+
+        // Delete the second root (not the legacy pointer, which is the first).
+        $deleted = $client->request('DELETE', "/api/channels/{$channelId}/navigation-tree/nodes/{$second}");
+        self::assertSame(204, $deleted->getStatusCode());
+
+        $ids = array_map(
+            static fn (array $n): mixed => $n['id'] ?? null,
+            $this->treeNodes($client, $channelId),
+        );
+        self::assertContains($first, $ids, 'the other root survives');
+        self::assertNotContains($second, $ids);
+    }
+
+    /**
+     * @return list<array<array-key, mixed>>
+     */
+    private function treeNodes(\ApiPlatform\Symfony\Bundle\Test\Client $client, string $channelId): array
+    {
+        $nodes = $client->request('GET', "/api/channels/{$channelId}/navigation-tree", [
+            'headers' => ['accept' => 'application/json'],
+        ])->toArray();
+        $out = [];
+        foreach ($nodes as $node) {
+            \assert(\is_array($node));
+            $out[] = $node;
+        }
+
+        return $out;
     }
 
     #[Test]

@@ -81,7 +81,7 @@ export function ChannelTreeEditor({ channelId }: Props) {
     return map;
   }, [nodes]);
 
-  const root = nodes.find((n) => n.parentId === null) ?? null;
+  const roots = childrenByParent.get(null) ?? [];
 
   const [form, setForm] = useState<FormState | null>(null);
   const [formName, setFormName] = useState('');
@@ -195,32 +195,43 @@ export function ChannelTreeEditor({ channelId }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold">{t('channels.channel_tree.title')}</h3>
-        <p className="text-sm text-muted-foreground">{t('channels.channel_tree.subtitle')}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold">{t('channels.channel_tree.title')}</h3>
+          <p className="text-sm text-muted-foreground">{t('channels.channel_tree.subtitle')}</p>
+        </div>
+        {roots.length > 0 ? (
+          <Button variant="outline" size="sm" onClick={openAddRoot}>
+            <FolderPlus className="size-4" />
+            {t('channels.channel_tree.add_root')}
+          </Button>
+        ) : null}
       </div>
 
-      {root === null ? (
+      {roots.length === 0 ? (
         <div className="rounded-xl border border-dashed px-4 py-8 text-center">
           <p className="mb-3 text-sm text-muted-foreground">{t('channels.channel_tree.empty')}</p>
           <Button onClick={openAddRoot}>
             <FolderPlus className="size-4" />
-            {t('channels.channel_tree.create_tree')}
+            {t('channels.channel_tree.add_root')}
           </Button>
         </div>
       ) : (
         <div className="rounded-xl border bg-card py-1" data-testid="chc-tree-editor">
-          <TreeRows
-            node={root}
-            depth={0}
-            childrenByParent={childrenByParent}
-            lang={lang}
-            t={t}
-            onAddChild={openAddChild}
-            onEdit={openEdit}
-            onMove={setMoveTarget}
-            onDelete={setDeleteTarget}
-          />
+          {roots.map((rootNode) => (
+            <TreeRows
+              key={rootNode.id}
+              node={rootNode}
+              depth={0}
+              childrenByParent={childrenByParent}
+              lang={lang}
+              t={t}
+              onAddChild={openAddChild}
+              onEdit={openEdit}
+              onMove={setMoveTarget}
+              onDelete={setDeleteTarget}
+            />
+          ))}
         </div>
       )}
 
@@ -233,7 +244,7 @@ export function ChannelTreeEditor({ channelId }: Props) {
                 ? t('channels.channel_tree.edit_title')
                 : form?.mode === 'addChild'
                   ? t('channels.channel_tree.add_child_title')
-                  : t('channels.channel_tree.create_tree')}
+                  : t('channels.channel_tree.add_root')}
             </DialogTitle>
             <DialogDescription>{t('channels.channel_tree.form_hint')}</DialogDescription>
           </DialogHeader>
@@ -285,7 +296,7 @@ export function ChannelTreeEditor({ channelId }: Props) {
           </DialogHeader>
           <div className="max-h-72 space-y-1 overflow-auto">
             {moveTarget
-              ? moveCandidates(root, childrenByParent, subtreeIds(moveTarget.id)).map((c) => (
+              ? moveCandidates(roots, childrenByParent, subtreeIds(moveTarget.id)).map((c) => (
                   <button
                     key={c.node.id}
                     type="button"
@@ -441,11 +452,10 @@ function TreeRows({
  * moving node and its whole subtree.
  */
 function moveCandidates(
-  root: ChannelNode | null,
+  roots: ChannelNode[],
   childrenByParent: Map<string | null, ChannelNode[]>,
   excluded: Set<string>,
 ): Array<{ node: ChannelNode; depth: number }> {
-  if (root === null) return [];
   const out: Array<{ node: ChannelNode; depth: number }> = [];
   const walk = (node: ChannelNode, depth: number) => {
     if (excluded.has(node.id)) return;
@@ -454,6 +464,8 @@ function moveCandidates(
       walk(child, depth + 1);
     }
   };
-  walk(root, 0);
+  for (const root of roots) {
+    walk(root, 0);
+  }
   return out;
 }
