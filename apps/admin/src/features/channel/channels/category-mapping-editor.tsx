@@ -25,8 +25,11 @@ interface MasterCategory {
   path?: string | null;
 }
 
-interface ObjectTypeMappingRow {
-  objectType?: { id: string; code: string; label?: Record<string, string> | null };
+interface CategorizableObjectType {
+  id: string;
+  code: string;
+  label?: Record<string, string> | null;
+  isCategorizable?: boolean;
 }
 
 interface ChannelNode {
@@ -51,11 +54,6 @@ interface Collection<T> {
   member: T[];
 }
 
-interface PublishedObjectType {
-  code: string;
-  label: string;
-}
-
 interface Props {
   channelId: string;
 }
@@ -65,12 +63,13 @@ interface Props {
  * channel's navigation nodes (right). Saving a mapping triggers CHC-07
  * auto-assignment so products inherit the placement.
  *
- * The ObjectType tabs reflect the ObjectTypes the channel actually publishes
- * (DISTINCT objectType from `channel_object_type_mappings`). The master
- * category list is shared across tabs: a `ChannelCategoryNodeMapping` is
- * ObjectType-agnostic (master → channel nodes), so every published type maps
- * against the same master tree. The tabs scope the operator's mental model,
- * not the mappable set.
+ * Each categorizable ObjectType has its OWN master category tree (ADR-015,
+ * {@see \App\Catalog\Application\CategoryTreeAssignmentGuard}). The tabs are
+ * therefore one-per-categorizable-ObjectType, and the left panel loads that
+ * tab's tree via the `categoryTargetObjectType` filter. The channel is assumed
+ * to handle every ObjectType (no explicit channel↔ObjectType assignment — that
+ * is a deliberate "minimal" choice; an explicit per-channel subset is a
+ * separate ticket). The right panel (channel node tree) is ObjectType-agnostic.
  */
 export function ChannelCategoryMappingEditor({ channelId }: Props) {
   const { t, i18n } = useTranslation();
@@ -78,15 +77,29 @@ export function ChannelCategoryMappingEditor({ channelId }: Props) {
   const queryClient = useQueryClient();
   const lang = i18n.language;
 
-  const otMappingList = useList<ObjectTypeMappingRow>({
-    resource: 'channel_object_type_mappings',
-    filters: [{ field: 'channel', operator: 'eq', value: channelId }],
-    pagination: { mode: 'off' },
+  const objectTypesQuery = useQuery({
+    queryKey: ['channel-category-mapping', 'categorizable-object-types'],
+    queryFn: () =>
+      jsonFetch<CategorizableObjectType[]>('/api/object_types', { accept: 'application/json' }),
   });
+  const categorizableTypes = useMemo(
+    () => (objectTypesQuery.data ?? []).filter((ot) => ot.isCategorizable === true),
+    [objectTypesQuery.data],
+  );
 
+  const [activeOtId, setActiveOtId] = useState<string | null>(null);
+  // Effective active tab: the explicit pick, else the first categorizable type.
+  const effectiveOtId = activeOtId ?? categorizableTypes[0]?.id ?? null;
+
+  // Left panel: master categories of the active ObjectType's tree (ADR-015 —
+  // each ObjectType has its own tree; filter by categoryTargetObjectType).
   const categoryList = useList<MasterCategory>({
     resource: 'categories',
+    filters: effectiveOtId
+      ? [{ field: 'categoryTargetObjectType', operator: 'eq', value: effectiveOtId }]
+      : [],
     pagination: { mode: 'off' },
+    queryOptions: { enabled: effectiveOtId !== null },
   });
 
   const nodesQuery = useQuery({
@@ -113,20 +126,9 @@ export function ChannelCategoryMappingEditor({ channelId }: Props) {
       }),
   });
 
-  const [activeOt, setActiveOt] = useState<string | null>(null);
   const [dialogMaster, setDialogMaster] = useState<MasterCategory | null>(null);
   const [dialogSelection, setDialogSelection] = useState<string[]>([]);
   const [clearOpen, setClearOpen] = useState(false);
-
-  const publishedTypes = useMemo<PublishedObjectType[]>(() => {
-    const seen = new Map<string, PublishedObjectType>();
-    for (const row of otMappingList.result.data) {
-      const ot = row.objectType;
-      if (!ot || seen.has(ot.code)) continue;
-      seen.set(ot.code, { code: ot.code, label: resolveLabel(ot.label ?? null, lang) ?? ot.code });
-    }
-    return [...seen.values()];
-  }, [otMappingList.result.data, lang]);
 
   const nodes = nodesQuery.data ?? [];
   const nodeLabelById = useMemo(() => buildNodePathLabels(nodes, lang), [nodes, lang]);
@@ -182,7 +184,7 @@ export function ChannelCategoryMappingEditor({ channelId }: Props) {
     onError: () => toast.error(t('channels.category_mapping.clear_error')),
   });
 
-  if (otMappingList.query.isLoading || categoryList.query.isLoading || nodesQuery.isLoading) {
+  if (objectTypesQuery.isLoading || categoryList.query.isLoading || nodesQuery.isLoading) {
     return (
       <p className="text-sm text-muted-foreground">
         <Loader2 className="mr-2 inline size-3 animate-spin" />
@@ -221,35 +223,35 @@ export function ChannelCategoryMappingEditor({ channelId }: Props) {
         </Button>
       </div>
 
-      {publishedTypes.length > 0 ? (
+      {categorizableTypes.length > 0 ? (
         <div
           className="flex flex-wrap gap-1"
           role="tablist"
           aria-label={t('channels.category_mapping.ot_tabs_aria')}
         >
-          {publishedTypes.map((ot) => {
-            const active = activeOt === null ? ot === publishedTypes[0] : activeOt === ot.code;
+          {categorizableTypes.map((ot) => {
+            const active = effectiveOtId === ot.id;
             return (
               <button
-                key={ot.code}
+                key={ot.id}
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => setActiveOt(ot.code)}
+                onClick={() => setActiveOtId(ot.id)}
                 className={
                   active
                     ? 'rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground'
                     : 'rounded-md border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground'
                 }
               >
-                {ot.label}
+                {resolveLabel(ot.label ?? null, lang)}
               </button>
             );
           })}
         </div>
       ) : (
         <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
-          {t('channels.category_mapping.no_published_types')}
+          {t('channels.category_mapping.no_object_types')}
         </p>
       )}
 
