@@ -1,5 +1,17 @@
 # Current Status
 
+## 2026-06-07: 🏁 CHC-09 — UI edytor drzewa kategorii kanału (#1302 → PR #1303, merged + closed)
+
+Follow-up do epiku CHC (operator: „zaciąganie z API nie będzie istniało długo" → drzewo budowane ręcznie w UI). Plan-first (zatwierdzony), potem implementacja + smoke + close.
+
+- **Backend** (rozszerza nav-tree controller z CHC-01): `PATCH /api/channels/{id}/navigation-tree/nodes/{nodeId}/move` — reparent przez `MoveChannelCategoryNode` (raw ltree subtree rewrite, tenant+channel-scoped, wzorzec `MoveCategoryService`; cykl + obcy kanał → 422). `addNode` `code` opcjonalny → handler defaultuje do uuid-hex (edytor wysyła tylko nazwę + external id).
+- **Frontend**: zakładka „Drzewo kanału" + `ChannelTreeEditor` (rekurencyjne drzewo, add/child/edit/move/delete, dialog „Przenieś do…" bez self+potomków, delete z ostrzeżeniem o kaskadzie). Formularz węzła = 2 pola (nazwa + external id); nazwa w `label` pod locale tenanta. i18n pl/en.
+- **Model minimalny, bez migracji** (decyzja operatora): `label`/`code` zostają w schemacie, edytor pokazuje tylko 2 pola. Brak zmian CHC-03/06/07/08.
+- **Testy**: `ChannelNavigationTreeApiTest` 11/11 (reparent + descendant rewrite, move-to-descendant→422, obcy kanał→422, POST bez code→201) + E2E `chc-09-channel-tree-editor.spec.ts` (1 passed 14.2s, fixme w CI). CI #1303 15/15 SUCCESS.
+- **Świadome**: brak drag&drop (dialog); brak confirm-gate przy move (placements/mappingi po ID); potwierdzono brak kodu ingestion/sync z zewn. API (nic do usunięcia); runtime-seed demo na allegro usunięty.
+
+**Następny krok**: brak otwartych CHC ticketów. Czekam na zadanie operatora.
+
 ## 2026-06-07: 🏁 Epik CHC — Channel Categories KOMPLETNY (CHC-01…08, #1284–#1291 wszystkie merged + closed)
 
 Marathon mode: 8 ticketów, 8 osobnych PR-ów (#1292–#1294 + #1295 hotfix, #1296, #1297, #1298, #1299, #1300), każdy quality gates + live-stack smoke przed `gh issue close`.
