@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Channel;
 
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
-use App\Catalog\Contracts\Event\ObjectPrimaryCategoryAssigned;
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectCategory;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
-use App\Channel\Application\Subscriber\AssignChannelPlacementsOnPrimaryCategoryAssigned;
+use App\Channel\Application\Message\ReconcileChannelPlacementsForCategory;
+use App\Channel\Application\Service\ReconcileObjectChannelPlacements;
+use App\Channel\Application\Subscriber\ReconcileChannelPlacementsForCategoryHandler;
 use App\Channel\Domain\ChannelPlacementSource;
 use App\Channel\Domain\Entity\Channel;
 use App\Channel\Domain\Entity\ChannelCategoryNode;
@@ -24,10 +26,8 @@ use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
 
 /**
- * CHC-07 (#1290) — placement auto-assignment from node mappings, end-to-end
- * over the real repositories + Postgres (the handler is invoked directly so
- * the test does not depend on the async transport — same shape as
- * {@see \App\Tests\Integration\Catalog\SchemaDriftTest}).
+ * #1314 — placement reconcile from ALL of a product's categories (primary
+ * precedence), manual-wins, stale-auto cleanup, and the mapping back-fill.
  */
 final class AutoAssignChannelPlacementsTest extends KernelTestCase
 {
@@ -51,15 +51,16 @@ final class AutoAssignChannelPlacementsTest extends KernelTestCase
     }
 
     #[Test]
-    public function createsAutoPlacementOnChannelThatMappedTheMasterCategory(): void
+    public function placesProductViaPrimaryCategory(): void
     {
         $product = $this->makeProduct('SKU-1');
-        $category = $this->makeCategory('cat-tv');
+        $cat = $this->makeCategory('cat-tv');
+        $this->assign($product, $cat, true, 0);
         $channel = $this->makeChannel('allegro');
         $node = $this->makeNode($channel, 'rtv');
-        $this->mapMaster($channel, $category, [$node]);
+        $this->mapMaster($channel, $cat, [$node]);
 
-        $this->handler()(new ObjectPrimaryCategoryAssigned($product->getId(), $this->tenant->getId(), $category->getId()));
+        $this->reconciler()->reconcile($product->getId(), $this->tenant->getId());
 
         $placement = $this->placements()->findByObjectAndChannel($product->getId(), $channel->getId());
         self::assertNotNull($placement);
@@ -68,72 +69,111 @@ final class AutoAssignChannelPlacementsTest extends KernelTestCase
     }
 
     #[Test]
-    public function fansOutAcrossEveryChannelWithAMapping(): void
+    public function placesProductViaNonPrimaryCategoryWhenPrimaryUnmapped(): void
     {
+        // The operator's scenario: primary category is NOT mapped, a secondary is.
         $product = $this->makeProduct('SKU-1');
-        $category = $this->makeCategory('cat-tv');
+        $primary = $this->makeCategory('cat-apparel');
+        $secondary = $this->makeCategory('cat-running');
+        $this->assign($product, $primary, true, 0);
+        $this->assign($product, $secondary, false, 1);
+        $channel = $this->makeChannel('allegro');
+        $node = $this->makeNode($channel, 'bieganie');
+        $this->mapMaster($channel, $secondary, [$node]); // only the secondary is mapped
 
-        $allegro = $this->makeChannel('allegro');
-        $shopify = $this->makeChannel('shopify');
-        $this->mapMaster($allegro, $category, [$this->makeNode($allegro, 'rtv')]);
-        $this->mapMaster($shopify, $category, [$this->makeNode($shopify, 'electronics')]);
+        $this->reconciler()->reconcile($product->getId(), $this->tenant->getId());
 
-        $this->handler()(new ObjectPrimaryCategoryAssigned($product->getId(), $this->tenant->getId(), $category->getId()));
-
-        self::assertCount(2, $this->placements()->findByObject($product->getId()));
+        $placement = $this->placements()->findByObjectAndChannel($product->getId(), $channel->getId());
+        self::assertNotNull($placement, 'product lands via its non-primary mapped category');
+        self::assertTrue($placement->getNodeId()->equals($node->getId()));
     }
 
     #[Test]
-    public function neverOverwritesAManualPlacement(): void
+    public function primaryCategoryWinsOnConflict(): void
     {
         $product = $this->makeProduct('SKU-1');
-        $category = $this->makeCategory('cat-tv');
+        $primary = $this->makeCategory('cat-primary');
+        $secondary = $this->makeCategory('cat-secondary');
+        $this->assign($product, $primary, true, 0);
+        $this->assign($product, $secondary, false, 1);
         $channel = $this->makeChannel('allegro');
-        $mapped = $this->makeNode($channel, 'rtv');
-        $manualNode = $this->makeNode($channel, 'agd');
-        $this->mapMaster($channel, $category, [$mapped]);
+        $primaryNode = $this->makeNode($channel, 'node-primary');
+        $secondaryNode = $this->makeNode($channel, 'node-secondary');
+        $this->mapMaster($channel, $primary, [$primaryNode]);
+        $this->mapMaster($channel, $secondary, [$secondaryNode]);
 
-        // Operator placed the product by hand on a different node.
+        $this->reconciler()->reconcile($product->getId(), $this->tenant->getId());
+
+        $placement = $this->placements()->findByObjectAndChannel($product->getId(), $channel->getId());
+        self::assertNotNull($placement);
+        self::assertTrue($placement->getNodeId()->equals($primaryNode->getId()), 'primary category wins');
+    }
+
+    #[Test]
+    public function neverOverwritesManualPlacement(): void
+    {
+        $product = $this->makeProduct('SKU-1');
+        $cat = $this->makeCategory('cat-tv');
+        $this->assign($product, $cat, true, 0);
+        $channel = $this->makeChannel('allegro');
+        $mappedNode = $this->makeNode($channel, 'rtv');
+        $manualNode = $this->makeNode($channel, 'agd');
+        $this->mapMaster($channel, $cat, [$mappedNode]);
         $this->placements()->upsert($product->getId(), $channel, $manualNode, ChannelPlacementSource::Manual);
 
-        $this->handler()(new ObjectPrimaryCategoryAssigned($product->getId(), $this->tenant->getId(), $category->getId()));
+        $this->reconciler()->reconcile($product->getId(), $this->tenant->getId());
 
         $placement = $this->placements()->findByObjectAndChannel($product->getId(), $channel->getId());
         self::assertNotNull($placement);
         self::assertSame(ChannelPlacementSource::Manual, $placement->getSource());
-        self::assertTrue($placement->getNodeId()->equals($manualNode->getId()), 'manual node must be preserved');
+        self::assertTrue($placement->getNodeId()->equals($manualNode->getId()), 'manual node preserved');
     }
 
     #[Test]
-    public function repointsAnExistingAutoPlacement(): void
+    public function removesStaleAutoPlacementWhenNoCategoryMapsTheChannel(): void
     {
         $product = $this->makeProduct('SKU-1');
-        $category = $this->makeCategory('cat-tv');
+        $cat = $this->makeCategory('cat-tv');
+        $this->assign($product, $cat, true, 0);
         $channel = $this->makeChannel('allegro');
-        $oldNode = $this->makeNode($channel, 'old');
-        $newNode = $this->makeNode($channel, 'new');
-        $this->mapMaster($channel, $category, [$newNode]);
+        $node = $this->makeNode($channel, 'rtv');
+        // Pre-existing AUTO placement, but no mapping now references this channel.
+        $this->placements()->upsert($product->getId(), $channel, $node, ChannelPlacementSource::Auto);
 
-        $this->placements()->upsert($product->getId(), $channel, $oldNode, ChannelPlacementSource::Auto);
+        $this->reconciler()->reconcile($product->getId(), $this->tenant->getId());
 
-        $this->handler()(new ObjectPrimaryCategoryAssigned($product->getId(), $this->tenant->getId(), $category->getId()));
-
-        $placement = $this->placements()->findByObjectAndChannel($product->getId(), $channel->getId());
-        self::assertNotNull($placement);
-        self::assertTrue($placement->getNodeId()->equals($newNode->getId()));
-        self::assertSame(ChannelPlacementSource::Auto, $placement->getSource());
+        self::assertNull(
+            $this->placements()->findByObjectAndChannel($product->getId(), $channel->getId()),
+            'stale auto placement removed',
+        );
     }
 
     #[Test]
-    public function doesNothingWhenCategoryHasNoMappings(): void
+    public function backfillReconcilesEveryProductInTheMasterCategory(): void
     {
-        $product = $this->makeProduct('SKU-1');
-        $category = $this->makeCategory('cat-orphan');
-        $this->makeChannel('allegro');
+        $cat = $this->makeCategory('cat-tv');
+        $channel = $this->makeChannel('allegro');
+        $node = $this->makeNode($channel, 'rtv');
+        $productA = $this->makeProduct('SKU-A');
+        $productB = $this->makeProduct('SKU-B');
+        $this->assign($productA, $cat, true, 0);
+        $this->assign($productB, $cat, true, 0);
+        $this->mapMaster($channel, $cat, [$node]);
 
-        $this->handler()(new ObjectPrimaryCategoryAssigned($product->getId(), $this->tenant->getId(), $category->getId()));
+        // Back-fill: both products already in the category get placements.
+        $this->backfillHandler()(new ReconcileChannelPlacementsForCategory(
+            $cat->getId()->toRfc4122(),
+            $this->tenant->getId()->toRfc4122(),
+        ));
 
-        self::assertCount(0, $this->placements()->findByObject($product->getId()));
+        self::assertNotNull($this->placements()->findByObjectAndChannel($productA->getId(), $channel->getId()));
+        self::assertNotNull($this->placements()->findByObjectAndChannel($productB->getId(), $channel->getId()));
+    }
+
+    private function assign(CatalogObject $product, CatalogObject $category, bool $isPrimary, int $position): void
+    {
+        $this->em()->persist(new ObjectCategory($product, $category, $isPrimary, $position));
+        $this->em()->flush();
     }
 
     /**
@@ -191,9 +231,14 @@ final class AutoAssignChannelPlacementsTest extends KernelTestCase
         return $node;
     }
 
-    private function handler(): AssignChannelPlacementsOnPrimaryCategoryAssigned
+    private function reconciler(): ReconcileObjectChannelPlacements
     {
-        return self::getContainer()->get(AssignChannelPlacementsOnPrimaryCategoryAssigned::class);
+        return self::getContainer()->get(ReconcileObjectChannelPlacements::class);
+    }
+
+    private function backfillHandler(): ReconcileChannelPlacementsForCategoryHandler
+    {
+        return self::getContainer()->get(ReconcileChannelPlacementsForCategoryHandler::class);
     }
 
     private function mappings(): ChannelCategoryNodeMappingRepositoryInterface

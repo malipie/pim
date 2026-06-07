@@ -121,13 +121,12 @@ final class DoctrineObjectCategoryRepository extends ServiceEntityRepository imp
                 $em->persist($assignment);
             }
 
-            if (null !== $primaryId) {
-                // CHC-07 (#1290): record the primary-category assignment on the
-                // aggregate so DomainEventDispatcher dispatches it after this
-                // flush commits. Channel placements are then auto-created from
-                // the master category's node mappings, off the request thread.
-                $product->recordPrimaryCategoryAssigned($primaryId);
-            }
+            // #1314: record the category change on the aggregate so
+            // DomainEventDispatcher dispatches it after this flush commits, then
+            // the Channel context reconciles placements from ALL of the product's
+            // categories (primary precedence). Recorded unconditionally — an
+            // empty replace (all categories removed) must clear stale placements.
+            $product->recordCategoriesChanged();
 
             $em->flush();
         });
@@ -137,13 +136,18 @@ final class DoctrineObjectCategoryRepository extends ServiceEntityRepository imp
     {
         $em = $this->getEntityManager();
         $em->persist($assignment);
+        // #1314: a non-primary add changes the category set too → reconcile.
+        $assignment->getProduct()->recordCategoriesChanged();
         $em->flush();
     }
 
     public function remove(ObjectCategory $assignment): void
     {
         $em = $this->getEntityManager();
+        // Capture the product before removal so the change event still fires.
+        $product = $assignment->getProduct();
         $em->remove($assignment);
+        $product->recordCategoriesChanged();
         $em->flush();
     }
 

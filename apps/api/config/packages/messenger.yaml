@@ -75,12 +75,16 @@ framework:
             # makes this a safe no-op enqueue until the CHC-04 handler lands.
             App\Catalog\Application\Message\CheckSchemaDriftForCategory: async
 
-            # CHC-07 (#1290) — when a product's primary master category is
-            # (re)assigned, the Channel handler auto-creates channel placements
-            # from that category's node mappings off the request thread. The
-            # event is recorded on the CatalogObject aggregate and dispatched
-            # post-flush; routing it async keeps the assignment request fast.
-            App\Catalog\Contracts\Event\ObjectPrimaryCategoryAssigned: async
+            # CHC-07 / #1314 — when a product's master-category set changes, the
+            # Channel handler reconciles its channel placements from all its
+            # categories' node mappings off the request thread. Recorded on the
+            # CatalogObject aggregate, dispatched post-flush; async keeps the
+            # category-assignment request fast.
+            App\Catalog\Contracts\Event\ObjectCategoriesChanged: async
+
+            # #1314 — back-fill: after a channel node-mapping changes, reconcile
+            # placements for every product in the affected master category.
+            App\Channel\Application\Message\ReconcileChannelPlacementsForCategory: async
 
             # DAM thumbnail pipeline (#438). The upload request returns
             # 201 immediately and the worker generates the 200×200 +
