@@ -4713,313 +4713,6 @@
                 "x-cortex-permission": "channel.write"
             }
         },
-        "/api/channel_object_type_mappings": {
-            "get": {
-                "operationId": "api_channel_object_type_mappings_get_collection",
-                "tags": [
-                    "ChannelObjectTypeMapping"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "ChannelObjectTypeMapping collection",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "type": "object",
-                                    "description": "ChannelObjectTypeMapping.jsonld-channel_mapping.read collection.",
-                                    "allOf": [
-                                        {
-                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
-                                        },
-                                        {
-                                            "type": "object",
-                                            "required": [
-                                                "member"
-                                            ],
-                                            "properties": {
-                                                "member": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/ChannelObjectTypeMapping.jsonld-channel_mapping.read"
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    ]
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/ChannelObjectTypeMapping-channel_mapping.read"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    }
-                },
-                "summary": "Retrieves the collection of ChannelObjectTypeMapping resources.",
-                "description": "Retrieves the collection of ChannelObjectTypeMapping resources.",
-                "parameters": [
-                    {
-                        "name": "page",
-                        "in": "query",
-                        "description": "The collection page number",
-                        "required": false,
-                        "deprecated": false,
-                        "schema": {
-                            "type": "integer",
-                            "default": 1
-                        },
-                        "style": "form",
-                        "explode": true
-                    }
-                ],
-                "x-cortex-permission": "channel.read"
-            }
-        },
-        "/api/channel_object_type_mappings/{id}": {
-            "get": {
-                "operationId": "api_channel_object_type_mappings_id_get",
-                "tags": [
-                    "ChannelObjectTypeMapping"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "ChannelObjectTypeMapping resource",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ChannelObjectTypeMapping.jsonld-channel_mapping.read"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ChannelObjectTypeMapping-channel_mapping.read"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    },
-                    "404": {
-                        "description": "Not found",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    }
-                },
-                "summary": "Retrieves a ChannelObjectTypeMapping resource.",
-                "description": "Retrieves a ChannelObjectTypeMapping resource.",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "ChannelObjectTypeMapping identifier",
-                        "required": true,
-                        "deprecated": false,
-                        "schema": {
-                            "type": "string"
-                        },
-                        "style": "simple",
-                        "explode": false
-                    }
-                ],
-                "x-cortex-permission": "channel.read"
-            },
-            "patch": {
-                "operationId": "api_channel_object_type_mappings_id_patch",
-                "tags": [
-                    "ChannelObjectTypeMapping"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "ChannelObjectTypeMapping resource updated",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ChannelObjectTypeMapping.jsonld-channel_mapping.read"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ChannelObjectTypeMapping-channel_mapping.read"
-                                }
-                            }
-                        },
-                        "links": {}
-                    },
-                    "400": {
-                        "description": "Invalid input",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    },
-                    "422": {
-                        "description": "An error occurred",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ConstraintViolation"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ConstraintViolation"
-                                }
-                            }
-                        },
-                        "links": {}
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    },
-                    "404": {
-                        "description": "Not found",
-                        "content": {
-                            "application/ld+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error.jsonld"
-                                }
-                            },
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "links": {}
-                    }
-                },
-                "summary": "Updates the ChannelObjectTypeMapping resource.",
-                "description": "Updates the ChannelObjectTypeMapping resource.",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "ChannelObjectTypeMapping identifier",
-                        "required": true,
-                        "deprecated": false,
-                        "schema": {
-                            "type": "string"
-                        },
-                        "style": "simple",
-                        "explode": false
-                    }
-                ],
-                "requestBody": {
-                    "description": "The updated ChannelObjectTypeMapping resource",
-                    "content": {
-                        "application/merge-patch+json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ChannelObjectTypeMapping.ChannelObjectTypeMappingPatchInput-channel_mapping.patch.jsonMergePatch"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "x-cortex-permission": "channel.write"
-            }
-        },
         "/api/import-profiles": {
             "get": {
                 "operationId": "api_import-profiles_get_collection",
@@ -8685,7 +8378,7 @@
             },
             "Channel-admin.read": {
                 "type": "object",
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration.",
                 "properties": {
                     "id": {
                         "type": [
@@ -8726,7 +8419,7 @@
             },
             "Channel.ChannelInput-channel.create": {
                 "type": "object",
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration.",
                 "required": [
                     "code",
                     "label",
@@ -8759,7 +8452,7 @@
             },
             "Channel.ChannelPatchInput-channel.update.jsonMergePatch": {
                 "type": "object",
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports.",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration.",
                 "properties": {
                     "label": {
                         "minItems": 1,
@@ -8829,105 +8522,7 @@
                         ]
                     }
                 ],
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports."
-            },
-            "ChannelObjectTypeMapping-channel_mapping.read": {
-                "type": "object",
-                "description": "Per-channel \u00d7 per-ObjectType \u00d7 per-Attribute target field mapping.\n\nReplaces the pre-ADR-009 `ChannelAttributeMapping` \u2014 by adding\n`object_type_id` we get one row per (Channel, ObjectType, Attribute)\ntriple, so a single Channel can publish products with different field\nshapes than categories or assets. Example:\n\n  Channel \"shopify_pl\"\n    \u00d7 ObjectType=product \u00d7 Attribute=color \u2192 \"metafield.custom.color\"\n    \u00d7 ObjectType=product \u00d7 Attribute=name  \u2192 \"title\"\n    \u00d7 ObjectType=category \u00d7 Attribute=name \u2192 \"title\"\n\n`target_field` is a free-form string \u2014 every integration adapter\n(Shopify, BaseLinker, \u2026) interprets it; the schema does not enforce\nany shape. `is_published` lets admins disable a mapping without\ndeleting it (audit trail, A/B configurations).\n\nTenant scope is inherited via the parent Channel \u2014 no own `tenant_id`.\nThe table joins `INFRA_TABLES` allowlist in `pim:tenant:audit`.",
-                "properties": {
-                    "id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "uuid"
-                    },
-                    "channel": {
-                        "type": "string",
-                        "format": "iri-reference",
-                        "example": "https://example.com/"
-                    },
-                    "objectType": {
-                        "type": "string",
-                        "format": "iri-reference",
-                        "example": "https://example.com/"
-                    },
-                    "attribute": {
-                        "type": "string",
-                        "format": "iri-reference",
-                        "example": "https://example.com/"
-                    },
-                    "targetField": {
-                        "maxLength": 255,
-                        "type": "string"
-                    },
-                    "published": {
-                        "readOnly": true,
-                        "type": "boolean"
-                    }
-                },
-                "required": [
-                    "targetField"
-                ]
-            },
-            "ChannelObjectTypeMapping.ChannelObjectTypeMappingPatchInput-channel_mapping.patch.jsonMergePatch": {
-                "type": "object",
-                "description": "Per-channel \u00d7 per-ObjectType \u00d7 per-Attribute target field mapping.\n\nReplaces the pre-ADR-009 `ChannelAttributeMapping` \u2014 by adding\n`object_type_id` we get one row per (Channel, ObjectType, Attribute)\ntriple, so a single Channel can publish products with different field\nshapes than categories or assets. Example:\n\n  Channel \"shopify_pl\"\n    \u00d7 ObjectType=product \u00d7 Attribute=color \u2192 \"metafield.custom.color\"\n    \u00d7 ObjectType=product \u00d7 Attribute=name  \u2192 \"title\"\n    \u00d7 ObjectType=category \u00d7 Attribute=name \u2192 \"title\"\n\n`target_field` is a free-form string \u2014 every integration adapter\n(Shopify, BaseLinker, \u2026) interprets it; the schema does not enforce\nany shape. `is_published` lets admins disable a mapping without\ndeleting it (audit trail, A/B configurations).\n\nTenant scope is inherited via the parent Channel \u2014 no own `tenant_id`.\nThe table joins `INFRA_TABLES` allowlist in `pim:tenant:audit`.",
-                "properties": {
-                    "targetField": {
-                        "maxLength": 255,
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    }
-                }
-            },
-            "ChannelObjectTypeMapping.jsonld-channel_mapping.read": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/HydraItemBaseSchema"
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "id": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ],
-                                "format": "uuid"
-                            },
-                            "channel": {
-                                "type": "string",
-                                "format": "iri-reference",
-                                "example": "https://example.com/"
-                            },
-                            "objectType": {
-                                "type": "string",
-                                "format": "iri-reference",
-                                "example": "https://example.com/"
-                            },
-                            "attribute": {
-                                "type": "string",
-                                "format": "iri-reference",
-                                "example": "https://example.com/"
-                            },
-                            "targetField": {
-                                "maxLength": 255,
-                                "type": "string"
-                            },
-                            "published": {
-                                "readOnly": true,
-                                "type": "boolean"
-                            }
-                        },
-                        "required": [
-                            "targetField"
-                        ]
-                    }
-                ],
-                "description": "Per-channel \u00d7 per-ObjectType \u00d7 per-Attribute target field mapping.\n\nReplaces the pre-ADR-009 `ChannelAttributeMapping` \u2014 by adding\n`object_type_id` we get one row per (Channel, ObjectType, Attribute)\ntriple, so a single Channel can publish products with different field\nshapes than categories or assets. Example:\n\n  Channel \"shopify_pl\"\n    \u00d7 ObjectType=product \u00d7 Attribute=color \u2192 \"metafield.custom.color\"\n    \u00d7 ObjectType=product \u00d7 Attribute=name  \u2192 \"title\"\n    \u00d7 ObjectType=category \u00d7 Attribute=name \u2192 \"title\"\n\n`target_field` is a free-form string \u2014 every integration adapter\n(Shopify, BaseLinker, \u2026) interprets it; the schema does not enforce\nany shape. `is_published` lets admins disable a mapping without\ndeleting it (audit trail, A/B configurations).\n\nTenant scope is inherited via the parent Channel \u2014 no own `tenant_id`.\nThe table joins `INFRA_TABLES` allowlist in `pim:tenant:audit`."
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration."
             },
             "ConstraintViolation": {
                 "type": "object",
@@ -11044,11 +10639,7 @@
         },
         {
             "name": "Channel",
-            "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute mappings (e.g. PIM `color` \u2194 Shopify\n`metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped\nper `ObjectType` so a single channel can have different field shapes\nfor product vs. category exports."
-        },
-        {
-            "name": "ChannelObjectTypeMapping",
-            "description": "Per-channel \u00d7 per-ObjectType \u00d7 per-Attribute target field mapping.\n\nReplaces the pre-ADR-009 `ChannelAttributeMapping` \u2014 by adding\n`object_type_id` we get one row per (Channel, ObjectType, Attribute)\ntriple, so a single Channel can publish products with different field\nshapes than categories or assets. Example:\n\n  Channel \"shopify_pl\"\n    \u00d7 ObjectType=product \u00d7 Attribute=color \u2192 \"metafield.custom.color\"\n    \u00d7 ObjectType=product \u00d7 Attribute=name  \u2192 \"title\"\n    \u00d7 ObjectType=category \u00d7 Attribute=name \u2192 \"title\"\n\n`target_field` is a free-form string \u2014 every integration adapter\n(Shopify, BaseLinker, \u2026) interprets it; the schema does not enforce\nany shape. `is_published` lets admins disable a mapping without\ndeleting it (audit trail, A/B configurations).\n\nTenant scope is inherited via the parent Channel \u2014 no own `tenant_id`.\nThe table joins `INFRA_TABLES` allowlist in `pim:tenant:audit`."
+            "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a label (`{pl, en}`) \u2014 what admins see in the UI;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration."
         },
         {
             "name": "Locale",

@@ -1219,23 +1219,12 @@
       "category_root_none": "Brak dostępnych kategorii.",
       "clear_category_root": "Wyczyść"
     },
-    "mapping": {
-      "title": "Mapowanie atrybutów",
-      "subtitle": "Określ jak każdy atrybut mapuje się na pole w docelowym formacie integracji.",
-      "loading": "Ładowanie mapowań...",
-      "empty_object_type": "Brak atrybutów do zmapowania w tym typie. Przypisz atrybuty do typu w sekcji Modelowanie.",
-      "target_field_label": "Docelowe pole",
-      "target_field_placeholder": "np. metafield.custom.color",
-      "save_success": "Zapisano",
-      "save_error": "Nie udało się zapisać"
-    },
     "show": {
       "tabs_aria": "Karty szczegółów kanału",
       "no_locales": "Brak skonfigurowanych locale.",
       "tabs": {
         "overview": "Przegląd",
         "locales": "Locale",
-        "mapping": "Mapping",
         "preview": "Podgląd",
         "categoryMapping": "Kategorie kanału",
         "channelTree": "Drzewo kanału"

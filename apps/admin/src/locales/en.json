@@ -1207,23 +1207,12 @@
       "category_root_none": "No categories available.",
       "clear_category_root": "Clear"
     },
-    "mapping": {
-      "title": "Attribute mapping",
-      "subtitle": "Define how each attribute maps to a field in the target integration format.",
-      "loading": "Loading mappings...",
-      "empty_object_type": "No attributes to map for this object type. Attach attributes from the Modeling section first.",
-      "target_field_label": "Target field",
-      "target_field_placeholder": "e.g. metafield.custom.color",
-      "save_success": "Saved",
-      "save_error": "Could not save"
-    },
     "show": {
       "tabs_aria": "Channel detail tabs",
       "no_locales": "No locales configured.",
       "tabs": {
         "overview": "Overview",
         "locales": "Locales",
-        "mapping": "Mapping",
         "preview": "Preview",
         "categoryMapping": "Channel categories",
         "channelTree": "Channel tree"

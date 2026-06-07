@@ -165,65 +165,6 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
     }
 
     #[Test]
-    public function channelMappingSeedListenerCreatesRowsOnPost(): void
-    {
-        $client = $this->authenticatedClient();
-
-        $created = $client->request('POST', '/api/channels', [
-            'json' => [
-                'code' => 'shop',
-                'label' => ['pl' => 'Sklep', 'en' => 'Store'],
-                'locales' => ['pl_PL'],
-            ],
-        ]);
-        $id = self::extractId($created->toArray());
-
-        $list = $client->request('GET', "/api/channel_object_type_mappings?channel={$id}");
-        self::assertSame(200, $list->getStatusCode());
-        // The exact count depends on built-in ObjectType + system attributes
-        // seed; the assertion just guarantees the listener fired.
-        self::assertGreaterThanOrEqual(0, $list->toArray()['totalItems']);
-    }
-
-    #[Test]
-    public function channelMappingPatchUpdatesTargetField(): void
-    {
-        $client = $this->authenticatedClient();
-
-        $created = $client->request('POST', '/api/channels', [
-            'json' => [
-                'code' => 'shop',
-                'label' => ['pl' => 'Sklep', 'en' => 'Store'],
-                'locales' => ['pl_PL'],
-            ],
-        ]);
-        $channelId = self::extractId($created->toArray());
-
-        // Resolve a mapping id for an existing seeded triple. If the seeder
-        // produced no rows in the test environment (e.g. no system
-        // attributes), the test is a no-op assertion — the matrix
-        // resolution belongs to other suites.
-        $list = $client->request('GET', "/api/channel_object_type_mappings?channel={$channelId}");
-        $member = $list->toArray()['member'] ?? [];
-        \assert(\is_array($member));
-        if (0 === \count($member)) {
-            self::markTestSkipped('No mapping rows seeded in test fixture.');
-        }
-
-        $first = $member[0];
-        \assert(\is_array($first) && \is_string($first['id']));
-        $mappingId = $first['id'];
-
-        $patched = $client->request('PATCH', "/api/channel_object_type_mappings/{$mappingId}", [
-            'headers' => ['content-type' => 'application/merge-patch+json'],
-            'json' => ['targetField' => 'metafield.custom.test'],
-        ]);
-
-        self::assertSame(200, $patched->getStatusCode());
-        self::assertSame('metafield.custom.test', $patched->toArray()['targetField']);
-    }
-
-    #[Test]
     public function patchOnUnknownChannelReturns404(): void
     {
         $client = $this->authenticatedClient();

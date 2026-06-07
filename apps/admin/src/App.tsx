@@ -311,7 +311,6 @@ function App() {
               edit: '/settings/channels/:id/edit',
               show: '/settings/channels/:id',
             },
-            { name: 'channel_object_type_mappings' },
             { name: 'locales' },
             {
               name: 'api_profiles',
