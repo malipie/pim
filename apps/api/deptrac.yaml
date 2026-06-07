@@ -205,10 +205,7 @@ parameters:
     #   1. Catalog\Domain enums (ObjectKind / AttributeType / Provenance)
     #      used by Catalog Contracts + Channel validator. Move them into
     #      Catalog\Contracts\Enum next.
-    #   2. ChannelObjectTypeMapping FKs to Catalog\Domain\Entity\ObjectType
-    #      and \Attribute. RF-19 deferred the junction's Uuid sweep —
-    #      separate ticket.
-    #   3. Shared\Infrastructure\Http\RequestTenantSubscriber depending on
+    #   2. Shared\Infrastructure\Http\RequestTenantSubscriber depending on
     #      Identity\Application\CurrentTenantProvider. Cleanup: move
     #      CurrentTenantProvider into Shared\Application.
     # Every entry below is a TODO; new violations not in this list fail the
@@ -223,15 +220,6 @@ parameters:
             - App\Catalog\Domain\ObjectKind
         App\Catalog\Contracts\Query\ObjectTypeSummary:
             - App\Catalog\Domain\ObjectKind
-        App\Channel\Domain\Entity\ChannelObjectTypeMapping:
-            - App\Catalog\Domain\Entity\Attribute
-            - App\Catalog\Domain\Entity\ObjectType
-        App\Channel\Domain\Repository\ChannelObjectTypeMappingRepositoryInterface:
-            - App\Catalog\Domain\Entity\Attribute
-            - App\Catalog\Domain\Entity\ObjectType
-        App\Channel\Infrastructure\Doctrine\Repository\DoctrineChannelObjectTypeMappingRepository:
-            - App\Catalog\Domain\Entity\Attribute
-            - App\Catalog\Domain\Entity\ObjectType
         App\Shared\Infrastructure\Http\RequestTenantSubscriber:
             - App\Identity\Application\CurrentTenantProvider
         # RBAC-P3-002 (#665) — ProductVoter legitimately depends on

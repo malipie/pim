@@ -71,11 +71,10 @@ final class TenantAuditCommand extends Command
         // the parent ObjectType row; no own tenant_id column.
         'object_type_attributes',
         // Channel context shared infrastructure (#36): locales are global
-        // rows referenced by every tenant; the M2M junction and the
-        // per-channel mapping inherit tenant scope from `channels`.
+        // rows referenced by every tenant; the M2M junction inherits tenant
+        // scope from `channels`.
         'locales',
         'channel_locales',
-        'channel_object_type_mappings',
         // Asset variants (#37) inherit tenant scope from the parent Asset.
         'asset_variants',
         // ADR-012 / UI-08.1 — AttributeGroup junction tables. Tenant scope

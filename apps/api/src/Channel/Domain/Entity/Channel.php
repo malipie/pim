@@ -29,10 +29,9 @@ use Symfony\Component\Validator\Constraints as Assert;
  *     category") lives in
  *     {@see \App\Channel\Infrastructure\Doctrine\EventListener\ChannelCategoryRootValidator}.
  *
- * Per-channel attribute mappings (e.g. PIM `color` ↔ Shopify
- * `metafield.custom.color`) live in {@see ChannelObjectTypeMapping}, scoped
- * per `ObjectType` so a single channel can have different field shapes
- * for product vs. category exports.
+ * Per-channel attribute→target-field mapping is not modelled here yet — it
+ * belongs to the API integration configuration (Faza 1) and will be added
+ * with the first real export integration.
  */
 class Channel extends AggregateRoot implements TenantScoped
 {
