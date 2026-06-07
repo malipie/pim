@@ -214,7 +214,7 @@ final class AutoAssignChannelPlacementsTest extends KernelTestCase
 
     private function makeChannel(string $code): Channel
     {
-        $channel = new Channel($code, ['pl' => $code]);
+        $channel = new Channel($code, $code);
         $this->em()->persist($channel);
         $this->em()->flush();
 

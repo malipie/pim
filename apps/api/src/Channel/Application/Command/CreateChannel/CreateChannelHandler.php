@@ -38,7 +38,7 @@ final readonly class CreateChannelHandler
             ));
         }
 
-        $channel = new Channel(code: $command->code, label: $command->label);
+        $channel = new Channel(code: $command->code, name: $command->name);
 
         foreach ($command->localeCodes as $code) {
             $locale = $this->locales->findByCode($code);

@@ -73,7 +73,7 @@ final readonly class ChannelProcessor implements ProcessorInterface
 
         $command = new CreateChannelCommand(
             code: $data->code,
-            label: $data->label,
+            name: $data->name,
             localeCodes: $data->locales,
             categoryTreeRootId: null,
         );
@@ -114,7 +114,7 @@ final readonly class ChannelProcessor implements ProcessorInterface
         // endpoints (CHC-01, #1284), not channel PATCH — always unchanged here.
         $command = new UpdateChannelCommand(
             id: $id,
-            label: $data->label,
+            name: $data->name,
             localeCodes: $data->locales,
             categoryTreeRootId: false,
         );

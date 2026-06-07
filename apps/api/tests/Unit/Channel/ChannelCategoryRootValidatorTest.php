@@ -30,7 +30,7 @@ final class ChannelCategoryRootValidatorTest extends TestCase
     #[Test]
     public function nullRootIsAllowed(): void
     {
-        $channel = new Channel('shop', ['pl' => 'Sklep']);
+        $channel = new Channel('shop', 'Sklep');
         $validator = new ChannelCategoryRootValidator(new InMemoryChannelCategoryNodeRepo());
 
         $validator->prePersist(new PrePersistEventArgs($channel, $this->em));
@@ -41,7 +41,7 @@ final class ChannelCategoryRootValidatorTest extends TestCase
     #[Test]
     public function rootNodeOfSameChannelIsAccepted(): void
     {
-        $channel = new Channel('shop', ['pl' => 'Sklep']);
+        $channel = new Channel('shop', 'Sklep');
         $root = new ChannelCategoryNode($channel, 'root', ['pl' => 'Root']);
         $channel->attachCategoryTreeRoot($root->getId());
 
@@ -57,7 +57,7 @@ final class ChannelCategoryRootValidatorTest extends TestCase
     #[Test]
     public function unknownRootThrows(): void
     {
-        $channel = new Channel('shop', ['pl' => 'Sklep']);
+        $channel = new Channel('shop', 'Sklep');
         $channel->attachCategoryTreeRoot(Uuid::v7());
 
         $validator = new ChannelCategoryRootValidator(new InMemoryChannelCategoryNodeRepo());
@@ -70,8 +70,8 @@ final class ChannelCategoryRootValidatorTest extends TestCase
     #[Test]
     public function nodeFromAnotherChannelThrows(): void
     {
-        $channelA = new Channel('a', ['pl' => 'A']);
-        $channelB = new Channel('b', ['pl' => 'B']);
+        $channelA = new Channel('a', 'A');
+        $channelB = new Channel('b', 'B');
         $foreignRoot = new ChannelCategoryNode($channelB, 'root', ['pl' => 'Root']);
         $channelA->attachCategoryTreeRoot($foreignRoot->getId());
 
@@ -87,7 +87,7 @@ final class ChannelCategoryRootValidatorTest extends TestCase
     #[Test]
     public function nonRootNodeThrows(): void
     {
-        $channel = new Channel('shop', ['pl' => 'Sklep']);
+        $channel = new Channel('shop', 'Sklep');
         $parent = new ChannelCategoryNode($channel, 'root', ['pl' => 'Root']);
         $child = new ChannelCategoryNode($channel, 'child', ['pl' => 'Child'], $parent);
         $channel->attachCategoryTreeRoot($child->getId());

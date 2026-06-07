@@ -23,7 +23,7 @@ final class ChannelPublicationProfileApiTest extends ChannelApiTestCase
         $response = $client->request('POST', '/api/channels', [
             'json' => [
                 'code' => 'pub_profile_test',
-                'label' => ['pl' => 'Test', 'en' => 'Test'],
+                'name' => 'Test',
                 'locales' => ['pl_PL'],
             ],
         ]);

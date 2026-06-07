@@ -52,8 +52,7 @@ export function LocaleChannelToolbar({
   locales,
   channels,
 }: LocaleChannelToolbarProps) {
-  const { t, i18n } = useTranslation();
-  const lang = i18n.language === 'pl' ? 'pl' : 'en';
+  const { t } = useTranslation();
   const localeCodes: readonly string[] =
     locales !== undefined && locales.length > 0 ? locales.map((l) => l.code) : PRODUCT_LOCALES;
 
@@ -62,7 +61,7 @@ export function LocaleChannelToolbar({
   // picker offers just "Wszystkie kanały". No hardcoded mock fallback.
   const channelList: { code: string; label: string }[] = (channels ?? []).map((c) => ({
     code: c.code,
-    label: c.label?.[lang] ?? c.label?.en ?? c.code,
+    label: c.name ?? c.code,
   }));
   const channelLabel = (code: string): string =>
     channelList.find((c) => c.code === code)?.label ?? code;

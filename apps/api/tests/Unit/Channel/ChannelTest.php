@@ -20,11 +20,11 @@ final class ChannelTest extends TestCase
     #[Test]
     public function constructorDefaultsAreEmpty(): void
     {
-        $channel = new Channel('ecommerce_pl', ['pl' => 'Sklep PL', 'en' => 'PL Storefront']);
+        $channel = new Channel('ecommerce_pl', 'Sklep PL');
 
         self::assertInstanceOf(Uuid::class, $channel->getId());
         self::assertSame('ecommerce_pl', $channel->getCode());
-        self::assertSame('Sklep PL', $channel->getLabel()['pl']);
+        self::assertSame('Sklep PL', $channel->getName());
         self::assertCount(0, $channel->getLocales());
         self::assertNull($channel->getCategoryTreeRootId());
         self::assertNull($channel->getTenant());
@@ -33,7 +33,7 @@ final class ChannelTest extends TestCase
     #[Test]
     public function localeM2mIsIdempotent(): void
     {
-        $channel = new Channel('ecommerce_pl', ['pl' => 'Sklep PL']);
+        $channel = new Channel('ecommerce_pl', 'Sklep PL');
         $pl = new Locale('pl_PL', 'Polski');
 
         $channel->addLocale($pl);
@@ -48,7 +48,7 @@ final class ChannelTest extends TestCase
     #[Test]
     public function categoryTreeRootStoresUuid(): void
     {
-        $channel = new Channel('shop', ['pl' => 'Sklep']);
+        $channel = new Channel('shop', 'Sklep');
         $categoryType = new ObjectType('category', ObjectKind::Category, ['pl' => 'Kategoria']);
         $root = new CatalogObject($categoryType, 'root');
 
@@ -60,7 +60,7 @@ final class ChannelTest extends TestCase
     #[Test]
     public function assignTenantStampsAndRefusesReassignment(): void
     {
-        $channel = new Channel('shop', ['pl' => 'Sklep']);
+        $channel = new Channel('shop', 'Sklep');
         $first = new Tenant('demo', 'Demo');
         $second = new Tenant('acme', 'Acme');
 

@@ -62,7 +62,7 @@ final class ObjectChannelPlacementController
             $rows[] = [
                 'channelId' => $channel->getId()->toRfc4122(),
                 'channelCode' => $channel->getCode(),
-                'channelLabel' => $channel->getLabel(),
+                'channelName' => $channel->getName(),
                 'placement' => null === $placement ? null : [
                     'nodeId' => $placement->getNodeId()->toRfc4122(),
                     'nodePath' => $this->labelPath($placement->getNode()),
@@ -93,7 +93,7 @@ final class ObjectChannelPlacementController
         return new JsonResponse([
             'channelId' => $channel->getId()->toRfc4122(),
             'channelCode' => $channel->getCode(),
-            'channelLabel' => $channel->getLabel(),
+            'channelName' => $channel->getName(),
             'placement' => [
                 'nodeId' => $placement->getNodeId()->toRfc4122(),
                 'nodePath' => $this->labelPath($placement->getNode()),

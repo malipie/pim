@@ -205,7 +205,7 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
         // ChannelCreated subscriber provisions default publication profiles.
         $demoTenant = $tenants[0];
         \assert('demo' === $demoTenant->getCode());
-        $allegro = new Channel('allegro', ['pl' => 'Allegro', 'en' => 'Allegro']);
+        $allegro = new Channel('allegro', 'Allegro');
         $allegro->addLocale($plPL);
         $allegro->assignTenant($demoTenant);
         $manager->persist($allegro);

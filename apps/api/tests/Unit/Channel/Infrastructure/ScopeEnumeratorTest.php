@@ -38,8 +38,8 @@ final class ScopeEnumeratorTest extends TestCase
         $shopify = Uuid::v7();
         $channels = $this->createStub(ChannelRepositoryInterface::class);
         $channels->method('findAllForTenant')->willReturn([
-            new Channel('allegro', ['pl' => 'Allegro'], $allegro),
-            new Channel('shopify', ['pl' => 'Shopify'], $shopify),
+            new Channel('allegro', 'Allegro', $allegro),
+            new Channel('shopify', 'Shopify', $shopify),
         ]);
         $enum = new ScopeEnumerator($this->createStub(TenantLocaleRepositoryInterface::class), $channels);
 

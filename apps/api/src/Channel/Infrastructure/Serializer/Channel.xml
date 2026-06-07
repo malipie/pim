@@ -16,7 +16,7 @@
             <group>integration:read</group>
             <group>public:read</group>
         </attribute>
-        <attribute name="label">
+        <attribute name="name">
             <group>admin:read</group>
             <group>admin:write</group>
             <group>integration:read</group>

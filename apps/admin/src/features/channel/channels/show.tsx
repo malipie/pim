@@ -6,7 +6,6 @@ import { Link, useParams } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { resolveLabel } from '@/features/catalog/attributes/list';
 import { cn } from '@/lib/utils';
 
 import { ChannelCategoryMappingEditor } from './category-mapping-editor';
@@ -21,7 +20,7 @@ interface LocaleRef {
 interface ChannelDetail {
   id: string;
   code: string;
-  label?: Record<string, string> | string | null;
+  name?: string | null;
   locales?: LocaleRef[];
   categoryTreeRootId?: string | null;
 }
@@ -31,7 +30,7 @@ type TabKey = 'overview' | 'locales' | 'channelTree' | 'categoryMapping' | 'prev
 const TABS: TabKey[] = ['overview', 'locales', 'channelTree', 'categoryMapping', 'preview'];
 
 export function ChannelShowPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const params = useParams<{ id: string }>();
   const id = params.id ?? '';
   const { result, query } = useOne<ChannelDetail>({
@@ -46,7 +45,7 @@ export function ChannelShowPage() {
   }
 
   const channel = result;
-  const label = resolveLabel(channel.label, i18n.language);
+  const label = channel.name ?? channel.code;
 
   return (
     <div className="space-y-6">

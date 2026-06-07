@@ -21,7 +21,8 @@ use Symfony\Component\Validator\Constraints as Assert;
  * Examples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.
  * Each channel carries:
  *
- *   - a label (`{pl, en}`) — what admins see in the UI;
+ *   - a name (plain string) — what admins see in the UI. Internal-only,
+ *     never published to a destination, so it is intentionally single-language;
  *   - a set of supported `Locale` rows (M2M `channel_locales`);
  *   - an optional `category_tree_root_object_id` pointing at a
  *     `CatalogObject` of `kind=category` — the root of the category tree
@@ -43,11 +44,9 @@ class Channel extends AggregateRoot implements TenantScoped
     #[Assert\Length(max: 64)]
     private string $code;
 
-    /**
-     * @var array<string, string>
-     */
-    #[Assert\Type('array')]
-    private array $label;
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 255)]
+    private string $name;
 
     /**
      * @var Collection<int, Locale>
@@ -62,14 +61,11 @@ class Channel extends AggregateRoot implements TenantScoped
      */
     private ?Uuid $categoryTreeRootId = null;
 
-    /**
-     * @param array<string, string> $label
-     */
-    public function __construct(string $code, array $label, ?Uuid $id = null)
+    public function __construct(string $code, string $name, ?Uuid $id = null)
     {
         $this->id = $id ?? Uuid::v7();
         $this->code = $code;
-        $this->label = $label;
+        $this->name = $name;
         $this->locales = new ArrayCollection();
     }
 
@@ -105,20 +101,14 @@ class Channel extends AggregateRoot implements TenantScoped
         return $this->code;
     }
 
-    /**
-     * @return array<string, string>
-     */
-    public function getLabel(): array
+    public function getName(): string
     {
-        return $this->label;
+        return $this->name;
     }
 
-    /**
-     * @param array<string, string> $label
-     */
-    public function rename(array $label): void
+    public function rename(string $name): void
     {
-        $this->label = $label;
+        $this->name = $name;
     }
 
     /**

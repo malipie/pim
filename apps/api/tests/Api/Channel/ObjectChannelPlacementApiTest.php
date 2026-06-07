@@ -23,7 +23,7 @@ final class ObjectChannelPlacementApiTest extends ChannelApiTestCase
     private function createChannelWithNode(Client $client, string $code): array
     {
         $channel = $client->request('POST', '/api/channels', [
-            'json' => ['code' => $code, 'label' => ['pl' => $code], 'locales' => ['pl_PL']],
+            'json' => ['code' => $code, 'name' => $code, 'locales' => ['pl_PL']],
         ]);
         self::assertSame(201, $channel->getStatusCode());
         $channelId = self::extractId($channel->toArray());

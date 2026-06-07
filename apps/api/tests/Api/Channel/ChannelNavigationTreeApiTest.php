@@ -16,7 +16,7 @@ final class ChannelNavigationTreeApiTest extends ChannelApiTestCase
         $created = $client->request('POST', '/api/channels', [
             'json' => [
                 'code' => $code,
-                'label' => ['pl' => 'Allegro', 'en' => 'Allegro'],
+                'name' => 'Allegro',
                 'locales' => ['pl_PL'],
             ],
         ]);

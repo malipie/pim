@@ -1146,7 +1146,7 @@
     "empty": "No channels for the current tenant.",
     "fields": {
       "code": "Code",
-      "label": "Label",
+      "name": "Name",
       "locales": "Locales",
       "locales_count": "Locales count",
       "category_root": "Category tree root",
@@ -1188,8 +1188,8 @@
       "fields": {
         "code": "Code",
         "code_help": "Lowercase, characters: a-z, 0-9, _. Immutable after creation.",
-        "label_pl": "Label (PL)",
-        "label_en": "Label (EN)",
+        "name": "Name",
+        "name_help": "Internal channel name shown in the admin panel.",
         "locales": "Locales",
         "category_root": "Category tree root"
       },
