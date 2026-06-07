@@ -54,14 +54,22 @@ test('build, edit, move and delete a channel navigation tree from the UI', async
     await dialog.getByRole('button', { name: /^(Save|Zapisz)$/ }).click();
   };
 
-  // 1. Create the tree (root).
-  await page.getByRole('button', { name: /Utwórz drzewo|Create tree/i }).click();
+  const addTopLevel = /Dodaj kategorię główną|Add top-level category/i;
+
+  // 1. Create the first top-level category (empty-state button).
+  await page.getByRole('button', { name: addTopLevel }).click();
   await saveName('ROOT09');
   const editor = page.getByTestId('chc-tree-editor');
   await expect(editor).toBeVisible();
   await expect(editor.getByText('ROOT09')).toBeVisible();
 
-  // 2. Edit the root (first edit button) — rename + set external id.
+  // 2. Add a SECOND top-level category (the bug-1 fix: header button stays).
+  await page.getByRole('button', { name: addTopLevel }).click();
+  await saveName('ROOT09B');
+  await expect(editor.getByText('ROOT09')).toBeVisible();
+  await expect(editor.getByText('ROOT09B')).toBeVisible();
+
+  // 3. Edit the first root (first edit button) — rename + set external id.
   await editor
     .getByRole('button', { name: /^(Edit|Edytuj)$/ })
     .first()
@@ -70,21 +78,15 @@ test('build, edit, move and delete a channel navigation tree from the UI', async
   await expect(editor.getByText('ROOT09X')).toBeVisible();
   await expect(editor.getByText('#999')).toBeVisible();
 
-  // 3. Add two sub-nodes under the root (root's add button is first).
+  // 4. Add a sub-node under the first root (its add button is first).
   await editor
     .getByRole('button', { name: /Add sub-node|Dodaj podpozycję/i })
     .first()
     .click();
   await saveName('NODEA09');
   await expect(editor.getByText('NODEA09')).toBeVisible();
-  await editor
-    .getByRole('button', { name: /Add sub-node|Dodaj podpozycję/i })
-    .first()
-    .click();
-  await saveName('NODEB09');
-  await expect(editor.getByText('NODEB09')).toBeVisible();
 
-  // 4. Move NODEA09 (first non-root → first move button) under NODEB09.
+  // 5. Move NODEA09 (first non-root → first move button) under ROOT09B.
   await editor
     .getByRole('button', { name: /^(Move|Przenieś)$/ })
     .first()
@@ -94,11 +96,11 @@ test('build, edit, move and delete a channel navigation tree from the UI', async
   );
   await page
     .getByRole('dialog')
-    .getByRole('button', { name: /NODEB09/i })
+    .getByRole('button', { name: /ROOT09B/i })
     .click();
   expect((await moveResponse).status()).toBe(200);
 
-  // 5. Delete the whole tree (root's delete → cascade) and land back on empty state.
+  // 6. Delete the first root → DELETE 204; the other root (ROOT09B) survives.
   await editor
     .getByRole('button', { name: /^(Delete|Usuń)$/ })
     .first()
@@ -111,7 +113,8 @@ test('build, edit, move and delete a channel navigation tree from the UI', async
     .getByRole('button', { name: /^(Delete|Usuń)$/ })
     .click();
   expect((await deleteResponse).status()).toBe(204);
-  await expect(page.getByRole('button', { name: /Utwórz drzewo|Create tree/i })).toBeVisible();
+  await expect(editor.getByText('ROOT09B')).toBeVisible();
+  await expect(editor.getByText('ROOT09X')).toHaveCount(0);
 
   // cleanup — ensure no leftover tree.
   const after = (await (

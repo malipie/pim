@@ -29,12 +29,16 @@ final readonly class DeleteChannelCategoryNodeHandler
         }
 
         $channel = $node->getChannel();
-        $wasRoot = $node->isRoot();
+        // Forest: a channel may have several roots. Clear the legacy
+        // `categoryTreeRootId` pointer only when the deleted node IS the one it
+        // points at — deleting any other root leaves the pointer (and the
+        // remaining roots) untouched.
+        $wasPointer = $channel->getCategoryTreeRootId()?->equals($node->getId()) ?? false;
 
         // Descendants are removed by the `parent_id ON DELETE CASCADE` FK.
         $this->nodes->remove($node);
 
-        if ($wasRoot) {
+        if ($wasPointer) {
             $channel->attachCategoryTreeRoot(null);
             $this->channels->save($channel);
         }

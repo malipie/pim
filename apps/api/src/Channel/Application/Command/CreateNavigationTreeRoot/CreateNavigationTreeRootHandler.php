@@ -7,7 +7,6 @@ namespace App\Channel\Application\Command\CreateNavigationTreeRoot;
 use App\Channel\Domain\Entity\ChannelCategoryNode;
 use App\Channel\Domain\Repository\ChannelCategoryNodeRepositoryInterface;
 use App\Channel\Domain\Repository\ChannelRepositoryInterface;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Uid\Uuid;
@@ -31,25 +30,36 @@ final readonly class CreateNavigationTreeRootHandler
             ));
         }
 
-        if (null !== $this->nodes->findRootForChannel($channel)) {
-            throw new ConflictHttpException(\sprintf(
-                'Channel "%s" already has a navigation tree.',
-                $channel->getCode(),
-            ));
-        }
+        // A channel category tree is a forest: multiple top-level ("root")
+        // categories are allowed (RTV, Moda, ...). The single-root assumption
+        // was a bug — we no longer reject a second root.
+        $isFirstRoot = null === $this->nodes->findRootForChannel($channel);
+
+        // The editor sends only name + externalId; default an absent code to the
+        // root's uuid-hex so it is unique per channel (a channel may have many
+        // roots — no fixed 'root' slug that would collide).
+        $id = Uuid::v7();
+        $code = (null === $command->code || '' === trim($command->code))
+            ? str_replace('-', '', $id->toRfc4122())
+            : $command->code;
 
         $root = new ChannelCategoryNode(
             channel: $channel,
-            code: $command->code,
+            code: $code,
             label: $command->label,
             parent: null,
             externalCode: $command->externalCode,
+            id: $id,
         );
         $root->attachToPath($root->ltreeLabel());
         $this->nodes->save($root);
 
-        $channel->attachCategoryTreeRoot($root->getId());
-        $this->channels->save($channel);
+        // `categoryTreeRootId` is a legacy soft pointer kept only for the first
+        // root (backward-compat + validator). Subsequent roots leave it intact.
+        if ($isFirstRoot) {
+            $channel->attachCategoryTreeRoot($root->getId());
+            $this->channels->save($channel);
+        }
 
         return $root->getId();
     }

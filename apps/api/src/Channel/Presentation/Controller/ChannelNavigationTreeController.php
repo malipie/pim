@@ -72,11 +72,12 @@ final class ChannelNavigationTreeController
     public function createRoot(string $channelId, Request $request): JsonResponse
     {
         $data = $this->decode($request);
-        $code = $this->optionalString($data, 'code') ?? 'root';
 
+        // `code` is optional — the handler defaults an absent code to the root's
+        // uuid-hex (unique per channel; channels may have multiple roots).
         $id = $this->dispatchForId(new CreateNavigationTreeRootCommand(
             channelId: $this->uuid($channelId),
-            code: $code,
+            code: $this->optionalString($data, 'code'),
             label: $this->labelMap($data['label'] ?? []),
             externalCode: $this->optionalString($data, 'externalCode'),
         ));
