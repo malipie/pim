@@ -1255,7 +1255,7 @@
       "mapped_count": "→ zmapowano do {{count}} węzł(ów)",
       "no_categories": "Brak kategorii master.",
       "no_nodes": "Dodaj kategorie w zakładce «Drzewo kanału».",
-      "no_published_types": "Kanał nie publikuje żadnych typów obiektów — skonfiguruj najpierw mapowanie atrybutów.",
+      "no_object_types": "Brak kategoryzowalnych typów obiektów. Dodaj typ z kategoriami w sekcji Modelowanie.",
       "ot_tabs_aria": "Typy obiektów publikowane przez kanał",
       "dialog_title": "Mapuj: {{category}}",
       "dialog_hint": "Wybierz jeden lub więcej węzłów kanału, na które trafią produkty z tej kategorii (M:N).",

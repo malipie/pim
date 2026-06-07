@@ -11,7 +11,6 @@ import { cn } from '@/lib/utils';
 
 import { ChannelCategoryMappingEditor } from './category-mapping-editor';
 import { ChannelTreeEditor } from './channel-tree-editor';
-import { ChannelMappingEditor } from './mapping-editor';
 
 interface LocaleRef {
   id: string;
@@ -27,16 +26,9 @@ interface ChannelDetail {
   categoryTreeRootId?: string | null;
 }
 
-type TabKey = 'overview' | 'locales' | 'mapping' | 'channelTree' | 'categoryMapping' | 'preview';
+type TabKey = 'overview' | 'locales' | 'channelTree' | 'categoryMapping' | 'preview';
 
-const TABS: TabKey[] = [
-  'overview',
-  'locales',
-  'mapping',
-  'channelTree',
-  'categoryMapping',
-  'preview',
-];
+const TABS: TabKey[] = ['overview', 'locales', 'channelTree', 'categoryMapping', 'preview'];
 
 export function ChannelShowPage() {
   const { t, i18n } = useTranslation();
@@ -98,9 +90,7 @@ export function ChannelShowPage() {
         </nav>
       </div>
 
-      {activeTab === 'mapping' ? (
-        <ChannelMappingEditor channelId={channel.id} />
-      ) : activeTab === 'channelTree' ? (
+      {activeTab === 'channelTree' ? (
         <ChannelTreeEditor channelId={channel.id} />
       ) : activeTab === 'categoryMapping' ? (
         <ChannelCategoryMappingEditor channelId={channel.id} />
