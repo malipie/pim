@@ -1,5 +1,13 @@
 # Current Status
 
+## 2026-06-07: 🐛 fix(channel) — wiele kategorii głównych w drzewie kanału + copy (#1305 → PR #1306, merged + closed)
+
+Dwa bugi z manual smoke CHC-09 (SKILL-BUG-FIX-TICKET):
+1. Po dodaniu pierwszej kategorii znikał przycisk dodania kolejnej kategorii GŁÓWNEJ — model zakładał jeden root per kanał. Fix: **las rootów** — `CreateNavigationTreeRootHandler` bez 409, `code` opcjonalny → uuid-hex (jak addNode; `code='root'` default łamał UNIQUE na 2. roocie), `categoryTreeRootId` tylko dla pierwszego roota; `DeleteChannelCategoryNodeHandler` czyści pointer tylko gdy usuwany == pointer. FE: renderuje wszystkie roots + zawsze widoczny „Dodaj kategorię główną".
+2. Stale copy `category_mapping.no_nodes` → kieruje do zakładki „Drzewo kanału" (nie API/import).
+- Bez migracji (`parent_id` nullable). Gates: PHPStan 0, Deptrac 0, ApiTest 12/12 (`multipleRootsAreAllowed` + delete semantics), Biome/tsc/Vite 0, E2E chc-09 zielony (2. root + move cross-root). Live smoke: 2× POST root → 201 (kiedyś 409). CI #1306 15/15.
+- Świadome: `categoryTreeRootId` zostaje jako „pierwszy root pointer" (backward compat); pełne wycofanie = osobny ticket.
+
 ## 2026-06-07: 🏁 CHC-09 — UI edytor drzewa kategorii kanału (#1302 → PR #1303, merged + closed)
 
 Follow-up do epiku CHC (operator: „zaciąganie z API nie będzie istniało długo" → drzewo budowane ręcznie w UI). Plan-first (zatwierdzony), potem implementacja + smoke + close.
