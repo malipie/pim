@@ -1,5 +1,24 @@
 # Current Status
 
+## 2026-06-07: 🧹 refactor(channel) — etykieta `{pl,en}` → skalarne `name` (#1316 → PR #1317, merged + closed)
+
+Operator zakwestionował dwujęzyczną etykietę na formularzu kanału (PL+EN, oba required, zahardkodowane niezależnie od locale tenanta). Diagnoza: `label` to tylko wewnętrzna nazwa admina, nic nie publikuje jej na kanał → wielojęzyczność zbędna. Wariant B (operator: „czysto i pięknie"): skalarne `name`.
+- **BE**: encja `Channel` (`array $label`→`string $name`, `getName`/`rename(string)`, `NotBlank`+`Length(255)`), ORM jsonb→varchar, migracja `Version20260607130000` (ADD name → backfill `COALESCE(label->>'pl',label->>'en',code)` → NOT NULL → DROP label; `down` odwrotnie), `ChannelInput`/`PatchInput`/processor/commands/handlers/serializer, `ObjectChannelPlacementController` `channelLabel`→`channelName`, seed.
+- **FE**: jedno pole „Nazwa" w `form.tsx`, create/edit/show/list/placements-section/locale-channel-toolbar/types czytają `name` (usunięty `resolveLabel` dla kanału), i18n pl/en.
+- **Out of scope**: `ChannelCategoryNode.label` (nazwa węzła, single-language) bez zmian.
+- Gates: PHPStan 0, Deptrac 0, PHPUnit 146/146 (+`postRejectsBlankName`), tsc/Biome/Vite 0, OpenAPI regen (status number→integer quirk fix ×2). CI #1317 15/15.
+- **Live smoke** (po migracji dev DB): allegro→"Allegro", nowy_kanal→"nowy_kanal" (nazwy zachowane), `label` kolumna usunięta; GET name/no-label, POST single-field→201, PATCH→200, placements→`channelName`, DELETE throwaway→204.
+
+**Następny krok**: brak otwartych ticketów (CHC + dwa follow-up bug/refactor domknięte). Czekam na zadanie operatora.
+
+## 2026-06-07: 🐛 fix(channel) — auto-placement z DOWOLNEJ kategorii + back-fill mapowania (#1314 → PR #1315, merged + closed)
+
+Operator: kategorie zmapowane na kanale, ale produkt (DEMO-100) nie pokazuje placementu. Diagnoza: CHC-07 odpalał placement tylko dla kategorii **primary** + brak back-fillu przy zapisie mapowania. Operator wybrał: placement z dowolnej kategorii (primary ma pierwszeństwo) + back-fill obowiązkowy.
+- Event `ObjectPrimaryCategoryAssigned` → **`ObjectCategoriesChanged`** (recorded na każdej mutacji kategorii: save/remove/replace). Serwis `ReconcileObjectChannelPlacements` (wszystkie kategorie `is_primary DESC, position ASC`, AUTO upsert, **MANUAL wygrywa**, stale AUTO cleanup). Handler `ReconcileChannelPlacementsOnCategoriesChanged`. Back-fill: `ReconcileChannelPlacementsForCategory` (msg + AbstractBatchHandler) dispatchowany z `ChannelNodeMappingController` (put/delete/clearAll).
+- Gates: PHPStan 0, Deptrac 0, PHPUnit 33/33 (rewrite `AutoAssignChannelPlacementsTest` 6 scenariuszy + `MessengerRoutingTest`). CI #1315 15/15.
+- **Live smoke**: DEMO-001 net-zero (POST CAT-RUNNING→201→auto @ node, DELETE→204→stale cleanup→brak); DEMO-100 manual zachowany po back-fillu; PUT mapowania→200.
+- **Świadome**: istniejące mapowania (sprzed fixa) wymagają jednorazowego re-zapisu by back-fill je objął.
+
 ## 2026-06-07: 🐛 fix(channel) — wiele kategorii głównych w drzewie kanału + copy (#1305 → PR #1306, merged + closed)
 
 Dwa bugi z manual smoke CHC-09 (SKILL-BUG-FIX-TICKET):

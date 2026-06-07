@@ -2,6 +2,25 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z #1314 + #1316 (2026-06-07, channel placement reconcile + label→name refactor)
+
+### Patterns to Follow
+- **Auto-placement = pełny reconcile, nie „assign on event".** CHC-07 odpalał placement tylko z kategorii primary i nie back-fillował przy zapisie mapowania. Poprawny model: jeden event `ObjectCategoriesChanged` (na KAŻDej mutacji kategorii) → serwis `reconcile(objectId)` który czyta WSZYSTKIE kategorie (`is_primary DESC, position ASC` = precedencja), upsertuje AUTO, **nie nadpisuje MANUAL**, usuwa stale AUTO. Symetrycznie back-fill per-master-kategoria dispatchowany z mapping controllera (put/delete/clearAll). Idempotentny reconcile > imperatywne „assign".
+- **Smoke auto-placement gdy operator ma już MANUAL na produkcie**: użyj OSOBNEGO czystego produktu net-zero (POST kategorii→auto, DELETE→stale cleanup→brak), nie ruszaj ręcznego placementu operatora. Manual-wins zweryfikuj na jego produkcie osobno.
+- **Refactor pola encji: zacznij od grep `getX(`/`->x`/`'x' =>` w SRC i TESTACH przed kodem.** label→name dotknął 41 plików; mapa blast-radius z góry (entity/ORM/kontrakt/serializer/placement-controller/seed/FE/i18n/testy/OpenAPI/E2E) = zero pominięć.
+
+### Patterns to Avoid
+- **zsh NIE dzieli niezacytowanego `$VAR` na słowa** (inaczej niż bash). `perl ... $FILES` z wielolinijkową zmienną → „Can't open <cała-lista>: No such file". Użyj `${=FILES}` (SH_WORD_SPLIT) albo wylistuj pliki inline jako argumenty. Kosztowało 2 nieudane uruchomienia.
+- **Bulk `sed/perl` na `['pl' => X]` jest niebezpieczny gdy w tym samym pliku są etykiety węzłów.** `new Channel(code, ['pl'=>X])` (kanał) i `'label' => ['pl'=>'Telewizory']` (węzeł nav-tree) współistnieją w testach. Regex kotwicz na `new Channel\(` + tylko single-entry (`'[^']*'|\$\w+`), multi-entry/named-arg rób ręcznie. Ślepy global zamieniłby też etykiety węzłów.
+
+### Package Quirks / Toolchain
+- **ADR-015 per-ObjectType drzewa kategorii: dwa built-in OT mają `code='product'` z RÓŻNYMI id.** Kategoria należy do drzewa JEDNEGO OT. Smoke przypisania kategorii do produktu wymaga produktu z TEGO SAMEGO `object_type_id` co właściciel kategorii — inaczej `assertSameTree`→404. Wybierając „czysty produkt" filtruj po `object_type_id = (SELECT ... WHERE code='DEMO-100')`, nie po `kind='product'`.
+- **OpenAPI regen status number→integer quirk (potwierdzony ponownie)**: `api:openapi:export` lokalnie emituje `"number"` dla `status.type` RFC7807 Problem (2 bloki), CI oczekuje `"integer"`. Po regenie hand-fix obu (różne wcięcie) inaczej „OpenAPI spec drift" czerwone. Inne `"number"` w spec to enumy typu atrybutu — NIE ruszać.
+
+### Decyzje świadome
+- **Channel `name` skalarne (wariant B), nie `{pl,en}`** — etykieta kanału to wewnętrzna nazwa admina, nigdy nie publikowana → wielojęzyczność zbędna. Migracja backfilluje z `label->>'pl'`. `ChannelCategoryNode.label` (nazwa węzła) zostaje single-language (osobny koncept, poza zakresem).
+- **Back-fill nie jest retroaktywny dla istniejących mapowań** — fires on mapping save. Mapowania sprzed fixa wymagają jednorazowego re-zapisu. Pełny one-shot reconcile bazy poza zakresem (operator i tak edytuje mapowania).
+
 ## Lessons z #1278 (2026-06-05, export column picker deduplicate)
 
 ### Patterns to Follow
