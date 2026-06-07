@@ -41,12 +41,12 @@ final class ChannelLocalesMatrixApiTest extends ChannelApiTestCase
         self::getContainer()->get(\App\Shared\Application\TenantContext::class)->set($tenant);
 
         // Two channels — one with two locales bound, one bare.
-        $shopify = new Channel('shopify_pl', ['pl' => 'Shopify PL']);
+        $shopify = new Channel('shopify_pl', 'Shopify PL');
         $shopify->addLocale($pl);
         $shopify->addLocale($en);
         $em->persist($shopify);
 
-        $allegro = new Channel('allegro_pl', ['pl' => 'Allegro PL']);
+        $allegro = new Channel('allegro_pl', 'Allegro PL');
         $em->persist($allegro);
 
         $em->flush();

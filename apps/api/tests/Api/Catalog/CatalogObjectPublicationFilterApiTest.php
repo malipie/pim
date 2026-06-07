@@ -80,7 +80,7 @@ final class CatalogObjectPublicationFilterApiTest extends CatalogApiTestCase
         $em = $this->em();
         $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
         \assert($tenant instanceof Tenant);
-        $channel = new Channel('pub_no_profile', ['pl' => 'Test Channel']);
+        $channel = new Channel('pub_no_profile', 'Test Channel');
         $channel->assignTenant($tenant);
         $em->persist($channel);
         $em->flush();
@@ -113,7 +113,7 @@ final class CatalogObjectPublicationFilterApiTest extends CatalogApiTestCase
         $this->seedThreeAttributes();
 
         $channelCode = 'pub_test_'.($allowedCodes === null ? 'all' : 'filtered');
-        $channel = new Channel($channelCode, ['pl' => 'Test Channel']);
+        $channel = new Channel($channelCode, 'Test Channel');
         $channel->assignTenant($tenant);
         $em->persist($channel);
         $em->flush();

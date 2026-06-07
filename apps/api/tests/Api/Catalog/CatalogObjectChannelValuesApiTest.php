@@ -149,8 +149,8 @@ final class CatalogObjectChannelValuesApiTest extends CatalogApiTestCase
             $em->persist(new ObjectTypeAttribute($product, $attribute, false, $position++));
         }
 
-        $em->persist(new Channel('shopify', ['en' => 'Shopify']));
-        $em->persist(new Channel('baselinker', ['en' => 'BaseLinker']));
+        $em->persist(new Channel('shopify', 'Shopify'));
+        $em->persist(new Channel('baselinker', 'BaseLinker'));
         $em->flush();
     }
 }

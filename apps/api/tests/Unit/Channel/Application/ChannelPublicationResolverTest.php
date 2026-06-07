@@ -117,7 +117,7 @@ final class ChannelPublicationResolverTest extends TestCase
 
     private function makeChannel(string $code): Channel
     {
-        $channel = new Channel(code: $code, label: ['pl' => $code]);
+        $channel = new Channel(code: $code, name: $code);
         $channel->assignTenant($this->tenant);
 
         return $channel;

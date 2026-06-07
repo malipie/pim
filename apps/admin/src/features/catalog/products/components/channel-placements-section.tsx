@@ -18,7 +18,7 @@ interface Placement {
 interface PlacementRow {
   channelId: string;
   channelCode: string;
-  channelLabel: Record<string, string>;
+  channelName: string;
   placement: Placement | null;
 }
 
@@ -33,10 +33,6 @@ interface Props {
 
 const COLLAPSE_THRESHOLD = 5;
 
-function resolveLabel(label: Record<string, string>, lang: string, code: string): string {
-  return label[lang] ?? label.pl ?? label.en ?? Object.values(label)[0] ?? code;
-}
-
 /**
  * CHC-03 (#1286) — "Gdzie trafia na kanałach" section inside the product
  * "Kategorie" tab. One row per tenant channel showing the navigation node the
@@ -44,7 +40,7 @@ function resolveLabel(label: Record<string, string>, lang: string, code: string)
  * channels the list collapses to just the unmapped rows.
  */
 export function ChannelPlacementsSection({ productId }: Props) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [pickerChannel, setPickerChannel] = useState<{ id: string; name: string } | null>(null);
   const [busyChannelId, setBusyChannelId] = useState<string | null>(null);
@@ -126,7 +122,7 @@ export function ChannelPlacementsSection({ productId }: Props) {
       ) : (
         <ul className="divide-y divide-line/60 rounded-xl border border-line">
           {visibleRows.map((row) => {
-            const name = resolveLabel(row.channelLabel, i18n.language, row.channelCode);
+            const name = row.channelName || row.channelCode;
             const isBusy = busyChannelId === row.channelId;
             return (
               <li

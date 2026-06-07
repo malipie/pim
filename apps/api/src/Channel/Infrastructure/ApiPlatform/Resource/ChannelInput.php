@@ -21,15 +21,13 @@ final class ChannelInput
     public string $code = '';
 
     /**
-     * Multi-language label keyed by locale code. At least one entry required.
-     *
-     * @var array<string, string>
+     * Internal admin display name. Single-language by design — the channel
+     * name is never published to a destination.
      */
     #[Assert\NotBlank]
-    #[Assert\Type('array')]
-    #[Assert\Count(min: 1)]
+    #[Assert\Length(max: 255)]
     #[Groups(['channel:create'])]
-    public array $label = [];
+    public string $name = '';
 
     /**
      * Locale codes (BCP-47 shape, e.g. `pl_PL`).

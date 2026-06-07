@@ -13,13 +13,10 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 final class ChannelPatchInput
 {
-    /**
-     * @var array<string, string>|null
-     */
-    #[Assert\Type('array')]
-    #[Assert\Count(min: 1)]
+    #[Assert\Length(max: 255)]
+    #[Assert\NotBlank(allowNull: true)]
     #[Groups(['channel:update'])]
-    public ?array $label = null;
+    public ?string $name = null;
 
     /**
      * @var array<int, string>|null

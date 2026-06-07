@@ -1158,7 +1158,7 @@
     "empty": "Brak kanałów dla aktualnego najemcy.",
     "fields": {
       "code": "Kod",
-      "label": "Etykieta",
+      "name": "Nazwa",
       "locales": "Locale",
       "locales_count": "Liczba locale",
       "category_root": "Korzeń drzewa kategorii",
@@ -1200,8 +1200,8 @@
       "fields": {
         "code": "Kod",
         "code_help": "Lowercase, znaki: a-z, 0-9, _. Niezmienny po utworzeniu.",
-        "label_pl": "Etykieta (PL)",
-        "label_en": "Label (EN)",
+        "name": "Nazwa",
+        "name_help": "Wewnętrzna nazwa kanału widoczna w panelu admina.",
         "locales": "Wersje językowe",
         "category_root": "Korzeń kategorii"
       },

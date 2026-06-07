@@ -162,7 +162,7 @@ final class RbacVotersTest extends TestCase
     public function channelVoterRoutesToChannelResource(): void
     {
         $tenant = new Tenant('alpha', 'Alpha');
-        $channel = new Channel('ecommerce_pl', ['en' => 'Polish webstore']);
+        $channel = new Channel('ecommerce_pl', 'Polish webstore');
         $channel->assignTenant($tenant);
 
         $user = $this->userWithPermission($tenant, 'channel', 'read');

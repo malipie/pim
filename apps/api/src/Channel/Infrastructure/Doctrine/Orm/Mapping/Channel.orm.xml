@@ -25,11 +25,7 @@
         </many-to-one>
 
         <field name="code" type="string" length="64"/>
-        <field name="label" type="json">
-            <options>
-                <option name="jsonb">true</option>
-            </options>
-        </field>
+        <field name="name" type="string" length="255"/>
 
         <many-to-many field="locales" target-entity="App\Channel\Domain\Entity\Locale">
             <join-table name="channel_locales">

@@ -9,7 +9,7 @@ import { LocalePicker } from './locale-picker';
 
 export interface ChannelFormValues {
   code: string;
-  label: { pl: string; en: string };
+  name: string;
   locales: string[];
 }
 
@@ -23,7 +23,7 @@ interface ChannelFormProps {
 
 const EMPTY: ChannelFormValues = {
   code: '',
-  label: { pl: '', en: '' },
+  name: '',
   locales: [],
 };
 
@@ -40,14 +40,11 @@ export function ChannelForm({
   const [values, setValues] = useState<ChannelFormValues>({
     ...EMPTY,
     ...defaultValues,
-    label: {
-      pl: defaultValues?.label?.pl ?? '',
-      en: defaultValues?.label?.en ?? '',
-    },
+    name: defaultValues?.name ?? '',
     locales: defaultValues?.locales ?? [],
   });
 
-  const errors: Partial<Record<keyof ChannelFormValues | 'label_pl' | 'label_en', string>> = {};
+  const errors: Partial<Record<keyof ChannelFormValues, string>> = {};
   if (mode === 'create') {
     if (values.code.trim() === '') {
       errors.code = t('channels.form.validation.required');
@@ -55,11 +52,8 @@ export function ChannelForm({
       errors.code = t('channels.form.validation.code_format');
     }
   }
-  if (values.label.pl.trim() === '') {
-    errors.label_pl = t('channels.form.validation.required');
-  }
-  if (values.label.en.trim() === '') {
-    errors.label_en = t('channels.form.validation.required');
+  if (values.name.trim() === '') {
+    errors.name = t('channels.form.validation.required');
   }
   if (values.locales.length === 0) {
     errors.locales = t('channels.form.validation.locales_min');
@@ -102,41 +96,24 @@ export function ChannelForm({
             </div>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="channel-label-pl">{t('channels.form.fields.label_pl')}</Label>
-              <Input
-                id="channel-label-pl"
-                value={values.label.pl}
-                onChange={(e) =>
-                  setValues({ ...values, label: { ...values.label, pl: e.target.value } })
-                }
-                aria-invalid={errors.label_pl ? 'true' : 'false'}
-                className="mt-1"
-              />
-              {errors.label_pl ? (
-                <p role="alert" className="mt-1 text-xs text-destructive">
-                  {errors.label_pl}
-                </p>
-              ) : null}
-            </div>
-            <div>
-              <Label htmlFor="channel-label-en">{t('channels.form.fields.label_en')}</Label>
-              <Input
-                id="channel-label-en"
-                value={values.label.en}
-                onChange={(e) =>
-                  setValues({ ...values, label: { ...values.label, en: e.target.value } })
-                }
-                aria-invalid={errors.label_en ? 'true' : 'false'}
-                className="mt-1"
-              />
-              {errors.label_en ? (
-                <p role="alert" className="mt-1 text-xs text-destructive">
-                  {errors.label_en}
-                </p>
-              ) : null}
-            </div>
+          <div>
+            <Label htmlFor="channel-name">{t('channels.form.fields.name')}</Label>
+            <Input
+              id="channel-name"
+              value={values.name}
+              onChange={(e) => setValues({ ...values, name: e.target.value })}
+              aria-invalid={errors.name ? 'true' : 'false'}
+              aria-describedby="channel-name-help"
+              className="mt-1"
+            />
+            <p id="channel-name-help" className="mt-1 text-xs text-muted-foreground">
+              {t('channels.form.fields.name_help')}
+            </p>
+            {errors.name ? (
+              <p role="alert" className="mt-1 text-xs text-destructive">
+                {errors.name}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

@@ -20,7 +20,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/components/ui/toast';
-import { resolveLabel } from '@/features/catalog/attributes/list';
 
 import { ChannelDeleteConfirmDialog } from './delete-confirm-dialog';
 
@@ -33,13 +32,13 @@ interface LocaleRef {
 export interface ChannelRow {
   id: string;
   code: string;
-  label?: Record<string, string> | string | null;
+  name?: string | null;
   locales?: LocaleRef[];
   categoryTreeRootId?: string | null;
 }
 
 export function ChannelsListPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { result, query } = useList<ChannelRow>({
     resource: 'channels',
     pagination: { mode: 'off' },
@@ -87,7 +86,7 @@ export function ChannelsListPage() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[180px]">{t('channels.fields.code')}</TableHead>
-              <TableHead>{t('channels.fields.label')}</TableHead>
+              <TableHead>{t('channels.fields.name')}</TableHead>
               <TableHead className="w-[200px]">{t('channels.fields.locales')}</TableHead>
               <TableHead className="w-[120px] text-right">
                 <span className="sr-only">{t('channels.fields.actions')}</span>
@@ -114,9 +113,7 @@ export function ChannelsListPage() {
                     <Radio className="mr-1 inline size-3.5 text-muted-foreground" />
                     {row.code}
                   </TableCell>
-                  <TableCell className="font-medium">
-                    {resolveLabel(row.label, i18n.language)}
-                  </TableCell>
+                  <TableCell className="font-medium">{row.name ?? row.code}</TableCell>
                   <TableCell className="space-x-1 text-xs">
                     {(row.locales ?? []).map((loc) => (
                       <Tag key={loc.id ?? loc.code}>{loc.code}</Tag>
@@ -167,7 +164,7 @@ export function ChannelsListPage() {
 
       {pendingDelete ? (
         <ChannelDeleteConfirmDialog
-          channelLabel={resolveLabel(pendingDelete.label, i18n.language) ?? pendingDelete.code}
+          channelLabel={pendingDelete.name ?? pendingDelete.code}
           open={true}
           onClose={() => setPendingDelete(null)}
           onConfirm={() => handleDelete(pendingDelete)}

@@ -125,7 +125,7 @@ final class ObjectChannelPlacementRepositoryTest extends KernelTestCase
 
     private function makeChannel(string $code): Channel
     {
-        $channel = new Channel($code, ['pl' => $code]);
+        $channel = new Channel($code, $code);
         $em = $this->em();
         $em->persist($channel);
         $em->flush();

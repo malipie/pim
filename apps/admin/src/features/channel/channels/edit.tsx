@@ -5,20 +5,19 @@ import { Link, useNavigate, useParams } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
-import { resolveLabel } from '@/features/catalog/attributes/list';
 
 import { ChannelForm, type ChannelFormValues } from './form';
 
 interface ChannelDetail {
   id: string;
   code: string;
-  label?: Record<string, string> | null;
+  name?: string | null;
   locales?: Array<{ code: string }>;
   categoryTreeRootId?: string | null;
 }
 
 export function ChannelEditPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const toast = useToast();
   const { id } = useParams<{ id: string }>();
@@ -35,16 +34,11 @@ export function ChannelEditPage() {
 
   const defaultValues: Partial<ChannelFormValues> = {
     code: channel.code,
-    label: {
-      pl: channel.label?.pl ?? '',
-      en: channel.label?.en ?? '',
-    },
+    name: channel.name ?? '',
     locales: (channel.locales ?? []).map((l) => l.code),
   };
 
-  const headerTitle = `${t('channels.edit.title_prefix')} ${
-    resolveLabel(channel.label ?? null, i18n.language) ?? channel.code
-  }`;
+  const headerTitle = `${t('channels.edit.title_prefix')} ${channel.name ?? channel.code}`;
 
   const handleSubmit = (values: ChannelFormValues) => {
     doUpdate(
@@ -52,7 +46,7 @@ export function ChannelEditPage() {
         resource: 'channels',
         id: channel.id,
         values: {
-          label: values.label,
+          name: values.name,
           locales: values.locales,
         },
       },

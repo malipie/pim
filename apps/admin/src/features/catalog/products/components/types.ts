@@ -29,7 +29,7 @@ export type ProductChannel = string;
 /** One tenant channel for the detail-page picker (#1155). */
 export interface ChannelOption {
   code: string;
-  label?: Record<string, string>;
+  name?: string | null;
 }
 
 /**

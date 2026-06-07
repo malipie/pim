@@ -20,7 +20,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $response = $client->request('POST', '/api/channels', [
             'json' => [
                 'code' => 'shopify_pl',
-                'label' => ['pl' => 'Shopify PL', 'en' => 'Shopify PL'],
+                'name' => 'Shopify PL',
                 'locales' => ['pl_PL', 'en_US'],
             ],
         ]);
@@ -28,7 +28,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         self::assertSame(201, $response->getStatusCode());
         $payload = $response->toArray();
         self::assertSame('shopify_pl', $payload['code']);
-        self::assertSame(['pl' => 'Shopify PL', 'en' => 'Shopify PL'], $payload['label']);
+        self::assertSame('Shopify PL', $payload['name']);
         $locales = $payload['locales'];
         \assert(\is_array($locales));
         self::assertCount(2, $locales);
@@ -43,14 +43,14 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $client->request('POST', '/api/channels', [
             'json' => [
                 'code' => 'shopify_pl',
-                'label' => ['pl' => 'X', 'en' => 'X'],
+                'name' => 'X',
                 'locales' => ['pl_PL'],
             ],
         ]);
         $second = $client->request('POST', '/api/channels', [
             'json' => [
                 'code' => 'shopify_pl',
-                'label' => ['pl' => 'Y', 'en' => 'Y'],
+                'name' => 'Y',
                 'locales' => ['pl_PL'],
             ],
         ]);
@@ -66,7 +66,23 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $response = $client->request('POST', '/api/channels', [
             'json' => [
                 'code' => 'INVALID-WITH-DASH',
-                'label' => ['pl' => 'X', 'en' => 'X'],
+                'name' => 'X',
+                'locales' => ['pl_PL'],
+            ],
+        ]);
+
+        self::assertSame(422, $response->getStatusCode());
+    }
+
+    #[Test]
+    public function postRejectsBlankName(): void
+    {
+        $client = $this->authenticatedClient();
+
+        $response = $client->request('POST', '/api/channels', [
+            'json' => [
+                'code' => 'shop',
+                'name' => '',
                 'locales' => ['pl_PL'],
             ],
         ]);
@@ -82,7 +98,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $response = $client->request('POST', '/api/channels', [
             'json' => [
                 'code' => 'shop',
-                'label' => ['pl' => 'X', 'en' => 'X'],
+                'name' => 'X',
                 'locales' => ['xx_XX'],
             ],
         ]);
@@ -91,14 +107,14 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
     }
 
     #[Test]
-    public function patchUpdatesLabel(): void
+    public function patchUpdatesName(): void
     {
         $client = $this->authenticatedClient();
 
         $created = $client->request('POST', '/api/channels', [
             'json' => [
                 'code' => 'shop',
-                'label' => ['pl' => 'Sklep', 'en' => 'Store'],
+                'name' => 'Sklep',
                 'locales' => ['pl_PL'],
             ],
         ]);
@@ -106,11 +122,11 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
 
         $patched = $client->request('PATCH', "/api/channels/{$id}", [
             'headers' => ['content-type' => 'application/merge-patch+json'],
-            'json' => ['label' => ['pl' => 'Sklep PL', 'en' => 'Store PL']],
+            'json' => ['name' => 'Sklep PL'],
         ]);
 
         self::assertSame(200, $patched->getStatusCode());
-        self::assertSame(['pl' => 'Sklep PL', 'en' => 'Store PL'], $patched->toArray()['label']);
+        self::assertSame('Sklep PL', $patched->toArray()['name']);
     }
 
     #[Test]
@@ -121,7 +137,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $created = $client->request('POST', '/api/channels', [
             'json' => [
                 'code' => 'shop',
-                'label' => ['pl' => 'Sklep', 'en' => 'Store'],
+                'name' => 'Sklep',
                 'locales' => ['pl_PL'],
             ],
         ]);
@@ -172,7 +188,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
 
         $response = $client->request('PATCH', "/api/channels/{$randomId}", [
             'headers' => ['content-type' => 'application/merge-patch+json'],
-            'json' => ['label' => ['pl' => 'X', 'en' => 'X']],
+            'json' => ['name' => 'X'],
         ]);
 
         self::assertSame(404, $response->getStatusCode());

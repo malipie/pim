@@ -29,12 +29,10 @@ test('operator creates a channel via the settings page', async ({ page }) => {
   await page.goto('/settings/channels/new');
   await expect(page.locator('#channel-code')).toBeVisible();
   await page.locator('#channel-code').fill(code);
-  await page.locator('#channel-label-pl').fill('Kanał E2E');
-  await page.locator('#channel-label-en').fill('E2E Channel');
+  await page.locator('#channel-name').fill('Kanał E2E');
 
-  // Pick one locale + one currency from the real catalogs.
+  // Pick one locale from the real catalog.
   await page.getByRole('button').filter({ hasText: /pl_PL/ }).first().click();
-  await page.getByRole('button').filter({ hasText: /PLN/ }).first().click();
 
   const createResponse = page.waitForResponse(
     (r) => r.url().includes('/api/channels') && r.request().method() === 'POST',

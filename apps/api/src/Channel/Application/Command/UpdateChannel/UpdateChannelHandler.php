@@ -30,8 +30,8 @@ final readonly class UpdateChannelHandler
             ));
         }
 
-        if (null !== $command->label) {
-            $channel->rename($command->label);
+        if (null !== $command->name) {
+            $channel->rename($command->name);
         }
 
         if (null !== $command->localeCodes) {
