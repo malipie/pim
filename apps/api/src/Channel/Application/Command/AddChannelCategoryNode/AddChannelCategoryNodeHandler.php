@@ -40,12 +40,21 @@ final readonly class AddChannelCategoryNodeHandler
             ));
         }
 
+        // CHC-09: the tree editor sends only name + externalId, no code. Pre-generate
+        // the node id so an absent code can default to its uuid-hex — guaranteed unique
+        // per (tenant, channel) without the operator ever seeing a slug.
+        $id = Uuid::v7();
+        $code = (null === $command->code || '' === trim($command->code))
+            ? str_replace('-', '', $id->toRfc4122())
+            : $command->code;
+
         $node = new ChannelCategoryNode(
             channel: $channel,
-            code: $command->code,
+            code: $code,
             label: $command->label,
             parent: $parent,
             externalCode: $command->externalCode,
+            id: $id,
         );
 
         $parentPath = $parent->getPath();

@@ -1237,7 +1237,8 @@
         "locales": "Locale",
         "mapping": "Mapping",
         "preview": "Podgląd",
-        "categoryMapping": "Kategorie kanału"
+        "categoryMapping": "Kategorie kanału",
+        "channelTree": "Drzewo kanału"
       },
       "placeholder": {
         "preview": "Per-channel preview produktu dochodzi w 0.10.6 (API Configurator)."
@@ -1267,6 +1268,36 @@
       "clear_confirm_title": "Wyczyścić wszystkie mapowania kanału?",
       "clear_confirm_body": "Usunie wszystkie mapowania kategorii → węzły dla tego kanału. Ręczne placements produktów pozostaną.",
       "product_count": "{{count}} prod."
+    },
+    "channel_tree": {
+      "title": "Drzewo kategorii kanału",
+      "subtitle": "Zbuduj strukturę kategorii kanału ręcznie. Węzeł = nazwa (do rozróżnienia) + ID w kanale docelowym. Te węzły są celami mapowania w zakładce „Kategorie kanału\".",
+      "loading": "Ładowanie drzewa...",
+      "empty": "Ten kanał nie ma jeszcze drzewa kategorii.",
+      "create_tree": "Utwórz drzewo",
+      "add_child": "Dodaj podpozycję",
+      "edit": "Edytuj",
+      "move": "Przenieś",
+      "delete": "Usuń",
+      "add_child_title": "Dodaj podpozycję",
+      "edit_title": "Edytuj węzeł",
+      "form_hint": "Nazwa służy do rozróżnienia w strukturze. ID w kanale docelowym jest opcjonalne — możesz uzupełnić je później.",
+      "name_label": "Nazwa",
+      "name_placeholder": "np. Telewizory",
+      "external_label": "ID w kanale docelowym (opcjonalne)",
+      "external_placeholder": "np. 12345 — ID kategorii w kanale",
+      "move_title": "Przenieś „{{name}}\" do…",
+      "move_hint": "Wybierz nowego rodzica. Nie można przenieść węzła do samego siebie ani do swojego potomka.",
+      "delete_title": "Usunąć węzeł?",
+      "delete_body": "Węzeł i wszystkie jego podpozycje zostaną usunięte. Mapowania i placements odwołujące się do nich znikną.",
+      "delete_root_body": "To usunie CAŁE drzewo kategorii tego kanału (root + wszystkie węzły). Operacji nie można cofnąć.",
+      "delete_confirm": "Usuń",
+      "saved": "Zapisano",
+      "save_error": "Nie udało się zapisać",
+      "moved": "Przeniesiono",
+      "move_error": "Nie udało się przenieść",
+      "deleted": "Usunięto",
+      "delete_error": "Nie udało się usunąć"
     }
   },
   "categories": {

@@ -166,6 +166,118 @@ final class ChannelNavigationTreeApiTest extends ChannelApiTestCase
     }
 
     #[Test]
+    public function moveReparentsNodeAndRewritesDescendantPaths(): void
+    {
+        $client = $this->authenticatedClient();
+        $channelId = $this->createChannel($client);
+        $rootId = self::extractId($client->request('POST', "/api/channels/{$channelId}/navigation-tree", [
+            'json' => ['label' => ['pl' => 'Root']],
+        ])->toArray());
+        $aId = $this->addNode($client, $channelId, $rootId, 'A');
+        $a1Id = $this->addNode($client, $channelId, $aId, 'A1');
+        $bId = $this->addNode($client, $channelId, $rootId, 'B');
+
+        $moved = $client->request('PATCH', "/api/channels/{$channelId}/navigation-tree/nodes/{$aId}/move", [
+            'headers' => ['content-type' => 'application/merge-patch+json'],
+            'json' => ['newParentId' => $bId],
+        ]);
+        self::assertSame(200, $moved->getStatusCode());
+        self::assertSame($bId, $moved->toArray()['parentId'] ?? null);
+
+        $paths = $this->pathsById($client, $channelId);
+        self::assertStringStartsWith($paths[$bId].'.', $paths[$aId], 'A now sits under B');
+        self::assertStringStartsWith($paths[$aId].'.', $paths[$a1Id], 'A1 follows A (descendant rewrite)');
+    }
+
+    #[Test]
+    public function moveIntoOwnSubtreeIsRejected(): void
+    {
+        $client = $this->authenticatedClient();
+        $channelId = $this->createChannel($client);
+        $rootId = self::extractId($client->request('POST', "/api/channels/{$channelId}/navigation-tree", [
+            'json' => ['label' => ['pl' => 'Root']],
+        ])->toArray());
+        $aId = $this->addNode($client, $channelId, $rootId, 'A');
+        $a1Id = $this->addNode($client, $channelId, $aId, 'A1');
+
+        $rejected = $client->request('PATCH', "/api/channels/{$channelId}/navigation-tree/nodes/{$aId}/move", [
+            'headers' => ['content-type' => 'application/merge-patch+json'],
+            'json' => ['newParentId' => $a1Id],
+        ]);
+        self::assertSame(422, $rejected->getStatusCode());
+    }
+
+    #[Test]
+    public function moveToForeignChannelParentIsRejected(): void
+    {
+        $client = $this->authenticatedClient();
+        $channelA = $this->createChannel($client, 'allegro');
+        $channelB = $this->createChannel($client, 'shopify');
+        $rootA = self::extractId($client->request('POST', "/api/channels/{$channelA}/navigation-tree", [
+            'json' => ['label' => ['pl' => 'Root A']],
+        ])->toArray());
+        $aId = $this->addNode($client, $channelA, $rootA, 'A');
+        $rootB = self::extractId($client->request('POST', "/api/channels/{$channelB}/navigation-tree", [
+            'json' => ['label' => ['pl' => 'Root B']],
+        ])->toArray());
+
+        $rejected = $client->request('PATCH', "/api/channels/{$channelA}/navigation-tree/nodes/{$aId}/move", [
+            'headers' => ['content-type' => 'application/merge-patch+json'],
+            'json' => ['newParentId' => $rootB],
+        ]);
+        self::assertSame(422, $rejected->getStatusCode());
+    }
+
+    #[Test]
+    public function addNodeWithoutCodeGeneratesOne(): void
+    {
+        $client = $this->authenticatedClient();
+        $channelId = $this->createChannel($client);
+        $rootId = self::extractId($client->request('POST', "/api/channels/{$channelId}/navigation-tree", [
+            'json' => ['label' => ['pl' => 'Root']],
+        ])->toArray());
+
+        $node = $client->request('POST', "/api/channels/{$channelId}/navigation-tree/nodes", [
+            'json' => ['parentId' => $rootId, 'label' => ['pl' => 'Bez kodu']],
+        ]);
+        self::assertSame(201, $node->getStatusCode());
+        $code = $node->toArray()['code'] ?? null;
+        self::assertIsString($code);
+        self::assertNotSame('', $code);
+    }
+
+    private function addNode(\ApiPlatform\Symfony\Bundle\Test\Client $client, string $channelId, string $parentId, string $name): string
+    {
+        $node = $client->request('POST', "/api/channels/{$channelId}/navigation-tree/nodes", [
+            'json' => ['parentId' => $parentId, 'label' => ['pl' => $name]],
+        ]);
+        self::assertSame(201, $node->getStatusCode());
+
+        return self::extractId($node->toArray());
+    }
+
+    /**
+     * @return array<string, string> node id → ltree path
+     */
+    private function pathsById(\ApiPlatform\Symfony\Bundle\Test\Client $client, string $channelId): array
+    {
+        $nodes = $client->request('GET', "/api/channels/{$channelId}/navigation-tree", [
+            'headers' => ['accept' => 'application/json'],
+        ])->toArray();
+
+        $paths = [];
+        foreach ($nodes as $node) {
+            \assert(\is_array($node));
+            $id = $node['id'] ?? null;
+            $path = $node['path'] ?? null;
+            \assert(\is_string($id) && \is_string($path));
+            $paths[$id] = $path;
+        }
+
+        return $paths;
+    }
+
+    #[Test]
     public function unauthenticatedAccessIsRejected(): void
     {
         $client = static::createClient();
