@@ -7,6 +7,7 @@ namespace App\Channel\Presentation\Controller;
 use App\Channel\Application\Command\AddChannelCategoryNode\AddChannelCategoryNodeCommand;
 use App\Channel\Application\Command\CreateNavigationTreeRoot\CreateNavigationTreeRootCommand;
 use App\Channel\Application\Command\DeleteChannelCategoryNode\DeleteChannelCategoryNodeCommand;
+use App\Channel\Application\Command\MoveChannelCategoryNode\MoveChannelCategoryNodeCommand;
 use App\Channel\Application\Command\UpdateChannelCategoryNode\UpdateChannelCategoryNodeCommand;
 use App\Channel\Domain\Entity\Channel;
 use App\Channel\Domain\Entity\ChannelCategoryNode;
@@ -93,20 +94,42 @@ final class ChannelNavigationTreeController
         if (null === $parentId) {
             throw new UnprocessableEntityHttpException('"parentId" is required.');
         }
-        $code = $this->optionalString($data, 'code');
-        if (null === $code || '' === $code) {
-            throw new UnprocessableEntityHttpException('"code" is required.');
-        }
 
+        // CHC-09: `code` is optional — the tree editor sends only name + externalId;
+        // the handler defaults an absent code to the node's uuid-hex.
         $id = $this->dispatchForId(new AddChannelCategoryNodeCommand(
             channelId: $this->uuid($channelId),
             parentId: $this->uuid($parentId),
-            code: $code,
+            code: $this->optionalString($data, 'code'),
             label: $this->labelMap($data['label'] ?? []),
             externalCode: $this->optionalString($data, 'externalCode'),
         ));
 
         return new JsonResponse($this->serialize($this->requireNode($id)), Response::HTTP_CREATED);
+    }
+
+    /**
+     * CHC-09 (#1302) — re-parent a node (and its subtree) under a different node.
+     */
+    #[Route('/api/channels/{channelId}/navigation-tree/nodes/{nodeId}/move', name: 'pim_channel_navtree_move_node', methods: ['PATCH'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    #[RequiresPermission(module: 'channel', action: 'write')]
+    public function moveNode(string $channelId, string $nodeId, Request $request): JsonResponse
+    {
+        $data = $this->decode($request);
+        $newParentId = $this->optionalString($data, 'newParentId');
+        if (null === $newParentId) {
+            throw new UnprocessableEntityHttpException('"newParentId" is required.');
+        }
+        $nodeUuid = $this->uuid($nodeId);
+
+        $this->dispatch(new MoveChannelCategoryNodeCommand(
+            channelId: $this->uuid($channelId),
+            nodeId: $nodeUuid,
+            newParentId: $this->uuid($newParentId),
+        ));
+
+        return new JsonResponse($this->serialize($this->requireNode($nodeUuid)));
     }
 
     #[Route('/api/channels/{channelId}/navigation-tree/nodes/{nodeId}', name: 'pim_channel_navtree_patch_node', methods: ['PATCH'])]

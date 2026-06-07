@@ -1225,7 +1225,8 @@
         "locales": "Locales",
         "mapping": "Mapping",
         "preview": "Preview",
-        "categoryMapping": "Channel categories"
+        "categoryMapping": "Channel categories",
+        "channelTree": "Channel tree"
       },
       "placeholder": {
         "preview": "Per-channel product preview lands in 0.10.6 (API Configurator)."
@@ -1255,6 +1256,36 @@
       "clear_confirm_title": "Clear all channel mappings?",
       "clear_confirm_body": "Removes every category → node mapping for this channel. Manual product placements are kept.",
       "product_count": "{{count}} prod."
+    },
+    "channel_tree": {
+      "title": "Channel category tree",
+      "subtitle": "Build the channel category structure by hand. A node = a name (to tell it apart) + the target-channel node id. These nodes are the mapping targets in the \"Channel categories\" tab.",
+      "loading": "Loading tree...",
+      "empty": "This channel has no category tree yet.",
+      "create_tree": "Create tree",
+      "add_child": "Add sub-node",
+      "edit": "Edit",
+      "move": "Move",
+      "delete": "Delete",
+      "add_child_title": "Add sub-node",
+      "edit_title": "Edit node",
+      "form_hint": "The name tells the node apart in the structure. The target-channel id is optional — you can fill it in later.",
+      "name_label": "Name",
+      "name_placeholder": "e.g. TVs",
+      "external_label": "Target-channel node id (optional)",
+      "external_placeholder": "e.g. 12345 — the category id in the channel",
+      "move_title": "Move \"{{name}}\" to…",
+      "move_hint": "Pick a new parent. A node cannot be moved into itself or its own descendant.",
+      "delete_title": "Delete node?",
+      "delete_body": "The node and all its sub-nodes will be removed. Mappings and placements that reference them will disappear.",
+      "delete_root_body": "This deletes the ENTIRE category tree of this channel (root + all nodes). This cannot be undone.",
+      "delete_confirm": "Delete",
+      "saved": "Saved",
+      "save_error": "Failed to save",
+      "moved": "Moved",
+      "move_error": "Failed to move",
+      "deleted": "Deleted",
+      "delete_error": "Failed to delete"
     }
   },
   "categories": {

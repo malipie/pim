@@ -10,6 +10,7 @@ import { resolveLabel } from '@/features/catalog/attributes/list';
 import { cn } from '@/lib/utils';
 
 import { ChannelCategoryMappingEditor } from './category-mapping-editor';
+import { ChannelTreeEditor } from './channel-tree-editor';
 import { ChannelMappingEditor } from './mapping-editor';
 
 interface LocaleRef {
@@ -26,9 +27,16 @@ interface ChannelDetail {
   categoryTreeRootId?: string | null;
 }
 
-type TabKey = 'overview' | 'locales' | 'mapping' | 'categoryMapping' | 'preview';
+type TabKey = 'overview' | 'locales' | 'mapping' | 'channelTree' | 'categoryMapping' | 'preview';
 
-const TABS: TabKey[] = ['overview', 'locales', 'mapping', 'categoryMapping', 'preview'];
+const TABS: TabKey[] = [
+  'overview',
+  'locales',
+  'mapping',
+  'channelTree',
+  'categoryMapping',
+  'preview',
+];
 
 export function ChannelShowPage() {
   const { t, i18n } = useTranslation();
@@ -92,6 +100,8 @@ export function ChannelShowPage() {
 
       {activeTab === 'mapping' ? (
         <ChannelMappingEditor channelId={channel.id} />
+      ) : activeTab === 'channelTree' ? (
+        <ChannelTreeEditor channelId={channel.id} />
       ) : activeTab === 'categoryMapping' ? (
         <ChannelCategoryMappingEditor channelId={channel.id} />
       ) : (
