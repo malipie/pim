@@ -16,13 +16,29 @@ import {
 import { MultiSelect } from '@/components/ui/multi-select';
 import { useToast } from '@/components/ui/toast';
 import { resolveLabel } from '@/features/catalog/attributes/list';
+import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
 import { jsonFetch } from '@/lib/http';
 
 interface MasterCategory {
   id: string;
   code: string;
-  label?: Record<string, string> | string | null;
+  attributesIndexed?: Record<string, unknown>;
   path?: string | null;
+}
+
+/**
+ * Display name of a master category. Categories (CatalogObject kind=category)
+ * carry no `label` field — the name lives in `attributesIndexed.name`
+ * (same source the modeling category tree uses). Falls back to `code`.
+ */
+function categoryName(master: MasterCategory, lang: string): string {
+  const name = unwrapAttributesIndexed(master.attributesIndexed).name;
+  if (typeof name === 'string' && name.trim() !== '') return name;
+  if (name !== null && typeof name === 'object') {
+    const map = name as Record<string, string>;
+    return map[lang] ?? map.pl ?? map.en ?? Object.values(map)[0] ?? master.code;
+  }
+  return master.code;
 }
 
 interface CategorizableObjectType {
@@ -276,9 +292,7 @@ export function ChannelCategoryMappingEditor({ channelId }: Props) {
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <FolderTree className="size-4 shrink-0 text-muted-foreground" />
-                        <span className="truncate">
-                          {resolveLabel(master.label ?? null, lang) ?? master.code}
-                        </span>
+                        <span className="truncate">{categoryName(master, lang)}</span>
                       </div>
                       {mapped.length > 0 ? (
                         <p className="pl-6 text-xs text-muted-foreground">
@@ -323,9 +337,7 @@ export function ChannelCategoryMappingEditor({ channelId }: Props) {
           <DialogHeader>
             <DialogTitle>
               {t('channels.category_mapping.dialog_title', {
-                category: dialogMaster
-                  ? (resolveLabel(dialogMaster.label ?? null, lang) ?? dialogMaster.code)
-                  : '',
+                category: dialogMaster ? categoryName(dialogMaster, lang) : '',
               })}
             </DialogTitle>
             <DialogDescription>{t('channels.category_mapping.dialog_hint')}</DialogDescription>

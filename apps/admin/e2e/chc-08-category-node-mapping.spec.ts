@@ -66,6 +66,13 @@ test('map a master category to a channel node from the channel mapping tab', asy
   await page.getByRole('button', { name: /Channel categories|Kategorie kanału/i }).click();
 
   await expect(page.getByTestId('chc-master-list')).toBeVisible();
+  // Master categories show their real name (from attributesIndexed), not "—".
+  await expect(
+    page
+      .getByTestId('chc-master-list')
+      .getByText(/Obuwie|Odzież|Bieganie|Outdoor/)
+      .first(),
+  ).toBeVisible();
   await expect(page.getByTestId('chc-channel-tree')).toBeVisible();
   await expect(page.getByText(/MAP08/i).first()).toBeVisible();
 
