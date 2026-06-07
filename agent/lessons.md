@@ -2360,3 +2360,13 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Bulk DELETE tenant-safe: SELECT (tenant-filtered) + per-row remove, NIE DQL DELETE** — Doctrine filtry (TenantFilter) aplikują się do SELECT, NIE do DQL `DELETE`/`UPDATE`. Bulk „clear all" (CHC-08) przez `findByChannel()` (tenant-filtered) + `remove()` w pętli. DQL bulk DELETE ominąłby filtr → cross-tenant wipe.
 
 - **Published ObjectTypes derive client-side, bez nowego endpointu** — lista ObjectType które kanał publikuje = DISTINCT `objectType` z istniejącego resource `channel_object_type_mappings` (Refine `useList` + grupowanie po `objectType.code`, jak `mapping-editor.tsx`). Nie dodawaj BE endpointu na coś co już jest w wystawionej kolekcji.
+
+## Lessons z CHC-09 (UI edytor drzewa kanału, #1302, 2026-06-07)
+
+- **ltree reparent poza Catalog = mirror `MoveCategoryService`** — raw SQL w transakcji: (1) UPDATE węzła `path` + `parent_id` WHERE id; (2) UPDATE potomków `SET path = :newPath || subpath(path, :oldDepth) WHERE tenant_id=:t AND channel_id=:c AND path <@ :oldPath AND id <> :id`; potem `em->clear()`. Cykl: `parentPath === oldPath || str_starts_with(parentPath, oldPath.'.')` (prefix na granicy kropki) — bez DB roundtripu. NIE używaj domain settera + per-entity flush (OOM w worker mode). `channel_category_nodes` nie ma `updated_at` — pomiń.
+
+- **Opcjonalny `code` z auto-defaultem = pre-generuj id w handlerze** — encja wymaga `code` w konstruktorze (immutable, UNIQUE per tenant+channel). Żeby UI mogło NIE wysyłać code: w handlerze `$id = Uuid::v7(); $code = trim($cmd->code ?? '') ?: str_replace('-','',$id->toRfc4122());` i przekaż OBA do konstruktora (`id:` arg). Gwarantuje unikalność bez slug-a widocznego dla operatora. Command field `?string $code`.
+
+- **Reparent NIE potrzebuje confirm-gate (w przeciwieństwie do CHC-05)** — placements (CHC-02) i mappingi (CHC-06) referują węzeł po ID/relacji, nie po `path`. Zmiana ścieżki w move nie dotyka żadnego z nich → zero blast-radius, brak 409-gate. CHC-05 miał gate bo move kategorii master dotykał produktów (schema drift).
+
+- **E2E na drzewie: akcje na rootcie przez `.first()`** — root renderuje się pierwszy (rekurencyjny render), więc jego przyciski są pierwsze w DOM. `editor.getByRole('button',{name:/Edit/}).first()` = edycja roota; move `.first()` = pierwszy NON-root (root nie ma move). Ikonowe przyciski (lucide SVG bez aria-label) biorą accessible-name z `title` → `getByRole('button',{name: <title>})` działa. Scope confirm-button w dialogu (`page.getByRole('dialog').getByRole('button',{name:/^(Delete|Usuń)$/})`) — title wierszy koliduje inaczej.
