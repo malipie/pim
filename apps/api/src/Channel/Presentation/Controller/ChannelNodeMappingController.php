@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Channel\Presentation\Controller;
 
+use App\Channel\Application\Message\ReconcileChannelPlacementsForCategory;
 use App\Channel\Domain\Entity\Channel;
 use App\Channel\Domain\Entity\ChannelCategoryNodeMapping;
 use App\Channel\Domain\Repository\ChannelCategoryNodeMappingRepositoryInterface;
@@ -19,6 +20,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
@@ -42,7 +44,24 @@ final class ChannelNodeMappingController
         private readonly ChannelCategoryNodeRepositoryInterface $nodes,
         private readonly ObjectChannelPlacementRepositoryInterface $placements,
         private readonly EntityManagerInterface $em,
+        private readonly MessageBusInterface $bus,
     ) {
+    }
+
+    /**
+     * #1314 — after a mapping change, back-fill placements for every product in
+     * the affected master category (off-thread).
+     */
+    private function dispatchBackfill(Channel $channel, Uuid $masterCategoryId): void
+    {
+        $tenant = $channel->getTenant();
+        if (null === $tenant) {
+            return;
+        }
+        $this->bus->dispatch(new ReconcileChannelPlacementsForCategory(
+            $masterCategoryId->toRfc4122(),
+            $tenant->getId()->toRfc4122(),
+        ));
     }
 
     #[Route('/api/channels/{channelId}/node-mappings', name: 'pim_channel_node_mappings_list', methods: ['GET'], format: 'json')]
@@ -95,9 +114,14 @@ final class ChannelNodeMappingController
         $channel = $this->requireChannel($channelId);
 
         $deleted = 0;
+        $affectedMasters = [];
         foreach ($this->mappings->findByChannel($channel) as $mapping) {
+            $affectedMasters[] = $mapping->getMasterCategoryId();
             $this->mappings->remove($mapping);
             ++$deleted;
+        }
+        foreach ($affectedMasters as $masterId) {
+            $this->dispatchBackfill($channel, $masterId);
         }
 
         return new JsonResponse(['deleted' => $deleted]);
@@ -125,6 +149,7 @@ final class ChannelNodeMappingController
         }
 
         $mapping = $this->mappings->upsert($channel, $masterId, $nodeIds);
+        $this->dispatchBackfill($channel, $masterId);
 
         return new JsonResponse([
             'masterCategoryId' => $mapping->getMasterCategoryId()->toRfc4122(),
@@ -143,7 +168,9 @@ final class ChannelNodeMappingController
             throw new NotFoundHttpException('No node mapping for this master category on the channel.');
         }
 
+        $masterId = $mapping->getMasterCategoryId();
         $this->mappings->remove($mapping);
+        $this->dispatchBackfill($channel, $masterId);
 
         return new Response(null, Response::HTTP_NO_CONTENT);
     }

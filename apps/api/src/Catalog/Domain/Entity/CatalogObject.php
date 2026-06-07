@@ -6,9 +6,9 @@ namespace App\Catalog\Domain\Entity;
 
 use App\Catalog\Contracts\Event\ObjectArchived;
 use App\Catalog\Contracts\Event\ObjectAttributesChanged;
+use App\Catalog\Contracts\Event\ObjectCategoriesChanged;
 use App\Catalog\Contracts\Event\ObjectCreated;
 use App\Catalog\Contracts\Event\ObjectEnabledChanged;
-use App\Catalog\Contracts\Event\ObjectPrimaryCategoryAssigned;
 use App\Catalog\Contracts\Event\ObjectPublished;
 use App\Catalog\Domain\ObjectKind;
 use App\Shared\Application\Blameable;
@@ -404,23 +404,22 @@ class CatalogObject extends AggregateRoot implements TenantScoped, Blameable
     }
 
     /**
-     * Record that this object's primary master category is now
-     * `$primaryCategoryId` (CHC-07, #1290). Called by the assignment repository
-     * after it commits a non-null primary; the buffered event is dispatched by
+     * Record that this object's master-category set changed (#1314, superseding
+     * the primary-only event from CHC-07). Called by the assignment repository
+     * after any category mutation; the buffered event is dispatched by
      * {@see \App\Shared\Infrastructure\Messenger\DomainEventDispatcher} once the
-     * surrounding flush succeeds, then drives channel-placement auto-assignment
-     * off-thread.
+     * surrounding flush succeeds, then reconciles channel placements off-thread
+     * (the product lands on every channel mapped by ANY of its categories).
      */
-    public function recordPrimaryCategoryAssigned(Uuid $primaryCategoryId): void
+    public function recordCategoriesChanged(): void
     {
         if (null === $this->tenant) {
-            throw new LogicException('Cannot record primary-category assignment before the tenant is set.');
+            throw new LogicException('Cannot record category change before the tenant is set.');
         }
 
-        $this->recordThat(new ObjectPrimaryCategoryAssigned(
+        $this->recordThat(new ObjectCategoriesChanged(
             objectId: $this->id,
             tenantId: $this->tenant->getId(),
-            primaryCategoryId: $primaryCategoryId,
         ));
     }
 

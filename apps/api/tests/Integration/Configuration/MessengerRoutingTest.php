@@ -43,8 +43,13 @@ final class MessengerRoutingTest extends KernelTestCase
             'async',
         ];
 
-        yield 'catalog: primary category assigned (CHC-07 placement auto-assign)' => [
-            \App\Catalog\Contracts\Event\ObjectPrimaryCategoryAssigned::class,
+        yield 'catalog: object categories changed (#1314 placement reconcile)' => [
+            \App\Catalog\Contracts\Event\ObjectCategoriesChanged::class,
+            'async',
+        ];
+
+        yield 'channel: reconcile placements for category (#1314 back-fill)' => [
+            \App\Channel\Application\Message\ReconcileChannelPlacementsForCategory::class,
             'async',
         ];
     }
