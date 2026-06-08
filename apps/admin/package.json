@@ -38,7 +38,7 @@
     "@udecode/plate-serializer-html": "^21.5.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "dompurify": "^3.4.7",
+    "dompurify": "^3.4.8",
     "i18next": "^26.3.1",
     "i18next-browser-languagedetector": "^8.2.1",
     "lucide-react": "^1.17.0",
