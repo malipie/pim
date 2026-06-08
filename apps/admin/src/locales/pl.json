@@ -541,17 +541,6 @@
         "activating": "Aktywuję…",
         "cancel": "Anuluj",
         "toast_activated": "{{code}} aktywowany."
-      },
-      "channel_matrix": {
-        "title": "Przypisanie do kanałów",
-        "intro": "Wybierz, które locale są aktywne na którym kanale dystrybucji. Zmiany dotyczą publikacji i synchronizacji feedów.",
-        "col_channel": "Kanał",
-        "save": "Zapisz zmiany",
-        "saving": "Zapisuję…",
-        "discard": "Odrzuć",
-        "empty": "Brak kanałów. Skonfiguruj je najpierw w Ustawienia → Kanały.",
-        "error_loading": "Nie udało się załadować macierzy.",
-        "toast_saved": "Przypisania zaktualizowane."
       }
     },
     "users": {
@@ -1159,8 +1148,6 @@
     "fields": {
       "code": "Kod",
       "name": "Nazwa",
-      "locales": "Locale",
-      "locales_count": "Liczba locale",
       "category_root": "Korzeń drzewa kategorii",
       "actions": "Akcje"
     },
@@ -1202,14 +1189,12 @@
         "code_help": "Lowercase, znaki: a-z, 0-9, _. Niezmienny po utworzeniu.",
         "name": "Nazwa",
         "name_help": "Wewnętrzna nazwa kanału widoczna w panelu admina.",
-        "locales": "Wersje językowe",
         "category_root": "Korzeń kategorii"
       },
       "validation": {
         "required": "Pole wymagane.",
         "code_format": "Tylko małe litery, cyfry i podkreślenia.",
-        "code_taken": "Kod jest już zajęty.",
-        "locales_min": "Wybierz co najmniej jedną wersję językową."
+        "code_taken": "Kod jest już zajęty."
       },
       "cancel": "Anuluj",
       "remove_chip": "Usuń",
@@ -1221,10 +1206,8 @@
     },
     "show": {
       "tabs_aria": "Karty szczegółów kanału",
-      "no_locales": "Brak skonfigurowanych locale.",
       "tabs": {
         "overview": "Przegląd",
-        "locales": "Locale",
         "preview": "Podgląd",
         "categoryMapping": "Kategorie kanału",
         "channelTree": "Drzewo kanału"

@@ -27,17 +27,6 @@
         <field name="code" type="string" length="64"/>
         <field name="name" type="string" length="255"/>
 
-        <many-to-many field="locales" target-entity="App\Channel\Domain\Entity\Locale">
-            <join-table name="channel_locales">
-                <join-columns>
-                    <join-column name="channel_id" referenced-column-name="id" on-delete="CASCADE"/>
-                </join-columns>
-                <inverse-join-columns>
-                    <join-column name="locale_id" referenced-column-name="id" on-delete="RESTRICT"/>
-                </inverse-join-columns>
-            </join-table>
-        </many-to-many>
-
         <field name="categoryTreeRootId" type="uuid" column="category_tree_root_object_id" nullable="true"/>
 
     </entity>

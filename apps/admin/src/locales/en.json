@@ -539,17 +539,6 @@
         "activating": "Activating…",
         "cancel": "Cancel",
         "toast_activated": "{{code}} activated."
-      },
-      "channel_matrix": {
-        "title": "Channel assignment",
-        "intro": "Pick which locales are active on which distribution channel. Affects feed publishing and sync.",
-        "col_channel": "Channel",
-        "save": "Save changes",
-        "saving": "Saving…",
-        "discard": "Discard",
-        "empty": "No channels yet. Configure them first in Settings → Channels.",
-        "error_loading": "Could not load the matrix.",
-        "toast_saved": "Channel assignments updated."
       }
     },
     "users": {
@@ -1147,8 +1136,6 @@
     "fields": {
       "code": "Code",
       "name": "Name",
-      "locales": "Locales",
-      "locales_count": "Locales count",
       "category_root": "Category tree root",
       "actions": "Actions"
     },
@@ -1190,14 +1177,12 @@
         "code_help": "Lowercase, characters: a-z, 0-9, _. Immutable after creation.",
         "name": "Name",
         "name_help": "Internal channel name shown in the admin panel.",
-        "locales": "Locales",
         "category_root": "Category tree root"
       },
       "validation": {
         "required": "Field is required.",
         "code_format": "Only lowercase letters, digits, and underscores.",
-        "code_taken": "Code is already taken.",
-        "locales_min": "Pick at least one locale."
+        "code_taken": "Code is already taken."
       },
       "cancel": "Cancel",
       "remove_chip": "Remove",
@@ -1209,10 +1194,8 @@
     },
     "show": {
       "tabs_aria": "Channel detail tabs",
-      "no_locales": "No locales configured.",
       "tabs": {
         "overview": "Overview",
-        "locales": "Locales",
         "preview": "Preview",
         "categoryMapping": "Channel categories",
         "channelTree": "Channel tree"

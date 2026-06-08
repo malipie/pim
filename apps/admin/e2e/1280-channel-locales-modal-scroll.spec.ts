@@ -3,41 +3,19 @@ import { expect, test } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
 
 /**
- * #1280 — two settings-localization UX fixes:
+ * #1280 — the "Add locale" modal scroll container actually scrolls: the
+ * catalog overflows its box (`scrollHeight > clientHeight`) and a deep row
+ * past the popular section is reachable.
  *
- *  1. The channel create form locale picker offers only the tenant's ACTIVE
- *     locales (pl_PL + en_US for the demo tenant), not the global ISO catalog
- *     (`de_DE` and friends must be absent).
- *  2. The "Add locale" modal scroll container actually scrolls — the catalog
- *     overflows its box (`scrollHeight > clientHeight`) and a deep row past the
- *     popular section is reachable.
+ * (The original channel-form locale-picker check was dropped in #1318 when
+ * per-channel locales were removed — channels no longer carry a locale set.)
  *
  * `test.fixme` in CI for the shared auth-rate-limiter storageState gap (same
  * pattern as #1263 / settings-channels-crud).
  */
 const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
-test.describe('#1280 — channel locale picker + add-locale modal scroll', () => {
-  test('channel form locale picker lists only active tenant locales', async ({ page }) => {
-    test.fixme(!!process.env.CI, CI_BLOCKED);
-    test.setTimeout(120_000);
-
-    await loginAsAdmin(page);
-    await page.goto('/settings/channels/new');
-
-    const localesFieldset = page.locator('fieldset[aria-labelledby="channel-locales-label"]');
-    await expect(localesFieldset).toBeVisible();
-
-    // Demo tenant has pl_PL + en_US active.
-    await expect(localesFieldset.getByRole('button', { name: /pl_PL/ })).toBeVisible();
-    await expect(localesFieldset.getByRole('button', { name: /en_US/ })).toBeVisible();
-
-    // The global ISO catalog (de_DE, it_IT, fr_FR…) must NOT leak into the
-    // picker — only the tenant's activated subset is offered.
-    await expect(localesFieldset.getByRole('button', { name: /de_DE/ })).toHaveCount(0);
-    await expect(localesFieldset.getByRole('button', { name: /it_IT/ })).toHaveCount(0);
-  });
-
+test.describe('#1280 — add-locale modal scroll', () => {
   test('add-locale modal catalog scrolls past the popular section', async ({ page }) => {
     test.fixme(!!process.env.CI, CI_BLOCKED);
     test.setTimeout(120_000);

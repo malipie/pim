@@ -12,7 +12,6 @@ interface ChannelDetail {
   id: string;
   code: string;
   name?: string | null;
-  locales?: Array<{ code: string }>;
   categoryTreeRootId?: string | null;
 }
 
@@ -35,7 +34,6 @@ export function ChannelEditPage() {
   const defaultValues: Partial<ChannelFormValues> = {
     code: channel.code,
     name: channel.name ?? '',
-    locales: (channel.locales ?? []).map((l) => l.code),
   };
 
   const headerTitle = `${t('channels.edit.title_prefix')} ${channel.name ?? channel.code}`;
@@ -47,7 +45,6 @@ export function ChannelEditPage() {
         id: channel.id,
         values: {
           name: values.name,
-          locales: values.locales,
         },
       },
       {

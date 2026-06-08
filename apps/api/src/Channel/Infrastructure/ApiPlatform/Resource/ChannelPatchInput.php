@@ -17,13 +17,4 @@ final class ChannelPatchInput
     #[Assert\NotBlank(allowNull: true)]
     #[Groups(['channel:update'])]
     public ?string $name = null;
-
-    /**
-     * @var array<int, string>|null
-     */
-    #[Assert\Type('array')]
-    #[Assert\Count(min: 1)]
-    #[Assert\All([new Assert\Type('string'), new Assert\NotBlank()])]
-    #[Groups(['channel:update'])]
-    public ?array $locales = null;
 }

@@ -23,17 +23,10 @@ import { useToast } from '@/components/ui/toast';
 
 import { ChannelDeleteConfirmDialog } from './delete-confirm-dialog';
 
-interface LocaleRef {
-  id: string;
-  code: string;
-  label: string;
-}
-
 export interface ChannelRow {
   id: string;
   code: string;
   name?: string | null;
-  locales?: LocaleRef[];
   categoryTreeRootId?: string | null;
 }
 
@@ -87,7 +80,6 @@ export function ChannelsListPage() {
             <TableRow>
               <TableHead className="w-[180px]">{t('channels.fields.code')}</TableHead>
               <TableHead>{t('channels.fields.name')}</TableHead>
-              <TableHead className="w-[200px]">{t('channels.fields.locales')}</TableHead>
               <TableHead className="w-[120px] text-right">
                 <span className="sr-only">{t('channels.fields.actions')}</span>
               </TableHead>
@@ -96,13 +88,13 @@ export function ChannelsListPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={3} className="py-10 text-center text-muted-foreground">
                   {t('app.loading')}
                 </TableCell>
               </TableRow>
             ) : channels.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={3} className="py-10 text-center text-muted-foreground">
                   {t('channels.list.empty')}
                 </TableCell>
               </TableRow>
@@ -114,11 +106,6 @@ export function ChannelsListPage() {
                     {row.code}
                   </TableCell>
                   <TableCell className="font-medium">{row.name ?? row.code}</TableCell>
-                  <TableCell className="space-x-1 text-xs">
-                    {(row.locales ?? []).map((loc) => (
-                      <Tag key={loc.id ?? loc.code}>{loc.code}</Tag>
-                    ))}
-                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button asChild variant="ghost" size="sm">
@@ -171,13 +158,5 @@ export function ChannelsListPage() {
         />
       ) : null}
     </div>
-  );
-}
-
-function Tag({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide">
-      {children}
-    </span>
   );
 }

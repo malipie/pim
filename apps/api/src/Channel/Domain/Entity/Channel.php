@@ -9,8 +9,6 @@ use App\Channel\Contracts\Event\ChannelCreated;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\AggregateRoot;
 use App\Shared\Domain\Tenant;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use LogicException;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -23,7 +21,6 @@ use Symfony\Component\Validator\Constraints as Assert;
  *
  *   - a name (plain string) — what admins see in the UI. Internal-only,
  *     never published to a destination, so it is intentionally single-language;
- *   - a set of supported `Locale` rows (M2M `channel_locales`);
  *   - an optional `category_tree_root_object_id` pointing at a
  *     `CatalogObject` of `kind=category` — the root of the category tree
  *     this channel publishes. Validation ("the target must be a
@@ -49,11 +46,6 @@ class Channel extends AggregateRoot implements TenantScoped
     private string $name;
 
     /**
-     * @var Collection<int, Locale>
-     */
-    private Collection $locales;
-
-    /**
      * Stored as a bare UUID rather than a Doctrine relation to keep Channel
      * Domain free of cross-BC entity imports — the FK lives at the DB layer
      * (CASCADE-on-delete in the migration), the kind=category invariant is
@@ -66,7 +58,6 @@ class Channel extends AggregateRoot implements TenantScoped
         $this->id = $id ?? Uuid::v7();
         $this->code = $code;
         $this->name = $name;
-        $this->locales = new ArrayCollection();
     }
 
     public function getId(): Uuid
@@ -109,26 +100,6 @@ class Channel extends AggregateRoot implements TenantScoped
     public function rename(string $name): void
     {
         $this->name = $name;
-    }
-
-    /**
-     * @return Collection<int, Locale>
-     */
-    public function getLocales(): Collection
-    {
-        return $this->locales;
-    }
-
-    public function addLocale(Locale $locale): void
-    {
-        if (!$this->locales->contains($locale)) {
-            $this->locales->add($locale);
-        }
-    }
-
-    public function removeLocale(Locale $locale): void
-    {
-        $this->locales->removeElement($locale);
     }
 
     public function getCategoryTreeRootId(): ?Uuid

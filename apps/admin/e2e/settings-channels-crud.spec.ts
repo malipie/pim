@@ -43,11 +43,9 @@ test.describe('VIEW-06 — Settings · Channels · CRUD + mapping editor', () =>
     await page.getByRole('link', { name: /nowy kana[łl]|new channel/i }).click();
     await expect(page).toHaveURL(/\/settings\/channels\/new$/);
 
-    // 3. Fill form — code, name, pick first locale.
+    // 3. Fill form — code + name (channels no longer carry a locale set, #1318).
     await page.getByLabel(/^kod$|^code$/i).fill(uniqueCode);
     await page.getByLabel(/^nazwa$|^name$/i).fill('E2E test');
-    const localesFieldset = page.locator('fieldset[aria-labelledby="channel-locales-label"]');
-    await localesFieldset.getByRole('button', { pressed: false }).first().click();
 
     // 4. Submit + redirect to detail page (UUID v7).
     await page.getByRole('button', { name: /utw[óo]rz kana[łl]|create channel/i }).click();

@@ -24,7 +24,6 @@ final class ChannelPublicationProfileApiTest extends ChannelApiTestCase
             'json' => [
                 'code' => 'pub_profile_test',
                 'name' => 'Test',
-                'locales' => ['pl_PL'],
             ],
         ]);
         self::assertSame(201, $response->getStatusCode());
