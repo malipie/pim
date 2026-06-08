@@ -25,7 +25,6 @@ export function ChannelCreatePage() {
         values: {
           code: values.code,
           name: values.name,
-          locales: values.locales,
         },
       },
       {

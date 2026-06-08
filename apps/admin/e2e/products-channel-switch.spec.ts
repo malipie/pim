@@ -64,13 +64,11 @@ test('channel switch reads + writes per-channel values', async ({ page }) => {
   );
   expect([200, 201, 204]).toContain(attach.status());
 
-  // A tenant channel (full locale code + currency, per channel validation).
+  // A tenant channel — just code + name (#1283 dropped currencies, #1318 dropped locales).
   const channelResp = await page.request.post('/api/channels', {
     data: {
       code: channelCode,
-      label: { pl: 'Kanał Spec', en: 'Spec Channel' },
-      locales: ['pl_PL'],
-      currencies: ['PLN'],
+      name: 'Kanał Spec',
     },
     headers: { ...bearer, accept: 'application/ld+json', 'content-type': 'application/ld+json' },
   });

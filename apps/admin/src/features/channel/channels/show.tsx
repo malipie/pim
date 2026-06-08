@@ -11,23 +11,16 @@ import { cn } from '@/lib/utils';
 import { ChannelCategoryMappingEditor } from './category-mapping-editor';
 import { ChannelTreeEditor } from './channel-tree-editor';
 
-interface LocaleRef {
-  id: string;
-  code: string;
-  label?: string;
-}
-
 interface ChannelDetail {
   id: string;
   code: string;
   name?: string | null;
-  locales?: LocaleRef[];
   categoryTreeRootId?: string | null;
 }
 
-type TabKey = 'overview' | 'locales' | 'channelTree' | 'categoryMapping' | 'preview';
+type TabKey = 'overview' | 'channelTree' | 'categoryMapping' | 'preview';
 
-const TABS: TabKey[] = ['overview', 'locales', 'channelTree', 'categoryMapping', 'preview'];
+const TABS: TabKey[] = ['overview', 'channelTree', 'categoryMapping', 'preview'];
 
 export function ChannelShowPage() {
   const { t } = useTranslation();
@@ -98,11 +91,6 @@ export function ChannelShowPage() {
           <CardContent className="pt-6">
             {activeTab === 'overview' ? (
               <OverviewTab channel={channel} />
-            ) : activeTab === 'locales' ? (
-              <ListTab
-                values={(channel.locales ?? []).map((l) => l.code)}
-                emptyKey="channels.show.no_locales"
-              />
             ) : (
               <PlaceholderTab tab="preview" />
             )}
@@ -120,32 +108,12 @@ function OverviewTab({ channel }: { channel: ChannelDetail }) {
       <Row label={t('channels.fields.code')}>
         <span className="font-mono text-xs">{channel.code}</span>
       </Row>
-      <Row label={t('channels.fields.locales_count')}>{channel.locales?.length ?? 0}</Row>
       {channel.categoryTreeRootId ? (
         <Row label={t('channels.fields.category_root')}>
           <span className="font-mono text-xs">{channel.categoryTreeRootId}</span>
         </Row>
       ) : null}
     </dl>
-  );
-}
-
-function ListTab({ values, emptyKey }: { values: string[]; emptyKey: string }) {
-  const { t } = useTranslation();
-  if (values.length === 0) {
-    return <p className="text-sm text-muted-foreground">{t(emptyKey)}</p>;
-  }
-  return (
-    <ul className="flex flex-wrap gap-2">
-      {values.map((value) => (
-        <li
-          key={value}
-          className="rounded bg-muted px-2 py-1 font-mono text-xs uppercase tracking-wide"
-        >
-          {value}
-        </li>
-      ))}
-    </ul>
   );
 }
 

@@ -6,13 +6,9 @@ namespace App\Channel\Application\Command\CreateChannel;
 
 final readonly class CreateChannelCommand
 {
-    /**
-     * @param array<int, string> $localeCodes
-     */
     public function __construct(
         public string $code,
         public string $name,
-        public array $localeCodes,
         public ?string $categoryTreeRootId = null,
     ) {
     }

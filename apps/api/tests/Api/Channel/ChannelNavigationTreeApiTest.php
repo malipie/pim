@@ -17,7 +17,6 @@ final class ChannelNavigationTreeApiTest extends ChannelApiTestCase
             'json' => [
                 'code' => $code,
                 'name' => 'Allegro',
-                'locales' => ['pl_PL'],
             ],
         ]);
         self::assertSame(201, $created->getStatusCode());

@@ -5,12 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { LocalePicker } from './locale-picker';
-
 export interface ChannelFormValues {
   code: string;
   name: string;
-  locales: string[];
 }
 
 interface ChannelFormProps {
@@ -24,7 +21,6 @@ interface ChannelFormProps {
 const EMPTY: ChannelFormValues = {
   code: '',
   name: '',
-  locales: [],
 };
 
 const CODE_REGEX = /^[a-z0-9_]+$/;
@@ -41,7 +37,6 @@ export function ChannelForm({
     ...EMPTY,
     ...defaultValues,
     name: defaultValues?.name ?? '',
-    locales: defaultValues?.locales ?? [],
   });
 
   const errors: Partial<Record<keyof ChannelFormValues, string>> = {};
@@ -54,9 +49,6 @@ export function ChannelForm({
   }
   if (values.name.trim() === '') {
     errors.name = t('channels.form.validation.required');
-  }
-  if (values.locales.length === 0) {
-    errors.locales = t('channels.form.validation.locales_min');
   }
 
   const isValid = Object.keys(errors).length === 0;
@@ -116,22 +108,6 @@ export function ChannelForm({
             ) : null}
           </div>
         </div>
-      </div>
-
-      <div className="rounded-xl border bg-card p-6">
-        <Label id="channel-locales-label" className="mb-3 block">
-          {t('channels.form.fields.locales')}
-        </Label>
-        <LocalePicker
-          value={values.locales}
-          onChange={(locales) => setValues({ ...values, locales })}
-          ariaLabelledBy="channel-locales-label"
-        />
-        {errors.locales ? (
-          <p role="alert" className="mt-2 text-xs text-destructive">
-            {errors.locales}
-          </p>
-        ) : null}
       </div>
 
       <div className="flex items-center justify-end gap-2">

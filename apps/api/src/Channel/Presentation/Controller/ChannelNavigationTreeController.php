@@ -37,8 +37,8 @@ use const JSON_THROW_ON_ERROR;
 /**
  * CHC-01 (#1284) — per-channel navigation-tree CRUD.
  *
- * Modelled on {@see ChannelLocaleMatrixController}: nested under a channel,
- * not 1:1 CRUD on an entity (root creation also stamps
+ * Nested under a channel rather than 1:1 CRUD on an entity (root creation
+ * also stamps
  * `channel.categoryTreeRootId`, delete cascades a subtree), so it lives as a
  * thin controller over the CQRS command bus instead of an API Platform
  * sub-resource. The master category tree and EffectiveAttributeGroupResolver

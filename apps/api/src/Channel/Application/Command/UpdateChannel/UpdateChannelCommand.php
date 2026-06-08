@@ -9,13 +9,11 @@ use Symfony\Component\Uid\Uuid;
 final readonly class UpdateChannelCommand
 {
     /**
-     * @param array<int, string>|null $localeCodes
-     * @param string|false|null       $categoryTreeRootId pass `false` to leave unchanged, `null` or `''` to clear, string UUID to set
+     * @param string|false|null $categoryTreeRootId pass `false` to leave unchanged, `null` or `''` to clear, string UUID to set
      */
     public function __construct(
         public Uuid $id,
         public ?string $name = null,
-        public ?array $localeCodes = null,
         public string|false|null $categoryTreeRootId = false,
     ) {
     }

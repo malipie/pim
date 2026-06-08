@@ -28,16 +28,4 @@ final class ChannelInput
     #[Assert\Length(max: 255)]
     #[Groups(['channel:create'])]
     public string $name = '';
-
-    /**
-     * Locale codes (BCP-47 shape, e.g. `pl_PL`).
-     *
-     * @var array<int, string>
-     */
-    #[Assert\NotBlank]
-    #[Assert\Type('array')]
-    #[Assert\Count(min: 1)]
-    #[Assert\All([new Assert\Type('string'), new Assert\NotBlank()])]
-    #[Groups(['channel:create'])]
-    public array $locales = [];
 }

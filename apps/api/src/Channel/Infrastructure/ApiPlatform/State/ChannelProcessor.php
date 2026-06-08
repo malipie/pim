@@ -74,7 +74,6 @@ final readonly class ChannelProcessor implements ProcessorInterface
         $command = new CreateChannelCommand(
             code: $data->code,
             name: $data->name,
-            localeCodes: $data->locales,
             categoryTreeRootId: null,
         );
 
@@ -115,7 +114,6 @@ final readonly class ChannelProcessor implements ProcessorInterface
         $command = new UpdateChannelCommand(
             id: $id,
             name: $data->name,
-            localeCodes: $data->locales,
             categoryTreeRootId: false,
         );
         $this->dispatch($command);

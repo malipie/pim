@@ -21,7 +21,6 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
             'json' => [
                 'code' => 'shopify_pl',
                 'name' => 'Shopify PL',
-                'locales' => ['pl_PL', 'en_US'],
             ],
         ]);
 
@@ -29,9 +28,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $payload = $response->toArray();
         self::assertSame('shopify_pl', $payload['code']);
         self::assertSame('Shopify PL', $payload['name']);
-        $locales = $payload['locales'];
-        \assert(\is_array($locales));
-        self::assertCount(2, $locales);
+        self::assertArrayNotHasKey('locales', $payload);
         self::assertArrayNotHasKey('currencies', $payload);
     }
 
@@ -41,18 +38,10 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $client = $this->authenticatedClient();
 
         $client->request('POST', '/api/channels', [
-            'json' => [
-                'code' => 'shopify_pl',
-                'name' => 'X',
-                'locales' => ['pl_PL'],
-            ],
+            'json' => ['code' => 'shopify_pl', 'name' => 'X'],
         ]);
         $second = $client->request('POST', '/api/channels', [
-            'json' => [
-                'code' => 'shopify_pl',
-                'name' => 'Y',
-                'locales' => ['pl_PL'],
-            ],
+            'json' => ['code' => 'shopify_pl', 'name' => 'Y'],
         ]);
 
         self::assertSame(409, $second->getStatusCode());
@@ -64,11 +53,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $client = $this->authenticatedClient();
 
         $response = $client->request('POST', '/api/channels', [
-            'json' => [
-                'code' => 'INVALID-WITH-DASH',
-                'name' => 'X',
-                'locales' => ['pl_PL'],
-            ],
+            'json' => ['code' => 'INVALID-WITH-DASH', 'name' => 'X'],
         ]);
 
         self::assertSame(422, $response->getStatusCode());
@@ -80,27 +65,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $client = $this->authenticatedClient();
 
         $response = $client->request('POST', '/api/channels', [
-            'json' => [
-                'code' => 'shop',
-                'name' => '',
-                'locales' => ['pl_PL'],
-            ],
-        ]);
-
-        self::assertSame(422, $response->getStatusCode());
-    }
-
-    #[Test]
-    public function postRejectsUnknownLocale(): void
-    {
-        $client = $this->authenticatedClient();
-
-        $response = $client->request('POST', '/api/channels', [
-            'json' => [
-                'code' => 'shop',
-                'name' => 'X',
-                'locales' => ['xx_XX'],
-            ],
+            'json' => ['code' => 'shop', 'name' => ''],
         ]);
 
         self::assertSame(422, $response->getStatusCode());
@@ -112,11 +77,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $client = $this->authenticatedClient();
 
         $created = $client->request('POST', '/api/channels', [
-            'json' => [
-                'code' => 'shop',
-                'name' => 'Sklep',
-                'locales' => ['pl_PL'],
-            ],
+            'json' => ['code' => 'shop', 'name' => 'Sklep'],
         ]);
         $id = self::extractId($created->toArray());
 
@@ -135,11 +96,7 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         $client = $this->authenticatedClient();
 
         $created = $client->request('POST', '/api/channels', [
-            'json' => [
-                'code' => 'shop',
-                'name' => 'Sklep',
-                'locales' => ['pl_PL'],
-            ],
+            'json' => ['code' => 'shop', 'name' => 'Sklep'],
         ]);
         $id = self::extractId($created->toArray());
 

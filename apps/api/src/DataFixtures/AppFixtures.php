@@ -206,7 +206,6 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
         $demoTenant = $tenants[0];
         \assert('demo' === $demoTenant->getCode());
         $allegro = new Channel('allegro', 'Allegro');
-        $allegro->addLocale($plPL);
         $allegro->assignTenant($demoTenant);
         $manager->persist($allegro);
         $manager->flush();

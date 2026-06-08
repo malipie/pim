@@ -25,24 +25,8 @@ final class ChannelTest extends TestCase
         self::assertInstanceOf(Uuid::class, $channel->getId());
         self::assertSame('ecommerce_pl', $channel->getCode());
         self::assertSame('Sklep PL', $channel->getName());
-        self::assertCount(0, $channel->getLocales());
         self::assertNull($channel->getCategoryTreeRootId());
         self::assertNull($channel->getTenant());
-    }
-
-    #[Test]
-    public function localeM2mIsIdempotent(): void
-    {
-        $channel = new Channel('ecommerce_pl', 'Sklep PL');
-        $pl = new Locale('pl_PL', 'Polski');
-
-        $channel->addLocale($pl);
-        $channel->addLocale($pl);
-
-        self::assertCount(1, $channel->getLocales());
-
-        $channel->removeLocale($pl);
-        self::assertCount(0, $channel->getLocales());
     }
 
     #[Test]
