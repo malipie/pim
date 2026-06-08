@@ -23,8 +23,15 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
  *     is the fallback. The tenant's primary locale is stored as global, so
  *     a read in the primary locale needs no locale overlay.
  *   - Per (effective locale, channel) the most specific applicable row
- *     wins, falling back down the chain
- *     `(locale+channel) > channel-only > locale-only > global`.
+ *     wins, **locale-first**: the locale fallback chain dominates and the
+ *     channel match is only a tie-breaker within the same locale rank, so
+ *     the chain is
+ *     `(locale+channel) > locale-only > (next-locale+channel) > next-locale
+ *     > … > channel-only > global`.
+ *     Concretely, an empty `(EN, Allegro)` reads from `(EN, global)`
+ *     ("EN, every channel"), never from `(PL, Allegro)` ("this channel,
+ *     primary locale"). Encoded below as
+ *     `rank = (maxChainLen - chainPos) * 2 + hasChannel`.
  *
  * Returns a detached CLONE with the overlaid index — never the managed
  * entity. Mutating the managed instance would leak the scoped reading onto
