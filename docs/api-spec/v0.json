@@ -8378,7 +8378,7 @@
             },
             "Channel-admin.read": {
                 "type": "object",
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a name (plain string) \u2014 what admins see in the UI. Internal-only,\n    never published to a destination, so it is intentionally single-language;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration.",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a name (plain string) \u2014 what admins see in the UI. Internal-only,\n    never published to a destination, so it is intentionally single-language;\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration.",
                 "properties": {
                     "id": {
                         "type": [
@@ -8394,12 +8394,6 @@
                     "name": {
                         "maxLength": 255,
                         "type": "string"
-                    },
-                    "locales": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/Locale-admin.read"
-                        }
                     },
                     "categoryTreeRootId": {
                         "readOnly": true,
@@ -8418,11 +8412,10 @@
             },
             "Channel.ChannelInput-channel.create": {
                 "type": "object",
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a name (plain string) \u2014 what admins see in the UI. Internal-only,\n    never published to a destination, so it is intentionally single-language;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration.",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a name (plain string) \u2014 what admins see in the UI. Internal-only,\n    never published to a destination, so it is intentionally single-language;\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration.",
                 "required": [
                     "code",
-                    "name",
-                    "locales"
+                    "name"
                 ],
                 "properties": {
                     "code": {
@@ -8436,20 +8429,12 @@
                         "description": "Internal admin display name. Single-language by design \u2014 the channel\nname is never published to a destination.",
                         "default": "",
                         "type": "string"
-                    },
-                    "locales": {
-                        "minItems": 1,
-                        "description": "Locale codes (BCP-47 shape, e.g. `pl_PL`).",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
                     }
                 }
             },
             "Channel.ChannelPatchInput-channel.update.jsonMergePatch": {
                 "type": "object",
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a name (plain string) \u2014 what admins see in the UI. Internal-only,\n    never published to a destination, so it is intentionally single-language;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration.",
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a name (plain string) \u2014 what admins see in the UI. Internal-only,\n    never published to a destination, so it is intentionally single-language;\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration.",
                 "properties": {
                     "name": {
                         "maxLength": 255,
@@ -8457,16 +8442,6 @@
                             "string",
                             "null"
                         ]
-                    },
-                    "locales": {
-                        "minItems": 1,
-                        "type": [
-                            "array",
-                            "null"
-                        ],
-                        "items": {
-                            "type": "string"
-                        }
                     }
                 }
             },
@@ -8493,12 +8468,6 @@
                                 "maxLength": 255,
                                 "type": "string"
                             },
-                            "locales": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/components/schemas/Locale.jsonld-admin.read"
-                                }
-                            },
                             "categoryTreeRootId": {
                                 "readOnly": true,
                                 "description": "Stored as a bare UUID rather than a Doctrine relation to keep Channel\nDomain free of cross-BC entity imports \u2014 the FK lives at the DB layer\n(CASCADE-on-delete in the migration), the kind=category invariant is\nenforced by ChannelCategoryRootValidator via GetObjectSummary (RF-19).",
@@ -8515,7 +8484,7 @@
                         ]
                     }
                 ],
-                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a name (plain string) \u2014 what admins see in the UI. Internal-only,\n    never published to a destination, so it is intentionally single-language;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration."
+                "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a name (plain string) \u2014 what admins see in the UI. Internal-only,\n    never published to a destination, so it is intentionally single-language;\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration."
             },
             "ConstraintViolation": {
                 "type": "object",
@@ -8680,7 +8649,7 @@
                     },
                     "status": {
                         "type": [
-                            "integer",
+                            "number",
                             "null"
                         ],
                         "examples": [
@@ -8729,7 +8698,7 @@
                             },
                             "status": {
                                 "type": [
-                                    "integer",
+                                    "number",
                                     "null"
                                 ],
                                 "examples": [
@@ -10096,49 +10065,6 @@
                 ],
                 "description": "VIEW-IMP-03 (#500) \u2014 connection config for incoming file feeds.\n\nLives alongside the profiles + sessions tables in the Import bundle.\nTenant-scoped + owner-scoped; the operator only sees the sources\nthey registered. `authRef` is a pointer to the Symfony Secrets Vault\n\u2014 credential plaintext never lands in the DB.\n\nPolling daemon is not part of V03 \u2014 only the schema, CRUD endpoints,\nand a manual `test-connection` probe land here. Auto-pickup of files\nmatching `filePattern` is scoped to the polling follow-up."
             },
-            "Locale-admin.read": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "uuid"
-                    },
-                    "code": {
-                        "maxLength": 16,
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "language": {
-                        "default": "",
-                        "type": "string"
-                    },
-                    "region": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "displayName": {
-                        "description": "two-letter UI-locale \u21d2 native display name,\ne.g. {\"pl\":\"Polski (Polska)\",\"en\":\"Polish (Poland)\"}.",
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string"
-                        }
-                    },
-                    "popular": {
-                        "readOnly": true,
-                        "type": "boolean"
-                    }
-                },
-                "required": [
-                    "code"
-                ]
-            },
             "Locale-locale.read": {
                 "type": "object",
                 "description": "BCP-47-shaped locale code (`pl_PL`, `en_US`, \u2026) shared across tenants.\n\nLocales are global infrastructure rows \u2014 every tenant references the\nsame `pl_PL` row rather than carrying its own copy. The seeded set in\nthe migration covers the ISO 639-1 + ISO 3166 catalog used by Cortex\n(~45 entries today, 14 of them `is_popular=true` for the CEE+DACH\ndropdown shortlist).\n\nNo TenantScoped: the table sits on the audit allowlist as global\ninfrastructure, like `permissions` and the global RBAC roles.",
@@ -10182,57 +10108,6 @@
                 "required": [
                     "code"
                 ]
-            },
-            "Locale.jsonld-admin.read": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/HydraItemBaseSchema"
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "id": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ],
-                                "format": "uuid"
-                            },
-                            "code": {
-                                "maxLength": 16,
-                                "type": "string"
-                            },
-                            "label": {
-                                "type": "string"
-                            },
-                            "language": {
-                                "default": "",
-                                "type": "string"
-                            },
-                            "region": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ]
-                            },
-                            "displayName": {
-                                "description": "two-letter UI-locale \u21d2 native display name,\ne.g. {\"pl\":\"Polski (Polska)\",\"en\":\"Polish (Poland)\"}.",
-                                "type": "object",
-                                "additionalProperties": {
-                                    "type": "string"
-                                }
-                            },
-                            "popular": {
-                                "readOnly": true,
-                                "type": "boolean"
-                            }
-                        },
-                        "required": [
-                            "code"
-                        ]
-                    }
-                ],
-                "description": "BCP-47-shaped locale code (`pl_PL`, `en_US`, \u2026) shared across tenants.\n\nLocales are global infrastructure rows \u2014 every tenant references the\nsame `pl_PL` row rather than carrying its own copy. The seeded set in\nthe migration covers the ISO 639-1 + ISO 3166 catalog used by Cortex\n(~45 entries today, 14 of them `is_popular=true` for the CEE+DACH\ndropdown shortlist).\n\nNo TenantScoped: the table sits on the audit allowlist as global\ninfrastructure, like `permissions` and the global RBAC roles."
             },
             "Locale.jsonld-locale.read": {
                 "allOf": [
@@ -10632,7 +10507,7 @@
         },
         {
             "name": "Channel",
-            "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a name (plain string) \u2014 what admins see in the UI. Internal-only,\n    never published to a destination, so it is intentionally single-language;\n  - a set of supported `Locale` rows (M2M `channel_locales`);\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration."
+            "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a name (plain string) \u2014 what admins see in the UI. Internal-only,\n    never published to a destination, so it is intentionally single-language;\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration."
         },
         {
             "name": "Locale",
