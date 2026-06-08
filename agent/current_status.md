@@ -1,5 +1,16 @@
 # Current Status
 
+## 2026-06-08: 🧹 refactor(channel/catalog) — usunięcie `channel_locales` (#1318) + locale-first dziedziczenie (#1319) + merge 25 Dependabot PR
+
+Trzy zadania operatora jednym ciągiem. #1317 potwierdzony jako merged (bez akcji).
+
+- **#1318 → PR #1345 (merged + closed)**: usunięcie wersji językowych z kanału. `channel.locales` była deklaracją bez egzekwowania (edycja produktu i tak bierze locale tenanta). BE: `Channel::$locales` + M2M out, migracja `Version20260607140000` (DROP `channel_locales`, `down` odtwarza), `ChannelInput`/`PatchInput`/processor/commands/handlers/serializer bez `locales`, usunięty `ChannelLocaleMatrixController` + test, seed + `TenantAuditCommand` (INFRA_TABLES) bez `channel_locales`. FE: usunięte LocalePicker + ChannelLocaleMatrix + tab/kolumna Locale + i18n. **Tenant-locale (`Locale`, `tenant_locales`, `/api/locales`) bez zmian.** Gates 0, OpenAPI regen (status integer drift fix ×2), PHPUnit 113/113 Channel, CI 15/15. Live smoke: `/api/channel-locales`→404, POST `{code,name}`→201, lista bez `locales`, tabela DROPped.
+- **#1319 → PR #1347 (merged + closed)**: locale-first read inheritance dla KAŻDEGO ObjectType. **Backend już był locale-first** (rank `(maxChainLen−pos)*2 + hasChannel` trzyma locale-row nad channel-only) — sprzeczny był tylko **docblock klasy** `ObjectValueLocaleOverlay` (`channel-only > locale-only`). Fix docblocku + nowy `CatalogObjectLocaleFirstInheritanceApiTest` (Produkt **i** Kategoria, 2/2, 41 asercji): puste `(EN,Allegro)`→`(EN,global)`, nie channel-only. Bez zmian FE/kontraktu (scope-status liczy tą samą rangą). Live smoke: `(EN,allegro)`→`english-all-channels` ✅.
+- **Warianty (#1319 §3.2)** świadomie wydzielone → **#1346** (reaktywne wariant→rodzic to zmiana hot read-path; dziś statyczna kopia przy generowaniu). Decyzja operatora.
+- **Dependabot**: 24 PR merged (squash), #1344 auto-closed przez Dependabot jako redundant (react-router już up-to-date). Kolejka wyczyszczona. Uwaga: `dependabot.yml` próbuje dodać label `tooling` którego nie ma w repo (nieszkodliwy nit).
+
+**Następny krok**: brak otwartych ticketów (poza #1346 follow-up wariantów, świadomie odłożony). Czekam na zadanie operatora.
+
 ## 2026-06-07: 🧹 refactor(channel) — etykieta `{pl,en}` → skalarne `name` (#1316 → PR #1317, merged + closed)
 
 Operator zakwestionował dwujęzyczną etykietę na formularzu kanału (PL+EN, oba required, zahardkodowane niezależnie od locale tenanta). Diagnoza: `label` to tylko wewnętrzna nazwa admina, nic nie publikuje jej na kanał → wielojęzyczność zbędna. Wariant B (operator: „czysto i pięknie"): skalarne `name`.
