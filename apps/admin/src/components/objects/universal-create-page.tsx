@@ -194,7 +194,7 @@ export function UniversalCreatePage({
     const trimmedCode = code.trim();
     if (trimmedCode === '') {
       toast.error(
-        t('object_create.validation.code_required', { defaultValue: 'Kod jest wymagany' }),
+        t('object_create.validation.name_required', { defaultValue: 'Nazwa jest wymagana' }),
       );
       return;
     }
@@ -348,21 +348,19 @@ export function UniversalCreatePage({
               ▣
             </div>
             <div className="min-w-0 flex-1 space-y-2">
+              {/* #1361 — this single identifier field is the object's
+                  human-readable name for custom object types (e.g. a
+                  service "Wniesienie"); label it "Nazwa" and drop the
+                  code/uniqueness hint that read like an SKU. */}
               <Input
                 autoFocus
-                placeholder={t('object_create.placeholder.code', {
-                  defaultValue: 'Kod (np. CAR-001)',
+                placeholder={t('object_create.placeholder.name', {
+                  defaultValue: 'Nazwa',
                 })}
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
                 className="font-display h-10 rounded-lg border-zinc-200 bg-white text-[20px] font-semibold tracking-tight"
               />
-              <p className="text-[11.5px] text-muted-foreground">
-                {t('object_create.code_hint', {
-                  defaultValue:
-                    'Kod musi być unikalny w obrębie tego typu obiektu (np. SKU dla produktu).',
-                })}
-              </p>
             </div>
           </div>
         </div>
