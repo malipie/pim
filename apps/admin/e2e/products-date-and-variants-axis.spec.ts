@@ -110,6 +110,8 @@ test('product detail date picker + variants axis combobox', async ({ page }) => 
   // Combobox opens its option list on a single click instead.
   const axisTrigger = page.locator('button[aria-haspopup="listbox"]').first();
   await expect(axisTrigger).toBeVisible();
+  // #1360 — the selector explains which attribute types qualify as an axis.
+  await expect(page.getByText(/osią wariantów mogą być tylko atrybuty/i)).toBeVisible();
   await axisTrigger.click();
 
   // The popover shows attribute labels for select/multiselect attrs
