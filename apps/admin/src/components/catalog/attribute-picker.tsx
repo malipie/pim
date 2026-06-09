@@ -27,6 +27,7 @@ interface AttributeRow {
   code: string;
   label: Record<string, string> | string | null;
   type?: string;
+  filterable?: boolean;
 }
 
 interface AttributeListResponse {
@@ -43,6 +44,14 @@ export interface AttributePickerProps {
    * `number` / `metric` only).
    */
   allowedTypes?: ReadonlyArray<string>;
+  /**
+   * #1354 — when true, restrict the list to attributes flagged
+   * `is_filterable=true`. The advanced filter panel sets this so the
+   * operator can only build conditions on attributes the search index
+   * actually filters on; picking a non-filterable attribute previously
+   * produced a silently-empty result set.
+   */
+  filterableOnly?: boolean;
   placeholder?: string;
   className?: string;
 }
@@ -57,6 +66,7 @@ export function AttributePicker({
   value,
   onChange,
   allowedTypes,
+  filterableOnly,
   placeholder,
   className,
 }: AttributePickerProps) {
@@ -134,9 +144,15 @@ export function AttributePicker({
   }, [open]);
 
   const allowedRows = useMemo(() => {
-    if (!allowedTypes || allowedTypes.length === 0) return attributes;
-    return attributes.filter((row) => !row.type || allowedTypes.includes(row.type));
-  }, [attributes, allowedTypes]);
+    let rows = attributes;
+    // #1354 — strict filterable gate. Applied before the type filter so
+    // a consumer can combine both (e.g. filterable numeric attributes).
+    if (filterableOnly) {
+      rows = rows.filter((row) => row.filterable === true);
+    }
+    if (!allowedTypes || allowedTypes.length === 0) return rows;
+    return rows.filter((row) => !row.type || allowedTypes.includes(row.type));
+  }, [attributes, allowedTypes, filterableOnly]);
 
   const filteredRows = useMemo(() => {
     const needle = query.trim().toLowerCase();

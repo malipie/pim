@@ -126,6 +126,13 @@ final readonly class DemoCatalogSeeder
             $attribute->changeRequired($def['required'] ?? false);
             $attribute->changeLocalizable($def['localizable'] ?? false);
             $attribute->changeScopable($def['scopable'] ?? false);
+            // #1354 — flag demo attributes as filterable so they appear in
+            // the advanced filter panel (the picker now shows ONLY
+            // `is_filterable=true` attributes) AND actually resolve in
+            // Meilisearch (the index settings union `is_filterable` codes
+            // into `filterableAttributes`). Without this the strict panel
+            // would render an empty attribute picker on the demo data.
+            $attribute->changeFilterable($def['filterable'] ?? false);
             $attribute->updateValidationRules($def['rules'] ?? []);
             $attribute->reorder($position++);
             $this->em->persist($attribute);
@@ -396,7 +403,7 @@ final readonly class DemoCatalogSeeder
     }
 
     /**
-     * @return array<string, array{label: array<string, string>, type: AttributeType, required?: bool, localizable?: bool, scopable?: bool, rules?: array<string, mixed>, options?: list<array{0: string, 1: array<string, string>, 2?: string|null, 3?: bool, 4?: bool}>}>
+     * @return array<string, array{label: array<string, string>, type: AttributeType, required?: bool, localizable?: bool, scopable?: bool, filterable?: bool, rules?: array<string, mixed>, options?: list<array{0: string, 1: array<string, string>, 2?: string|null, 3?: bool, 4?: bool}>}>
      */
     private static function attributeDefinitions(): array
     {
@@ -439,6 +446,7 @@ final readonly class DemoCatalogSeeder
             'brand' => [
                 'label' => ['pl' => 'Marka', 'en' => 'Brand'],
                 'type' => AttributeType::Text,
+                'filterable' => true,
             ],
             'color' => [
                 'label' => ['pl' => 'Kolor', 'en' => 'Color'],
@@ -447,6 +455,7 @@ final readonly class DemoCatalogSeeder
                 // Values editor swatch dot renders next to each label, and
                 // `red` is the default option (one default per attribute,
                 // partial unique index on attribute_options).
+                'filterable' => true,
                 'options' => [
                     ['red', ['pl' => 'Czerwony', 'en' => 'Red'], '#EF4444', true, false],
                     ['green', ['pl' => 'Zielony', 'en' => 'Green'], '#10B981', false, false],
@@ -458,6 +467,7 @@ final readonly class DemoCatalogSeeder
             'size' => [
                 'label' => ['pl' => 'Rozmiar', 'en' => 'Size'],
                 'type' => AttributeType::Select,
+                'filterable' => true,
                 'options' => [
                     ['XS', ['pl' => 'XS', 'en' => 'XS']],
                     ['S', ['pl' => 'S', 'en' => 'S']],
@@ -469,6 +479,7 @@ final readonly class DemoCatalogSeeder
             'tags' => [
                 'label' => ['pl' => 'Tagi', 'en' => 'Tags'],
                 'type' => AttributeType::Multiselect,
+                'filterable' => true,
                 'rules' => ['max_count' => 5],
                 'options' => [
                     ['new', ['pl' => 'Nowość', 'en' => 'New']],
@@ -484,25 +495,30 @@ final readonly class DemoCatalogSeeder
                 // (Allegro charges a different amount); makes the channel picker
                 // on the product card show a real difference, not a mock.
                 'scopable' => true,
+                'filterable' => true,
                 'rules' => ['min_amount' => 0, 'currencies' => ['PLN', 'EUR', 'USD']],
             ],
             'weight' => [
                 'label' => ['pl' => 'Waga', 'en' => 'Weight'],
                 'type' => AttributeType::Metric,
+                'filterable' => true,
                 'rules' => ['units' => ['kg', 'g', 'cm'], 'min' => 0],
             ],
             'height' => [
                 'label' => ['pl' => 'Wysokość', 'en' => 'Height'],
                 'type' => AttributeType::Number,
+                'filterable' => true,
                 'rules' => ['min' => 0],
             ],
             'in_stock' => [
                 'label' => ['pl' => 'Na stanie', 'en' => 'In stock'],
                 'type' => AttributeType::Boolean,
+                'filterable' => true,
             ],
             'release_date' => [
                 'label' => ['pl' => 'Data premiery', 'en' => 'Release date'],
                 'type' => AttributeType::Date,
+                'filterable' => true,
             ],
             'main_image' => [
                 'label' => ['pl' => 'Zdjęcie główne', 'en' => 'Main image'],
