@@ -207,7 +207,8 @@ test('UniversalCreatePage relation attribute renders picker and persists targets
       await page.locator('body').click({ position: { x: 10, y: 10 } });
 
       const newCarCode = `S_${stamp}`;
-      await page.getByPlaceholder(/kod \(np\. car-001\)/i).fill(newCarCode);
+      // #1361 — the custom-object identifier field is now labelled "Nazwa".
+      await page.getByPlaceholder(/^nazwa$/i).fill(newCarCode);
 
       // Capture the relation PUT so we can fail loud if it never fires
       // and inspect the body if the PUT lands but the relation does not
