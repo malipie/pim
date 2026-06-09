@@ -26,6 +26,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -198,6 +199,8 @@ final class ExportSessionController
             locales: $source->getLocales(),
             channels: $source->getChannels(),
             includeVariants: $source->includesVariants(),
+            entityType: $source->getEntityType(),
+            objectTypeId: $source->getObjectTypeId(),
         );
         $clone->assignTenant($tenant);
         $this->sessions->save($clone);
@@ -224,6 +227,16 @@ final class ExportSessionController
         $profile = $this->profiles->findById(Uuid::fromString($id));
         if (!$profile instanceof ExportProfile || !$profile->isOwnedBy($userId)) {
             throw new NotFoundHttpException(sprintf('Export profile "%s" was not found.', $id));
+        }
+
+        // EXR-04: generation for non-product types lands in EXR-05/06 — reject
+        // running such profiles with a clear 422 instead of dispatching a run
+        // that would fail mid-stream.
+        if (!$profile->getEntityType()->isExecutable()) {
+            throw new UnprocessableEntityHttpException(sprintf(
+                'Export of entity_type=%s is not implemented yet (delivered in EXR-05/EXR-06).',
+                $profile->getEntityType()->value,
+            ));
         }
 
         $session = $this->sessionFromProfile($profile, $tenant);
@@ -330,6 +343,8 @@ final class ExportSessionController
             locales: $this->stringArrayOrNull($config['locales'] ?? null),
             channels: $this->stringArrayOrNull($config['channels'] ?? null),
             includeVariants: \is_bool($config['include_variants'] ?? null) ? $config['include_variants'] : true,
+            entityType: $profile->getEntityType(),
+            objectTypeId: $profile->getObjectTypeId(),
         );
         $session->assignTenant($tenant);
 
@@ -382,6 +397,8 @@ final class ExportSessionController
     {
         return [
             'id' => $session->getId()->toRfc4122(),
+            'entity_type' => $session->getEntityType()->value,
+            'object_type_id' => $session->getObjectTypeId()?->toRfc4122(),
             'format' => $session->getFormat()->value,
             'target_scope' => $session->getTargetScope()->value,
             'target_count' => $session->getTargetCount(),

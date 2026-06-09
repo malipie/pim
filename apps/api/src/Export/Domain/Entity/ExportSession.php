@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Export\Domain\Entity;
 
 use App\Export\Domain\Enum\ExportEncoding;
+use App\Export\Domain\Enum\ExportEntityType;
 use App\Export\Domain\Enum\ExportFormat;
 use App\Export\Domain\Enum\ExportSource;
 use App\Export\Domain\Enum\ExportStatus;
@@ -50,6 +51,11 @@ class ExportSession extends AggregateRoot implements TenantScoped
     private ?string $encoding = null;
 
     private string $targetScope;
+
+    private string $entityType;
+
+    /** Bare uuid → Catalog\ObjectType; the FK lives at the DB level only (cross-BC decoupling). */
+    private ?Uuid $objectTypeId = null;
 
     /** @var array<string, mixed>|null */
     private ?array $filterSnapshot = null;
@@ -107,6 +113,8 @@ class ExportSession extends AggregateRoot implements TenantScoped
         ?array $locales = null,
         ?array $channels = null,
         bool $includeVariants = true,
+        ExportEntityType $entityType = ExportEntityType::Product,
+        ?Uuid $objectTypeId = null,
         ?Uuid $id = null,
     ) {
         $this->id = $id ?? Uuid::v7();
@@ -114,6 +122,8 @@ class ExportSession extends AggregateRoot implements TenantScoped
         $this->source = $source->value;
         $this->format = $format->value;
         $this->targetScope = $targetScope->value;
+        $this->entityType = $entityType->value;
+        $this->objectTypeId = $objectTypeId;
         $this->selectedColumns = $selectedColumns;
         $this->profile = $profile;
         $this->encoding = $encoding?->value;
@@ -171,6 +181,16 @@ class ExportSession extends AggregateRoot implements TenantScoped
     public function getTargetScope(): ExportTargetScope
     {
         return ExportTargetScope::from($this->targetScope);
+    }
+
+    public function getEntityType(): ExportEntityType
+    {
+        return ExportEntityType::from($this->entityType);
+    }
+
+    public function getObjectTypeId(): ?Uuid
+    {
+        return $this->objectTypeId;
     }
 
     /** @return array<string, mixed>|null */

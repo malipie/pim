@@ -29,6 +29,13 @@
         <field name="name" type="string" length="255"/>
         <field name="description" type="text" nullable="true"/>
 
+        <field name="entityType" type="string" length="32" column="entity_type">
+            <options>
+                <option name="default">product</option>
+            </options>
+        </field>
+        <field name="objectTypeId" type="uuid" column="object_type_id" nullable="true"/>
+
         <field name="config" type="json">
             <options>
                 <option name="jsonb">true</option>

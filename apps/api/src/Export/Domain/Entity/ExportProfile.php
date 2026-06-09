@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Export\Domain\Entity;
 
+use App\Export\Domain\Enum\ExportEntityType;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\AggregateRoot;
 use App\Shared\Domain\Tenant;
@@ -40,6 +41,11 @@ class ExportProfile extends AggregateRoot implements TenantScoped
 
     private ?string $description = null;
 
+    private string $entityType;
+
+    /** Bare uuid → Catalog\ObjectType; the FK lives at the DB level only (cross-BC decoupling). */
+    private ?Uuid $objectTypeId = null;
+
     /** @var array<string, mixed> */
     private array $config;
 
@@ -59,6 +65,8 @@ class ExportProfile extends AggregateRoot implements TenantScoped
         string $name,
         array $config,
         ?string $description = null,
+        ExportEntityType $entityType = ExportEntityType::Product,
+        ?Uuid $objectTypeId = null,
         ?Uuid $id = null,
     ) {
         $this->id = $id ?? Uuid::v7();
@@ -66,6 +74,8 @@ class ExportProfile extends AggregateRoot implements TenantScoped
         $this->name = $name;
         $this->config = $config;
         $this->description = $description;
+        $this->entityType = $entityType->value;
+        $this->objectTypeId = $objectTypeId;
         $now = new DateTimeImmutable();
         $this->createdAt = $now;
         $this->updatedAt = $now;
@@ -113,6 +123,23 @@ class ExportProfile extends AggregateRoot implements TenantScoped
     public function setDescription(?string $description): void
     {
         $this->description = $description;
+        $this->touch();
+    }
+
+    public function getEntityType(): ExportEntityType
+    {
+        return ExportEntityType::from($this->entityType);
+    }
+
+    public function getObjectTypeId(): ?Uuid
+    {
+        return $this->objectTypeId;
+    }
+
+    public function reclassify(ExportEntityType $entityType, ?Uuid $objectTypeId): void
+    {
+        $this->entityType = $entityType->value;
+        $this->objectTypeId = $objectTypeId;
         $this->touch();
     }
 
