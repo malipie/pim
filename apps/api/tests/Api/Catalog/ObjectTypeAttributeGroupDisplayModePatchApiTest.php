@@ -134,6 +134,78 @@ final class ObjectTypeAttributeGroupDisplayModePatchApiTest extends CatalogApiTe
         new ObjectTypeAttributeGroup($type, $group, 0, 'invalid_mode');
     }
 
+    #[Test]
+    public function patchUpdatesPosition(): void
+    {
+        $productId = $this->objectTypeIdFor(ObjectKind::Product);
+        $groupId = $this->attachGroupToProductType('position_patch');
+
+        $client = $this->authenticatedClient();
+        $client->request('PATCH', '/api/object_types/'.$productId.'/groups/'.$groupId, [
+            'json' => ['position' => 7],
+            'headers' => ['content-type' => 'application/json'],
+        ]);
+        self::assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
+
+        $response = $client->request('GET', '/api/object_types/'.$productId.'/attached_groups');
+        self::assertResponseIsSuccessful();
+        $patched = $this->findGroup($response->toArray(), $groupId);
+        self::assertSame(7, $patched['position']);
+    }
+
+    #[Test]
+    public function patchAcceptsPositionAndDisplayModeTogether(): void
+    {
+        $productId = $this->objectTypeIdFor(ObjectKind::Product);
+        $groupId = $this->attachGroupToProductType('position_and_mode');
+
+        $client = $this->authenticatedClient();
+        $client->request('PATCH', '/api/object_types/'.$productId.'/groups/'.$groupId, [
+            'json' => ['position' => 3, 'display_mode' => 'stacked'],
+            'headers' => ['content-type' => 'application/json'],
+        ]);
+        self::assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
+
+        $patched = $this->findGroup(
+            $client->request('GET', '/api/object_types/'.$productId.'/attached_groups')->toArray(),
+            $groupId,
+        );
+        self::assertSame(3, $patched['position']);
+        self::assertSame('stacked', $patched['displayMode']);
+    }
+
+    #[Test]
+    public function patchRejectsNegativePosition(): void
+    {
+        $productId = $this->objectTypeIdFor(ObjectKind::Product);
+        $groupId = $this->attachGroupToProductType('position_negative');
+
+        $client = $this->authenticatedClient();
+        $client->request('PATCH', '/api/object_types/'.$productId.'/groups/'.$groupId, [
+            'json' => ['position' => -1],
+            'headers' => ['content-type' => 'application/json'],
+        ]);
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+    }
+
+    /**
+     * @param array<array-key, mixed> $entries
+     *
+     * @return array<array-key, mixed>
+     */
+    private function findGroup(array $entries, string $groupId): array
+    {
+        foreach ($entries as $entry) {
+            if (!\is_array($entry)) {
+                continue;
+            }
+            if (($entry['id'] ?? null) === $groupId) {
+                return $entry;
+            }
+        }
+        self::fail(\sprintf('Group "%s" not found in attached_groups response.', $groupId));
+    }
+
     private function attachGroupToProductType(string $code): string
     {
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
