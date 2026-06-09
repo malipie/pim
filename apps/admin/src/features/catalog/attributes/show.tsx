@@ -137,7 +137,6 @@ function Editor({
   const [required, setRequired] = useState(attribute.required ?? false);
   const [localizable, setLocalizable] = useState(attribute.localizable ?? false);
   const [scopable, setScopable] = useState(attribute.scopable ?? false);
-  const [unique, setUnique] = useState(attribute.unique ?? false);
   const [filterable, setFilterable] = useState(attribute.filterable ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -247,7 +246,6 @@ function Editor({
     required !== (attribute.required ?? false),
     localizable !== (attribute.localizable ?? false),
     scopable !== (attribute.scopable ?? false),
-    unique !== (attribute.unique ?? false),
     filterable !== (attribute.filterable ?? false),
     relationDirty,
   ].filter(Boolean).length;
@@ -264,7 +262,6 @@ function Editor({
     setRequired(attribute.required ?? false);
     setLocalizable(attribute.localizable ?? false);
     setScopable(attribute.scopable ?? false);
-    setUnique(attribute.unique ?? false);
     setFilterable(attribute.filterable ?? false);
     setError(null);
   };
@@ -284,9 +281,6 @@ function Editor({
         if (required !== (attribute.required ?? false)) body.required = required;
         if (localizable !== (attribute.localizable ?? false)) body.localizable = localizable;
         if (scopable !== (attribute.scopable ?? false)) body.scopable = scopable;
-        // `unique` has no backend flag yet — submit-side stays a no-op
-        // until #1355 decides whether to persist it. (Previously this was
-        // wrongly mapped onto `required`, corrupting the required flag.)
         if (filterable !== (attribute.filterable ?? false)) body.filterable = filterable;
       }
       if (attribute.type === 'relation' && relationDirty) {
@@ -553,14 +547,9 @@ function Editor({
                 })}
                 onChange={isSystem ? undefined : setScopable}
               />
-              <FlagPill
-                on={unique}
-                label={t('attributes.flags.unique_label', { defaultValue: 'Unique' })}
-                desc={t('attributes.flags.unique_desc', {
-                  defaultValue: 'unikalna wartość w obrębie typu',
-                })}
-                onChange={isSystem ? undefined : setUnique}
-              />
+              {/* #1355 — "Unique" removed: it was a form-only no-op (no
+                  backend uniqueness flag/validator). Re-add when a real
+                  uniqueness feature ships. */}
               <FlagPill
                 on={filterable}
                 label={t('attributes.flags.filterable_label', { defaultValue: 'Filtrowalny' })}
