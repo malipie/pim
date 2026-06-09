@@ -729,14 +729,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                     onChange={(event) => setFieldValue('name', event.target.value)}
                     className="font-display h-10 rounded-lg border-zinc-200 bg-white text-[20px] font-semibold tracking-tight"
                   />
-                  <Input
-                    placeholder={t('products.detail.create.placeholder.brand', {
-                      defaultValue: 'Marka',
-                    })}
-                    value={brandValue}
-                    onChange={(event) => setFieldValue('brand', event.target.value)}
-                    className="h-8 w-64 rounded-lg border-zinc-200 bg-white text-[12px]"
-                  />
+                  {/* #1357 — "Marka" removed from the new-entry form. */}
                 </div>
               ) : (
                 <>
@@ -907,27 +900,9 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
             );
 
             if (activeTab === 'attributes') {
-              return (
-                <>
-                  {stackedGroups.map(renderStackedGroup)}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      toast.info(
-                        t('products.detail.add_attribute_group.unavailable', {
-                          defaultValue: 'Custom grupy ad-hoc — follow-up',
-                        }),
-                      )
-                    }
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 text-[13px] font-medium text-zinc-500 hover:bg-white hover:text-zinc-900"
-                  >
-                    +{' '}
-                    {t('products.detail.add_attribute_group.label', {
-                      defaultValue: 'Dodaj grupę atrybutów ad-hoc',
-                    })}
-                  </button>
-                </>
-              );
+              // #1357 — the non-functional "Dodaj grupę atrybutów ad-hoc"
+              // stub was removed from this view per operator request.
+              return <>{stackedGroups.map(renderStackedGroup)}</>;
             }
 
             // Tab-mode AttributeGroup → render only that group, with
