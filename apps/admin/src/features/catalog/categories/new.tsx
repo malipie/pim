@@ -122,6 +122,15 @@ export function CategoryCreatePage() {
         code,
         objectTypeId: categoryObjectTypeId,
       };
+      // #1358 — persist the typed name so the category tree shows a
+      // readable label instead of the raw snake_case code. Previously the
+      // name was captured but never sent (the VIEW-04b upserter wiring was
+      // never finished), so every operator-created category fell back to
+      // its code in the tree.
+      const name = namePl.trim() || nameEn.trim();
+      if (name !== '') {
+        body.attributes = { name };
+      }
       // ADR-015 — the categorizable ObjectType tree this category joins.
       if (targetObjectTypeId) {
         body.categoryTargetObjectTypeId = targetObjectTypeId;
@@ -163,10 +172,6 @@ export function CategoryCreatePage() {
       setSubmitting(false);
     }
   };
-
-  // Surface name/desc state so Biome doesn't flag them as unused before
-  // the attributes upserter wiring in VIEW-04b.
-  const _draftedAttrs = { namePl, nameEn, descPl };
 
   return (
     <div className="space-y-6">
@@ -327,11 +332,6 @@ export function CategoryCreatePage() {
           </Button>
         </div>
       </Card>
-
-      {/* keep namePl/nameEn/descPl referenced — wired in VIEW-04b */}
-      <span className="hidden" aria-hidden>
-        {JSON.stringify(_draftedAttrs)}
-      </span>
     </div>
   );
 }
