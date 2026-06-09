@@ -51,8 +51,6 @@ interface CreatePayload {
   helpEn: string;
   type: string;
   required: boolean;
-  unique: boolean;
-  indexed: boolean;
   filterable: boolean;
 }
 
@@ -64,8 +62,6 @@ const EMPTY: CreatePayload = {
   helpEn: '',
   type: 'text',
   required: false,
-  unique: false,
-  indexed: false,
   filterable: false,
 };
 
@@ -143,10 +139,6 @@ export function AttributeCreatePage() {
       };
       const help = stripEmpty({ pl: values.helpPl, en: values.helpEn });
       if (Object.keys(help).length > 0) body.help = help;
-      // `unique` is not in AttributeInput — surfaced via `validationRules`
-      // when the BE adds it. For now keep it form-only so the FE matches
-      // the mockup; submit-side stays no-op.
-      // `indexed` is similarly form-only (no `is_indexed` BE column yet).
 
       // #949 — relation config fields go through the same POST. Filter
       // empty advanced-field rows (the validator 422s them; the UX is
@@ -412,22 +404,11 @@ export function AttributeCreatePage() {
                 checked={values.required}
                 onChange={(next) => setValues({ ...values, required: next })}
               />
-              <SettingToggleRow
-                label={t('attributes.flags.unique_label', { defaultValue: 'Unique' })}
-                description={t('attributes.flags.unique_desc', {
-                  defaultValue: 'Wartość unikalna w obrębie ObjectType',
-                })}
-                checked={values.unique}
-                onChange={(next) => setValues({ ...values, unique: next })}
-              />
-              <SettingToggleRow
-                label={t('attributes.flags.indexed_label', { defaultValue: 'Indexed' })}
-                description={t('attributes.flags.indexed_desc', {
-                  defaultValue: 'Indeks dla wyszukiwania',
-                })}
-                checked={values.indexed}
-                onChange={(next) => setValues({ ...values, indexed: next })}
-              />
+              {/* #1355 / #1356 — the "Unique" and "Indexed" toggles were
+                  form-only (no backend column / enforcement) and only
+                  misled operators into thinking they did something. Removed
+                  until a real uniqueness validator / Meilisearch indexing
+                  flag is implemented as a dedicated feature. */}
               <SettingToggleRow
                 label={t('attributes.flags.filterable_label', { defaultValue: 'Filtrowalny' })}
                 description={t('attributes.flags.filterable_desc', {
