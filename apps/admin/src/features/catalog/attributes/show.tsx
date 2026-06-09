@@ -134,6 +134,7 @@ function Editor({
   const [labelEn, setLabelEn] = useState(initialLabel.en ?? '');
   const [helpPl, setHelpPl] = useState(initialHelp.pl ?? '');
   const [helpEn, setHelpEn] = useState(initialHelp.en ?? '');
+  const [required, setRequired] = useState(attribute.required ?? false);
   const [localizable, setLocalizable] = useState(attribute.localizable ?? false);
   const [scopable, setScopable] = useState(attribute.scopable ?? false);
   const [unique, setUnique] = useState(attribute.unique ?? false);
@@ -243,6 +244,7 @@ function Editor({
   const dirtyFields = [
     labelPl !== (initialLabel.pl ?? '') || labelEn !== (initialLabel.en ?? ''),
     helpPl !== (initialHelp.pl ?? '') || helpEn !== (initialHelp.en ?? ''),
+    required !== (attribute.required ?? false),
     localizable !== (attribute.localizable ?? false),
     scopable !== (attribute.scopable ?? false),
     unique !== (attribute.unique ?? false),
@@ -259,6 +261,7 @@ function Editor({
     setLabelEn(initialLabel.en ?? '');
     setHelpPl(initialHelp.pl ?? '');
     setHelpEn(initialHelp.en ?? '');
+    setRequired(attribute.required ?? false);
     setLocalizable(attribute.localizable ?? false);
     setScopable(attribute.scopable ?? false);
     setUnique(attribute.unique ?? false);
@@ -276,9 +279,14 @@ function Editor({
       const nextHelp = stripEmpty({ pl: helpPl, en: helpEn });
       if (JSON.stringify(nextHelp) !== JSON.stringify(initialHelp)) body.help = nextHelp;
       if (!isSystem) {
+        // #1350 — `required` is now editable in-place (the edit form was
+        // missing the toggle even though PATCH already accepted it).
+        if (required !== (attribute.required ?? false)) body.required = required;
         if (localizable !== (attribute.localizable ?? false)) body.localizable = localizable;
         if (scopable !== (attribute.scopable ?? false)) body.scopable = scopable;
-        if (unique !== (attribute.unique ?? false)) body.required = unique; // BE has no `unique` flag yet
+        // `unique` has no backend flag yet — submit-side stays a no-op
+        // until #1355 decides whether to persist it. (Previously this was
+        // wrongly mapped onto `required`, corrupting the required flag.)
         if (filterable !== (attribute.filterable ?? false)) body.filterable = filterable;
       }
       if (attribute.type === 'relation' && relationDirty) {
@@ -521,6 +529,14 @@ function Editor({
               {t('attributes.flags_label', { defaultValue: 'Flagi' })}
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <FlagPill
+                on={required}
+                label={t('attributes.flags.required_label', { defaultValue: 'Wymagany' })}
+                desc={t('attributes.flags.required_desc', {
+                  defaultValue: 'pole musi być wypełnione',
+                })}
+                onChange={isSystem ? undefined : setRequired}
+              />
               <FlagPill
                 on={localizable}
                 label={t('attributes.flags.localizable_label', { defaultValue: 'Localizable' })}

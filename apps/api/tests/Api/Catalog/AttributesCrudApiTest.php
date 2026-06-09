@@ -113,6 +113,32 @@ final class AttributesCrudApiTest extends CatalogApiTestCase
         self::assertTrue($payload['localizable']);
     }
 
+    /**
+     * #1350 — the edit form gained a "Wymagany" toggle; assert PATCH
+     * actually flips `required` (and back), since the FE form was the
+     * only thing missing — the endpoint already accepted the field.
+     */
+    #[Test]
+    public function patchTogglesRequired(): void
+    {
+        $id = $this->seedAttribute('warranty_months', AttributeType::Number);
+        $client = $this->authenticatedClient();
+
+        $on = $client->request('PATCH', '/api/attributes/'.$id->toRfc4122(), [
+            'headers' => ['content-type' => 'application/merge-patch+json'],
+            'json' => ['required' => true],
+        ]);
+        self::assertSame(200, $on->getStatusCode());
+        self::assertTrue($on->toArray()['required']);
+
+        $off = $client->request('PATCH', '/api/attributes/'.$id->toRfc4122(), [
+            'headers' => ['content-type' => 'application/merge-patch+json'],
+            'json' => ['required' => false],
+        ]);
+        self::assertSame(200, $off->getStatusCode());
+        self::assertFalse($off->toArray()['required']);
+    }
+
     #[Test]
     public function deleteRemovesCustomAttribute(): void
     {
