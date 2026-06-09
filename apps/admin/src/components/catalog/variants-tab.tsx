@@ -286,6 +286,13 @@ function AxisRow({
             defaultValue: 'Brak atrybutów typu select/multiselect',
           })}
         />
+        {/* #1360 — explain what makes an attribute eligible as a variant
+            axis so the operator isn't left guessing why only some show. */}
+        <p className="mt-1 text-[10.5px] leading-tight text-muted-foreground">
+          {t('products.variants.axis_hint', {
+            defaultValue: 'Osią wariantów mogą być tylko atrybuty typu select / multiselect.',
+          })}
+        </p>
       </div>
       <div className="flex-1 space-y-1">
         <div className="flex flex-wrap gap-1">
