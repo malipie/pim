@@ -62,6 +62,25 @@ function pickLabel(label: Record<string, string>, locale: string): string {
   return label[locale] ?? label.pl ?? label.en ?? Object.values(label)[0] ?? '';
 }
 
+/**
+ * #1353 — derive an immutable snake_case option `code` from the
+ * human-readable name the operator types. Strips diacritics (incl.
+ * Polish ł/ż/ó…), lowercases, collapses non-alphanumerics to `_`, and
+ * ensures the code starts with a letter (backend regex `[a-z][a-z0-9_]*`).
+ */
+function slugifyValueCode(name: string): string {
+  const slug = name
+    .replace(/ł/g, 'l')
+    .replace(/Ł/g, 'l')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (slug === '') return '';
+  return /^[a-z]/.test(slug) ? slug : `v_${slug}`;
+}
+
 /** One editable locale column for the option-label editor + preview (#1263). */
 interface LocaleChip {
   code: string;
@@ -165,27 +184,39 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
   // Inline-create: pop a draft row into local state with a focusable
   // empty Code input. Submit on Enter or click Save → POST → refetch.
   // No native prompt — operator stays inside the editor.
-  const [draftCode, setDraftCode] = useState<string>('');
+  const [draftName, setDraftName] = useState<string>('');
   const [draftError, setDraftError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const addValue = () => {
-    setDraftCode('');
+    setDraftName('');
     setDraftError(null);
     setCreating(true);
   };
 
   const cancelDraft = () => {
     setCreating(false);
-    setDraftCode('');
+    setDraftName('');
     setDraftError(null);
   };
 
   const submitDraft = async () => {
-    const code = draftCode.trim();
+    // #1353 — the operator types a human-readable name; the immutable
+    // `code` is auto-derived (slugified) so the field can be labelled
+    // "Nazwa" instead of the confusing "code (snake_case)".
+    const name = draftName.trim();
+    if (name.length === 0) {
+      setDraftError(
+        t('attribute_values.draft_name_required', { defaultValue: 'Nazwa nie może być pusta' }),
+      );
+      return;
+    }
+    const code = slugifyValueCode(name);
     if (code.length === 0) {
       setDraftError(
-        t('attribute_values.draft_code_required', { defaultValue: 'Code nie może być pusty' }),
+        t('attribute_values.draft_name_invalid', {
+          defaultValue: 'Nazwa musi zawierać przynajmniej jedną literę',
+        }),
       );
       return;
     }
@@ -193,7 +224,7 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
       const created = await jsonFetch<OptionRow>(`/api/attributes/${attribute.code}/options`, {
         method: 'POST',
         contentType: 'application/json',
-        body: { code, label: { pl: code, en: code } },
+        body: { code, label: { pl: name, en: name } },
       });
       setActiveId(created.id);
       cancelDraft();
@@ -315,9 +346,9 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
               <div className="mt-2 space-y-2 rounded-xl border border-violet-200 bg-violet-50/40 p-2">
                 <Input
                   autoFocus
-                  value={draftCode}
+                  value={draftName}
                   onChange={(e) => {
-                    setDraftCode(e.target.value);
+                    setDraftName(e.target.value);
                     setDraftError(null);
                   }}
                   onKeyDown={(e) => {
@@ -327,10 +358,10 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
                     }
                     if (e.key === 'Escape') cancelDraft();
                   }}
-                  placeholder={t('attribute_values.draft_code_placeholder', {
-                    defaultValue: 'code (snake_case)',
+                  placeholder={t('attribute_values.draft_name_placeholder', {
+                    defaultValue: 'Nazwa',
                   })}
-                  className="h-9 font-mono"
+                  className="h-9"
                 />
                 {draftError !== null ? (
                   <p className="px-1 text-[12px] text-destructive">{draftError}</p>
