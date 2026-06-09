@@ -129,10 +129,11 @@ final readonly class CreateCatalogObjectHandler
             $this->attributesUpserter->upsert($object, $command->attributes);
         }
 
-        // #891 — atomic category assignment for product creates. Validate
+        // #891 / #1359 — atomic category assignment for any categorizable
+        // ObjectType (products + custom categorizable kinds). Validate
         // every id resolves to a tenant-scoped `kind=category` BEFORE the
         // junction write so the row never lands partially populated.
-        if (ObjectKind::Product === $command->expectedKind && null !== $command->categoryIds) {
+        if ($object->getObjectType()->isCategorizable() && null !== $command->categoryIds) {
             if ([] === $command->categoryIds) {
                 throw new UnprocessableEntityHttpException('"categoryIds" must contain at least one category.');
             }

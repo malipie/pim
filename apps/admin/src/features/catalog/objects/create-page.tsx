@@ -95,6 +95,8 @@ export function ObjectCreatePage() {
   // `false` if the schema query failed so a transient BE error never
   // hides the rest of the create form.
   const hasMultimedia = schemaQuery.data?.objectType.has_multimedia ?? false;
+  // #1359 — categorizable types require a category at create time.
+  const isCategorizable = schemaQuery.data?.objectType.is_categorizable ?? false;
 
   return (
     <UniversalCreatePage
@@ -104,6 +106,7 @@ export function ObjectCreatePage() {
       backHref={`/objects/${code}`}
       detailPathFor={(id) => `/objects/${code}/${id}`}
       hasMultimedia={hasMultimedia}
+      isCategorizable={isCategorizable}
     />
   );
 }
