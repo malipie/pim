@@ -353,8 +353,14 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     const ensureRelations =
       shouldSurfaceRelationsTab && !fromGroups.includes('relations') ? ['relations'] : [];
     const multimedia: TabKey[] = hasMultimediaCapability ? ['multimedia' as const] : [];
+    // #1348 — the "Atrybuty" tab is the bucket for stacked/ungrouped
+    // attributes (synthetic default group + display_mode='stacked'
+    // groups). When the ObjectType has no such attributes the tab is
+    // empty (only the ad-hoc adder), so drop it entirely — tab-mode
+    // groups keep their own dedicated tabs.
+    const attributesTab: TabKey[] = stackedGroups.length > 0 ? ['attributes' as const] : [];
     return [
-      'attributes' as const,
+      ...attributesTab,
       ...fromGroups,
       ...ensureRelations,
       ...multimedia,
@@ -362,13 +368,15 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
       'history' as const,
       'variants' as const,
     ];
-  }, [mode, tabModeGroups, shouldSurfaceRelationsTab, hasMultimediaCapability]);
+  }, [mode, tabModeGroups, stackedGroups, shouldSurfaceRelationsTab, hasMultimediaCapability]);
 
   // Keep activeTab valid as group set changes (e.g. groups data arrives
-  // after first render or a tab→stacked switch in the wizard).
+  // after first render or a tab→stacked switch in the wizard). Falls back
+  // to the first visible tab — `attributes` may now be absent (#1348).
   useEffect(() => {
-    if (!visibleTabs.includes(activeTab)) {
-      setActiveTab('attributes');
+    const fallback = visibleTabs[0];
+    if (fallback !== undefined && !visibleTabs.includes(activeTab)) {
+      setActiveTab(fallback);
     }
   }, [activeTab, visibleTabs]);
 
