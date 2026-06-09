@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
 import { AttrGroupCard } from '@/features/catalog/products/components/attr-group-card';
 import { AttrRow } from '@/features/catalog/products/components/attr-row';
+import { CategorySelectorCard } from '@/features/catalog/products/components/category-selector-card';
 import type {
   GroupMeta,
   LocaleOption,
@@ -51,6 +52,12 @@ export interface UniversalCreatePageProps {
    * in modeling matches what the operator sees here.
    */
   hasMultimedia?: boolean;
+  /**
+   * #1359 — when the ObjectType is categorizable, the create form shows a
+   * category picker and requires at least one category before save (same
+   * rule products enforce). Non-categorizable types skip it entirely.
+   */
+  isCategorizable?: boolean;
 }
 
 const GROUP_ICONS: Record<string, string> = {
@@ -76,11 +83,16 @@ export function UniversalCreatePage({
   backHref,
   detailPathFor,
   hasMultimedia = false,
+  isCategorizable = false,
 }: UniversalCreatePageProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
   const [code, setCode] = useState('');
+  // #1359 — create-mode category selection (stashed in local state, sent
+  // with the POST /api/objects body), mirroring /products/new.
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [primaryCategoryId, setPrimaryCategoryId] = useState<string | null>(null);
   const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
@@ -189,12 +201,46 @@ export function UniversalCreatePage({
     setDirtyFields((prev) => ({ ...prev, [codeKey]: value }));
   };
 
+  // #1359 — resolve category codes for chip rendering (same shared cache
+  // key as the products create flow + the picker dialog).
+  const categoriesListQuery = useQuery({
+    queryKey: ['categories', 'picker'],
+    queryFn: () =>
+      jsonFetch<{
+        'hydra:member'?: Array<{ id: string; code: string }>;
+        member?: Array<{ id: string; code: string }>;
+      }>('/api/categories?itemsPerPage=200'),
+    enabled: isCategorizable && categoryIds.length > 0,
+    staleTime: 60_000,
+  });
+  const categorySummaries = useMemo(() => {
+    const rows =
+      categoriesListQuery.data?.['hydra:member'] ?? categoriesListQuery.data?.member ?? [];
+    const codeById = new Map<string, string>();
+    for (const row of rows) codeById.set(row.id, row.code);
+    return categoryIds.map((cid) => ({
+      categoryId: cid,
+      code: codeById.get(cid) ?? cid.slice(0, 8),
+      isPrimary: cid === primaryCategoryId,
+    }));
+  }, [categoryIds, primaryCategoryId, categoriesListQuery.data]);
+
   const handleCreate = async (): Promise<void> => {
     if (isSaving) return;
     const trimmedCode = code.trim();
     if (trimmedCode === '') {
       toast.error(
         t('object_create.validation.name_required', { defaultValue: 'Nazwa jest wymagana' }),
+      );
+      return;
+    }
+    // #1359 — categorizable types must carry at least one category, the
+    // same rule /products/new enforces.
+    if (isCategorizable && categoryIds.length === 0) {
+      toast.error(
+        t('object_create.validation.categories_required', {
+          defaultValue: 'Przypisz przynajmniej jedną kategorię',
+        }),
       );
       return;
     }
@@ -212,6 +258,14 @@ export function UniversalCreatePage({
         code: trimmedCode,
       };
       if (Object.keys(normal).length > 0) body.attributes = normal;
+      // #1359 — atomic category assignment for categorizable types.
+      if (isCategorizable && categoryIds.length > 0) {
+        body.categoryIds = categoryIds;
+        body.primaryCategoryId =
+          primaryCategoryId !== null && categoryIds.includes(primaryCategoryId)
+            ? primaryCategoryId
+            : categoryIds[0];
+      }
       const created = await jsonFetch<{ id: string }>('/api/objects', {
         method: 'POST',
         contentType: 'application/ld+json',
@@ -458,6 +512,20 @@ export function UniversalCreatePage({
               <span className="font-mono">{objectTypeCode}</span>
             </p>
           </div>
+          {/* #1359 — category picker for categorizable types (required). */}
+          {isCategorizable ? (
+            <CategorySelectorCard
+              mode="create"
+              objectTypeId={objectTypeId}
+              selectedCategoryIds={categoryIds}
+              primaryCategoryId={primaryCategoryId}
+              selectedCategories={categorySummaries}
+              onChange={(ids, primary) => {
+                setCategoryIds(ids);
+                setPrimaryCategoryId(primary);
+              }}
+            />
+          ) : null}
         </aside>
       </div>
     </div>
