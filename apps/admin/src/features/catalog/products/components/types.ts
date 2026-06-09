@@ -83,7 +83,10 @@ export interface AttributeMeta {
   id: string;
   code: string;
   type: string;
-  label: { pl?: string; en?: string };
+  // #1352 — labels are a JSONB i18n map keyed by ANY configured locale
+  // (pl/en/de/…), not just pl/en. The backend already returns the full
+  // map; narrowing it here dropped DE/extra-locale names on the card.
+  label: Record<string, string>;
   is_system: boolean;
   /**
    * #1151 — whether the attribute carries a distinct value per locale.

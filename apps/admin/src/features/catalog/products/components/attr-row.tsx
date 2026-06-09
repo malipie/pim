@@ -90,11 +90,23 @@ export function AttrRow({
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
   // #1262 — option labels are part of the VALUE, so they must follow the
-  // active value locale (the `locale` prop set by the PL/EN toolbar), not
-  // the interface language. The attribute NAME below stays on `lang`
-  // (UI chrome). Falls back to the interface lang when no scope is active.
+  // active value locale (the `locale` prop set by the locale toolbar), not
+  // the interface language. Falls back to the interface lang when no scope
+  // is active.
   const valueLang = locale ?? lang;
-  const label = attribute.label[lang] ?? attribute.code;
+  // #1352 — the attribute NAME on the card now follows the selected display
+  // language too: previously it was pinned to the UI chrome `lang` (pl/en),
+  // so a DE name never showed and the EN name appeared to "have no effect"
+  // when another locale was selected. Resolve against the selected locale
+  // first, then degrade through the UI language and any available
+  // translation before the raw code.
+  const label =
+    attribute.label[valueLang] ??
+    attribute.label[lang] ??
+    attribute.label.en ??
+    attribute.label.pl ??
+    Object.values(attribute.label)[0] ??
+    attribute.code;
   const editable = isEditing && !isLocked;
   const stringValue = typeof value === 'string' ? value : value == null ? '' : String(value);
   const localeChip = isLocaleScoped(attribute) ? locale : null;

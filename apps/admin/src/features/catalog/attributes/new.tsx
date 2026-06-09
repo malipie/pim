@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 
 import { CreateGroupInlineDialog } from '@/components/modeling/create-group-inline-dialog';
+import { LocaleTabsField } from '@/components/modeling/locale-tabs-field';
 import { PickGroupsForAttributeDialog } from '@/components/modeling/pick-groups-for-attribute-dialog';
 import {
   RelationConfigPanel,
@@ -19,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CREATABLE_ATTRIBUTE_TYPES } from '@/lib/attribute-types';
 import { HttpError, jsonFetch } from '@/lib/http';
+import { useCurrentWorkspace } from '@/lib/use-current-workspace';
 import { cn } from '@/lib/utils';
 
 /**
@@ -45,8 +47,10 @@ import { cn } from '@/lib/utils';
 
 interface CreatePayload {
   code: string;
-  labelPl: string;
-  labelEn: string;
+  // #1352 — attribute name is a JSONB i18n map keyed by every configured
+  // locale (pl/en/de/…), driven by the workspace's enabled locales rather
+  // than a hardcoded pl/en pair.
+  label: Record<string, string>;
   helpPl: string;
   helpEn: string;
   type: string;
@@ -56,8 +60,7 @@ interface CreatePayload {
 
 const EMPTY: CreatePayload = {
   code: '',
-  labelPl: '',
-  labelEn: '',
+  label: {},
   helpPl: '',
   helpEn: '',
   type: 'text',
@@ -96,6 +99,12 @@ export function AttributeCreatePage() {
   const navigate = useNavigate();
   const invalidate = useInvalidate();
   const queryClient = useQueryClient();
+  // #1352 — drive the name field's locale tabs from the tenant's enabled
+  // locales (Settings → Locales). Falls back to pl/en before the workspace
+  // resolves so the form is never blank.
+  const workspace = useCurrentWorkspace();
+  const enabledLocales = workspace.data?.enabledLocales ?? ['pl', 'en'];
+  const primaryLocale = workspace.data?.primaryLocale ?? 'pl';
   const [values, setValues] = useState<CreatePayload>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -132,7 +141,7 @@ export function AttributeCreatePage() {
     try {
       const body: Record<string, unknown> = {
         code: values.code,
-        label: stripEmpty({ pl: values.labelPl, en: values.labelEn }),
+        label: stripEmpty(values.label),
         type: values.type,
         required: values.required,
         filterable: values.filterable,
@@ -222,7 +231,9 @@ export function AttributeCreatePage() {
 
   const valid =
     values.code.trim().length > 0 &&
-    values.labelPl.trim().length > 0 &&
+    // #1352 — the name is required in the primary locale (was hardcoded to
+    // PL); other locales remain optional translations.
+    (values.label[primaryLocale]?.trim().length ?? 0) > 0 &&
     (values.type !== 'relation' || relationConfig.targetObjectTypeIds.length > 0);
 
   return (
@@ -292,17 +303,22 @@ export function AttributeCreatePage() {
                   })}
                 </p>
               </div>
-              <LocaleField
-                label={t('attributes.fields.name', { defaultValue: 'Nazwa' })}
-                placeholder={t('attributes.fields.name_placeholder', {
-                  defaultValue: 'np. Gwarancja (msc)',
-                })}
-                values={{ pl: values.labelPl, en: values.labelEn }}
-                onChange={(locale, next) => {
-                  if (locale === 'pl') setValues({ ...values, labelPl: next });
-                  else setValues({ ...values, labelEn: next });
-                }}
-              />
+              <div>
+                <Label className="text-[11.5px] font-medium text-muted-foreground">
+                  {t('attributes.fields.name', { defaultValue: 'Nazwa' })}
+                </Label>
+                <div className="mt-1.5">
+                  <LocaleTabsField
+                    values={values.label}
+                    enabledLocales={enabledLocales}
+                    primaryLocale={primaryLocale}
+                    onChange={(next) => setValues({ ...values, label: next })}
+                    placeholder={t('attributes.fields.name_placeholder', {
+                      defaultValue: 'np. Gwarancja (msc)',
+                    })}
+                  />
+                </div>
+              </div>
               <div>
                 <Label className="text-[11.5px] font-medium text-muted-foreground">
                   {t('attributes.fields.help', { defaultValue: 'Opis (opcjonalny)' })}
@@ -508,7 +524,11 @@ export function AttributeCreatePage() {
                 </span>
               </div>
               <div className="text-[12px] text-muted-foreground">
-                {values.labelPl.trim() || values.labelEn.trim() || 'Nazwa atrybutu…'}
+                {values.label[primaryLocale]?.trim() ||
+                  Object.values(values.label)
+                    .find((v) => v.trim() !== '')
+                    ?.trim() ||
+                  'Nazwa atrybutu…'}
               </div>
             </div>
           </Card>
@@ -574,56 +594,4 @@ function stripEmpty(record: Record<string, string>): Record<string, string> {
     if (v.trim() !== '') out[k] = v;
   }
   return out;
-}
-
-const NEW_ATTRIBUTE_LOCALES: Array<{ code: 'pl' | 'en'; flag: string }> = [
-  { code: 'pl', flag: '🇵🇱' },
-  { code: 'en', flag: '🇬🇧' },
-];
-
-function LocaleField({
-  label,
-  placeholder,
-  values,
-  onChange,
-}: {
-  label: string;
-  placeholder?: string;
-  values: { pl: string; en: string };
-  onChange: (locale: 'pl' | 'en', next: string) => void;
-}) {
-  const [active, setActive] = useState<'pl' | 'en'>('pl');
-  return (
-    <div>
-      <Label className="text-[11.5px] font-medium text-muted-foreground">{label}</Label>
-      <div className="mt-1.5 flex items-center gap-1 border-b border-zinc-100">
-        {NEW_ATTRIBUTE_LOCALES.map(({ code, flag }) => {
-          const filled = values[code].trim().length > 0;
-          return (
-            <button
-              key={code}
-              type="button"
-              onClick={() => setActive(code)}
-              className={cn(
-                '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[12.5px] font-medium uppercase tracking-wider transition',
-                active === code
-                  ? 'border-zinc-900 text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <span aria-hidden>{flag}</span>
-              <span>{code}</span>
-              {!filled ? <span className="size-1.5 rounded-full bg-amber-400" aria-hidden /> : null}
-            </button>
-          );
-        })}
-      </div>
-      <Input
-        className="mt-2"
-        value={values[active]}
-        onChange={(e) => onChange(active, e.target.value)}
-        placeholder={placeholder}
-      />
-    </div>
-  );
 }
