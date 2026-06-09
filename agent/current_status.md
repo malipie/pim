@@ -1,5 +1,18 @@
 # Current Status
 
+## 2026-06-09: 📋 Epik EXR — Przemodelowanie Eksportów + nowy look & feel (backlog rozpisany: #1377–#1392)
+
+Spec `Project Plan/UI/feature-exports-redesign-tickets.md` rozpisany na 16 GitHub Issues (label `epik-EXR`, jeden ticket = jeden issue). Zadanie wyłącznie backlogowe — **żaden ticket nie zaimplementowany**.
+
+- **GRUPA A — fundament look & feel** (frontend): #1377 EXR-01 tokeny design systemu v2 · #1378 EXR-02 primitives v2 · #1379 EXR-03 sidebar II poziomu + topbar.
+- **GRUPA B — backend** (rozszerzenie istniejącego silnika eksportu, NIE przepisanie): #1380 EXR-04 ExportEntityType (5 typów encji) · #1381 EXR-05 generalizacja pipeline'u na ObjectType (`custom_module`) · #1382 EXR-06 eksportery strukturalne · #1383 EXR-07 preflight count + weryfikacja pamięci.
+- **GRUPA C — frontend eksportów**: #1384 EXR-08 strona Sesje (KPI/Historia) · #1385 EXR-09 wizard szkielet + Krok 1 · #1386 EXR-10 Krok 2 (reużywalna wyszukiwarka — krytyczne) · #1387 EXR-11 Krok 3 kolumny · #1388 EXR-12 Krok 4 podsumowanie + uruchomienie · #1389 EXR-13 Profile Eksportu · #1390 EXR-14 wejścia kontekstowe + wycofanie ExportModal · #1391 EXR-15 async UX live.
+- **GRUPA D — domknięcie**: #1392 EXR-16 E2E + a11y + i18n + benchmark 100k + docs.
+- Labele: `epik-EXR` (utworzony), `backend` (#1380–#1383), `frontend` (#1377–#1379, #1384–#1391), #1390/#1391 dodatkowo `backend`. Label `qa` nie istnieje w repo → EXR-16 tylko `epik-EXR` (bez tworzenia nowych labeli). Bez milestone.
+- Decyzje operatora D1-D6 (NIENEGOCJOWALNE): tylko CSV+XLSX działają (reszta mock „wkrótce"), wszystkie 5 encji eksportu działające, taby Cele/Harmonogram disabled, nowy look&feel od eksportów + sidebar II poziomu globalnie, wizard = pełny widok (nie modal), ExportModal wycofany.
+
+**Następny krok**: implementacja od EXR-01 (#1377) — fundament tokenów, dalej wg mapy zależności A → B/C przeplatane → D (§5 spec).
+
 ## 2026-06-08: 🧹 refactor(channel/catalog) — usunięcie `channel_locales` (#1318) + locale-first dziedziczenie (#1319) + merge 25 Dependabot PR
 
 Trzy zadania operatora jednym ciągiem. #1317 potwierdzony jako merged (bez akcji).
