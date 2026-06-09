@@ -101,6 +101,7 @@ final class ObjectTypeAttachedGroupsController
                 'attrsCount' => \count($attrs),
                 'attrsPreview' => \array_slice($attrs, 0, self::ATTRS_PREVIEW_LIMIT),
                 'displayMode' => '' !== $displayMode ? $displayMode : 'tab',
+                'position' => \is_numeric($row['position'] ?? null) ? (int) $row['position'] : 0,
             ];
         }
 

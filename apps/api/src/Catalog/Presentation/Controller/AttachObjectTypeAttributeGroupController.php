@@ -138,15 +138,33 @@ final class AttachObjectTypeAttributeGroupController
         }
 
         $payload = json_decode($request->getContent(), true);
-        if (!\is_array($payload) || !\array_key_exists('display_mode', $payload)) {
-            throw new BadRequestHttpException('Body must contain `display_mode`.');
+        $hasDisplayMode = \is_array($payload) && \array_key_exists('display_mode', $payload);
+        $hasPosition = \is_array($payload) && \array_key_exists('position', $payload);
+        if (!$hasDisplayMode && !$hasPosition) {
+            throw new BadRequestHttpException('Body must contain `display_mode` and/or `position`.');
         }
-        $displayMode = $payload['display_mode'];
-        if (!\is_string($displayMode) || !\in_array($displayMode, ObjectTypeAttributeGroup::DISPLAY_MODES, true)) {
-            throw new BadRequestHttpException(\sprintf(
-                'display_mode must be one of: %s.',
-                implode(', ', ObjectTypeAttributeGroup::DISPLAY_MODES),
-            ));
+
+        $displayMode = null;
+        if ($hasDisplayMode) {
+            $displayMode = $payload['display_mode'];
+            if (!\is_string($displayMode) || !\in_array($displayMode, ObjectTypeAttributeGroup::DISPLAY_MODES, true)) {
+                throw new BadRequestHttpException(\sprintf(
+                    'display_mode must be one of: %s.',
+                    implode(', ', ObjectTypeAttributeGroup::DISPLAY_MODES),
+                ));
+            }
+        }
+
+        // #1349 — reordering attribute groups within an ObjectType. The
+        // persisted `position` drives the left-to-right tab order on the
+        // object detail page (EffectiveAttributeGroupResolver orders by
+        // `position ASC`).
+        $position = null;
+        if ($hasPosition) {
+            $position = $payload['position'];
+            if (!\is_int($position) || $position < 0) {
+                throw new BadRequestHttpException('position must be a non-negative integer.');
+            }
         }
 
         $junction = $this->em->find(ObjectTypeAttributeGroup::class, [
@@ -161,7 +179,12 @@ final class AttachObjectTypeAttributeGroupController
             ));
         }
 
-        $junction->changeDisplayMode($displayMode);
+        if (null !== $displayMode) {
+            $junction->changeDisplayMode($displayMode);
+        }
+        if (null !== $position) {
+            $junction->reorder($position);
+        }
         $this->em->flush();
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);

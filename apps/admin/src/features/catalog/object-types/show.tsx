@@ -1,6 +1,23 @@
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useInvalidate, useOne } from '@refinedev/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Check, Copy, Library, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Copy, GripVertical, Library, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
@@ -31,6 +48,7 @@ import { resolveLabel } from '@/features/catalog/attributes/list';
 import { HttpError, jsonFetch } from '@/lib/http';
 import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
 import { useCurrentWorkspace } from '@/lib/use-current-workspace';
+import { cn } from '@/lib/utils';
 
 interface ObjectTypeDetail {
   id: string;
@@ -73,6 +91,62 @@ interface AttachedAttribute {
 }
 
 /**
+ * #1349 — sortable wrapper around {@link GroupCard}. Adds a drag handle
+ * to the left of the card and wires the dnd-kit `useSortable` transform.
+ */
+function SortableGroupCard({
+  group,
+  language,
+  onEdit,
+  onRemove,
+  onDisplayModeChange,
+}: {
+  group: AttachedGroup;
+  language: string;
+  onEdit?: (group: AttachedGroup) => void;
+  onRemove?: (group: AttachedGroup) => void;
+  onDisplayModeChange?: (group: AttachedGroup, next: GroupDisplayMode) => void;
+}) {
+  const { t } = useTranslation();
+  const sortable = useSortable({ id: group.id });
+  const style = sortable.transform
+    ? {
+        transform: CSS.Transform.toString(sortable.transform),
+        transition: sortable.transition,
+      }
+    : undefined;
+
+  return (
+    <div
+      ref={sortable.setNodeRef}
+      style={style}
+      className={cn('flex items-stretch gap-2', sortable.isDragging && 'opacity-60')}
+    >
+      <button
+        type="button"
+        aria-label={t('object_types.group_card_drag', {
+          defaultValue: 'Przeciągnij, aby zmienić kolejność',
+        })}
+        {...sortable.attributes}
+        {...sortable.listeners}
+        className="mt-1 grid size-7 shrink-0 cursor-grab place-items-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 active:cursor-grabbing"
+      >
+        <GripVertical className="size-4" />
+      </button>
+      <div className="min-w-0 flex-1">
+        <GroupCard
+          group={group}
+          language={language}
+          onEdit={onEdit}
+          onRemove={onRemove}
+          onDisplayModeChange={onDisplayModeChange}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
  * VIEW-01 (#372) — pixel-perfect rebuild of the modeling Object Type
  * Detail view (object-types.jsx 89–244). Sections rendered in the
  * fixed order: header, Identyfikacja, Built-in groups, Custom groups,
@@ -85,6 +159,13 @@ export function ObjectTypeShowPage() {
   const id = params.id ?? '';
   const queryClient = useQueryClient();
   const invalidate = useInvalidate();
+
+  // #1349 — drag-and-drop reordering of attribute groups. Pointer for
+  // mouse/touch, keyboard for a11y (arrow keys move the focused row).
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const { result, query } = useOne<ObjectTypeDetail>({
     resource: 'object_types',
@@ -199,6 +280,48 @@ export function ObjectTypeShowPage() {
       await refreshGroups();
     } catch (e) {
       setError(e instanceof HttpError ? `${e.status}` : e instanceof Error ? e.message : 'unknown');
+    }
+  };
+
+  // #1349 — persist a drag-and-drop reorder of the attribute groups. The
+  // new order is written to each junction's `position` (PATCH); the
+  // EffectiveAttributeGroupResolver orders by `position ASC`, so the
+  // left-to-right tab order on the object detail page follows this list.
+  const handleReorderGroups = async (event: DragEndEvent, ordered: AttachedGroup[]) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = ordered.findIndex((g) => g.id === active.id);
+    const newIndex = ordered.findIndex((g) => g.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const reordered = arrayMove(ordered, oldIndex, newIndex);
+    const positionById = new Map(reordered.map((g, index) => [g.id, index]));
+
+    // Optimistic: rewrite positions in the cached payload and re-sort it
+    // the same way the API does (position ASC, code ASC) so the list and
+    // SortableContext reflect the drop without waiting for the refetch.
+    queryClient.setQueryData<AttachedGroup[]>(['object_types', id, 'attached_groups'], (prev) =>
+      prev === undefined
+        ? prev
+        : [...prev]
+            .map((g) => (positionById.has(g.id) ? { ...g, position: positionById.get(g.id) } : g))
+            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.code.localeCompare(b.code)),
+    );
+
+    setError(null);
+    try {
+      await Promise.all(
+        reordered.map((g, index) =>
+          jsonFetch(`/api/object_types/${id}/groups/${g.id}`, {
+            method: 'PATCH',
+            body: { position: index },
+          }),
+        ),
+      );
+      await refreshGroups();
+    } catch (e) {
+      setError(e instanceof HttpError ? `${e.status}` : e instanceof Error ? e.message : 'unknown');
+      await refreshGroups();
     }
   };
 
@@ -529,20 +652,31 @@ export function ObjectTypeShowPage() {
               })}
             </div>
           ) : (
-            <div className="space-y-2">
-              {editableGroups.map((g) => (
-                <GroupCard
-                  key={g.id}
-                  group={g}
-                  language={i18n.language}
-                  onEdit={
-                    g.system ? undefined : () => navigate(`/modeling/attribute-groups/${g.id}`)
-                  }
-                  onRemove={handleDetachGroup}
-                  onDisplayModeChange={handleDisplayModeChange}
-                />
-              ))}
-            </div>
+            <DndContext
+              sensors={dndSensors}
+              collisionDetection={closestCenter}
+              onDragEnd={(event) => void handleReorderGroups(event, editableGroups)}
+            >
+              <SortableContext
+                items={editableGroups.map((g) => g.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2">
+                  {editableGroups.map((g) => (
+                    <SortableGroupCard
+                      key={g.id}
+                      group={g}
+                      language={i18n.language}
+                      onEdit={
+                        g.system ? undefined : () => navigate(`/modeling/attribute-groups/${g.id}`)
+                      }
+                      onRemove={handleDetachGroup}
+                      onDisplayModeChange={handleDisplayModeChange}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </CardContent>
       </Card>

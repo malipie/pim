@@ -24,6 +24,12 @@ export interface AttachedGroup {
    * backwards compatibility with older payloads (defaults to `tab`).
    */
   displayMode?: GroupDisplayMode;
+  /**
+   * #1349 — persisted order of this group within the ObjectType. Drives
+   * the left-to-right tab order on the object detail page. Optional for
+   * backwards compatibility with older payloads (defaults to 0).
+   */
+  position?: number;
 }
 
 interface GroupCardProps {
