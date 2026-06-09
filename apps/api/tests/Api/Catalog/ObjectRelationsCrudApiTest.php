@@ -5,9 +5,16 @@ declare(strict_types=1);
 namespace App\Tests\Api\Catalog;
 
 use App\Catalog\Application\BuiltInProductRelationAttributesSeeder;
+use App\Catalog\Domain\AttributeType;
+use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Entity\AttributeGroup;
+use App\Catalog\Domain\Entity\AttributeGroupAttribute;
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\RelationCardinality;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -107,6 +114,61 @@ final class ObjectRelationsCrudApiTest extends CatalogApiTestCase
     }
 
     /**
+     * #1362 — a relation attribute attached to the ObjectType through an
+     * AttributeGroup (the normal modeling flow) must surface in
+     * `/relations` so the inline editor renders the picker instead of
+     * "Atrybut nie jest jeszcze przypięty do ObjectType". The previous
+     * implementation only looked at the direct `object_type_attributes`
+     * junction and returned an empty list for group-attached relations.
+     */
+    #[Test]
+    public function listIncludesRelationAttributeAttachedViaGroup(): void
+    {
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $tenantContext->set($tenant);
+
+        $type = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert(null !== $type);
+
+        $group = new AttributeGroup('rel_via_group', ['en' => 'Relations via group']);
+        $attribute = new Attribute(
+            'rel_via_group_attr',
+            ['en' => 'Relation via group'],
+            AttributeType::Relation,
+        );
+        $attribute->setRelationCardinality(RelationCardinality::Many);
+        $em->persist($group);
+        $em->persist($attribute);
+        $em->flush();
+        $em->persist(new AttributeGroupAttribute($group, $attribute, 1));
+        $em->persist(new ObjectTypeAttributeGroup($type, $group, 1));
+        $em->flush();
+        $tenantContext->clear();
+
+        $source = $this->makeProduct('SRC-RELGRP');
+
+        $client = $this->authenticatedClient();
+        $listResp = $client->request(
+            'GET',
+            '/api/objects/'.$source->getId()->toRfc4122().'/relations',
+        );
+        self::assertSame(200, $listResp->getStatusCode());
+
+        /** @var list<array<string, mixed>> $relationAttributes */
+        $relationAttributes = $listResp->toArray()['relationAttributes'];
+        $entry = $this->groupForCode($relationAttributes, 'rel_via_group_attr');
+        /** @var array{code: string, cardinality: ?string} $attr */
+        $attr = $entry['attribute'];
+        self::assertSame('rel_via_group_attr', $attr['code']);
+        self::assertSame('many', $attr['cardinality']);
+        self::assertSame([], $entry['relations']);
+    }
+
+    /**
      * @param list<array<string, mixed>> $groups
      *
      * @return array<string, mixed>
@@ -129,7 +191,7 @@ final class ObjectRelationsCrudApiTest extends CatalogApiTestCase
         $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
         \assert($tenant instanceof Tenant);
         // TenantContext is required by TenantAssignmentListener at persist time.
-        self::getContainer()->get(\App\Shared\Application\TenantContext::class)->set($tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
 
         $productType = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
             ->findBuiltInByKind(ObjectKind::Product, $tenant);

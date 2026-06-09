@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Application\ObjectRelationService;
+use App\Catalog\Domain\AttributeType;
+use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
@@ -48,6 +51,7 @@ final class ObjectRelationController
         private readonly ObjectRelationService $service,
         private readonly TenantContext $tenantContext,
         private readonly EntityManagerInterface $em,
+        private readonly EffectiveAttributeGroupResolver $effectiveGroups,
     ) {
     }
 
@@ -258,7 +262,7 @@ final class ObjectRelationController
         return $object;
     }
 
-    private function fetchAttribute(string $code): \App\Catalog\Domain\Entity\Attribute
+    private function fetchAttribute(string $code): Attribute
     {
         $tenant = $this->tenantContext->get();
         if (null === $tenant) {
@@ -273,27 +277,65 @@ final class ObjectRelationController
     }
 
     /**
-     * @return list<\App\Catalog\Domain\Entity\Attribute>
+     * Collect every relation-type attribute effective for the source
+     * object, from BOTH attachment paths:
+     *
+     *   1. via an AttributeGroup attached to the ObjectType (or inherited
+     *      from the object's category tree) — resolved through the shared
+     *      {@see EffectiveAttributeGroupResolver} so this matches exactly
+     *      what the detail page renders as tabs/sections, and
+     *   2. directly via the `object_type_attributes` junction.
+     *
+     * #1362 — the previous implementation looked only at path 2, so a
+     * relation attribute attached through a group (the normal modeling
+     * flow) surfaced as "not attached to ObjectType" in the inline editor
+     * and the operator could not add links. Group order then position is
+     * preserved; direct attributes follow. Deduplicated by attribute id.
+     *
+     * @return list<Attribute>
      */
     private function relationAttributesForSource(\App\Catalog\Domain\Entity\CatalogObject $source): array
     {
-        // Lightweight inline query — the FE grouping needs only the
-        // attributes of type=relation attached to the source's ObjectType
-        // via the object_type_attributes junction. CategoryAttributeGroup
-        // distribution adds more in MOD-12 once the resolver wiring
-        // ships; for now base-only is the documented MVP.
-        /** @var list<\App\Catalog\Domain\Entity\Attribute> $rows */
-        $rows = $this->em
+        $relationAttributes = [];
+        $seen = [];
+
+        $add = static function (Attribute $attribute) use (&$relationAttributes, &$seen): void {
+            if (AttributeType::Relation !== $attribute->getType()) {
+                return;
+            }
+            $key = $attribute->getId()->toRfc4122();
+            if (isset($seen[$key])) {
+                return;
+            }
+            $seen[$key] = true;
+            $relationAttributes[] = $attribute;
+        };
+
+        // Path 1 — group-attached (incl. category inheritance).
+        $groups = $this->effectiveGroups->resolve($source);
+        $attributesByGroup = $this->effectiveGroups->loadGroupAttributes($groups);
+        foreach ($groups as $group) {
+            foreach ($attributesByGroup[$group->getId()->toRfc4122()] ?? [] as $junction) {
+                $add($junction->getAttribute());
+            }
+        }
+
+        // Path 2 — directly attached via object_type_attributes.
+        /** @var list<Attribute> $direct */
+        $direct = $this->em
             ->createQuery(
-                'SELECT a FROM '.\App\Catalog\Domain\Entity\Attribute::class.' a'
+                'SELECT a FROM '.Attribute::class.' a'
                 .' JOIN '.ObjectTypeAttribute::class.' j WITH j.attribute = a'
                 .' WHERE j.objectType = :type AND a.type = :type_value'
                 .' ORDER BY j.sortOrder ASC, a.code ASC'
             )
             ->setParameter('type', $source->getObjectType())
-            ->setParameter('type_value', \App\Catalog\Domain\AttributeType::Relation->value)
+            ->setParameter('type_value', AttributeType::Relation->value)
             ->getResult();
+        foreach ($direct as $attribute) {
+            $add($attribute);
+        }
 
-        return $rows;
+        return $relationAttributes;
     }
 }
