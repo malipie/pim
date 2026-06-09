@@ -1,14 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  ArrowLeft,
-  Clock,
-  Link2,
-  MoreHorizontal,
-  Pencil,
-  Save,
-  Sparkles,
-  Trash2,
-} from 'lucide-react';
+import { ArrowLeft, Clock, Link2, MoreHorizontal, Save, Sparkles, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
@@ -159,7 +150,10 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   const hasMultimediaCapability = schemaQuery.data?.objectType.has_multimedia ?? false;
 
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
-  const [isEditing, setIsEditing] = useState<boolean>(!isEditMode);
+  // #1351 — the detail page opens directly in edit mode; there is no
+  // read-only state anymore. "Zapisz zmiany" is always visible and a
+  // "Zapisz i wróć do listy" action saves + returns to the list.
+  const isEditing = true;
   const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -411,7 +405,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     return attrs[code];
   };
 
-  const handleSave = async (): Promise<void> => {
+  const handleSave = async (returnToList = false): Promise<void> => {
     if (isSaving) return;
     setIsSaving(true);
     try {
@@ -470,7 +464,8 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
         navigate(`/products/${created.id}`);
       } else {
         if (Object.keys(dirtyFields).length === 0) {
-          setIsEditing(false);
+          // Nothing to persist — "Zapisz i wróć do listy" still returns.
+          if (returnToList) navigate('/products');
           setIsSaving(false);
           return;
         }
@@ -485,8 +480,10 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
         });
         await productQuery.refetch();
         setDirtyFields({});
-        setIsEditing(false);
         toast.success(t('products.detail.save.success', { defaultValue: 'Zapisano zmiany' }));
+        // #1351 — "Zapisz zmiany" keeps the row in edit mode; only
+        // "Zapisz i wróć do listy" navigates back to the list.
+        if (returnToList) navigate('/products');
       }
     } catch (error) {
       // #1179 — surface the server's Problem Details `detail` (e.g. duplicate
@@ -502,8 +499,10 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   };
 
   const cancelEdit = (): void => {
+    // #1351 — no read-only mode anymore; "Anuluj" just discards unsaved
+    // edits and restores the persisted values.
     setDirtyFields({});
-    setIsEditing(false);
+    void productQuery.refetch();
   };
 
   const handleDelete = async (): Promise<void> => {
@@ -660,43 +659,44 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                 </Button>
               )}
               <span className="mx-1 h-6 w-px bg-zinc-200" />
-              {isEditing ? (
-                <>
-                  {mode === 'edit' ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={cancelEdit}
-                      disabled={isSaving}
-                      className="h-9 rounded-xl px-3 text-[12.5px] text-zinc-600"
-                    >
-                      {t('products.detail.actions.cancel', { defaultValue: 'Anuluj' })}
-                    </Button>
-                  ) : null}
-                  <Button
-                    type="button"
-                    onClick={() => void handleSave()}
-                    disabled={isSaving || (mode === 'create' && objectTypeId === null)}
-                    className="h-9 rounded-xl bg-zinc-900 px-4 text-[12.5px] font-medium text-white hover:bg-zinc-800"
-                  >
-                    <Save className="size-4" />
-                    {mode === 'create'
-                      ? t('products.detail.actions.create', { defaultValue: 'Utwórz produkt' })
-                      : t('products.detail.actions.save', { defaultValue: 'Zapisz zmiany' })}
-                  </Button>
-                </>
-              ) : (
+              {mode === 'edit' ? (
                 <Button
                   type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="h-9 rounded-xl bg-zinc-900 px-4 text-[12.5px] font-medium text-white hover:bg-zinc-800"
-                  aria-pressed={isEditing}
+                  variant="ghost"
+                  size="sm"
+                  onClick={cancelEdit}
+                  disabled={isSaving}
+                  className="h-9 rounded-xl px-3 text-[12.5px] text-zinc-600"
                 >
-                  <Pencil className="size-4" />
-                  {t('products.detail.actions.edit', { defaultValue: 'Edytuj' })}
+                  {t('products.detail.actions.cancel', { defaultValue: 'Anuluj' })}
                 </Button>
-              )}
+              ) : null}
+              <Button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={isSaving || (mode === 'create' && objectTypeId === null)}
+                className="h-9 rounded-xl bg-zinc-900 px-4 text-[12.5px] font-medium text-white hover:bg-zinc-800"
+              >
+                <Save className="size-4" />
+                {mode === 'create'
+                  ? t('products.detail.actions.create', { defaultValue: 'Utwórz produkt' })
+                  : t('products.detail.actions.save', { defaultValue: 'Zapisz zmiany' })}
+              </Button>
+              {/* #1351 — save and return to the list (edit mode only). */}
+              {mode === 'edit' ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleSave(true)}
+                  disabled={isSaving}
+                  className="h-9 rounded-xl px-4 text-[12.5px] font-medium"
+                >
+                  <Save className="size-4" />
+                  {t('products.detail.actions.save_and_return', {
+                    defaultValue: 'Zapisz i wróć do listy',
+                  })}
+                </Button>
+              ) : null}
             </div>
           </div>
 

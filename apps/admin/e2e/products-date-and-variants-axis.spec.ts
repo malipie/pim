@@ -69,7 +69,7 @@ test('product detail date picker + variants axis combobox', async ({ page }) => 
   );
   await page.goto(`/products/${product.id}`);
   await groupsResponse;
-  await page.getByRole('button', { name: /^(edytuj|edit)$/i }).click();
+  // #1351 — detail opens directly in edit mode; no "Edytuj" click needed.
   await expect(page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i })).toBeVisible();
 
   // ---------- Part 1: date picker -----------
@@ -91,7 +91,8 @@ test('product detail date picker + variants axis combobox', async ({ page }) => 
   const datePatched = await datePatch;
   expect(datePatched.status()).toBe(200);
 
-  // Reload + assert read-only display shows the picked date.
+  // #1351 — the page reopens in edit mode, so the date renders as an
+  // editable input holding the saved value (no read-only text display).
   await page.reload();
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   const reloadedDateLabel = page.getByText(/^(Data premiery|Release date)$/).first();
@@ -99,8 +100,8 @@ test('product detail date picker + variants axis combobox', async ({ page }) => 
   await expect(
     reloadedDateLabel
       .locator('xpath=ancestor::div[contains(@class, "grid-cols")][1]')
-      .getByText('2027-03-15'),
-  ).toBeVisible();
+      .locator('input[type="date"]'),
+  ).toHaveValue('2027-03-15');
 
   // ---------- Part 2: variants axis combobox ----------
   await page.getByRole('tab', { name: /^(warianty|variants)$/i }).click();
