@@ -56,17 +56,15 @@ test('VIEW-07 product detail + create + duplicate flow', async ({ page }) => {
   expect(created.status()).toBe(201);
   await expect(page).toHaveURL(/\/products\/[0-9a-f-]{36}$/, { timeout: 30_000 });
 
-  // Read-only by default — header shows "Edytuj"/"Edit" and the save
-  // button is absent until we toggle into edit mode.
-  const editToggle = page.getByRole('button', { name: /^(edytuj|edit)$/i });
-  await expect(editToggle).toBeVisible();
-  await expect(page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i })).toHaveCount(
-    0,
-  );
-
-  await editToggle.click();
+  // #1351 — the detail page opens directly in edit mode: "Zapisz zmiany"
+  // + "Zapisz i wróć do listy" are visible immediately, there is no
+  // read-only "Edytuj" toggle.
   await expect(page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^(edytuj|edit)$/i })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^(anuluj|cancel)$/i })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /zapisz i wróć do listy|save and return/i }),
+  ).toBeVisible();
 
   // Duplicate uses the existing POST /api/products/{id}/duplicate
   // sugar endpoint and lands on the freshly minted /products/{newId}.
