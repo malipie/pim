@@ -105,6 +105,35 @@ final class DemoCatalogSeederTest extends KernelTestCase
     }
 
     #[Test]
+    public function marksSensibleProductAttributesFilterable(): void
+    {
+        // #1354 — the advanced filter panel offers ONLY `is_filterable`
+        // attributes. The demo must therefore seed a usable filterable
+        // subset (otherwise the panel renders an empty picker on demo
+        // data) while leaving long-form / system fields non-filterable.
+        $seeder = self::getContainer()->get(DemoCatalogSeeder::class);
+        $seeder->seed($this->tenant);
+
+        $em = $this->em();
+        $em->clear();
+
+        $repo = self::getContainer()->get(\App\Catalog\Domain\Repository\AttributeRepositoryInterface::class);
+
+        foreach (['brand', 'color', 'size', 'tags', 'price', 'weight', 'height', 'in_stock', 'release_date'] as $code) {
+            $attribute = $repo->findByCode($code, $this->tenant);
+            self::assertNotNull($attribute, \sprintf('Attribute "%s" should be seeded.', $code));
+            self::assertTrue($attribute->isFilterable(), \sprintf('Attribute "%s" must be filterable.', $code));
+        }
+
+        // Long-form / identifier fields stay out of the filter picker.
+        foreach (['description', 'short_description', 'description_html', 'sku'] as $code) {
+            $attribute = $repo->findByCode($code, $this->tenant);
+            self::assertNotNull($attribute);
+            self::assertFalse($attribute->isFilterable(), \sprintf('Attribute "%s" must NOT be filterable.', $code));
+        }
+    }
+
+    #[Test]
     public function categorySchemaIncludesOwnUserDefinedAttributes(): void
     {
         // Proof of ADR-009: categories carry their own user-defined fields,

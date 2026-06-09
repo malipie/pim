@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { Link2, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +12,7 @@ import {
   type FilterCondition,
   type FilterOperator,
 } from '@/lib/filters/filter-dsl';
+import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 /**
@@ -38,11 +40,11 @@ const FIRST_PANEL_ATTR: PanelAttr = {
 };
 
 /**
- * Default product-flavoured attribute catalog for the panel. Kept as
- * the fallback so the legacy /products list keeps its rich type
- * inference (brand=relation, price=metric, …) without a downstream
- * schema fetch on every render. UP-06 universal list passes a
- * schema-derived `panelAttrs` prop instead.
+ * Loading/empty fallback catalog. Since #1354 the live filterable
+ * attribute set (fetched below) is the source of truth for type-badge /
+ * operator inference; this static list only fills the gap while that
+ * fetch is in flight (or returns nothing) so the panel never renders a
+ * dead picker on first open. An explicit `panelAttrs` prop still wins.
  */
 const PANEL_ATTRS: ReadonlyArray<PanelAttr> = [
   FIRST_PANEL_ATTR,
@@ -57,6 +59,43 @@ const PANEL_ATTRS: ReadonlyArray<PanelAttr> = [
   { code: 'meta_description', name: 'Meta description', type: 'text' },
   { code: 'tags', name: 'Tagi', type: 'multiselect' },
 ];
+
+/**
+ * #1354 — map the backend AttributeType enum onto the panel's operator
+ * buckets. Types without a dedicated bucket (color, email, identifier,
+ * textarea) behave as plain string equality filters → `text`.
+ */
+const FILTER_TYPE_BY_ATTR_TYPE: Record<string, keyof typeof FILTER_OPERATORS_BY_TYPE> = {
+  text: 'text',
+  wysiwyg: 'wysiwyg',
+  textarea: 'text',
+  number: 'number',
+  metric: 'metric',
+  price: 'price',
+  date: 'date',
+  datetime: 'datetime',
+  select: 'select',
+  multiselect: 'multiselect',
+  boolean: 'boolean',
+  relation: 'relation',
+  reference: 'reference',
+  asset: 'asset',
+  color: 'text',
+  email: 'text',
+  identifier: 'text',
+};
+
+function toFilterType(attrType: string | undefined): keyof typeof FILTER_OPERATORS_BY_TYPE {
+  return (attrType !== undefined ? FILTER_TYPE_BY_ATTR_TYPE[attrType] : undefined) ?? 'text';
+}
+
+interface AttributeApiRow {
+  id: string;
+  code: string;
+  label?: Record<string, string> | string | null;
+  type?: string;
+  filterable?: boolean;
+}
 
 interface AdvancedFilterPanelProps {
   open: boolean;
@@ -95,10 +134,41 @@ export function AdvancedFilterPanel({
   resultCount,
   panelAttrs,
 }: AdvancedFilterPanelProps) {
-  const effectivePanelAttrs: ReadonlyArray<PanelAttr> =
-    panelAttrs && panelAttrs.length > 0 ? panelAttrs : PANEL_ATTRS;
-  const firstPanelAttr = effectivePanelAttrs[0] ?? FIRST_PANEL_ATTR;
   const { t } = useTranslation();
+
+  // #1354 — strict filterable catalog. The panel offers ONLY attributes
+  // flagged `is_filterable=true`; this drives the type-badge / operator
+  // inference for the conditions, while the AttributePicker below applies
+  // the same gate (`filterableOnly`) to its dropdown. An explicit
+  // `panelAttrs` prop (per-ObjectType override) still wins; the hardcoded
+  // PANEL_ATTRS only acts as the loading/empty fallback so the panel never
+  // renders a dead picker mid-fetch.
+  const { data: liveFilterableAttrs } = useQuery({
+    queryKey: ['attributes', 'filterable-panel'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<PanelAttr[]> => {
+      const res = await jsonFetch<{
+        'hydra:member'?: AttributeApiRow[];
+        member?: AttributeApiRow[];
+      }>('/api/attributes?itemsPerPage=200');
+      const rows = res['hydra:member'] ?? res.member ?? [];
+      return rows
+        .filter((r) => r.filterable === true)
+        .map<PanelAttr>((r) => ({
+          code: r.code,
+          name: typeof r.label === 'string' ? r.label : (r.label?.pl ?? r.label?.en ?? r.code),
+          type: toFilterType(r.type),
+        }));
+    },
+  });
+
+  const effectivePanelAttrs: ReadonlyArray<PanelAttr> =
+    panelAttrs && panelAttrs.length > 0
+      ? panelAttrs
+      : liveFilterableAttrs && liveFilterableAttrs.length > 0
+        ? liveFilterableAttrs
+        : PANEL_ATTRS;
+  const firstPanelAttr = effectivePanelAttrs[0] ?? FIRST_PANEL_ATTR;
   // VIEW-22a (#553) — draft state. Panel edits go into draftConditions and
   // are committed to the parent (and thereby to the search) ONLY when the
   // operator clicks „Zastosuj filtr". This stops the previous auto-apply
@@ -216,6 +286,7 @@ export function AdvancedFilterPanel({
 
                 <AttributePicker
                   value={cond.attr}
+                  filterableOnly
                   onChange={(picked) => {
                     if (picked === null) return;
                     const nextAttrMeta = effectivePanelAttrs.find((a) => a.code === picked.code);
