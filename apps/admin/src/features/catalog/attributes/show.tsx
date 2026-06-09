@@ -21,6 +21,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { CreateGroupInlineDialog } from '@/components/modeling/create-group-inline-dialog';
+import { LocaleTabsField } from '@/components/modeling/locale-tabs-field';
 import { PickGroupsForAttributeDialog } from '@/components/modeling/pick-groups-for-attribute-dialog';
 import {
   type RelationAdvancedField,
@@ -31,11 +32,11 @@ import { WhereUsedList } from '@/components/modeling/where-used-list';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/ui/toast';
 import { HttpError, jsonFetch } from '@/lib/http';
+import { useCurrentWorkspace } from '@/lib/use-current-workspace';
 import { cn } from '@/lib/utils';
 
 import { resolveLabel } from './list';
@@ -127,11 +128,16 @@ function Editor({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const initialLabel = toLocaleMap(attribute.label);
+  // #1352 — the name editor follows the tenant's enabled locales, so the
+  // label keeps ALL locale keys (not just pl/en). Help stays pl/en (out of
+  // ticket scope).
+  const workspace = useCurrentWorkspace();
+  const enabledLocales = workspace.data?.enabledLocales ?? ['pl', 'en'];
+  const primaryLocale = workspace.data?.primaryLocale ?? 'pl';
+  const initialLabel = toFullLocaleMap(attribute.label);
   const initialHelp = toLocaleMap(attribute.help);
 
-  const [labelPl, setLabelPl] = useState(initialLabel.pl ?? '');
-  const [labelEn, setLabelEn] = useState(initialLabel.en ?? '');
+  const [labelMap, setLabelMap] = useState<Record<string, string>>(initialLabel);
   const [helpPl, setHelpPl] = useState(initialHelp.pl ?? '');
   const [helpEn, setHelpEn] = useState(initialHelp.en ?? '');
   const [required, setRequired] = useState(attribute.required ?? false);
@@ -241,7 +247,7 @@ function Editor({
     attribute.type === 'relation' && JSON.stringify(relationConfig) !== initialRelationSnapshot;
 
   const dirtyFields = [
-    labelPl !== (initialLabel.pl ?? '') || labelEn !== (initialLabel.en ?? ''),
+    JSON.stringify(stripEmpty(labelMap)) !== JSON.stringify(initialLabel),
     helpPl !== (initialHelp.pl ?? '') || helpEn !== (initialHelp.en ?? ''),
     required !== (attribute.required ?? false),
     localizable !== (attribute.localizable ?? false),
@@ -255,8 +261,7 @@ function Editor({
   const isSystem = attribute.system === true;
 
   const cancel = () => {
-    setLabelPl(initialLabel.pl ?? '');
-    setLabelEn(initialLabel.en ?? '');
+    setLabelMap(initialLabel);
     setHelpPl(initialHelp.pl ?? '');
     setHelpEn(initialHelp.en ?? '');
     setRequired(attribute.required ?? false);
@@ -271,7 +276,7 @@ function Editor({
     setError(null);
     try {
       const body: Record<string, unknown> = {};
-      const nextLabel = stripEmpty({ pl: labelPl, en: labelEn });
+      const nextLabel = stripEmpty(labelMap);
       if (JSON.stringify(nextLabel) !== JSON.stringify(initialLabel)) body.label = nextLabel;
       const nextHelp = stripEmpty({ pl: helpPl, en: helpEn });
       if (JSON.stringify(nextHelp) !== JSON.stringify(initialHelp)) body.help = nextHelp;
@@ -501,19 +506,13 @@ function Editor({
             <FieldRow label={t('attributes.fields.type', { defaultValue: 'Type' })} mono lock>
               <span className="font-mono">{attribute.type}</span>
             </FieldRow>
-            <FieldRow label={t('attributes.fields.label_pl', { defaultValue: 'Nazwa (PL)' })}>
-              <Input
-                value={labelPl}
-                onChange={(e) => setLabelPl(e.target.value)}
-                disabled={isSystem}
-                className="font-medium"
-              />
-            </FieldRow>
-            <FieldRow label={t('attributes.fields.label_en', { defaultValue: 'Nazwa (EN)' })}>
-              <Input
-                value={labelEn}
-                onChange={(e) => setLabelEn(e.target.value)}
-                disabled={isSystem}
+            <FieldRow label={t('attributes.fields.name', { defaultValue: 'Nazwa' })}>
+              <LocaleTabsField
+                values={labelMap}
+                enabledLocales={enabledLocales}
+                primaryLocale={primaryLocale}
+                onChange={setLabelMap}
+                readOnly={isSystem}
               />
             </FieldRow>
           </div>
@@ -595,7 +594,7 @@ function Editor({
             </div>
             <div className="flex items-center gap-3">
               <Label className="w-24 text-[13px] font-medium text-foreground">
-                {labelPl || resolveLabel(attribute.label, locale)}
+                {labelMap[primaryLocale] || resolveLabel(attribute.label, locale)}
               </Label>
               <div className="flex h-10 flex-1 items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3">
                 <span className="text-[13px] text-muted-foreground">
@@ -776,6 +775,25 @@ function toLocaleMap(value: Record<string, string> | string | null | undefined):
     const out: { pl?: string; en?: string } = {};
     if (typeof value.pl === 'string') out.pl = value.pl;
     if (typeof value.en === 'string') out.en = value.en;
+    return out;
+  }
+  return {};
+}
+
+/**
+ * #1352 — unlike {@see toLocaleMap}, preserves EVERY locale key on the
+ * JSONB label map (pl/en/de/…) so the editor can surface a DE tab. A bare
+ * string (legacy single-locale shape) maps onto the primary `pl` slot.
+ */
+function toFullLocaleMap(
+  value: Record<string, string> | string | null | undefined,
+): Record<string, string> {
+  if (typeof value === 'string') return { pl: value };
+  if (value && typeof value === 'object') {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (typeof v === 'string') out[k] = v;
+    }
     return out;
   }
   return {};

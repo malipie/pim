@@ -221,10 +221,16 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
       return;
     }
     try {
+      // #1352 — seed the new option's label for EVERY enabled locale
+      // (pl/en/de/…), not a hardcoded pl/en pair, so a DE-enabled tenant
+      // gets a DE column to edit instead of a missing translation.
+      const seededLabel: Record<string, string> = Object.fromEntries(
+        localeChips.map((chip) => [chip.code, name]),
+      );
       const created = await jsonFetch<OptionRow>(`/api/attributes/${attribute.code}/options`, {
         method: 'POST',
         contentType: 'application/json',
-        body: { code, label: { pl: name, en: name } },
+        body: { code, label: seededLabel },
       });
       setActiveId(created.id);
       cancelDraft();
