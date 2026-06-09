@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Export\Presentation\Controller;
 
 use App\Export\Domain\Entity\ExportProfile;
+use App\Export\Domain\Enum\ExportEntityType;
+use App\Export\Domain\Enum\ExportTargetScope;
 use App\Export\Domain\Repository\ExportProfileRepositoryInterface;
+use App\Export\Presentation\Support\ExportEntityTypeResolver;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
@@ -18,6 +21,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
@@ -52,6 +56,7 @@ final class ExportProfileController
         private readonly ExportProfileRepositoryInterface $profiles,
         private readonly TenantContext $tenantContext,
         private readonly Security $security,
+        private readonly ExportEntityTypeResolver $entityTypeResolver,
     ) {
     }
 
@@ -86,7 +91,9 @@ final class ExportProfileController
         $payload = $this->decodeJson($request);
         $name = $this->parseName($payload);
         $description = $this->parseDescription($payload);
+        $selection = $this->entityTypeResolver->resolve($payload);
         $config = $this->parseConfig($payload);
+        $this->assertConfigScope($selection->entityType, $config);
 
         $existing = $this->profiles->findByTenantUserAndName($tenant, $userId, $name);
         if (null !== $existing) {
@@ -98,6 +105,8 @@ final class ExportProfileController
             name: $name,
             config: $config,
             description: $description,
+            entityType: $selection->entityType,
+            objectTypeId: $selection->objectTypeId,
         );
         $profile->assignTenant($tenant);
         $this->profiles->save($profile);
@@ -151,8 +160,24 @@ final class ExportProfileController
             $profile->setDescription($this->parseDescription($payload));
         }
 
+        // Re-classify when either entity_type or object_type_id is supplied;
+        // merge with the current values so a partial PATCH stays valid.
+        if (\array_key_exists('entity_type', $payload) || \array_key_exists('object_type_id', $payload)) {
+            $merged = $payload + [
+                'entity_type' => $profile->getEntityType()->value,
+                'object_type_id' => $profile->getObjectTypeId()?->toRfc4122(),
+            ];
+            $selection = $this->entityTypeResolver->resolve($merged);
+            $profile->reclassify($selection->entityType, $selection->objectTypeId);
+        }
+
         if (\array_key_exists('config', $payload)) {
-            $profile->updateConfig($this->parseConfig($payload));
+            $config = $this->parseConfig($payload);
+            $this->assertConfigScope($profile->getEntityType(), $config);
+            $profile->updateConfig($config);
+        } else {
+            // entity_type may have changed against an existing config.
+            $this->assertConfigScope($profile->getEntityType(), $profile->getConfig());
         }
 
         $this->profiles->save($profile);
@@ -304,6 +329,29 @@ final class ExportProfileController
     }
 
     /**
+     * Structural entity types always export the full set — a profile must not
+     * pin them to a narrower `default_target_scope` (EXR-04 / spec §2 D2).
+     *
+     * @param array<string, mixed> $config
+     */
+    private function assertConfigScope(ExportEntityType $entityType, array $config): void
+    {
+        if ($entityType->supportsScopeAndFilter()) {
+            return;
+        }
+        $scope = $config['default_target_scope'] ?? null;
+        if (null === $scope) {
+            return;
+        }
+        if (!\is_string($scope) || ExportTargetScope::All !== ExportTargetScope::tryFrom($scope)) {
+            throw new UnprocessableEntityHttpException(sprintf(
+                'entity_type=%s exports the full structure — config.default_target_scope must be "all" or omitted.',
+                $entityType->value,
+            ));
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function serialize(ExportProfile $profile): array
@@ -312,6 +360,8 @@ final class ExportProfileController
             'id' => $profile->getId()->toRfc4122(),
             'name' => $profile->getName(),
             'description' => $profile->getDescription(),
+            'entity_type' => $profile->getEntityType()->value,
+            'object_type_id' => $profile->getObjectTypeId()?->toRfc4122(),
             'config' => $profile->getConfig(),
             'last_run_at' => $profile->getLastRunAt()?->format(DateTimeInterface::ATOM),
             'run_count' => $profile->getRunCount(),

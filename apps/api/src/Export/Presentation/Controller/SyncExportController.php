@@ -12,6 +12,7 @@ use App\Export\Domain\Enum\ExportSource;
 use App\Export\Domain\Enum\ExportTargetScope;
 use App\Export\Domain\Message\RunExportMessage;
 use App\Export\Domain\Repository\ExportSessionRepositoryInterface;
+use App\Export\Presentation\Support\ExportEntityTypeResolver;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
@@ -25,6 +26,7 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -63,6 +65,7 @@ final class SyncExportController
         private readonly TenantContext $tenantContext,
         private readonly Security $security,
         private readonly MessageBusInterface $bus,
+        private readonly ExportEntityTypeResolver $entityTypeResolver,
     ) {
     }
 
@@ -85,8 +88,10 @@ final class SyncExportController
         }
 
         $payload = $this->decodeJson($request);
+        $selection = $this->entityTypeResolver->resolve($payload);
         $format = $this->parseFormat($payload);
         $targetScope = $this->parseScope($payload);
+        $this->entityTypeResolver->assertScopeAllowed($selection->entityType, $targetScope);
         $encoding = $this->parseEncoding($payload, $format);
         $columns = $this->parseColumns($payload);
         $selectedIds = $this->parseSelectedIds($payload, $targetScope);
@@ -96,6 +101,17 @@ final class SyncExportController
         $includeVariants = $payload['include_variants'] ?? true;
         if (!\is_bool($includeVariants)) {
             throw new BadRequestHttpException('include_variants must be boolean.');
+        }
+
+        // EXR-04 ships the model + API contract; the generation pipeline for
+        // non-product types lands in EXR-05 (custom_module) / EXR-06
+        // (structural). Reject execution of not-yet-runnable types with a
+        // clear 422 rather than dispatching a run that would fail mid-stream.
+        if (!$selection->entityType->isExecutable()) {
+            throw new UnprocessableEntityHttpException(sprintf(
+                'Export of entity_type=%s is not implemented yet (delivered in EXR-05/EXR-06).',
+                $selection->entityType->value,
+            ));
         }
 
         $session = new ExportSession(
@@ -110,6 +126,8 @@ final class SyncExportController
             locales: $locales,
             channels: $channels,
             includeVariants: $includeVariants,
+            entityType: $selection->entityType,
+            objectTypeId: $selection->objectTypeId,
         );
         $session->assignTenant($tenant);
 

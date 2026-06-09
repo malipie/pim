@@ -32,6 +32,13 @@
         <field name="encoding" type="string" length="16" nullable="true"/>
         <field name="targetScope" type="string" length="16" column="target_scope"/>
 
+        <field name="entityType" type="string" length="32" column="entity_type">
+            <options>
+                <option name="default">product</option>
+            </options>
+        </field>
+        <field name="objectTypeId" type="uuid" column="object_type_id" nullable="true"/>
+
         <field name="filterSnapshot" type="json" column="filter_snapshot" nullable="true">
             <options>
                 <option name="jsonb">true</option>
