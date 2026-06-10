@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 
-import type { ColumnGroup, ColumnOption } from './ColumnPicker';
+import type { ColumnGroup, ColumnOption } from './column-catalog';
 
 interface ColumnPickerV2Props {
   groups: ColumnGroup[];

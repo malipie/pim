@@ -195,10 +195,6 @@ const ExportProfilesView = lazyPage(
   () => import('@/features/exports/profiles/ExportProfilesView'),
   'ExportProfilesView',
 );
-const ExportNewPage = lazyPage(
-  () => import('@/features/exports/wizard/ExportNewPage'),
-  'ExportNewPage',
-);
 const ExportSessionShowPage = lazyPage(
   () => import('@/features/exports/show/ExportSessionShowPage'),
   'ExportSessionShowPage',
@@ -543,11 +539,7 @@ function App() {
                   path="/integrations/exports/sessions/:id"
                   element={<ExportSessionShowPage />}
                 />
-                {/* EXR-09 — v2 wizard replaces the paste-JSON page; the
-                    legacy form stays reachable at /new-legacy only until
-                    EXR-14 removes it. */}
                 <Route path="/integrations/exports/new" element={<ExportWizardPage />} />
-                <Route path="/integrations/exports/new-legacy" element={<ExportNewPage />} />
                 <Route path="/integrations" element={<IntegrationsLayout />}>
                   <Route index element={<Navigate to="/integrations/imports" replace />} />
                   {/* VIEW-IMP-00 (#493) — Importy hub with 4 tabs. Old flat

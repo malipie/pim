@@ -29,6 +29,7 @@ export function buildExportPayload(state: WizardState): Record<string, unknown> 
     target_scope: state.targetScope,
     selected_columns: state.columns,
     include_variants: true,
+    source: state.source,
   };
   if (state.objectTypeId !== null) payload.object_type_id = state.objectTypeId;
   if (state.targetScope === 'filter' && state.filterDsl !== null) {

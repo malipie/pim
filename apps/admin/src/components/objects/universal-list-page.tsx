@@ -35,7 +35,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Search } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 import { BulkBar } from '@/components/catalog/bulk-bar';
 import { DeletePresetDialog } from '@/components/catalog/delete-preset-dialog';
@@ -100,9 +100,6 @@ const BulkPublishModal = lazy(() =>
 );
 const BulkWizard = lazy(() =>
   import('@/components/catalog/bulk-wizard/bulk-wizard').then((m) => ({ default: m.BulkWizard })),
-);
-const ExportModal = lazy(() =>
-  import('@/features/exports/wizard/ExportModal').then((m) => ({ default: m.ExportModal })),
 );
 
 interface CatalogObjectListEntry {
@@ -206,6 +203,21 @@ export function UniversalListPage({
 }: UniversalListPageProps) {
   const { t } = useTranslation();
   const isProduct = searchKind === 'products';
+  const isCustomKind = searchKind === undefined;
+  const exportNavigate = useNavigate();
+
+  // EXR-14 — context entries into the export wizard (D5: full page, not a
+  // modal). selectedIds/filter DSL travel via router state, never the URL.
+  const goToExport = (scope: 'selected' | 'filter', ids?: string[]) => {
+    void exportNavigate(`/integrations/exports/new?scope=${scope}`, {
+      state: {
+        entityType: isProduct ? 'product' : 'custom_module',
+        objectTypeId: isProduct ? null : objectTypeId,
+        selectedIds: scope === 'selected' ? (ids ?? []) : null,
+        filterDsl: scope === 'filter' ? panelDsl : null,
+      },
+    });
+  };
   const excelColumns = isProduct ? PRODUCT_EXCEL_COLUMNS : DEFAULT_EXCEL_COLUMNS;
   const facets = isProduct ? PRODUCT_FACETS : DEFAULT_FACETS;
 
@@ -242,7 +254,6 @@ export function UniversalListPage({
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDuplicateOpen, setBulkDuplicateOpen] = useState(false);
   const [cmdKOpen, setCmdKOpen] = useState(false);
-  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [lastBulkSession, setLastBulkSession] = useState<RollbackSession | null>(null);
 
   useEffect(() => {
@@ -673,6 +684,16 @@ export function UniversalListPage({
           )}
         </Button>
 
+        {(isProduct || isCustomKind) && panelDsl !== null && (
+          <Button
+            variant="outline"
+            onClick={() => goToExport('filter')}
+            className="h-11 rounded-2xl"
+          >
+            {t('products.toolbar.export_filtered', { defaultValue: 'Eksportuj wynik' })}
+          </Button>
+        )}
+
         {hasVariants ? <VariantsToggle mode={variantsMode} onChange={setVariantsMode} /> : null}
 
         <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
@@ -911,18 +932,10 @@ export function UniversalListPage({
         onOpenDeleteModal={() => setBulkDeleteOpen(true)}
         onOpenDuplicateModal={isProduct ? () => setBulkDuplicateOpen(true) : undefined}
         onOpenCmdK={() => setCmdKOpen(true)}
-        onOpenExportModal={isProduct ? () => setExportModalOpen(true) : undefined}
+        onOpenExportModal={
+          isProduct || isCustomKind ? () => goToExport('selected', Array.from(selected)) : undefined
+        }
       />
-
-      <Suspense fallback={null}>
-        {exportModalOpen ? (
-          <ExportModal
-            open={exportModalOpen}
-            onOpenChange={setExportModalOpen}
-            selectedObjectIds={Array.from(selected)}
-          />
-        ) : null}
-      </Suspense>
 
       <Suspense fallback={null}>
         {bulkWizardOpen ? (

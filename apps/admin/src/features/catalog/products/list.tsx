@@ -25,7 +25,7 @@ import { useList } from '@refinedev/core';
 import { Plus, Search } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { BulkBar } from '@/components/catalog/bulk-bar';
 
 // VIEW-37 (#577) — lazy-load wszystkich modali + wizard + Cmd+K palette
@@ -63,11 +63,9 @@ const BulkPublishModal = lazy(() =>
 const BulkWizard = lazy(() =>
   import('@/components/catalog/bulk-wizard/bulk-wizard').then((m) => ({ default: m.BulkWizard })),
 );
+
 // EXP-11 follow-up — modal eksportu z bulk toolbar. Lazy load żeby
 // nie ważył initial bundle (modal renderuje się tylko po user action).
-const ExportModal = lazy(() =>
-  import('@/features/exports/wizard/ExportModal').then((m) => ({ default: m.ExportModal })),
-);
 
 import { DeletePresetDialog } from '@/components/catalog/delete-preset-dialog';
 import { EmptyStateProducts } from '@/components/catalog/empty-state-products';
@@ -172,6 +170,7 @@ function readInitialPage(): number {
 }
 
 export function ProductListPage() {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
@@ -213,7 +212,6 @@ export function ProductListPage() {
   const [bulkDuplicateOpen, setBulkDuplicateOpen] = useState(false);
   const [cmdKOpen, setCmdKOpen] = useState(false);
   // EXP-11 follow-up — export modal otwierany przez Eksport button w BulkBar.
-  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [lastBulkSession, setLastBulkSession] = useState<RollbackSession | null>(null);
 
   useEffect(() => {
@@ -880,18 +878,17 @@ export function ProductListPage() {
         onOpenDeleteModal={() => setBulkDeleteOpen(true)}
         onOpenDuplicateModal={() => setBulkDuplicateOpen(true)}
         onOpenCmdK={() => setCmdKOpen(true)}
-        onOpenExportModal={() => setExportModalOpen(true)}
+        onOpenExportModal={() =>
+          navigate('/integrations/exports/new?scope=selected', {
+            state: {
+              entityType: 'product',
+              objectTypeId: null,
+              selectedIds: Array.from(selected),
+              filterDsl: null,
+            },
+          })
+        }
       />
-
-      <Suspense fallback={null}>
-        {exportModalOpen ? (
-          <ExportModal
-            open={exportModalOpen}
-            onOpenChange={setExportModalOpen}
-            selectedObjectIds={Array.from(selected)}
-          />
-        ) : null}
-      </Suspense>
 
       <Suspense fallback={null}>
         {bulkWizardOpen ? (

@@ -40,6 +40,8 @@ export interface WizardState {
   preflight: PreflightResult | null;
   /** EXR-13 — profile being edited (?profile={id}); save = PATCH. */
   editingProfileId: string | null;
+  /** EXR-14 — telemetry: central tab vs list-context entry. */
+  source: 'central_tab' | 'list_context';
   /** Any user-made change — drives cancel/entity-switch confirmations. */
   dirty: boolean;
 }
@@ -57,6 +59,14 @@ export type WizardAction =
   | { type: 'SET_CHANNELS'; channels: string[] | null }
   | { type: 'SET_PROFILE_NAME'; profileName: string }
   | { type: 'SET_PREFLIGHT'; preflight: PreflightResult | null }
+  | {
+      type: 'INIT_FROM_LIST';
+      entityType: ExportEntityType;
+      objectTypeId: string | null;
+      selectedIds: string[] | null;
+      filterDsl: FilterDsl | null;
+      targetScope: ExportTargetScope;
+    }
   | {
       type: 'INIT_FROM_PROFILE';
       profileId: string;
@@ -99,5 +109,6 @@ export const INITIAL_WIZARD_STATE: WizardState = {
   profileName: '',
   preflight: null,
   editingProfileId: null,
+  source: 'central_tab',
   dirty: false,
 };
