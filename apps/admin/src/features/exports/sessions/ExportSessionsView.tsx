@@ -1,5 +1,5 @@
 import { useGetIdentity } from '@refinedev/core';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 
@@ -8,7 +8,7 @@ import { getAccessToken, jsonFetch } from '@/lib/http';
 
 import { useExportSessions, useInvalidateExportSessions } from '../hooks/useExportSessions';
 import { useExportSessionsStream } from '../hooks/useExportSessionsStream';
-import { ActiveSessions } from './ActiveSessions';
+import { ActiveSessions, type LiveProgress } from './ActiveSessions';
 import { HistoryTable } from './HistoryTable';
 import { KpiStrip } from './KpiStrip';
 
@@ -37,11 +37,45 @@ export function ExportSessionsView(): React.ReactElement {
   const sessionsQuery = useExportSessions();
   const invalidate = useInvalidateExportSessions();
 
-  const { lastEvent } = useExportSessionsStream(identity?.id ?? null);
+  const { lastEvent, connected } = useExportSessionsStream(identity?.id ?? null);
+  const [liveProgress, setLiveProgress] = useState<Record<string, LiveProgress>>({});
+  const lastTickRef = useRef<Record<string, { rows: number; at: number }>>({});
   useEffect(() => {
     if (lastEvent === null) return;
+    if (lastEvent.event === 'progress') {
+      // EXR-15 — smooth in-place progress without a REST round-trip;
+      // throughput from the delta between consecutive ticks.
+      const previous = lastTickRef.current[lastEvent.session_id];
+      const now = Date.now();
+      const rowsDone = lastEvent.rows_done ?? 0;
+      const throughput =
+        previous && now > previous.at
+          ? ((rowsDone - previous.rows) / (now - previous.at)) * 1000
+          : null;
+      lastTickRef.current[lastEvent.session_id] = { rows: rowsDone, at: now };
+      setLiveProgress((current) => ({
+        ...current,
+        [lastEvent.session_id]: {
+          rowsDone,
+          rowsTotal: lastEvent.rows_total ?? 0,
+          throughput,
+        },
+      }));
+      return;
+    }
+    // status events: completed/cancelled/error rows move to history.
     invalidate();
   }, [lastEvent, invalidate]);
+
+  // EXR-15 — degrade to 5 s polling only while the hub is unreachable
+  // (the shared query's 30 s refetch stays as the slow baseline).
+  useEffect(() => {
+    if (connected) return;
+    // biome-ignore lint/suspicious/noConsole: spec EXR-15 — degradation is logged to the console, not surfaced in the UI
+    console.info('exports: Mercure unavailable — falling back to 5s polling');
+    const timer = setInterval(() => invalidate(), 5_000);
+    return () => clearInterval(timer);
+  }, [connected, invalidate]);
 
   const all = sessionsQuery.data?.items ?? [];
   const cutoff = Date.now() - THIRTY_DAYS_MS;
@@ -132,7 +166,12 @@ export function ExportSessionsView(): React.ReactElement {
   return (
     <div className="space-y-6">
       <KpiStrip sessions={sessions} />
-      <ActiveSessions sessions={active} highlightId={highlightId} />
+      <ActiveSessions
+        sessions={active}
+        highlightId={highlightId}
+        liveProgress={liveProgress}
+        onCancelled={invalidate}
+      />
       <HistoryTable
         sessions={history}
         userName={identity?.name ?? identity?.email ?? '—'}

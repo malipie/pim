@@ -8,9 +8,10 @@ namespace App\Export\Domain\Enum;
  * Lifecycle of a single export session (PRD §5.1).
  *
  * `pending` is the row's default right after dispatch; the worker
- * transitions through `running` to a terminal state. No paused/cancelled
- * states in MVP — exports are read-only operations that either complete
- * or fail, there is nothing to roll back.
+ * transitions through `running` to a terminal state. `cancelled` (EXR-15)
+ * is user-requested: the async handler checks the persisted status
+ * between chunks and stops gracefully — exports are read-only, so there
+ * is nothing to roll back beyond removing the partial temp file.
  */
 enum ExportStatus: string
 {
@@ -18,11 +19,12 @@ enum ExportStatus: string
     case Running = 'running';
     case Done = 'done';
     case Error = 'error';
+    case Cancelled = 'cancelled';
 
     public function isTerminal(): bool
     {
         return match ($this) {
-            self::Done, self::Error => true,
+            self::Done, self::Error, self::Cancelled => true,
             default => false,
         };
     }

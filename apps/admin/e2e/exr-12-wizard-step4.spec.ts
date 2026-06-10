@@ -67,10 +67,16 @@ test.beforeEach(async ({ page }) => {
   await page.waitForTimeout(1200);
   await page.goto('/integrations/exports/new');
   await page.waitForTimeout(500);
-  for (let step = 0; step < 3; step += 1) {
-    await page.getByRole('button', { name: /Dalej|Next/ }).click();
-    await page.waitForTimeout(400);
-  }
+  // step 1 → 2
+  await page.getByRole('button', { name: /Dalej|Next/ }).click();
+  // deterministic: wait for the (mocked) preflight to land in the store
+  // before leaving step 2 — the probe is debounced 500 ms and the sync
+  // note on step 4 depends on it.
+  await expect(page.getByTestId('preflight-badge')).toContainText('5', { timeout: 10_000 });
+  await page.getByRole('button', { name: /Dalej|Next/ }).click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: /Dalej|Next/ }).click();
+  await page.waitForTimeout(400);
 });
 
 test('summary shows the configuration and sync run downloads a file', async ({ page }) => {

@@ -2440,7 +2440,12 @@
       "empty_title": "No active exports",
       "empty_subtitle": "Start with “New export” — small batches download instantly, bulk jobs land here with a progress bar.",
       "progress": "{{done}} / {{total}} rows",
-      "progress_aria": "Export progress"
+      "progress_aria": "Export progress",
+      "cancel": "Cancel",
+      "cancel_confirm": "Cancel this export? The partial file will be discarded.",
+      "cancelled_toast": "Export cancelled",
+      "cancel_failed": "Failed to cancel the export",
+      "throughput": "{{value}} rows/s"
     },
     "history": {
       "title": "History · last 30 days",
@@ -2469,7 +2474,8 @@
       "action_details": "Details",
       "download_failed": "Download failed",
       "rerun_failed": "Rerun failed",
-      "delete_failed": "Delete failed"
+      "delete_failed": "Delete failed",
+      "segment_cancelled": "cancelled"
     },
     "sessions": {
       "confirm_delete": "Delete this export? The MinIO file will be removed as well."
@@ -2622,6 +2628,16 @@
       "action_run": "Run now: {{name}}",
       "action_edit": "Edit profile {{name}}",
       "action_delete": "Delete profile {{name}}"
+    },
+    "notifications": {
+      "done_title": "Export finished — download the file",
+      "done_body_one": "{{count}} row exported",
+      "done_body_other": "{{count}} rows exported",
+      "cancelled_title": "Export cancelled",
+      "error_title": "Export failed"
+    },
+    "status": {
+      "cancelled": "cancelled"
     }
   }
 }

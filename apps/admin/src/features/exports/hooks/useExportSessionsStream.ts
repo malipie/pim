@@ -7,7 +7,7 @@ interface ExportEvent {
   rows_total?: number;
   progress_pct?: number;
   estimated_seconds_remaining?: number | null;
-  status?: 'pending' | 'running' | 'done' | 'error';
+  status?: 'pending' | 'running' | 'done' | 'error' | 'cancelled';
   success_count?: number;
   error_message?: string | null;
 }

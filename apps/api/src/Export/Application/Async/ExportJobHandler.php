@@ -12,6 +12,7 @@ use App\Export\Domain\Repository\ExportSessionRepositoryInterface;
 use App\Shared\Application\AbstractBatchHandler;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
@@ -64,6 +65,7 @@ final class ExportJobHandler extends AbstractBatchHandler
         private readonly FilesystemOperator $exportsStorage,
         private readonly ExportProgressPublisher $progress,
         private readonly TenantContext $tenantContext,
+        private readonly Connection $connection,
         ?LoggerInterface $logger = null,
         int $batchSize = 1000,
     ) {
@@ -109,10 +111,40 @@ final class ExportJobHandler extends AbstractBatchHandler
 
         $tempPath = $this->prepareTempFile($session);
         try {
-            $this->runner->runToFile($session, $tempPath);
+            // EXR-15 — live progress every chunk + graceful cancellation:
+            // the cancel endpoint flips the PERSISTED status; we read it
+            // straight from the DB (the in-memory entity is stale inside
+            // the long-running loop).
+            $startedAt = microtime(true);
+            $onChunk = function (int $rowsDone) use ($session, $startedAt): void {
+                $elapsed = microtime(true) - $startedAt;
+                $rate = $elapsed > 0 ? $rowsDone / $elapsed : 0.0;
+                $remaining = max(0, $session->getTargetCount() - $rowsDone);
+                $eta = $rate > 0 ? (int) ceil($remaining / $rate) : null;
+                $this->progress->progress($session, $rowsDone, $eta);
+
+                $statusNow = $this->connection->fetchOne(
+                    'SELECT status FROM export_sessions WHERE id = :id',
+                    ['id' => $session->getId()->toRfc4122()],
+                );
+                if (ExportStatus::Cancelled->value === $statusNow) {
+                    throw new ExportCancelledException('Export cancelled by the user.');
+                }
+            };
+
+            $this->runner->runToFile($session, $tempPath, $onChunk);
             $this->uploadToMinio($session, $tenant, $tempPath);
             $this->progress->progress($session, $session->getSuccessCount(), estimatedSecondsRemaining: 0);
             $this->progress->status($session);
+        } catch (ExportCancelledException) {
+            // EXR-15 — the cancel endpoint already persisted the terminal
+            // status; refresh the stale entity and notify subscribers so
+            // the card drops out of "W toku" instantly.
+            $this->entityManager->refresh($session);
+            $this->progress->status($session);
+            $this->logger->info('Export job cancelled by user', [
+                'session_id' => $session->getId()->toRfc4122(),
+            ]);
         } catch (Throwable $error) {
             // markError throws if the session has already transitioned to
             // 'done' (e.g. runToFile completed but MinIO upload failed

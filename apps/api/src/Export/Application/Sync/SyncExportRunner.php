@@ -52,6 +52,8 @@ use Throwable;
  */
 final class SyncExportRunner
 {
+    public const int PROGRESS_CHUNK = 500;
+
     public function __construct(
         private readonly ExportBuilder $builder,
         private readonly CatalogObjectRepositoryInterface $objects,
@@ -145,11 +147,16 @@ final class SyncExportRunner
      * Caller (the controller) is responsible for streaming the file to
      * the HTTP response and deleting it afterwards. We split execution
      * from delivery so the same runner can later land async output.
+     *
+     * @param callable(int): void|null $onChunk EXR-15 — invoked every
+     *                                          PROGRESS_CHUNK rows with rows-done; throwing
+     *                                          {@see \App\Export\Application\Async\ExportCancelledException}
+     *                                          aborts the run gracefully
      */
-    public function runToFile(ExportSession $session, string $targetPath): int
+    public function runToFile(ExportSession $session, string $targetPath, ?callable $onChunk = null): int
     {
         if ($session->getEntityType()->isStructural()) {
-            return $this->runStructuralToFile($session, $targetPath);
+            return $this->runStructuralToFile($session, $targetPath, $onChunk);
         }
 
         $targets = $this->resolveTargets($session);
@@ -180,6 +187,9 @@ final class SyncExportRunner
                 }
                 $writer->writeRow($values);
                 ++$rows;
+                if (null !== $onChunk && 0 === $rows % self::PROGRESS_CHUNK) {
+                    $onChunk($rows);
+                }
             }
         } finally {
             $writer->close();
@@ -279,7 +289,10 @@ final class SyncExportRunner
      * categories) stream a flat config table from the matching builder rather
      * than the catalog-object pipeline.
      */
-    private function runStructuralToFile(ExportSession $session, string $targetPath): int
+    /**
+     * @param callable(int): void|null $onChunk
+     */
+    private function runStructuralToFile(ExportSession $session, string $targetPath, ?callable $onChunk = null): int
     {
         $tenant = $this->requireTenant($session);
         $builder = $this->structuralBuilderFor($session->getEntityType());
@@ -301,6 +314,9 @@ final class SyncExportRunner
                 }
                 $writer->writeRow($values);
                 ++$rows;
+                if (null !== $onChunk && 0 === $rows % self::PROGRESS_CHUNK) {
+                    $onChunk($rows);
+                }
             }
         } finally {
             $writer->close();
