@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { HttpError, jsonFetch } from '@/lib/http';
-import { useCurrentWorkspace, useInvalidateCurrentWorkspace } from '@/lib/use-current-workspace';
+import { useCurrentWorkspace } from '@/lib/use-current-workspace';
 
 /**
  * VIEW-03b — pixel-perfect rebuild of `NewAttributeGroupView`
@@ -58,7 +58,6 @@ export function AttributeGroupCreatePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const workspace = useCurrentWorkspace();
-  const invalidateWorkspace = useInvalidateCurrentWorkspace();
   const enabledLocales = workspace.data?.enabledLocales ?? ['pl', 'en'];
   const primaryLocale = workspace.data?.primaryLocale ?? 'pl';
   const [values, setValues] = useState<CreatePayload>(EMPTY);
@@ -216,7 +215,6 @@ export function AttributeGroupCreatePage() {
                     enabledLocales={enabledLocales}
                     primaryLocale={primaryLocale}
                     onChange={(next) => setValues({ ...values, label: next })}
-                    onLocaleAdded={() => invalidateWorkspace()}
                     placeholder="np. Wymiary"
                   />
                 </div>

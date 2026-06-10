@@ -461,7 +461,6 @@ export function ObjectTypeWizard() {
                       defaultValue: 'np. Subskrypcja',
                     })}
                     onChange={setLabel}
-                    onLocaleAdded={() => void invalidateWorkspace()}
                   />
                 </div>
                 <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
