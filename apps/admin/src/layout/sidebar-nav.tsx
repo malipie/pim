@@ -1,6 +1,7 @@
 import { useGetIdentity } from '@refinedev/core';
 import {
   Boxes,
+  ChevronDown,
   Cog,
   FileText,
   Image,
@@ -15,8 +16,9 @@ import {
   Workflow,
   Wrench,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NavLink } from 'react-router';
+import { NavLink, useLocation } from 'react-router';
 
 import { MockBadge } from '@/components/ui/mock-badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -24,6 +26,7 @@ import { isMenuRefVisible, useIdentity } from '@/lib/identity';
 import { type EffectiveMenuItem, useEffectiveMenu } from '@/lib/use-effective-menu';
 import { cn } from '@/lib/utils';
 
+import { formatNavCount, type NavCountSource, useNavCounts } from './use-nav-counts';
 import { UserMenu } from './user-menu';
 
 interface SidebarNavProps {
@@ -136,6 +139,35 @@ const FALLBACK_ITEMS: EffectiveMenuItem[] = [
   },
 ];
 
+/**
+ * EXR-03 — second-level menu under "Integracje". Children are static FE
+ * structure (routes already exist in App.tsx); counts come from
+ * `useNavCounts`. The parent expands/collapses; a deep link onto any
+ * child route opens it automatically.
+ */
+interface IntegrationChild {
+  key: string;
+  labelKey: string;
+  route: string;
+  /** Count source key in useNavCounts results (optional). */
+  countKey?: string;
+}
+
+const INTEGRATION_CHILDREN: IntegrationChild[] = [
+  {
+    key: 'imports',
+    labelKey: 'nav.imports',
+    route: '/integrations/imports/sessions',
+    countKey: 'child:imports',
+  },
+  { key: 'exports', labelKey: 'nav.exports', route: '/integrations/exports/sessions' },
+  {
+    key: 'api_configurator',
+    labelKey: 'nav.api_configurator',
+    route: '/integrations/api-configurator',
+  },
+];
+
 const baseLeafClass =
   'group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[14px] font-medium transition';
 
@@ -154,11 +186,47 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const { data, isError } = useEffectiveMenu();
   const { identity } = useIdentity();
   const { data: refineIdentity } = useGetIdentity<RefineIdentity>();
+  const { pathname } = useLocation();
 
   const rawItems: EffectiveMenuItem[] = data && !isError ? data.visible : FALLBACK_ITEMS;
   const items: EffectiveMenuItem[] = rawItems.filter((item) =>
     isMenuRefVisible(identity, item.ref),
   );
+
+  const integrationsRouteActive = pathname.startsWith('/integrations');
+  const [integrationsOpen, setIntegrationsOpen] = useState(integrationsRouteActive);
+  useEffect(() => {
+    // Deep link onto /integrations/exports/... opens the parent (EXR-03 AC).
+    if (integrationsRouteActive) {
+      setIntegrationsOpen(true);
+    }
+  }, [integrationsRouteActive]);
+
+  const countSources: NavCountSource[] = [
+    ...items
+      .filter((item) => item.kind === 'object_type' && item.route !== null)
+      .map((item) => ({ key: item.id, objectTypeId: item.ref })),
+    ...items
+      .filter((item) => item.ref === 'multimedia' && item.route !== null)
+      .map((item) => ({ key: item.id, system: 'assets' as const })),
+    { key: 'child:imports', system: 'imports_active' as const },
+  ];
+  const counts = useNavCounts(countSources);
+
+  const renderCountBadge = (key: string | undefined, active = false) => {
+    const value = key !== undefined ? counts[key] : undefined;
+    if (value === undefined) return null;
+    return (
+      <span
+        className={cn(
+          'num ml-auto font-mono text-[11px] font-medium',
+          active ? 'text-white/70' : 'text-zinc-400',
+        )}
+      >
+        {formatNavCount(value)}
+      </span>
+    );
+  };
 
   const renderLabel = (item: EffectiveMenuItem): string => {
     if (item.label !== null) return item.label;
@@ -166,10 +234,71 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
     return item.ref;
   };
 
+  const renderIntegrationsParent = (item: EffectiveMenuItem) => {
+    const Icon = ICON_MAP[item.icon] ?? Plug2;
+    const labelText = renderLabel(item);
+    return (
+      <div key={item.id}>
+        <button
+          type="button"
+          aria-expanded={integrationsOpen}
+          aria-controls="nav-integrations-children"
+          onClick={() => setIntegrationsOpen((open) => !open)}
+          className={cn(
+            baseLeafClass,
+            integrationsRouteActive && !integrationsOpen
+              ? 'bg-zinc-900 text-white'
+              : 'text-zinc-700 hover:bg-zinc-100',
+          )}
+        >
+          <Icon
+            className={cn(
+              'size-4',
+              integrationsRouteActive && !integrationsOpen ? 'text-white/90' : 'text-zinc-400',
+            )}
+          />
+          <span className="flex-1 text-left">{labelText}</span>
+          <ChevronDown
+            aria-hidden="true"
+            className={cn(
+              'size-3.5 text-zinc-400 transition-transform',
+              integrationsOpen && 'rotate-180',
+            )}
+          />
+        </button>
+        {integrationsOpen && (
+          <div id="nav-integrations-children" className="mt-0.5 flex flex-col gap-0.5">
+            {INTEGRATION_CHILDREN.map((child) => (
+              <NavLink
+                key={child.key}
+                to={child.route}
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-xl py-1.5 pr-3 pl-10 text-[13px] font-medium transition',
+                    isActive ? 'bg-zinc-100 text-ink' : 'text-zinc-500 hover:bg-zinc-50',
+                  )
+                }
+                end={false}
+              >
+                <span className="flex-1">{t(child.labelKey)}</span>
+                {renderCountBadge(child.countKey)}
+              </NavLink>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderLeaf = (item: EffectiveMenuItem) => {
     const Icon = ICON_MAP[item.icon] ?? Boxes;
     const labelText = renderLabel(item);
     const isCustom = item.kind === 'object_type' && item.objectTypeKind === 'custom';
+
+    if (item.ref === 'integrations' && item.route !== null && !item.comingSoon) {
+      return renderIntegrationsParent(item);
+    }
 
     if (item.comingSoon || item.route === null) {
       return (
@@ -199,6 +328,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
               {t('nav.custom_tag', { defaultValue: 'CUSTOM' })}
             </span>
           </span>
+          {renderCountBadge(item.id)}
         </NavLink>
       );
     }
@@ -215,6 +345,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           <>
             <Icon className={cn('size-4', isActive ? 'text-white/90' : 'text-zinc-400')} />
             <span className="flex-1">{labelText}</span>
+            {renderCountBadge(item.id, isActive)}
           </>
         )}
       </NavLink>
