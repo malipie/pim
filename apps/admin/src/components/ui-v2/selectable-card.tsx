@@ -88,7 +88,7 @@ export function SelectableCard({
           </span>
         )}
         {disabled && (
-          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[9.5px] font-semibold tracking-wider text-zinc-400 uppercase">
+          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[9.5px] font-semibold tracking-wider text-zinc-600 uppercase">
             {t('ui_v2.soon')}
           </span>
         )}

@@ -145,7 +145,7 @@ export function ColumnPickerV2({
         className="rounded-2xl border border-zinc-200 bg-surface shadow-card"
       >
         <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-3">
-          <h3 className="flex-1 text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+          <h3 className="flex-1 text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
             {t('exports.picker.available_title')}
           </h3>
           <button
@@ -159,7 +159,7 @@ export function ColumnPickerV2({
         <div className="px-4 py-3">
           <div className="relative">
             <Search
-              className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-zinc-400"
+              className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-zinc-500"
               aria-hidden
             />
             <input
@@ -168,7 +168,7 @@ export function ColumnPickerV2({
               onChange={(event) => setSearch(event.target.value)}
               placeholder={t('exports.picker.search_placeholder')}
               aria-label={t('exports.picker.search_placeholder')}
-              className="focus-ring h-9 w-full rounded-xl border border-zinc-200 bg-surface pr-3 pl-8 text-[13px] placeholder:text-zinc-400"
+              className="focus-ring h-9 w-full rounded-xl border border-zinc-200 bg-surface pr-3 pl-8 text-[13px] placeholder:text-zinc-500"
             />
           </div>
         </div>
@@ -207,7 +207,7 @@ export function ColumnPickerV2({
                     <span
                       className={cn(
                         'num rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold',
-                        selectedCount > 0 ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-400',
+                        selectedCount > 0 ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600',
                       )}
                     >
                       {selectedCount}/{keys.length}
@@ -215,7 +215,7 @@ export function ColumnPickerV2({
                     <ChevronDown
                       aria-hidden
                       className={cn(
-                        'ml-auto size-3.5 text-zinc-400 transition-transform',
+                        'ml-auto size-3.5 text-zinc-500 transition-transform',
                         isCollapsed && '-rotate-90',
                       )}
                     />
@@ -236,7 +236,7 @@ export function ColumnPickerV2({
                               className="size-4 rounded border-zinc-300"
                             />
                             <span className="min-w-0 flex-1 truncate text-zinc-700">{label}</span>
-                            <span className="font-mono text-[10.5px] text-zinc-400">
+                            <span className="font-mono text-[10.5px] text-zinc-500">
                               {column.key}
                             </span>
                           </label>
@@ -249,7 +249,7 @@ export function ColumnPickerV2({
             );
           })}
           {visibleGroups.length === 0 && (
-            <p className="px-3 py-6 text-center text-[12.5px] text-zinc-400">
+            <p className="px-3 py-6 text-center text-[12.5px] text-zinc-500">
               {t('exports.picker.no_matches')}
             </p>
           )}
@@ -262,7 +262,7 @@ export function ColumnPickerV2({
         className="rounded-2xl border border-zinc-200 bg-surface shadow-card"
       >
         <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-3">
-          <h3 className="flex-1 text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+          <h3 className="flex-1 text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
             {t('exports.picker.selected_title', { count: value.length })}
           </h3>
           <button
@@ -273,10 +273,10 @@ export function ColumnPickerV2({
             {t('exports.picker.clear')}
           </button>
         </div>
-        <p className="px-4 pt-2 text-[11.5px] text-zinc-400">{t('exports.picker.order_hint')}</p>
+        <p className="px-4 pt-2 text-[11.5px] text-zinc-500">{t('exports.picker.order_hint')}</p>
         <div className="max-h-[420px] overflow-y-auto px-3 py-3">
           {value.length === 0 ? (
-            <p className="px-2 py-6 text-center text-[12.5px] text-zinc-400">
+            <p className="px-2 py-6 text-center text-[12.5px] text-zinc-500">
               {t('exports.picker.none_selected')}
             </p>
           ) : (
@@ -338,12 +338,12 @@ function SelectedRow({ id, index, label, groupLabel, locked, onRemove }: Selecte
         isDragging && 'soft-shadow z-10 opacity-90',
       )}
     >
-      <span className="num w-5 shrink-0 text-center font-mono text-[11px] text-zinc-400">
+      <span className="num w-5 shrink-0 text-center font-mono text-[11px] text-zinc-500">
         {index + 1}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-medium text-ink">{label}</span>
-        <span className="block truncate text-[11px] text-zinc-400">
+        <span className="block truncate text-[11px] text-zinc-500">
           {groupLabel}
           <span className="ml-1.5 font-mono">{id}</span>
         </span>
@@ -357,7 +357,7 @@ function SelectedRow({ id, index, label, groupLabel, locked, onRemove }: Selecte
           <button
             type="button"
             aria-label={t('exports.picker.drag_handle_aria', { column: label })}
-            className="focus-ring grid h-7 w-7 cursor-grab place-items-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-ink active:cursor-grabbing"
+            className="focus-ring grid h-7 w-7 cursor-grab place-items-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-ink active:cursor-grabbing"
             {...attributes}
             {...listeners}
           >
@@ -367,7 +367,7 @@ function SelectedRow({ id, index, label, groupLabel, locked, onRemove }: Selecte
             type="button"
             aria-label={t('exports.picker.remove_aria', { column: label })}
             onClick={onRemove}
-            className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-400 hover:bg-brick-50 hover:text-brick-600"
+            className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-500 hover:bg-brick-50 hover:text-brick-600"
           >
             <X className="size-3.5" aria-hidden />
           </button>

@@ -40,14 +40,14 @@ export function PageHeader({ items, actions, className }: PageHeaderProps) {
                 {item.href && !last ? (
                   <Link
                     to={item.href}
-                    className="focus-ring truncate rounded-md text-zinc-400 hover:text-ink"
+                    className="focus-ring truncate rounded-md text-zinc-500 hover:text-ink"
                   >
                     {item.label}
                   </Link>
                 ) : (
                   <span
                     aria-current={last ? 'page' : undefined}
-                    className={cn('truncate', last ? 'text-ink' : 'text-zinc-400')}
+                    className={cn('truncate', last ? 'text-ink' : 'text-zinc-500')}
                   >
                     {item.label}
                   </span>

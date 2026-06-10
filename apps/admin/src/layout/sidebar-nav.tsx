@@ -176,7 +176,7 @@ const customLeafClass = cn(
   'border border-dashed border-violet-300/70 bg-violet-50/50 text-violet-900 hover:bg-violet-100/70',
 );
 
-const disabledLeafClass = cn(baseLeafClass, 'cursor-not-allowed text-zinc-400');
+const disabledLeafClass = cn(baseLeafClass, 'cursor-not-allowed text-zinc-500');
 
 const leafLinkClass = ({ isActive }: { isActive: boolean }): string =>
   cn(baseLeafClass, isActive ? 'bg-zinc-900 text-white' : 'text-zinc-700 hover:bg-zinc-100');
@@ -220,7 +220,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       <span
         className={cn(
           'num ml-auto font-mono text-[11px] font-medium',
-          active ? 'text-white/70' : 'text-zinc-400',
+          active ? 'text-white/70' : 'text-zinc-500',
         )}
       >
         {formatNavCount(value)}
@@ -254,14 +254,14 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           <Icon
             className={cn(
               'size-4',
-              integrationsRouteActive && !integrationsOpen ? 'text-white/90' : 'text-zinc-400',
+              integrationsRouteActive && !integrationsOpen ? 'text-white/90' : 'text-zinc-500',
             )}
           />
           <span className="flex-1 text-left">{labelText}</span>
           <ChevronDown
             aria-hidden="true"
             className={cn(
-              'size-3.5 text-zinc-400 transition-transform',
+              'size-3.5 text-zinc-500 transition-transform',
               integrationsOpen && 'rotate-180',
             )}
           />
@@ -303,7 +303,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
     if (item.comingSoon || item.route === null) {
       return (
         <span key={item.id} className={disabledLeafClass} aria-disabled="true">
-          <Icon className="size-4 text-zinc-400" />
+          <Icon className="size-4 text-zinc-500" />
           <span className="flex-1">{labelText}</span>
           <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-zinc-500">
             {t('nav.soon')}
@@ -343,7 +343,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       >
         {({ isActive }) => (
           <>
-            <Icon className={cn('size-4', isActive ? 'text-white/90' : 'text-zinc-400')} />
+            <Icon className={cn('size-4', isActive ? 'text-white/90' : 'text-zinc-500')} />
             <span className="flex-1">{labelText}</span>
             {renderCountBadge(item.id, isActive)}
           </>
@@ -386,7 +386,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
               defaultValue: 'Zapytaj agenta lub szukaj...',
             })}
           >
-            <Search className="size-4 shrink-0 text-zinc-400" aria-hidden />
+            <Search className="size-4 shrink-0 text-zinc-500" aria-hidden />
             <span className="flex-1 truncate text-[13px] text-zinc-500">
               {t('topbar.search_agent_placeholder', {
                 defaultValue: 'Zapytaj agenta lub szukaj...',
@@ -402,7 +402,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       </Tooltip>
 
       <nav className="mt-5 flex-1 overflow-y-auto">
-        <div className="px-3 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+        <div className="px-3 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
           {t('nav.workspace_label', { defaultValue: 'Workspace' })}
         </div>
         <div className="flex flex-col gap-0.5">{items.map(renderLeaf)}</div>
@@ -412,7 +412,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           onClick={onNavigate}
           className="mt-3 flex w-full items-center gap-3 rounded-xl border border-dashed border-zinc-200 px-3 py-2 text-[13px] text-zinc-500 transition hover:border-violet-300 hover:bg-violet-50/60 hover:text-violet-700"
         >
-          <Plus className="size-4 text-zinc-400" aria-hidden />
+          <Plus className="size-4 text-zinc-500" aria-hidden />
           <span className="flex-1 text-left">
             {t('nav.add_custom_module', { defaultValue: 'Dodaj własny moduł' })}
           </span>

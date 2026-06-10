@@ -38,7 +38,7 @@ export function KpiCard({ label, value, sub, icon, trend, className }: KpiCardPr
           {icon}
         </span>
       )}
-      <div className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">{label}</div>
+      <div className="text-[11px] font-medium tracking-wider text-zinc-500 uppercase">{label}</div>
       <div className="num font-display mt-1 text-[28px] font-semibold tracking-tight text-ink">
         {value}
       </div>

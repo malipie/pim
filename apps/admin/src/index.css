@@ -144,9 +144,11 @@
   --ink-2: #43536e;
   --line: #d7dfeb;
 
-  /* v2 CTA accent (orange) */
-  --cta: #df5b16;
-  --cta-hover: #ef6a1f;
+  /* v2 CTA accent (orange) — one step deeper than the design's
+   * orange-600: white 13px text on #df5b16 is 3.7:1 (fails WCAG AA);
+   * orange-700/800 keep the hue and pass (5.2:1 / 7.3:1). */
+  --cta: #b9491a;
+  --cta-hover: #933c19;
   --cta-soft: #fef4ec;
 
   /* shadcn-mapped tokens — remapped onto handoff palette */
@@ -183,8 +185,8 @@
   --ink-2: #d7dfeb;
   --line: #1d2c47;
 
-  --cta: #ef6a1f;
-  --cta-hover: #f3823f;
+  --cta: #b9491a;
+  --cta-hover: #933c19;
   --cta-soft: #3a1709;
 
   --background: var(--bg);

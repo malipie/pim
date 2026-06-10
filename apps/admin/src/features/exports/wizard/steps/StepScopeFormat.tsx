@@ -134,7 +134,7 @@ export function StepScopeFormat() {
         <div className="mt-4 max-w-md">
           <label
             htmlFor="wizard-profile-select"
-            className="block text-[11px] font-medium tracking-wider text-zinc-400 uppercase"
+            className="block text-[11px] font-medium tracking-wider text-zinc-500 uppercase"
           >
             {t('exports.wizard.profile_label')}
           </label>
@@ -153,10 +153,10 @@ export function StepScopeFormat() {
               </option>
             ))}
           </select>
-          <p className="mt-1.5 text-[12px] text-zinc-400">{t('exports.wizard.profile_hint')}</p>
+          <p className="mt-1.5 text-[12px] text-zinc-500">{t('exports.wizard.profile_hint')}</p>
         </div>
 
-        <h3 className="mt-6 text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+        <h3 className="mt-6 text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
           {t('exports.wizard.format_label')}
         </h3>
         <SelectableCardGroup

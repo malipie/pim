@@ -150,7 +150,7 @@ export function ExportProfilesView(): React.ReactElement {
               ).map((key) => (
                 <th
                   key={key}
-                  className="px-4 py-3 text-[11px] font-medium tracking-wider text-zinc-400 uppercase"
+                  className="px-4 py-3 text-[11px] font-medium tracking-wider text-zinc-500 uppercase"
                 >
                   {t(`exports.profiles.${key}`)}
                 </th>
@@ -167,7 +167,7 @@ export function ExportProfilesView(): React.ReactElement {
                   <td className="px-4 py-3">
                     <div className="font-medium text-ink">{profile.name}</div>
                     {profile.description !== null && profile.description !== '' && (
-                      <div className="truncate text-[11.5px] text-zinc-400">
+                      <div className="truncate text-[11.5px] text-zinc-500">
                         {profile.description}
                       </div>
                     )}
@@ -188,7 +188,7 @@ export function ExportProfilesView(): React.ReactElement {
                   </td>
                   <td className="px-4 py-3">
                     {chips.length === 0 ? (
-                      <span className="text-zinc-400">—</span>
+                      <span className="text-zinc-500">—</span>
                     ) : (
                       <span className="flex flex-wrap gap-1">
                         {chips.slice(0, 2).map((chip) => (
@@ -200,7 +200,7 @@ export function ExportProfilesView(): React.ReactElement {
                           </span>
                         ))}
                         {chips.length > 2 && (
-                          <span className="text-[11px] text-zinc-400">+{chips.length - 2}</span>
+                          <span className="text-[11px] text-zinc-500">+{chips.length - 2}</span>
                         )}
                       </span>
                     )}
@@ -219,7 +219,7 @@ export function ExportProfilesView(): React.ReactElement {
                         onClick={() => void onRun(profile)}
                         aria-label={t('exports.profiles.action_run', { name: profile.name })}
                         title={t('exports.profiles.action_run', { name: profile.name })}
-                        className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-ink"
+                        className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-ink"
                       >
                         <Play className="size-3.5" aria-hidden />
                       </button>
@@ -227,7 +227,7 @@ export function ExportProfilesView(): React.ReactElement {
                         to={`/integrations/exports/new?profile=${profile.id}`}
                         aria-label={t('exports.profiles.action_edit', { name: profile.name })}
                         title={t('exports.profiles.action_edit', { name: profile.name })}
-                        className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-ink"
+                        className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-ink"
                       >
                         <Pencil className="size-3.5" aria-hidden />
                       </Link>
@@ -236,7 +236,7 @@ export function ExportProfilesView(): React.ReactElement {
                         onClick={() => void onDelete(profile)}
                         aria-label={t('exports.profiles.action_delete', { name: profile.name })}
                         title={t('exports.profiles.action_delete', { name: profile.name })}
-                        className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-400 hover:bg-brick-50 hover:text-brick-600"
+                        className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-500 hover:bg-brick-50 hover:text-brick-600"
                       >
                         <Trash2 className="size-3.5" aria-hidden />
                       </button>

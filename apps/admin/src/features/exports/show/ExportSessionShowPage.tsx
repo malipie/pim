@@ -95,7 +95,7 @@ export function ExportSessionShowPage(): React.ReactElement {
         <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
           {rows.map(([label, value]) => (
             <div key={label} className="flex items-baseline justify-between gap-4 sm:justify-start">
-              <dt className="w-36 shrink-0 text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+              <dt className="w-36 shrink-0 text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
                 {label}
               </dt>
               <dd className="min-w-0 truncate text-[13px] text-zinc-700">{value}</dd>

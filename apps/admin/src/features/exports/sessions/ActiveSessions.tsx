@@ -54,7 +54,7 @@ export function ActiveSessions({
   if (sessions.length === 0) {
     return (
       <section aria-label={t('exports.active.title')}>
-        <h2 className="mb-2 text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+        <h2 className="mb-2 text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
           {t('exports.active.title')}
         </h2>
         <div className="rounded-2xl border border-dashed border-zinc-200 bg-surface">
@@ -78,7 +78,7 @@ export function ActiveSessions({
 
   return (
     <section aria-label={t('exports.active.title')}>
-      <h2 className="mb-2 text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+      <h2 className="mb-2 text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
         {t('exports.active.title')}
       </h2>
       <div className="space-y-3">
@@ -121,7 +121,7 @@ export function ActiveSessions({
                   onClick={() => void cancelSession()}
                   aria-label={t('exports.active.cancel')}
                   title={t('exports.active.cancel')}
-                  className="focus-ring inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-zinc-400 hover:bg-brick-50 hover:text-brick-600"
+                  className="focus-ring inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-zinc-500 hover:bg-brick-50 hover:text-brick-600"
                 >
                   <XCircle className="size-3.5" aria-hidden />
                   {t('exports.active.cancel')}
