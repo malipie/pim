@@ -119,7 +119,7 @@ test('identifier value is unique per ObjectType (DB-enforced) and surfaces a cle
   );
   await page.goto(`/products/${productB.id}`);
   await groupsResponse;
-  await page.getByRole('button', { name: /^(edytuj|edit)$/i }).click();
+  // #1351 — the detail page opens directly in edit mode; no Edytuj gate.
   await expect(page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i })).toBeVisible();
 
   const identifierInput = page.locator(`input#attr-${attrCode}`).first();

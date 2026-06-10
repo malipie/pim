@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { jsonFetch } from '@/lib/http';
+import { objectKeys } from '@/lib/object-query-keys';
 
 interface Props {
   productId: string;
@@ -21,7 +22,7 @@ export function SchemaDriftBanner({ productId }: Props) {
   const [busy, setBusy] = useState(false);
 
   const { data } = useQuery({
-    queryKey: ['products', productId, 'schema-drift'],
+    queryKey: objectKeys.schemaDrift(productId),
     queryFn: async () =>
       jsonFetch<{ schemaDrift?: boolean }>(`/api/products/${productId}`, {
         accept: 'application/json',
@@ -41,10 +42,7 @@ export function SchemaDriftBanner({ productId }: Props) {
         method: 'POST',
         accept: 'application/json',
       });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['products', productId, 'schema-drift'] }),
-        queryClient.invalidateQueries({ queryKey: ['products', productId] }),
-      ]);
+      await queryClient.invalidateQueries({ queryKey: objectKeys.all(productId) });
     } finally {
       setBusy(false);
     }

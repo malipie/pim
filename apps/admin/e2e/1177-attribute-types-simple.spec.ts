@@ -95,7 +95,7 @@ test('new simple attribute types render their controls and round-trip', async ({
   );
   await page.goto(`/products/${product.id}`);
   await groupsResponse;
-  await page.getByRole('button', { name: /^(edytuj|edit)$/i }).click();
+  // #1351 — the detail page opens directly in edit mode; no Edytuj gate.
   await expect(page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i })).toBeVisible();
 
   // AttrRow renders each editable control with id `attr-<code>` — target it
@@ -125,15 +125,18 @@ test('new simple attribute types render their controls and round-trip', async ({
   // Save → PATCH 200.
   const patchResponse = page.waitForResponse(
     (response) =>
-      response.url().includes('/api/products/') && response.request().method() === 'PATCH',
+      response.url().includes('/api/objects/') && response.request().method() === 'PATCH',
   );
   await page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i }).click();
   expect((await patchResponse).status()).toBe(200);
 
-  // Reload → values persist (read-only render).
+  // Reload → values persist. #1351: the page reopens in edit mode, so the
+  // round-trip shows up as input values, not read-only text.
   await page.reload();
-  await expect(page.getByText('Lekki, oddychający materiał.')).toBeVisible();
-  await expect(page.getByText('2027-03-15 14:30')).toBeVisible();
-  await expect(page.getByText('#1a2b3c')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'supplier@example.com' })).toBeVisible();
+  await expect(page.locator(`textarea#attr-${textareaCode}`).first()).toHaveValue(
+    'Lekki, oddychający materiał.',
+  );
+  await expect(page.locator(`input#attr-${datetimeCode}`).first()).toHaveValue('2027-03-15T14:30');
+  await expect(page.locator(`input#attr-${colorCode}`).first()).toHaveValue('#1a2b3c');
+  await expect(page.locator(`input#attr-${emailCode}`).first()).toHaveValue('supplier@example.com');
 });

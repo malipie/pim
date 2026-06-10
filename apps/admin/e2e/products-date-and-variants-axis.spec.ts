@@ -50,6 +50,51 @@ test('product detail date picker + variants axis combobox', async ({ page }) => 
     throw new Error('Built-in product ObjectType not found — demo seeder did not run.');
   }
 
+  // The demo-seeded `release_date` attribute drifted out of the product
+  // ObjectType during operator UAT — create a dedicated date attribute so
+  // the spec is self-sufficient (mirrors products-channel-switch).
+  const ts = sku.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const dateAttrResp = await page.request.post('/api/attributes', {
+    headers: { ...authHeaders, 'content-type': 'application/ld+json' },
+    data: {
+      code: `reldate_${ts}`,
+      type: 'date',
+      label: { pl: 'Data premiery', en: 'Release date' },
+    },
+  });
+  expect(dateAttrResp.status(), await dateAttrResp.text()).toBe(201);
+  const dateAttrId = ((await dateAttrResp.json()) as { id: string }).id;
+  const attachResp = await page.request.post(
+    `/api/object_types/${productType.id}/attributes/${dateAttrId}`,
+    { headers: authHeaders },
+  );
+  expect([200, 201, 204]).toContain(attachResp.status());
+
+  // Same drift story for the seeded `color` axis attribute — create a
+  // dedicated select attribute with three options instead.
+  const axisAttrResp = await page.request.post('/api/attributes', {
+    headers: { ...authHeaders, 'content-type': 'application/ld+json' },
+    data: {
+      code: `kolor_${ts}`,
+      type: 'select',
+      label: { pl: 'Kolor osi', en: 'Axis color' },
+    },
+  });
+  expect(axisAttrResp.status(), await axisAttrResp.text()).toBe(201);
+  const axisAttrId = ((await axisAttrResp.json()) as { id: string }).id;
+  for (const value of ['red', 'green', 'blue']) {
+    const optionResp = await page.request.post(`/api/attributes/kolor_${ts}/options`, {
+      headers: { ...authHeaders, 'content-type': 'application/json' },
+      data: { code: value, label: { pl: value, en: value } },
+    });
+    expect([200, 201]).toContain(optionResp.status());
+  }
+  const axisAttachResp = await page.request.post(
+    `/api/object_types/${productType.id}/attributes/${axisAttrId}`,
+    { headers: authHeaders },
+  );
+  expect([200, 201, 204]).toContain(axisAttachResp.status());
+
   const createResponse = await page.request.post('/api/products', {
     headers: { ...authHeaders, 'content-type': 'application/ld+json' },
     data: {
@@ -84,7 +129,7 @@ test('product detail date picker + variants axis combobox', async ({ page }) => 
 
   const datePatch = page.waitForResponse(
     (response) =>
-      response.url().includes(`/api/products/${product.id}`) &&
+      response.url().includes(`/api/objects/${product.id}`) &&
       response.request().method() === 'PATCH',
   );
   await page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i }).click();
@@ -118,15 +163,15 @@ test('product detail date picker + variants axis combobox', async ({ page }) => 
   // only — system attrs (created_at, updated_by, ...) MUST NOT appear.
   // Each option button's accessible name combines label + code
   // (`Kolor color`, `Tagi tags`).
-  await expect(page.getByRole('button', { name: 'Kolor color' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Tagi tags' })).toBeVisible();
+  const axisOption = page.getByRole('button', { name: `Kolor osi kolor_${ts}` });
+  await expect(axisOption).toBeVisible();
   await expect(page.getByRole('button', { name: /created_at/ })).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Kolor color' }).click();
+  await axisOption.click();
 
   // After the pick the trigger reflects the chosen attribute label
   // and the suggested option codes appear under the row.
-  await expect(axisTrigger).toContainText(/Kolor|Color/);
+  await expect(axisTrigger).toContainText(/Kolor osi|Axis color/);
   await expect(page.getByRole('button', { name: '+red' })).toBeVisible();
   await expect(page.getByRole('button', { name: '+green' })).toBeVisible();
   await expect(page.getByRole('button', { name: '+blue' })).toBeVisible();

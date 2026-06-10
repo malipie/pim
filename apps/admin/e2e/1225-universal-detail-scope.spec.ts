@@ -37,16 +37,8 @@ test.describe('fix(admin) #1225 — universal detail scope switcher', () => {
 
     const localePicker = page.getByRole('button', { name: /^język$|^language$/i });
 
-    // 1. View mode — #1269: the scope switcher is visible (Język + Kanał).
-    await expect(localePicker.first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /^kanał$|^channel$/i }).first()).toBeVisible();
-
-    // 2. Enter edit mode — the switcher persists.
-    await page
-      .getByRole('button', { name: /edytuj|^edit$/i })
-      .first()
-      .click();
-    await page.waitForTimeout(600);
+    // #1351 unification — the detail page opens directly in edit mode
+    // (no Edytuj gate); the scope switcher is visible from the start.
     await expect(localePicker.first()).toBeVisible();
     await expect(page.getByRole('button', { name: /^kanał$|^channel$/i }).first()).toBeVisible();
 

@@ -143,7 +143,7 @@ export function SelectableCardGroup({ ariaLabel, children, className }: Selectab
     }
     event.preventDefault();
     const forward = event.key === 'ArrowRight' || event.key === 'ArrowDown';
-    const currentIndex = radios.findIndex((radio) => radio === document.activeElement);
+    const currentIndex = radios.indexOf(document.activeElement as HTMLButtonElement);
     const base =
       currentIndex === -1
         ? radios.findIndex((r) => r.getAttribute('aria-checked') === 'true')

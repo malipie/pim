@@ -432,7 +432,7 @@ function App() {
                 {/* UP-07 (#1023) — universal /objects/:slug/:id detail route.
                     Built-in product/category/asset slugs redirect to their
                     legacy detail routes inside ObjectShowPage; custom kinds
-                    render UniversalDetailPage. */}
+                    render the unified ProductDetailPage (#1348/#1351). */}
                 <Route path="/objects/:slug/:id" element={<UniversalObjectShowPage />} />
                 {/* VIEW-07 (#420): edit page is now inline-edit on /products/:id.
                     Keep the legacy path as a back-compat redirect for bookmarks

@@ -82,8 +82,11 @@ test('a custom kind can assign a category via the universal detail picker', asyn
   await page.goto(`/objects/${slug}/${objId}`);
   await page.getByRole('tab', { name: /kategorie/i }).click();
 
-  // The read-only "UP-07 follow-up" placeholder is gone; the edit button is wired.
-  const editButton = page.getByRole('button', { name: /edytuj kategorie/i });
+  // Unified CategoriesTab (#1348/#1351): empty state shows "+ Przypisz
+  // kategorie", non-empty "+ Edytuj kategorie" — accept both.
+  const editButton = page
+    .getByRole('button', { name: /przypisz kategorie|edytuj kategorie|assign|edit categor/i })
+    .first();
   await expect(editButton).toBeVisible();
   await expect(page.getByText(/UP-07 follow-upie/i)).toHaveCount(0);
 

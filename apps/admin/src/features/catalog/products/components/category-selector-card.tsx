@@ -9,6 +9,7 @@ import {
 } from '@/components/catalog/category-picker-dialog';
 import { Button } from '@/components/ui/button';
 import { jsonFetch } from '@/lib/http';
+import { objectKeys } from '@/lib/object-query-keys';
 import { cn } from '@/lib/utils';
 
 import { CategoryChangeWarningDialog } from './category-change-warning-dialog';
@@ -20,10 +21,24 @@ interface AssignmentRow {
   position: number;
 }
 
+/**
+ * Poly-kind `/api/objects/{id}/categories` serializes the code as
+ * `categoryCode` and omits the top-level `primaryCategoryId` that the
+ * legacy `/api/products/{id}/categories` shape carried — normalize both.
+ */
+interface RawAssignmentRow {
+  categoryId: string;
+  code?: string;
+  categoryCode?: string;
+  isPrimary: boolean;
+  position: number;
+}
+
 interface ListResponse {
-  productId: string;
-  primaryCategoryId: string | null;
-  assignments: AssignmentRow[];
+  objectId?: string;
+  productId?: string;
+  primaryCategoryId?: string | null;
+  assignments: RawAssignmentRow[];
 }
 
 interface CreateModeCategorySummary {
@@ -92,9 +107,9 @@ export function CategorySelectorCard(props: Props) {
   const productId = isEdit ? props.productId : '';
 
   const { data, isLoading } = useQuery({
-    queryKey: ['products', productId, 'categories'],
+    queryKey: objectKeys.categories(productId),
     queryFn: async () =>
-      jsonFetch<ListResponse>(`/api/products/${productId}/categories`, {
+      jsonFetch<ListResponse>(`/api/objects/${productId}/categories`, {
         accept: 'application/json',
       }),
     enabled: isEdit && productId !== '',
@@ -102,18 +117,19 @@ export function CategorySelectorCard(props: Props) {
 
   const refresh = async () => {
     if (!isEdit) return;
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['products', productId, 'categories'] }),
-      queryClient.invalidateQueries({
-        queryKey: ['products', productId, 'effective-attribute-groups'],
-      }),
-      queryClient.invalidateQueries({ queryKey: ['products', productId] }),
-    ]);
+    // Prefix invalidation covers categories + effective groups + the
+    // scoped detail query — all live under objectKeys.all(id).
+    await queryClient.invalidateQueries({ queryKey: objectKeys.all(productId) });
   };
 
   const assignments: AssignmentRow[] = useMemo(() => {
     if (isEdit) {
-      return data?.assignments ?? [];
+      return (data?.assignments ?? []).map((a) => ({
+        categoryId: a.categoryId,
+        code: a.code ?? a.categoryCode ?? a.categoryId.slice(0, 8),
+        isPrimary: a.isPrimary,
+        position: a.position,
+      }));
     }
     return props.selectedCategories.map((c, idx) => ({
       categoryId: c.categoryId,
@@ -122,6 +138,11 @@ export function CategorySelectorCard(props: Props) {
       position: idx,
     }));
   }, [isEdit, data, props]);
+
+  const persistedPrimaryId = useMemo(
+    () => data?.primaryCategoryId ?? assignments.find((a) => a.isPrimary)?.categoryId ?? null,
+    [data, assignments],
+  );
 
   const currentCategoryIds: string[] = useMemo(
     () => assignments.map((a) => a.categoryId),
@@ -141,7 +162,7 @@ export function CategorySelectorCard(props: Props) {
     if (!isEdit) return;
     setBusyCategoryId(categoryId);
     try {
-      await jsonFetch(`/api/products/${productId}/categories/${categoryId}`, {
+      await jsonFetch(`/api/objects/${productId}/categories/${categoryId}`, {
         method: 'DELETE',
         accept: 'application/json',
       });
@@ -166,8 +187,7 @@ export function CategorySelectorCard(props: Props) {
     setWarningTarget({
       action: 'detach',
       nextCategoryIds: currentCategoryIds.filter((id) => id !== categoryId),
-      nextPrimaryId:
-        data?.primaryCategoryId === categoryId ? null : (data?.primaryCategoryId ?? null),
+      nextPrimaryId: persistedPrimaryId === categoryId ? null : persistedPrimaryId,
       payload: { categoryId },
     });
   };
@@ -180,7 +200,7 @@ export function CategorySelectorCard(props: Props) {
     }
     setBusyCategoryId(categoryId);
     try {
-      await jsonFetch(`/api/products/${productId}/categories`, {
+      await jsonFetch(`/api/objects/${productId}/categories`, {
         method: 'POST',
         contentType: 'application/json',
         accept: 'application/json',
@@ -319,6 +339,7 @@ export function CategorySelectorCard(props: Props) {
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         productId={productId}
+        endpoint="objects"
         objectTypeId={props.objectTypeId ?? undefined}
         currentAssignments={currentPickerAssignments}
         onSaved={() => undefined}

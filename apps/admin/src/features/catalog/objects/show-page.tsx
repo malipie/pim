@@ -3,18 +3,16 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useParams } from 'react-router';
 
-import { UniversalDetailPage } from '@/components/objects/universal-detail-page';
+import { ProductDetailPage } from '@/features/catalog/products/components/product-detail-page';
 import { useListSchema } from '@/hooks/use-list-schema';
 import { jsonFetch } from '@/lib/http';
 
 /**
- * UP-07 (#1023) — `/objects/:slug/:id` route → UniversalDetailPage.
+ * UP-07 (#1023) — `/objects/:slug/:id` route.
  *
- * Built-in `product` redirects to `/products/{id}` so operators land on
- * the full-feature legacy ProductDetailPage (variants tab, multimedia,
- * sync, duplicate, preview) — dual maintenance per UP-10. Custom kinds
- * render UniversalDetailPage with attribute groups + capability-gated
- * categories tab.
+ * Built-in product/category/asset redirect to their dedicated routes;
+ * custom kinds render the unified ProductDetailPage (#1348/#1351 — one
+ * detail component for every ObjectType, dual maintenance retired).
  */
 interface ObjectTypeLookupRow {
   id: string;
@@ -100,15 +98,16 @@ export function ObjectShowPage() {
     );
   }
 
+  // #1348/#1351 — custom kinds render the SAME detail component as
+  // /products/:id (capability flags are derived inside from the object's
+  // own ObjectType); UniversalDetailPage is retired.
   return (
-    <UniversalDetailPage
-      objectId={id}
-      objectTypeCode={code}
+    <ProductDetailPage
+      mode="edit"
+      productId={id}
       objectTypeLabel={typeLabel}
       backHref={`/objects/${code}`}
-      isCategorizable={schemaQuery.data.objectType.is_categorizable}
-      hasMultimedia={schemaQuery.data.objectType.has_multimedia}
-      hasVariants={schemaQuery.data.objectType.has_variants}
+      detailPathFor={(objectId) => `/objects/${code}/${objectId}`}
     />
   );
 }

@@ -47,6 +47,6 @@ test.describe('Security headers', () => {
   test('server identifying header is stripped', async ({ request }) => {
     const response = await request.get('/');
     const headers = response.headers();
-    expect(headers['server']).toBeUndefined();
+    expect(headers.server).toBeUndefined();
   });
 });

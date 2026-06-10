@@ -16,7 +16,6 @@ import { loginAsAdmin, uniqueSku } from './helpers/auth';
  */
 const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 const FIELD_LABEL = /^(Cena kanału|Channel price)$/;
-const CHANNEL_LABEL = /Spec Channel|Kanał Spec/;
 
 test('channel switch reads + writes per-channel values', async ({ page }) => {
   test.fixme(!!process.env.CI, CI_BLOCKED);
@@ -33,6 +32,8 @@ test('channel switch reads + writes per-channel values', async ({ page }) => {
     .replace(/[^a-z0-9]/g, '_');
   const attrCode = `chprice_${ts}`;
   const channelCode = `spec_${ts}`;
+  // Unique display name — earlier runs may have left same-named channels.
+  const channelLabel = `Kanał Spec ${ts}`;
 
   const otResp = await page.request.get('/api/object_types', { headers: bearer });
   const otBody = (await otResp.json()) as {
@@ -68,7 +69,7 @@ test('channel switch reads + writes per-channel values', async ({ page }) => {
   const channelResp = await page.request.post('/api/channels', {
     data: {
       code: channelCode,
-      name: 'Kanał Spec',
+      name: channelLabel,
     },
     headers: { ...bearer, accept: 'application/ld+json', 'content-type': 'application/ld+json' },
   });
@@ -83,9 +84,13 @@ test('channel switch reads + writes per-channel values', async ({ page }) => {
   const product = (await createResponse.json()) as { id: string };
 
   await page.goto(`/products/${product.id}`);
-  await page.getByRole('button', { name: /^(edytuj|edit)$/i }).click();
+  // #1351 — the detail page opens directly in edit mode; no Edytuj gate.
   const saveButton = page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i });
   await expect(saveButton).toBeVisible();
+  const waitForSave = () =>
+    page.waitForResponse(
+      (r) => r.url().includes(`/api/objects/${product.id}`) && r.request().method() === 'PATCH',
+    );
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
   const fieldRow = () =>
@@ -97,26 +102,26 @@ test('channel switch reads + writes per-channel values', async ({ page }) => {
   // 1. Edit under "All channels" (global) + save.
   await fieldRow().scrollIntoViewIfNeeded();
   await fieldRow().locator('input[type="text"]').fill('global-99');
+  const firstSave = waitForSave();
   await saveButton.click();
-  await expect(page.getByRole('button', { name: /^(edytuj|edit)$/i })).toBeVisible();
+  expect((await firstSave).status()).toBe(200);
 
   // 2. Switch the channel picker to the new channel.
   await page.getByRole('button', { name: /^(kanał|channel)$/i }).click();
-  await page.getByRole('menuitem', { name: CHANNEL_LABEL }).click();
+  await page.getByRole('menuitem', { name: channelLabel }).click();
 
-  // EN shows the global fallback; overwrite with a channel value + save.
-  await page.getByRole('button', { name: /^(edytuj|edit)$/i }).click();
+  // The channel scope shows the global fallback; overwrite + save.
   await fieldRow().scrollIntoViewIfNeeded();
   const channelInput = fieldRow().locator('input[type="text"]');
   await expect(channelInput).toHaveValue('global-99');
   await channelInput.fill('channel-77');
+  const secondSave = waitForSave();
   await saveButton.click();
-  await expect(page.getByRole('button', { name: /^(edytuj|edit)$/i })).toBeVisible();
-  await expect(fieldRow().getByText('channel-77')).toBeVisible();
+  expect((await secondSave).status()).toBe(200);
+  await expect(fieldRow().locator('input[type="text"]')).toHaveValue('channel-77');
 
   // 3. Back to "All channels" — global value intact + distinct.
   await page.getByRole('button', { name: /^(kanał|channel)$/i }).click();
   await page.getByRole('menuitem', { name: /(Wszystkie kanały|All channels)/i }).click();
-  await expect(fieldRow().getByText('global-99')).toBeVisible();
-  await expect(fieldRow().getByText('channel-77')).toHaveCount(0);
+  await expect(fieldRow().locator('input[type="text"]')).toHaveValue('global-99');
 });

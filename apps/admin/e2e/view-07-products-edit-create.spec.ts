@@ -45,7 +45,13 @@ test('VIEW-07 product detail + create + duplicate flow', async ({ page }) => {
 
   await page.getByPlaceholder('SKU').fill(sku);
   await page.getByPlaceholder(/nazwa produktu|product name/i).fill(`Playwright VIEW-07 ${sku}`);
-  await page.getByPlaceholder(/marka|brand/i).fill('Playwright Inc.');
+  // #1357 — the "Marka" field was removed from the new-entry form.
+
+  // #891 — a new product requires at least one category before POST.
+  await page.getByRole('button', { name: /przypisz kategori/i }).click();
+  const categoryDialog = page.getByRole('dialog');
+  await categoryDialog.getByRole('checkbox').first().check();
+  await categoryDialog.getByRole('button', { name: /^zapisz$/i }).click();
 
   const createResponse = page.waitForResponse(
     (response) =>

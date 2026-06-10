@@ -87,7 +87,7 @@ test('asset attribute renders a library picker + thumbnail, not a text input', a
   );
   await page.goto(`/products/${product.id}`);
   await groupsResponse;
-  await page.getByRole('button', { name: /^(edytuj|edit)$/i }).click();
+  // #1351 — the detail page opens directly in edit mode; no Edytuj gate.
   await expect(page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i })).toBeVisible();
 
   const assetLabel = page.getByText(ASSET_LABEL).first();
@@ -105,30 +105,44 @@ test('asset attribute renders a library picker + thumbnail, not a text input', a
   // Picker dialog opens — assert it mounted, then pick the first asset.
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText(/^(Wybierz zasób|Choose asset)$/)).toBeVisible();
-  const firstAsset = dialog.locator('ul li button').first();
-  await expect(firstAsset).toBeVisible();
-  await firstAsset.click();
+  // Prefer an asset that ships a thumbnail — the library may contain
+  // thumbnail-less assets (UAT uploads), and the <img> assertion below
+  // only applies when one exists.
+  const anyAsset = dialog.locator('ul li button').first();
+  await expect(anyAsset).toBeVisible();
+  const thumbAssets = dialog.locator('ul li button:has(img)');
+  const hasThumbnail = (await thumbAssets.count()) > 0;
+  await (hasThumbnail ? thumbAssets.first() : anyAsset).click();
 
   // Value set: empty state is replaced by the "Zmień zasób" affordance +
-  // a thumbnail image.
+  // a thumbnail image (when the chosen asset has one).
   const changeButton = assetRow.getByRole('button', { name: /(Zmień zasób|Change asset)/ });
   await expect(changeButton).toBeVisible();
-  await expect(assetRow.locator('img')).toBeVisible();
+  if (hasThumbnail) {
+    await expect(assetRow.locator('img')).toBeVisible();
+  }
 
   // Save → backend persists `{attributes: {<code>: {asset_id: ...}}}`.
   const patchResponse = page.waitForResponse(
     (response) =>
-      response.url().includes('/api/products/') && response.request().method() === 'PATCH',
+      response.url().includes('/api/objects/') && response.request().method() === 'PATCH',
   );
   await page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i }).click();
   const patched = await patchResponse;
   expect(patched.status()).toBe(200);
 
-  // Reload → the picked asset persists (read path resolves the preview).
+  // Reload → the picked asset persists (read path resolves the preview;
+  // the thumbnail only renders when the asset ships one).
   await page.reload();
   const reloadedLabel = page.getByText(ASSET_LABEL).first();
   await reloadedLabel.scrollIntoViewIfNeeded();
+  const reloadedRow = reloadedLabel.locator(
+    'xpath=ancestor::div[contains(@class, "grid-cols")][1]',
+  );
   await expect(
-    reloadedLabel.locator('xpath=ancestor::div[contains(@class, "grid-cols")][1]').locator('img'),
+    reloadedRow.getByRole('button', { name: /(Zmień zasób|Change asset)/ }),
   ).toBeVisible();
+  if (hasThumbnail) {
+    await expect(reloadedRow.locator('img')).toBeVisible();
+  }
 });

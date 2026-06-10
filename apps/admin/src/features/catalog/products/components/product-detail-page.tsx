@@ -20,8 +20,9 @@ import { MockBadge } from '@/components/ui/mock-badge';
 import { toast } from '@/components/ui/toast';
 import { useListSchema } from '@/hooks/use-list-schema';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
-import { httpErrorDetail, jsonFetch } from '@/lib/http';
+import { HttpError, httpErrorDetail, jsonFetch } from '@/lib/http';
 import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
+import { objectKeys } from '@/lib/object-query-keys';
 import { cn } from '@/lib/utils';
 import { useDefaultObjectType } from '../use-default-object-type';
 import { AgentSuggestionsCard } from './agent-suggestions-card';
@@ -82,21 +83,46 @@ const GROUP_ICONS: Record<string, string> = {
 export interface ProductDetailPageProps {
   mode: ProductDetailMode;
   productId?: string;
+  /**
+   * #1348/#1351 unification — routing/labeling context for non-product
+   * kinds. The component derives every capability flag (variants,
+   * multimedia, categories) from the object's own ObjectType, so the
+   * wrappers only tell it where "back" is and how to label the root
+   * breadcrumb. Defaults preserve the legacy /products behaviour.
+   */
+  objectTypeLabel?: string;
+  backHref?: string;
+  detailPathFor?: (id: string) => string;
+  /**
+   * Kind guard for sugar routes: `/api/objects/{id}` is poly-kind, so
+   * /products/:id must reject a category/asset/custom id with the same
+   * 404 state the legacy sugar endpoint produced.
+   */
+  requireKind?: string;
 }
 
 /**
- * VIEW-07 (#420) — single-component product detail / create page.
+ * VIEW-07 (#420) — single-component object detail / create page.
  *
  * Renders the full screen documented in
  * `Project Plan/UI/Wdrozenie_grafiki/ticket-VIEW-07-...`. In edit mode
- * loads the product + its effective attribute groups; in create mode
+ * loads the object + its effective attribute groups; in create mode
  * starts with an empty draft and POSTs on save.
  *
- * Inline-edit toggle: a single "Edytuj" / "Zapisz zmiany" button
- * controls the whole body. While editing, every non-locked attribute
- * row renders an input. Save dispatches one PATCH with the diff.
+ * #1348/#1351 — this is THE detail page for every ObjectType kind:
+ * /products/:id and /objects/:slug/:id both render it (the former
+ * UniversalDetailPage is retired). Product-only affordances (preview,
+ * duplicate, sync, history) gate on `kind === 'product'`; everything
+ * else is capability-driven via list-schema flags.
  */
-export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
+export function ProductDetailPage({
+  mode,
+  productId,
+  objectTypeLabel,
+  backHref = '/products',
+  detailPathFor = (objectId: string) => `/products/${objectId}`,
+  requireKind,
+}: ProductDetailPageProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -132,22 +158,33 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   // are part of the query key, so switching either refetches the
   // scope-resolved reading.
   const productQuery = useQuery<CatalogObjectDto>({
-    queryKey: ['products', id, locale, channel],
+    queryKey: objectKeys.scoped(id, locale, channel),
     queryFn: () =>
-      jsonFetch<CatalogObjectDto>(`/api/products/${id}${scopeQuery(locale, channel)}`, {
+      jsonFetch<CatalogObjectDto>(`/api/objects/${id}${scopeQuery(locale, channel)}`, {
         accept: 'application/ld+json',
       }),
     enabled: isEditMode && id !== '',
+    // A 404 is conclusive — retrying it three times keeps the operator on
+    // "Ładowanie…" for ~8s before the not-found state appears (#1043).
+    retry: (failureCount, error) =>
+      !(error instanceof HttpError && error.status === 404) && failureCount < 3,
   });
 
-  const { objectTypeId } = useDefaultObjectType('product');
+  const { objectTypeId: defaultProductTypeId } = useDefaultObjectType('product');
+  const loadedProduct = isEditMode ? (productQuery.data ?? null) : null;
+  // Edit mode reads capabilities from the object's OWN ObjectType (any
+  // kind); create mode is product-only for now (#1415 unifies create).
+  const objectTypeId = isEditMode ? (loadedProduct?.objectType?.id ?? null) : defaultProductTypeId;
+  const kind = isEditMode ? (loadedProduct?.kind ?? null) : 'product';
   // UX bug fix #2 — UX-02 removed the legacy 'media' AttributeGroup
   // (operator decision: Multimedia is a capability, not an attribute
-  // group). Without reading `has_multimedia` from list-schema the
-  // legacy Multimedia tab never reappears on /products/{id}. Mirror
-  // the UniversalDetailPage gating logic so the tab follows the flag.
+  // group). Capability flags follow list-schema so the tab set matches
+  // what modeling advertises — for every kind, not just products.
   const schemaQuery = useListSchema(objectTypeId ?? undefined);
-  const hasMultimediaCapability = schemaQuery.data?.objectType.has_multimedia ?? false;
+  const schemaObjectType = schemaQuery.data?.objectType;
+  const hasMultimediaCapability = schemaObjectType?.has_multimedia ?? false;
+  const hasVariantsCapability = schemaObjectType?.has_variants ?? kind === 'product';
+  const isCategorizable = schemaObjectType?.is_categorizable ?? kind === 'product';
 
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
   // #1351 — the detail page opens directly in edit mode; there is no
@@ -198,7 +235,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     }));
   }, [mode, createCategoryIds, createPrimaryId, categoriesListQuery.data]);
 
-  const product = isEditMode ? (productQuery.data ?? null) : null;
+  const product = loadedProduct;
   const attrs = useMemo(
     () =>
       unwrapAttributesIndexed(product?.attributesIndexed as Record<string, unknown> | undefined),
@@ -213,7 +250,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   const groupsQuery = useQuery<{ groups: GroupMeta[]; locales?: LocaleOption[] }>({
     queryKey:
       isEditMode && id !== ''
-        ? ['products', id, 'effective-attribute-groups']
+        ? objectKeys.effectiveGroups(id)
         : [
             'object-types',
             objectTypeId,
@@ -223,7 +260,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     queryFn: async () => {
       if (isEditMode && id !== '') {
         return jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
-          `/api/products/${id}/effective-attribute-groups`,
+          `/api/objects/${id}/effective-attribute-groups`,
         );
       }
       if (objectTypeId === null) {
@@ -249,7 +286,13 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     placeholderData: (prev) => prev,
   });
 
-  const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data]);
+  // Empty groups (no attributes after field-level filtering) render as
+  // bare headers with zero rows — drop them, consistent with #1348's
+  // "no empty Atrybuty tab" rule.
+  const groups = useMemo(
+    () => (groupsQuery.data?.groups ?? []).filter((g) => g.attributes.length > 0),
+    [groupsQuery.data],
+  );
 
   // #1149 — the locale picker is fed from the tenant's real enabled locales
   // (shipped by effective-attribute-groups). Default the selection to the
@@ -287,9 +330,9 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   // Enabled only when a non-primary locale is active (primary locale
   // values are global — nothing can be "inherited from another locale").
   const scopeStatusQuery = useQuery<ScopeStatus>({
-    queryKey: ['products', id, 'scope-status', locale, channel],
+    queryKey: objectKeys.scopeStatus(id, locale, channel),
     queryFn: () =>
-      jsonFetch<ScopeStatus>(`/api/products/${id}/scope-status${scopeQuery(locale, channel)}`),
+      jsonFetch<ScopeStatus>(`/api/objects/${id}/scope-status${scopeQuery(locale, channel)}`),
     enabled: isEditMode && id !== '' && locale !== null,
     staleTime: 30_000,
   });
@@ -353,26 +396,44 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     // empty (only the ad-hoc adder), so drop it entirely — tab-mode
     // groups keep their own dedicated tabs.
     const attributesTab: TabKey[] = stackedGroups.length > 0 ? ['attributes' as const] : [];
+    // #1348/#1351 unification — categories/variants follow the
+    // ObjectType capability flags; history is a product-only stub.
+    const categories: TabKey[] = isCategorizable ? ['categories' as const] : [];
+    const history: TabKey[] = kind === 'product' ? ['history' as const] : [];
+    const variants: TabKey[] = hasVariantsCapability ? ['variants' as const] : [];
     return [
       ...attributesTab,
       ...fromGroups,
       ...ensureRelations,
       ...multimedia,
-      'categories' as const,
-      'history' as const,
-      'variants' as const,
+      ...categories,
+      ...history,
+      ...variants,
     ];
-  }, [mode, tabModeGroups, stackedGroups, shouldSurfaceRelationsTab, hasMultimediaCapability]);
+  }, [
+    mode,
+    tabModeGroups,
+    stackedGroups,
+    shouldSurfaceRelationsTab,
+    hasMultimediaCapability,
+    isCategorizable,
+    hasVariantsCapability,
+    kind,
+  ]);
 
   // Keep activeTab valid as group set changes (e.g. groups data arrives
   // after first render or a tab→stacked switch in the wizard). Falls back
   // to the first visible tab — `attributes` may now be absent (#1348).
+  // Skipped while the group set is still pending: the interim tab list
+  // (categories/history/variants only) would otherwise steal the default
+  // `attributes` selection before the data arrives.
   useEffect(() => {
+    if (groupsQuery.isPending) return;
     const fallback = visibleTabs[0];
     if (fallback !== undefined && !visibleTabs.includes(activeTab)) {
       setActiveTab(fallback);
     }
-  }, [activeTab, visibleTabs]);
+  }, [activeTab, visibleTabs, groupsQuery.isPending]);
 
   // Default expand all groups once they first arrive (mockup shows every
   // section open). Refetches after the first success keep the operator's
@@ -461,11 +522,11 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
             code: sku,
           }),
         );
-        navigate(`/products/${created.id}`);
+        navigate(detailPathFor(created.id));
       } else {
         if (Object.keys(dirtyFields).length === 0) {
           // Nothing to persist — "Zapisz i wróć do listy" still returns.
-          if (returnToList) navigate('/products');
+          if (returnToList) navigate(backHref);
           setIsSaving(false);
           return;
         }
@@ -473,7 +534,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
         // #1150 / #1155 — write in the active locale + channel: localizable
         // / scopable attributes land on that scope's row, others stay
         // global (BE decides per flag).
-        await jsonFetch(`/api/products/${id}${scopeQuery(locale, channel)}`, {
+        await jsonFetch(`/api/objects/${id}${scopeQuery(locale, channel)}`, {
           method: 'PATCH',
           contentType: 'application/merge-patch+json',
           body: { attributes },
@@ -483,7 +544,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
         toast.success(t('products.detail.save.success', { defaultValue: 'Zapisano zmiany' }));
         // #1351 — "Zapisz zmiany" keeps the row in edit mode; only
         // "Zapisz i wróć do listy" navigates back to the list.
-        if (returnToList) navigate('/products');
+        if (returnToList) navigate(backHref);
       }
     } catch (error) {
       // #1179 — surface the server's Problem Details `detail` (e.g. duplicate
@@ -509,14 +570,14 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
     if (mode !== 'edit' || id === '' || isDeleting) return;
     setIsDeleting(true);
     try {
-      await jsonFetch(`/api/products/${id}`, { method: 'DELETE' });
+      await jsonFetch(`/api/objects/${id}`, { method: 'DELETE' });
       toast.success(
         t('products.detail.delete.success', {
           defaultValue: 'Usunięto produkt {{code}}',
           code: product?.code ?? id,
         }),
       );
-      navigate('/products');
+      navigate(backHref);
     } catch {
       toast.error(
         t('products.detail.delete.failed', { defaultValue: 'Nie udało się usunąć produktu' }),
@@ -534,11 +595,19 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
   if (isEditMode && productQuery.isLoading) {
     return <DetailLoadingState />;
   }
-  if (isEditMode && (productQuery.isError || product === null || product === undefined)) {
+  // Kind guard — /api/objects/{id} loads any kind, but a sugar route
+  // like /products/:id must keep 404-ing for foreign kinds (the legacy
+  // /api/products/{id} endpoint enforced this server-side).
+  const kindMismatch =
+    isEditMode && requireKind !== undefined && product != null && product.kind !== requireKind;
+  if (
+    isEditMode &&
+    (productQuery.isError || product === null || product === undefined || kindMismatch)
+  ) {
     return (
       <DetailNotFoundState
         id={id}
-        backHref="/products"
+        backHref={backHref}
         title={t('products.detail.errors.not_found_title', {
           defaultValue: 'Produkt nie znaleziony',
         })}
@@ -603,14 +672,14 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
               className="size-9 rounded-xl bg-white soft-shadow"
             >
               <Link
-                to="/products"
+                to={backHref}
                 aria-label={t('products.back', { defaultValue: 'Powrót do listy' })}
               >
                 <ArrowLeft className="size-4" />
               </Link>
             </Button>
             <div className="text-[12px] text-zinc-500">
-              <span>{t('products.title', { defaultValue: 'Produkty' })}</span>
+              <span>{objectTypeLabel ?? t('products.title', { defaultValue: 'Produkty' })}</span>
               <span className="mx-1.5 text-zinc-300">/</span>
               <span>{breadcrumbCategory}</span>
               {skuValue !== '' ? (
@@ -621,8 +690,11 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
               ) : null}
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <PreviewButton disabled={mode === 'create'} />
-              {mode === 'edit' && id !== '' ? <DuplicateButton productId={id} /> : null}
+              {/* Preview / duplicate hit product-only endpoints. */}
+              {kind === 'product' ? <PreviewButton disabled={mode === 'create'} /> : null}
+              {kind === 'product' && mode === 'edit' && id !== '' ? (
+                <DuplicateButton productId={id} />
+              ) : null}
               {mode === 'edit' && id !== '' ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -935,6 +1007,7 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
                   activeTab={activeTab}
                   productId={id}
                   objectTypeId={objectTypeId}
+                  kind={kind ?? 'product'}
                   locale={locale}
                   channel={channel}
                 />
@@ -960,31 +1033,36 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
             defaultValue: 'Panel boczny produktu',
           })}
         >
-          <CategorySelectorCard
-            {...(mode === 'edit' && id !== ''
-              ? { mode: 'edit', productId: id, objectTypeId }
-              : {
-                  mode: 'create',
-                  selectedCategoryIds: createCategoryIds,
-                  primaryCategoryId: createPrimaryId,
-                  selectedCategories: createCategoriesSummaries,
-                  onChange: (ids, primary) => {
-                    setCreateCategoryIds(ids);
-                    setCreatePrimaryId(primary);
-                  },
-                  objectTypeId,
-                })}
-          />
+          {isCategorizable || mode === 'create' ? (
+            <CategorySelectorCard
+              {...(mode === 'edit' && id !== ''
+                ? { mode: 'edit', productId: id, objectTypeId }
+                : {
+                    mode: 'create',
+                    selectedCategoryIds: createCategoryIds,
+                    primaryCategoryId: createPrimaryId,
+                    selectedCategories: createCategoriesSummaries,
+                    onChange: (ids, primary) => {
+                      setCreateCategoryIds(ids);
+                      setCreatePrimaryId(primary);
+                    },
+                    objectTypeId,
+                  })}
+            />
+          ) : null}
           {mode === 'edit' && id !== '' ? (
             <>
-              <SyncStatusCard productId={id} />
-              <VariantsListCard
-                masterProductId={id}
-                onSelectVariant={(variantId) => navigate(`/products/${variantId}`)}
-                onCreateVariant={() => setActiveTab('variants')}
-              />
+              {kind === 'product' ? <SyncStatusCard productId={id} /> : null}
+              {hasVariantsCapability ? (
+                <VariantsListCard
+                  masterProductId={id}
+                  basePath="/api/objects"
+                  onSelectVariant={(variantId) => navigate(detailPathFor(variantId))}
+                  onCreateVariant={() => setActiveTab('variants')}
+                />
+              ) : null}
               <EffectiveModelCard groups={groups} objectTypeName={objectTypeName ?? 'Product'} />
-              <AgentSuggestionsCard />
+              {kind === 'product' ? <AgentSuggestionsCard /> : null}
             </>
           ) : null}
         </aside>
@@ -1120,25 +1198,34 @@ function OtherTabs({
   activeTab,
   productId,
   objectTypeId,
+  kind,
   locale,
   channel,
 }: {
   activeTab: SpecialTabKey;
   productId: string;
   objectTypeId: string | null;
+  kind: string;
   locale: ProductLocale;
   channel: ProductChannel | null;
 }) {
   // UX bug fix #2 — Multimedia is back as a special tab gated by
   // `ObjectType.hasMultimedia` (UX-02 removed it from the AttributeGroup
-  // dispatcher; mirroring the UniversalDetailPage gating brings the
-  // legacy product card back in sync with the capability flag).
+  // dispatcher); the assets link table is poly-kind so the tab works
+  // for every ObjectType.
   if (activeTab === 'multimedia') return <ProductMultimediaTab productId={productId} />;
   if (activeTab === 'categories')
-    return <CategoriesTab productId={productId} objectTypeId={objectTypeId} />;
+    return <CategoriesTab productId={productId} objectTypeId={objectTypeId} kind={kind} />;
   if (activeTab === 'history') return <HistoryStub />;
   if (activeTab === 'variants')
-    return <VariantsTabHost productId={productId} locale={locale} channel={channel} />;
+    return (
+      <VariantsTabHost
+        productId={productId}
+        basePath="/api/objects"
+        locale={locale}
+        channel={channel}
+      />
+    );
   return null;
 }
 

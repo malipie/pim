@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { jsonFetch } from '@/lib/http';
+import { objectKeys } from '@/lib/object-query-keys';
 
 import type { GroupMeta } from './types';
 
@@ -51,11 +52,12 @@ export function CategoryChangeWarningDialog({
 }: Props) {
   const { t } = useTranslation();
 
-  // Current effective groups for the product (live state).
+  // Current effective groups for the object (live state) — poly-kind
+  // endpoint + shared key family so picker invalidations refetch this too.
   const currentGroups = useQuery({
-    queryKey: ['products', productId, 'effective-attribute-groups'],
+    queryKey: objectKeys.effectiveGroups(productId),
     queryFn: () =>
-      jsonFetch<CurrentGroupsResponse>(`/api/products/${productId}/effective-attribute-groups`),
+      jsonFetch<CurrentGroupsResponse>(`/api/objects/${productId}/effective-attribute-groups`),
     enabled: open && productId !== '',
   });
 

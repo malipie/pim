@@ -126,7 +126,7 @@ export function UniversalCreatePage({
         },
       ),
   });
-  // Hide empty groups (0 attributes) — mirror universal-detail-page so the
+  // Hide empty groups (0 attributes) — mirror the unified detail page so the
   // create form never shows an empty "0/0" tab for a group whose attributes
   // were all removed in modeling. Modeling views keep empty groups.
   const groups = useMemo(
