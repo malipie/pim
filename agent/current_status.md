@@ -1,5 +1,22 @@
 # Current Status
 
+## 2026-06-10 (wieczór): ✅ Epik EXR DOMKNIĘTY — 16/16 ticketów, eksporty = pierwszy moduł nowego look & feel
+
+**Marathon zakończony.** Wszystkie tickety #1377–#1392 zamknięte; PR-y #1399–#1410 zmergowane (każdy: CI green + live smoke proof w komentarzu).
+
+- **Grupa A (fundament):** EXR-01 tokeny v2 (granat+orange, `--cta`, shadow-card) · EXR-02 `ui-v2/` 13 primitives + **stack Vitest/Testing Library/jest-axe** (nowy job CI) · EXR-03 sidebar II poziomu + topbar (`PageHeader`+`PageActionsContext`, `useNavCounts`).
+- **Grupa B (backend, wcześniej):** EXR-04..07 — ExportEntityType (5 encji), pipeline per ObjectType, eksportery strukturalne, preflight.
+- **Grupa C (frontend eksportów):** EXR-08 strona Sesje (KPI/W toku/Historia) · EXR-09..12 pełny 4-krokowy wizard (reuse `AdvancedFilterPanel` przez `useFilterDslState`, ColumnPickerV2 + `GET /api/exports/columns`, run sync/async wg odpowiedzi BE) · EXR-13 Profile v2 (edit przez `?profile=`) · EXR-14 wejścia z listy + **usunięty ExportModal/ExportNewPage/ColumnPicker** · EXR-15 live progress per chunk + **anulowanie** (status `cancelled`, endpoint cancel, graceful stop) + inbox przy dzwonku.
+- **Grupa D:** EXR-16 — axe-gate WCAG A/AA (sesje+4 kroki+profile), e2e wszystkich encji, **benchmark 100k×22 kol.: 46,5 s, 0,465 ms/wiersz, wzrost pamięci 0.00 MB** (454 MB to baseline kernela CLI dev), docs (PRD-exports 1.1, notka handoff, lessons). Screencast 5 min = operator.
+- **Bug fix po drodze:** `FilterDslResolver` mapował `sku`→`co.sku` (kolumna nie istnieje; fizyczna to `code`) — każdy filtr sku w preflight/eksporcie dawał 500. Fix + `ExportCancelApiTest`.
+
+### Incydent 2026-06-10 (wyciągnięte wnioski — patrz lessons + memory)
+Lokalny PHPUnit bez `APP_ENV=test` wyczyścił bazę dev. Pierwsza reakcja (wielogodzinny PITR z archiwum WAL) była błędna dla środowiska dev — **polityka od teraz: dump z `backups/` → fixtures; nigdy WAL-replay na dev**. Baza przywrócona z dumpa operatora (08.06) + migracje + reindex. Follow-up tickety: martwy cron pełnych backupów pgBackRest (od 28.04), guard wymuszający APP_ENV=test dla PHPUnit.
+
+### Następny krok
+Operator: screencast 5 min (zasada sub-faz). Dalej wg planu — kolejne moduły migrują na tokeny v2 (importy/dashboard/modelowanie); fundament w `ui-v2/README.md`.
+
+
 ## 2026-06-10: 🚧 Epik EXR w realizacji — A zamknięta (EXR-01/02/03 merged), B była zamknięta wcześniej, C w toku (EXR-08 na PR)
 
 **Marathon mode (operator: „kontynuuj prace")** — jeden ticket = branch + PR + CI + merge, po kolei.
