@@ -8,6 +8,7 @@ use App\Catalog\Application\Filter\FilterDslResolver;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Export\Application\Builder\Structural\StructuralExportBuilderInterface;
 use App\Export\Domain\Enum\ExportEntityType;
 use App\Export\Domain\Enum\ExportTargetScope;
 use App\Export\Presentation\Support\ExportEntityTypeResolver;
@@ -16,6 +17,7 @@ use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\DBAL\Connection;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -48,6 +50,9 @@ final class ExportPreflightController
         private readonly FilterDslResolver $filterDsl,
         private readonly Connection $connection,
         private readonly TenantContext $tenantContext,
+        /** @var iterable<StructuralExportBuilderInterface> */
+        #[AutowireIterator('app.export.structural_builder')]
+        private readonly iterable $structuralBuilders = [],
     ) {
     }
 
@@ -71,20 +76,17 @@ final class ExportPreflightController
         $this->entityTypeResolver->assertScopeAllowed($selection->entityType, $scope);
 
         if ($selection->entityType->isStructural()) {
-            // Structural exports run with target_scope=all and their row count
-            // comes from the structural builders (EXR-06).
-            throw new UnprocessableEntityHttpException(
-                'Preflight count for structural entity types is added in EXR-06.',
-            );
+            // EXR-06: structural exports always run target_scope=all; the row
+            // count comes from the matching structural builder.
+            $count = $this->structuralCount($selection->entityType, $tenant);
+        } else {
+            $objectType = $this->resolveObjectType($selection, $tenant);
+            $count = match ($scope) {
+                ExportTargetScope::Selected => $this->countSelected($payload),
+                ExportTargetScope::All => $this->countAll($tenant, $objectType),
+                ExportTargetScope::Filter => $this->countFilter($payload, $tenant, $objectType),
+            };
         }
-
-        $objectType = $this->resolveObjectType($selection, $tenant);
-
-        $count = match ($scope) {
-            ExportTargetScope::Selected => $this->countSelected($payload),
-            ExportTargetScope::All => $this->countAll($tenant, $objectType),
-            ExportTargetScope::Filter => $this->countFilter($payload, $tenant, $objectType),
-        };
 
         $mode = $count >= SyncExportController::SYNC_THRESHOLD ? 'async' : 'sync';
 
@@ -95,6 +97,17 @@ final class ExportPreflightController
             'soft_cap' => SyncExportController::SOFT_CAP,
             'exceeds_cap' => $count > SyncExportController::SOFT_CAP,
         ]);
+    }
+
+    private function structuralCount(ExportEntityType $type, Tenant $tenant): int
+    {
+        foreach ($this->structuralBuilders as $builder) {
+            if ($builder->supports($type)) {
+                return $builder->count($tenant);
+            }
+        }
+
+        throw new UnprocessableEntityHttpException(sprintf('No structural builder for entity_type=%s.', $type->value));
     }
 
     private function resolveObjectType(ExportEntityTypeSelection $selection, Tenant $tenant): ObjectType

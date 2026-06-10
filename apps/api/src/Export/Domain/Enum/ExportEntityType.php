@@ -67,13 +67,14 @@ enum ExportEntityType: string
     /**
      * Whether the export engine can currently generate this type.
      *
-     * Product and custom modules share the catalog-object pipeline (EXR-05);
-     * the structural types (module_schema / attributes_groups / categories)
-     * land in EXR-06. Callers reject non-executable types with a 422 instead
-     * of dispatching a run that would fail.
+     * All five types are runnable as of EXR-06: product + custom_module share
+     * the catalog-object pipeline (EXR-04/05); module_schema, attributes_groups
+     * and categories run through the structural builders (EXR-06). The flag is
+     * kept as the seam callers gate on, in case a future type ships its model
+     * ahead of its generator.
      */
     public function isExecutable(): bool
     {
-        return self::Product === $this || self::CustomModule === $this;
+        return true;
     }
 }

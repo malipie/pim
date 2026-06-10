@@ -12,6 +12,7 @@ use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Export\Application\Builder\ExportBuilder;
 use App\Export\Application\Builder\PublicationColumnPlanner;
+use App\Export\Application\Builder\Structural\StructuralExportBuilderInterface;
 use App\Export\Domain\Entity\ExportSession;
 use App\Export\Domain\Enum\ExportEncoding;
 use App\Export\Domain\Enum\ExportEntityType;
@@ -26,6 +27,7 @@ use Doctrine\DBAL\Connection;
 use InvalidArgumentException;
 use LogicException;
 use RuntimeException;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Uid\Uuid;
 use Throwable;
 
@@ -58,7 +60,24 @@ final class SyncExportRunner
         private readonly Connection $connection,
         private readonly PublicationColumnPlanner $columnPlanner,
         private readonly ObjectTypeRepositoryInterface $objectTypes,
+        /** @var iterable<StructuralExportBuilderInterface> */
+        #[AutowireIterator('app.export.structural_builder')]
+        private readonly iterable $structuralBuilders = [],
     ) {
+    }
+
+    /**
+     * Count the rows an export will produce, used by the controller to route
+     * sync vs async. Structural types count via their builder; catalog-object
+     * types count the resolved target set.
+     */
+    public function resolveTargetCount(ExportSession $session): int
+    {
+        if ($session->getEntityType()->isStructural()) {
+            return $this->structuralBuilderFor($session->getEntityType())->count($this->requireTenant($session));
+        }
+
+        return \count($this->resolveTargets($session));
     }
 
     /**
@@ -129,6 +148,10 @@ final class SyncExportRunner
      */
     public function runToFile(ExportSession $session, string $targetPath): int
     {
+        if ($session->getEntityType()->isStructural()) {
+            return $this->runStructuralToFile($session, $targetPath);
+        }
+
         $targets = $this->resolveTargets($session);
         $session->setTargetCount(\count($targets));
 
@@ -249,6 +272,67 @@ final class SyncExportRunner
         }
 
         return array_values($ids);
+    }
+
+    /**
+     * EXR-06: structural exports (module_schema / attributes_groups /
+     * categories) stream a flat config table from the matching builder rather
+     * than the catalog-object pipeline.
+     */
+    private function runStructuralToFile(ExportSession $session, string $targetPath): int
+    {
+        $tenant = $this->requireTenant($session);
+        $builder = $this->structuralBuilderFor($session->getEntityType());
+
+        $columns = $session->getSelectedColumns();
+        if ([] === $columns) {
+            $columns = $builder->columns($tenant);
+        }
+
+        $writer = $this->openWriter($session->getFormat(), $session, $targetPath);
+        $writer->writeHeaders($columns);
+
+        $rows = 0;
+        try {
+            foreach ($builder->rows($tenant) as $row) {
+                $values = [];
+                foreach ($columns as $key) {
+                    $values[] = $row[$key] ?? '';
+                }
+                $writer->writeRow($values);
+                ++$rows;
+            }
+        } finally {
+            $writer->close();
+        }
+
+        $session->setTargetCount($rows);
+        $size = file_exists($targetPath) ? (int) filesize($targetPath) : 0;
+        $session->markDone($rows, $targetPath, $size);
+        $this->sessions->save($session);
+
+        return $rows;
+    }
+
+    private function structuralBuilderFor(ExportEntityType $type): StructuralExportBuilderInterface
+    {
+        foreach ($this->structuralBuilders as $builder) {
+            if ($builder->supports($type)) {
+                return $builder;
+            }
+        }
+
+        throw new LogicException(sprintf('No structural export builder supports entity_type "%s".', $type->value));
+    }
+
+    private function requireTenant(ExportSession $session): Tenant
+    {
+        $tenant = $session->getTenant();
+        if (null === $tenant) {
+            throw new LogicException('Export session must carry a tenant.');
+        }
+
+        return $tenant;
     }
 
     private function openWriter(ExportFormat $format, ExportSession $session, string $path): RowWriter

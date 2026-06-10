@@ -93,7 +93,9 @@ final class SyncExportController
         $targetScope = $this->parseScope($payload);
         $this->entityTypeResolver->assertScopeAllowed($selection->entityType, $targetScope);
         $encoding = $this->parseEncoding($payload, $format);
-        $columns = $this->parseColumns($payload);
+        // Structural exports may omit columns (the builder supplies its full
+        // default set); catalog exports still require an explicit selection.
+        $columns = $this->parseColumns($payload, allowEmpty: $selection->entityType->isStructural());
         $selectedIds = $this->parseSelectedIds($payload, $targetScope);
         $filterSnapshot = $this->parseFilterSnapshot($payload);
         $locales = $this->parseStringList($payload, 'locales');
@@ -131,9 +133,9 @@ final class SyncExportController
         );
         $session->assignTenant($tenant);
 
-        // Resolve targets once so we know whether to go sync or async.
-        $targets = $this->runner->resolveTargets($session);
-        $targetCount = \count($targets);
+        // Count targets so we know whether to go sync or async (structural
+        // types count via their builder; catalog types via the resolved set).
+        $targetCount = $this->runner->resolveTargetCount($session);
         $this->guardCaps($targetCount);
         $session->setTargetCount($targetCount);
 
@@ -261,9 +263,12 @@ final class SyncExportController
      *
      * @return list<string>
      */
-    private function parseColumns(array $payload): array
+    private function parseColumns(array $payload, bool $allowEmpty = false): array
     {
         $value = $payload['selected_columns'] ?? null;
+        if ($allowEmpty && (null === $value || [] === $value)) {
+            return [];
+        }
         if (!\is_array($value) || [] === $value) {
             throw new BadRequestHttpException('selected_columns must be a non-empty array of column keys.');
         }
