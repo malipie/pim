@@ -1432,7 +1432,8 @@
       "import": "Import",
       "new_product": "Nowy produkt",
       "add": "Dodaj",
-      "channel_filter_pending": "Filtr per kanał czeka na epik 0.6 (channel_publications)"
+      "channel_filter_pending": "Filtr per kanał czeka na epik 0.6 (channel_publications)",
+      "export_filtered": "Eksportuj wynik"
     },
     "counter": {
       "results": "wyników",

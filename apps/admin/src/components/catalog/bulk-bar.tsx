@@ -42,7 +42,7 @@ interface BulkBarProps {
   onOpenDuplicateModal?: () => void;
   onOpenCmdK?: () => void;
   /**
-   * EXP-11 follow-up — opens ExportModal pre-filled z target_scope=selected
+   * EXR-14 — navigates to the export wizard with target_scope=selected
    * + selected_object_ids = selectedIds. Backend `POST /api/products/export`
    * sync <100 SKU → BinaryFileResponse, ≥100 → async session.
    */

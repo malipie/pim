@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { jsonFetch } from '@/lib/http';
 
-import type { ColumnGroup } from './ColumnPicker';
-import { BUILT_IN_COLUMN_GROUPS } from './ColumnPicker';
+import { BUILT_IN_COLUMN_GROUPS, type ColumnGroup } from './column-catalog';
 
 interface AttributeRow {
   id: string;

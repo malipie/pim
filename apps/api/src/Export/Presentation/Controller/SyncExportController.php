@@ -118,7 +118,7 @@ final class SyncExportController
 
         $session = new ExportSession(
             userId: $user->getId(),
-            source: ExportSource::ListContext,
+            source: $this->parseSource($payload),
             format: $format,
             targetScope: $targetScope,
             selectedColumns: $columns,
@@ -184,6 +184,31 @@ final class SyncExportController
         $response->deleteFileAfterSend(true);
 
         return $response;
+    }
+
+    /**
+     * EXR-14 — telemetry: the wizard reports its entry point. Only the two
+     * UI-originated sources are accepted (saved_profile_run is minted by the
+     * profile-run endpoint, never by this controller). Default keeps the
+     * pre-EXR behavior for older clients.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function parseSource(array $payload): ExportSource
+    {
+        $value = $payload['source'] ?? null;
+        if (null === $value) {
+            return ExportSource::ListContext;
+        }
+        if (!\is_string($value)) {
+            throw new BadRequestHttpException('source must be a string.');
+        }
+        $source = ExportSource::tryFrom($value);
+        if (null === $source || ExportSource::SavedProfileRun === $source) {
+            throw new BadRequestHttpException(sprintf('Unsupported source "%s".', $value));
+        }
+
+        return $source;
     }
 
     /**

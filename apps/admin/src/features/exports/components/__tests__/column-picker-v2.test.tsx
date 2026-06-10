@@ -1,9 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-
-import type { ColumnGroup } from '../ColumnPicker';
 import { ColumnPickerV2 } from '../ColumnPickerV2';
+import type { ColumnGroup } from '../column-catalog';
 
 const GROUPS: ColumnGroup[] = [
   {

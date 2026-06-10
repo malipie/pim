@@ -1401,7 +1401,8 @@
       "import": "Import",
       "new_product": "New product",
       "add": "Add",
-      "channel_filter_pending": "Per-channel filter waits for epic 0.6 (channel_publications)"
+      "channel_filter_pending": "Per-channel filter waits for epic 0.6 (channel_publications)",
+      "export_filtered": "Export results"
     },
     "counter": {
       "results": "results",

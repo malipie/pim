@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router';
+import { useLocation, useSearchParams } from 'react-router';
 
 import { WizardStepper } from '@/components/ui-v2/wizard-stepper';
 import type { FilterDsl } from '@/lib/filters/filter-dsl';
@@ -9,7 +9,7 @@ import { StepColumns } from './steps/StepColumns';
 import { StepEntityType } from './steps/StepEntityType';
 import { StepScopeFormat } from './steps/StepScopeFormat';
 import { StepSummary } from './steps/StepSummary';
-import type { ExportEntityType } from './types';
+import type { ExportEntityType, ExportTargetScope } from './types';
 import { WizardFooter } from './WizardFooter';
 import { useWizard, WizardProvider } from './wizard-store';
 
@@ -46,8 +46,39 @@ function WizardContent() {
   const { t } = useTranslation();
   const { state, dispatch } = useWizard();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const editProfileId = searchParams.get('profile');
+  const scopeParam = searchParams.get('scope');
   const initialisedRef = useRef(false);
+
+  // EXR-14 — list-context entries: ?scope=selected|filter with the
+  // selection/DSL travelling via router state (never the URL — hundreds
+  // of ids). Missing state → clean wizard.
+  useEffect(() => {
+    if (scopeParam === null || initialisedRef.current) return;
+    const listState = location.state as {
+      entityType?: ExportEntityType;
+      objectTypeId?: string | null;
+      selectedIds?: string[] | null;
+      filterDsl?: import('@/lib/filters/filter-dsl').FilterDsl | null;
+    } | null;
+    if (!listState?.entityType) return;
+    initialisedRef.current = true;
+    const targetScope: ExportTargetScope =
+      scopeParam === 'selected' && (listState.selectedIds?.length ?? 0) > 0
+        ? 'selected'
+        : (listState.filterDsl ?? null) !== null
+          ? 'filter'
+          : 'all';
+    dispatch({
+      type: 'INIT_FROM_LIST',
+      entityType: listState.entityType,
+      objectTypeId: listState.objectTypeId ?? null,
+      selectedIds: targetScope === 'selected' ? (listState.selectedIds ?? []) : null,
+      filterDsl: targetScope === 'filter' ? (listState.filterDsl ?? null) : null,
+      targetScope,
+    });
+  }, [scopeParam, location.state, dispatch]);
 
   // EXR-13 — ?profile={id} opens the wizard prefilled for editing.
   useEffect(() => {
