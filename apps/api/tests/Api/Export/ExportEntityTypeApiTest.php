@@ -107,8 +107,10 @@ final class ExportEntityTypeApiTest extends CatalogApiTestCase
     }
 
     #[Test]
-    public function syncExportGatesValidCustomModuleAsNotYetRunnable(): void
+    public function syncExportRunsValidCustomModule(): void
     {
+        // EXR-05: custom_module now runs through the catalog-object pipeline.
+        // Empty custom catalog → sync path streams the header-only file.
         $customId = $this->createCustomObjectType();
 
         $client = $this->authenticatedClient();
@@ -122,8 +124,7 @@ final class ExportEntityTypeApiTest extends CatalogApiTestCase
             ],
         ]);
 
-        // Validation passes; execution is gated until EXR-05.
-        self::assertSame(422, $response->getStatusCode());
+        self::assertSame(200, $response->getStatusCode());
     }
 
     #[Test]

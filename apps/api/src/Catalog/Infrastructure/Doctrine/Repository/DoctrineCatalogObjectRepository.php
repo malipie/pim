@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Infrastructure\Doctrine\Repository;
 
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Shared\Domain\Tenant;
@@ -33,6 +34,17 @@ class DoctrineCatalogObjectRepository extends ServiceEntityRepository implements
     {
         /** @var list<CatalogObject> $rows */
         $rows = $this->findBy(['kind' => $kind, 'tenant' => $tenant]);
+
+        return $rows;
+    }
+
+    /**
+     * @return list<CatalogObject>
+     */
+    public function findByObjectType(ObjectType $objectType, Tenant $tenant): array
+    {
+        /** @var list<CatalogObject> $rows */
+        $rows = $this->findBy(['objectType' => $objectType, 'tenant' => $tenant]);
 
         return $rows;
     }

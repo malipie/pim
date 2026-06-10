@@ -233,6 +233,11 @@ final class InMemoryCatalogObjectRepository implements CatalogObjectRepositoryIn
         return [];
     }
 
+    public function findByObjectType(ObjectType $objectType, Tenant $tenant): array
+    {
+        return [];
+    }
+
     public function save(CatalogObject $object): void
     {
     }

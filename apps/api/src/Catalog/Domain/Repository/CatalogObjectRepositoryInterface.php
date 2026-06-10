@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Catalog\Domain\Repository;
 
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Shared\Domain\Tenant;
 use Symfony\Component\Uid\Uuid;
@@ -30,6 +31,17 @@ interface CatalogObjectRepositoryInterface
      * @return list<CatalogObject>
      */
     public function findByKind(ObjectKind $kind, Tenant $tenant): array;
+
+    /**
+     * Objects of a specific ObjectType within a tenant (EXR-05).
+     *
+     * Generalises {@see self::findByKind()} from the built-in Product kind to
+     * any ObjectType — products resolve their built-in type, custom modules
+     * their own. Tenant filter still applies.
+     *
+     * @return list<CatalogObject>
+     */
+    public function findByObjectType(ObjectType $objectType, Tenant $tenant): array;
 
     public function save(CatalogObject $object): void;
 
