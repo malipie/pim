@@ -191,8 +191,10 @@ final class SyncExportRunner
         $tenantId = $tenant->getId()->toRfc4122();
         // EXR-05: scope by object_type_id (any ObjectType) instead of the
         // hardcoded Product kind. The DSL itself stays ObjectType-agnostic.
-        $sql = 'SELECT id FROM catalog_objects '
-            .'WHERE tenant_id = :tenant AND object_type_id = :otid AND deleted_at IS NULL AND ('.$whereClause.')';
+        // EXR-07: alias the table as `co` — FilterDslResolver emits
+        // `co.`-prefixed column references, so the FROM clause must define it.
+        $sql = 'SELECT co.id FROM objects co '
+            .'WHERE co.tenant_id = :tenant AND co.object_type_id = :otid AND ('.$whereClause.')';
 
         try {
             $rows = $this->connection->fetchAllAssociative(
