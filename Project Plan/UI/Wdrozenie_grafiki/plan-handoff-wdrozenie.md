@@ -443,3 +443,16 @@ End-to-end test scenariusza operatora:
 1. **#1 Dashboard + tokens** — pierwszy, bo wprowadza globalne tokeny. Operator manualnie waliduje całość admina po merge.
 2. **#2 Modelowanie** + **#3 Produkty** — równolegle (oba startują na main z #1 zmergowanym), bo nie kolidują plikowo.
 3. Po merge'u trzech ticketów: utworzenie kolejnych ticketów z plików `.md` w `Project Plan/handoff-modelowanie/` jako osobne issues z linkami do konkretnych pozycji backlogu.
+
+
+---
+
+## Notka 2026-06-10 — eksporty = pierwszy moduł nowego look & feel (epik EXR)
+
+Epik EXR (#1377–#1392) wdrożył **design system v2** (granatowy neutral + pomarańczowy CTA, `Zrodla/Front_Claude_Design/NOWY UI/PIM-nowoczesny/`) zaczynając od modułu eksportów:
+
+- **Tokeny (EXR-01, `apps/admin/src/index.css`):** skale `zinc` (granat), `orange` (CTA), `brick` (błędy), `emerald` (sukces) nadpisane globalnie w Tailwind `@theme`; semantyka `--cta`/`--accent-hover`/`--accent-soft`, statusy, `--shadow-card`, radiusy 8/12/16. **To jest baza dla redesignu kolejnych modułów** — nowe widoki używają klas `zinc-*`/`orange-*` 1:1 z designem HTML.
+- **Primitives (EXR-02, `apps/admin/src/components/ui-v2/`):** 13 komponentów (PageHeader, PillTabs, KpiCard, StatusPill, ResultBar, ProgressBar, ModeBadge, FormatPill, SelectableCard, WizardStepper, EmptyState, Sparkline, HealthDot) + wzorzec tabeli v2 w README — reuse przy migracji importów/dashboardu.
+- **Shell (EXR-03):** sidebar z menu II poziomu + topbar v2 (`PageHeader` + `PageActionsContext`) działa globalnie — kolejne moduły rejestrują swoje CTA przez `usePageActions`.
+
+Kolejność migracji pozostałych modułów: wg planu handoff (dashboard / modelowanie / produkty) — teraz na tokenach v2 zamiast handoff-owych.

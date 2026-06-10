@@ -2418,3 +2418,12 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 4. **shadcn `--accent` ≠ ticketowe „accent".** Design v2 chciał `--accent` = orange-600, ale shadcn używa `--accent` jako muted hover (64 użycia) — podmiana łamałaby AA. CTA wystawione jako skala `orange-*` + token `--cta`; `--accent` pozostał muted. Przy kolejnych redesignach sprawdzać kolizje semantyk shadcn przed podmianą tokenów.
 5. **`networkidle` w Playwright nigdy nie nastąpi przy Mercure SSE** — używać selektorów/timeoutów zamiast `waitForLoadState('networkidle')`.
 6. **Lokalna baza dev może nie mieć kolumn z już zmergowanych migracji** (dev nie trackuje `doctrine_migration_versions` — schema z fixtures). Po merge'u PR-a z migracją odpalić ją punktowo: `doctrine:migrations:execute 'DoctrineMigrations\VersionX' --up` zamiast `migrate` (migrate wywala się na istniejących tabelach).
+
+## Lessons z EXR-09..16 (wizard + async UX, 2026-06-10)
+
+1. **Stacked branches przy squash-merge**: każdy ticket na branchu od poprzedniego; po merge'u PR-a bazowego `git stash push -u` → `rebase origin/main` → `stash pop`. Uwaga: stash z untracked plikami operatora (`reference.php`) konfliktuje przy pop — bezpieczniej `git checkout stash@{0} -- <ścieżki>` selektywnie.
+2. **Backend enum values ≠ intuicja FE**: `ExportEntityType` to `product`/`attributes_groups` (singular/underscore), nie `products`/`attributes`. Przy syncu typów FE↔BE zawsze czytać enum z PHP, nie zgadywać z nazw ticketów.
+3. **Sesje sync miały wiszący `file_path`** do skasowanego pliku temp — `markDone()` w runnerze zapisuje targetPath; sync path musi po streamingu zrobić `setFilePath(null)`. FE gate'uje download na `file_path !== null`, nie na statusie.
+4. **Profile-run jest async-only** (dispatch + run_count); sync-download z profilu wymagałby zmiany w endpointzie — świadomie odłożone, odnotowane w PR EXR-13.
+5. **Live progress wymagał callbacka w runnerze** — publisher był wołany tylko po zakończeniu; `onChunk` co 500 wierszy + odczyt PERSISTED statusu z DBAL (encja w pamięci jest stale w długiej pętli) daje i progres, i graceful cancel bez nowej kolumny.
+6. **biome `useSemanticElements`**: `role="group"` → `<fieldset>`; `role="radio"` na button wymaga biome-ignore z uzasadnieniem (wzorzec Radix).

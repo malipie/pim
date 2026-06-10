@@ -5,13 +5,28 @@
 **Pozycjonowanie:** Alternatywa dla Akeneo / Pimcore / BaseLinker — operator cockpit + workflow-grade czystość + Cmd+K agent
 **Producent:** Marcin Lipiec (projekt prywatny; equity / model biznesowy poza zakresem tego dokumentu)
 **Data utworzenia:** 2026-05-14
-**Wersja dokumentu:** 1.0
+**Wersja dokumentu:** 1.1 (rewizja EXR 2026-06)
 **Autor:** Marcin Lipiec (synteza brainstormingu 5-falowego 2026-05-14)
 **Status:** Implemented (MVP) 2026-05-15 — marathon EXP-01..EXP-16 (PR #597..#619). 4 follow-upy IMP-16..IMP-19 (#602..#605) blokują pełen round-trip per EXP-02 audit (`agent/exp-02-imp-audit.md`). Lista świadomych odejść w `Project Plan/02-plan-projektu-pim.md` epik EXP. Validation z Magdą + Tomaszem oraz dogfooding Marcin 50k SKU — manualne follow-up sesje per `agent/exp-15-smoke-report.md`.
 
 > **Nota o scope dokumentu.** To **feature-PRD** dla *jednego* obszaru produktu (eksport produktów z dwoma entry points: kontekstowy z listy + centralny `/integrations/exports`). Pełen product-PRD dla Cortex PIM (pozycjonowanie, ICP, model biznesowy, multitenant SaaS, pricing) — patrz `Zrodla/PRD/PRD-PIM.md`. Sekcje 3, 4, 11, 12 niniejszego dokumentu zawierają wyciąg / odniesienia do master PRD; sekcje 5–10, 13–14 są feature-specific.
 >
 > **Bliźniaczy feature:** [`feature-imports.md`](../UI/feature-imports.md) — importy CSV/XLS/XLSX (🟢 zaimplementowane IMP-01..IMP-15 merged 2026-05-07). Ten PRD bezpośrednio reuse'uje import pipeline dla round-trip semantyki.
+
+---
+
+## Rewizja 2026-06 (epik EXR — #1377–#1392)
+
+Eksporty zostały przemodelowane jako **pierwszy moduł nowego look & feel** (spec: `Project Plan/UI/feature-exports-redesign-tickets.md`). Zmiany względem v1.0:
+
+- **Encje eksportu (D2):** już nie tylko produkty — 5 typów `ExportEntityType`: `product`, `custom_module` (treści custom ObjectType), `module_schema`, `attributes_groups`, `categories`. Encje strukturalne mają uproszczoną ścieżkę (bez query buildera, pełna struktura, kolumny z builderów EXR-06).
+- **Preflight (EXR-07):** `POST /api/exports/preflight` — count + routing `sync|async` + `exceeds_cap` przed uruchomieniem; UI nigdy nie hardkoduje progu 100 (źródło prawdy: `SyncExportController::SYNC_THRESHOLD`).
+- **Wycofanie modala (D5):** `ExportModal` + paste-JSON `ExportNewPage` usunięte (EXR-14). Jedyny flow konfiguracji = pełnostronicowy 4-krokowy wizard `/integrations/exports/new` (Typ → Zakres i format → Kolumny → Podsumowanie). Wejścia kontekstowe z listy (zaznaczone / wynik filtra) nawigują do wizarda z kontekstem w router state.
+- **Reużywalna wyszukiwarka (EXR-10):** sekcja filtrów wizarda osadza TEN SAM `AdvancedFilterPanel` + `useFilterDslState` co lista produktów — zero drugiej implementacji DSL.
+- **Formaty (D1):** payload przyjmuje wyłącznie `xlsx|csv`; kafelki XML/JSON/Google Sheets/PDF widoczne jako disabled „wkrótce".
+- **Taby (D3):** Sesje + Profile Eksportu działające; Cele i Harmonogram disabled „wkrótce" (osobny epik).
+- **Async UX (EXR-15):** progres per chunk (Mercure), **anulowanie** (`POST /api/exports/sessions/{id}/cancel`, nowy status `cancelled`), in-app inbox przy dzwonku (bez persystencji BE — świadome MVP).
+- **Sesje sync w historii:** sync zapisuje wpis `ExportSession` (file_path=null — plik temp jest kasowany po wysyłce; download tylko dla sesji async z plikiem w MinIO).
 
 ---
 
