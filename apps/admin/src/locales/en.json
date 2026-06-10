@@ -2521,7 +2521,37 @@
       "custom_object_type_label": "Custom module",
       "custom_object_type_placeholder": "Choose a module…",
       "custom_object_type_required": "Choose a custom module to continue.",
-      "step_placeholder": "This step's content lands in upcoming tickets (EXR-10/11/12)."
+      "step_placeholder": "This step's content lands in upcoming tickets (EXR-10/11/12).",
+      "step2_profile_title": "Profile & file format",
+      "profile_label": "Saved profile (optional)",
+      "profile_placeholder": "Choose a saved profile…",
+      "profile_hint": "Loading a profile overrides the current format and filter settings.",
+      "profile_loaded": "Profile {{name}} loaded",
+      "format_label": "Target format",
+      "format_group_aria": "File format",
+      "format_desc": {
+        "xlsx": "Excel spreadsheet",
+        "csv": "Comma-separated values"
+      },
+      "format_soon": {
+        "xml": "XML",
+        "json": "JSON",
+        "gsheets": "Google Sheets",
+        "pdf": "PDF"
+      },
+      "format_soon_desc": {
+        "xml": "Hierarchical feed",
+        "json": "Structured data / API",
+        "gsheets": "Cloud spreadsheet",
+        "pdf": "Catalog / price list"
+      },
+      "step2_scope_title": "Data scope (filtering)",
+      "preflight_badge": "To export: {{count}}",
+      "cap_exceeded": "Limit of {{cap}} exceeded — narrow the filters",
+      "structural_scope": "Full structure export — {{count}} rows.",
+      "selected_chip": "Selected objects: {{count}}",
+      "switch_to_filter": "switch to filtering",
+      "empty_set_warning": "The filter matches no objects — the file will contain column headers only."
     }
   }
 }

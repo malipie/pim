@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { WizardStepper } from '@/components/ui-v2/wizard-stepper';
 
 import { StepEntityType } from './steps/StepEntityType';
+import { StepScopeFormat } from './steps/StepScopeFormat';
 import { WizardFooter } from './WizardFooter';
 import { useWizard, WizardProvider } from './wizard-store';
 
@@ -55,6 +56,9 @@ function WizardContent() {
   ];
 
   const step1Valid = state.entityType !== 'custom_module' || state.objectTypeId !== null;
+  // EXR-10: soft-cap gate — Dalej blocked while the configuration would
+  // exceed the 100k export cap (count=0 stays allowed: headers-only file).
+  const step2Valid = state.preflight?.exceeds_cap !== true;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -73,7 +77,8 @@ function WizardContent() {
 
       <div key={state.step}>
         {state.step === 0 && <StepEntityType />}
-        {state.step > 0 && (
+        {state.step === 1 && <StepScopeFormat />}
+        {state.step > 1 && (
           <div className="rounded-2xl border border-dashed border-zinc-200 bg-surface p-10 text-center text-[13px] text-zinc-400">
             {t('exports.wizard.step_placeholder')}
           </div>
@@ -82,7 +87,7 @@ function WizardContent() {
 
       <WizardFooter
         stepTitle={stepTitles[state.step] ?? ''}
-        nextDisabled={state.step === 0 && !step1Valid}
+        nextDisabled={(state.step === 0 && !step1Valid) || (state.step === 1 && !step2Valid)}
       />
     </div>
   );

@@ -63,12 +63,9 @@ import {
   useCatalogSearch,
 } from '@/features/catalog/search/use-catalog-search';
 import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
-import {
-  conditionsToDsl,
-  dslToFlatConditions,
-  type FilterCondition,
-} from '@/lib/filters/filter-dsl';
+import { dslToFlatConditions } from '@/lib/filters/filter-dsl';
 import { dslToBase64 } from '@/lib/filters/url-serializer';
+import { useFilterDslState } from '@/lib/filters/use-filter-dsl-state';
 import { type SmartFilterPreset, useSmartPresets } from '@/lib/filters/use-smart-presets';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
@@ -284,8 +281,14 @@ export function UniversalListPage({
   const [activeSmartPresetId, setActiveSmartPresetId] = useState<string | null>(null);
   const [presetToDelete, setPresetToDelete] = useState<SmartFilterPreset | null>(null);
   const [advancedPanelOpen, setAdvancedPanelOpen] = useState(false);
-  const [panelConditions, setPanelConditions] = useState<FilterCondition[]>([]);
-  const [matchOperator, setMatchOperator] = useState<'AND' | 'OR'>('AND');
+  // EXR-10 — shared filter-DSL state (same hook the export wizard uses).
+  const {
+    conditions: panelConditions,
+    setConditions: setPanelConditions,
+    matchOperator,
+    setMatchOperator,
+    dsl: panelDsl,
+  } = useFilterDslState();
   const [showSaveAsPresetModal, setShowSaveAsPresetModal] = useState(false);
 
   const { searchFilters, rangeFilters } = useMemo(() => {
@@ -306,15 +309,13 @@ export function UniversalListPage({
     : undefined;
   const filterBlob = useMemo<string | undefined>(() => {
     if (activePreset !== undefined) return undefined;
-    if (panelConditions.length === 0) return undefined;
-    const dsl = conditionsToDsl(panelConditions, matchOperator);
-    if (dsl === null) return undefined;
+    if (panelDsl === null) return undefined;
     try {
-      return dslToBase64(dsl);
+      return dslToBase64(panelDsl);
     } catch {
       return undefined;
     }
-  }, [activePreset, panelConditions, matchOperator]);
+  }, [activePreset, panelDsl]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — `setPage` is stable
   useEffect(() => {
@@ -1029,7 +1030,7 @@ export function UniversalListPage({
 
       {showSaveAsPresetModal ? (
         <SaveAsSmartPresetModal
-          query={conditionsToDsl(panelConditions, matchOperator)}
+          query={panelDsl}
           create={createSmartPreset}
           onClose={() => setShowSaveAsPresetModal(false)}
           onSaved={(preset) => {
