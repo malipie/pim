@@ -36,7 +36,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { HttpError, jsonFetch } from '@/lib/http';
 import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
-import { useCurrentWorkspace, useInvalidateCurrentWorkspace } from '@/lib/use-current-workspace';
+import { useCurrentWorkspace } from '@/lib/use-current-workspace';
 import { cn } from '@/lib/utils';
 
 interface AttributeGroupDetail {
@@ -134,7 +134,6 @@ function Editor({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const workspace = useCurrentWorkspace();
-  const invalidateWorkspace = useInvalidateCurrentWorkspace();
   const enabledLocales = workspace.data?.enabledLocales ?? ['pl', 'en'];
   const primaryLocale = workspace.data?.primaryLocale ?? 'pl';
 
@@ -420,7 +419,6 @@ function Editor({
                 enabledLocales={enabledLocales}
                 primaryLocale={primaryLocale}
                 onChange={setLabel}
-                onLocaleAdded={() => invalidateWorkspace()}
                 readOnly={isLockedSystemGroup}
                 placeholder={t('modeling.attributeGroups.fields.name_placeholder', {
                   defaultValue: 'Nazwa grupy',

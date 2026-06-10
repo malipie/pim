@@ -32,23 +32,3 @@ export function useInvalidateCurrentWorkspace() {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: QUERY_KEY });
 }
-
-export async function addWorkspaceLocale(locale: string): Promise<CurrentWorkspace> {
-  const updated = await jsonFetch<{ enabledLocales: string[]; primaryLocale: string }>(
-    '/api/workspaces/current/locales',
-    {
-      method: 'POST',
-      body: { locale },
-    },
-  );
-  // Endpoint returns just the locale strip — caller refetches the full
-  // workspace to pick up any side effects (e.g. seeded language packs).
-  return {
-    id: '',
-    code: '',
-    name: '',
-    plan: '',
-    enabledLocales: updated.enabledLocales,
-    primaryLocale: updated.primaryLocale,
-  } satisfies CurrentWorkspace;
-}

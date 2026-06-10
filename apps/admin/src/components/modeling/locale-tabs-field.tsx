@@ -1,29 +1,26 @@
-import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Input } from '@/components/ui/input';
-import { jsonFetch } from '@/lib/http';
 import { findLocaleEntry } from '@/lib/locales';
 import { cn } from '@/lib/utils';
-
-import { LocaleAddDialog } from './locale-add-dialog';
 
 interface LocaleTabsFieldProps {
   values: Record<string, string>;
   enabledLocales: string[];
   primaryLocale: string;
   onChange?: (next: Record<string, string>) => void;
-  onLocaleAdded?: (locale: string) => void;
   placeholder?: string;
   readOnly?: boolean;
 }
 
 /**
  * VIEW-01 (#372) — multi-locale text field rendered as horizontal tabs
- * + a single shared input that follows the active tab. Mirrors
- * `LocaleTabs` from the prototype and exposes "+ Dodaj język" trigger
- * which opens `<LocaleAddDialog>` and POSTs to the workspace endpoint.
+ * + a single shared input that follows the active tab.
+ *
+ * #1414 — the "+ Dodaj język" trigger is gone: the tab list always shows
+ * the full set of workspace `enabledLocales`, and the locale list itself
+ * is managed exclusively in Settings → Languages (LOC-07).
  *
  * Onboarding: when the editor lands on a locale missing in `values`,
  * the input starts empty and the change handler stamps the new entry.
@@ -33,13 +30,11 @@ export function LocaleTabsField({
   enabledLocales,
   primaryLocale,
   onChange,
-  onLocaleAdded,
   placeholder,
   readOnly = false,
 }: LocaleTabsFieldProps) {
   const { t } = useTranslation();
   const [active, setActive] = useState<string>(primaryLocale);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!enabledLocales.includes(active)) {
@@ -48,15 +43,6 @@ export function LocaleTabsField({
   }, [enabledLocales, active, primaryLocale]);
 
   const inputValue = values[active] ?? '';
-
-  const handleAddLocale = async (locale: string) => {
-    await jsonFetch('/api/workspaces/current/locales', {
-      method: 'POST',
-      body: { locale },
-    });
-    setActive(locale);
-    onLocaleAdded?.(locale);
-  };
 
   return (
     <div className="space-y-2">
@@ -97,16 +83,6 @@ export function LocaleTabsField({
             </button>
           );
         })}
-        {!readOnly ? (
-          <button
-            type="button"
-            onClick={() => setDialogOpen(true)}
-            className="inline-flex items-center gap-1 rounded-md border border-dashed border-zinc-300 px-2 py-1 text-[12px] font-medium text-zinc-500 transition hover:border-zinc-400 hover:text-zinc-900"
-          >
-            <Plus className="size-3.5" />
-            {t('locale_tabs_field.add', { defaultValue: 'Dodaj język' })}
-          </button>
-        ) : null}
       </div>
       <Input
         value={inputValue}
@@ -122,12 +98,6 @@ export function LocaleTabsField({
           defaultValue: 'Wartość dla {{locale}}',
           locale: active,
         })}
-      />
-      <LocaleAddDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        alreadyEnabled={enabledLocales}
-        onSelect={handleAddLocale}
       />
     </div>
   );
