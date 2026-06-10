@@ -8,12 +8,9 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/s
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { AppFooter } from './app-footer';
-import { AuditLogStatus } from './audit-log-status';
-import { BulkSessionsPopover } from './bulk-sessions-popover';
-import { LanguageSwitcher } from './language-switcher';
-import { NotificationsBell } from './notifications-bell';
+import { PageActionsProvider } from './page-actions-context';
 import { SidebarNav } from './sidebar-nav';
-import { TopbarBreadcrumb } from './topbar-breadcrumb';
+import { TopbarV2 } from './topbar-v2';
 
 export function AppLayout() {
   const { t } = useTranslation();
@@ -21,59 +18,48 @@ export function AppLayout() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="flex min-h-screen bg-[#fafaf9]">
-        <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col px-4 py-5 md:flex">
-          <SidebarNav />
-        </aside>
+      <PageActionsProvider>
+        <div className="flex min-h-screen bg-background">
+          <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col px-4 py-5 md:flex">
+            <SidebarNav />
+          </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-zinc-100 bg-white/80 px-3 backdrop-blur md:px-6">
-            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden"
-                  aria-label={t('app.toggle_nav', { defaultValue: 'Toggle navigation' })}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <header className="glass-strong sticky top-0 z-30 flex items-center gap-1 border-b border-zinc-100 pl-3 md:pl-0">
+              <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="md:hidden"
+                    aria-label={t('app.toggle_nav', { defaultValue: 'Toggle navigation' })}
+                  >
+                    <Menu className="size-4" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent
+                  side="left"
+                  className="w-[260px] bg-background p-4"
+                  closeLabel={t('app.close', { defaultValue: 'Close' })}
                 >
-                  <Menu className="size-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                side="left"
-                className="w-[260px] bg-[#fafaf9] p-4"
-                closeLabel={t('app.close', { defaultValue: 'Close' })}
-              >
-                <SheetTitle className="sr-only">{t('app.title')}</SheetTitle>
-                <SidebarNav onNavigate={() => setMobileOpen(false)} />
-              </SheetContent>
-            </Sheet>
+                  <SheetTitle className="sr-only">{t('app.title')}</SheetTitle>
+                  <SidebarNav onNavigate={() => setMobileOpen(false)} />
+                </SheetContent>
+              </Sheet>
 
-            <span className="text-sm font-medium text-muted-foreground md:hidden">
-              {t('app.title')}
-            </span>
-
-            <div className="hidden md:block">
-              <TopbarBreadcrumb />
-            </div>
-
-            <div className="ml-auto flex items-center gap-2">
-              <LanguageSwitcher />
-              <BulkSessionsPopover />
-              <NotificationsBell />
-              <div className="hidden md:block">
-                <AuditLogStatus />
+              <div className="min-w-0 flex-1">
+                <TopbarV2 />
               </div>
-            </div>
-          </header>
+            </header>
 
-          <main className="flex-1 overflow-auto p-4 md:p-6">
-            <Outlet />
-          </main>
+            <main className="flex-1 overflow-auto p-4 md:p-6">
+              <Outlet />
+            </main>
 
-          <AppFooter />
+            <AppFooter />
+          </div>
         </div>
-      </div>
+      </PageActionsProvider>
     </TooltipProvider>
   );
 }

@@ -90,7 +90,10 @@
     "workspace_label": "Workspace",
     "active_modules_count_one": "{{count}} active module",
     "active_modules_count_other": "{{count}} active modules",
-    "add_custom_module": "Add custom module"
+    "add_custom_module": "Add custom module",
+    "imports": "Imports",
+    "exports": "Exports",
+    "api_configurator": "API Configurator"
   },
   "admin": {
     "tenants": {
@@ -929,7 +932,8 @@
     "search_agent_placeholder": "Ask the agent or search...",
     "agent_mock_tooltip": "MOCK · Agent layer requires implementation (epic 0.7, Phase 2)",
     "audit_log": "Audit log",
-    "audit_log_tooltip": "MOCK · Audit log requires BE endpoint"
+    "audit_log_tooltip": "MOCK · Audit log requires BE endpoint",
+    "history": "History"
   },
   "mock": {
     "label": "MOCK",

@@ -92,7 +92,10 @@
     "active_modules_count_few": "{{count}} moduły aktywne",
     "active_modules_count_many": "{{count}} modułów aktywnych",
     "active_modules_count_other": "{{count}} modułów aktywnych",
-    "add_custom_module": "Dodaj własny moduł"
+    "add_custom_module": "Dodaj własny moduł",
+    "imports": "Importy",
+    "exports": "Eksporty",
+    "api_configurator": "Konfigurator API"
   },
   "admin": {
     "tenants": {
@@ -939,7 +942,8 @@
     "search_agent_placeholder": "Zapytaj agenta lub szukaj...",
     "agent_mock_tooltip": "MOCK · Agent layer wymaga oprogramowania (epik 0.7, Faza 2)",
     "audit_log": "Audit log",
-    "audit_log_tooltip": "MOCK · Audit log wymaga endpointu BE"
+    "audit_log_tooltip": "MOCK · Audit log wymaga endpointu BE",
+    "history": "Historia"
   },
   "mock": {
     "label": "MOCK",
