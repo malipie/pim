@@ -1,5 +1,18 @@
 # Current Status
 
+## 2026-06-10 (późny wieczór): 📋 Epik NUI rozpisany — plan retrofitu UI do nowego designu + 13 issues (#1420–#1432)
+
+Operator dostarczył komplet nowych mockupów (`Zrodla/Front_Claude_Design/NOWY UI/PIM-nowoczesny/` — dashboard, produkty lista+detal, modelowanie, Multimedia, Integracje/Import, Ustawienia, Eksport). Sesja wyłącznie planistyczno-backlogowa — **żaden ticket nie zaimplementowany**.
+
+- **Plan kanoniczny:** `Project Plan/UI/Retrofit_v2/plan-epik-NUI-retrofit-ui-v2.md` (PR #1419 merged) + backlogi BE `multimedia-do-oprogramowania.md`, `importy-do-oprogramowania.md`. Wiążące tabele WIRE/MOCK/SKIP per element designu.
+- **Ustalenia kluczowe:** tokeny mockupów = tokeny EXR (zero pracy tokenowej; violet w designie zmapowany na orange) · lista produktów funkcjonalnie ~kompletna (retrofit wizualny) · universal detail importuje komponenty legacy karty → restyle współdzielonych plików podnosi obie strony · backend importu pokrywa większość kreatora 6 kroków (parse-preview z detekcją encoding/delimiter/sheet, automap, dry-run, Mercure live progress).
+- **Decyzje operatora:** Ustawienia = podmenu w głównym sidebarze **+ restyle Users/Roles** · backend tylko istniejący (braki → MOCK z `MockBadge` + backlog albo SKIP) · eksporty poza zakresem (EXR) · custom OT bez wyróżnienia w sidebarze.
+- **GitHub:** label `epik-NUI`, milestone #18 „Epik NUI — Retrofit UI v2 (nowy design)", issues **#1420–#1432** (NUI-01..13, zależności podlinkowane). Fale: 0 = NUI-01/02/05/07/08/09 (równoległe) → 1 = NUI-03/04/10/11/12 → NUI-06 dowolnie → NUI-13 bramka. Estymata ~130–190 h.
+- ⚠️ **Working tree:** w trakcie sesji w drzewie wisiała niezacommitowana praca innej sesji (unifikacja detail: staged delete `universal-detail-page.tsx`, nowy `object-query-keys.ts`, mod. App.tsx/show-page/specki e2e). Pierwszy commit docs przypadkowo zaciągnął staged delete — naprawione amendem przed PR (finalny commit `4fb91ba2` czysty), stan drzewa odtworzony 1:1.
+
+**Następny krok**: implementacja od fali 0 (NUI-01 #1420 sidebar pierwszy — zmienia globalny chrome, odblokowuje 03/12). Marathon mode wg EPIK MARATHON RULE gdy operator da sygnał.
+
+
 ## 2026-06-10 (wieczór): ✅ Epik EXR DOMKNIĘTY — 16/16 ticketów, eksporty = pierwszy moduł nowego look & feel
 
 **Marathon zakończony.** Wszystkie tickety #1377–#1392 zamknięte; PR-y #1399–#1410 zmergowane (każdy: CI green + live smoke proof w komentarzu).
