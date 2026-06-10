@@ -86,9 +86,7 @@ final class CustomModuleExportApiTest extends CatalogApiTestCase
      */
     private function runExport(Tenant $tenant, ObjectType $objectType, array $columns): string
     {
-        $tenantContext = self::getContainer()->get(TenantContext::class);
-        \assert($tenantContext instanceof TenantContext);
-        $tenantContext->set($tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
 
         $session = new ExportSession(
             userId: Uuid::v7(),
@@ -102,7 +100,6 @@ final class CustomModuleExportApiTest extends CatalogApiTestCase
         $session->assignTenant($tenant);
 
         $runner = self::getContainer()->get(SyncExportRunner::class);
-        \assert($runner instanceof SyncExportRunner);
 
         $path = tempnam(sys_get_temp_dir(), 'exr05-').'.csv';
         try {
