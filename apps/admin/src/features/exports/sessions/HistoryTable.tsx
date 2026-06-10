@@ -116,13 +116,13 @@ export function HistoryTable({
   return (
     <section aria-label={t('exports.history.title')}>
       <div className="mb-2 flex flex-wrap items-center gap-3">
-        <h2 className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+        <h2 className="text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
           {t('exports.history.title', { count: filtered.length })}
         </h2>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search
-              className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-zinc-400"
+              className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-zinc-500"
               aria-hidden
             />
             <input
@@ -134,7 +134,7 @@ export function HistoryTable({
               }}
               placeholder={t('exports.history.search_placeholder')}
               aria-label={t('exports.history.search_placeholder')}
-              className="focus-ring h-9 rounded-xl border border-zinc-200 bg-surface pr-3 pl-8 text-[13px] placeholder:text-zinc-400"
+              className="focus-ring h-9 rounded-xl border border-zinc-200 bg-surface pr-3 pl-8 text-[13px] placeholder:text-zinc-500"
             />
           </div>
           <fieldset
@@ -189,7 +189,7 @@ export function HistoryTable({
                   ).map((key) => (
                     <th
                       key={key}
-                      className="px-4 py-3 text-[11px] font-medium tracking-wider text-zinc-400 uppercase"
+                      className="px-4 py-3 text-[11px] font-medium tracking-wider text-zinc-500 uppercase"
                     >
                       {t(`exports.history.${key}`)}
                     </th>
@@ -216,7 +216,7 @@ export function HistoryTable({
                             <div className="truncate font-mono text-[12.5px] font-medium text-ink">
                               {fileName ?? '—'}
                             </div>
-                            <div className="truncate text-[11px] text-zinc-400">
+                            <div className="truncate text-[11px] text-zinc-500">
                               {t(entityTypeLabelKey(session.entity_type))}
                             </div>
                           </div>
@@ -242,7 +242,7 @@ export function HistoryTable({
                         <div className="num font-mono text-[12px] text-zinc-600">
                           {formatStartedAt(session.started_at)}
                         </div>
-                        <div className="text-[11px] text-zinc-400">
+                        <div className="text-[11px] text-zinc-500">
                           {formatDuration(session.duration_ms)}
                         </div>
                       </td>
@@ -258,7 +258,7 @@ export function HistoryTable({
                               onClick={() => onDownload(session.id)}
                               aria-label={t('exports.history.action_download')}
                               title={t('exports.history.action_download')}
-                              className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-ink"
+                              className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-ink"
                             >
                               <Download className="size-3.5" aria-hidden />
                             </button>
@@ -268,7 +268,7 @@ export function HistoryTable({
                             onClick={() => onRerun(session.id)}
                             aria-label={t('exports.history.action_rerun')}
                             title={t('exports.history.action_rerun')}
-                            className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-ink"
+                            className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-ink"
                           >
                             <RefreshCw className="size-3.5" aria-hidden />
                           </button>
@@ -277,14 +277,14 @@ export function HistoryTable({
                             onClick={() => onDelete(session.id)}
                             aria-label={t('exports.history.action_delete')}
                             title={t('exports.history.action_delete')}
-                            className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-400 hover:bg-brick-50 hover:text-brick-600"
+                            className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-500 hover:bg-brick-50 hover:text-brick-600"
                           >
                             <Trash2 className="size-3.5" aria-hidden />
                           </button>
                           <Link
                             to={`/integrations/exports/sessions/${session.id}`}
                             aria-label={t('exports.history.action_details')}
-                            className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-ink"
+                            className="focus-ring grid h-7 w-7 place-items-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-ink"
                           >
                             <ChevronRight className="size-4" aria-hidden />
                           </Link>

@@ -8,7 +8,7 @@ const VARIANT_CLASSES: Record<StatusPillVariant, { pill: string; dot: string }> 
   warning: { pill: 'bg-orange-50 text-orange-800', dot: 'bg-orange-500' },
   partial: { pill: 'bg-orange-50 text-orange-800', dot: 'bg-orange-500' },
   error: { pill: 'bg-brick-50 text-brick-700', dot: 'bg-brick-500' },
-  cancelled: { pill: 'bg-zinc-100 text-zinc-500', dot: 'bg-zinc-400' },
+  cancelled: { pill: 'bg-zinc-100 text-zinc-600', dot: 'bg-zinc-400' },
   queued: { pill: 'bg-zinc-100 text-zinc-600', dot: 'bg-zinc-400' },
   running: { pill: 'bg-zinc-100 text-zinc-700', dot: 'bg-zinc-500' },
 };

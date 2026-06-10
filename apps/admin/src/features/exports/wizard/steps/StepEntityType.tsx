@@ -98,7 +98,7 @@ export function StepEntityType() {
         <div className="mt-5 rounded-xl border border-zinc-200 bg-surface-muted p-4">
           <label
             htmlFor="wizard-custom-object-type"
-            className="block text-[11px] font-medium tracking-wider text-zinc-400 uppercase"
+            className="block text-[11px] font-medium tracking-wider text-zinc-500 uppercase"
           >
             {t('exports.wizard.custom_object_type_label')}
           </label>

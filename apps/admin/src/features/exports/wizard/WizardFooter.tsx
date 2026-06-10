@@ -34,7 +34,7 @@ export function WizardFooter({ stepTitle, nextDisabled = false, onNext }: Wizard
 
   return (
     <div className="flex items-center gap-3 border-t border-zinc-100 pt-4">
-      <div className="num flex-1 font-mono text-[11.5px] text-zinc-400">
+      <div className="num flex-1 font-mono text-[11.5px] text-zinc-500">
         {t('exports.wizard.step_indicator', {
           step: state.step + 1,
           total: WIZARD_STEP_COUNT,
@@ -70,7 +70,7 @@ export function WizardFooter({ stepTitle, nextDisabled = false, onNext }: Wizard
           className={cn(
             'focus-ring h-10 rounded-xl px-5 text-[13px] font-semibold transition',
             nextDisabled
-              ? 'cursor-not-allowed bg-zinc-100 text-zinc-400'
+              ? 'cursor-not-allowed bg-zinc-100 text-zinc-500'
               : 'bg-cta text-cta-foreground hover:bg-accent-hover',
           )}
         >

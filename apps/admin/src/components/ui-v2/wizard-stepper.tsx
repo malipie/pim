@@ -46,7 +46,7 @@ export function WizardStepper({ steps, current, onStepClick, className }: Wizard
               className={cn(
                 'focus-ring w-full rounded-xl border px-3.5 py-3 text-left transition',
                 active && 'border-zinc-900 bg-zinc-900 text-white',
-                done && 'cursor-pointer border-emerald-200/70 bg-emerald-50/60 text-emerald-900',
+                done && 'cursor-pointer border-emerald-200 bg-emerald-50 text-emerald-900',
                 !active && !done && 'cursor-default border-zinc-200 bg-surface text-zinc-500',
               )}
             >
@@ -57,7 +57,7 @@ export function WizardStepper({ steps, current, onStepClick, className }: Wizard
                     'grid h-5 w-5 place-items-center rounded-full font-mono text-[10px] font-bold',
                     active && 'bg-white text-zinc-900',
                     done && 'bg-emerald-500 text-white',
-                    !active && !done && 'bg-zinc-100 text-zinc-400',
+                    !active && !done && 'bg-zinc-100 text-zinc-600',
                   )}
                 >
                   {done ? <Check size={11} strokeWidth={3} /> : index + 1}
@@ -68,7 +68,7 @@ export function WizardStepper({ steps, current, onStepClick, className }: Wizard
                 <span
                   className={cn(
                     'mt-1 block truncate text-[11px]',
-                    active ? 'text-white/70' : done ? 'text-emerald-700' : 'text-zinc-400',
+                    active ? 'text-white/70' : done ? 'text-emerald-700' : 'text-zinc-500',
                   )}
                 >
                   {step.hint}

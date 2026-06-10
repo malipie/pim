@@ -9,12 +9,24 @@ import { apiLogin } from './helpers/auth';
  */
 
 async function expectNoViolations(page: Page) {
+  // Let CSS transitions finish — axe samples computed colors and a
+  // mid-transition tile (navy → emerald) reads as an illegible blend.
+  await page.waitForTimeout(350);
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa'])
     // The scan covers the exports surface; the global shell (sidebar,
     // topbar) is included implicitly and must stay clean too.
     .analyze();
-  expect(results.violations.map((violation) => `${violation.id}: ${violation.help}`)).toEqual([]);
+  expect(
+    results.violations.flatMap((violation) =>
+      violation.nodes
+        .slice(0, 4)
+        .map(
+          (node) =>
+            `${violation.id} @ ${node.target.join(' ')} :: ${node.failureSummary?.split('\n')[1]?.trim() ?? ''}`,
+        ),
+    ),
+  ).toEqual([]);
 }
 
 const SESSION = {
@@ -36,6 +48,15 @@ const SESSION = {
 };
 
 test.beforeEach(async ({ page }) => {
+  // Color-contrast sampling races CSS transitions (axe reads a mid-blend
+  // of the stepper tile animating navy → emerald). Standard practice for
+  // a11y scans: freeze animations/transitions for the whole run.
+  await page.addInitScript(() => {
+    const style = document.createElement('style');
+    style.textContent =
+      '*, *::before, *::after { transition: none !important; animation: none !important; }';
+    document.documentElement.appendChild(style);
+  });
   await page.route('**/api/exports/sessions', (route) =>
     route.fulfill({
       status: 200,

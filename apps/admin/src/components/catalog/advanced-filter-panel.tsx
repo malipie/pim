@@ -228,7 +228,7 @@ export function AdvancedFilterPanel({
           {t('products.advanced_filter.title', { defaultValue: 'Filtr zaawansowany' })}
         </span>
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-[11.5px] text-zinc-400 tabular-nums">
+          <span className="text-[11.5px] text-zinc-500 tabular-nums">
             {t('products.advanced_filter.condition_count', {
               count: draftConditions.length,
               defaultValue: `${draftConditions.length} warunków`,
@@ -269,7 +269,7 @@ export function AdvancedFilterPanel({
               // biome-ignore lint/suspicious/noArrayIndexKey: see comment
               <div key={`cond-${idx}`} className="flex items-center gap-2">
                 {idx === 0 ? (
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 w-12">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 w-12">
                     {t('products.advanced_filter.where_label', { defaultValue: 'Gdzie' })}
                   </span>
                 ) : (
@@ -420,7 +420,7 @@ export function AdvancedFilterPanel({
         </div>
 
         {draftConditions.length > 0 && (
-          <span className="text-[11.5px] text-zinc-400 inline-flex items-center gap-1.5">
+          <span className="text-[11.5px] text-zinc-500 inline-flex items-center gap-1.5">
             <Link2 className="size-3.5" />
             <span>
               {t('products.advanced_filter.url_updated', { defaultValue: 'URL zaktualizowany' })}

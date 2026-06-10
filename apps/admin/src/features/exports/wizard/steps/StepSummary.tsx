@@ -173,7 +173,7 @@ export function StepSummary() {
             </span>
           ))}
           {state.columns.length > 12 && (
-            <span className="text-[11.5px] text-zinc-400">+{state.columns.length - 12}</span>
+            <span className="text-[11.5px] text-zinc-500">+{state.columns.length - 12}</span>
           )}
         </span>
       ),
@@ -198,7 +198,7 @@ export function StepSummary() {
         <dl className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
           {cards.map((card) => (
             <div key={card.key}>
-              <dt className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+              <dt className="text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
                 {card.title}
               </dt>
               <dd className="mt-1.5">{card.body}</dd>
@@ -208,7 +208,7 @@ export function StepSummary() {
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-surface p-7 shadow-card">
-        <h3 className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+        <h3 className="text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
           {t('exports.wizard.summary.save_profile_title')}
         </h3>
         <div className="mt-3 flex max-w-lg flex-wrap items-start gap-2">
@@ -224,7 +224,7 @@ export function StepSummary() {
               placeholder={t('exports.wizard.summary.profile_name_placeholder')}
               aria-label={t('exports.wizard.summary.profile_name_placeholder')}
               className={cn(
-                'focus-ring h-10 w-full rounded-xl border bg-surface px-3 text-[13px] placeholder:text-zinc-400',
+                'focus-ring h-10 w-full rounded-xl border bg-surface px-3 text-[13px] placeholder:text-zinc-500',
                 profileError === null ? 'border-zinc-200' : 'border-brick-300',
               )}
             />
@@ -244,12 +244,12 @@ export function StepSummary() {
             {t('exports.wizard.summary.save_profile_cta')}
           </button>
         </div>
-        <p className="mt-2 text-[11.5px] text-zinc-400">
+        <p className="mt-2 text-[11.5px] text-zinc-500">
           {t('exports.wizard.summary.save_profile_hint')}
         </p>
       </section>
 
-      <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/60 px-5 py-4 text-[13px] text-emerald-800">
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-[13px] text-emerald-800">
         {mode === 'sync'
           ? t('exports.wizard.summary.note_sync')
           : t('exports.wizard.summary.note_async')}
