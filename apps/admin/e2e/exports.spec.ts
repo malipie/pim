@@ -36,13 +36,14 @@ test('exports hub MVP — tabs + new flow smoke', async ({ page }) => {
   await expect(page.getByRole('tab', { name: /sessions|sesje/i }).first()).toBeVisible();
   await expect(page.getByRole('tab', { name: /profiles|profile/i }).first()).toBeVisible();
 
-  // "Nowy eksport" CTA opens the standalone full-page form.
+  // EXR-09: the CTA opens the v2 wizard; the legacy paste-JSON page
+  // stays at /new-legacy until EXR-14 removes it.
   await page
     .getByRole('link', { name: /nowy eksport|new export/i })
     .first()
     .click();
   await expect(page).toHaveURL(/\/integrations\/exports\/new$/);
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('radiogroup')).toBeVisible();
 });
 
 test('exports modal — sync XLSX download from list + save-as-profile lifecycle', async ({
@@ -135,7 +136,8 @@ test('exports new — async 202 redirects to sessions (mocked endpoint)', async 
     });
   });
 
-  await page.goto('/integrations/exports/new');
+  // EXR-09: legacy full-page form moved to /new-legacy until EXR-14.
+  await page.goto('/integrations/exports/new-legacy');
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
 
@@ -223,12 +225,9 @@ test('#1278 scopable attribute appears once in column picker (no duplicate)', as
     { timeout: 30_000 },
   );
 
-  await page.goto('/integrations/exports');
-  await page
-    .getByRole('link', { name: /nowy eksport|new export/i })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/integrations\/exports\/new$/);
+  // EXR-09: the legacy column-picker page lives at /new-legacy until
+  // EXR-14 removes it together with the modal.
+  await page.goto('/integrations/exports/new-legacy');
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 10_000 });
