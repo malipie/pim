@@ -10,7 +10,7 @@ import { HttpError } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 import { entityTypeLabelKey } from '../../sessions/session-format';
-import { type RunError, saveProfile, useRunExport } from '../use-run-export';
+import { type RunError, saveProfile, updateProfile, useRunExport } from '../use-run-export';
 import { useWizard } from '../wizard-store';
 
 const ENTITY_ICONS: Record<string, typeof Package> = {
@@ -32,7 +32,7 @@ export function StepSummary() {
   const navigate = useNavigate();
   const { state, dispatch } = useWizard();
   const { run, isRunning } = useRunExport();
-  const [profileNameInput, setProfileNameInput] = useState('');
+  const [profileNameInput, setProfileNameInput] = useState(state.profileName);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -69,7 +69,11 @@ export function StepSummary() {
     setSavingProfile(true);
     setProfileError(null);
     try {
-      await saveProfile(state, name);
+      if (state.editingProfileId !== null) {
+        await updateProfile(state, name, state.editingProfileId);
+      } else {
+        await saveProfile(state, name);
+      }
       dispatch({ type: 'SET_PROFILE_NAME', profileName: name });
       toast.success(t('exports.wizard.summary.profile_saved', { name }));
     } catch (error) {

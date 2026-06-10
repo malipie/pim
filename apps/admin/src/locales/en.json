@@ -2601,6 +2601,26 @@
     },
     "column_picker": {
       "group_structure": "Structure"
+    },
+    "profiles": {
+      "run_success": "Profile “{{name}}” — export started",
+      "run_failed": "Failed to run the profile export",
+      "confirm_delete": "Delete profile “{{name}}”? This cannot be undone.",
+      "deleted": "Profile “{{name}}” deleted",
+      "delete_failed": "Failed to delete the profile",
+      "empty_title": "No saved profiles",
+      "empty_subtitle": "Save a configuration in wizard Step 4 to reuse it with one click.",
+      "col_name": "Name",
+      "col_entity": "Entity",
+      "col_format": "Format",
+      "col_columns": "Columns",
+      "col_filters": "Filters",
+      "col_owner": "Owner",
+      "col_last_run": "Last run",
+      "col_runs": "Runs",
+      "action_run": "Run now: {{name}}",
+      "action_edit": "Edit profile {{name}}",
+      "action_delete": "Delete profile {{name}}"
     }
   }
 }

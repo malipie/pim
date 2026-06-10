@@ -1,10 +1,15 @@
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 
 import { WizardStepper } from '@/components/ui-v2/wizard-stepper';
+import type { FilterDsl } from '@/lib/filters/filter-dsl';
+import { jsonFetch } from '@/lib/http';
 import { StepColumns } from './steps/StepColumns';
 import { StepEntityType } from './steps/StepEntityType';
 import { StepScopeFormat } from './steps/StepScopeFormat';
 import { StepSummary } from './steps/StepSummary';
+import type { ExportEntityType } from './types';
 import { WizardFooter } from './WizardFooter';
 import { useWizard, WizardProvider } from './wizard-store';
 
@@ -22,9 +27,55 @@ export function ExportWizardPage(): React.ReactElement {
   );
 }
 
+interface ProfilePayload {
+  id: string;
+  name: string;
+  entity_type: ExportEntityType;
+  object_type_id: string | null;
+  config: {
+    format?: string;
+    selected_columns?: string[];
+    locales?: string[] | null;
+    channels?: string[] | null;
+    filter?: FilterDsl | null;
+    default_target_scope?: string;
+  };
+}
+
 function WizardContent() {
   const { t } = useTranslation();
   const { state, dispatch } = useWizard();
+  const [searchParams] = useSearchParams();
+  const editProfileId = searchParams.get('profile');
+  const initialisedRef = useRef(false);
+
+  // EXR-13 — ?profile={id} opens the wizard prefilled for editing.
+  useEffect(() => {
+    if (editProfileId === null || initialisedRef.current) return;
+    initialisedRef.current = true;
+    jsonFetch<ProfilePayload>(`/api/exports/profiles/${editProfileId}`, {
+      accept: 'application/json',
+    })
+      .then((profile) => {
+        const filterDsl = profile.config.filter ?? null;
+        dispatch({
+          type: 'INIT_FROM_PROFILE',
+          profileId: profile.id,
+          profileName: profile.name,
+          entityType: profile.entity_type,
+          objectTypeId: profile.object_type_id,
+          format: profile.config.format === 'csv' ? 'csv' : 'xlsx',
+          columns: profile.config.selected_columns ?? [],
+          locales: profile.config.locales ?? null,
+          channels: profile.config.channels ?? null,
+          filterDsl,
+          targetScope: filterDsl === null ? 'all' : 'filter',
+        });
+      })
+      .catch(() => {
+        // Unknown profile id — fall back to the clean wizard.
+      });
+  }, [editProfileId, dispatch]);
 
   const steps = [
     {
