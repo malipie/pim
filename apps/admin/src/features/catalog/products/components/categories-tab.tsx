@@ -29,6 +29,8 @@ interface ListResponse {
 
 interface Props {
   productId: string;
+  /** ObjectType owning the object — scopes the picker to its category tree (#1413). */
+  objectTypeId?: string | null;
 }
 
 /**
@@ -44,7 +46,7 @@ interface Props {
  * needs to know that picking a category is what activates the
  * category-driven group set on the form (PCAT-03).
  */
-export function CategoriesTab({ productId }: Props) {
+export function CategoriesTab({ productId, objectTypeId }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -228,6 +230,7 @@ export function CategoriesTab({ productId }: Props) {
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         productId={productId}
+        objectTypeId={objectTypeId ?? undefined}
         currentAssignments={currentAssignments}
         onSaved={() => undefined}
       />

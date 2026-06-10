@@ -33,7 +33,7 @@ import type {
   LocaleOption,
   ProductLocale,
 } from '@/features/catalog/products/components/types';
-import { jsonFetch } from '@/lib/http';
+import { httpErrorDetail, jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 export interface UniversalCreatePageProps {
@@ -302,8 +302,11 @@ export function UniversalCreatePage({
         );
       }
       navigate(detailPathFor(created.id));
-    } catch {
-      toast.error(t('object_create.failed', { defaultValue: 'Nie udało się utworzyć obiektu' }));
+    } catch (e) {
+      toast.error(
+        httpErrorDetail(e) ??
+          t('object_create.failed', { defaultValue: 'Nie udało się utworzyć obiektu' }),
+      );
     } finally {
       setIsSaving(false);
     }
