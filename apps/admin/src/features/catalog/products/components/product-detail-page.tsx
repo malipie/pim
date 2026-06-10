@@ -931,7 +931,13 @@ export function ProductDetailPage({ mode, productId }: ProductDetailPageProps) {
 
             if (mode === 'edit' && isSpecialTab(activeTab)) {
               return (
-                <OtherTabs activeTab={activeTab} productId={id} locale={locale} channel={channel} />
+                <OtherTabs
+                  activeTab={activeTab}
+                  productId={id}
+                  objectTypeId={objectTypeId}
+                  locale={locale}
+                  channel={channel}
+                />
               );
             }
 
@@ -1113,11 +1119,13 @@ function resolveProvenance(
 function OtherTabs({
   activeTab,
   productId,
+  objectTypeId,
   locale,
   channel,
 }: {
   activeTab: SpecialTabKey;
   productId: string;
+  objectTypeId: string | null;
   locale: ProductLocale;
   channel: ProductChannel | null;
 }) {
@@ -1126,7 +1134,8 @@ function OtherTabs({
   // dispatcher; mirroring the UniversalDetailPage gating brings the
   // legacy product card back in sync with the capability flag).
   if (activeTab === 'multimedia') return <ProductMultimediaTab productId={productId} />;
-  if (activeTab === 'categories') return <CategoriesTab productId={productId} />;
+  if (activeTab === 'categories')
+    return <CategoriesTab productId={productId} objectTypeId={objectTypeId} />;
   if (activeTab === 'history') return <HistoryStub />;
   if (activeTab === 'variants')
     return <VariantsTabHost productId={productId} locale={locale} channel={channel} />;

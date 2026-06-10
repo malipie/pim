@@ -841,6 +841,7 @@ function ObjectPickerDialog({
         open={categoryPickerOpen}
         onOpenChange={setCategoryPickerOpen}
         productId=""
+        objectTypeId={createObjectTypeId ?? undefined}
         currentAssignments={createCategoryIds.map((id) => ({
           categoryId: id,
           isPrimary: id === createPrimaryCategoryId,

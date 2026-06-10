@@ -319,6 +319,7 @@ export function CategorySelectorCard(props: Props) {
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         productId={productId}
+        objectTypeId={props.objectTypeId ?? undefined}
         currentAssignments={currentPickerAssignments}
         onSaved={() => undefined}
         onSelect={
