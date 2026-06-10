@@ -2405,5 +2405,89 @@
     "result_bar": {
       "aria": "Result: {{ok}} ok, {{warn}} warnings, {{err}} errors"
     }
+  },
+  "exports": {
+    "new_cta": "New export",
+    "tabs_aria": "Export sections",
+    "tabs": {
+      "sessions": "Sessions",
+      "profiles": "Export Profiles",
+      "targets": "Targets",
+      "schedule": "Schedule"
+    },
+    "section_title": "Exports",
+    "kpi": {
+      "active": "Running",
+      "throughput": "throughput {{value}} rows/s",
+      "today": "Today · {{date}}",
+      "success_30d": "Success · 30 days",
+      "terminal_sessions_one": "{{count}} finished session",
+      "terminal_sessions_other": "{{count}} finished sessions",
+      "top_errors": "Top errors · 30 days",
+      "no_errors": "no errors",
+      "unknown_error": "unknown error"
+    },
+    "entity": {
+      "products": "Products",
+      "custom_module": "Custom modules",
+      "module_schema": "Module schema",
+      "attributes": "Attributes & groups",
+      "categories": "Categories"
+    },
+    "active": {
+      "title": "Running",
+      "empty_title": "No active exports",
+      "empty_subtitle": "Start with “New export” — small batches download instantly, bulk jobs land here with a progress bar.",
+      "progress": "{{done}} / {{total}} rows",
+      "progress_aria": "Export progress"
+    },
+    "history": {
+      "title": "History · last 30 days",
+      "search_placeholder": "file, profile, user…",
+      "segments_aria": "Status filter",
+      "segment_all": "all",
+      "segment_success": "success",
+      "segment_errors": "errors",
+      "segment_running": "running",
+      "col_file": "File · source",
+      "col_profile": "Profile",
+      "col_mode": "Mode",
+      "col_rows": "Rows",
+      "col_result": "Result",
+      "col_start": "Start · time",
+      "col_user": "User",
+      "col_status": "Status",
+      "empty_title": "No sessions",
+      "empty_subtitle": "No session matches the filter.",
+      "shown": "Showing {{shown}} of {{total}} sessions",
+      "prev": "← previous",
+      "next": "next →",
+      "action_download": "Download",
+      "action_rerun": "Rerun",
+      "action_delete": "Delete",
+      "action_details": "Details",
+      "download_failed": "Download failed",
+      "rerun_failed": "Rerun failed",
+      "delete_failed": "Delete failed"
+    },
+    "sessions": {
+      "confirm_delete": "Delete this export? The MinIO file will be removed as well."
+    },
+    "show": {
+      "back": "Back to sessions",
+      "entity": "Entity",
+      "format": "Format",
+      "scope": "Scope",
+      "rows": "Rows",
+      "profile": "Profile",
+      "columns": "Columns",
+      "locales": "Locales",
+      "channels": "Channels",
+      "started": "Started",
+      "duration": "Duration",
+      "file": "File",
+      "size": "Size",
+      "error": "Error"
+    }
   }
 }

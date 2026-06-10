@@ -199,6 +199,10 @@ const ExportNewPage = lazyPage(
   () => import('@/features/exports/wizard/ExportNewPage'),
   'ExportNewPage',
 );
+const ExportSessionShowPage = lazyPage(
+  () => import('@/features/exports/show/ExportSessionShowPage'),
+  'ExportSessionShowPage',
+);
 const IntegrationsLayout = lazyPage(
   () => import('@/features/integration-hub/IntegrationsLayout'),
   'IntegrationsLayout',
@@ -521,6 +525,21 @@ function App() {
                 {/* Top-level Integracje hub — łączy Imports MVP (epik 0.13)
                     + Profile API z VIEW-08 (sub-tab API Configurator). Stare
                     ścieżki /publications/* i /api-profiles/* redirectują niżej. */}
+                {/* EXR-08 (#1384) — Exports live OUTSIDE IntegrationsLayout:
+                    screen 1 renders the exports hub directly under the v2
+                    shell (sidebar second-level + topbar breadcrumb replace
+                    the old in-page Integrations header/tabs). Imports keep
+                    the legacy IntegrationsLayout until their redesign. */}
+                <Route path="/integrations/exports" element={<ExportsLayout />}>
+                  <Route index element={<Navigate to="sessions" replace />} />
+                  <Route path="sessions" element={<ExportSessionsView />} />
+                  <Route path="profiles" element={<ExportProfilesView />} />
+                </Route>
+                <Route
+                  path="/integrations/exports/sessions/:id"
+                  element={<ExportSessionShowPage />}
+                />
+                <Route path="/integrations/exports/new" element={<ExportNewPage />} />
                 <Route path="/integrations" element={<IntegrationsLayout />}>
                   <Route index element={<Navigate to="/integrations/imports" replace />} />
                   {/* VIEW-IMP-00 (#493) — Importy hub with 4 tabs. Old flat
@@ -536,15 +555,6 @@ function App() {
                   </Route>
                   <Route path="imports/new" element={<ImportWizardPage />} />
                   <Route path="imports/:id" element={<ImportShowPage />} />
-                  {/* EXP-09 (#588) — Exports hub MVP. Tabs sessions/profiles
-                      + standalone /new full-page form. Mirrors imports layout
-                      depth so deep-links survive into Faza 1. */}
-                  <Route path="exports" element={<ExportsLayout />}>
-                    <Route index element={<Navigate to="sessions" replace />} />
-                    <Route path="sessions" element={<ExportSessionsView />} />
-                    <Route path="profiles" element={<ExportProfilesView />} />
-                  </Route>
-                  <Route path="exports/new" element={<ExportNewPage />} />
                   <Route path="api-configurator" element={<ApiProfilesListPage />} />
                   <Route path="api-configurator/create" element={<ApiProfileCreatePage />} />
                   <Route path="api-configurator/:id/edit" element={<ApiProfileEditPage />} />

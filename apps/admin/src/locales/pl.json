@@ -2455,5 +2455,91 @@
     "result_bar": {
       "aria": "Wynik: {{ok}} poprawnych, {{warn}} ostrzeżeń, {{err}} błędów"
     }
+  },
+  "exports": {
+    "new_cta": "Nowy eksport",
+    "tabs_aria": "Sekcje eksportów",
+    "tabs": {
+      "sessions": "Sesje",
+      "profiles": "Profile Eksportu",
+      "targets": "Cele",
+      "schedule": "Harmonogram"
+    },
+    "section_title": "Eksporty",
+    "kpi": {
+      "active": "W toku",
+      "throughput": "throughput {{value}} wier/s",
+      "today": "Dziś · {{date}}",
+      "success_30d": "Sukces · 30 dni",
+      "terminal_sessions_one": "{{count}} sesja zakończona",
+      "terminal_sessions_few": "{{count}} sesje zakończone",
+      "terminal_sessions_many": "{{count}} sesji zakończonych",
+      "terminal_sessions_other": "{{count}} sesji zakończonych",
+      "top_errors": "Top błędy · 30 dni",
+      "no_errors": "brak błędów",
+      "unknown_error": "nieznany błąd"
+    },
+    "entity": {
+      "products": "Produkty",
+      "custom_module": "Moduły własne",
+      "module_schema": "Schemat modułów",
+      "attributes": "Atrybuty i grupy",
+      "categories": "Kategorie"
+    },
+    "active": {
+      "title": "W toku",
+      "empty_title": "Brak aktywnych eksportów",
+      "empty_subtitle": "Zacznij od „Nowy eksport” — małe paczki pobierzesz od razu, masowe trafią tutaj z paskiem postępu.",
+      "progress": "{{done}} / {{total}} wierszy",
+      "progress_aria": "Postęp eksportu"
+    },
+    "history": {
+      "title": "Historia · ostatnie 30 dni",
+      "search_placeholder": "plik, profil, użytkownik…",
+      "segments_aria": "Filtr statusu",
+      "segment_all": "wszystkie",
+      "segment_success": "sukces",
+      "segment_errors": "błędy",
+      "segment_running": "w toku",
+      "col_file": "Plik · źródło",
+      "col_profile": "Profil",
+      "col_mode": "Tryb",
+      "col_rows": "Wiersze",
+      "col_result": "Rozkład",
+      "col_start": "Start · czas",
+      "col_user": "Użytkownik",
+      "col_status": "Status",
+      "empty_title": "Brak sesji",
+      "empty_subtitle": "Żadna sesja nie pasuje do filtra.",
+      "shown": "Pokazano {{shown}} z {{total}} sesji",
+      "prev": "← poprzednie",
+      "next": "następne →",
+      "action_download": "Pobierz",
+      "action_rerun": "Powtórz",
+      "action_delete": "Usuń",
+      "action_details": "Szczegóły",
+      "download_failed": "Pobieranie nie powiodło się",
+      "rerun_failed": "Ponowne uruchomienie nie powiodło się",
+      "delete_failed": "Usunięcie nie powiodło się"
+    },
+    "sessions": {
+      "confirm_delete": "Usunąć ten eksport? Plik z MinIO zostanie również usunięty."
+    },
+    "show": {
+      "back": "Wróć do sesji",
+      "entity": "Encja",
+      "format": "Format",
+      "scope": "Zakres",
+      "rows": "Wiersze",
+      "profile": "Profil",
+      "columns": "Kolumny",
+      "locales": "Języki",
+      "channels": "Kanały",
+      "started": "Start",
+      "duration": "Czas",
+      "file": "Plik",
+      "size": "Rozmiar",
+      "error": "Błąd"
+    }
   }
 }
