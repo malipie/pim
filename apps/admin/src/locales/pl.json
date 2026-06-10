@@ -2480,11 +2480,11 @@
       "unknown_error": "nieznany błąd"
     },
     "entity": {
-      "products": "Produkty",
       "custom_module": "Moduły własne",
       "module_schema": "Schemat modułów",
-      "attributes": "Atrybuty i grupy",
-      "categories": "Kategorie"
+      "categories": "Kategorie",
+      "product": "Produkty",
+      "attributes_groups": "Atrybuty i grupy"
     },
     "active": {
       "title": "W toku",
@@ -2540,6 +2540,40 @@
       "file": "Plik",
       "size": "Rozmiar",
       "error": "Błąd"
+    },
+    "wizard": {
+      "title": "Kreator eksportu",
+      "lead": "Skonfiguruj parametry eksportu danych — format, zakres i docelowe kolumny.",
+      "steps": {
+        "type": "Typ",
+        "type_hint": "co eksportujesz",
+        "scope": "Zakres i format",
+        "scope_hint": "profil · format · filtry",
+        "columns": "Kolumny",
+        "columns_hint": "wybór atrybutów",
+        "summary": "Podsumowanie",
+        "summary_hint": "sprawdź i uruchom"
+      },
+      "step_indicator": "krok {{step}} z {{total}} · {{title}}",
+      "cancel": "Anuluj",
+      "back": "← Wstecz",
+      "next": "Dalej →",
+      "cancel_confirm": "Porzucić konfigurację eksportu? Niezapisane zmiany przepadną.",
+      "entity_switch_confirm": "Zmiana typu danych wyczyści ustawienia kroków 2-4 (filtry i kolumny są zależne od encji). Kontynuować?",
+      "step1_title": "Krok 1: Wybierz dane do eksportu",
+      "step1_subtitle": "Wybierz główny typ encji, z którego chcesz wygenerować plik wyjściowy.",
+      "entity_group_aria": "Typ encji eksportu",
+      "entity_desc": {
+        "custom_module": "Eksportuj dane ze zdefiniowanych przez użytkownika modułów niestandardowych (np. Producenci, Kolekcje).",
+        "module_schema": "Pobierz strukturę definicji, relacje i ustawienia konfiguracyjne modułów.",
+        "categories": "Struktura drzewa kategorii, tłumaczenia nazw oraz przypisane reguły dziedziczenia.",
+        "product": "Eksportuj główny katalog produktów, warianty, ceny i powiązane multimedia.",
+        "attributes_groups": "Eksport słownika atrybutów, ich wartości domyślnych, typów oraz podziału na grupy."
+      },
+      "custom_object_type_label": "Moduł własny",
+      "custom_object_type_placeholder": "Wybierz moduł…",
+      "custom_object_type_required": "Wybierz moduł własny, aby przejść dalej.",
+      "step_placeholder": "Treść tego kroku pojawi się w kolejnych ticketach (EXR-10/11/12)."
     }
   }
 }

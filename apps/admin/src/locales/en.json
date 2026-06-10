@@ -2428,11 +2428,11 @@
       "unknown_error": "unknown error"
     },
     "entity": {
-      "products": "Products",
       "custom_module": "Custom modules",
       "module_schema": "Module schema",
-      "attributes": "Attributes & groups",
-      "categories": "Categories"
+      "categories": "Categories",
+      "product": "Products",
+      "attributes_groups": "Attributes & groups"
     },
     "active": {
       "title": "Running",
@@ -2488,6 +2488,40 @@
       "file": "File",
       "size": "Size",
       "error": "Error"
+    },
+    "wizard": {
+      "title": "Export wizard",
+      "lead": "Configure the export — format, scope and target columns.",
+      "steps": {
+        "type": "Type",
+        "type_hint": "what to export",
+        "scope": "Scope & format",
+        "scope_hint": "profile · format · filters",
+        "columns": "Columns",
+        "columns_hint": "attribute selection",
+        "summary": "Summary",
+        "summary_hint": "review & run"
+      },
+      "step_indicator": "step {{step}} of {{total}} · {{title}}",
+      "cancel": "Cancel",
+      "back": "← Back",
+      "next": "Next →",
+      "cancel_confirm": "Abandon this export configuration? Unsaved changes will be lost.",
+      "entity_switch_confirm": "Changing the data type clears steps 2-4 (filters and columns are entity-specific). Continue?",
+      "step1_title": "Step 1: Choose the data to export",
+      "step1_subtitle": "Pick the main entity type to generate the output file from.",
+      "entity_group_aria": "Export entity type",
+      "entity_desc": {
+        "custom_module": "Export data from user-defined custom modules (e.g. Manufacturers, Collections).",
+        "module_schema": "Download module definitions, relations and configuration settings.",
+        "categories": "Category tree structure, name translations and inheritance rules.",
+        "product": "Export the main product catalog, variants, prices and related media.",
+        "attributes_groups": "Export the attribute dictionary, default values, types and group assignments."
+      },
+      "custom_object_type_label": "Custom module",
+      "custom_object_type_placeholder": "Choose a module…",
+      "custom_object_type_required": "Choose a custom module to continue.",
+      "step_placeholder": "This step's content lands in upcoming tickets (EXR-10/11/12)."
     }
   }
 }
