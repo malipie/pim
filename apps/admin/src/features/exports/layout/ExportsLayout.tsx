@@ -1,96 +1,78 @@
+import { useQuery } from '@tanstack/react-query';
+import { Plus } from 'lucide-react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 
-interface TabDef {
-  value: string;
-  to: string;
-  labelKey: string;
-}
+import { PillTabs } from '@/components/ui-v2/pill-tabs';
+import { usePageActions } from '@/layout/page-actions-context';
+import { jsonFetch } from '@/lib/http';
 
-const TABS: readonly TabDef[] = [
-  {
-    value: 'sessions',
-    to: '/integrations/exports/sessions',
-    labelKey: 'exports.tabs.sessions',
-  },
-  {
-    value: 'profiles',
-    to: '/integrations/exports/profiles',
-    labelKey: 'exports.tabs.profiles',
-  },
-] as const;
+import { useExportSessions } from '../hooks/useExportSessions';
 
-const DEFAULT_TAB = 'sessions';
-
-function activeTabFor(pathname: string): string {
-  const match = TABS.find((tab) => pathname.startsWith(tab.to));
-  return match?.value ?? DEFAULT_TAB;
+interface ProfilesResponse {
+  total: number;
 }
 
 /**
- * EXP-09 (#588) — Exports hub layout (analog do ImportsLayout VIEW-IMP-00).
- *
- * Two tabs in MVP:
- *   - Recent exports (lista sesji per user, EXP-13)
- *   - Saved profiles (CRUD profili per user, EXP-14)
- *
- * "New export" lives at `/integrations/exports/new` as a stand-alone
- * full-page form (EXP-12). It's reachable from the tab strip via a CTA
- * button rather than another tab so the hub stays clean (PRD §13.1).
+ * EXR-08 (#1384) — Exports hub in the v2 design (screen 1): pill tabs
+ * (Sesje / Profile Eksportu / Cele / Harmonogram — the last two are D3
+ * "soon" placeholders) + the "Nowy eksport" CTA registered into the
+ * global topbar via PageActionsContext.
  */
 export function ExportsLayout(): React.ReactElement {
   const { t } = useTranslation();
   const { pathname } = useLocation();
-  const activeTab = activeTabFor(pathname);
+  const navigate = useNavigate();
+
+  const sessionsQuery = useExportSessions();
+  const profilesQuery = useQuery<ProfilesResponse>({
+    queryKey: ['exports', 'profiles', 'count'],
+    queryFn: () =>
+      jsonFetch<ProfilesResponse>('/api/exports/profiles', { accept: 'application/json' }),
+    staleTime: 30_000,
+  });
+
+  usePageActions(
+    useMemo(
+      () => (
+        <Link
+          to="/integrations/exports/new"
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-xl bg-cta px-3.5 text-[13px] font-semibold text-cta-foreground transition hover:bg-accent-hover"
+        >
+          <Plus className="size-4" aria-hidden />
+          {t('exports.new_cta')}
+        </Link>
+      ),
+      [t],
+    ),
+  );
+
+  const activeId = pathname.startsWith('/integrations/exports/profiles') ? 'profiles' : 'sessions';
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="display text-[28px] font-semibold tracking-tight">
-          {t('exports.section_title', { defaultValue: 'Eksporty' })}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t('exports.section_subtitle', {
-            defaultValue:
-              'Eksportuj produkty do XLSX / CSV — z modalem z listy lub z dedykowanej formy.',
-          })}
-        </p>
-      </header>
-      <div
-        className="flex items-center justify-between gap-4 border-b"
-        role="tablist"
-        aria-label={t('exports.tabs.aria_label', { defaultValue: 'Zakładki eksportu' })}
-      >
-        <div className="flex gap-1">
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.value;
-            return (
-              <NavLink
-                key={tab.value}
-                to={tab.to}
-                role="tab"
-                aria-selected={isActive}
-                className={({ isActive: navActive }) =>
-                  [
-                    'inline-flex items-center border-b-2 px-3 py-2 text-sm font-medium transition-colors',
-                    navActive || isActive
-                      ? 'border-foreground text-foreground'
-                      : 'border-transparent text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground',
-                  ].join(' ')
-                }
-              >
-                {t(tab.labelKey)}
-              </NavLink>
-            );
-          })}
-        </div>
-        <NavLink
-          to="/integrations/exports/new"
-          className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          {t('exports.tabs.new_cta', { defaultValue: 'Nowy eksport' })}
-        </NavLink>
-      </div>
+    <div className="space-y-5">
+      <PillTabs
+        ariaLabel={t('exports.tabs_aria')}
+        activeId={activeId}
+        onChange={(id) => {
+          void navigate(`/integrations/exports/${id}`);
+        }}
+        items={[
+          {
+            id: 'sessions',
+            label: t('exports.tabs.sessions'),
+            count: sessionsQuery.data?.total,
+          },
+          {
+            id: 'profiles',
+            label: t('exports.tabs.profiles'),
+            count: profilesQuery.data?.total,
+          },
+          { id: 'targets', label: t('exports.tabs.targets'), disabled: true },
+          { id: 'schedule', label: t('exports.tabs.schedule'), disabled: true },
+        ]}
+      />
       <Outlet />
     </div>
   );

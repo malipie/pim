@@ -30,13 +30,17 @@ test('exports hub MVP — tabs + new flow smoke', async ({ page }) => {
   await loginAsAdmin(page);
   await page.goto('/integrations/exports');
 
-  // Hub heading + tab strip.
-  await expect(page.getByRole('heading', { name: /eksporty|exports/i })).toBeVisible();
+  // EXR-08: the v2 hub renders pill tabs (no page heading); the CTA
+  // lives in the global topbar and is duplicated by the empty-state
+  // card, hence .first().
   await expect(page.getByRole('tab', { name: /sessions|sesje/i }).first()).toBeVisible();
   await expect(page.getByRole('tab', { name: /profiles|profile/i }).first()).toBeVisible();
 
   // "Nowy eksport" CTA opens the standalone full-page form.
-  await page.getByRole('link', { name: /nowy eksport|new export/i }).click();
+  await page
+    .getByRole('link', { name: /nowy eksport|new export/i })
+    .first()
+    .click();
   await expect(page).toHaveURL(/\/integrations\/exports\/new$/);
   await expect(page.getByRole('dialog')).toBeVisible();
 });
@@ -220,7 +224,10 @@ test('#1278 scopable attribute appears once in column picker (no duplicate)', as
   );
 
   await page.goto('/integrations/exports');
-  await page.getByRole('link', { name: /nowy eksport|new export/i }).click();
+  await page
+    .getByRole('link', { name: /nowy eksport|new export/i })
+    .first()
+    .click();
   await expect(page).toHaveURL(/\/integrations\/exports\/new$/);
 
   const dialog = page.getByRole('dialog');

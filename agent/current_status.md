@@ -1,5 +1,22 @@
 # Current Status
 
+## 2026-06-10: 🚧 Epik EXR w realizacji — A zamknięta (EXR-01/02/03 merged), B była zamknięta wcześniej, C w toku (EXR-08 na PR)
+
+**Marathon mode (operator: „kontynuuj prace")** — jeden ticket = branch + PR + CI + merge, po kolei.
+
+- **EXR-01 (#1377) ✅ PR #1399 merged** — tokeny v2: skale zinc(granat)/orange/brick/emerald w `@theme`, semantyka (`--cta`, statusy, `--surface-muted`, `--shadow-card`), radiusy 8/12/16, dark zmapowany. Świadome odejście: shadcn `--accent` pozostał muted hover (AA), CTA przez `orange-*`/`--cta`.
+- **EXR-02 (#1378) ✅ PR #1400 merged** — `src/components/ui-v2/` 13 komponentów + `status-maps.ts` + README (wzorzec tabeli v2). **Nowy stack testowy: Vitest 4 + Testing Library + jest-axe** (30 testów, axe-clean) + job „Vitest unit" w quality-frontend.yml.
+- **EXR-03 (#1379) ✅ PR #1401 merged** — sidebar: Integracje jako rodzic z dziećmi (Importy/Eksporty/Konfigurator API), liczniki `useNavCounts` (60 s cache, kill-switch `VITE_NAV_COUNTS=off`), deep-link auto-expand; topbar v2 = `PageHeader` + `PageActionsContext` + ikona historii disabled. Legacy `TopbarBreadcrumb` usunięty.
+- **EXR-08 (#1384) 🔄 PR #1402 (CI w toku)** — strona Eksporty v2: PillTabs z licznikami (Cele/Harmonogram „wkrótce"), CTA w topbarze, KPI strip (agregaty client-side), „W toku" z ProgressBar, Historia (tabela v2: search/segmenty/paginacja client-side, download/rerun/delete), minimalny show sesji. Routing eksportów wyjęty spod IntegrationsLayout. BE: `serializeSummary` + profile_name/file_path/duration_ms/error_message. **Merge po live smoke (czeka na odzysk bazy).**
+
+### ⚠️ Incydent 2026-06-10: wipe dev DB przez lokalny PHPUnit + odzysk PITR
+`docker exec pim-api-1 php vendor/bin/phpunit --filter Export` bez `-e APP_ENV=test` → Foundry ResetDatabase na dev DB (10:31:41 UTC). Odzysk: **pgBackRest PITR** do `2026-06-10 10:31:40 UTC` (`--delta --type=time`, temp kontener, replay ~23 700 segmentów WAL z MinIO; przyspieszony `archive-async` + `fsync=off` na czas recovery). **Recovery w toku w tle** — po promocji: fsync=on, CHECKPOINT, weryfikacja danych, live smoke EXR-08, merge #1402. Lekcje w `agent/lessons.md` (sekcja EXR-01..08). **Follow-up do założenia: cron pełnych backupów martwy od 2026-04-28.**
+
+### Następne kroki
+1. EXR-09 (#1385) wizard szkielet + Krok 1 (w przygotowaniu równolegle z recovery).
+2. Po odzysku bazy: smoke + merge #1402, potem EXR-10..16 wg mapy zależności.
+
+
 ## 2026-06-09: 📋 Epik EXR — Przemodelowanie Eksportów + nowy look & feel (backlog rozpisany: #1377–#1392)
 
 Spec `Project Plan/UI/feature-exports-redesign-tickets.md` rozpisany na 16 GitHub Issues (label `epik-EXR`, jeden ticket = jeden issue). Zadanie wyłącznie backlogowe — **żaden ticket nie zaimplementowany**.

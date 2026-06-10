@@ -407,6 +407,13 @@ final class ExportSessionController
             'source' => $session->getSource()->value,
             'started_at' => $session->getStartedAt()->format(DateTimeInterface::ATOM),
             'completed_at' => $session->getCompletedAt()?->format(DateTimeInterface::ATOM),
+            // EXR-08 — history table needs these without fetching each
+            // session's detail: file name column, profile column,
+            // duration column and top-errors KPI.
+            'profile_name' => $session->getProfile()?->getName(),
+            'file_path' => $session->getFilePath(),
+            'duration_ms' => $session->getDurationMs(),
+            'error_message' => $session->getErrorMessage(),
         ];
     }
 
@@ -423,10 +430,7 @@ final class ExportSessionController
             'locales' => $session->getLocales(),
             'channels' => $session->getChannels(),
             'include_variants' => $session->includesVariants(),
-            'file_path' => $session->getFilePath(),
             'file_size_bytes' => $session->getFileSizeBytes(),
-            'duration_ms' => $session->getDurationMs(),
-            'error_message' => $session->getErrorMessage(),
         ];
     }
 
