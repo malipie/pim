@@ -107,6 +107,26 @@ export function useRunExport() {
   return { run, isRunning };
 }
 
+/** EXR-13 — PATCH an existing profile from the wizard state. */
+export async function updateProfile(state: WizardState, name: string, id: string): Promise<void> {
+  await jsonFetch(`/api/exports/profiles/${id}`, {
+    method: 'PATCH',
+    accept: 'application/json',
+    body: {
+      name,
+      config: {
+        format: state.format,
+        selected_columns: state.columns,
+        locales: state.locales,
+        channels: state.channels,
+        include_variants: true,
+        default_target_scope: state.targetScope,
+        filter: state.filterDsl,
+      },
+    },
+  });
+}
+
 /** POST /api/exports/profiles from the wizard state (does NOT run). */
 export async function saveProfile(state: WizardState, name: string): Promise<void> {
   const payload: Record<string, unknown> = {

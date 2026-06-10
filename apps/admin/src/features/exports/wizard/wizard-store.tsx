@@ -57,6 +57,21 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return { ...state, profileName: action.profileName, dirty: true };
     case 'SET_PREFLIGHT':
       return { ...state, preflight: action.preflight };
+    case 'INIT_FROM_PROFILE':
+      return {
+        ...INITIAL_WIZARD_STATE,
+        editingProfileId: action.profileId,
+        profileId: action.profileId,
+        profileName: action.profileName,
+        entityType: action.entityType,
+        objectTypeId: action.objectTypeId,
+        format: action.format,
+        columns: action.columns,
+        locales: action.locales,
+        channels: action.channels,
+        filterDsl: action.filterDsl,
+        targetScope: action.targetScope,
+      };
     case 'APPLY_PROFILE':
       return {
         ...state,

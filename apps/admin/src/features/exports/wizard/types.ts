@@ -38,6 +38,8 @@ export interface WizardState {
   profileName: string;
   /** Last preflight probe for the current configuration (EXR-10). */
   preflight: PreflightResult | null;
+  /** EXR-13 — profile being edited (?profile={id}); save = PATCH. */
+  editingProfileId: string | null;
   /** Any user-made change — drives cancel/entity-switch confirmations. */
   dirty: boolean;
 }
@@ -55,6 +57,19 @@ export type WizardAction =
   | { type: 'SET_CHANNELS'; channels: string[] | null }
   | { type: 'SET_PROFILE_NAME'; profileName: string }
   | { type: 'SET_PREFLIGHT'; preflight: PreflightResult | null }
+  | {
+      type: 'INIT_FROM_PROFILE';
+      profileId: string;
+      profileName: string;
+      entityType: ExportEntityType;
+      objectTypeId: string | null;
+      format: ExportFormat;
+      columns: string[];
+      locales: string[] | null;
+      channels: string[] | null;
+      filterDsl: FilterDsl | null;
+      targetScope: ExportTargetScope;
+    }
   | {
       type: 'APPLY_PROFILE';
       profileId: string;
@@ -83,5 +98,6 @@ export const INITIAL_WIZARD_STATE: WizardState = {
   channels: null,
   profileName: '',
   preflight: null,
+  editingProfileId: null,
   dirty: false,
 };

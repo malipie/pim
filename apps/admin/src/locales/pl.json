@@ -2655,6 +2655,26 @@
     },
     "column_picker": {
       "group_structure": "Struktura"
+    },
+    "profiles": {
+      "run_success": "Profil „{{name}}” — eksport uruchomiony",
+      "run_failed": "Nie udało się uruchomić eksportu z profilu",
+      "confirm_delete": "Usunąć profil „{{name}}”? Tej operacji nie można cofnąć.",
+      "deleted": "Usunięto profil „{{name}}”",
+      "delete_failed": "Nie udało się usunąć profilu",
+      "empty_title": "Brak zapisanych profili",
+      "empty_subtitle": "Zapisz konfigurację w Kroku 4 kreatora, aby wracać do niej jednym kliknięciem.",
+      "col_name": "Nazwa",
+      "col_entity": "Encja",
+      "col_format": "Format",
+      "col_columns": "Kolumny",
+      "col_filters": "Filtry",
+      "col_owner": "Właściciel",
+      "col_last_run": "Ostatnie uruchomienie",
+      "col_runs": "Uruchomienia",
+      "action_run": "Uruchom teraz: {{name}}",
+      "action_edit": "Edytuj profil {{name}}",
+      "action_delete": "Usuń profil {{name}}"
     }
   }
 }
