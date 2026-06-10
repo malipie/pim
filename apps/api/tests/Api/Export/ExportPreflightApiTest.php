@@ -117,14 +117,15 @@ final class ExportPreflightApiTest extends CatalogApiTestCase
     }
 
     #[Test]
-    public function rejectsStructuralEntityType(): void
+    public function countsStructuralEntityType(): void
     {
+        // EXR-06 enabled structural preflight counts (was 422 in EXR-07).
         $response = $this->preflightRaw([
             'entity_type' => 'module_schema',
             'target_scope' => 'all',
         ]);
 
-        self::assertSame(422, $response);
+        self::assertSame(200, $response);
     }
 
     #[Test]

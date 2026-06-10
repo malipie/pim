@@ -53,19 +53,13 @@ final class ExportEntityTypeTest extends TestCase
     }
 
     #[Test]
-    public function catalogBackedTypesAreExecutableStructuralAreNotYet(): void
+    public function allEntityTypesAreExecutableAsOfExr06(): void
     {
-        // EXR-05: product + custom_module share the catalog-object pipeline.
-        self::assertTrue(ExportEntityType::Product->isExecutable());
-        self::assertTrue(ExportEntityType::CustomModule->isExecutable());
-
-        // Structural builders land in EXR-06.
-        foreach ([
-            ExportEntityType::ModuleSchema,
-            ExportEntityType::AttributesGroups,
-            ExportEntityType::Categories,
-        ] as $type) {
-            self::assertFalse($type->isExecutable(), $type->value.' is not runnable until EXR-06');
+        // EXR-04/05: catalog-object pipeline (product + custom_module).
+        // EXR-06: structural builders (module_schema / attributes_groups /
+        // categories). All five types are now runnable.
+        foreach (ExportEntityType::cases() as $type) {
+            self::assertTrue($type->isExecutable(), $type->value.' should be runnable');
         }
     }
 
