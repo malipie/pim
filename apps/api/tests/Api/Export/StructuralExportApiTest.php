@@ -84,6 +84,7 @@ final class StructuralExportApiTest extends CatalogApiTestCase
             'json' => [
                 'entity_type' => 'module_schema',
                 'target_scope' => 'all',
+                'format' => 'csv',
             ],
         ]);
 
