@@ -120,7 +120,7 @@ final class ExportPreflightController
     private function countAll(Tenant $tenant, ObjectType $objectType): int
     {
         return $this->runCount(
-            'SELECT COUNT(*) FROM catalog_objects co WHERE co.tenant_id = :tenant AND co.object_type_id = :otid AND co.deleted_at IS NULL',
+            'SELECT COUNT(*) FROM objects co WHERE co.tenant_id = :tenant AND co.object_type_id = :otid AND co.deleted_at IS NULL',
             ['tenant' => $tenant->getId()->toRfc4122(), 'otid' => $objectType->getId()->toRfc4122()],
         );
     }
@@ -140,7 +140,7 @@ final class ExportPreflightController
         }
 
         return $this->runCount(
-            'SELECT COUNT(*) FROM catalog_objects co WHERE co.tenant_id = :tenant AND co.object_type_id = :otid AND co.deleted_at IS NULL AND ('.$whereClause.')',
+            'SELECT COUNT(*) FROM objects co WHERE co.tenant_id = :tenant AND co.object_type_id = :otid AND co.deleted_at IS NULL AND ('.$whereClause.')',
             ['tenant' => $tenant->getId()->toRfc4122(), 'otid' => $objectType->getId()->toRfc4122()],
         );
     }
