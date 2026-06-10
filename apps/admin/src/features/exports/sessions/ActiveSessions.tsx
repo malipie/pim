@@ -1,4 +1,5 @@
 import { Download } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
@@ -13,6 +14,8 @@ import { entityTypeLabelKey, fileNameOf } from './session-format';
 
 interface ActiveSessionsProps {
   sessions: ExportSessionRow[];
+  /** EXR-12 — session id to scroll to + pulse after the async redirect. */
+  highlightId?: string | null;
 }
 
 /**
@@ -20,8 +23,15 @@ interface ActiveSessionsProps {
  * session, or a dashed empty state with the CTA. Cancellation lands in
  * EXR-15 (no cancel endpoint yet).
  */
-export function ActiveSessions({ sessions }: ActiveSessionsProps) {
+export function ActiveSessions({ sessions, highlightId = null }: ActiveSessionsProps) {
   const { t } = useTranslation();
+  const highlightRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlightId !== null) {
+      highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightId]);
 
   if (sessions.length === 0) {
     return (
@@ -60,7 +70,12 @@ export function ActiveSessions({ sessions }: ActiveSessionsProps) {
           return (
             <div
               key={session.id}
-              className="rounded-2xl border border-zinc-200 bg-surface p-5 shadow-card"
+              ref={session.id === highlightId ? highlightRef : undefined}
+              className={
+                session.id === highlightId
+                  ? 'animate-pulse rounded-2xl border border-orange-300 bg-surface p-5 shadow-card'
+                  : 'rounded-2xl border border-zinc-200 bg-surface p-5 shadow-card'
+              }
             >
               <div className="flex items-center gap-3">
                 <span className="min-w-0 flex-1 truncate font-mono text-[13px] font-medium text-ink">

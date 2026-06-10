@@ -1,6 +1,7 @@
 import { useGetIdentity } from '@refinedev/core';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router';
 
 import { toast } from '@/components/ui/toast';
 import { getAccessToken, jsonFetch } from '@/lib/http';
@@ -29,6 +30,9 @@ interface Identity {
 export function ExportSessionsView(): React.ReactElement {
   const { t } = useTranslation();
   const { data: identity } = useGetIdentity<Identity>();
+  const location = useLocation();
+  const highlightId =
+    (location.state as { highlightSession?: string } | null)?.highlightSession ?? null;
 
   const sessionsQuery = useExportSessions();
   const invalidate = useInvalidateExportSessions();
@@ -128,7 +132,7 @@ export function ExportSessionsView(): React.ReactElement {
   return (
     <div className="space-y-6">
       <KpiStrip sessions={sessions} />
-      <ActiveSessions sessions={active} />
+      <ActiveSessions sessions={active} highlightId={highlightId} />
       <HistoryTable
         sessions={history}
         userName={identity?.name ?? identity?.email ?? '—'}

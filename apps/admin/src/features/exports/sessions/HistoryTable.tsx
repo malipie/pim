@@ -249,7 +249,7 @@ export function HistoryTable({
                       </td>
                       <td className="px-2 py-3">
                         <div className="flex items-center justify-end gap-0.5">
-                          {session.status === 'done' && (
+                          {session.status === 'done' && session.file_path !== null && (
                             <button
                               type="button"
                               onClick={() => onDownload(session.id)}
