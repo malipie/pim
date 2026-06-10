@@ -11,17 +11,30 @@ use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Provenance;
+use App\Export\Application\Sync\SyncExportRunner;
+use App\Export\Domain\Entity\ExportSession;
+use App\Export\Domain\Enum\ExportEntityType;
+use App\Export\Domain\Enum\ExportFormat;
+use App\Export\Domain\Enum\ExportSource;
+use App\Export\Domain\Enum\ExportTargetScope;
+use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use App\Tests\Api\Catalog\CatalogApiTestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * EXR-05 (#1381) — the export pipeline generalised to any ObjectType.
  *
- * Exercises the custom_module path end-to-end through the real sync controller:
- * rows + attribute values come out, the target set is scoped to the requested
- * ObjectType, and a freshly-invented attribute exports with zero code change
- * (schema dynamism — the EAV requirement).
+ * Drives the real {@see SyncExportRunner} against a custom ObjectType fixture
+ * and inspects the produced file: rows + attribute values come out, the target
+ * set is scoped to the requested ObjectType, and a freshly-invented attribute
+ * exports with zero code change (schema dynamism — the EAV requirement).
+ *
+ * The content is read from the runner's output file rather than an HTTP
+ * response because the sync export streams a BinaryFileResponse whose body the
+ * API Platform test client does not buffer. The HTTP 200 contract for
+ * custom_module is covered by {@see ExportEntityTypeApiTest}.
  */
 final class CustomModuleExportApiTest extends CatalogApiTestCase
 {
@@ -41,7 +54,7 @@ final class CustomModuleExportApiTest extends CatalogApiTestCase
 
         $this->em()->flush();
 
-        $csv = $this->runSyncExport($services->getId()->toRfc4122(), ['sku', 'horsepower']);
+        $csv = $this->runExport($tenant, $services, ['sku', 'horsepower']);
 
         self::assertStringContainsString('SRV-1', $csv);
         self::assertStringContainsString('150', $csv);
@@ -62,7 +75,7 @@ final class CustomModuleExportApiTest extends CatalogApiTestCase
         $this->object($tenant, $collections, 'COL-1', $torque, '250');
         $this->em()->flush();
 
-        $csv = $this->runSyncExport($collections->getId()->toRfc4122(), ['sku', 'torque']);
+        $csv = $this->runExport($tenant, $collections, ['sku', 'torque']);
 
         self::assertStringContainsString('COL-1', $csv);
         self::assertStringContainsString('250', $csv);
@@ -71,22 +84,34 @@ final class CustomModuleExportApiTest extends CatalogApiTestCase
     /**
      * @param list<string> $columns
      */
-    private function runSyncExport(string $objectTypeId, array $columns): string
+    private function runExport(Tenant $tenant, ObjectType $objectType, array $columns): string
     {
-        $client = $this->authenticatedClient();
-        $response = $client->request('POST', '/api/products/export', [
-            'json' => [
-                'entity_type' => 'custom_module',
-                'object_type_id' => $objectTypeId,
-                'format' => 'csv',
-                'target_scope' => 'all',
-                'selected_columns' => $columns,
-            ],
-        ]);
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        \assert($tenantContext instanceof TenantContext);
+        $tenantContext->set($tenant);
 
-        self::assertSame(200, $response->getStatusCode());
+        $session = new ExportSession(
+            userId: Uuid::v7(),
+            source: ExportSource::CentralTab,
+            format: ExportFormat::Csv,
+            targetScope: ExportTargetScope::All,
+            selectedColumns: $columns,
+            entityType: ExportEntityType::CustomModule,
+            objectTypeId: $objectType->getId(),
+        );
+        $session->assignTenant($tenant);
 
-        return $response->getContent(false);
+        $runner = self::getContainer()->get(SyncExportRunner::class);
+        \assert($runner instanceof SyncExportRunner);
+
+        $path = tempnam(sys_get_temp_dir(), 'exr05-').'.csv';
+        try {
+            $runner->runToFile($session, $path);
+
+            return (string) file_get_contents($path);
+        } finally {
+            @unlink($path);
+        }
     }
 
     private function tenant(): Tenant
