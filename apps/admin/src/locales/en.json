@@ -2384,5 +2384,22 @@
   },
   "object_detail": {
     "name_placeholder": "Name"
+  },
+  "ui_v2": {
+    "soon": "soon",
+    "soon_tooltip": "Coming soon",
+    "selected": "selected",
+    "status": {
+      "success": "success",
+      "warning": "with warnings",
+      "partial": "partial",
+      "error": "error",
+      "cancelled": "cancelled",
+      "queued": "queued",
+      "running": "running"
+    },
+    "result_bar": {
+      "aria": "Result: {{ok}} ok, {{warn}} warnings, {{err}} errors"
+    }
   }
 }

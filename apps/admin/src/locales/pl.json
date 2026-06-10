@@ -2434,5 +2434,22 @@
   },
   "object_detail": {
     "name_placeholder": "Nazwa"
+  },
+  "ui_v2": {
+    "soon": "wkrótce",
+    "soon_tooltip": "Funkcja dostępna wkrótce",
+    "selected": "wybrane",
+    "status": {
+      "success": "sukces",
+      "warning": "z ostrzeżeniami",
+      "partial": "częściowy",
+      "error": "błąd",
+      "cancelled": "anulowano",
+      "queued": "w kolejce",
+      "running": "w toku"
+    },
+    "result_bar": {
+      "aria": "Wynik: {{ok}} poprawnych, {{warn}} ostrzeżeń, {{err}} błędów"
+    }
   }
 }
