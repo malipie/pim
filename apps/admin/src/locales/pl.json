@@ -2604,6 +2604,26 @@
       "selected_chip": "Zaznaczone obiekty: {{count}}",
       "switch_to_filter": "przełącz na filtrowanie",
       "empty_set_warning": "Filtr nie pasuje do żadnych obiektów — plik będzie zawierał tylko nagłówki kolumn."
+    },
+    "picker": {
+      "available_aria": "Dostępne atrybuty",
+      "available_title": "Dostępne atrybuty",
+      "selected_aria": "Wybrane atrybuty",
+      "selected_title": "Wybrane atrybuty ({{count}})",
+      "search_placeholder": "Wyszukaj atrybut…",
+      "select_all": "Zaznacz wszystko",
+      "clear": "Wyczyść",
+      "order_hint": "Kolejność = kolejność kolumn w pliku. Przeciągnij, aby zmienić.",
+      "none_selected": "Brak wybranych kolumn — zaznacz atrybuty po lewej.",
+      "no_matches": "Brak atrybutów pasujących do wyszukiwania.",
+      "locked_badge": "klucz",
+      "drag_handle_aria": "Zmień kolejność kolumny {{column}}",
+      "remove_aria": "Usuń kolumnę {{column}}",
+      "group_checkbox_aria": "Zaznacz całą grupę {{group}}",
+      "catalog_error": "Nie udało się załadować katalogu atrybutów — spróbuj ponownie."
+    },
+    "column_picker": {
+      "group_structure": "Struktura"
     }
   }
 }
