@@ -4,16 +4,89 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design tokens — handoff (epik UI-03 #356).
- * Source: Zrodla/Front_Claude_Design/design_handoff_modelowanie/README.md § Design System
+ * Design tokens v2 — exports redesign (epik EXR, #1377).
+ * Source: Project Plan/UI/feature-exports-redesign-tickets.md §4
+ * (extracted from Zrodla/Front_Claude_Design/NOWY UI/PIM-nowoczesny/Eksport-nowy.html)
  *
  * Mapping strategy: existing shadcn variables (--background/--foreground/--muted/...)
- * are remapped onto the handoff hex palette so that downstream components inherit the
- * new look without rewrites. Accent palette + utilities are added as new tokens.
+ * are remapped onto the v2 palette so that downstream components inherit the
+ * new look without rewrites. Tailwind built-in scales zinc/orange/emerald are
+ * overridden globally (navy neutral + orange CTA), brick is added for errors.
  */
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* v2 palette — navy neutral (overrides Tailwind zinc) */
+  --color-zinc-50: #f4f6fa;
+  --color-zinc-100: #e9edf4;
+  --color-zinc-200: #d7dfeb;
+  --color-zinc-300: #b4c1d5;
+  --color-zinc-400: #7f8ea9;
+  --color-zinc-500: #5b6b87;
+  --color-zinc-600: #43536e;
+  --color-zinc-700: #2f405a;
+  --color-zinc-800: #1d2c47;
+  --color-zinc-900: #16233f;
+  --color-zinc-950: #0e1830;
+
+  /* v2 palette — orange accent / CTA (overrides Tailwind orange) */
+  --color-orange-50: #fef4ec;
+  --color-orange-100: #fde3d2;
+  --color-orange-200: #fbc6a4;
+  --color-orange-300: #f6a36f;
+  --color-orange-400: #f3823f;
+  --color-orange-500: #ef6a1f;
+  --color-orange-600: #df5b16;
+  --color-orange-700: #b9491a;
+  --color-orange-800: #933c19;
+  --color-orange-900: #5f2a14;
+  --color-orange-950: #3a1709;
+
+  /* v2 palette — brick (errors, ResultBar) */
+  --color-brick-50: #fcefec;
+  --color-brick-100: #f8d9d1;
+  --color-brick-200: #eda99a;
+  --color-brick-300: #e07e69;
+  --color-brick-400: #d15a42;
+  --color-brick-500: #c0432b;
+  --color-brick-600: #a8371f;
+  --color-brick-700: #8c2c18;
+  --color-brick-800: #6f2415;
+  --color-brick-900: #4d1a10;
+
+  /* v2 palette — emerald success (overrides Tailwind emerald) */
+  --color-emerald-50: #ecf5f0;
+  --color-emerald-100: #d2e9dd;
+  --color-emerald-200: #a6d4bd;
+  --color-emerald-300: #73b896;
+  --color-emerald-400: #449c71;
+  --color-emerald-500: #1f8257;
+  --color-emerald-600: #176a47;
+  --color-emerald-700: #15533a;
+  --color-emerald-800: #134330;
+  --color-emerald-900: #0f3526;
+  --color-emerald-950: #082018;
+
+  /* v2 semantic tokens — CTA (orange). NOTE: shadcn --accent stays a muted
+   * hover surface for backwards compatibility of existing views; the orange
+   * CTA accent is exposed as cta / accent-hover / accent-soft instead. */
+  --color-cta: var(--cta);
+  --color-cta-foreground: #ffffff;
+  --color-accent-hover: var(--cta-hover);
+  --color-accent-soft: var(--cta-soft);
+  --color-surface-muted: var(--surface-muted);
+
+  /* v2 status tokens (dot + label) */
+  --color-status-success: #1f8257;
+  --color-status-warning: #f59e0b;
+  --color-status-error: #c0432b;
+  --color-status-partial: #ef6a1f;
+
+  /* v2 card shadow → class shadow-card */
+  --shadow-card:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.04);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -52,23 +125,29 @@
   --color-accent-sky: #0ea5e9;
   --color-accent-zinc: #71717a;
 
-  /* Radii scale — handoff: lg=12 / xl=16 / 2xl=20 / 3xl=24 */
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  /* Radii scale — v2: chips md=8 / controls+pills xl=12 / cards 2xl=16 */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
 }
 
 :root {
-  /* Handoff neutrals */
-  --bg: #fafaf9;
+  /* v2 neutrals (navy) */
+  --bg: #f4f6fa;
   --surface: #ffffff;
-  --surface-2: #f5f5f4;
-  --ink: #18181b;
-  --ink-2: #3f3f46;
-  --line: #ececea;
+  --surface-2: #e9edf4;
+  --surface-muted: #f4f6fa;
+  --ink: #16233f;
+  --ink-2: #43536e;
+  --line: #d7dfeb;
+
+  /* v2 CTA accent (orange) */
+  --cta: #df5b16;
+  --cta-hover: #ef6a1f;
+  --cta-soft: #fef4ec;
 
   /* shadcn-mapped tokens — remapped onto handoff palette */
   --background: var(--bg);
@@ -81,27 +160,32 @@
   --primary-foreground: #ffffff;
   --secondary: var(--surface-2);
   --secondary-foreground: var(--ink);
-  --muted: var(--surface-2);
-  --muted-foreground: #71717a;
+  --muted: var(--surface-muted);
+  --muted-foreground: #5b6b87;
   --accent: var(--surface-2);
   --accent-foreground: var(--ink);
-  --destructive: #f43f5e;
+  --destructive: #a8371f;
   --destructive-foreground: #ffffff;
   --border: var(--line);
   --input: var(--line);
-  --ring: rgba(24, 24, 27, 0.32);
+  --ring: rgba(22, 35, 63, 0.32);
 
   /* Radii scale baseline (lg = 12px) */
   --radius: 0.75rem;
 }
 
 .dark {
-  --bg: #0c0a09;
-  --surface: #18181b;
-  --surface-2: #27272a;
-  --ink: #fafaf9;
-  --ink-2: #d4d4d8;
-  --line: #27272a;
+  --bg: #0e1830;
+  --surface: #16233f;
+  --surface-2: #1d2c47;
+  --surface-muted: #1d2c47;
+  --ink: #f4f6fa;
+  --ink-2: #d7dfeb;
+  --line: #1d2c47;
+
+  --cta: #ef6a1f;
+  --cta-hover: #f3823f;
+  --cta-soft: #3a1709;
 
   --background: var(--bg);
   --foreground: var(--ink);
@@ -110,18 +194,18 @@
   --popover: var(--surface);
   --popover-foreground: var(--ink);
   --primary: var(--ink);
-  --primary-foreground: #18181b;
+  --primary-foreground: #16233f;
   --secondary: var(--surface-2);
   --secondary-foreground: var(--ink);
   --muted: var(--surface-2);
-  --muted-foreground: #a1a1aa;
+  --muted-foreground: #7f8ea9;
   --accent: var(--surface-2);
   --accent-foreground: var(--ink);
-  --destructive: #f43f5e;
+  --destructive: #d15a42;
   --destructive-foreground: #ffffff;
   --border: var(--line);
   --input: var(--line);
-  --ring: rgba(250, 250, 249, 0.32);
+  --ring: rgba(244, 246, 250, 0.32);
 }
 
 @layer base {
@@ -160,15 +244,15 @@
   }
   .soft-shadow {
     box-shadow:
-      0 1px 0 rgba(24, 24, 27, 0.04),
-      0 1px 2px rgba(24, 24, 27, 0.04),
-      0 12px 30px -12px rgba(24, 24, 27, 0.06);
+      0 1px 0 rgba(22, 35, 63, 0.04),
+      0 1px 2px rgba(22, 35, 63, 0.04),
+      0 12px 30px -12px rgba(22, 35, 63, 0.06);
   }
   .soft-shadow-lg {
     box-shadow:
-      0 1px 0 rgba(24, 24, 27, 0.04),
-      0 2px 4px rgba(24, 24, 27, 0.04),
-      0 24px 60px -20px rgba(24, 24, 27, 0.1);
+      0 1px 0 rgba(22, 35, 63, 0.04),
+      0 2px 4px rgba(22, 35, 63, 0.04),
+      0 24px 60px -20px rgba(22, 35, 63, 0.1);
   }
   .glass-strong {
     background-color: rgba(255, 255, 255, 0.86);
@@ -177,7 +261,7 @@
   }
   .focus-ring:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 4px rgba(24, 24, 27, 0.08);
+    box-shadow: 0 0 0 4px rgba(22, 35, 63, 0.08);
   }
 
   /* Imports primitives — shimmer + pulse for live indicators (VIEW-IMP-00). */
