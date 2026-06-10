@@ -194,7 +194,7 @@ final class SyncExportRunner
         // EXR-07: alias the table as `co` — FilterDslResolver emits
         // `co.`-prefixed column references, so the FROM clause must define it.
         $sql = 'SELECT co.id FROM objects co '
-            .'WHERE co.tenant_id = :tenant AND co.object_type_id = :otid AND co.deleted_at IS NULL AND ('.$whereClause.')';
+            .'WHERE co.tenant_id = :tenant AND co.object_type_id = :otid AND ('.$whereClause.')';
 
         try {
             $rows = $this->connection->fetchAllAssociative(
