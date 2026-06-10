@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Export\Presentation\Controller;
 
+use App\Export\Application\Async\ExportProgressPublisher;
 use App\Export\Domain\Entity\ExportLog;
 use App\Export\Domain\Entity\ExportProfile;
 use App\Export\Domain\Entity\ExportSession;
@@ -63,6 +64,7 @@ final class ExportSessionController
         private readonly Security $security,
         private readonly MessageBusInterface $bus,
         private readonly FilesystemOperator $exportsStorage,
+        private readonly ExportProgressPublisher $progress,
     ) {
     }
 
@@ -211,6 +213,36 @@ final class ExportSessionController
             status: Response::HTTP_ACCEPTED,
             headers: ['Location' => sprintf('/api/exports/sessions/%s', $clone->getId()->toRfc4122())],
         );
+    }
+
+    /**
+     * EXR-15 — user-requested cancellation. Persists the terminal status;
+     * the async handler polls it between chunks and stops gracefully
+     * (partial temp file removed, no error state).
+     */
+    #[Route(
+        path: '/api/exports/sessions/{id}/cancel',
+        name: 'pim_export_sessions_cancel',
+        requirements: ['id' => self::UUID_REGEX],
+        methods: ['POST'],
+    )]
+    #[IsGranted('ROLE_USER')]
+    #[RequiresPermission(module: 'exports', action: 'run')]
+    public function cancel(string $id): JsonResponse
+    {
+        $session = $this->loadOwnedOrFail($id);
+        if ($session->getStatus()->isTerminal()) {
+            throw new ConflictHttpException(sprintf(
+                'Export session is already %s and cannot be cancelled.',
+                $session->getStatus()->value,
+            ));
+        }
+
+        $session->markCancelled();
+        $this->sessions->save($session);
+        $this->progress->status($session);
+
+        return new JsonResponse($this->serializeSummary($session));
     }
 
     #[Route(

@@ -26,12 +26,13 @@ import { entityTypeLabelKey, fileNameOf, formatDuration, formatStartedAt } from 
 
 const PAGE_SIZE = 20;
 
-type Segment = 'all' | 'success' | 'errors' | 'running';
+type Segment = 'all' | 'success' | 'errors' | 'cancelled' | 'running';
 
 const SEGMENTS: Array<{ id: Segment; labelKey: string }> = [
   { id: 'all', labelKey: 'exports.history.segment_all' },
   { id: 'success', labelKey: 'exports.history.segment_success' },
   { id: 'errors', labelKey: 'exports.history.segment_errors' },
+  { id: 'cancelled', labelKey: 'exports.history.segment_cancelled' },
   { id: 'running', labelKey: 'exports.history.segment_running' },
 ];
 
@@ -41,6 +42,8 @@ function matchesSegment(session: ExportSessionRow, segment: Segment): boolean {
       return session.status === 'done';
     case 'errors':
       return session.status === 'error';
+    case 'cancelled':
+      return session.status === 'cancelled';
     case 'running':
       return session.status === 'running' || session.status === 'pending';
     default:

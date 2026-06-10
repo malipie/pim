@@ -1,5 +1,6 @@
 import { Bell } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+import { useNotificationsInboxOptional } from './notifications-context';
 import { useNotifications } from './use-notifications';
 
 /**
@@ -24,11 +26,17 @@ import { useNotifications } from './use-notifications';
 export function NotificationsBell() {
   const { t, i18n } = useTranslation();
   const { entries, unreadCount, markAllRead } = useNotifications();
+  // EXR-15 — exports in-app inbox merges into the bell (badge + list).
+  const inbox = useNotificationsInboxOptional();
+  const totalUnread = unreadCount + (inbox?.unread ?? 0);
 
   return (
     <DropdownMenu
       onOpenChange={(open) => {
-        if (open) markAllRead();
+        if (open) {
+          markAllRead();
+          inbox?.markAllRead();
+        }
       }}
     >
       <DropdownMenuTrigger asChild>
@@ -39,12 +47,12 @@ export function NotificationsBell() {
           className="relative"
         >
           <Bell className="size-4" />
-          {unreadCount > 0 ? (
+          {totalUnread > 0 ? (
             <span
               className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
               aria-live="polite"
             >
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {totalUnread > 9 ? '9+' : totalUnread}
             </span>
           ) : null}
         </Button>
@@ -54,7 +62,36 @@ export function NotificationsBell() {
           {t('notifications.title', { defaultValue: 'Recent activity' })}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {entries.length === 0 ? (
+        {(inbox?.entries.length ?? 0) > 0 && (
+          <>
+            {inbox?.entries.slice(0, 6).map((entry) => (
+              <DropdownMenuItem
+                key={entry.id}
+                asChild
+                className="flex flex-col items-start gap-0.5 whitespace-normal"
+              >
+                <Link to={entry.href ?? '/integrations/exports/sessions'}>
+                  <span
+                    className={
+                      entry.level === 'error'
+                        ? 'text-sm font-medium text-brick-600'
+                        : entry.level === 'warning'
+                          ? 'text-sm font-medium text-orange-700'
+                          : 'text-sm font-medium text-emerald-700'
+                    }
+                  >
+                    {entry.title}
+                  </span>
+                  {entry.body !== undefined && (
+                    <span className="text-xs text-muted-foreground">{entry.body}</span>
+                  )}
+                </Link>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+          </>
+        )}
+        {entries.length === 0 && (inbox?.entries.length ?? 0) === 0 ? (
           <div className="px-3 py-6 text-center text-xs text-muted-foreground">
             {t('notifications.empty', { defaultValue: 'No recent events.' })}
           </div>

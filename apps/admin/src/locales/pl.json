@@ -2492,7 +2492,12 @@
       "empty_title": "Brak aktywnych eksportów",
       "empty_subtitle": "Zacznij od „Nowy eksport” — małe paczki pobierzesz od razu, masowe trafią tutaj z paskiem postępu.",
       "progress": "{{done}} / {{total}} wierszy",
-      "progress_aria": "Postęp eksportu"
+      "progress_aria": "Postęp eksportu",
+      "cancel": "Anuluj",
+      "cancel_confirm": "Anulować ten eksport? Częściowy plik zostanie odrzucony.",
+      "cancelled_toast": "Eksport anulowany",
+      "cancel_failed": "Nie udało się anulować eksportu",
+      "throughput": "{{value}} wier/s"
     },
     "history": {
       "title": "Historia · ostatnie 30 dni",
@@ -2521,7 +2526,8 @@
       "action_details": "Szczegóły",
       "download_failed": "Pobieranie nie powiodło się",
       "rerun_failed": "Ponowne uruchomienie nie powiodło się",
-      "delete_failed": "Usunięcie nie powiodło się"
+      "delete_failed": "Usunięcie nie powiodło się",
+      "segment_cancelled": "anulowane"
     },
     "sessions": {
       "confirm_delete": "Usunąć ten eksport? Plik z MinIO zostanie również usunięty."
@@ -2676,6 +2682,18 @@
       "action_run": "Uruchom teraz: {{name}}",
       "action_edit": "Edytuj profil {{name}}",
       "action_delete": "Usuń profil {{name}}"
+    },
+    "notifications": {
+      "done_title": "Eksport zakończony — pobierz plik",
+      "done_body_one": "{{count}} wiersz wyeksportowany",
+      "done_body_few": "{{count}} wiersze wyeksportowane",
+      "done_body_many": "{{count}} wierszy wyeksportowanych",
+      "done_body_other": "{{count}} wierszy wyeksportowanych",
+      "cancelled_title": "Eksport anulowany",
+      "error_title": "Eksport zakończony błędem"
+    },
+    "status": {
+      "cancelled": "anulowano"
     }
   }
 }

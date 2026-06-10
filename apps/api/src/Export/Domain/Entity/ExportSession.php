@@ -313,6 +313,14 @@ class ExportSession extends AggregateRoot implements TenantScoped
         $this->durationMs = ($this->completedAt->getTimestamp() - $this->startedAt->getTimestamp()) * 1000;
     }
 
+    public function markCancelled(): void
+    {
+        $this->ensureTransitionable([ExportStatus::Pending, ExportStatus::Running]);
+        $this->status = ExportStatus::Cancelled->value;
+        $this->completedAt = new DateTimeImmutable();
+        $this->durationMs = ($this->completedAt->getTimestamp() - $this->startedAt->getTimestamp()) * 1000;
+    }
+
     public function markError(string $message): void
     {
         $this->ensureTransitionable([ExportStatus::Pending, ExportStatus::Running]);

@@ -17,7 +17,7 @@ export interface ExportSessionRow {
   target_scope: string;
   target_count: number;
   success_count: number;
-  status: 'pending' | 'running' | 'done' | 'error';
+  status: 'pending' | 'running' | 'done' | 'error' | 'cancelled';
   source: string;
   started_at: string;
   completed_at: string | null;
