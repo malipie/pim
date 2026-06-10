@@ -47,7 +47,4 @@ export default async function globalSetup(): Promise<void> {
     );
     return;
   }
-
-  // eslint-disable-next-line no-console
-  console.log('globalSetup: rate-limiter buckets cleared.');
 }

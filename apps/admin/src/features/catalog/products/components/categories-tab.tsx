@@ -9,6 +9,7 @@ import {
 } from '@/components/catalog/category-picker-dialog';
 import { Button } from '@/components/ui/button';
 import { jsonFetch } from '@/lib/http';
+import { objectKeys } from '@/lib/object-query-keys';
 import { cn } from '@/lib/utils';
 
 import { ChannelPlacementsSection } from './channel-placements-section';
@@ -16,14 +17,18 @@ import { SchemaDriftBanner } from './schema-drift-banner';
 
 interface AssignmentRow {
   categoryId: string;
-  code: string;
+  /** Legacy `/api/products/.../categories` shape. */
+  code?: string;
+  /** Poly-kind `/api/objects/.../categories` shape. */
+  categoryCode?: string;
   isPrimary: boolean;
   position: number;
 }
 
 interface ListResponse {
-  productId: string;
-  primaryCategoryId: string | null;
+  objectId?: string;
+  productId?: string;
+  primaryCategoryId?: string | null;
   assignments: AssignmentRow[];
 }
 
@@ -31,6 +36,11 @@ interface Props {
   productId: string;
   /** ObjectType owning the object — scopes the picker to its category tree (#1413). */
   objectTypeId?: string | null;
+  /**
+   * Schema-drift banner + channel placements hit product-only endpoints —
+   * hidden for custom kinds (#1348/#1351 unification).
+   */
+  kind?: string;
 }
 
 /**
@@ -46,42 +56,40 @@ interface Props {
  * needs to know that picking a category is what activates the
  * category-driven group set on the form (PCAT-03).
  */
-export function CategoriesTab({ productId, objectTypeId }: Props) {
+export function CategoriesTab({ productId, objectTypeId, kind = 'product' }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busyCategoryId, setBusyCategoryId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['products', productId, 'categories'],
+    queryKey: objectKeys.categories(productId),
     queryFn: async () =>
-      jsonFetch<ListResponse>(`/api/products/${productId}/categories`, {
+      jsonFetch<ListResponse>(`/api/objects/${productId}/categories`, {
         accept: 'application/json',
       }),
     enabled: productId !== '',
   });
 
-  const assignments = data?.assignments ?? [];
+  const assignments = (data?.assignments ?? []).map((a) => ({
+    ...a,
+    code: a.code ?? a.categoryCode ?? a.categoryId.slice(0, 8),
+  }));
   const currentAssignments: CurrentAssignment[] = assignments.map((a) => ({
     categoryId: a.categoryId,
     isPrimary: a.isPrimary,
   }));
 
   const refresh = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['products', productId, 'categories'] }),
-      queryClient.invalidateQueries({
-        queryKey: ['products', productId, 'effective-attribute-groups'],
-      }),
-      queryClient.invalidateQueries({ queryKey: ['products', productId] }),
-    ]);
+    // Prefix invalidation covers categories + effective groups + detail.
+    await queryClient.invalidateQueries({ queryKey: objectKeys.all(productId) });
   };
 
   const handleDetach = async (categoryId: string) => {
     if (busyCategoryId !== null) return;
     setBusyCategoryId(categoryId);
     try {
-      await jsonFetch(`/api/products/${productId}/categories/${categoryId}`, {
+      await jsonFetch(`/api/objects/${productId}/categories/${categoryId}`, {
         method: 'DELETE',
         accept: 'application/json',
       });
@@ -98,7 +106,7 @@ export function CategoriesTab({ productId, objectTypeId }: Props) {
     if (busyCategoryId !== null) return;
     setBusyCategoryId(categoryId);
     try {
-      await jsonFetch(`/api/products/${productId}/categories`, {
+      await jsonFetch(`/api/objects/${productId}/categories`, {
         method: 'POST',
         contentType: 'application/json',
         accept: 'application/json',
@@ -114,7 +122,7 @@ export function CategoriesTab({ productId, objectTypeId }: Props) {
 
   return (
     <section className="space-y-4">
-      <SchemaDriftBanner productId={productId} />
+      {kind === 'product' ? <SchemaDriftBanner productId={productId} /> : null}
 
       <header className="flex items-center justify-between">
         <div>
@@ -224,12 +232,13 @@ export function CategoriesTab({ productId, objectTypeId }: Props) {
         </ul>
       )}
 
-      <ChannelPlacementsSection productId={productId} />
+      {kind === 'product' ? <ChannelPlacementsSection productId={productId} /> : null}
 
       <CategoryPickerDialog
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         productId={productId}
+        endpoint="objects"
         objectTypeId={objectTypeId ?? undefined}
         currentAssignments={currentAssignments}
         onSaved={() => undefined}

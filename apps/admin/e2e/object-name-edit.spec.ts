@@ -24,14 +24,9 @@ test.describe('feat(admin) #1116 — editable object name', () => {
     await page.goto('/objects/salony_sprzedazy/019e75c8-9a40-7b3a-b9bf-7ec5fe1a0bb7');
     await page.waitForTimeout(2000);
 
-    await page
-      .getByRole('button', { name: /edytuj|^edit$/i })
-      .first()
-      .click();
-    await page.waitForTimeout(600);
-
-    // The title is now an input carrying the current name.
-    const titleInput = page.getByLabel(/^nazwa$|^name$/i).first();
+    // #1351 unification — the page opens directly in edit mode; the
+    // title is an input from the start (no Edytuj gate).
+    const titleInput = page.getByLabel(/nazwa|name/i).first();
     const original = await titleInput.inputValue();
     const edited = `${original} ✎`;
 
@@ -43,16 +38,12 @@ test.describe('feat(admin) #1116 — editable object name', () => {
     await page.waitForTimeout(1500);
     await page.reload();
     await page.waitForTimeout(2000);
-    await expect(page.getByRole('heading', { level: 1 })).toContainText(edited);
+    // Edit-mode default: the persisted name round-trips into the input.
+    await expect(page.getByLabel(/nazwa|name/i).first()).toHaveValue(edited);
 
     // Restore original name.
     await page
-      .getByRole('button', { name: /edytuj|^edit$/i })
-      .first()
-      .click();
-    await page.waitForTimeout(600);
-    await page
-      .getByLabel(/^nazwa$|^name$/i)
+      .getByLabel(/nazwa|name/i)
       .first()
       .fill(original);
     await page

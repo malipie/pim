@@ -23,22 +23,32 @@ test('VIEW-07.3 variants tab — generate inherits attributes + inline edit + co
 
   await loginAsAdmin(page);
 
+  // Cookie-only page.request calls intermittently 401 behind the auth
+  // rate limiter — mint a bearer like the other API-seeded specs do.
+  const refreshResponse = await page.request.post('/api/auth/refresh');
+  expect(refreshResponse.status()).toBe(200);
+  const accessToken = ((await refreshResponse.json()) as { token: string }).token;
+  const authHeaders = { Authorization: `Bearer ${accessToken}` };
+
   // Create the master product through the REST API to skip the UI
   // create flow that VIEW-07 already covers.
   const sku = uniqueSku('V73');
-  const objectTypesResponse = await page.request.get('/api/object_types');
+  const objectTypesResponse = await page.request.get('/api/object_types?itemsPerPage=200', {
+    headers: authHeaders,
+  });
   const objectTypesBody = (await objectTypesResponse.json()) as {
     member?: Array<{ id: string; kind: string; isBuiltIn: boolean }>;
     'hydra:member'?: Array<{ id: string; kind: string; isBuiltIn: boolean }>;
   };
   const types = objectTypesBody.member ?? objectTypesBody['hydra:member'] ?? [];
-  const productType = types.find((t) => t.kind === 'product' && t.isBuiltIn);
+  // JSON-LD omits `isBuiltIn`; exactly one product-kind OT exists (built-in).
+  const productType = types.find((t) => t.kind === 'product');
   if (productType === undefined) {
     throw new Error('Built-in product ObjectType not found — demo seeder did not run.');
   }
 
   const masterResponse = await page.request.post('/api/products', {
-    headers: { 'content-type': 'application/ld+json' },
+    headers: { ...authHeaders, 'content-type': 'application/ld+json' },
     data: {
       code: sku,
       objectTypeId: productType.id,
@@ -55,9 +65,10 @@ test('VIEW-07.3 variants tab — generate inherits attributes + inline edit + co
   // Generator is rendered above the list.
   await expect(page.getByRole('button', { name: /generate variants/i })).toBeVisible();
 
-  // Add the `color` axis with two values.
-  const axisCodeInput = page.getByPlaceholder('color').first();
-  await axisCodeInput.fill('color');
+  // The generator boots with a default `color` axis draft — add two
+  // values via the value combobox. (Filling the code by placeholder is a
+  // trap: getByPlaceholder('color') substring-matches the SKU-template
+  // input '{master_sku}-{color}' and corrupts the template.)
   const axisValueInput = page.getByPlaceholder(/add value & press enter/i).first();
   await axisValueInput.fill('red');
   await axisValueInput.press('Enter');
@@ -98,8 +109,12 @@ test('VIEW-07.3 variants tab — generate inherits attributes + inline edit + co
   });
   await expect(copyButtons.first()).toBeVisible();
 
-  // Cancel — exits edit mode without saving.
-  await page.getByRole('button', { name: /^(anuluj|cancel)$/i }).click();
+  // Cancel — exits edit mode without saving. #1351: the page header also
+  // carries an "Anuluj" (edit-first detail), so target the variants one.
+  await page
+    .getByRole('button', { name: /^(anuluj|cancel)$/i })
+    .last()
+    .click();
   await expect(
     page.getByRole('button', { name: /^(edytuj warianty|edit variants)$/i }),
   ).toBeVisible();
@@ -108,7 +123,7 @@ test('VIEW-07.3 variants tab — generate inherits attributes + inline edit + co
   const unknownAxisResponse = await page.request.post(
     `/api/products/${master.id}/generate-variants`,
     {
-      headers: { 'content-type': 'application/json' },
+      headers: { ...authHeaders, 'content-type': 'application/json' },
       data: { axes: { mystery_axis_xyz: ['foo'] } },
     },
   );

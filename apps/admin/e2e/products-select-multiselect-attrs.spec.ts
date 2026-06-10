@@ -51,6 +51,41 @@ test('product detail renders Combobox/MultiSelect for select-like attributes', a
     throw new Error('Built-in product ObjectType not found — demo seeder did not run.');
   }
 
+  // The seeded `color`/`tags` attributes drifted out of the product
+  // ObjectType during operator UAT — create dedicated select/multiselect
+  // attributes with options so the spec is self-sufficient.
+  const ts = sku.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const selCode = `sel_kolor_${ts}`;
+  const multiCode = `sel_tagi_${ts}`;
+  for (const [code, type, label] of [
+    [selCode, 'select', { pl: 'Kolor SM', en: 'Color SM' }],
+    [multiCode, 'multiselect', { pl: 'Tagi SM', en: 'Tags SM' }],
+  ] as const) {
+    const attrResp = await page.request.post('/api/attributes', {
+      headers: { ...authHeaders, 'content-type': 'application/ld+json' },
+      data: { code, type, label },
+    });
+    expect(attrResp.status(), await attrResp.text()).toBe(201);
+    const createdAttr = (await attrResp.json()) as { id: string };
+    const attachResp = await page.request.post(
+      `/api/object_types/${productType.id}/attributes/${createdAttr.id}`,
+      { headers: authHeaders },
+    );
+    expect([200, 201, 204]).toContain(attachResp.status());
+  }
+  for (const [attrCode, optCode, optLabel] of [
+    [selCode, 'red', { pl: 'Czerwony', en: 'Red' }],
+    [selCode, 'blue', { pl: 'Niebieski', en: 'Blue' }],
+    [multiCode, 'new', { pl: 'Nowość', en: 'New' }],
+    [multiCode, 'promo', { pl: 'Promocja', en: 'Promo' }],
+  ] as const) {
+    const optionResp = await page.request.post(`/api/attributes/${attrCode}/options`, {
+      headers: { ...authHeaders, 'content-type': 'application/json' },
+      data: { code: optCode, label: optLabel },
+    });
+    expect([200, 201]).toContain(optionResp.status());
+  }
+
   const createResponse = await page.request.post('/api/products', {
     headers: { ...authHeaders, 'content-type': 'application/ld+json' },
     data: {
@@ -73,7 +108,7 @@ test('product detail renders Combobox/MultiSelect for select-like attributes', a
   );
   await page.goto(`/products/${product.id}`);
   await groupsResponse;
-  await page.getByRole('button', { name: /^(edytuj|edit)$/i }).click();
+  // #1351 — the detail page opens directly in edit mode; no Edytuj gate.
   await expect(page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i })).toBeVisible();
 
   // Synthetic "default" group is appended last by the controller, so
@@ -81,7 +116,7 @@ test('product detail renders Combobox/MultiSelect for select-like attributes', a
   // by default. Scroll the page bottom to mount the synthetic card.
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
-  const kolorLabel = page.getByText(/^(Kolor|Color)$/).first();
+  const kolorLabel = page.getByText(/^(Kolor SM|Color SM)$/).first();
   await kolorLabel.scrollIntoViewIfNeeded();
   await expect(kolorLabel).toBeVisible();
 
@@ -96,7 +131,7 @@ test('product detail renders Combobox/MultiSelect for select-like attributes', a
   await expect(kolorTrigger).toContainText(/Czerwony|Red/);
 
   // Multiselect (Tagi): trigger is a div role=button hosting chips.
-  const tagiLabel = page.getByText(/^(Tagi|Tags)$/).first();
+  const tagiLabel = page.getByText(/^(Tagi SM|Tags SM)$/).first();
   await tagiLabel.scrollIntoViewIfNeeded();
   const tagiRow = tagiLabel.locator('xpath=ancestor::div[contains(@class, "grid-cols")][1]');
   const tagiTrigger = tagiRow.locator('[role="button"][aria-haspopup="listbox"]');
@@ -110,7 +145,7 @@ test('product detail renders Combobox/MultiSelect for select-like attributes', a
   // Save → backend persists `{attributes: {color: "red", tags: ["new"]}}`.
   const patchResponse = page.waitForResponse(
     (response) =>
-      response.url().includes('/api/products/') && response.request().method() === 'PATCH',
+      response.url().includes('/api/objects/') && response.request().method() === 'PATCH',
   );
   await page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i }).click();
   const patched = await patchResponse;
@@ -120,14 +155,14 @@ test('product detail renders Combobox/MultiSelect for select-like attributes', a
   // labels (not raw codes) — this is the round-trip the read path
   // was missing entirely before the fix.
   await page.reload();
-  const reloadedKolorLabel = page.getByText(/^(Kolor|Color)$/).first();
+  const reloadedKolorLabel = page.getByText(/^(Kolor SM|Color SM)$/).first();
   await reloadedKolorLabel.scrollIntoViewIfNeeded();
   await expect(
     reloadedKolorLabel
       .locator('xpath=ancestor::div[contains(@class, "grid-cols")][1]')
       .getByText(/^(Czerwony|Red)$/),
   ).toBeVisible();
-  const reloadedTagiLabel = page.getByText(/^(Tagi|Tags)$/).first();
+  const reloadedTagiLabel = page.getByText(/^(Tagi SM|Tags SM)$/).first();
   await reloadedTagiLabel.scrollIntoViewIfNeeded();
   await expect(
     reloadedTagiLabel

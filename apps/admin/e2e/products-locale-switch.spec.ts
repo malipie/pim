@@ -77,9 +77,13 @@ test('locale switch reads + writes per-locale values', async ({ page }) => {
   const product = (await createResponse.json()) as { id: string };
 
   await page.goto(`/products/${product.id}`);
-  await page.getByRole('button', { name: /^(edytuj|edit)$/i }).click();
+  // #1351 — the detail page opens directly in edit mode; no Edytuj gate.
   const saveButton = page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i });
   await expect(saveButton).toBeVisible();
+  const waitForSave = () =>
+    page.waitForResponse(
+      (r) => r.url().includes(`/api/objects/${product.id}`) && r.request().method() === 'PATCH',
+    );
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
   const fieldRow = () =>
@@ -92,8 +96,9 @@ test('locale switch reads + writes per-locale values', async ({ page }) => {
   await fieldRow().scrollIntoViewIfNeeded();
   const plInput = fieldRow().locator('input[type="text"]');
   await plInput.fill('Wartość PL');
+  const firstSave = waitForSave();
   await saveButton.click();
-  await expect(page.getByRole('button', { name: /^(edytuj|edit)$/i })).toBeVisible();
+  expect((await firstSave).status()).toBe(200);
 
   // Picker is populated from the tenant's real locales (EN present).
   await page.getByRole('button', { name: /^(język|language)$/i }).click();
@@ -104,18 +109,17 @@ test('locale switch reads + writes per-locale values', async ({ page }) => {
   await enItem.click();
 
   // 2. EN shows the pl fallback; overwrite with an EN value + save.
-  await page.getByRole('button', { name: /^(edytuj|edit)$/i }).click();
   await fieldRow().scrollIntoViewIfNeeded();
   const enInput = fieldRow().locator('input[type="text"]');
   await expect(enInput).toHaveValue('Wartość PL'); // fallback to global/pl
   await enInput.fill('Value EN');
+  const secondSave = waitForSave();
   await saveButton.click();
-  await expect(page.getByRole('button', { name: /^(edytuj|edit)$/i })).toBeVisible();
-  await expect(fieldRow().getByText('Value EN')).toBeVisible();
+  expect((await secondSave).status()).toBe(200);
+  await expect(fieldRow().locator('input[type="text"]')).toHaveValue('Value EN');
 
   // 3. Switch back to PL — the pl value is intact + distinct from EN.
   await page.getByRole('button', { name: /^(język|language)$/i }).click();
   await page.getByRole('menuitem', { name: /^pl\b/i }).click();
-  await expect(fieldRow().getByText('Wartość PL')).toBeVisible();
-  await expect(fieldRow().getByText('Value EN')).toHaveCount(0);
+  await expect(fieldRow().locator('input[type="text"]')).toHaveValue('Wartość PL');
 });

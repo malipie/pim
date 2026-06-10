@@ -25,9 +25,18 @@ test('fix(admin) #1226 — variant list + PATCH carry the active locale scope', 
 
   await loginAsAdmin(page);
 
+  // Cookie-only page.request calls intermittently 401 behind the auth
+  // rate limiter — mint a bearer like the other API-seeded specs do.
+  const refreshResponse = await page.request.post('/api/auth/refresh');
+  expect(refreshResponse.status()).toBe(200);
+  const accessToken = ((await refreshResponse.json()) as { token: string }).token;
+  const authHeaders = { Authorization: `Bearer ${accessToken}` };
+
   // Master product + two variants via API (UI create is covered elsewhere).
   const sku = uniqueSku('SC1226');
-  const typesResponse = await page.request.get('/api/object_types');
+  const typesResponse = await page.request.get('/api/object_types?itemsPerPage=200', {
+    headers: authHeaders,
+  });
   const typesBody = (await typesResponse.json()) as {
     member?: Array<{ id: string; kind: string }>;
     'hydra:member'?: Array<{ id: string; kind: string }>;
@@ -41,14 +50,14 @@ test('fix(admin) #1226 — variant list + PATCH carry the active locale scope', 
   }
 
   const masterResponse = await page.request.post('/api/products', {
-    headers: { 'content-type': 'application/ld+json' },
+    headers: { ...authHeaders, 'content-type': 'application/ld+json' },
     data: { code: sku, objectTypeId: productType.id, attributes: { name: `Master ${sku}` } },
   });
   expect(masterResponse.status()).toBe(201);
   const master = (await masterResponse.json()) as { id: string };
 
   const generateResponse = await page.request.post(`/api/products/${master.id}/generate-variants`, {
-    headers: { 'content-type': 'application/json' },
+    headers: { ...authHeaders, 'content-type': 'application/json' },
     data: { axes: { color: ['red', 'blue'] } },
   });
   expect(generateResponse.status()).toBe(201);
@@ -57,28 +66,43 @@ test('fix(admin) #1226 — variant list + PATCH carry the active locale scope', 
 
   // Switch the header locale picker to EN, then watch the scoped variant
   // list read fire (collection overlay).
+  // Mount the variants host first, then flip the locale — the host
+  // refetches on its [locale] effect, which is the scoped read we assert.
+  await page.getByRole('tab', { name: /warianty|variants/i }).click();
   const listScoped = page.waitForResponse(
     (r) =>
-      r.url().includes('/api/products?parent_id=') &&
+      r.url().includes('/api/objects?parent_id=') &&
       r.url().includes('locale=en') &&
       r.request().method() === 'GET',
   );
-  await page
-    .getByRole('button', { name: /^język$|^language$/i })
-    .first()
-    .click();
-  await page.getByRole('menuitem').filter({ hasText: /en/i }).first().click();
-  await page.getByRole('tab', { name: /warianty|variants/i }).click();
+  // The page-level product read also re-fires for the new scope and
+  // remounts the tree (loading state) — wait for BOTH before touching
+  // the variants editor, or the edit-mode click lands on the old tree.
+  const productScoped = page.waitForResponse(
+    (r) => /\/api\/objects\/[^?]+\?.*locale=en/.test(r.url()) && r.request().method() === 'GET',
+  );
+  const localePicker = page.getByRole('button', { name: /^język$|^language$/i }).first();
+  await localePicker.click();
+  await page.getByRole('menuitem', { name: /^en\b/i }).first().click();
+  await expect(localePicker).toContainText(/en/i);
   await listScoped;
+  await productScoped;
+  await page.waitForTimeout(500);
 
   // Edit a variant attribute and save → PATCH must carry ?locale=en.
   await page.getByRole('button', { name: /^(edytuj warianty|edit variants)$/i }).click();
   await page.getByRole('button', { name: /rozwiń wszystkie|expand all/i }).click();
-  const firstInput = page.locator('input, textarea').filter({ visible: true }).first();
+  // #1351 — the edit-first page header carries a name <input>, so "first
+  // visible input" would hit the header. Anchor to the variant card.
+  const variantCard = page
+    .getByText(`${sku}-red`)
+    .first()
+    .locator('xpath=ancestor::div[.//input[@type="text"] or .//textarea][1]');
+  const firstInput = variantCard.locator('input[type="text"], textarea').first();
   await firstInput.fill(`EN ${sku}`);
 
   const patchScoped = page.waitForResponse(
-    (r) => /\/api\/products\/[^?]+\?.*locale=en/.test(r.url()) && r.request().method() === 'PATCH',
+    (r) => /\/api\/objects\/[^?]+\?.*locale=en/.test(r.url()) && r.request().method() === 'PATCH',
   );
   await page.getByRole('button', { name: /^(zapisz|save)$/i }).click();
   const patch = await patchScoped;

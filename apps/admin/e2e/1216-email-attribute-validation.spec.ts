@@ -64,7 +64,7 @@ test('an invalid email value is rejected on save with a clear error', async ({ p
   );
   await page.goto(`/products/${productId}`);
   await groupsResponse;
-  await page.getByRole('button', { name: /^(edytuj|edit)$/i }).click();
+  // #1351 — the detail page opens directly in edit mode; no Edytuj gate.
   await expect(page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i })).toBeVisible();
 
   const emailInput = page.locator(`input#attr-${attrCode}`).first();

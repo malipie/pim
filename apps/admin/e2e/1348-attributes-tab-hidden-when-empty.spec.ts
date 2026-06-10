@@ -56,7 +56,7 @@ test('attributes tab is hidden when the object type has no stacked attributes', 
 
   const groupsResponse = page.waitForResponse(
     (response) =>
-      response.url().includes(`/api/products/${created.id}/effective-attribute-groups`) &&
+      response.url().includes(`/api/objects/${created.id}/effective-attribute-groups`) &&
       response.request().method() === 'GET',
     { timeout: 30_000 },
   );
