@@ -46,9 +46,31 @@ export interface ExportColumnCatalog {
   error: Error | null;
 }
 
+/** EXR-11 — per-entity catalog narrowing options for the wizard. */
+export interface ColumnCatalogOptions {
+  /** ExportEntityType (EXR-04); defaults to `product` (legacy behavior). */
+  entityType?: 'product' | 'custom_module' | 'module_schema' | 'attributes_groups' | 'categories';
+  /** Required for `custom_module` — narrows attributes to the OT junction. */
+  objectTypeId?: string | null;
+}
+
+interface ExportColumnsEndpoint {
+  entity_type: string;
+  columns?: string[];
+  attribute_codes?: string[];
+}
+
 /**
  * Fetch + assemble the full column catalog used by the ExportModal
- * picker (EXP-11) + ExportNewPage form (EXP-12).
+ * picker (EXP-11) + ExportNewPage form (EXP-12) and — since EXR-11 —
+ * the wizard's step 3, parametrized by export entity type:
+ *   - `product` (default): tenant-wide attribute catalog (unchanged
+ *     legacy contract).
+ *   - `custom_module`: same assembly narrowed to the attribute codes
+ *     attached to the ObjectType (GET /api/exports/columns).
+ *   - structural types: the fixed ordered column set from the EXR-06
+ *     builders (single "Struktura" group, no locale fan-out — the
+ *     endpoint pre-fans `label.*` columns).
  *
  * Layout (PRD §13.1):
  *   - Built-ins first (sku, parent_sku, category, status, …) so the
@@ -65,15 +87,70 @@ export interface ExportColumnCatalog {
  * per-channel variants land when the modal grows a channel selector
  * (PRD §6.1 Faza 1 candidate). The picker's contract stays stable.
  */
-export function useExportColumnCatalog(): ExportColumnCatalog {
+export function useExportColumnCatalog(options?: ColumnCatalogOptions): ExportColumnCatalog {
+  const entityType = options?.entityType ?? 'product';
+  const objectTypeId = options?.objectTypeId ?? null;
+  const structural = entityType !== 'product' && entityType !== 'custom_module';
+
   const [attrs, setAttrs] = useState<AttributeRow[]>([]);
   const [attrGroups, setAttrGroups] = useState<AttributeGroupRow[]>([]);
   const [workspace, setWorkspace] = useState<WorkspaceRow | null>(null);
   const [channels, setChannels] = useState<ChannelRow[]>([]);
+  const [allowedCodes, setAllowedCodes] = useState<string[] | null>(null);
+  const [structuralColumns, setStructuralColumns] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Structural types: a single endpoint round-trip, no attribute assembly.
   useEffect(() => {
+    if (!structural) return;
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+    jsonFetch<ExportColumnsEndpoint>('/api/exports/columns', {
+      accept: 'application/json',
+      query: { entity_type: entityType },
+    })
+      .then((response) => {
+        if (cancelled) return;
+        setStructuralColumns(response.columns ?? []);
+        setIsLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err : new Error(String(err)));
+        setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [structural, entityType]);
+
+  // custom_module: junction-scoped attribute codes narrow the catalog.
+  useEffect(() => {
+    if (entityType !== 'custom_module' || objectTypeId === null) {
+      setAllowedCodes(null);
+      return;
+    }
+    let cancelled = false;
+    jsonFetch<ExportColumnsEndpoint>('/api/exports/columns', {
+      accept: 'application/json',
+      query: { entity_type: 'custom_module', object_type_id: objectTypeId },
+    })
+      .then((response) => {
+        if (!cancelled) setAllowedCodes(response.attribute_codes ?? []);
+      })
+      .catch(() => {
+        // Narrowing is best-effort — fall back to the full catalog.
+        if (!cancelled) setAllowedCodes(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [entityType, objectTypeId]);
+
+  useEffect(() => {
+    if (structural) return;
     let cancelled = false;
     setIsLoading(true);
     setError(null);
@@ -157,15 +234,41 @@ export function useExportColumnCatalog(): ExportColumnCatalog {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [structural]);
 
   const enabledLocales = workspace?.enabledLocales ?? ['pl', 'en'];
   const enabledChannels = channels.map((c) => c.code);
   const scopableCodes = attrs.filter((a) => a.scopable === true).map((a) => a.code);
 
+  if (structural) {
+    const structuralGroup: ColumnGroup = {
+      id: 'structure',
+      labelKey: 'exports.column_picker.group_structure',
+      defaultLabel: 'Struktura',
+      columns: structuralColumns.map((key) => ({
+        key,
+        labelKey: `exports.columns.${key}`,
+        defaultLabel: key,
+      })),
+    };
+    return {
+      groups: structuralColumns.length > 0 ? [structuralGroup] : [],
+      enabledLocales,
+      enabledChannels: [],
+      scopableCodes: [],
+      isLoading,
+      error,
+    };
+  }
+
+  // custom_module — narrow attribute columns to the OT junction set
+  // (built-in columns stay; the base code before the first '.' decides).
+  const narrowedAttrs =
+    allowedCodes === null ? attrs : attrs.filter((attr) => allowedCodes.includes(attr.code));
+
   const groups: ColumnGroup[] = [
     ...BUILT_IN_COLUMN_GROUPS,
-    ...buildAttributeGroups(attrs, attrGroups, enabledLocales, enabledChannels),
+    ...buildAttributeGroups(narrowedAttrs, attrGroups, enabledLocales, enabledChannels),
   ];
 
   return { groups, enabledLocales, enabledChannels, scopableCodes, isLoading, error };

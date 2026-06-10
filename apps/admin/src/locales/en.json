@@ -2552,6 +2552,26 @@
       "selected_chip": "Selected objects: {{count}}",
       "switch_to_filter": "switch to filtering",
       "empty_set_warning": "The filter matches no objects — the file will contain column headers only."
+    },
+    "picker": {
+      "available_aria": "Available attributes",
+      "available_title": "Available attributes",
+      "selected_aria": "Selected attributes",
+      "selected_title": "Selected attributes ({{count}})",
+      "search_placeholder": "Search attribute…",
+      "select_all": "Select all",
+      "clear": "Clear",
+      "order_hint": "Order = column order in the file. Drag to reorder.",
+      "none_selected": "No columns selected — tick attributes on the left.",
+      "no_matches": "No attributes match the search.",
+      "locked_badge": "key",
+      "drag_handle_aria": "Reorder column {{column}}",
+      "remove_aria": "Remove column {{column}}",
+      "group_checkbox_aria": "Toggle whole group {{group}}",
+      "catalog_error": "Failed to load the attribute catalog — try again."
+    },
+    "column_picker": {
+      "group_structure": "Structure"
     }
   }
 }
