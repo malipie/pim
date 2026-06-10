@@ -30,7 +30,7 @@ describe('wizardReducer', () => {
   it('is a no-op when re-selecting the same entity', () => {
     const next = wizardReducer(CONFIGURED, {
       type: 'SET_ENTITY_TYPE',
-      entityType: 'products',
+      entityType: 'product',
     });
     expect(next).toBe(CONFIGURED);
   });

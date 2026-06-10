@@ -23,10 +23,10 @@ interface ObjectTypesResponse {
 }
 
 const ENTITY_DEFS: Array<{ id: ExportEntityType; icon: typeof Package }> = [
-  { id: 'products', icon: Package },
+  { id: 'product', icon: Package },
   { id: 'custom_module', icon: Boxes },
   { id: 'module_schema', icon: Layers },
-  { id: 'attributes', icon: Tags },
+  { id: 'attributes_groups', icon: Tags },
   { id: 'categories', icon: FolderTree },
 ];
 

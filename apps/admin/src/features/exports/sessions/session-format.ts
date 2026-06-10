@@ -10,18 +10,18 @@ export function fileNameOf(session: ExportSessionRow): string | null {
 /** i18n label key for an export entity type (EXR-04 enum). */
 export function entityTypeLabelKey(entityType: string): string {
   switch (entityType) {
-    case 'products':
-      return 'exports.entity.products';
+    case 'product':
+      return 'exports.entity.product';
     case 'custom_module':
       return 'exports.entity.custom_module';
     case 'module_schema':
       return 'exports.entity.module_schema';
-    case 'attributes':
-      return 'exports.entity.attributes';
+    case 'attributes_groups':
+      return 'exports.entity.attributes_groups';
     case 'categories':
       return 'exports.entity.categories';
     default:
-      return 'exports.entity.products';
+      return 'exports.entity.product';
   }
 }
 

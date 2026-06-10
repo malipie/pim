@@ -6,10 +6,10 @@ import { jsonFetch } from '@/lib/http';
 export interface ExportSessionRow {
   id: string;
   entity_type:
-    | 'products'
+    | 'product'
     | 'custom_module'
     | 'module_schema'
-    | 'attributes'
+    | 'attributes_groups'
     | 'categories'
     | string;
   object_type_id: string | null;

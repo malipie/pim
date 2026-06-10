@@ -2428,11 +2428,11 @@
       "unknown_error": "unknown error"
     },
     "entity": {
-      "products": "Products",
       "custom_module": "Custom modules",
       "module_schema": "Module schema",
-      "attributes": "Attributes & groups",
-      "categories": "Categories"
+      "categories": "Categories",
+      "product": "Products",
+      "attributes_groups": "Attributes & groups"
     },
     "active": {
       "title": "Running",
@@ -2512,11 +2512,11 @@
       "step1_subtitle": "Pick the main entity type to generate the output file from.",
       "entity_group_aria": "Export entity type",
       "entity_desc": {
-        "products": "Export the main product catalog, variants, prices and related media.",
         "custom_module": "Export data from user-defined custom modules (e.g. Manufacturers, Collections).",
         "module_schema": "Download module definitions, relations and configuration settings.",
-        "attributes": "Export the attribute dictionary, default values, types and group assignments.",
-        "categories": "Category tree structure, name translations and inheritance rules."
+        "categories": "Category tree structure, name translations and inheritance rules.",
+        "product": "Export the main product catalog, variants, prices and related media.",
+        "attributes_groups": "Export the attribute dictionary, default values, types and group assignments."
       },
       "custom_object_type_label": "Custom module",
       "custom_object_type_placeholder": "Choose a module…",

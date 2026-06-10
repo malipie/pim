@@ -2,10 +2,10 @@ import type { FilterGroup } from '@/lib/filters/filter-dsl';
 
 /** Export entity types — synced with backend ExportEntityType (EXR-04). */
 export type ExportEntityType =
-  | 'products'
+  | 'product'
   | 'custom_module'
   | 'module_schema'
-  | 'attributes'
+  | 'attributes_groups'
   | 'categories';
 
 export type ExportFormat = 'xlsx' | 'csv';
@@ -48,7 +48,7 @@ export const WIZARD_STEP_COUNT = 4;
 
 export const INITIAL_WIZARD_STATE: WizardState = {
   step: 0,
-  entityType: 'products',
+  entityType: 'product',
   objectTypeId: null,
   profileId: null,
   format: 'xlsx',

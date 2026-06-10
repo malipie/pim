@@ -13,7 +13,7 @@ const NOW = Date.now();
 function session(overrides: Record<string, unknown>): Record<string, unknown> {
   return {
     id: '00000000-0000-0000-0000-000000000001',
-    entity_type: 'products',
+    entity_type: 'product',
     object_type_id: null,
     format: 'xlsx',
     target_scope: 'all',

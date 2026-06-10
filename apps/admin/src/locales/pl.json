@@ -2480,11 +2480,11 @@
       "unknown_error": "nieznany błąd"
     },
     "entity": {
-      "products": "Produkty",
       "custom_module": "Moduły własne",
       "module_schema": "Schemat modułów",
-      "attributes": "Atrybuty i grupy",
-      "categories": "Kategorie"
+      "categories": "Kategorie",
+      "product": "Produkty",
+      "attributes_groups": "Atrybuty i grupy"
     },
     "active": {
       "title": "W toku",
@@ -2564,11 +2564,11 @@
       "step1_subtitle": "Wybierz główny typ encji, z którego chcesz wygenerować plik wyjściowy.",
       "entity_group_aria": "Typ encji eksportu",
       "entity_desc": {
-        "products": "Eksportuj główny katalog produktów, warianty, ceny i powiązane multimedia.",
         "custom_module": "Eksportuj dane ze zdefiniowanych przez użytkownika modułów niestandardowych (np. Producenci, Kolekcje).",
         "module_schema": "Pobierz strukturę definicji, relacje i ustawienia konfiguracyjne modułów.",
-        "attributes": "Eksport słownika atrybutów, ich wartości domyślnych, typów oraz podziału na grupy.",
-        "categories": "Struktura drzewa kategorii, tłumaczenia nazw oraz przypisane reguły dziedziczenia."
+        "categories": "Struktura drzewa kategorii, tłumaczenia nazw oraz przypisane reguły dziedziczenia.",
+        "product": "Eksportuj główny katalog produktów, warianty, ceny i powiązane multimedia.",
+        "attributes_groups": "Eksport słownika atrybutów, ich wartości domyślnych, typów oraz podziału na grupy."
       },
       "custom_object_type_label": "Moduł własny",
       "custom_object_type_placeholder": "Wybierz moduł…",
