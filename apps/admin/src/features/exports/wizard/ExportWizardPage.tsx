@@ -4,6 +4,7 @@ import { WizardStepper } from '@/components/ui-v2/wizard-stepper';
 import { StepColumns } from './steps/StepColumns';
 import { StepEntityType } from './steps/StepEntityType';
 import { StepScopeFormat } from './steps/StepScopeFormat';
+import { StepSummary } from './steps/StepSummary';
 import { WizardFooter } from './WizardFooter';
 import { useWizard, WizardProvider } from './wizard-store';
 
@@ -81,11 +82,7 @@ function WizardContent() {
         {state.step === 0 && <StepEntityType />}
         {state.step === 1 && <StepScopeFormat />}
         {state.step === 2 && <StepColumns />}
-        {state.step > 2 && (
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-surface p-10 text-center text-[13px] text-zinc-400">
-            {t('exports.wizard.step_placeholder')}
-          </div>
-        )}
+        {state.step === 3 && <StepSummary />}
       </div>
 
       <WizardFooter

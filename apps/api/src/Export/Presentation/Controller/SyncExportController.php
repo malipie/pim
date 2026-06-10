@@ -167,6 +167,12 @@ final class SyncExportController
             throw new HttpException(Response::HTTP_INTERNAL_SERVER_ERROR, $error->getMessage(), $error);
         }
 
+        // EXR-12 — the sync session lands in history (screen 1 shows the
+        // 1-second exports too), but its file is a temp deleted after send:
+        // clear the dangling path so the UI never offers a dead download.
+        $session->setFilePath(null);
+        $this->sessions->save($session);
+
         $filename = $this->downloadFilename($format);
 
         $response = new BinaryFileResponse($tempPath);
