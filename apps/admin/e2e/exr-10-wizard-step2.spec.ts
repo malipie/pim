@@ -59,7 +59,9 @@ test('preflight badge shows the count and reacts to filter changes', async ({ pa
   const badge = page.getByTestId('preflight-badge');
   await expect(badge).toContainText('42');
 
-  // build a condition through the REUSED AdvancedFilterPanel
+  // build a condition through the REUSED AdvancedFilterPanel — the
+  // panel commits its draft on „Zastosuj filtr" (VIEW-22a), exactly
+  // like the product list; only then the preflight re-probes.
   preflightCount = 7;
   await page.getByRole('button', { name: /dodaj warunek/i }).click();
   await expect(page.getByLabel('Atrybut').first()).toBeVisible();
@@ -67,6 +69,7 @@ test('preflight badge shows the count and reacts to filter changes', async ({ pa
     .getByPlaceholder(/wpisz wartość/i)
     .first()
     .fill('Festo');
+  await page.getByRole('button', { name: /zastosuj filtr/i }).click();
   await expect(badge).toContainText('7', { timeout: 5_000 });
 });
 
@@ -77,6 +80,7 @@ test('exceeding the soft cap blocks Dalej', async ({ page }) => {
     .getByPlaceholder(/wpisz wartość/i)
     .first()
     .fill('x');
+  await page.getByRole('button', { name: /zastosuj filtr/i }).click();
 
   await expect(page.getByTestId('preflight-badge')).toContainText(/Przekroczono|exceeded/, {
     timeout: 5_000,
