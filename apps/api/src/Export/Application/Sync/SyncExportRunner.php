@@ -6,12 +6,15 @@ namespace App\Export\Application\Sync;
 
 use App\Catalog\Application\Filter\FilterDslResolver;
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Export\Application\Builder\ExportBuilder;
 use App\Export\Application\Builder\PublicationColumnPlanner;
 use App\Export\Domain\Entity\ExportSession;
 use App\Export\Domain\Enum\ExportEncoding;
+use App\Export\Domain\Enum\ExportEntityType;
 use App\Export\Domain\Enum\ExportFormat;
 use App\Export\Domain\Enum\ExportTargetScope;
 use App\Export\Domain\Repository\ExportSessionRepositoryInterface;
@@ -54,6 +57,7 @@ final class SyncExportRunner
         private readonly FilterDslResolver $filterDsl,
         private readonly Connection $connection,
         private readonly PublicationColumnPlanner $columnPlanner,
+        private readonly ObjectTypeRepositoryInterface $objectTypes,
     ) {
     }
 
@@ -69,11 +73,51 @@ final class SyncExportRunner
             throw new LogicException('Export session must carry a tenant before resolveTargets().');
         }
 
+        // EXR-05: the target set is scoped to the session's ObjectType
+        // (product → built-in Product type, custom_module → its own type)
+        // rather than the hardcoded Product kind.
+        $objectType = $this->resolveObjectType($session, $tenant);
+
         return match ($session->getTargetScope()) {
             ExportTargetScope::Selected => $this->resolveSelected($session),
-            ExportTargetScope::All => $this->objects->findByKind(ObjectKind::Product, $tenant),
-            ExportTargetScope::Filter => $this->resolveFilter($session, $tenant),
+            ExportTargetScope::All => $this->objects->findByObjectType($objectType, $tenant),
+            ExportTargetScope::Filter => $this->resolveFilter($session, $tenant, $objectType),
         };
+    }
+
+    /**
+     * Resolve the ObjectType backing a catalog-object export session.
+     *
+     * Product sessions resolve the tenant's built-in Product type; custom
+     * modules resolve their stored `object_type_id`. Structural entity types
+     * are not catalog-object backed and must never reach this path (they are
+     * rejected upstream by {@see ExportEntityType::isExecutable()}).
+     */
+    private function resolveObjectType(ExportSession $session, Tenant $tenant): ObjectType
+    {
+        return match ($session->getEntityType()) {
+            ExportEntityType::Product => $this->objectTypes->findBuiltInByKind(ObjectKind::Product, $tenant)
+                ?? throw new LogicException('Built-in Product ObjectType is not seeded for this tenant.'),
+            ExportEntityType::CustomModule => $this->resolveCustomObjectType($session),
+            default => throw new LogicException(sprintf(
+                'Export entity_type "%s" is not backed by catalog objects.',
+                $session->getEntityType()->value,
+            )),
+        };
+    }
+
+    private function resolveCustomObjectType(ExportSession $session): ObjectType
+    {
+        $id = $session->getObjectTypeId();
+        if (null === $id) {
+            throw new LogicException('custom_module export session is missing object_type_id.');
+        }
+        $objectType = $this->objectTypes->findById($id);
+        if (null === $objectType) {
+            throw new LogicException(sprintf('ObjectType "%s" was not found.', $id->toRfc4122()));
+        }
+
+        return $objectType;
     }
 
     /**
@@ -132,7 +176,7 @@ final class SyncExportRunner
      *
      * @return list<CatalogObject>
      */
-    private function resolveFilter(ExportSession $session, Tenant $tenant): array
+    private function resolveFilter(ExportSession $session, Tenant $tenant, ObjectType $objectType): array
     {
         $dsl = $session->getFilterSnapshot();
         if (null === $dsl || [] === $dsl) {
@@ -145,13 +189,15 @@ final class SyncExportRunner
         }
 
         $tenantId = $tenant->getId()->toRfc4122();
+        // EXR-05: scope by object_type_id (any ObjectType) instead of the
+        // hardcoded Product kind. The DSL itself stays ObjectType-agnostic.
         $sql = 'SELECT id FROM catalog_objects '
-            .'WHERE tenant_id = :tenant AND kind = :kind AND deleted_at IS NULL AND ('.$whereClause.')';
+            .'WHERE tenant_id = :tenant AND object_type_id = :otid AND deleted_at IS NULL AND ('.$whereClause.')';
 
         try {
             $rows = $this->connection->fetchAllAssociative(
                 $sql,
-                ['tenant' => $tenantId, 'kind' => ObjectKind::Product->value],
+                ['tenant' => $tenantId, 'otid' => $objectType->getId()->toRfc4122()],
             );
         } catch (Throwable $error) {
             throw new RuntimeException('Filter scope SQL execution failed: '.$error->getMessage(), previous: $error);
