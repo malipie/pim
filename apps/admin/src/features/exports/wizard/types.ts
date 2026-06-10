@@ -1,4 +1,4 @@
-import type { FilterGroup } from '@/lib/filters/filter-dsl';
+import type { FilterDsl } from '@/lib/filters/filter-dsl';
 
 /** Export entity types — synced with backend ExportEntityType (EXR-04). */
 export type ExportEntityType =
@@ -12,6 +12,15 @@ export type ExportFormat = 'xlsx' | 'csv';
 
 export type ExportTargetScope = 'all' | 'filter' | 'selected';
 
+/** Result of POST /api/exports/preflight (EXR-07). */
+export interface PreflightResult {
+  count: number;
+  mode: 'sync' | 'async';
+  threshold: number;
+  soft_cap: number;
+  exceeds_cap: boolean;
+}
+
 /** Whole-wizard state (EXR-09); steps 2-4 fill the optional fields. */
 export interface WizardState {
   step: number;
@@ -20,13 +29,15 @@ export interface WizardState {
   objectTypeId: string | null;
   profileId: string | null;
   format: ExportFormat;
-  filterDsl: FilterGroup | null;
+  filterDsl: FilterDsl | null;
   selectedIds: string[] | null;
   targetScope: ExportTargetScope;
   columns: string[];
   locales: string[] | null;
   channels: string[] | null;
   profileName: string;
+  /** Last preflight probe for the current configuration (EXR-10). */
+  preflight: PreflightResult | null;
   /** Any user-made change — drives cancel/entity-switch confirmations. */
   dirty: boolean;
 }
@@ -37,12 +48,24 @@ export type WizardAction =
   | { type: 'GO_TO_STEP'; step: number }
   | { type: 'SET_FORMAT'; format: ExportFormat }
   | { type: 'SET_PROFILE'; profileId: string | null }
-  | { type: 'SET_FILTER'; filterDsl: FilterGroup | null; targetScope: ExportTargetScope }
+  | { type: 'SET_FILTER'; filterDsl: FilterDsl | null; targetScope: ExportTargetScope }
   | { type: 'SET_SELECTED_IDS'; selectedIds: string[] | null }
   | { type: 'SET_COLUMNS'; columns: string[] }
   | { type: 'SET_LOCALES'; locales: string[] | null }
   | { type: 'SET_CHANNELS'; channels: string[] | null }
-  | { type: 'SET_PROFILE_NAME'; profileName: string };
+  | { type: 'SET_PROFILE_NAME'; profileName: string }
+  | { type: 'SET_PREFLIGHT'; preflight: PreflightResult | null }
+  | {
+      type: 'APPLY_PROFILE';
+      profileId: string;
+      profileName: string;
+      format: ExportFormat;
+      columns: string[];
+      locales: string[] | null;
+      channels: string[] | null;
+      filterDsl: FilterDsl | null;
+      targetScope: ExportTargetScope;
+    };
 
 export const WIZARD_STEP_COUNT = 4;
 
@@ -59,5 +82,6 @@ export const INITIAL_WIZARD_STATE: WizardState = {
   locales: null,
   channels: null,
   profileName: '',
+  preflight: null,
   dirty: false,
 };

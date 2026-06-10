@@ -2573,7 +2573,37 @@
       "custom_object_type_label": "Moduł własny",
       "custom_object_type_placeholder": "Wybierz moduł…",
       "custom_object_type_required": "Wybierz moduł własny, aby przejść dalej.",
-      "step_placeholder": "Treść tego kroku pojawi się w kolejnych ticketach (EXR-10/11/12)."
+      "step_placeholder": "Treść tego kroku pojawi się w kolejnych ticketach (EXR-10/11/12).",
+      "step2_profile_title": "Profil i format pliku",
+      "profile_label": "Zapisany profil (opcjonalnie)",
+      "profile_placeholder": "Wybierz zapisany profil…",
+      "profile_hint": "Użycie profilu nadpisze aktualne ustawienia formatu i filtrów.",
+      "profile_loaded": "Załadowano profil {{name}}",
+      "format_label": "Format docelowy",
+      "format_group_aria": "Format pliku",
+      "format_desc": {
+        "xlsx": "Arkusz kalkulacyjny Excel",
+        "csv": "Wartości rozdzielane przecinkiem"
+      },
+      "format_soon": {
+        "xml": "XML",
+        "json": "JSON",
+        "gsheets": "Google Sheets",
+        "pdf": "PDF"
+      },
+      "format_soon_desc": {
+        "xml": "Feed hierarchiczny",
+        "json": "Dane strukturalne / API",
+        "gsheets": "Arkusz w chmurze",
+        "pdf": "Katalog / cennik"
+      },
+      "step2_scope_title": "Zakres danych (filtrowanie)",
+      "preflight_badge": "Do wyeksportowania: {{count}}",
+      "cap_exceeded": "Przekroczono limit {{cap}} — zawęź filtry",
+      "structural_scope": "Eksport pełnej struktury — {{count}} wierszy.",
+      "selected_chip": "Zaznaczone obiekty: {{count}}",
+      "switch_to_filter": "przełącz na filtrowanie",
+      "empty_set_warning": "Filtr nie pasuje do żadnych obiektów — plik będzie zawierał tylko nagłówki kolumn."
     }
   }
 }
