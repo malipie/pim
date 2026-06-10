@@ -51,7 +51,7 @@ test('format tiles: XLSX/CSV selectable, soon formats disabled', async ({ page }
   const pdf = group.getByRole('radio', { name: /PDF/ });
   await expect(pdf).toHaveAttribute('aria-disabled', 'true');
   await expect(pdf).toContainText(/wkrótce|soon/);
-  await pdf.click();
+  await pdf.click({ force: true });
   await expect(pdf).toHaveAttribute('aria-checked', 'false');
 });
 
@@ -64,7 +64,7 @@ test('preflight badge shows the count and reacts to filter changes', async ({ pa
   // like the product list; only then the preflight re-probes.
   preflightCount = 7;
   await page.getByRole('button', { name: /dodaj warunek/i }).click();
-  await expect(page.getByLabel('Atrybut').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Usuń warunek' }).first()).toBeVisible();
   await page
     .getByPlaceholder(/wpisz wartość/i)
     .first()

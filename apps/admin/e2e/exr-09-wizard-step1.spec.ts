@@ -43,9 +43,8 @@ test('every entity tile is selectable and Dalej advances', async ({ page }) => {
   }
 
   await page.getByRole('button', { name: /Dalej|Next/ }).click();
-  await expect(page.getByText(/EXR-10\/11\/12/)).toBeVisible();
 
-  // stepper: step 1 done, step 2 active
+  // stepper: step 1 done, step 2 active (step content owned by EXR-10+)
   await expect(page.getByRole('button', { name: /Zakres|Scope/ })).toHaveAttribute(
     'aria-current',
     'step',
@@ -61,7 +60,10 @@ test('custom module requires an ObjectType before Dalej', async ({ page }) => {
   await page.getByLabel(/Moduł własny|Custom module/).selectOption(CUSTOM_OT.id);
   await expect(page.getByRole('button', { name: /Dalej|Next/ })).toBeEnabled();
   await page.getByRole('button', { name: /Dalej|Next/ }).click();
-  await expect(page.getByText(/EXR-10\/11\/12/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Zakres|Scope/ })).toHaveAttribute(
+    'aria-current',
+    'step',
+  );
 });
 
 test('cancel asks for confirmation when dirty and returns to sessions', async ({ page }) => {
