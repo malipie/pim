@@ -27,6 +27,7 @@ import { AuditLogIndicator } from '@/components/modeling/audit-log-indicator';
 import { BuiltInLockBadge } from '@/components/modeling/built-in-lock-badge';
 import { CreateAttributeInGroupDialog } from '@/components/modeling/create-attribute-in-group-dialog';
 import { DangerZoneCard } from '@/components/modeling/danger-zone-card';
+import { LocaleTabsField } from '@/components/modeling/locale-tabs-field';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -35,6 +36,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { resolveLabel } from '@/features/catalog/attributes/list';
 import { HttpError, jsonFetch } from '@/lib/http';
 import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
+import { useCurrentWorkspace, useInvalidateCurrentWorkspace } from '@/lib/use-current-workspace';
 import { cn } from '@/lib/utils';
 
 interface AttributeGroupDetail {
@@ -131,16 +133,18 @@ function Editor({
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const workspace = useCurrentWorkspace();
+  const invalidateWorkspace = useInvalidateCurrentWorkspace();
+  const enabledLocales = workspace.data?.enabledLocales ?? ['pl', 'en'];
+  const primaryLocale = workspace.data?.primaryLocale ?? 'pl';
 
   const initialLabel = toLocaleMap(group.label);
   const initialDescription = toLocaleMap(group.description);
   const initialColor = group.color ?? '#71717a';
 
-  const [labelPl, setLabelPl] = useState(initialLabel.pl ?? '');
-  const [labelEn, setLabelEn] = useState(initialLabel.en ?? '');
-  const [descPl, setDescPl] = useState(initialDescription.pl ?? '');
+  const [label, setLabel] = useState<Record<string, string>>(initialLabel);
+  const [description, setDescription] = useState<Record<string, string>>(initialDescription);
   const [color, setColor] = useState(initialColor);
-  const [activeLocale, setActiveLocale] = useState<'pl' | 'en'>('pl');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -172,18 +176,14 @@ function Editor({
   const sortedMembers = [...members].sort((a, b) => a.position - b.position);
   const existingCodes = new Set(sortedMembers.map((m) => m.attribute.code));
 
-  const dirtyFields = [
-    labelPl !== (initialLabel.pl ?? ''),
-    labelEn !== (initialLabel.en ?? ''),
-    descPl !== (initialDescription.pl ?? ''),
-    color !== initialColor,
-  ].filter(Boolean).length;
+  const labelDirtyCount = countLocaleDiffs(label, initialLabel);
+  const descriptionDirtyCount = countLocaleDiffs(description, initialDescription);
+  const dirtyFields = labelDirtyCount + descriptionDirtyCount + (color !== initialColor ? 1 : 0);
   const dirty = dirtyFields > 0;
 
   const cancel = () => {
-    setLabelPl(initialLabel.pl ?? '');
-    setLabelEn(initialLabel.en ?? '');
-    setDescPl(initialDescription.pl ?? '');
+    setLabel(initialLabel);
+    setDescription(initialDescription);
     setColor(initialColor);
     setError(null);
   };
@@ -193,10 +193,11 @@ function Editor({
     setError(null);
     try {
       const body: Record<string, unknown> = {};
-      const nextLabel = stripEmpty({ pl: labelPl, en: labelEn });
-      if (JSON.stringify(nextLabel) !== JSON.stringify(initialLabel)) body.label = nextLabel;
-      const nextDescription = stripEmpty({ pl: descPl });
-      if (JSON.stringify(nextDescription) !== JSON.stringify(initialDescription))
+      const nextLabel = stripEmpty(label);
+      if (JSON.stringify(nextLabel) !== JSON.stringify(stripEmpty(initialLabel)))
+        body.label = nextLabel;
+      const nextDescription = stripEmpty(description);
+      if (JSON.stringify(nextDescription) !== JSON.stringify(stripEmpty(initialDescription)))
         body.description = nextDescription;
       if (!isLockedSystemGroup) {
         if (color !== initialColor) body.color = color;
@@ -224,14 +225,13 @@ function Editor({
     }
   }, [
     color,
-    descPl,
+    description,
     group.id,
     initialColor,
     initialDescription,
     initialLabel,
     isLockedSystemGroup,
-    labelEn,
-    labelPl,
+    label,
     onSaved,
     t,
   ]);
@@ -414,41 +414,19 @@ function Editor({
             <Label className="text-[11.5px] font-medium text-muted-foreground">
               {t('modeling.attributeGroups.fields.name', { defaultValue: 'Nazwa' })}
             </Label>
-            <div className="mt-1.5 flex items-center gap-1 border-b border-zinc-100">
-              {(['pl', 'en'] as const).map((lc) => {
-                const filled = (lc === 'pl' ? labelPl : labelEn).trim().length > 0;
-                return (
-                  <button
-                    key={lc}
-                    type="button"
-                    onClick={() => setActiveLocale(lc)}
-                    className={cn(
-                      '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[12.5px] font-medium uppercase tracking-wider transition',
-                      activeLocale === lc
-                        ? 'border-zinc-900 text-foreground'
-                        : 'border-transparent text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    <span>{lc === 'pl' ? '🇵🇱' : '🇬🇧'}</span>
-                    <span>{lc}</span>
-                    {!filled ? (
-                      <span className="size-1.5 rounded-full bg-amber-400" aria-hidden />
-                    ) : null}
-                  </button>
-                );
-              })}
+            <div className="mt-1.5">
+              <LocaleTabsField
+                values={label}
+                enabledLocales={enabledLocales}
+                primaryLocale={primaryLocale}
+                onChange={setLabel}
+                onLocaleAdded={() => invalidateWorkspace()}
+                readOnly={isLockedSystemGroup}
+                placeholder={t('modeling.attributeGroups.fields.name_placeholder', {
+                  defaultValue: 'Nazwa grupy',
+                })}
+              />
             </div>
-            <Input
-              className="mt-2"
-              value={activeLocale === 'pl' ? labelPl : labelEn}
-              onChange={(e) =>
-                activeLocale === 'pl' ? setLabelPl(e.target.value) : setLabelEn(e.target.value)
-              }
-              disabled={isLockedSystemGroup}
-              placeholder={t('modeling.attributeGroups.fields.name_placeholder', {
-                defaultValue: 'Nazwa grupy',
-              })}
-            />
           </div>
 
           <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
@@ -482,16 +460,25 @@ function Editor({
             <Label className="text-[11.5px] font-medium text-muted-foreground">
               {t('modeling.attributeGroups.fields.description', { defaultValue: 'Description' })}
             </Label>
-            <Textarea
-              rows={2}
-              value={descPl}
-              onChange={(e) => setDescPl(e.target.value)}
-              disabled={isLockedSystemGroup}
-              className="mt-1.5"
-              placeholder={t('modeling.attributeGroups.fields.description_placeholder', {
-                defaultValue: 'Krótki opis grupy — kiedy używać, jakie atrybuty zawiera.',
-              })}
-            />
+            <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+              {enabledLocales.map((lc) => (
+                <Textarea
+                  key={lc}
+                  rows={2}
+                  value={description[lc] ?? ''}
+                  onChange={(e) => setDescription({ ...description, [lc]: e.target.value })}
+                  disabled={isLockedSystemGroup}
+                  aria-label={t('modeling.attributeGroups.fields.description_locale_aria', {
+                    defaultValue: 'Opis ({{locale}})',
+                    locale: lc.toUpperCase(),
+                  })}
+                  placeholder={t('modeling.attributeGroups.fields.description_locale', {
+                    defaultValue: '{{locale}} · krótki opis grupy',
+                    locale: lc.toUpperCase(),
+                  })}
+                />
+              ))}
+            </div>
           </div>
         </Card>
 
@@ -884,18 +871,27 @@ function StatBox({ value, label }: { value: number | string; label: string }) {
   );
 }
 
-function toLocaleMap(value: Record<string, string> | string | null | undefined): {
-  pl?: string;
-  en?: string;
-} {
+function toLocaleMap(
+  value: Record<string, string> | string | null | undefined,
+): Record<string, string> {
   if (typeof value === 'string') return { pl: value };
   if (value && typeof value === 'object') {
-    const out: { pl?: string; en?: string } = {};
-    if (typeof value.pl === 'string') out.pl = value.pl;
-    if (typeof value.en === 'string') out.en = value.en;
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (typeof v === 'string') out[k] = v;
+    }
     return out;
   }
   return {};
+}
+
+function countLocaleDiffs(next: Record<string, string>, initial: Record<string, string>): number {
+  const keys = new Set([...Object.keys(next), ...Object.keys(initial)]);
+  let count = 0;
+  for (const key of keys) {
+    if ((next[key] ?? '') !== (initial[key] ?? '')) count += 1;
+  }
+  return count;
 }
 
 function stripEmpty(record: Record<string, string>): Record<string, string> {

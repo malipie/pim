@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router';
 
 import { ATTRIBUTE_GROUP_SWATCHES, ColorPicker } from '@/components/modeling/color-picker';
 import { ATTRIBUTE_GROUP_ICONS, IconPicker } from '@/components/modeling/icon-picker';
+import { LocaleTabsField } from '@/components/modeling/locale-tabs-field';
 import { SettingToggleRow } from '@/components/modeling/setting-toggle-row';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { HttpError, jsonFetch } from '@/lib/http';
-import { cn } from '@/lib/utils';
+import { useCurrentWorkspace, useInvalidateCurrentWorkspace } from '@/lib/use-current-workspace';
 
 /**
  * VIEW-03b — pixel-perfect rebuild of `NewAttributeGroupView`
@@ -32,10 +33,9 @@ import { cn } from '@/lib/utils';
 
 interface CreatePayload {
   code: string;
-  labelPl: string;
-  labelEn: string;
-  descriptionPl: string;
-  descriptionEn: string;
+  /** Full per-locale maps — every workspace locale, not hardcoded PL/EN (#1352). */
+  label: Record<string, string>;
+  description: Record<string, string>;
   icon: string;
   color: string;
   requiredSection: boolean;
@@ -45,10 +45,8 @@ interface CreatePayload {
 
 const EMPTY: CreatePayload = {
   code: '',
-  labelPl: '',
-  labelEn: '',
-  descriptionPl: '',
-  descriptionEn: '',
+  label: {},
+  description: {},
   icon: ATTRIBUTE_GROUP_ICONS[0],
   color: ATTRIBUTE_GROUP_SWATCHES[0],
   requiredSection: false,
@@ -59,14 +57,19 @@ const EMPTY: CreatePayload = {
 export function AttributeGroupCreatePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const workspace = useCurrentWorkspace();
+  const invalidateWorkspace = useInvalidateCurrentWorkspace();
+  const enabledLocales = workspace.data?.enabledLocales ?? ['pl', 'en'];
+  const primaryLocale = workspace.data?.primaryLocale ?? 'pl';
   const [values, setValues] = useState<CreatePayload>(EMPTY);
-  const [activeLocale, setActiveLocale] = useState<'pl' | 'en'>('pl');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const displayName =
-    values.labelPl.trim() ||
-    values.labelEn.trim() ||
+    (values.label[primaryLocale] ?? '').trim() ||
+    Object.values(values.label)
+      .map((v) => v.trim())
+      .find((v) => v !== '') ||
     t('modeling.attributeGroups.create.title_default', { defaultValue: 'Nazwa grupy' });
 
   const handleSubmit = async () => {
@@ -75,13 +78,13 @@ export function AttributeGroupCreatePage() {
     try {
       const body: Record<string, unknown> = {
         code: values.code,
-        label: stripEmpty({ pl: values.labelPl, en: values.labelEn }),
+        label: stripEmpty(values.label),
         position: 0,
         requiredSection: values.requiredSection,
         shared: values.shared,
         conditionalVisibility: values.conditionalVisibility,
       };
-      const description = stripEmpty({ pl: values.descriptionPl, en: values.descriptionEn });
+      const description = stripEmpty(values.description);
       if (Object.keys(description).length > 0) body.description = description;
       if (values.icon !== '') body.icon = values.icon;
       if (values.color !== '') body.color = values.color;
@@ -116,7 +119,8 @@ export function AttributeGroupCreatePage() {
     }
   };
 
-  const valid = values.code.trim().length > 0 && values.labelPl.trim().length > 0;
+  const valid =
+    values.code.trim().length > 0 && (values.label[primaryLocale] ?? '').trim().length > 0;
 
   return (
     <div className="space-y-6">
@@ -206,44 +210,16 @@ export function AttributeGroupCreatePage() {
                 <Label className="text-[11.5px] font-medium text-muted-foreground">
                   {t('modeling.attributeGroups.fields.name', { defaultValue: 'Nazwa' })}
                 </Label>
-                <div className="mt-1.5 flex items-center gap-1 border-b border-zinc-100">
-                  {(['pl', 'en'] as const).map((lc) => {
-                    const filled =
-                      (lc === 'pl' ? values.labelPl : values.labelEn).trim().length > 0;
-                    return (
-                      <button
-                        key={lc}
-                        type="button"
-                        onClick={() => setActiveLocale(lc)}
-                        className={cn(
-                          '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[12.5px] font-medium uppercase tracking-wider transition',
-                          activeLocale === lc
-                            ? 'border-zinc-900 text-foreground'
-                            : 'border-transparent text-muted-foreground hover:text-foreground',
-                        )}
-                      >
-                        <span>{lc === 'pl' ? '🇵🇱' : '🇬🇧'}</span>
-                        <span>{lc}</span>
-                        {!filled ? (
-                          <span className="size-1.5 rounded-full bg-amber-400" aria-hidden />
-                        ) : null}
-                      </button>
-                    );
-                  })}
+                <div className="mt-1.5">
+                  <LocaleTabsField
+                    values={values.label}
+                    enabledLocales={enabledLocales}
+                    primaryLocale={primaryLocale}
+                    onChange={(next) => setValues({ ...values, label: next })}
+                    onLocaleAdded={() => invalidateWorkspace()}
+                    placeholder="np. Wymiary"
+                  />
                 </div>
-                <Input
-                  className="mt-2"
-                  value={activeLocale === 'pl' ? values.labelPl : values.labelEn}
-                  onChange={(e) =>
-                    setValues({
-                      ...values,
-                      ...(activeLocale === 'pl'
-                        ? { labelPl: e.target.value }
-                        : { labelEn: e.target.value }),
-                    })
-                  }
-                  placeholder="np. Wymiary"
-                />
               </div>
 
               <div>
@@ -253,18 +229,27 @@ export function AttributeGroupCreatePage() {
                   })}
                 </Label>
                 <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
-                  <Textarea
-                    rows={2}
-                    value={values.descriptionPl}
-                    onChange={(e) => setValues({ ...values, descriptionPl: e.target.value })}
-                    placeholder="PL · krótki opis grupy"
-                  />
-                  <Textarea
-                    rows={2}
-                    value={values.descriptionEn}
-                    onChange={(e) => setValues({ ...values, descriptionEn: e.target.value })}
-                    placeholder="EN · short description"
-                  />
+                  {enabledLocales.map((lc) => (
+                    <Textarea
+                      key={lc}
+                      rows={2}
+                      value={values.description[lc] ?? ''}
+                      onChange={(e) =>
+                        setValues({
+                          ...values,
+                          description: { ...values.description, [lc]: e.target.value },
+                        })
+                      }
+                      aria-label={t('modeling.attributeGroups.fields.description_locale_aria', {
+                        defaultValue: 'Opis ({{locale}})',
+                        locale: lc.toUpperCase(),
+                      })}
+                      placeholder={t('modeling.attributeGroups.fields.description_locale', {
+                        defaultValue: '{{locale}} · krótki opis grupy',
+                        locale: lc.toUpperCase(),
+                      })}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
