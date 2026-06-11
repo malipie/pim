@@ -1123,7 +1123,10 @@
       "count_one": "{{count}} plik",
       "count_few": "{{count}} pliki",
       "count_many": "{{count}} plików",
-      "count_other": "{{count}} plików"
+      "count_other": "{{count}} plików",
+      "unassigned": "Bez przypisania",
+      "up": "Folder nadrzędny",
+      "count_short": "{{count}} elem."
     },
     "detail": {
       "edit": "Edytuj",
@@ -1148,7 +1151,39 @@
       "delete": "Usuń zaznaczone",
       "delete_confirm_title": "Usunąć zaznaczone zasoby?",
       "delete_confirm_body": "Usuniętych zostanie {{count}} zasobów. Tej operacji nie można cofnąć.",
-      "delete_error": "Nie udało się usunąć części zasobów."
+      "delete_error": "Nie udało się usunąć części zasobów.",
+      "download": "Pobierz",
+      "assign": "Przypisz",
+      "approve": "Zatwierdź",
+      "mock_tooltip": "MOCK — akcja wymaga backendu (backlog NUI-08)",
+      "toolbar_aria": "Akcje na zaznaczonych"
+    },
+    "upload_cta": "Prześlij pliki",
+    "upload_thumbnails_note": "Miniatury wygenerują się automatycznie po przesłaniu.",
+    "folders_label": "Foldery",
+    "files_label": "Pliki",
+    "storage": "Magazyn",
+    "storage_mock_tooltip": "MOCK — endpoint zajętości magazynu wymaga backendu (backlog NUI-08)",
+    "view": {
+      "grid": "Siatka",
+      "list": "Lista"
+    },
+    "columns": {
+      "name": "Nazwa",
+      "format": "Format",
+      "size": "Rozmiar"
+    },
+    "drawer": {
+      "format": "Format",
+      "size": "Rozmiar",
+      "dims": "Wymiary",
+      "folder": "Folder",
+      "metadata": "Metadane",
+      "approve": "Zatwierdź",
+      "approve_mock": "MOCK — workflow zatwierdzania wymaga backendu (backlog NUI-08)",
+      "open_full": "Otwórz pełną stronę",
+      "url_copied": "URL skopiowany",
+      "copy_url": "Kopiuj URL"
     }
   },
   "channels": {

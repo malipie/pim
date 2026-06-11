@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react';
+import { Check, Download, Link2, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { jsonFetch } from '@/lib/http';
 
 export interface AssetBulkActionsBarProps {
@@ -20,6 +21,12 @@ export interface AssetBulkActionsBarProps {
   onClearSelection: () => void;
 }
 
+/**
+ * NUI-08 (#1427) — fixed bottom bulk bar (design `Multimedia.html`).
+ * WIRE: Usuń (existing bulk-delete endpoint). MOCK (disabled + tooltip):
+ * Pobierz (zip), Przypisz, Zatwierdź — no backend; backlog in
+ * Project Plan/UI/Retrofit_v2/multimedia-do-oprogramowania.md.
+ */
 export function AssetBulkActionsBar({
   selectedIds,
   onDeleted,
@@ -54,32 +61,62 @@ export function AssetBulkActionsBar({
     }
   };
 
+  const mockTooltip = t('assets.bulk.mock_tooltip', {
+    defaultValue: 'MOCK — akcja wymaga backendu (backlog NUI-08)',
+  });
+
+  const mockAction = (label: string, Icon: typeof Download) => (
+    <Tooltip key={label}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          disabled
+          className="flex h-8 cursor-not-allowed items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-medium text-white/40"
+        >
+          <Icon className="size-3.5" />
+          {label}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{mockTooltip}</TooltipContent>
+    </Tooltip>
+  );
+
   return (
     <>
-      <section
-        className="sticky top-2 z-10 flex items-center justify-between gap-3 rounded-md border bg-card px-4 py-2 shadow-sm"
-        aria-label={t('assets.bulk.delete')}
+      <div
+        className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-2xl bg-zinc-900 px-3 py-2 text-white shadow-2xl"
+        role="toolbar"
+        aria-label={t('assets.bulk.toolbar_aria', { defaultValue: 'Akcje na zaznaczonych' })}
       >
-        <p className="text-sm font-medium">
+        <span className="num px-2 text-[12.5px] font-medium">
           {selectedIds.length === 1
             ? t('assets.bulk.selected_one')
             : t('assets.bulk.selected_other', { count: selectedIds.length })}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onClearSelection}>
-            {t('assets.upload.cancel')}
-          </Button>
-          <GatedButton
-            permission="asset.delete"
-            variant="destructive"
-            size="sm"
-            onClick={() => setConfirmOpen(true)}
-          >
-            <Trash2 className="mr-2 size-4" />
-            {t('assets.bulk.delete')}
-          </GatedButton>
-        </div>
-      </section>
+        </span>
+        <span className="h-5 w-px bg-white/20" aria-hidden />
+        {mockAction(t('assets.bulk.download', { defaultValue: 'Pobierz' }), Download)}
+        {mockAction(t('assets.bulk.assign', { defaultValue: 'Przypisz' }), Link2)}
+        {mockAction(t('assets.bulk.approve', { defaultValue: 'Zatwierdź' }), Check)}
+        <GatedButton
+          permission="asset.delete"
+          variant="ghost"
+          size="sm"
+          onClick={() => setConfirmOpen(true)}
+          className="h-8 rounded-lg px-3 text-[12.5px] font-medium text-rose-300 hover:bg-white/10 hover:text-rose-200"
+        >
+          <Trash2 className="size-3.5" />
+          {t('assets.bulk.delete')}
+        </GatedButton>
+        <span className="h-5 w-px bg-white/20" aria-hidden />
+        <button
+          type="button"
+          onClick={onClearSelection}
+          aria-label={t('assets.upload.cancel')}
+          className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
