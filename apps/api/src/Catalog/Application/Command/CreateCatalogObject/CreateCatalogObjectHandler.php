@@ -10,6 +10,8 @@ use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Shared\Domain\Tenant;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -55,6 +57,22 @@ final readonly class CreateCatalogObjectHandler
                 'ObjectType kind "%s" does not match the operation kind "%s".',
                 $objectType->getKind()->value,
                 $command->expectedKind->value,
+            ));
+        }
+
+        // #1415 — duplicate IDs used to surface as a raw 500 from the
+        // (tenant, kind, code) unique constraint on the poly-kind create.
+        // Pre-check for a clean 409; the DB index stays as the race-proof
+        // backstop. Categories are skipped — their codes are unique per
+        // tree, not per kind, and the constraint excludes them.
+        $tenant = $objectType->getTenant();
+        if (ObjectKind::Category !== $objectType->getKind()
+            && $tenant instanceof Tenant
+            && $this->catalogObjects->findByCode($command->code, $objectType->getKind(), $tenant) instanceof CatalogObject) {
+            throw new ConflictHttpException(\sprintf(
+                'ID "%s" is already used by another "%s" entry.',
+                $command->code,
+                $objectType->getCode(),
             ));
         }
 

@@ -159,4 +159,33 @@ final class CatalogObjectPolyKindPatchDeleteTest extends CatalogApiTestCase
 
         return $ot->getId()->toRfc4122();
     }
+
+    #[Test]
+    public function duplicateCodeOnPolyCreateReturnsConflict(): void
+    {
+        $client = $this->authenticatedClient();
+        $productOt = $this->objectTypeIdFor(ObjectKind::Product);
+
+        $payload = json_encode([
+            'code' => 'DUP-409',
+            'objectTypeId' => $productOt,
+            'attributes' => ['name' => 'First'],
+        ], JSON_THROW_ON_ERROR);
+        $client->request('POST', '/api/objects', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => $payload,
+        ]);
+        self::assertResponseStatusCodeSame(201);
+
+        // #1415 — the duplicate used to bubble up as a raw 500 from the
+        // (tenant, kind, code) unique index; now a clean 409 with the ID
+        // in the Problem Details detail.
+        $response = $client->request('POST', '/api/objects', [
+            'headers' => ['content-type' => 'application/ld+json', 'accept' => 'application/json'],
+            'body' => $payload,
+        ]);
+        self::assertResponseStatusCodeSame(409);
+        $body = $response->toArray(false);
+        self::assertStringContainsString('DUP-409', (string) ($body['detail'] ?? ''));
+    }
 }
