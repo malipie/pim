@@ -17,6 +17,7 @@ use App\Catalog\Domain\Service\EffectiveAttributeGroupResolver;
 use App\Channel\Contracts\ChannelResolverInterface;
 use App\Channel\Contracts\LocaleFallbackResolverInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Shared\Application\ActiveLocaleResolverInterface;
 use App\Shared\Domain\Tenant;
 use App\Shared\Infrastructure\Audit\CursorCodec;
 use Doctrine\DBAL\Connection;
@@ -76,6 +77,7 @@ final class ProductReadEndpointsController
         private readonly ObjectValueRepositoryInterface $objectValues,
         private readonly LocaleFallbackResolverInterface $localeFallback,
         private readonly ChannelResolverInterface $channels,
+        private readonly ActiveLocaleResolverInterface $activeLocales,
     ) {
     }
 
@@ -326,10 +328,18 @@ final class ProductReadEndpointsController
         if (!$tenant instanceof Tenant) {
             return [];
         }
-        $primary = $tenant->getPrimaryLocale();
+
+        // #1352 (reopen #2) — ACTIVE tenant_locales are the single source
+        // of truth; the legacy JSONB list is only a fallback for tenants
+        // without LOC-07 rows (it kept ghost locales after deactivation).
+        $languages = $this->activeLocales->languages($tenant);
+        $primary = $this->activeLocales->primaryLanguage($tenant) ?? $tenant->getPrimaryLocale();
+        if ([] === $languages) {
+            $languages = $tenant->getEnabledLocales();
+        }
 
         $locales = [];
-        foreach ($tenant->getEnabledLocales() as $code) {
+        foreach ($languages as $code) {
             $locales[] = ['code' => $code, 'is_default' => $code === $primary];
         }
         // Primary first so the picker defaults to it deterministically.

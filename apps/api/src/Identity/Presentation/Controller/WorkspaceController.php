@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Shared\Application\ActiveLocaleResolverInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\CannotDisablePrimaryLocaleException;
 use App\Shared\Domain\Exception\InvalidLocaleException;
@@ -48,6 +49,7 @@ final class WorkspaceController
         private readonly TenantContext $tenantContext,
         private readonly TenantRepositoryInterface $tenants,
         private readonly Connection $connection,
+        private readonly ActiveLocaleResolverInterface $activeLocales,
     ) {
     }
 
@@ -65,13 +67,19 @@ final class WorkspaceController
             throw new BadRequestHttpException('No tenant context.');
         }
 
+        // #1352 (reopen #2) — the locale strip derives from ACTIVE
+        // tenant_locales (LOC-07 lifecycle); the legacy JSONB list is only
+        // a fallback for tenants without rows. A locale deactivated in
+        // Settings disappears from every i18n form immediately.
+        $languages = $this->activeLocales->languages($tenant);
+
         return new JsonResponse([
             'id' => $tenant->getId()->toRfc4122(),
             'code' => $tenant->getCode(),
             'name' => $tenant->getName(),
             'plan' => $tenant->getPlan(),
-            'enabledLocales' => $tenant->getEnabledLocales(),
-            'primaryLocale' => $tenant->getPrimaryLocale(),
+            'enabledLocales' => [] !== $languages ? $languages : $tenant->getEnabledLocales(),
+            'primaryLocale' => $this->activeLocales->primaryLanguage($tenant) ?? $tenant->getPrimaryLocale(),
         ]);
     }
 
@@ -182,13 +190,19 @@ final class WorkspaceController
 
         $this->tenants->save($tenant);
 
+        // #1352 (reopen #2) — the locale strip derives from ACTIVE
+        // tenant_locales (LOC-07 lifecycle); the legacy JSONB list is only
+        // a fallback for tenants without rows. A locale deactivated in
+        // Settings disappears from every i18n form immediately.
+        $languages = $this->activeLocales->languages($tenant);
+
         return new JsonResponse([
             'id' => $tenant->getId()->toRfc4122(),
             'code' => $tenant->getCode(),
             'name' => $tenant->getName(),
             'plan' => $tenant->getPlan(),
-            'enabledLocales' => $tenant->getEnabledLocales(),
-            'primaryLocale' => $tenant->getPrimaryLocale(),
+            'enabledLocales' => [] !== $languages ? $languages : $tenant->getEnabledLocales(),
+            'primaryLocale' => $this->activeLocales->primaryLanguage($tenant) ?? $tenant->getPrimaryLocale(),
         ]);
     }
 }
