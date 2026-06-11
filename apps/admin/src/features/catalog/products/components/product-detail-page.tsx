@@ -94,6 +94,12 @@ export interface ProductDetailPageProps {
   backHref?: string;
   detailPathFor?: (id: string) => string;
   /**
+   * #1415 — create-mode ObjectType. When omitted the page creates a
+   * product (legacy /products/new); /objects/:slug/new passes the
+   * resolved custom ObjectType id so ONE create form serves every kind.
+   */
+  createObjectTypeId?: string;
+  /**
    * Kind guard for sugar routes: `/api/objects/{id}` is poly-kind, so
    * /products/:id must reject a category/asset/custom id with the same
    * 404 state the legacy sugar endpoint produced.
@@ -122,6 +128,7 @@ export function ProductDetailPage({
   backHref = '/products',
   detailPathFor = (objectId: string) => `/products/${objectId}`,
   requireKind,
+  createObjectTypeId,
 }: ProductDetailPageProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -173,15 +180,20 @@ export function ProductDetailPage({
   const { objectTypeId: defaultProductTypeId } = useDefaultObjectType('product');
   const loadedProduct = isEditMode ? (productQuery.data ?? null) : null;
   // Edit mode reads capabilities from the object's OWN ObjectType (any
-  // kind); create mode is product-only for now (#1415 unifies create).
-  const objectTypeId = isEditMode ? (loadedProduct?.objectType?.id ?? null) : defaultProductTypeId;
-  const kind = isEditMode ? (loadedProduct?.kind ?? null) : 'product';
+  // kind); create mode takes the route-resolved ObjectType (#1415) and
+  // falls back to the built-in product for /products/new.
+  const objectTypeId = isEditMode
+    ? (loadedProduct?.objectType?.id ?? null)
+    : (createObjectTypeId ?? defaultProductTypeId);
   // UX bug fix #2 — UX-02 removed the legacy 'media' AttributeGroup
   // (operator decision: Multimedia is a capability, not an attribute
   // group). Capability flags follow list-schema so the tab set matches
   // what modeling advertises — for every kind, not just products.
   const schemaQuery = useListSchema(objectTypeId ?? undefined);
   const schemaObjectType = schemaQuery.data?.objectType;
+  const kind = isEditMode
+    ? (loadedProduct?.kind ?? null)
+    : (schemaObjectType?.kind ?? (createObjectTypeId === undefined ? 'product' : null));
   const hasMultimediaCapability = schemaObjectType?.has_multimedia ?? false;
   const hasVariantsCapability = schemaObjectType?.has_variants ?? kind === 'product';
   const isCategorizable = schemaObjectType?.is_categorizable ?? kind === 'product';
@@ -268,19 +280,17 @@ export function ProductDetailPage({
       if (objectTypeId === null) {
         return { groups: [] };
       }
-      if (createCategoryIds.length > 0) {
-        return jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
-          `/api/object_types/${objectTypeId}/effective-attribute-groups/preview`,
-          {
-            method: 'POST',
-            contentType: 'application/json',
-            accept: 'application/json',
-            body: { categoryIds: createCategoryIds },
-          },
-        );
-      }
+      // #1415 — there is no GET for OT-level effective groups; the
+      // preview POST serves both the bare schema (empty categoryIds)
+      // and the category-driven overlay.
       return jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
-        `/api/object_types/${objectTypeId}/effective-attribute-groups`,
+        `/api/object_types/${objectTypeId}/effective-attribute-groups/preview`,
+        {
+          method: 'POST',
+          contentType: 'application/json',
+          accept: 'application/json',
+          body: { categoryIds: createCategoryIds },
+        },
       );
     },
     enabled: isEditMode ? id !== '' : objectTypeId !== null,
@@ -385,7 +395,15 @@ export function ProductDetailPage({
   const shouldSurfaceRelationsTab = hasReverseRelations;
 
   const visibleTabs: readonly TabKey[] = useMemo(() => {
-    if (mode === 'create') return ['attributes'];
+    if (mode === 'create') {
+      // #1415 — create renders the same group-driven tab set custom
+      // kinds had on UniversalCreatePage (#1096); special tabs
+      // (categories sidebar covers assignment, multimedia/variants
+      // need a persisted id) stay detail-only.
+      const createAttributesTab: TabKey[] =
+        stackedGroups.length > 0 || tabModeGroups.length === 0 ? ['attributes' as const] : [];
+      return [...createAttributesTab, ...tabModeGroups.map((g) => g.code)];
+    }
     const fromGroups = tabModeGroups.map((g) => g.code);
     // MODR-06 (#928) — inject a synthetic `relations` tab when the
     // object has reverse links but no forward `relations` AttributeGroup.
@@ -511,7 +529,9 @@ export function ProductDetailPage({
         const sku = typeof skuRaw === 'string' ? skuRaw.trim() : '';
         if (sku === '') {
           toast.error(
-            t('products.detail.validation.sku_required', { defaultValue: 'SKU jest wymagane' }),
+            kind === 'product'
+              ? t('products.detail.validation.sku_required', { defaultValue: 'SKU jest wymagane' })
+              : t('object_create.code_required', { defaultValue: 'Kod jest wymagany' }),
           );
           setIsSaving(false);
           return;
@@ -525,8 +545,8 @@ export function ProductDetailPage({
           setIsSaving(false);
           return;
         }
-        // #891 — kategoria wymagana dla nowych produktów.
-        if (createCategoryIds.length === 0) {
+        // #891 / #1359 — categorizable kinds require a category at create.
+        if (isCategorizable && createCategoryIds.length === 0) {
           toast.error(
             t('products.detail.validation.categories_required', {
               defaultValue: 'Przypisz przynajmniej jedną kategorię',
@@ -535,29 +555,65 @@ export function ProductDetailPage({
           setIsSaving(false);
           return;
         }
-        const primary =
-          createPrimaryId !== null && createCategoryIds.includes(createPrimaryId)
-            ? createPrimaryId
-            : createCategoryIds[0];
-        const attributes = stripAttributes(dirtyFields);
+        // #1102 — relation values cannot ride the create POST (they live
+        // in the relations link table, not object_values); split them out
+        // and PUT after the object exists, like UniversalCreatePage did.
+        const relationCodes = collectRelationCodes(groups);
+        const { normal: attributes, relations } = splitDirtyAttributes(
+          stripAttributes(dirtyFields),
+          relationCodes,
+        );
         const body: Record<string, unknown> = {
           code: sku,
           objectTypeId,
-          categoryIds: createCategoryIds,
-          primaryCategoryId: primary,
         };
+        if (createCategoryIds.length > 0) {
+          const primary =
+            createPrimaryId !== null && createCategoryIds.includes(createPrimaryId)
+              ? createPrimaryId
+              : createCategoryIds[0];
+          body.categoryIds = createCategoryIds;
+          body.primaryCategoryId = primary;
+        }
         if (Object.keys(attributes).length > 0) body.attributes = attributes;
-        const created = await jsonFetch<{ id: string }>('/api/products', {
+        // #1415 — poly-kind create: same processor as the /api/products
+        // sugar path, kind comes from objectTypeId.
+        const created = await jsonFetch<{ id: string }>('/api/objects', {
           method: 'POST',
           contentType: 'application/ld+json',
           body,
         });
-        toast.success(
-          t('products.detail.create.success', {
-            defaultValue: 'Utworzono produkt {{code}}',
-            code: sku,
-          }),
-        );
+
+        const relationFailures: string[] = [];
+        for (const [attrCode, targets] of Object.entries(relations)) {
+          if (targets.length === 0) continue;
+          try {
+            await jsonFetch(`/api/objects/${created.id}/relations/${attrCode}`, {
+              method: 'PUT',
+              contentType: 'application/json',
+              body: { targets: targets.map((targetId) => ({ id: targetId })) },
+            });
+          } catch {
+            relationFailures.push(attrCode);
+          }
+        }
+        if (relationFailures.length > 0) {
+          toast.error(
+            t('object_create.relations_partial_error', {
+              defaultValue: 'Obiekt utworzony, ale relacje nie zapisane: {{codes}}',
+              codes: relationFailures.join(', '),
+            }),
+          );
+        } else {
+          toast.success(
+            kind === 'product'
+              ? t('products.detail.create.success', {
+                  defaultValue: 'Utworzono produkt {{code}}',
+                  code: sku,
+                })
+              : t('object_create.success', { defaultValue: 'Utworzono {{code}}', code: sku }),
+          );
+        }
         navigate(detailPathFor(created.id));
       } else {
         if (Object.keys(dirtyFields).length === 0) {
@@ -787,7 +843,9 @@ export function ProductDetailPage({
               >
                 <Save className="size-4" />
                 {mode === 'create'
-                  ? t('products.detail.actions.create', { defaultValue: 'Utwórz produkt' })
+                  ? kind === 'product'
+                    ? t('products.detail.actions.create', { defaultValue: 'Utwórz produkt' })
+                    : t('object_create.submit', { defaultValue: 'Utwórz' })
                   : t('products.detail.actions.save', { defaultValue: 'Zapisz zmiany' })}
               </Button>
               {/* #1351 — save and return to the list (edit mode only). */}
@@ -821,18 +879,24 @@ export function ProductDetailPage({
                   <div className="flex items-center gap-2.5 text-[12px] text-zinc-500">
                     <Input
                       autoFocus
-                      placeholder={t('products.detail.create.placeholder.sku', {
-                        defaultValue: 'SKU',
-                      })}
+                      placeholder={
+                        kind === 'product'
+                          ? t('products.detail.create.placeholder.sku', { defaultValue: 'SKU' })
+                          : t('object_create.code_placeholder', { defaultValue: 'Kod' })
+                      }
                       value={skuValue}
                       onChange={(event) => setFieldValue('sku', event.target.value)}
                       className="h-7 w-32 rounded-lg border-zinc-200 bg-white px-2 font-mono text-[12px]"
                     />
                   </div>
                   <Input
-                    placeholder={t('products.detail.create.placeholder.name', {
-                      defaultValue: 'Nazwa produktu',
-                    })}
+                    placeholder={
+                      kind === 'product'
+                        ? t('products.detail.create.placeholder.name', {
+                            defaultValue: 'Nazwa produktu',
+                          })
+                        : t('object_create.name_placeholder', { defaultValue: 'Nazwa' })
+                    }
                     value={nameValue}
                     onChange={(event) => setFieldValue('name', event.target.value)}
                     className="font-display h-10 rounded-lg border-zinc-200 bg-white text-[20px] font-semibold tracking-tight"
@@ -996,6 +1060,7 @@ export function ProductDetailPage({
                     isEditing={isEditing}
                     isLocked={attr.is_system}
                     onChange={(next) => setFieldValue(attr.code, next)}
+                    createMode={mode === 'create'}
                     relationContextProductId={isEditMode ? id : undefined}
                     isInherited={
                       scopeStatus[attr.code]?.has_override === false &&
@@ -1022,9 +1087,15 @@ export function ProductDetailPage({
             // tab lives as a hardcoded special tab driven by
             // `ObjectType.hasMultimedia` (UX-06+).
             const tabGroup = tabModeGroups.find((g) => g.code === activeTab);
-            if (tabGroup && mode === 'edit') {
+            if (tabGroup) {
               if (tabGroup.code === 'relations') {
-                return <RelationsTab productId={id} />;
+                // Reverse-links UI needs a persisted object — edit only;
+                // forward relation attrs render via RelationCreateField.
+                return mode === 'edit' ? (
+                  <RelationsTab productId={id} />
+                ) : (
+                  renderStackedGroup(tabGroup)
+                );
               }
               return renderStackedGroup(tabGroup);
             }
@@ -1054,7 +1125,7 @@ export function ProductDetailPage({
             return null;
           })()}
 
-          {mode === 'create' && createCategoryIds.length === 0 ? (
+          {mode === 'create' && isCategorizable && createCategoryIds.length === 0 ? (
             <p className="px-1 text-[12px] text-muted-foreground">
               {t('products.detail.create.hint', {
                 defaultValue:
@@ -1070,7 +1141,7 @@ export function ProductDetailPage({
             defaultValue: 'Panel boczny produktu',
           })}
         >
-          {isCategorizable || mode === 'create' ? (
+          {isCategorizable ? (
             <CategorySelectorCard
               {...(mode === 'edit' && id !== ''
                 ? { mode: 'edit', productId: id, objectTypeId }
@@ -1209,6 +1280,44 @@ function isEmptyAttributeValue(value: unknown): boolean {
     return leaves.length === 0 || leaves.every(isEmptyAttributeValue);
   }
   return false;
+}
+
+/**
+ * #1102/#1415 — relation attribute codes across the effective groups;
+ * their create-mode values go through PUT /relations, not the POST body.
+ */
+function collectRelationCodes(groups: GroupMeta[]): Set<string> {
+  const codes = new Set<string>();
+  for (const group of groups) {
+    for (const attr of group.attributes) {
+      if (attr.type === 'relation') codes.add(attr.code);
+    }
+  }
+  return codes;
+}
+
+function splitDirtyAttributes(
+  dirty: Record<string, unknown>,
+  relationCodes: Set<string>,
+): { normal: Record<string, unknown>; relations: Record<string, string[]> } {
+  const normal: Record<string, unknown> = {};
+  const relations: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(dirty)) {
+    if (relationCodes.has(key)) {
+      relations[key] = toRelationIdList(value);
+      continue;
+    }
+    normal[key] = value;
+  }
+  return { normal, relations };
+}
+
+function toRelationIdList(value: unknown): string[] {
+  if (typeof value === 'string' && value !== '') return [value];
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === 'string' && entry !== '');
+  }
+  return [];
 }
 
 function stripAttributes(dirty: Record<string, unknown>): Record<string, unknown> {

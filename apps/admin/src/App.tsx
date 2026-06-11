@@ -423,11 +423,10 @@ function App() {
                     legacy /products / /categories / /assets routes keep
                     pointing at their own pages until ULV-11 cuts over. */}
                 <Route path="/objects/:slug" element={<UniversalObjectListPage />} />
-                {/* UP-08 (#1029) — universal /objects/:slug/new full-page
-                    create wizard. Built-in product/category/asset slugs
-                    redirect to their legacy create routes inside
-                    ObjectCreatePage; custom kinds render
-                    UniversalCreatePage. */}
+                {/* UP-08 (#1029) — universal /objects/:slug/new create route.
+                    Built-in product/category/asset slugs redirect to their
+                    legacy create routes inside ObjectCreatePage; custom kinds
+                    render the unified create form (#1415). */}
                 <Route path="/objects/:slug/new" element={<UniversalObjectCreatePage />} />
                 {/* UP-07 (#1023) — universal /objects/:slug/:id detail route.
                     Built-in product/category/asset slugs redirect to their

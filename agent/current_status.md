@@ -1,5 +1,27 @@
 # Current Status
 
+## 2026-06-11: ⏸️ PAUZA na żądanie operatora — naprawa reopened UAT1 (5/7 PR-ów zmergowanych)
+
+Operator reopenował #1348/#1350/#1351/#1352 (komentarze po smoke) + zgłosił bug kategorii przy create (screenshot). Plan 7 PR-ów zaakceptowany (plus decyzja operatora: create-unifikacja, backfill i usunięcie „+ Dodaj język" WŁĄCZONE do sprintu jako #1414/#1415/#1416; bug kategorii = #1413).
+
+**Zmergowane (CI green):**
+- PR #1417 → closes #1413: picker kategorii filtrowany po drzewie OT (`categoryTargetObjectType`) + `httpErrorDetail` na create.
+- PR #1418 → closes #1352: grupy atrybutów na `LocaleTabsField` + `useCurrentWorkspace` (koniec hardkodu pl/en); fix speca z #1394 (`getByDisplayValue` nie istnieje w Playwright).
+- PR #1434 → closes #1348+#1351: **unifikacja detalu** — `ProductDetailPage` poly-kind obsługuje `/products/:id` i `/objects/:slug/:id`; `UniversalDetailPage` SKASOWANY; capability flags z list-schema; wszystko przez `/api/objects/*` + key-factory `objectKeys`; sweep ~15 speców (martwe „Edytuj" po #1369, dryf danych demo po UAT).
+- PR #1435 → closes #1414: usunięty „+ Dodaj język" z `LocaleTabsField` (+ DELETE `locale-add-dialog.tsx`); języki tylko w Ustawieniach.
+- PR #1436 → closes #1350: `is_required` serializowany w effective-groups; gwiazdka+highlight „Pole wymagane" w AttrRow; pełna walidacja stanu w handleSave (oba przyciski); 422 w `ObjectAttributesUpserter` na explicit emptying; `RequiredAttributeValidationApiTest` + spec 1350 e2e na custom OT.
+
+**⚠️ Tickety #1348/#1350/#1351/#1352/#1413/#1414 zamknięte AUTO przez merge (Closes #N) — live-stack smoke z proofem w komentarzach NIE wykonany (CLOSED MEANS CLOSED pending!).**
+
+**W toku / wstrzymane:**
+- PR 6 (#1415, unifikacja create): ZAIMPLEMENTOWANY i wypchnięty na `refactor/1415-unified-object-create` (commit po rebase na main, gates+specy 1096/1359/1361/1413/view-07 zielone lokalnie) — **PR NIE otwarty** (pauza).
+- PR 7 (#1416, backfill `pim:catalog:backfill-required`): nie zaczęty.
+
+**Następny krok po wznowieniu:** (1) otworzyć PR z brancha `refactor/1415-unified-object-create` → CI → merge; (2) PR 7 backfill; (3) live-stack smoke wszystkich 6 zamkniętych ticketów + proof-komentarze; (4) raport końcowy.
+
+**Uwaga sesyjna:** w repo równolegle działała druga sesja (branch `docs/nui-status`, merge #1433) — dwa razy przełączyła branch pod spodem (commit PR 3 trafił na lokalny main; naprawione `git branch -f` bez śladów na origin). Przy wznowieniu sprawdzić `git branch --show-current` przed każdym commitem.
+
+
 ## 2026-06-10 (późny wieczór): 📋 Epik NUI rozpisany — plan retrofitu UI do nowego designu + 13 issues (#1420–#1432)
 
 Operator dostarczył komplet nowych mockupów (`Zrodla/Front_Claude_Design/NOWY UI/PIM-nowoczesny/` — dashboard, produkty lista+detal, modelowanie, Multimedia, Integracje/Import, Ustawienia, Eksport). Sesja wyłącznie planistyczno-backlogowa — **żaden ticket nie zaimplementowany**.

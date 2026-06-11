@@ -87,9 +87,9 @@ test('categorizable custom object create requires a category', async ({ page }) 
   });
 
   // Try to create without a category → blocked with a toast, no POST fires.
-  // The identifier field placeholder is "Nazwa" (#1361) — fall back to the
-  // older "Kod (np. CAR-001)" so the spec passes before/after that merge.
-  await page.getByPlaceholder(/^nazwa$|kod \(np\. car-001\)/i).fill(`Obj ${stamp}`);
+  // #1415 unified create: a code ("Kod") input + a name input.
+  await page.getByPlaceholder(/^(kod|sku)$/i).fill(`OBJ-${stamp}`);
+  await page.getByPlaceholder(/^nazwa$|nazwa produktu/i).fill(`Obj ${stamp}`);
   let posted = false;
   page.on('request', (r) => {
     if (r.url().endsWith('/api/objects') && r.method() === 'POST') posted = true;
