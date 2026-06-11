@@ -61,7 +61,7 @@ type TypeFilter = (typeof TYPE_FILTERS)[number];
  *   - 8-col grid header (Code · nazwa | Type | Flagi | Used in | Groups
  *     | Instances | Wartości).
  *   - Body rows: shield/zap icon, code+name+lock+unique badges, TypeBadge,
- *     i18n/scope chips, usage counts, violet "N wartości" link for
+ *     i18n/scope chips, usage counts, orange "N wartości" link for
  *     select/multiselect.
  */
 export function AttributesListPage() {
@@ -275,9 +275,9 @@ function AttributeRowItem({
           <Link
             to={`/modeling/attributes/${row.id}/values`}
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 text-[11.5px] font-medium text-violet-700 transition hover:bg-violet-100"
+            className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-orange-50 px-2.5 text-[11.5px] font-medium text-orange-700 transition hover:bg-orange-100"
           >
-            <Layers className="size-3 text-violet-500" />
+            <Layers className="size-3 text-orange-500" />
             <span className="tabular-nums">{optionsCount ?? '—'}</span>
             <span className="hidden xl:inline">wartości</span>
           </Link>
@@ -300,7 +300,7 @@ function TypeBadge({ type }: { type: string }) {
           : type === 'date' || type === 'datetime'
             ? 'bg-accent-sky/10 text-accent-sky'
             : type === 'asset'
-              ? 'bg-accent-violet/10 text-accent-violet'
+              ? 'bg-orange-500/10 text-orange-700'
               : type === 'reference' || type === 'relation'
                 ? 'bg-accent-rose/10 text-accent-rose'
                 : type === 'identifier'

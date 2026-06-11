@@ -69,7 +69,7 @@ interface AttributeDetail {
  *
  *   - Sticky header with shield/zap icon, mono code 26px, lock badge
  *     (system) + TypeBadge + label/unit subtitle. Right stack: Manage
- *     Values (violet, select/multiselect), Migrate Type (amber,
+ *     Values (orange, select/multiselect), Migrate Type (amber,
  *     non-system), Edit (zinc-900).
  *   - Card "Definicja": grid with locked Code + editable Nazwa
  *     PL/EN + locked Type + 3-column FlagPill row (Localizable /
@@ -444,7 +444,7 @@ function Editor({
               asChild
               size="sm"
               variant="outline"
-              className="h-9 rounded-xl bg-violet-50 text-violet-700 hover:bg-violet-100"
+              className="h-9 rounded-xl bg-orange-50 text-orange-700 hover:bg-orange-100"
             >
               <Link to={`/modeling/attributes/${attribute.id}/values`}>
                 <Layers className="size-4" />
@@ -1052,7 +1052,7 @@ function AttachedGroupsCard({ attribute, locale }: { attribute: AttributeDetail;
             type="button"
             size="sm"
             onClick={() => setCreateOpen(true)}
-            className="h-8 rounded-lg bg-violet-50 px-2.5 text-[12px] text-violet-700 hover:bg-violet-100"
+            className="h-8 rounded-lg bg-orange-50 px-2.5 text-[12px] text-orange-700 hover:bg-orange-100"
           >
             <FolderPlus className="size-3.5" />
             {t('modeling.attributes.attach_create_group_action', {

@@ -230,7 +230,7 @@ export function CreateAttributeForObjectTypeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[88vh] max-w-[820px] flex-col gap-0 p-0">
         <div className="flex items-start gap-3 border-b border-zinc-100 px-7 pb-4 pt-6">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-violet-100 text-violet-700">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-orange-100 text-orange-700">
             <Zap className="size-4" />
           </div>
           <div className="min-w-0 flex-1">
@@ -354,9 +354,9 @@ export function CreateAttributeForObjectTypeDialog({
                 </div>
               ) : null}
               {showOptionsBanner ? (
-                <div className="flex items-start gap-2.5 rounded-xl border border-violet-200 bg-violet-50/60 px-4 py-3">
-                  <Info className="size-4 shrink-0 text-violet-700" />
-                  <div className="text-[12px] text-violet-900">
+                <div className="flex items-start gap-2.5 rounded-xl border border-orange-200 bg-orange-50/60 px-4 py-3">
+                  <Info className="size-4 shrink-0 text-orange-700" />
+                  <div className="text-[12px] text-orange-900">
                     Po utworzeniu atrybutu typu <span className="font-mono">{type}</span> będziesz
                     mógł zdefiniować wartości (z tłumaczeniami) w widoku „Zarządzaj wartościami".
                   </div>
@@ -441,7 +441,7 @@ export function CreateAttributeForObjectTypeDialog({
               <div className="flex flex-wrap items-center justify-end gap-1.5">
                 {required ? <Chip className="bg-rose-50 text-rose-700">required</Chip> : null}
                 {unique ? <Chip className="bg-blue-50 text-blue-700">unique</Chip> : null}
-                {localizable ? <Chip className="bg-violet-50 text-violet-700">i18n</Chip> : null}
+                {localizable ? <Chip className="bg-orange-50 text-orange-700">i18n</Chip> : null}
               </div>
             </div>
           </Section>

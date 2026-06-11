@@ -98,14 +98,14 @@ export function ChannelPlacementsSection({ productId }: Props) {
     <section className="space-y-3 border-t border-line pt-4">
       <header className="flex items-center justify-between">
         <h4 className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink">
-          <Radio className="size-3.5 text-violet-600" />
+          <Radio className="size-3.5 text-orange-600" />
           {t('products.detail.placements.title', { defaultValue: 'Gdzie trafia na kanałach' })}
         </h4>
         {collapsing && missingCount < rows.length ? (
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            className="text-[11.5px] font-medium text-violet-600 hover:underline"
+            className="text-[11.5px] font-medium text-orange-600 hover:underline"
           >
             {t('products.detail.placements.show_all', {
               defaultValue: 'Pokaż wszystkie ({{count}})',

@@ -16,7 +16,7 @@ interface CompletenessRingProps {
  * UI-03b detail-page completeness indicator (#366).
  *
  * Replaces the linear `<CompletenessBadge>` in the product show header
- * with an animated SVG ring. Color tracks the percent: violet 0–50,
+ * with an animated SVG ring. Color tracks the percent: rose 0–50,
  * amber 50–80, emerald 80–100. The stroke animates from 0 → target on
  * mount so the visual transition reads as "computing completeness".
  */
@@ -38,7 +38,7 @@ export function CompletenessRing({ pct, size = 56, stroke = 5, className }: Comp
       ? 'var(--color-accent-emerald)'
       : clamped >= 50
         ? 'var(--color-accent-amber)'
-        : 'var(--color-accent-violet)';
+        : 'var(--color-accent-rose)';
 
   return (
     <div

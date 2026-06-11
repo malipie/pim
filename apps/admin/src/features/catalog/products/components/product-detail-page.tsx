@@ -1409,7 +1409,7 @@ function HistoryStub() {
       who: 'Marcin Lipiec',
       when: '5 min temu',
       what: 'Zmieniono description.pl',
-      tone: 'bg-accent-violet/10 text-accent-violet',
+      tone: 'bg-orange-500/10 text-orange-700',
     },
     {
       who: 'agent.sonnet',

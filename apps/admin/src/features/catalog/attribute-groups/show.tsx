@@ -512,7 +512,7 @@ function Editor({
                 type="button"
                 size="sm"
                 onClick={() => setCreateOpen(true)}
-                className="h-8 rounded-lg bg-violet-50 px-2.5 text-[12px] text-violet-700 hover:bg-violet-100"
+                className="h-8 rounded-lg bg-orange-50 px-2.5 text-[12px] text-orange-700 hover:bg-orange-100"
               >
                 <Plus className="size-3.5" />
                 {t('modeling.attributeGroups.members_create_new_action', {
@@ -526,7 +526,7 @@ function Editor({
             <button
               type="button"
               onClick={() => setPickerOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-2.5 text-[12.5px] font-medium text-muted-foreground transition hover:border-violet-300 hover:bg-violet-50/40 hover:text-violet-700"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-2.5 text-[12.5px] font-medium text-muted-foreground transition hover:border-orange-300 hover:bg-orange-50/40 hover:text-orange-700"
             >
               <Plus className="size-4" />
               {t('modeling.attributeGroups.members_empty_action', {
@@ -571,20 +571,20 @@ function Editor({
               <SectionTitle as="span">
                 {t('modeling.attributeGroups.rules_title', { defaultValue: 'Visibility rules' })}
               </SectionTitle>
-              <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-violet-700">
+              <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-orange-700">
                 {t('modeling.attributeGroups.rules_visible_when_badge', {
                   defaultValue: 'visible_when',
                 })}
               </span>
             </div>
-            <div className="space-y-1 rounded-2xl border border-violet-200 bg-violet-50/40 p-4">
+            <div className="space-y-1 rounded-2xl border border-orange-200 bg-orange-50/40 p-4">
               {sortedMembers
                 .filter((m) => m.visible_when !== null)
                 .map((m) => (
                   <div key={m.attribute.id} className="flex items-center gap-3 py-1">
                     <span className="font-mono text-[12.5px] font-medium">{m.attribute.code}</span>
                     <span className="text-[11.5px] text-muted-foreground">visible_when</span>
-                    <span className="rounded border border-violet-200 bg-white px-2 py-0.5 font-mono text-[12.5px] text-violet-700">
+                    <span className="rounded border border-orange-200 bg-white px-2 py-0.5 font-mono text-[12.5px] text-orange-700">
                       {m.visible_when?.field}={String(m.visible_when?.value)}
                     </span>
                     <button
@@ -827,7 +827,7 @@ function SortableMemberRow({
         {row.attribute.type}
       </span>
       {row.visible_when ? (
-        <span className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2 py-1 font-mono text-[11px] text-violet-700">
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 px-2 py-1 font-mono text-[11px] text-orange-700">
           when {row.visible_when.field}={String(row.visible_when.value)}
         </span>
       ) : (

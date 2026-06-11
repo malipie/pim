@@ -36,7 +36,7 @@ interface UsageResp {
  * VIEW-03b — pixel-perfect rebuild of `AttributeGroupsView`
  * (`groups-categories.jsx:3–80`):
  *
- *   - caption "{N} grup atrybutów" + violet ⭐ FIRST-CLASS ENTITY badge.
+ *   - caption "{N} grup atrybutów" + orange ⭐ FIRST-CLASS ENTITY badge.
  *   - title "Attribute Groups", description Pimcore/Akeneo positioning.
  *   - CTA "+ Nowa grupa" (zinc-900) → /modeling/attribute-groups/new.
  *   - Single Card with sticky search top, 2 sections:
@@ -92,7 +92,7 @@ export function AttributeGroupsListPage() {
                 count: groups.length,
               })}
             </span>
-            <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-violet-700">
+            <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-orange-700">
               {t('modeling.attributeGroups.list_first_class_badge', {
                 defaultValue: '⭐ first-class entity',
               })}

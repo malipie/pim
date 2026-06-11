@@ -381,7 +381,7 @@ function CategoryDetailPanel({
             <button
               type="button"
               onClick={() => setDeclareOpen(true)}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-2 text-[12.5px] font-medium text-zinc-500 transition hover:border-violet-300 hover:bg-violet-50/40 hover:text-violet-700"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-2 text-[12.5px] font-medium text-zinc-500 transition hover:border-orange-300 hover:bg-orange-50/40 hover:text-orange-700"
             >
               + {t('categories.detail.declare_group', { defaultValue: 'Declare group' })}
             </button>
@@ -428,13 +428,13 @@ function CategoryDetailPanel({
         </div>
       </Card>
 
-      <Card className="border border-violet-200 bg-violet-50/30 p-6">
+      <Card className="border border-orange-200 bg-orange-50/30 p-6">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-violet-700">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-orange-700">
               {t('categories.preview.title', { defaultValue: 'Effective preview' })}
             </span>
-            <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10.5px] font-medium text-violet-700">
+            <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10.5px] font-medium text-orange-700">
               {t('categories.preview.killer_feature_badge', { defaultValue: 'killer feature' })}
             </span>
           </div>
@@ -442,7 +442,7 @@ function CategoryDetailPanel({
             {targetType === 'product' ? (
               <Link
                 to={`/products/new?categories=${categoryId}&primary=${categoryId}`}
-                className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-violet-700 hover:text-violet-800 hover:underline"
+                className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-orange-700 hover:text-orange-800 hover:underline"
                 title={t('categories.preview.create_test_object_active_tooltip', {
                   defaultValue: 'Utwórz produkt pre-przypisany do tej kategorii',
                 })}
@@ -458,7 +458,7 @@ function CategoryDetailPanel({
                   type="button"
                   disabled
                   aria-disabled
-                  className="inline-flex cursor-not-allowed items-center gap-1.5 text-[11.5px] font-medium text-violet-500"
+                  className="inline-flex cursor-not-allowed items-center gap-1.5 text-[11.5px] font-medium text-orange-500"
                   title={t('categories.preview.create_test_object_mock_tooltip', {
                     defaultValue: 'Wymaga wizard tworzenia obiektu (Faza 1)',
                   })}
@@ -484,7 +484,7 @@ function CategoryDetailPanel({
             name: node?.label ?? '—',
           })}
         </p>
-        <div className="overflow-hidden rounded-2xl border border-violet-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-orange-200 bg-white">
           {(effective?.effectiveGroups ?? []).length === 0 ? (
             <p className="px-4 py-6 text-center text-[12.5px] text-muted-foreground">
               {t('categories.preview.empty', { defaultValue: 'Brak grup do wyświetlenia.' })}
@@ -541,7 +541,7 @@ function FormPreviewRow({ group, locale }: { group: EffectiveGroup; locale: stri
 
   const sourceTone =
     group.source === 'declared_here'
-      ? 'bg-violet-100 text-violet-700'
+      ? 'bg-orange-100 text-orange-700'
       : group.source === 'inherited_from'
         ? 'bg-blue-100 text-blue-700'
         : 'bg-zinc-100 text-zinc-700';
@@ -553,7 +553,7 @@ function FormPreviewRow({ group, locale }: { group: EffectiveGroup; locale: stri
   const overflow = group.attributes.length > 3 ? '…' : '';
 
   return (
-    <div className="flex items-center gap-3 border-b border-violet-50 px-4 py-2.5 last:border-b-0">
+    <div className="flex items-center gap-3 border-b border-orange-50 px-4 py-2.5 last:border-b-0">
       <span
         className="grid size-7 place-items-center rounded-md text-[14px]"
         style={{

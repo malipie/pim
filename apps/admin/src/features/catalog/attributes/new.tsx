@@ -458,7 +458,7 @@ export function AttributeCreatePage() {
                   type="button"
                   size="sm"
                   onClick={() => setCreateGroupOpen(true)}
-                  className="h-8 rounded-lg bg-violet-50 px-2.5 text-[12px] text-violet-700 hover:bg-violet-100"
+                  className="h-8 rounded-lg bg-orange-50 px-2.5 text-[12px] text-orange-700 hover:bg-orange-100"
                 >
                   <FolderPlus className="size-3.5" />
                   {t('modeling.attributes.attach_create_group_action', {

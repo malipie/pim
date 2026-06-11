@@ -145,7 +145,7 @@ export function ObjectTypesListPage() {
           <button
             type="button"
             onClick={() => navigate('/modeling/object-types/new')}
-            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-line bg-surface px-6 py-4 text-[14px] font-medium text-ink-2 transition-colors hover:border-accent-violet/40 hover:bg-accent-violet/5 hover:text-ink"
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-line bg-surface px-6 py-4 text-[14px] font-medium text-ink-2 transition-colors hover:border-orange-500/40 hover:bg-orange-500/5 hover:text-ink"
           >
             <Plus className="size-4" />
             {t('object_types.bottom_cta', {
@@ -184,7 +184,7 @@ function ObjectTypeListRow({ row, language, instanceCount, groupCount }: ObjectT
             </span>
           ) : null}
           {row.hierarchical ? (
-            <span className="rounded-md bg-accent-violet/10 px-1.5 py-0.5 text-[10.5px] font-medium uppercase tracking-wide text-accent-violet">
+            <span className="rounded-md bg-orange-500/10 px-1.5 py-0.5 text-[10.5px] font-medium uppercase tracking-wide text-orange-700">
               hierarchical
             </span>
           ) : null}

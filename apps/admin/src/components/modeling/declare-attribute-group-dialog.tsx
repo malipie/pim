@@ -229,14 +229,14 @@ export function DeclareAttributeGroupDialog({
                       isDisabled
                         ? 'cursor-not-allowed bg-zinc-50/60 opacity-60'
                         : 'hover:bg-zinc-50',
-                      isPicked && !isDisabled && 'bg-violet-50/60',
+                      isPicked && !isDisabled && 'bg-orange-50/60',
                     )}
                   >
                     <span
                       className={cn(
                         'grid size-5 place-items-center rounded border',
                         isPicked
-                          ? 'border-violet-500 bg-violet-500 text-white'
+                          ? 'border-orange-500 bg-orange-500 text-white'
                           : 'border-zinc-300 bg-white',
                       )}
                     >

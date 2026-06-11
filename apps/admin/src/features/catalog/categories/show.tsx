@@ -213,10 +213,10 @@ function EffectiveAttributesPreview({ categoryId }: { categoryId: string }) {
   }, [categoryId, t]);
 
   return (
-    <Card className="border-accent-violet/30 bg-accent-violet/5 soft-shadow">
+    <Card className="border-orange-500/30 bg-orange-500/5 soft-shadow">
       <CardContent className="space-y-4 pt-6">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-accent-violet/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-violet">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-orange-700">
             effective preview
           </div>
           <h2 className="text-[15px] font-semibold text-ink">

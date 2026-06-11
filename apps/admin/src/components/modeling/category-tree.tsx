@@ -145,7 +145,7 @@ function CategoryTreeRow({
 
   const rowVisualClass = isMulti
     ? isChecked
-      ? 'bg-violet-50/60 hover:bg-violet-50'
+      ? 'bg-orange-50/60 hover:bg-orange-50'
       : 'hover:bg-zinc-100/70'
     : isSelected
       ? 'bg-zinc-900 text-white'
@@ -167,7 +167,7 @@ function CategoryTreeRow({
             checked={isChecked}
             disabled={isDisabled}
             onChange={() => onToggleSelection?.(node.id)}
-            className="size-3.5 cursor-pointer accent-violet-600"
+            className="size-3.5 cursor-pointer accent-orange-600"
             aria-label={`Wybierz kategorię ${node.label}`}
             onClick={(e) => e.stopPropagation()}
           />
