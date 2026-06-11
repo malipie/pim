@@ -3,17 +3,17 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useParams } from 'react-router';
 
-import { UniversalCreatePage } from '@/components/objects/universal-create-page';
+import { ProductDetailPage } from '@/features/catalog/products/components/product-detail-page';
 import { useListSchema } from '@/hooks/use-list-schema';
 import { jsonFetch } from '@/lib/http';
 
 /**
- * UP-08 (#1029) — `/objects/:slug/new` route → UniversalCreatePage.
+ * UP-08 (#1029) — `/objects/:slug/new` route.
  *
  * Built-in product/category/asset redirect to their dedicated legacy
- * create routes (full-feature wizards: category-driven attribute
- * overlay, variant generator, multimedia uploader). Custom kinds use
- * the simplified UniversalCreatePage which POSTs `/api/objects`.
+ * create routes. Custom kinds render the unified create form
+ * (ProductDetailPage in create mode, #1415) — same component as
+ * /products/new, POSTs the poly-kind /api/objects.
  */
 interface ObjectTypeLookupRow {
   id: string;
@@ -91,22 +91,15 @@ export function ObjectCreatePage() {
     return <Navigate to={legacyRedirect} replace />;
   }
 
-  // #1104 — schema is needed to gate the Multimedia tab; fall back to
-  // `false` if the schema query failed so a transient BE error never
-  // hides the rest of the create form.
-  const hasMultimedia = schemaQuery.data?.objectType.has_multimedia ?? false;
-  // #1359 — categorizable types require a category at create time.
-  const isCategorizable = schemaQuery.data?.objectType.is_categorizable ?? false;
-
+  // #1415 — capability flags (categories requirement, tab set) are
+  // derived inside the unified component from this ObjectType's schema.
   return (
-    <UniversalCreatePage
-      objectTypeId={lookup.data.id}
-      objectTypeCode={code}
+    <ProductDetailPage
+      mode="create"
+      createObjectTypeId={lookup.data.id}
       objectTypeLabel={typeLabel}
       backHref={`/objects/${code}`}
       detailPathFor={(id) => `/objects/${code}/${id}`}
-      hasMultimedia={hasMultimedia}
-      isCategorizable={isCategorizable}
     />
   );
 }

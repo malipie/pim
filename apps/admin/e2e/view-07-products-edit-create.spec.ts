@@ -55,7 +55,8 @@ test('VIEW-07 product detail + create + duplicate flow', async ({ page }) => {
 
   const createResponse = page.waitForResponse(
     (response) =>
-      response.url().endsWith('/api/products') && response.request().method() === 'POST',
+      // #1415 — the unified create POSTs the poly-kind /api/objects.
+      response.url().endsWith('/api/objects') && response.request().method() === 'POST',
   );
   await page.getByRole('button', { name: /utwórz produkt|create product/i }).click();
   const created = await createResponse;

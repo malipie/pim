@@ -109,7 +109,9 @@ test('create-page category picker only lists the ObjectType tree', async ({ page
   await dialog.getByRole('checkbox').first().check();
   await dialog.getByRole('button', { name: /^zapisz$/i }).click();
 
-  await page.getByPlaceholder(/^nazwa$|kod \(np\. car-001\)/i).fill(`Obj ${ts}`);
+  // #1415 unified create: fill the code ("Kod") + name inputs.
+  await page.getByPlaceholder(/^(kod|sku)$/i).fill(`OBJ-${ts}`);
+  await page.getByPlaceholder(/^nazwa$|nazwa produktu/i).fill(`Obj ${ts}`);
   const createResponse = page.waitForResponse(
     (r) => r.url().endsWith('/api/objects') && r.request().method() === 'POST',
   );
