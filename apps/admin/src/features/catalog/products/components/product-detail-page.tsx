@@ -192,6 +192,8 @@ export function ProductDetailPage({
   // "Zapisz i wróć do listy" action saves + returns to the list.
   const isEditing = true;
   const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
+  // #1350 — codes of required attributes that blocked the last save.
+  const [requiredErrors, setRequiredErrors] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
@@ -457,6 +459,12 @@ export function ProductDetailPage({
 
   const setFieldValue = (code: string, value: unknown): void => {
     setDirtyFields((prev) => ({ ...prev, [code]: value }));
+    setRequiredErrors((prev) => {
+      if (!prev.has(code)) return prev;
+      const next = new Set(prev);
+      next.delete(code);
+      return next;
+    });
   };
 
   const fieldValue = (code: string): unknown => {
@@ -466,8 +474,36 @@ export function ProductDetailPage({
     return attrs[code];
   };
 
+  // #1350 — full-state required check at save time: every `is_required`
+  // attribute across the effective groups must carry a non-empty CURRENT
+  // value (dirty edits included). Legacy dirty records are therefore
+  // enforced on their next save, exactly as the ticket specifies.
+  const collectRequiredViolations = (): string[] => {
+    const violations: string[] = [];
+    for (const group of groups) {
+      for (const attr of group.attributes) {
+        if (attr.is_required !== true) continue;
+        const current = fieldValue(attr.code);
+        if (isEmptyAttributeValue(current)) violations.push(attr.code);
+      }
+    }
+    return violations;
+  };
+
   const handleSave = async (returnToList = false): Promise<void> => {
     if (isSaving) return;
+    const violations = collectRequiredViolations();
+    if (violations.length > 0) {
+      setRequiredErrors(new Set(violations));
+      toast.error(
+        t('products.detail.validation.required_fields', {
+          defaultValue: 'Uzupełnij wymagane pola: {{fields}}',
+          fields: violations.join(', '),
+        }),
+      );
+      return;
+    }
+    setRequiredErrors(new Set());
     setIsSaving(true);
     try {
       if (mode === 'create') {
@@ -966,6 +1002,7 @@ export function ProductDetailPage({
                       scopeStatus[attr.code]?.inherited_from != null
                     }
                     inheritedFrom={scopeStatus[attr.code]?.inherited_from ?? null}
+                    requiredError={requiredErrors.has(attr.code)}
                   />
                 ))}
               </AttrGroupCard>
@@ -1157,6 +1194,21 @@ function tabBadge(
   const group = groups.find((g) => g.code === tab);
   if (!group) return null;
   return group.attributes.length === 0 ? null : group.attributes.length;
+}
+
+/**
+ * #1350 — mirrors the upserter's isEmptyEnvelope: null / '' (after trim) /
+ * empty arrays-objects count as empty; booleans and zeros are values.
+ */
+function isEmptyAttributeValue(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.every(isEmptyAttributeValue);
+  if (typeof value === 'object') {
+    const leaves = Object.values(value as Record<string, unknown>);
+    return leaves.length === 0 || leaves.every(isEmptyAttributeValue);
+  }
+  return false;
 }
 
 function stripAttributes(dirty: Record<string, unknown>): Record<string, unknown> {

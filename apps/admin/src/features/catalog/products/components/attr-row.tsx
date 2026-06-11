@@ -63,6 +63,11 @@ export interface AttrRowProps {
    * (e.g. "en" when requested "de" fell back to "en").
    */
   inheritedFrom?: string | null;
+  /**
+   * #1350 — set by the detail page when a save was blocked because this
+   * required attribute is empty: red highlight + "Pole wymagane" note.
+   */
+  requiredError?: boolean;
 }
 
 /**
@@ -86,6 +91,7 @@ export function AttrRow({
   channel = null,
   isInherited = false,
   inheritedFrom = null,
+  requiredError = false,
 }: AttrRowProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'pl' ? 'pl' : 'en';
@@ -119,6 +125,7 @@ export function AttrRow({
       className={cn(
         'grid grid-cols-[180px_minmax(0,1fr)_auto] items-start gap-3 rounded-xl px-3 py-2.5',
         'group transition-colors hover:bg-white/60',
+        requiredError && 'bg-rose-50/60 ring-1 ring-rose-300',
       )}
     >
       <div className="flex items-center gap-1.5 pt-1.5 text-[13px] font-medium text-zinc-600">
@@ -178,13 +185,18 @@ export function AttrRow({
         {isLocked && !attribute.is_system ? (
           <Lock className="size-3 text-zinc-300" aria-hidden />
         ) : null}
-        {attribute.is_required_in_group ? (
+        {attribute.is_required === true || attribute.is_required_in_group ? (
           <span
             className="text-rose-500"
             title={t('app.required', { defaultValue: 'wymagane' })}
             aria-hidden
           >
             *
+          </span>
+        ) : null}
+        {requiredError ? (
+          <span className="text-[11px] font-medium text-rose-600" role="alert">
+            {t('products.detail.validation.field_required', { defaultValue: 'Pole wymagane' })}
           </span>
         ) : null}
       </div>
