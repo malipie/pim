@@ -41,7 +41,13 @@ test('product detail opens in edit mode with save + save-and-return actions', as
   const sku = `ED1351-${Date.now().toString(36).toUpperCase()}`;
   const created = await page.request.post('/api/products', {
     headers: { ...bearer, 'content-type': 'application/ld+json' },
-    data: { code: sku, objectTypeId: productType.id, attributes: { name: `Edit mode ${sku}` } },
+    // #1350 — `sku` is a required attribute on the demo tenant; an empty
+    // value would block "Zapisz i wróć do listy" by design.
+    data: {
+      code: sku,
+      objectTypeId: productType.id,
+      attributes: { name: `Edit mode ${sku}`, sku },
+    },
   });
   expect(created.status()).toBe(201);
   const product = (await created.json()) as { id: string };
