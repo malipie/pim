@@ -117,6 +117,17 @@ final readonly class ObjectAttributesUpserter
 
             $jsonbValue = $this->wrapValue($rawValue);
 
+            // #1350 — a required attribute can never be explicitly emptied.
+            // Only codes present in the payload are checked: partial PATCHes
+            // and imports of legacy dirty records stay writable, while the
+            // admin form enforces the full-state rule client-side.
+            if ($attribute->isRequired() && self::isEmptyEnvelope($jsonbValue)) {
+                throw new UnprocessableEntityHttpException(\sprintf(
+                    'Attribute "%s" is required and cannot be empty.',
+                    $code,
+                ));
+            }
+
             // #1216 / #1261 — enforce per-type value validation (email format,
             // color hex/rgb, identifier shape, select/multiselect option
             // membership) on every write path. Empty values are skipped —
@@ -195,6 +206,30 @@ final readonly class ObjectAttributesUpserter
         $scalar = $jsonbValue['value'] ?? null;
 
         return null !== $scalar && '' !== $scalar;
+    }
+
+    /**
+     * #1350 — true when every leaf of the wrapped JSONB envelope is
+     * null / '' / [] (covers scalar `{value}`, select `{option_code}`,
+     * localized maps and structural shapes alike). Booleans and zeros
+     * are values — a required checkbox set to `false` passes.
+     */
+    private static function isEmptyEnvelope(mixed $value): bool
+    {
+        if (null === $value || '' === $value || [] === $value) {
+            return true;
+        }
+        if (\is_array($value)) {
+            foreach ($value as $leaf) {
+                if (!self::isEmptyEnvelope($leaf)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**

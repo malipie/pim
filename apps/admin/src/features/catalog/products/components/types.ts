@@ -98,6 +98,13 @@ export interface AttributeMeta {
   is_scopable?: boolean;
   position: number;
   is_required_in_group: boolean;
+  /**
+   * #1350 — the global "Wymagany" flag from the attribute editor.
+   * Distinct from `is_required_in_group` (group-local/completeness):
+   * saving an empty value for an `is_required` attribute is blocked
+   * client-side and rejected 422 by the upserter.
+   */
+  is_required?: boolean;
   visible_when?: unknown;
   /**
    * Populated by the backend only for `select` / `multiselect` types

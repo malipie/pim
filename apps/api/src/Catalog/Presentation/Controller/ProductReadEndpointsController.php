@@ -524,6 +524,10 @@ final class ProductReadEndpointsController
             'is_scopable' => $attribute->isScopable(),
             'position' => $position,
             'is_required_in_group' => $isRequiredInGroup,
+            // #1350 — the global "Wymagany" flag from the attribute editor.
+            // Distinct from is_required_in_group (group-local/completeness):
+            // this one hard-blocks saving an empty value (FE + upserter).
+            'is_required' => $attribute->isRequired(),
             'visible_when' => $visibleWhen,
         ];
 
