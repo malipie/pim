@@ -555,7 +555,14 @@ export function ProductDetailPage({
           setIsSaving(false);
           return;
         }
-        const attributes = stripAttributes(dirtyFields);
+        // #1102 — relation values cannot ride the create POST (they live
+        // in the relations link table, not object_values); split them out
+        // and PUT after the object exists, like UniversalCreatePage did.
+        const relationCodes = collectRelationCodes(groups);
+        const { normal: attributes, relations } = splitDirtyAttributes(
+          stripAttributes(dirtyFields),
+          relationCodes,
+        );
         const body: Record<string, unknown> = {
           code: sku,
           objectTypeId,
@@ -576,14 +583,37 @@ export function ProductDetailPage({
           contentType: 'application/ld+json',
           body,
         });
-        toast.success(
-          kind === 'product'
-            ? t('products.detail.create.success', {
-                defaultValue: 'Utworzono produkt {{code}}',
-                code: sku,
-              })
-            : t('object_create.success', { defaultValue: 'Utworzono {{code}}', code: sku }),
-        );
+
+        const relationFailures: string[] = [];
+        for (const [attrCode, targets] of Object.entries(relations)) {
+          if (targets.length === 0) continue;
+          try {
+            await jsonFetch(`/api/objects/${created.id}/relations/${attrCode}`, {
+              method: 'PUT',
+              contentType: 'application/json',
+              body: { targets: targets.map((targetId) => ({ id: targetId })) },
+            });
+          } catch {
+            relationFailures.push(attrCode);
+          }
+        }
+        if (relationFailures.length > 0) {
+          toast.error(
+            t('object_create.relations_partial_error', {
+              defaultValue: 'Obiekt utworzony, ale relacje nie zapisane: {{codes}}',
+              codes: relationFailures.join(', '),
+            }),
+          );
+        } else {
+          toast.success(
+            kind === 'product'
+              ? t('products.detail.create.success', {
+                  defaultValue: 'Utworzono produkt {{code}}',
+                  code: sku,
+                })
+              : t('object_create.success', { defaultValue: 'Utworzono {{code}}', code: sku }),
+          );
+        }
         navigate(detailPathFor(created.id));
       } else {
         if (Object.keys(dirtyFields).length === 0) {
@@ -1250,6 +1280,44 @@ function isEmptyAttributeValue(value: unknown): boolean {
     return leaves.length === 0 || leaves.every(isEmptyAttributeValue);
   }
   return false;
+}
+
+/**
+ * #1102/#1415 — relation attribute codes across the effective groups;
+ * their create-mode values go through PUT /relations, not the POST body.
+ */
+function collectRelationCodes(groups: GroupMeta[]): Set<string> {
+  const codes = new Set<string>();
+  for (const group of groups) {
+    for (const attr of group.attributes) {
+      if (attr.type === 'relation') codes.add(attr.code);
+    }
+  }
+  return codes;
+}
+
+function splitDirtyAttributes(
+  dirty: Record<string, unknown>,
+  relationCodes: Set<string>,
+): { normal: Record<string, unknown>; relations: Record<string, string[]> } {
+  const normal: Record<string, unknown> = {};
+  const relations: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(dirty)) {
+    if (relationCodes.has(key)) {
+      relations[key] = toRelationIdList(value);
+      continue;
+    }
+    normal[key] = value;
+  }
+  return { normal, relations };
+}
+
+function toRelationIdList(value: unknown): string[] {
+  if (typeof value === 'string' && value !== '') return [value];
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === 'string' && entry !== '');
+  }
+  return [];
 }
 
 function stripAttributes(dirty: Record<string, unknown>): Record<string, unknown> {
