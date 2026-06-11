@@ -959,7 +959,7 @@
     "kpi": {
       "products": "Produkty",
       "attributes": "Atrybuty",
-      "families": "Rodziny",
+      "families": "Grupy atrybutów",
       "categories": "Kategorie",
       "enabled_share": "Aktywne produkty",
       "completeness_avg": "Średnia kompletność",
@@ -1007,6 +1007,14 @@
       "title": "Dystrybucja kanałów",
       "unit": "produktów",
       "export": "Eksportuj raport"
+    },
+    "backup": {
+      "title": "Backup bazy",
+      "healthy": "Healthy",
+      "rpo": "RPO 15 min",
+      "last_label": "Ostatni",
+      "size_label": "Rozmiar",
+      "heatmap_label": "Ostatnie 14 dni"
     }
   },
   "attributes": {

@@ -34,3 +34,9 @@
 - Epik 0.8 (BaseLinker) i 0.9 (Shopify) — `SyncsStatusPanel` zależy od pełnej integracji (po Fazie 1).
 - Epik 0.7 (Agent layer) — `HeroAgentPanel` CTA + `RecentAgentActivity` z `provenance=agent` (po Fazie 2).
 - Epik 0.11 (Hardening + analityka) — `Alert` encja, audit_log endpoint, completeness calculator (kandydat do MVP-Final albo Fazy 1).
+
+## Dopisane przy NUI-02 (#1421, 2026-06-11)
+
+- **Liczniki KPI encji są LIVE** (products/attributes/attribute_groups/categories — `use-dashboard-counts.ts`, wzorzec totalItems). **Delty KPI** („+184 w tym tygodniu") wymagają agregatu historycznego — kafle live renderują się bez delty zamiast fałszywego trendu.
+- **Backup widget** (RPO, ostatni backup, rozmiar, heatmapa 14 dni) — pgBackRest działa, brak API statusu. Wymaga: endpoint `GET /api/system/backup-status` czytający `pgbackrest info --output=json` (+ cache), pola: last_backup_at, size, rpo_minutes, daily_status[14].
+- Pozostałe widgety (Sync, Aktywność 30d, Top edited, Alerty, Agent activity, Completeness, Channel distribution) — bez zmian statusu: MOCK, istniejące wpisy backlogu aktualne.
