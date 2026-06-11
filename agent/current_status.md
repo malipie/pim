@@ -1,5 +1,17 @@
 # Current Status
 
+## 2026-06-11 (cd.): ✅ UAT1 fix marathon DOMKNIĘTY — 7/7 PR-ów, wszystkie tickety z proofami
+
+Wznowienie po pauzie. Komplet:
+- **#1417** → #1413 picker kategorii tree-scoped + RFC 7807 detail · **#1418** → #1352 locale grup · **#1434** → #1348+#1351 **unifikacja detalu** (`UniversalDetailPage` skasowany) · **#1435** → #1414 bez „+ Dodaj język" · **#1436** → #1350 egzekwowanie required (FE blokada + BE 422) · **#1437** → #1415 **unifikacja create** (`UniversalCreatePage` skasowany; CI wyłapał relacje → post-create PUT przeniesiony) · **#1438** → #1416 `pim:catalog:backfill-required` (placeholder „Brak danych" provenance=import dla typów tekstowych, raport dla reszty, --apply gate).
+- **CLOSED MEANS CLOSED**: proof-komentarze z HTTP-kodami/JSON-ami na wszystkich 7 ticketach (m.in. 422 na pustą wymaganą nazwę, 201 poly-create usługi, label DE roundtrip, kategorie tree-scoped 5 vs 52).
+- **Architektura po sprincie**: detal + create = po jednym komponencie dla WSZYSTKICH ObjectTypes (capability flags z list-schema, product-only ficzery za gatem kind); cały odczyt/zapis detalu przez `/api/objects/*` + rodzina query-keys `objectKeys`.
+- **Sweep speców**: ~20 plików e2e uzdrowionych (martwe „Edytuj" po #1369, nieistniejące `getByDisplayValue` z #1394, seed-dependent → self-sufficient, substring-pułapka placeholderów). Lekcje w `agent/lessons.md` (sekcja UAT1 fix marathon, 12 punktów).
+- **Backfill na żywym stacku**: dry-run po merge #1438 (raport w komentarzu #1416); `--apply` tylko za zgodą operatora.
+
+**Następny krok**: operator robi własny smoke (lista scenariuszy w raporcie sesji); epik NUI czeka wg planu.
+
+
 ## 2026-06-11: ⏸️ PAUZA na żądanie operatora — naprawa reopened UAT1 (5/7 PR-ów zmergowanych)
 
 Operator reopenował #1348/#1350/#1351/#1352 (komentarze po smoke) + zgłosił bug kategorii przy create (screenshot). Plan 7 PR-ów zaakceptowany (plus decyzja operatora: create-unifikacja, backfill i usunięcie „+ Dodaj język" WŁĄCZONE do sprintu jako #1414/#1415/#1416; bug kategorii = #1413).
