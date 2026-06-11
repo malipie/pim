@@ -1,8 +1,10 @@
 import { useGetIdentity } from '@refinedev/core';
 import {
+  ArrowRight,
   Boxes,
   ChevronDown,
   Cog,
+  FileLock2,
   FileText,
   Image,
   LayoutDashboard,
@@ -26,6 +28,7 @@ import { isMenuRefVisible, useIdentity } from '@/lib/identity';
 import { type EffectiveMenuItem, useEffectiveMenu } from '@/lib/use-effective-menu';
 import { cn } from '@/lib/utils';
 
+import { SETTINGS_NAV_GROUPS } from './settings-nav-data';
 import { formatNavCount, type NavCountSource, useNavCounts } from './use-nav-counts';
 import { UserMenu } from './user-menu';
 
@@ -151,6 +154,8 @@ interface IntegrationChild {
   route: string;
   /** Count source key in useNavCounts results (optional). */
   countKey?: string;
+  /** NUI-01 — pulsing dot next to the count while the counter is > 0 (live sessions). */
+  live?: boolean;
 }
 
 const INTEGRATION_CHILDREN: IntegrationChild[] = [
@@ -159,6 +164,7 @@ const INTEGRATION_CHILDREN: IntegrationChild[] = [
     labelKey: 'nav.imports',
     route: '/integrations/imports/sessions',
     countKey: 'child:imports',
+    live: true,
   },
   { key: 'exports', labelKey: 'nav.exports', route: '/integrations/exports/sessions' },
   {
@@ -170,11 +176,6 @@ const INTEGRATION_CHILDREN: IntegrationChild[] = [
 
 const baseLeafClass =
   'group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[14px] font-medium transition';
-
-const customLeafClass = cn(
-  baseLeafClass,
-  'border border-dashed border-violet-300/70 bg-violet-50/50 text-violet-900 hover:bg-violet-100/70',
-);
 
 const disabledLeafClass = cn(baseLeafClass, 'cursor-not-allowed text-zinc-500');
 
@@ -282,6 +283,13 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                 end={false}
               >
                 <span className="flex-1">{t(child.labelKey)}</span>
+                {child.live && child.countKey !== undefined && (counts[child.countKey] ?? 0) > 0 ? (
+                  <span
+                    className="size-1.5 animate-pulse rounded-full bg-emerald-500"
+                    aria-hidden
+                    data-testid={`nav-live-dot-${child.key}`}
+                  />
+                ) : null}
                 {renderCountBadge(child.countKey)}
               </NavLink>
             ))}
@@ -291,13 +299,101 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
     );
   };
 
+  /**
+   * NUI-01 (#1420) — settings sub-navigation lives in the MAIN sidebar as an
+   * indented subtree under "Ustawienia" (design `settings/page.jsx`), shown
+   * while any /settings/* route is active. Replaces the second sidebar that
+   * `SettingsLayout` used to render.
+   */
+  const renderSettingsParent = (item: EffectiveMenuItem) => {
+    const Icon = ICON_MAP[item.icon] ?? Cog;
+    const labelText = renderLabel(item);
+    const settingsActive = pathname.startsWith('/settings');
+    return (
+      <div key={item.id}>
+        <NavLink
+          to={item.route ?? '/settings'}
+          onClick={onNavigate}
+          className={leafLinkClass}
+          end={false}
+        >
+          {({ isActive }) => (
+            <>
+              <Icon className={cn('size-4', isActive ? 'text-white/90' : 'text-zinc-500')} />
+              <span className="flex-1">{labelText}</span>
+            </>
+          )}
+        </NavLink>
+        {settingsActive && (
+          <div
+            className="my-1 ml-[18px] space-y-2.5 border-l border-zinc-200 pb-1 pl-3"
+            data-testid="nav-settings-subtree"
+          >
+            {SETTINGS_NAV_GROUPS.map((group) => (
+              <div key={group.id}>
+                <div className="mt-1.5 mb-0.5 px-2 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+                  {t(group.labelKey)}
+                </div>
+                {group.items.map((sub) => (
+                  <NavLink
+                    key={sub.to}
+                    to={sub.to}
+                    onClick={onNavigate}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12.5px] transition',
+                        isActive
+                          ? 'bg-zinc-100 font-semibold text-zinc-900'
+                          : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900',
+                      )
+                    }
+                    end={false}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <span className="flex-1 truncate">{t(sub.labelKey)}</span>
+                        {sub.primary && !isActive ? (
+                          <span className="size-1.5 rounded-full bg-zinc-300" aria-hidden />
+                        ) : null}
+                        {sub.ownerOnly ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-[9.5px] font-medium text-amber-700">
+                                {t('settings.owner_only_badge', { defaultValue: 'owner' })}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                              {t('settings.owner_only_tooltip', {
+                                defaultValue: 'Tenant Owner only',
+                              })}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : null}
+                      </>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            ))}
+            <SettingsAuditCard />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderLeaf = (item: EffectiveMenuItem) => {
     const Icon = ICON_MAP[item.icon] ?? Boxes;
     const labelText = renderLabel(item);
-    const isCustom = item.kind === 'object_type' && item.objectTypeKind === 'custom';
 
     if (item.ref === 'integrations' && item.route !== null && !item.comingSoon) {
       return renderIntegrationsParent(item);
+    }
+
+    // NUI-01 (#1420) — custom ObjectTypes render exactly like built-in items
+    // (the violet dashed treatment is gone from the design).
+    if (item.ref === 'settings' && item.route !== null && !item.comingSoon) {
+      return renderSettingsParent(item);
     }
 
     if (item.comingSoon || item.route === null) {
@@ -309,27 +405,6 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
             {t('nav.soon')}
           </span>
         </span>
-      );
-    }
-
-    if (isCustom) {
-      return (
-        <NavLink
-          key={item.id}
-          to={item.route}
-          onClick={onNavigate}
-          className={customLeafClass}
-          end={false}
-        >
-          <Icon className="size-4 text-violet-600" />
-          <span className="flex flex-1 items-center gap-1.5">
-            {labelText}
-            <span className="rounded bg-violet-200/70 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-violet-700">
-              {t('nav.custom_tag', { defaultValue: 'CUSTOM' })}
-            </span>
-          </span>
-          {renderCountBadge(item.id)}
-        </NavLink>
       );
     }
 
@@ -410,7 +485,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         <NavLink
           to="/modeling/object-types/new"
           onClick={onNavigate}
-          className="mt-3 flex w-full items-center gap-3 rounded-xl border border-dashed border-zinc-200 px-3 py-2 text-[13px] text-zinc-500 transition hover:border-violet-300 hover:bg-violet-50/60 hover:text-violet-700"
+          className="mt-3 flex w-full items-center gap-3 rounded-xl border border-dashed border-zinc-200 px-3 py-2 text-[13px] text-zinc-500 transition hover:border-orange-300 hover:bg-orange-50/60 hover:text-orange-700"
         >
           <Plus className="size-4 text-zinc-500" aria-hidden />
           <span className="flex-1 text-left">
@@ -423,5 +498,43 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         <UserMenu />
       </div>
     </>
+  );
+}
+
+/**
+ * Moved from `SettingsLayout` (NUI-01 #1420) — renders at the bottom of the
+ * settings subtree. The audit-log link stays disabled until Phase 7 (#724).
+ */
+function SettingsAuditCard() {
+  const { t } = useTranslation();
+  const tooltip = t('settings.audit_card_coming_soon_tooltip', {
+    defaultValue: 'Audit log UI lands in Phase 7 (#724).',
+  });
+
+  return (
+    <div className="mt-2 mr-1 rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+      <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+        <FileLock2 className="size-3 text-zinc-400" aria-hidden />
+        {t('settings.audit_card_title', { defaultValue: 'Audyt zmian' })}
+      </div>
+      <p className="text-[11px] leading-snug text-zinc-700">
+        {t('settings.audit_card_body', {
+          defaultValue: 'Każda zmiana w Ustawieniach jest logowana z user_id, IP, old/new value.',
+        })}
+      </p>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            disabled
+            className="mt-1.5 inline-flex cursor-not-allowed items-center gap-1 text-[11px] font-medium text-zinc-500"
+          >
+            {t('settings.audit_card_link', { defaultValue: 'Zobacz audit log' })}
+            <ArrowRight className="size-3" aria-hidden />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">{tooltip}</TooltipContent>
+      </Tooltip>
+    </div>
   );
 }

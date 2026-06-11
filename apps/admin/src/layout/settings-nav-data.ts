@@ -1,0 +1,79 @@
+import {
+  Building2,
+  CreditCard,
+  Globe,
+  Key,
+  KeyRound,
+  Languages,
+  type LucideIcon,
+  Menu as MenuIcon,
+  Share2,
+  ShieldCheck,
+  Sparkles,
+  Users,
+} from 'lucide-react';
+
+export interface SettingsNavItem {
+  to: string;
+  icon: LucideIcon;
+  labelKey: string;
+  /**
+   * Workspace primary entries (Users, Roles) get a small accent dot next to
+   * the label when inactive — matches `page.jsx` `primary: true` flag.
+   */
+  primary?: boolean;
+  /** TENANT scope items only Tenant Owner can manage — renders amber `owner` badge. */
+  ownerOnly?: boolean;
+}
+
+export interface SettingsNavGroup {
+  id: 'account' | 'workspace' | 'tenant';
+  labelKey: string;
+  items: readonly SettingsNavItem[];
+}
+
+/**
+ * NUI-01 (#1420) — single source of the settings sub-navigation. Rendered
+ * as an expandable subtree under the "Ustawienia" item in the main sidebar
+ * (design: `settings/page.jsx` SETTINGS_SUBNAV); previously this lived as a
+ * second sidebar inside `SettingsLayout`.
+ */
+export const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
+  {
+    id: 'account',
+    labelKey: 'settings.nav_group_account',
+    items: [{ to: '/settings/security', icon: KeyRound, labelKey: 'settings.nav.security' }],
+  },
+  {
+    id: 'workspace',
+    labelKey: 'settings.nav_group_workspace',
+    items: [
+      { to: '/settings/users', icon: Users, labelKey: 'settings.nav.users', primary: true },
+      {
+        to: '/settings/roles',
+        icon: ShieldCheck,
+        labelKey: 'settings.nav.roles',
+        primary: true,
+      },
+      { to: '/settings/api-tokens', icon: Key, labelKey: 'settings.nav.api_tokens' },
+      { to: '/settings/sso', icon: Globe, labelKey: 'settings.nav.sso' },
+      { to: '/settings/menu', icon: MenuIcon, labelKey: 'settings.nav.menu' },
+      { to: '/settings/locales', icon: Languages, labelKey: 'settings.nav.locales' },
+      { to: '/settings/channels', icon: Share2, labelKey: 'settings.nav.channels' },
+      { to: '/settings/ai', icon: Sparkles, labelKey: 'settings.nav.ai' },
+    ],
+  },
+  {
+    id: 'tenant',
+    labelKey: 'settings.nav_group_tenant',
+    items: [
+      { to: '/settings/tenant', icon: Building2, labelKey: 'settings.nav.tenant' },
+      {
+        to: '/settings/billing',
+        icon: CreditCard,
+        labelKey: 'settings.nav.billing',
+        ownerOnly: true,
+      },
+    ],
+  },
+] as const;
