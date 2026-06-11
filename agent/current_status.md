@@ -1,5 +1,27 @@
 # Current Status
 
+## 2026-06-11: ⏸️ Marathon NUI zatrzymany przez operatora po NUI-08 — 6/13 ticketów DONE (PR #1444–#1449)
+
+Operator: „po NUI-08 zatrzymaj prace". Wszystkie zamknięte tickety z live smoke proofem w issue (CLOSED MEANS CLOSED) + CI green.
+
+- **NUI-01 (#1420 → PR #1444)** sidebar v2: podmenu Ustawień w głównym sidebarze (settings-nav-data.ts, SettingsLayout = cienki shell, routing nietknięty), custom OT bez wyróżnienia, live-dot Importów, CTA hover orange.
+- **NUI-05 (#1424 → PR #1445)** `/products/legacy` → redirect; legacy ProductListPage (1099 linii) + osierocony EmptyStateProducts usunięte.
+- **NUI-04 (#1423 → PR #1446)** lista v2: SavedViewsRail jako tab-rail, Zap w smart filtrach, de-violet katalogu (CTA agenta orange, selekcja zinc), szerokości kolumn wg designu. SKIP: locked/pinned, liczniki presetów, token EAN → backlog produkty.
+- **NUI-02 (#1421 → PR #1447)** dashboard v2: KPI live (totale produkty/atrybuty/grupy/kategorie; bez delt — uczciwie), układ rzędów wg Dashboard.html, nowy BackupWidget (MOCK), usunięte fake delay + martwe skeletony. „Rodziny"→„Grupy atrybutów".
+- **NUI-07 (#1426 → PR #1448)** modelowanie: de-violet 25 plików (violet→orange), tab underline = ink (spec designu), CompletenessRing <50% = rose.
+- **NUI-08 (#1427 → PR #1449)** Multimedia v2: eksplorator (pille typów, grid/lista, path bar, kafle folderów + „Bez przypisania", drawer 460px, upload w modalu z topbar CTA, bulk bar — delete WIRE, reszta MOCK). Nowa semantyka roota = wszystkie pliki. Backlog: `Project Plan/UI/Retrofit_v2/multimedia-do-oprogramowania.md`.
+
+### Pozostałe tickety epiku (do wznowienia)
+NUI-09 (#1428 hub Importów) → NUI-10 (#1429 wizard 6 kroków) ∥ NUI-11 (#1430 widok sesji) → NUI-03 (#1422 ⌘K), NUI-12 (#1431 Users/Roles), NUI-06 (#1425 karta produktu — **uwaga: #1434 usunął universal-detail-page.tsx, zakres do rewizji**), NUI-13 (#1432 bramka).
+
+### Świadome odejścia od plan-doc (do korekty w NUI-13)
+1. Plan §NUI-02 kazał usunąć Hero/ChannelDistribution/CompletenessMetrics — **design je zawiera**; zostały.
+2. Plan §NUI-08 opisywał „lewą szynę folderów" — design nie ma szyny (kafle + path bar).
+3. NUI-07: aktywny tab = ink underline (nie orange); ring <50% = rose (semantyka błędu).
+
+### Znane problemy środowiska lokalnego (nie kodu)
+Specki `1177-attribute-types-simple` i `1138-asset-attribute-picker` czerwone lokalnie **także na czystym main** (timeout PATCH `/api/objects/` w detail-save); w CI zielone. Do zbadania: lokalne dane vs egzekwowanie wymagalności (#1436/#1440).
+
 ## 2026-06-11 (cd.): ✅ UAT1 fix marathon DOMKNIĘTY — 7/7 PR-ów, wszystkie tickety z proofami
 
 Wznowienie po pauzie. Komplet:
@@ -267,6 +289,28 @@ Wszystkie 18 zgłoszeń z manualnego smoke testu operatora wdrożone na main. Ta
 - **#1127** (PR #1129, `1f5541f`): `categories/show.tsx` `EffectiveAttributesPreview` — preview po `objectTypeId` + lista categorizable OT (built-in+custom) zamiast hardcoded PREVIEW_KINDS; fix błędu „Built-in ObjectType for kind 'custom'". Default = pierwszy categorizable (GET category nie serializuje categoryTargetObjectType — default-to-own-tree = ewent. drobny follow-up).
 
 # Current Status
+
+## 2026-06-11: ⏸️ Marathon NUI zatrzymany przez operatora po NUI-08 — 6/13 ticketów DONE (PR #1444–#1449)
+
+Operator: „po NUI-08 zatrzymaj prace". Wszystkie zamknięte tickety z live smoke proofem w issue (CLOSED MEANS CLOSED) + CI green.
+
+- **NUI-01 (#1420 → PR #1444)** sidebar v2: podmenu Ustawień w głównym sidebarze (settings-nav-data.ts, SettingsLayout = cienki shell, routing nietknięty), custom OT bez wyróżnienia, live-dot Importów, CTA hover orange.
+- **NUI-05 (#1424 → PR #1445)** `/products/legacy` → redirect; legacy ProductListPage (1099 linii) + osierocony EmptyStateProducts usunięte.
+- **NUI-04 (#1423 → PR #1446)** lista v2: SavedViewsRail jako tab-rail, Zap w smart filtrach, de-violet katalogu (CTA agenta orange, selekcja zinc), szerokości kolumn wg designu. SKIP: locked/pinned, liczniki presetów, token EAN → backlog produkty.
+- **NUI-02 (#1421 → PR #1447)** dashboard v2: KPI live (totale produkty/atrybuty/grupy/kategorie; bez delt — uczciwie), układ rzędów wg Dashboard.html, nowy BackupWidget (MOCK), usunięte fake delay + martwe skeletony. „Rodziny"→„Grupy atrybutów".
+- **NUI-07 (#1426 → PR #1448)** modelowanie: de-violet 25 plików (violet→orange), tab underline = ink (spec designu), CompletenessRing <50% = rose.
+- **NUI-08 (#1427 → PR #1449)** Multimedia v2: eksplorator (pille typów, grid/lista, path bar, kafle folderów + „Bez przypisania", drawer 460px, upload w modalu z topbar CTA, bulk bar — delete WIRE, reszta MOCK). Nowa semantyka roota = wszystkie pliki. Backlog: `Project Plan/UI/Retrofit_v2/multimedia-do-oprogramowania.md`.
+
+### Pozostałe tickety epiku (do wznowienia)
+NUI-09 (#1428 hub Importów) → NUI-10 (#1429 wizard 6 kroków) ∥ NUI-11 (#1430 widok sesji) → NUI-03 (#1422 ⌘K), NUI-12 (#1431 Users/Roles), NUI-06 (#1425 karta produktu — **uwaga: #1434 usunął universal-detail-page.tsx, zakres do rewizji**), NUI-13 (#1432 bramka).
+
+### Świadome odejścia od plan-doc (do korekty w NUI-13)
+1. Plan §NUI-02 kazał usunąć Hero/ChannelDistribution/CompletenessMetrics — **design je zawiera**; zostały.
+2. Plan §NUI-08 opisywał „lewą szynę folderów" — design nie ma szyny (kafle + path bar).
+3. NUI-07: aktywny tab = ink underline (nie orange); ring <50% = rose (semantyka błędu).
+
+### Znane problemy środowiska lokalnego (nie kodu)
+Specki `1177-attribute-types-simple` i `1138-asset-attribute-picker` czerwone lokalnie **także na czystym main** (timeout PATCH `/api/objects/` w detail-save); w CI zielone. Do zbadania: lokalne dane vs egzekwowanie wymagalności (#1436/#1440).
 
 ## 2026-05-30: feat — ADR-015 osobne drzewa kategorii per ObjectType (3 PR-y, kompletne)
 
