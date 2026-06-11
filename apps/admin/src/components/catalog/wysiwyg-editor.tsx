@@ -100,7 +100,7 @@ export function WysiwygEditor({
             {...props}
             as="a"
             attributes={{ ...props.attributes, href: (props.element as { url?: string }).url }}
-            className="text-violet-700 underline"
+            className="text-orange-700 underline"
           >
             {props.children}
           </PlateElement>

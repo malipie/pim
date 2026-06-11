@@ -116,7 +116,7 @@ export function SavedViewsRail({
       role="tablist"
       aria-label={t('products.saved_views.rail_aria', { defaultValue: 'Zapisane widoki' })}
       aria-orientation="horizontal"
-      className="scrollbar-thin flex items-center gap-1.5 overflow-x-auto"
+      className="scrollbar-thin -mb-px flex items-center gap-1.5 overflow-x-auto"
     >
       {views.map((view, index) => {
         const active = view.slug === activeSlug;
@@ -139,15 +139,15 @@ export function SavedViewsRail({
               handleKey(event, index);
             }}
             className={cn(
-              'shrink-0 inline-flex items-center gap-2 h-9 px-3 rounded-2xl text-[13px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
+              'shrink-0 inline-flex items-center gap-2 h-9 px-3.5 rounded-t-xl text-[13px] font-medium transition border-b-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
               active
-                ? 'bg-zinc-900 text-white'
-                : 'bg-white shadow-sm text-zinc-700 hover:bg-zinc-50',
+                ? 'bg-white border-zinc-900 text-zinc-900 shadow-sm'
+                : 'border-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50',
             )}
           >
             {view.is_system ? (
               <Eye
-                className={cn('size-3.5', active ? 'text-white/60' : 'text-zinc-400')}
+                className={cn('size-3.5', active ? 'text-zinc-700' : 'text-zinc-400')}
                 aria-label={t('products.saved_views.system_view_aria', {
                   defaultValue: 'Widok systemowy',
                 })}
@@ -155,7 +155,7 @@ export function SavedViewsRail({
             ) : null}
             <span>{view.name}</span>
             <span
-              className={cn('text-[11px] tabular-nums', active ? 'text-white/60' : 'text-zinc-400')}
+              className={cn('text-[11px] tabular-nums', active ? 'text-zinc-400' : 'text-zinc-300')}
             >
               {countLabel}
             </span>
@@ -165,7 +165,7 @@ export function SavedViewsRail({
       <button
         type="button"
         onClick={onSaveCurrent}
-        className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-2xl text-[13px] text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 border border-dashed border-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
+        className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-t-xl text-[13px] text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
       >
         <Plus className="size-3.5" aria-hidden="true" />
         <span>{t('products.saved_views.save_view', { defaultValue: 'Zapisz widok' })}</span>

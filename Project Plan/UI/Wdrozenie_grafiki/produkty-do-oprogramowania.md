@@ -93,3 +93,9 @@
 - Epik 0.8 (BaseLinker) + 0.9 (Shopify) — sync status w detail-sidebar zależy od pełnej integracji (po Fazie 1).
 - Faza 2 (Agent layer) — wszystkie agent-related pozycje powyżej.
 - Epik 0.11 (Hardening) — audit log endpoints + import CSV mogą wpaść tutaj.
+
+## Dopisane przy NUI-04 (#1423, 2026-06-11) — luki vs design list-view-v2
+
+- **Wiersze locked/pinned** (`LOCK_SKUS`/`STAR_SKUS` w mocku — kłódka edycji + pin „flagowy") — brak modelu w backendzie; SKIP w NUI-04. Wymaga: pola lock/pin per obiekt + endpoint + uprawnienia.
+- **Liczniki per smart-preset** (design pokazuje count przy każdym presecie) — FE renderuje count gdy API go zwróci; dziś `/api/smart-presets` nie liczy trafień. Wymaga: tani endpoint zbiorczy `/api/smart-presets/counts` (cache 60 s).
+- **Dedykowany token wyszukiwania EAN** — placeholder obiecuje EAN; dziś leci przez wyszukiwanie pełnotekstowe. Opcjonalnie: jawny `ean:` qualifier w search API.
