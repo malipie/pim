@@ -43,7 +43,7 @@ test('VIEW-07 product detail + create + duplicate flow', async ({ page }) => {
   await expect(page.getByRole('button', { name: /utwórz produkt|create product/i })).toBeVisible();
   await expect(page.getByText(/krok|step/i)).toHaveCount(0);
 
-  await page.getByPlaceholder('SKU').fill(sku);
+  await page.getByPlaceholder(/^id$/i).fill(sku); // #1415 — unified ID label
   await page.getByPlaceholder(/nazwa produktu|product name/i).fill(`Playwright VIEW-07 ${sku}`);
   // #1357 — the "Marka" field was removed from the new-entry form.
 

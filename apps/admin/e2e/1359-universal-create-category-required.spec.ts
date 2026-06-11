@@ -88,7 +88,7 @@ test('categorizable custom object create requires a category', async ({ page }) 
 
   // Try to create without a category → blocked with a toast, no POST fires.
   // #1415 unified create: a code ("Kod") input + a name input.
-  await page.getByPlaceholder(/^(kod|sku)$/i).fill(`OBJ-${stamp}`);
+  await page.getByPlaceholder(/^(id|kod|sku)$/i).fill(`OBJ-${stamp}`);
   await page.getByPlaceholder(/^nazwa$|nazwa produktu/i).fill(`Obj ${stamp}`);
   let posted = false;
   page.on('request', (r) => {

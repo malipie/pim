@@ -19,7 +19,8 @@ test('new product form has no Marka input and no ad-hoc group adder', async ({ p
   await page.goto('/products/new');
 
   // SKU + name inputs stay.
-  await expect(page.getByPlaceholder('SKU')).toBeVisible({ timeout: 15_000 });
+  // #1415 — the identifier is labelled "ID" for every ObjectType.
+  await expect(page.getByPlaceholder(/^id$/i)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByPlaceholder(/nazwa produktu|product name/i)).toBeVisible();
 
   // "Marka" input is gone.
