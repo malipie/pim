@@ -1,4 +1,4 @@
-import { Plus, Sparkles, X } from 'lucide-react';
+import { Plus, X, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { SmartFilterPreset } from '@/lib/filters/use-smart-presets';
@@ -59,7 +59,7 @@ export function SmartFilterPresetsRow({
           className="h-7 w-7 rounded-xl bg-zinc-900 text-white grid place-items-center"
           aria-hidden="true"
         >
-          <Sparkles className="size-3.5" />
+          <Zap className="size-3.5" />
         </span>
         <div className="leading-tight">
           <div className="text-[11.5px] font-semibold tracking-tight">

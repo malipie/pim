@@ -51,7 +51,7 @@ interface ProductsGridProps {
 }
 
 const GRID_TPL =
-  '44px 52px 130px minmax(240px,1.6fr) minmax(160px,1fr) 150px 150px 110px 70px 44px';
+  '44px 52px 150px minmax(260px,1.6fr) minmax(160px,1fr) 170px 150px 120px 70px 44px';
 
 const COL_KEYS = [
   'sel',
@@ -226,7 +226,7 @@ function ProductsGridRowView({
       data-testid={`products-grid-row-${row.sku}`}
       className={cn(
         'group relative grid items-center text-[13px] border-b border-zinc-50 last:border-b-0 transition',
-        isSelected ? 'bg-violet-50/60' : variant ? 'bg-zinc-50/40' : 'hover:bg-zinc-50/60',
+        isSelected ? 'bg-zinc-200/70' : variant ? 'bg-zinc-50/40' : 'hover:bg-zinc-50/60',
       )}
       style={style}
     >
@@ -306,7 +306,7 @@ function ProductsGridRowView({
           </Link>
         )}
         {hasVariants ? (
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-orange-50 text-orange-700">
             {t('products.variants.count', {
               count: variantsCount,
               defaultValue: '{{count}} wariantów',

@@ -310,7 +310,7 @@ function PickerRow({
     <div
       className={cn(
         'flex items-center gap-2 px-3 py-1.5 text-[12.5px]',
-        isActive ? 'bg-violet-50/60' : 'hover:bg-zinc-50',
+        isActive ? 'bg-orange-50/60' : 'hover:bg-zinc-50',
       )}
     >
       <button

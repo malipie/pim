@@ -245,7 +245,7 @@ export function CategoryPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <header className="mb-3 flex items-center gap-2">
-          <FolderTree className="size-4 text-violet-600" />
+          <FolderTree className="size-4 text-orange-600" />
           <h2 className="text-base font-semibold">
             {t('categories.picker.title', { defaultValue: 'Wybierz kategorie' })}
           </h2>
@@ -260,7 +260,7 @@ export function CategoryPickerDialog({
             placeholder={t('categories.picker.search_placeholder', {
               defaultValue: 'Szukaj kategorii…',
             })}
-            className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-9 pr-3 text-[13px] focus:border-violet-300 focus:outline-none"
+            className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-9 pr-3 text-[13px] focus:border-orange-300 focus:outline-none"
           />
         </div>
 
