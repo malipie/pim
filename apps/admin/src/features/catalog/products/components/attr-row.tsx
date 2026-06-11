@@ -185,7 +185,10 @@ export function AttrRow({
         {isLocked && !attribute.is_system ? (
           <Lock className="size-3 text-zinc-300" aria-hidden />
         ) : null}
-        {attribute.is_required === true || attribute.is_required_in_group ? (
+        {/* #1350 reopen #2 — no asterisk for booleans: requiredness is
+            meaningless when "unchecked" is itself a value. */}
+        {(attribute.is_required === true && attribute.type !== 'boolean') ||
+        attribute.is_required_in_group ? (
           <span
             className="text-rose-500"
             title={t('app.required', { defaultValue: 'wymagane' })}
