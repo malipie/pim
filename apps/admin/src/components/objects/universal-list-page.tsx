@@ -25,11 +25,10 @@
  *     product it's `/products/new`, for custom it's `/objects/:slug/new`
  *     wired by UP-08).
  *
- * UP-10 cutover wires this component into `/products` via dual
- * maintenance (legacy ProductListPage remains accessible at
- * `/products/legacy` for 1 sprint). Until then the legacy page is the
- * default `/products` entry and this component renders only via
- * `/objects/:slug`.
+ * UP-10 wired this component into `/products`; the legacy
+ * ProductListPage was retired in NUI-05 (#1424) once the
+ * dual-maintenance window closed, so this is the only list
+ * implementation for every ObjectType.
  */
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Search } from 'lucide-react';
