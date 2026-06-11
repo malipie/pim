@@ -112,3 +112,101 @@ test('required attribute blocks saving an empty value', async ({ page }) => {
 
   await page.request.delete(`/api/object_types/${otId}`, { headers: bearer });
 });
+
+test('editing the sku attribute persists (no header-strip collision)', async ({ page }) => {
+  test.fixme(!!process.env.CI, CI_BLOCKED);
+  test.setTimeout(120_000);
+
+  await loginAsAdmin(page);
+  const refreshResponse = await page.request.post('/api/auth/refresh');
+  expect(refreshResponse.status()).toBe(200);
+  const accessToken = ((await refreshResponse.json()) as { token: string }).token;
+  const bearer = { Authorization: `Bearer ${accessToken}` };
+  const ld = { ...bearer, 'content-type': 'application/ld+json' };
+
+  // Built-in product OT carries the demo `sku` attribute whose code
+  // collides with the create-mode header key — the strip used to drop it
+  // from every edit-mode PATCH (#1350 reopen #2: "SKU robi się puste").
+  const typesResp = await page.request.get('/api/object_types?itemsPerPage=200', {
+    headers: bearer,
+  });
+  const types =
+    ((await typesResp.json()) as { member?: Array<{ id: string; kind: string }> }).member ?? [];
+  const productType = types.find((t) => t.kind === 'product');
+  if (productType === undefined) throw new Error('Built-in product ObjectType not found.');
+
+  const code = uniqueSku('SKUFIX');
+  const created = await page.request.post('/api/products', {
+    headers: ld,
+    data: {
+      code,
+      objectTypeId: productType.id,
+      attributes: { name: `Sku strip fix ${code}` },
+    },
+  });
+  expect(created.status(), await created.text()).toBe(201);
+  const productId = ((await created.json()) as { id: string }).id;
+
+  // Neutralize unrelated required gaps via API first: the demo OT may
+  // carry operator-toggled required flags (e.g. dimensions_length) that
+  // would block the full-state validation before our sku assertion.
+  const groupsResp = await page.request.get(
+    `/api/objects/${productId}/effective-attribute-groups`,
+    { headers: bearer },
+  );
+  const groupsBody = (await groupsResp.json()) as {
+    groups: Array<{
+      attributes: Array<{ code: string; type: string; is_required?: boolean }>;
+    }>;
+  };
+  const gapFill: Record<string, unknown> = {};
+  for (const group of groupsBody.groups) {
+    for (const attr of group.attributes) {
+      if (attr.is_required === true && attr.code !== 'sku' && attr.type !== 'boolean') {
+        gapFill[attr.code] = '1';
+      }
+    }
+  }
+  delete gapFill.name; // already filled at create
+  if (Object.keys(gapFill).length > 0) {
+    const fillResp = await page.request.patch(`/api/objects/${productId}`, {
+      headers: { ...bearer, 'content-type': 'application/merge-patch+json' },
+      data: { attributes: gapFill },
+    });
+    expect(fillResp.status(), await fillResp.text()).toBe(200);
+  }
+
+  await page.goto(`/products/${productId}`);
+  const saveButton = page.getByRole('button', { name: /^(zapisz zmiany|save changes)$/i });
+  await expect(saveButton).toBeVisible({ timeout: 20_000 });
+
+  // The demo `sku` attribute lives in the tab-mode `grupa_uniwersalna`.
+  await page.getByRole('tab', { name: /grupa[_ ]uniwersalna/i }).click();
+  const skuRow = page
+    .getByText(/^(SKU|sku)$/)
+    .first()
+    .locator('xpath=ancestor::div[contains(@class, "grid-cols")][1]');
+  await skuRow.scrollIntoViewIfNeeded();
+  const skuInput = skuRow.locator('input[type="text"]').first();
+  await skuInput.fill(code);
+
+  const patchResponse = page.waitForResponse(
+    (r) => r.url().includes(`/api/objects/${productId}`) && r.request().method() === 'PATCH',
+  );
+  await saveButton.click();
+  const patch = await patchResponse;
+  expect(patch.status()).toBe(200);
+  // The payload must actually carry the sku attribute…
+  const body = patch.request().postDataJSON() as { attributes?: Record<string, unknown> };
+  expect(body.attributes?.sku).toBe(code);
+
+  // …and the field survives a reload instead of going blank.
+  await page.reload();
+  await page.getByRole('tab', { name: /grupa[_ ]uniwersalna/i }).click();
+  const reloadedRow = page
+    .getByText(/^(SKU|sku)$/)
+    .first()
+    .locator('xpath=ancestor::div[contains(@class, "grid-cols")][1]');
+  await reloadedRow.scrollIntoViewIfNeeded();
+  await expect(reloadedRow.locator('input[type="text"]').first()).toHaveValue(code);
+});

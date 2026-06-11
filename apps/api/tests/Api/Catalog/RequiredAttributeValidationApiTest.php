@@ -107,6 +107,65 @@ final class RequiredAttributeValidationApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function requiredBooleanIsExemptFromEnforcement(): void
+    {
+        $client = $this->authenticatedClient();
+        $productOt = $this->objectTypeIdFor(ObjectKind::Product);
+
+        $attrResponse = $client->request('POST', '/api/attributes', [
+            'headers' => ['content-type' => 'application/ld+json', 'accept' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'req_bool_test',
+                'type' => 'boolean',
+                'label' => ['pl' => 'Zgodny', 'en' => 'Compliant'],
+                'required' => true,
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertResponseStatusCodeSame(201);
+        $attrId = $attrResponse->toArray()['id'];
+        \assert(\is_string($attrId));
+        $client->request('POST', '/api/object_types/'.$productOt.'/attributes/'.$attrId);
+        self::assertResponseStatusCodeSame(204);
+
+        // #1350 reopen #2 — an unchecked box IS `false`, not a missing
+        // value: creating without it and explicitly nulling it both pass.
+        $createResponse = $client->request('POST', '/api/products', [
+            'headers' => ['content-type' => 'application/ld+json'],
+            'body' => json_encode([
+                'code' => 'REQ-BOOL',
+                'objectTypeId' => $productOt,
+                'attributes' => ['name' => 'Bool carrier'],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertResponseStatusCodeSame(201);
+        $productId = $createResponse->toArray()['id'];
+        \assert(\is_string($productId));
+
+        $client->request('PATCH', '/api/products/'.$productId, [
+            'headers' => [
+                'content-type' => 'application/merge-patch+json',
+                'accept' => 'application/json',
+            ],
+            'body' => json_encode([
+                'attributes' => ['req_bool_test' => null],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertResponseStatusCodeSame(200);
+
+        // `false` is a value too.
+        $client->request('PATCH', '/api/products/'.$productId, [
+            'headers' => [
+                'content-type' => 'application/merge-patch+json',
+                'accept' => 'application/json',
+            ],
+            'body' => json_encode([
+                'attributes' => ['req_bool_test' => false],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    #[Test]
     public function effectiveGroupsShipTheRequiredFlag(): void
     {
         $client = $this->authenticatedClient();

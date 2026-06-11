@@ -121,7 +121,10 @@ final readonly class ObjectAttributesUpserter
             // Only codes present in the payload are checked: partial PATCHes
             // and imports of legacy dirty records stay writable, while the
             // admin form enforces the full-state rule client-side.
-            if ($attribute->isRequired() && self::isEmptyEnvelope($jsonbValue)) {
+            // Booleans are exempt (reopen #2, operator decision): an
+            // unchecked box IS the value `false`, not a missing value.
+            if (AttributeType::Boolean !== $attribute->getType()
+                && $attribute->isRequired() && self::isEmptyEnvelope($jsonbValue)) {
                 throw new UnprocessableEntityHttpException(\sprintf(
                     'Attribute "%s" is required and cannot be empty.',
                     $code,

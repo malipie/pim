@@ -501,6 +501,10 @@ export function ProductDetailPage({
     for (const group of groups) {
       for (const attr of group.attributes) {
         if (attr.is_required !== true) continue;
+        // #1350 (reopen #2) — requiredness is meaningless for booleans:
+        // an unchecked box IS the value `false`, not a missing value.
+        // Operator decision: a required boolean always passes.
+        if (attr.type === 'boolean') continue;
         const current = fieldValue(attr.code);
         if (isEmptyAttributeValue(current)) violations.push(attr.code);
       }
@@ -622,7 +626,12 @@ export function ProductDetailPage({
           setIsSaving(false);
           return;
         }
-        const attributes = stripAttributes(dirtyFields);
+        // #1350 (reopen #2) — in edit mode every dirty key IS an attribute
+        // code; stripping 'sku'/'code' here silently dropped edits to a
+        // real `sku` attribute (field emptied after save). The strip only
+        // belongs to create mode, where the header SKU input doubles as
+        // the object code.
+        const attributes = { ...dirtyFields };
         // #1150 / #1155 — write in the active locale + channel: localizable
         // / scopable attributes land on that scope's row, others stay
         // global (BE decides per flag).
