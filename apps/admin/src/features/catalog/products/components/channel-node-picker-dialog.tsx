@@ -114,7 +114,7 @@ export function ChannelNodePickerDialog({
     >
       <DialogContent className="max-w-xl">
         <header className="mb-3 flex items-center gap-2">
-          <FolderTree className="size-4 text-violet-600" />
+          <FolderTree className="size-4 text-orange-600" />
           <h2 className="text-base font-semibold">
             {t('products.detail.placements.picker_title', {
               defaultValue: 'Wybierz węzeł — {{channel}}',
@@ -144,7 +144,7 @@ export function ChannelNodePickerDialog({
                     style={{ paddingLeft: `${node.depth * 16 + 8}px` }}
                     className={cn(
                       'flex w-full items-center gap-2 rounded-lg py-1.5 pr-2 text-left text-[12.5px] hover:bg-zinc-50',
-                      selected === node.id && 'bg-violet-50 text-violet-900',
+                      selected === node.id && 'bg-orange-50 text-orange-900',
                     )}
                     aria-pressed={selected === node.id}
                   >

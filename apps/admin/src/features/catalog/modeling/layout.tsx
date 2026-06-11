@@ -75,7 +75,7 @@ function TabBadge({ resource, isActive }: TabBadgeProps) {
     <span
       className={
         isActive
-          ? 'num ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-accent-violet/10 px-1.5 text-[11px] font-medium text-accent-violet'
+          ? 'num ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-ink/10 px-1.5 text-[11px] font-medium text-ink'
           : 'num ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-muted px-1.5 text-[11px] font-medium text-muted-foreground'
       }
     >
@@ -112,7 +112,7 @@ export function ModelingLayout() {
               aria-controls={`modeling-panel-${tab.value}`}
               className={
                 isActive
-                  ? 'border-accent-violet text-foreground -mb-px flex items-center border-b-2 px-4 py-2 text-sm font-medium'
+                  ? 'border-ink text-foreground -mb-px flex items-center border-b-2 px-4 py-2 text-sm font-medium'
                   : 'text-muted-foreground hover:text-foreground -mb-px flex items-center border-b-2 border-transparent px-4 py-2 text-sm'
               }
             >

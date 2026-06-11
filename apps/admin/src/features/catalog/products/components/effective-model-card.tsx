@@ -56,7 +56,7 @@ export function EffectiveModelCard({
       </ul>
       <Link
         to="/modeling/object-types"
-        className="mt-2.5 block text-[11.5px] font-medium text-violet-700 hover:underline"
+        className="mt-2.5 block text-[11.5px] font-medium text-orange-700 hover:underline"
       >
         {t('products.detail.sidebar.effective_model.see_in_modeling', {
           defaultValue: 'Zobacz w Modelowanie →',

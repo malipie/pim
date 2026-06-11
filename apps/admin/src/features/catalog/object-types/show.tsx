@@ -833,7 +833,7 @@ export function ObjectTypeShowPage() {
                 })}{' '}
                 <Link
                   to="/settings/menu"
-                  className="text-accent-violet underline underline-offset-2 hover:text-accent-violet/80"
+                  className="text-orange-700 underline underline-offset-2 hover:text-orange-700/80"
                 >
                   {t('object_types.setting_expose_menu_link', {
                     defaultValue: 'Ustawienia → Menu',

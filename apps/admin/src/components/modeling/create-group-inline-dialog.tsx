@@ -121,7 +121,7 @@ export function CreateGroupInlineDialog({ open, onOpenChange, onCreated }: Props
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[640px] gap-0 p-0">
         <div className="flex items-start gap-3 border-b border-zinc-100 px-7 pb-4 pt-6">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-violet-100 text-violet-700">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-orange-100 text-orange-700">
             <FolderPlus className="size-4" />
           </div>
           <div className="min-w-0 flex-1">

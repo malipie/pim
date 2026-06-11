@@ -165,7 +165,7 @@ export function RelationConfigPanel({
                   onClick={() => toggleTarget(ot.id)}
                   className={
                     selected
-                      ? 'inline-flex items-center gap-1.5 rounded-full border border-accent-violet bg-accent-violet/10 px-3 py-1 text-[12px] font-medium text-accent-violet'
+                      ? 'inline-flex items-center gap-1.5 rounded-full border border-orange-600 bg-orange-500/10 px-3 py-1 text-[12px] font-medium text-orange-700'
                       : 'inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-1 text-[12px] text-zinc-600 hover:border-zinc-400'
                   }
                 >
@@ -188,7 +188,7 @@ export function RelationConfigPanel({
                 key={opt}
                 className={
                   value.cardinality === opt
-                    ? 'flex items-center gap-2 rounded-lg border border-accent-violet bg-accent-violet/5 px-3 py-2 text-[13px] text-accent-violet'
+                    ? 'flex items-center gap-2 rounded-lg border border-orange-600 bg-orange-500/5 px-3 py-2 text-[13px] text-orange-700'
                     : 'flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-700'
                 }
               >

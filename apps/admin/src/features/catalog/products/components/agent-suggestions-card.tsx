@@ -61,7 +61,7 @@ export function AgentSuggestionsCard() {
     <section className="relative rounded-2xl border border-line bg-surface p-4 soft-shadow">
       <MockBadge variant="corner" tooltip={tooltip} />
       <header className="mb-3 flex items-center gap-2">
-        <Sparkles className="size-4 text-accent-violet" />
+        <Sparkles className="size-4 text-orange-700" />
         <h3 className="text-[13px] font-semibold text-ink">
           {t('products.agent.title', { defaultValue: 'Sugestie agenta' })}
         </h3>
@@ -71,7 +71,7 @@ export function AgentSuggestionsCard() {
           const Icon = s.icon;
           return (
             <li key={s.id} className="flex items-start gap-3 rounded-xl bg-surface-2/60 p-3">
-              <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-accent-violet/10 text-accent-violet">
+              <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-orange-500/10 text-orange-700">
                 <Icon className="size-3.5" />
               </span>
               <div className="min-w-0 flex-1">

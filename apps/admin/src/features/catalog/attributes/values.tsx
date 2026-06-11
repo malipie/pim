@@ -293,7 +293,7 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
     <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-10">
       <BackLink id={attribute.id} />
       <div className="flex items-start gap-3">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-violet-50 text-violet-700">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-orange-50 text-orange-700">
           <Layers className="size-5" />
         </div>
         <div className="min-w-0 flex-1">
@@ -349,7 +349,7 @@ function ValuesEditor({ attribute, locale }: { attribute: AttributeDetail; local
               </SortableContext>
             </DndContext>
             {creating ? (
-              <div className="mt-2 space-y-2 rounded-xl border border-violet-200 bg-violet-50/40 p-2">
+              <div className="mt-2 space-y-2 rounded-xl border border-orange-200 bg-orange-50/40 p-2">
                 <Input
                   autoFocus
                   value={draftName}
