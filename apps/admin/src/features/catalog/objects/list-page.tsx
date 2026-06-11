@@ -21,10 +21,10 @@ import { jsonFetch } from '@/lib/http';
  * Slug resolution stays the same — `/api/object_types?code={slug}` →
  * single row → propagated as `objectTypeId` to UniversalListPage.
  *
- * Built-in `product` redirects to `/products` so the legacy
- * ProductListPage entry point is preserved during dual maintenance
- * (UP-10). `/objects/product` deep-link still resolves to
- * UniversalListPage for evaluation parity.
+ * Built-in `product` keeps `/products` as its canonical route; the
+ * legacy ProductListPage was retired in NUI-05 (#1424). The
+ * `/objects/product` deep-link still resolves to UniversalListPage
+ * for evaluation parity.
  */
 interface ObjectTypeLookupRow {
   id: string;

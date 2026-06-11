@@ -11,10 +11,9 @@ import { useDefaultObjectType } from './use-default-object-type';
  * component as `/objects/:slug` (operator's "pixel-perfect"
  * requirement; ADR-009 first-class ObjectType contract).
  *
- * The legacy `ProductListPage` stays mounted at `/products/legacy`
- * as a dual-maintenance safety net per operator decision — 1 sprint
- * fallback window in case any subtle behaviour regression slips
- * through.
+ * The legacy `ProductListPage` was retired in NUI-05 (#1424) after
+ * the UP-10 dual-maintenance window; `/products/legacy` now only
+ * redirects here.
  */
 export function ProductsUniversalListPage() {
   const { t, i18n } = useTranslation();

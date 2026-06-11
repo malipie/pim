@@ -124,10 +124,6 @@ const ProductCreatePage = lazyPage(
   () => import('@/features/catalog/products/create'),
   'ProductCreatePage',
 );
-const ProductListPage = lazyPage(
-  () => import('@/features/catalog/products/list'),
-  'ProductListPage',
-);
 const ProductsUniversalListPage = lazyPage(
   () => import('@/features/catalog/products/universal-list'),
   'ProductsUniversalListPage',
@@ -409,14 +405,14 @@ function App() {
               >
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
-                {/* UP-10 (#1026) — `/products` default is now
+                {/* UP-10 (#1026) — `/products` default is the
                     UniversalListPage parametrized for the built-in
                     product ObjectType (ADR-009 pixel-perfect parity
-                    with /objects/:slug). Legacy ProductListPage is
-                    kept mounted at `/products/legacy` for 1 sprint as
-                    operator-validated dual-maintenance safety net. */}
+                    with /objects/:slug). NUI-05 (#1424) retired the
+                    legacy ProductListPage after the dual-maintenance
+                    window — `/products/legacy` only redirects now. */}
                 <Route path="/products" element={<ProductsUniversalListPage />} />
-                <Route path="/products/legacy" element={<ProductListPage />} />
+                <Route path="/products/legacy" element={<Navigate to="/products" replace />} />
                 <Route path="/products/new" element={<ProductCreatePage />} />
                 {/* ULV-08 (#990) — universal /objects/{slug} route renders
                     the ObjectListView for any ObjectType by code. The
