@@ -1111,7 +1111,10 @@
     "folder": {
       "all": "All",
       "count_one": "{{count}} file",
-      "count_other": "{{count}} files"
+      "count_other": "{{count}} files",
+      "unassigned": "Unassigned",
+      "up": "Parent folder",
+      "count_short": "{{count}} items"
     },
     "detail": {
       "edit": "Edit",
@@ -1136,7 +1139,39 @@
       "delete": "Delete selected",
       "delete_confirm_title": "Delete selected assets?",
       "delete_confirm_body": "{{count}} assets will be deleted. This cannot be undone.",
-      "delete_error": "Some assets could not be deleted."
+      "delete_error": "Some assets could not be deleted.",
+      "download": "Download",
+      "assign": "Assign",
+      "approve": "Approve",
+      "mock_tooltip": "MOCK — action requires backend (NUI-08 backlog)",
+      "toolbar_aria": "Bulk actions"
+    },
+    "upload_cta": "Upload files",
+    "upload_thumbnails_note": "Thumbnails are generated automatically after upload.",
+    "folders_label": "Folders",
+    "files_label": "Files",
+    "storage": "Storage",
+    "storage_mock_tooltip": "MOCK — storage usage endpoint requires backend (NUI-08 backlog)",
+    "view": {
+      "grid": "Grid",
+      "list": "List"
+    },
+    "columns": {
+      "name": "Name",
+      "format": "Format",
+      "size": "Size"
+    },
+    "drawer": {
+      "format": "Format",
+      "size": "Size",
+      "dims": "Dimensions",
+      "folder": "Folder",
+      "metadata": "Metadata",
+      "approve": "Approve",
+      "approve_mock": "MOCK — approval workflow requires backend (NUI-08 backlog)",
+      "open_full": "Open full page",
+      "url_copied": "URL copied",
+      "copy_url": "Copy URL"
     }
   },
   "channels": {
