@@ -301,8 +301,17 @@ export function ProductDetailPage({
   // Empty groups (no attributes after field-level filtering) render as
   // bare headers with zero rows — drop them, consistent with #1348's
   // "no empty Atrybuty tab" rule.
+  // #1415 — the header already carries a dedicated input for the `name`
+  // attribute; the duplicated group row confused operators (two inputs,
+  // one storage), so it is hidden from every group.
   const groups = useMemo(
-    () => (groupsQuery.data?.groups ?? []).filter((g) => g.attributes.length > 0),
+    () =>
+      (groupsQuery.data?.groups ?? [])
+        .map((g) => ({
+          ...g,
+          attributes: g.attributes.filter((attr) => attr.code !== 'name'),
+        }))
+        .filter((g) => g.attributes.length > 0),
     [groupsQuery.data],
   );
 
@@ -532,11 +541,10 @@ export function ProductDetailPage({
         const skuRaw = dirtyFields.sku ?? dirtyFields.code ?? '';
         const sku = typeof skuRaw === 'string' ? skuRaw.trim() : '';
         if (sku === '') {
-          toast.error(
-            kind === 'product'
-              ? t('products.detail.validation.sku_required', { defaultValue: 'SKU jest wymagane' })
-              : t('object_create.code_required', { defaultValue: 'Kod jest wymagany' }),
-          );
+          // #1415 — the system identifier is labelled "ID" for every
+          // ObjectType (operator decision); custom identifiers live as
+          // ordinary attributes.
+          toast.error(t('object_create.id_required', { defaultValue: 'ID jest wymagane' }));
           setIsSaving(false);
           return;
         }
@@ -888,11 +896,7 @@ export function ProductDetailPage({
                   <div className="flex items-center gap-2.5 text-[12px] text-zinc-500">
                     <Input
                       autoFocus
-                      placeholder={
-                        kind === 'product'
-                          ? t('products.detail.create.placeholder.sku', { defaultValue: 'SKU' })
-                          : t('object_create.code_placeholder', { defaultValue: 'Kod' })
-                      }
+                      placeholder={t('object_create.id_placeholder', { defaultValue: 'ID' })}
                       value={skuValue}
                       onChange={(event) => setFieldValue('sku', event.target.value)}
                       className="h-7 w-32 rounded-lg border-zinc-200 bg-white px-2 font-mono text-[12px]"

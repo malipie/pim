@@ -208,7 +208,7 @@ test('UniversalCreatePage relation attribute renders picker and persists targets
 
       const newCarCode = `S_${stamp}`;
       // #1415 unified create: a "Kod" identifier input + a "Nazwa" input.
-      await page.getByPlaceholder(/^(kod|sku)$/i).fill(newCarCode);
+      await page.getByPlaceholder(/^(id|kod|sku)$/i).fill(newCarCode);
       await page.getByPlaceholder(/^nazwa$|nazwa produktu/i).fill(newCarCode);
 
       // Capture the relation PUT so we can fail loud if it never fires
