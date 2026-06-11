@@ -25,6 +25,7 @@ import {
   type KpiKey,
   type KpiTile,
 } from '../mock-data';
+import { LIVE_KPI_KEYS, type LiveKpiKey } from '../use-dashboard-counts';
 
 const ICONS: Record<KpiKey, typeof Boxes> = {
   products: Boxes,
@@ -72,12 +73,21 @@ function persistSelection(selection: KpiKey[]) {
   }
 }
 
+interface KpiCardsProps {
+  /** NUI-02 — live entity totals; tiles in LIVE_KPI_KEYS render them without a MockBadge. */
+  counts?: Partial<Record<LiveKpiKey, number>>;
+  isPending?: boolean;
+}
+
 /**
- * MOCK component — KPI tiles, user picks 4 of 8 candidates.
- * Backend: GET /api/dashboard/kpis (do dorobienia). Selection persists in
- * localStorage per UI-03b plan; production will move to workspace_settings.
+ * KPI tiles, user picks 4 of 8 candidates. Entity totals
+ * (products/attributes/groups/categories) are LIVE (NUI-02 #1421); the
+ * remaining tiles and every delta stay mocked — backend follow-ups in
+ * Project Plan/UI/Wdrozenie_grafiki/dashboard-do-oprogramowania.md.
+ * Selection persists in localStorage per UI-03b plan; production will move
+ * to workspace_settings.
  */
-export function KpiCards() {
+export function KpiCards({ counts = {}, isPending = false }: KpiCardsProps) {
   const { t } = useTranslation();
   const [selection, setSelection] = useState<KpiKey[]>(KPI_DEFAULT_SELECTION);
 
@@ -184,12 +194,16 @@ export function KpiCards() {
         {visibleTiles.map((tile) => {
           const Icon = ICONS[tile.key];
           const isPositive = tile.delta >= 0;
+          const isLive = (LIVE_KPI_KEYS as readonly string[]).includes(tile.key);
+          const liveValue = isLive ? counts[tile.key as LiveKpiKey] : undefined;
+          const value = liveValue ?? tile.value;
+          const showAsLive = isLive && liveValue !== undefined;
           return (
             <div
               key={tile.key}
               className={cn('relative rounded-2xl border border-line bg-surface p-5 soft-shadow')}
             >
-              <MockBadge variant="corner" />
+              {!showAsLive && <MockBadge variant="corner" />}
               <div className="flex items-start justify-between">
                 <span className="text-[13px] font-medium text-muted-foreground">
                   {t(`dashboard.kpi.${tile.key}`)}
@@ -197,26 +211,39 @@ export function KpiCards() {
                 <Icon className="size-4 text-muted-foreground" />
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="num display text-[28px] font-semibold text-ink">
-                  {tile.value.toLocaleString('pl-PL')}
-                  {tile.unit ? (
-                    <span className="ml-1 text-[16px] text-muted-foreground">{tile.unit}</span>
-                  ) : null}
-                </span>
-                <span
-                  className={cn(
-                    'num inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium',
-                    isPositive
-                      ? 'bg-accent-emerald/10 text-accent-emerald'
-                      : 'bg-accent-rose/10 text-accent-rose',
-                  )}
-                >
-                  <ArrowUpRight className={cn('size-3', !isPositive && 'rotate-90')} />
-                  {isPositive ? '+' : ''}
-                  {tile.delta}
-                </span>
+                {isLive && isPending ? (
+                  <span
+                    className="inline-block h-8 w-20 animate-pulse rounded-lg bg-zinc-100"
+                    aria-hidden
+                  />
+                ) : (
+                  <span className="num display text-[28px] font-semibold text-ink">
+                    {value.toLocaleString('pl-PL')}
+                    {tile.unit ? (
+                      <span className="ml-1 text-[16px] text-muted-foreground">{tile.unit}</span>
+                    ) : null}
+                  </span>
+                )}
+                {/* Deltas need a history aggregate the backend does not have —
+                    live tiles skip them instead of faking a trend (backlog). */}
+                {!showAsLive && (
+                  <span
+                    className={cn(
+                      'num inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium',
+                      isPositive
+                        ? 'bg-accent-emerald/10 text-accent-emerald'
+                        : 'bg-accent-rose/10 text-accent-rose',
+                    )}
+                  >
+                    <ArrowUpRight className={cn('size-3', !isPositive && 'rotate-90')} />
+                    {isPositive ? '+' : ''}
+                    {tile.delta}
+                  </span>
+                )}
               </div>
-              <span className="mt-1 block text-[11px] text-muted-foreground">{tile.hint}</span>
+              {!showAsLive && (
+                <span className="mt-1 block text-[11px] text-muted-foreground">{tile.hint}</span>
+              )}
             </div>
           );
         })}

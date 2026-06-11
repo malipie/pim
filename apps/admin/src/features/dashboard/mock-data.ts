@@ -366,3 +366,27 @@ export const CHANNEL_DISTRIBUTION: ChannelSlice[] = [
   { label: '1–2 kanały', count: 4_287 },
   { label: 'tylko PIM', count: 1_605 },
 ];
+
+export interface BackupDay {
+  date: string;
+  ok: boolean;
+  note?: string;
+}
+
+/** MOCK — pgBackRest has no status API yet (NUI-02 backlog). */
+export const BACKUP_MOCK = {
+  lastRelative: '14 min temu',
+  lastAt: '11.06.2026 · 11:24',
+  size: '1.42 GB',
+  engine: 'pgBackRest · OVH WAW',
+  days: Array.from({ length: 14 }, (_, i) => {
+    const day = 28 + i;
+    const date =
+      day <= 31 ? `${String(day).padStart(2, '0')}.05` : `${String(day - 31).padStart(2, '0')}.06`;
+    return {
+      date,
+      ok: i !== 4,
+      note: i === 4 ? 'Spóźniony 22 min' : undefined,
+    } satisfies BackupDay;
+  }),
+};

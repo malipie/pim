@@ -949,7 +949,7 @@
     "kpi": {
       "products": "Products",
       "attributes": "Attributes",
-      "families": "Families",
+      "families": "Attribute groups",
       "categories": "Categories",
       "enabled_share": "Enabled products",
       "completeness_avg": "Average completeness",
@@ -997,6 +997,14 @@
       "title": "Channel distribution",
       "unit": "products",
       "export": "Export report"
+    },
+    "backup": {
+      "title": "Database backup",
+      "healthy": "Healthy",
+      "rpo": "RPO 15 min",
+      "last_label": "Last",
+      "size_label": "Size",
+      "heatmap_label": "Last 14 days"
     }
   },
   "attributes": {
