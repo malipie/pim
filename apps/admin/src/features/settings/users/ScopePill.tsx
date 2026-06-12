@@ -15,7 +15,7 @@ export interface ScopePillProps {
  * values are upper-cased and joined with `·`.
  *
  * Locale scope chips use violet, channel scope chips use cyan — matches the
- * design data palette (`bg-violet-50` / `bg-cyan-50`).
+ * design data palette (`bg-orange-50` / `bg-cyan-50`).
  */
 export function ScopePill({ values, kind }: ScopePillProps) {
   const { t } = useTranslation();
@@ -34,7 +34,7 @@ export function ScopePill({ values, kind }: ScopePillProps) {
   const labels = list.map((v) => v.toUpperCase()).join(' · ');
   const cls =
     kind === 'locale'
-      ? 'bg-violet-50 text-violet-700 ring-violet-200'
+      ? 'bg-orange-50 text-orange-700 ring-orange-200'
       : 'bg-cyan-50 text-cyan-700 ring-cyan-200';
 
   return (

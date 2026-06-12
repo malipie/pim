@@ -19,7 +19,7 @@ export function ComingSoonPlaceholder({
 
   return (
     <div className="flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-lg border border-dashed bg-background p-8 text-center">
-      <div className="flex size-12 items-center justify-center rounded-full bg-accent-violet/10 text-accent-violet">
+      <div className="flex size-12 items-center justify-center rounded-full bg-orange-500/10 text-orange-700">
         <Construction className="size-6" />
       </div>
       <div className="space-y-1">

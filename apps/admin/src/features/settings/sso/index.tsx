@@ -124,7 +124,7 @@ function ProviderCard({ kind, provider, onChanged }: ProviderCardProps) {
       <div className="border-b bg-muted/40 px-4 py-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="size-4 text-accent-violet" aria-hidden="true" />
+            <ShieldCheck className="size-4 text-orange-700" aria-hidden="true" />
             <h3 className="text-sm font-semibold">{t(`settings.sso.kind.${kind}`)}</h3>
           </div>
           {provider ? (
@@ -248,7 +248,7 @@ function ProviderSummary({
           href={`/api/auth/sso/demo/${kindToPathSegment(provider.kind)}/login`}
           target="_blank"
           rel="noreferrer noopener"
-          className="inline-flex items-center gap-1 text-xs text-accent-violet hover:underline"
+          className="inline-flex items-center gap-1 text-xs text-orange-700 hover:underline"
         >
           <ExternalLink className="size-3" aria-hidden="true" />
           {t('settings.sso.test_link')}

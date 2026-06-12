@@ -723,7 +723,7 @@ function ScopeMultiSelect({ options, value, onChange, kind }: ScopeMultiSelectPr
           ? isAll
             ? 'bg-zinc-900 text-white border-zinc-900'
             : kind === 'locale'
-              ? 'bg-violet-100 text-violet-800 border-violet-300'
+              ? 'bg-orange-100 text-orange-800 border-orange-300'
               : 'bg-cyan-100 text-cyan-800 border-cyan-300'
           : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50';
         return (

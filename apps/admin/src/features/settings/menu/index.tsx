@@ -107,9 +107,7 @@ function Row({ item, draggable, trailing, labelText }: RowProps) {
       <span
         className={cn(
           'rounded px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider',
-          item.kind === 'system'
-            ? 'bg-zinc-100 text-zinc-600'
-            : 'bg-accent-violet/10 text-accent-violet',
+          item.kind === 'system' ? 'bg-zinc-100 text-zinc-600' : 'bg-orange-500/10 text-orange-700',
         )}
       >
         {item.kind === 'system' ? 'SYS' : 'OT'}
@@ -316,7 +314,7 @@ export function MenuSettingsPage() {
             })}{' '}
             <Link
               to="/modeling/object-types"
-              className="text-accent-violet underline underline-offset-2 hover:text-accent-violet/80"
+              className="text-orange-700 underline underline-offset-2 hover:text-orange-700/80"
             >
               {t('settings.menu.empty_available_link', {
                 defaultValue: 'Modelowanie → ObjectType',

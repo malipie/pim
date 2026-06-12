@@ -177,7 +177,7 @@ export function CreateTokenWizard({ open, onOpenChange, onSuccess }: CreateToken
         ) : (
           <form onSubmit={submit}>
             <DialogHeader>
-              <div className="mb-2 inline-grid size-10 place-items-center rounded-full bg-accent-violet/10 text-accent-violet">
+              <div className="mb-2 inline-grid size-10 place-items-center rounded-full bg-orange-500/10 text-orange-700">
                 <Plus className="size-5" aria-hidden="true" />
               </div>
               <DialogTitle>{t('settings.api_tokens.create.title')}</DialogTitle>

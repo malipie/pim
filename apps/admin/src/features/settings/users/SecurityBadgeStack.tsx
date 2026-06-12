@@ -22,7 +22,7 @@ const SSO_LABEL: Record<NonNullable<SsoProvider>, string> = {
 const SSO_STYLES: Record<NonNullable<SsoProvider>, string> = {
   google: 'bg-zinc-50 text-zinc-700 ring-zinc-200',
   microsoft: 'bg-blue-50 text-blue-700 ring-blue-200',
-  saml: 'bg-violet-50 text-violet-700 ring-violet-200',
+  saml: 'bg-orange-50 text-orange-700 ring-orange-200',
 };
 
 /**

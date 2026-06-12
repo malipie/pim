@@ -109,7 +109,7 @@ export function ChangePasswordForm() {
     <form className="space-y-5" onSubmit={onSubmit}>
       <div className="flex items-start gap-4">
         <span
-          className="inline-grid size-10 place-items-center rounded-md bg-accent-violet/10 text-accent-violet"
+          className="inline-grid size-10 place-items-center rounded-md bg-orange-500/10 text-orange-700"
           aria-hidden="true"
         >
           <KeyRound className="size-5" />
