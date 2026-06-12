@@ -198,7 +198,7 @@ function GroupPanel({
           ) : (
             <ChevronRight className="size-4" aria-hidden="true" />
           )}
-          <ShieldCheck className="size-3.5 text-accent-violet" aria-hidden="true" />
+          <ShieldCheck className="size-3.5 text-orange-700" aria-hidden="true" />
           <span>{groupLabel}</span>
           <span className="text-xs font-normal text-muted-foreground">
             ({t('settings.roles.attr_perms.attribute_count', { count: visible.length })})
@@ -286,7 +286,7 @@ function AttributeRow({
           <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
             {attr.code}
           </span>
-          <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 ring-1 ring-violet-200">
+          <span className="rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 ring-1 ring-orange-200">
             {attr.type}
           </span>
           {attr.is_localizable ? (

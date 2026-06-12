@@ -132,7 +132,7 @@ function TenantConfigForm() {
       >
         <div className="mb-4 flex items-center gap-3">
           <span
-            className="inline-grid size-10 place-items-center rounded-md bg-accent-violet/10 text-accent-violet"
+            className="inline-grid size-10 place-items-center rounded-md bg-orange-500/10 text-orange-700"
             aria-hidden="true"
           >
             <Building2 className="size-5" />

@@ -153,7 +153,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
         ) : (
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <div className="mb-2 inline-grid size-10 place-items-center rounded-full bg-accent-violet/10 text-accent-violet">
+              <div className="mb-2 inline-grid size-10 place-items-center rounded-full bg-orange-500/10 text-orange-700">
                 <UserPlus className="size-5" aria-hidden="true" />
               </div>
               <DialogTitle>{t('settings.users.invite.title')}</DialogTitle>

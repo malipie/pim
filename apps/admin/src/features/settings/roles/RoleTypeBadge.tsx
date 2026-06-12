@@ -18,7 +18,7 @@ export function RoleTypeBadge({ type }: RoleTypeBadgeProps) {
 
   const variant: Record<RoleListType, { cls: string; labelKey: string }> = {
     system: {
-      cls: 'bg-violet-50 text-violet-700 ring-violet-200',
+      cls: 'bg-orange-50 text-orange-700 ring-orange-200',
       labelKey: 'settings.roles.type.system',
     },
     custom: {

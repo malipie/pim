@@ -208,7 +208,7 @@ function TokenRow({
       <TableCell className="pl-5">
         <div className="flex items-center gap-3">
           <span
-            className="inline-grid size-8 place-items-center rounded-md bg-accent-violet/10 text-accent-violet"
+            className="inline-grid size-8 place-items-center rounded-md bg-orange-500/10 text-orange-700"
             aria-hidden="true"
           >
             <KeyRound className="size-4" />
@@ -234,7 +234,7 @@ function TokenRow({
             token.scopes.map((s) => (
               <span
                 key={s}
-                className="inline-flex items-center rounded-md bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 ring-1 ring-violet-200"
+                className="inline-flex items-center rounded-md bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-700 ring-1 ring-orange-200"
               >
                 {s}
               </span>
