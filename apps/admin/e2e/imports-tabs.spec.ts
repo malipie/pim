@@ -13,9 +13,7 @@ test.describe('Imports hub — tabs', () => {
     await loginAsAdmin(page);
     await page.goto('/integrations/imports');
     await expect(page).toHaveURL(/\/integrations\/imports\/sessions$/);
-    await expect(
-      page.getByRole('tab', { name: /^sesje$|^sessions$/i, selected: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('tab', { name: /sesje|sessions/i, selected: true })).toBeVisible();
   });
 
   test('navigates to each of the 4 tabs and surfaces the active state', async ({ page }) => {
@@ -28,11 +26,9 @@ test.describe('Imports hub — tabs', () => {
       page.getByRole('tab', { name: /profile mapowań|mapping profiles/i, selected: true }),
     ).toBeVisible();
 
-    await page.getByRole('tab', { name: /^źródła$|^sources$/i }).click();
+    await page.getByRole('tab', { name: /źródła|sources/i }).click();
     await expect(page).toHaveURL(/\/integrations\/imports\/sources$/);
-    await expect(
-      page.getByRole('tab', { name: /^źródła$|^sources$/i, selected: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('tab', { name: /źródła|sources/i, selected: true })).toBeVisible();
 
     await page.getByRole('tab', { name: /harmonogram|schedule/i }).click();
     await expect(page).toHaveURL(/\/integrations\/imports\/schedule$/);
@@ -40,11 +36,9 @@ test.describe('Imports hub — tabs', () => {
       page.getByRole('tab', { name: /harmonogram|schedule/i, selected: true }),
     ).toBeVisible();
 
-    await page.getByRole('tab', { name: /^sesje$|^sessions$/i }).click();
+    await page.getByRole('tab', { name: /sesje|sessions/i }).click();
     await expect(page).toHaveURL(/\/integrations\/imports\/sessions$/);
-    await expect(
-      page.getByRole('tab', { name: /^sesje$|^sessions$/i, selected: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('tab', { name: /sesje|sessions/i, selected: true })).toBeVisible();
   });
 
   // All four tabs ship as real views after V04. Per-view specs cover
