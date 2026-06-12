@@ -59,7 +59,12 @@ final class ValueSerializer
             AttributeType::Number => $this->pickValue($payload),
             AttributeType::Date, AttributeType::Datetime => $this->pickValue($payload),
             AttributeType::Boolean => $this->boolOf($payload),
-            AttributeType::Select => $this->pickKey($payload, 'option_code'),
+            // IMP2-1.2 (#1464): legacy admin-written selects carried {value};
+            // the migration normalises the DB, this fallback only covers rows
+            // written between deploy and migration run. Remove with #1466.
+            AttributeType::Select => '' !== $this->pickKey($payload, 'option_code')
+                ? $this->pickKey($payload, 'option_code')
+                : $this->pickKey($payload, 'value'),
             AttributeType::Multiselect => $this->multiSelect($payload),
             AttributeType::Price => $this->price($payload),
             AttributeType::Metric => $this->metric($payload),

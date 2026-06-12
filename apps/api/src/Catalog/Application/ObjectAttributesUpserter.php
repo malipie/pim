@@ -115,7 +115,7 @@ final readonly class ObjectAttributesUpserter
             $targetLocale = $isNonPrimaryLocale && $attribute->isLocalizable() ? $locale : null;
             $targetChannel = null !== $channelId && $attribute->isScopable() ? $channelId : null;
 
-            $jsonbValue = $this->wrapValue($rawValue);
+            $jsonbValue = $this->wrapValue($attribute->getType(), $rawValue);
 
             // #1350 — a required attribute can never be explicitly emptied.
             // Only codes present in the payload are checked: partial PATCHes
@@ -238,21 +238,56 @@ final readonly class ObjectAttributesUpserter
     /**
      * @return array<string, mixed>
      */
-    private function wrapValue(mixed $rawValue): array
+    private function wrapValue(AttributeType $type, mixed $rawValue): array
     {
-        // The canonical JSONB shape (per ObjectValue::$value docblock).
-        // Localised arrays (`{pl: '...', en: '...'}`) and metric/price
-        // dicts pass through unchanged so the per-type validator (#39)
-        // can read them with their structure intact.
+        // Metric/price dicts and localised arrays pass through unchanged so
+        // the per-type validator (#39) can read them with their structure
+        // intact; everything else is rewrapped to the ADR-0019 canon below.
         if (\is_array($rawValue)) {
             $normalised = [];
             foreach ($rawValue as $key => $value) {
                 $normalised[(string) $key] = $value;
             }
 
-            return $normalised;
+            return $this->canonicalise($type, $normalised);
         }
 
-        return ['value' => $rawValue];
+        return $this->canonicalise($type, ['value' => $rawValue]);
+    }
+
+    /**
+     * ADR-0019 / IMP2-1.2 (#1464) — normalise the legacy `{value: X}` wrap
+     * (and bare multiselect lists) into the per-type canonical envelope.
+     * Without this every select written from the admin bypassed the option
+     * validator (#1261) and exported as an empty cell (ValueSerializer reads
+     * `option_code` only).
+     *
+     * @param array<array-key, mixed> $envelope
+     *
+     * @return array<string, mixed>
+     */
+    private function canonicalise(AttributeType $type, array $envelope): array
+    {
+        if (AttributeType::Multiselect === $type && array_is_list($envelope)) {
+            return ['option_codes' => $envelope];
+        }
+
+        /** @var array<string, mixed> $envelope non-list past the guard (wrapValue stringifies keys) */
+        if (!\array_key_exists('value', $envelope)) {
+            return $envelope;
+        }
+
+        $value = $envelope['value'];
+        $rest = $envelope;
+        unset($rest['value']);
+
+        return match ($type) {
+            AttributeType::Select => \is_string($value) ? ['option_code' => $value] + $rest : $envelope,
+            AttributeType::Multiselect => \is_array($value) ? ['option_codes' => array_values($value)] + $rest : $envelope,
+            AttributeType::Price => \is_int($value) || \is_float($value) || (\is_string($value) && is_numeric($value))
+                ? ['amount' => \is_string($value) ? (float) $value : $value] + $rest
+                : $envelope,
+            default => $envelope,
+        };
     }
 }
