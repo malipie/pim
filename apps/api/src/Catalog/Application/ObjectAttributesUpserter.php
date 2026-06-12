@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application;
 
-use App\Catalog\Application\Validation\AttributeValueValidator;
-use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\Provenance;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
-use App\Catalog\Domain\Validator\IdentifierUniquenessValidator;
 use App\Shared\Domain\Tenant;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
@@ -22,68 +19,33 @@ use Symfony\Component\Uid\Uuid;
  * Map a flat `{attribute_code => value}` payload into `ObjectValue`
  * rows on a given `CatalogObject` (#45 / 0.4.5).
  *
- * Every value is wrapped in the canonical `{value: ...}` JSONB shape
- * the per-AttributeType validators (#39) expect. Provenance defaults
- * to `Manual` because the admin UI is the only write surface in MVP;
- * phase 2 agents will pass `Provenance::Agent` (reserved enum case).
+ * IMP2-1.4 (#1466): the shared rule-set (canon normalisation, required,
+ * per-type format validation, identifier uniqueness, scope routing) lives
+ * in {@see ValueWriteCore} — this service is the thin per-request client
+ * that maps violations to HTTP exceptions. The import path consumes the
+ * same core through {@see BatchValueWriter}, which is what guarantees
+ * "import validates exactly like the admin".
  *
- * Unknown attribute codes are silently dropped — adopting strict
- * mode would force every fixture / migration to enumerate the
- * built-in seed and is overkill for MVP. The admin UI's dynamic
- * schema picker (epic 0.6) will surface dropped keys before the
- * request lands here.
- *
- * The `AttributesIndexedSyncListener` (#38) keeps
- * `CatalogObject.attributes_indexed` in sync through the same flush;
- * read side reads from the denormalised cache, write side flows
- * through this service.
+ * Unknown attribute codes are silently dropped — see #45 for rationale.
+ * The `AttributesIndexedSyncListener` (#38) keeps the denormalised cache
+ * in sync through the same flush.
  */
 final readonly class ObjectAttributesUpserter
 {
-    /**
-     * #1216 — types whose value validator reads the canonical `{value: scalar}`
-     * shape and carries a real format rule, so it is safe + meaningful to
-     * enforce on every write path. Structural types (select/multiselect/asset/
-     * relation/price/metric) are intentionally excluded: their validators read
-     * different keys (option_code/asset_id/object_id/…) than the `{value}`
-     * shape the admin actually stores, so running them here would false-reject
-     * valid data. Lenient scalar types (text/number/date/boolean/wysiwyg) are
-     * left out to avoid surfacing pre-existing data on edit; they can be added
-     * once backfilled.
-     *
-     * @var list<AttributeType>
-     */
-    private const array VALUE_VALIDATED_TYPES = [
-        AttributeType::Email,
-        AttributeType::Color,
-        AttributeType::Identifier,
-        // #1261 — select/multiselect option codes are validated against the
-        // live attribute_options set (SelectValidator/MultiselectValidator).
-        AttributeType::Select,
-        AttributeType::Multiselect,
-    ];
-
     public function __construct(
         private AttributeRepositoryInterface $attributes,
         private ObjectValueRepositoryInterface $values,
-        private IdentifierUniquenessValidator $identifierUniqueness,
-        private AttributeValueValidator $valueValidator,
+        private ValueWriteCore $core,
     ) {
     }
 
     /**
      * @param array<string, mixed> $payload
-     * @param ?string              $locale    active locale scope (#1148). When set
-     *                                        AND the attribute is localizable AND the
-     *                                        locale is not the tenant's primary, the
-     *                                        value is written to that locale; otherwise
-     *                                        it lands on the global (locale=null) row.
-     *                                        Default locale === global keeps legacy data
-     *                                        and non-localizable attributes shared.
-     * @param ?Uuid                $channelId resolved active channel scope (#1154). When set
-     *                                        AND the attribute is scopable, the value is written
-     *                                        to that channel; otherwise it lands on the global
-     *                                        (channel=null) row.
+     * @param ?string              $locale    active locale scope (#1148); non-primary
+     *                                        locale on a localizable attribute targets
+     *                                        that locale row, otherwise the global row
+     * @param ?Uuid                $channelId resolved active channel scope (#1154);
+     *                                        applies to scopable attributes only
      */
     public function upsert(
         CatalogObject $object,
@@ -100,8 +62,6 @@ final readonly class ObjectAttributesUpserter
             return;
         }
 
-        $isNonPrimaryLocale = null !== $locale && $locale !== $tenant->getPrimaryLocale();
-
         foreach ($payload as $code => $rawValue) {
             if ('' === $code) {
                 continue;
@@ -112,55 +72,34 @@ final readonly class ObjectAttributesUpserter
                 continue;
             }
 
-            $targetLocale = $isNonPrimaryLocale && $attribute->isLocalizable() ? $locale : null;
-            $targetChannel = null !== $channelId && $attribute->isScopable() ? $channelId : null;
+            [$targetLocale, $targetChannel] = $this->core->routeScope($attribute, $tenant, $locale, $channelId);
 
-            $jsonbValue = $this->wrapValue($attribute->getType(), $rawValue);
+            $jsonbValue = $this->core->normalise($attribute->getType(), $rawValue);
 
-            // #1350 — a required attribute can never be explicitly emptied.
-            // Only codes present in the payload are checked: partial PATCHes
-            // and imports of legacy dirty records stay writable, while the
-            // admin form enforces the full-state rule client-side.
-            // Booleans are exempt (reopen #2, operator decision): an
-            // unchecked box IS the value `false`, not a missing value.
-            if (AttributeType::Boolean !== $attribute->getType()
-                && $attribute->isRequired() && self::isEmptyEnvelope($jsonbValue)) {
+            // #1350 — required attributes can never be explicitly emptied.
+            $requiredViolation = $this->core->requiredViolation($attribute, $jsonbValue);
+            if (null !== $requiredViolation) {
+                throw new UnprocessableEntityHttpException($requiredViolation);
+            }
+
+            // #1216 / #1261 — per-type format + option membership.
+            $formatViolations = $this->core->formatViolations($attribute, $jsonbValue);
+            if ([] !== $formatViolations) {
                 throw new UnprocessableEntityHttpException(\sprintf(
-                    'Attribute "%s" is required and cannot be empty.',
+                    'Attribute "%s": %s',
                     $code,
+                    $formatViolations[0],
                 ));
             }
 
-            // #1216 / #1261 — enforce per-type value validation (email format,
-            // color hex/rgb, identifier shape, select/multiselect option
-            // membership) on every write path. Empty values are skipped —
-            // clearing an attribute is always allowed.
-            if (\in_array($attribute->getType(), self::VALUE_VALIDATED_TYPES, true)
-                && self::hasValidatableContent($attribute->getType(), $jsonbValue)) {
-                $errors = $this->valueValidator->validate($attribute, $jsonbValue);
-                if ([] !== $errors) {
-                    throw new UnprocessableEntityHttpException(\sprintf(
-                        'Attribute "%s": %s',
-                        $code,
-                        $errors[0]->message,
-                    ));
-                }
-            }
-
-            // #1179 — identifier values are unique per ObjectType. Pre-check
-            // here for a clean 409 (the DB partial unique index is the
-            // race-proof backstop). Skip empty/non-string values — clearing
-            // an identifier is allowed.
-            if (AttributeType::Identifier === $attribute->getType()) {
-                $candidate = $jsonbValue['value'] ?? null;
-                if (\is_string($candidate) && '' !== $candidate
-                    && $this->identifierUniqueness->isDuplicate($object, $attribute, $candidate)) {
-                    throw new ConflictHttpException(\sprintf(
-                        'Identifier "%s" is already assigned to another %s.',
-                        $candidate,
-                        $object->getObjectType()->getCode(),
-                    ));
-                }
+            // #1179 — identifier uniqueness pre-check for a clean 409.
+            $duplicate = $this->core->duplicateIdentifier($object, $attribute, $jsonbValue);
+            if (null !== $duplicate) {
+                throw new ConflictHttpException(\sprintf(
+                    'Identifier "%s" is already assigned to another %s.',
+                    $duplicate,
+                    $object->getObjectType()->getCode(),
+                ));
             }
 
             $existing = $this->values->findOneByScope($object, $attribute, $targetChannel, $targetLocale);
@@ -182,112 +121,5 @@ final readonly class ObjectAttributesUpserter
             );
             $this->values->save($value);
         }
-    }
-
-    /**
-     * #1261 — whether a wrapped value carries content worth validating, per
-     * the type's JSONB envelope. Clearing a value (empty option_code / empty
-     * option_codes / null-or-empty scalar) skips validation so operators can
-     * always blank a field.
-     *
-     * @param array<string, mixed> $jsonbValue
-     */
-    private static function hasValidatableContent(AttributeType $type, array $jsonbValue): bool
-    {
-        if (AttributeType::Select === $type) {
-            $optionCode = $jsonbValue['option_code'] ?? null;
-
-            return \is_string($optionCode) && '' !== $optionCode;
-        }
-
-        if (AttributeType::Multiselect === $type) {
-            $optionCodes = $jsonbValue['option_codes'] ?? null;
-
-            return \is_array($optionCodes) && [] !== $optionCodes;
-        }
-
-        $scalar = $jsonbValue['value'] ?? null;
-
-        return null !== $scalar && '' !== $scalar;
-    }
-
-    /**
-     * #1350 — true when every leaf of the wrapped JSONB envelope is
-     * null / '' / [] (covers scalar `{value}`, select `{option_code}`,
-     * localized maps and structural shapes alike). Booleans and zeros
-     * are values — a required checkbox set to `false` passes.
-     */
-    private static function isEmptyEnvelope(mixed $value): bool
-    {
-        if (null === $value || '' === $value || [] === $value) {
-            return true;
-        }
-        if (\is_array($value)) {
-            foreach ($value as $leaf) {
-                if (!self::isEmptyEnvelope($leaf)) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function wrapValue(AttributeType $type, mixed $rawValue): array
-    {
-        // Metric/price dicts and localised arrays pass through unchanged so
-        // the per-type validator (#39) can read them with their structure
-        // intact; everything else is rewrapped to the ADR-0019 canon below.
-        if (\is_array($rawValue)) {
-            $normalised = [];
-            foreach ($rawValue as $key => $value) {
-                $normalised[(string) $key] = $value;
-            }
-
-            return $this->canonicalise($type, $normalised);
-        }
-
-        return $this->canonicalise($type, ['value' => $rawValue]);
-    }
-
-    /**
-     * ADR-0019 / IMP2-1.2 (#1464) — normalise the legacy `{value: X}` wrap
-     * (and bare multiselect lists) into the per-type canonical envelope.
-     * Without this every select written from the admin bypassed the option
-     * validator (#1261) and exported as an empty cell (ValueSerializer reads
-     * `option_code` only).
-     *
-     * @param array<array-key, mixed> $envelope
-     *
-     * @return array<string, mixed>
-     */
-    private function canonicalise(AttributeType $type, array $envelope): array
-    {
-        if (AttributeType::Multiselect === $type && array_is_list($envelope)) {
-            return ['option_codes' => $envelope];
-        }
-
-        /** @var array<string, mixed> $envelope non-list past the guard (wrapValue stringifies keys) */
-        if (!\array_key_exists('value', $envelope)) {
-            return $envelope;
-        }
-
-        $value = $envelope['value'];
-        $rest = $envelope;
-        unset($rest['value']);
-
-        return match ($type) {
-            AttributeType::Select => \is_string($value) ? ['option_code' => $value] + $rest : $envelope,
-            AttributeType::Multiselect => \is_array($value) ? ['option_codes' => array_values($value)] + $rest : $envelope,
-            AttributeType::Price => \is_int($value) || \is_float($value) || (\is_string($value) && is_numeric($value))
-                ? ['amount' => \is_string($value) ? (float) $value : $value] + $rest
-                : $envelope,
-            default => $envelope,
-        };
     }
 }
