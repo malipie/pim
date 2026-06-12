@@ -8895,15 +8895,12 @@
                         ]
                     },
                     "mode": {
-                        "default": "UPDATE",
+                        "default": "UPSERT",
                         "type": "string",
                         "enum": [
-                            "ADD",
+                            "CREATE",
                             "UPDATE",
-                            "UPSERT",
-                            "MERGE",
-                            "INCREMENT",
-                            "DELETE"
+                            "UPSERT"
                         ]
                     },
                     "targetObjectType": {
@@ -8989,12 +8986,9 @@
                     },
                     "mode": {
                         "enum": [
-                            "ADD",
+                            "CREATE",
                             "UPDATE",
-                            "UPSERT",
-                            "MERGE",
-                            "INCREMENT",
-                            "DELETE"
+                            "UPSERT"
                         ],
                         "description": "One of: `ADD`, `UPDATE`, `UPSERT`, `MERGE`, `INCREMENT`, `DELETE`.",
                         "type": [
@@ -9070,12 +9064,9 @@
                     },
                     "mode": {
                         "enum": [
-                            "ADD",
+                            "CREATE",
                             "UPDATE",
-                            "UPSERT",
-                            "MERGE",
-                            "INCREMENT",
-                            "DELETE"
+                            "UPSERT"
                         ],
                         "type": [
                             "string",
@@ -9156,15 +9147,12 @@
                                 ]
                             },
                             "mode": {
-                                "default": "UPDATE",
+                                "default": "UPSERT",
                                 "type": "string",
                                 "enum": [
-                                    "ADD",
+                                    "CREATE",
                                     "UPDATE",
-                                    "UPSERT",
-                                    "MERGE",
-                                    "INCREMENT",
-                                    "DELETE"
+                                    "UPSERT"
                                 ]
                             },
                             "targetObjectType": {

@@ -50,6 +50,7 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
     formData.set('encoding', state.encoding);
     formData.set('delimiter', state.delimiter);
     formData.set('do_backup', state.doBackup ? '1' : '0');
+    formData.set('mode', state.mode);
 
     jsonFetch<{ id: string }>('/api/import-sessions', {
       method: 'POST',

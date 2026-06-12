@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
+use App\Catalog\Domain\AttributeType;
+use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\ObjectType;
+use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Application\Handler\ImportRunHandler;
 use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Entity\ImportSession;
+use App\Import\Domain\Enum\ImportMode;
 use App\Import\Domain\Message\ImportRunMessage;
 use App\Import\Domain\Repository\ImportProfileRepositoryInterface;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
@@ -55,6 +59,7 @@ final class StartImportController
 
     public function __construct(
         private readonly ImportSessionRepositoryInterface $sessions,
+        private readonly AttributeRepositoryInterface $attributes,
         private readonly ImportProfileRepositoryInterface $profiles,
         private readonly ObjectTypeRepositoryInterface $objectTypes,
         private readonly ImportRunHandler $runHandler,
@@ -105,6 +110,14 @@ final class StartImportController
             fileSizeBytes: (int) $file->getSize(),
             profile: $profile,
         );
+
+        $mode = $this->resolveMode($request->request->get('mode'), $profile);
+        $matchAttributeCode = $this->resolveMatchAttributeCode(
+            $request->request->get('match_attribute_code'),
+            $profile,
+            $tenant,
+        );
+        $session->configureRun($mode, $matchAttributeCode);
         $session->setColumnMapping($mapping);
 
         // Persist before upload so a later upload failure has a session id
@@ -238,9 +251,44 @@ final class StartImportController
             'total_rows' => $session->getTotalRows(),
             'success_count' => $session->getSuccessCount(),
             'error_count' => $session->getErrorCount(),
+            'updated_count' => $session->getUpdatedCount(),
+            'skipped_count' => $session->getSkippedCount(),
+            'mode' => $session->getMode()->value,
             'started_at' => $session->getStartedAt()?->format(DateTimeInterface::RFC3339_EXTENDED),
             'completed_at' => $session->getCompletedAt()?->format(DateTimeInterface::RFC3339_EXTENDED),
             'rollback_until' => $session->getRollbackUntil()?->format(DateTimeInterface::RFC3339_EXTENDED),
         ];
+    }
+
+    private function resolveMode(mixed $raw, ?ImportProfile $profile): ImportMode
+    {
+        if (\is_string($raw) && '' !== $raw) {
+            $mode = ImportMode::tryFrom(strtoupper($raw));
+            if (!$mode instanceof ImportMode) {
+                throw new BadRequestHttpException(\sprintf('Invalid "mode" "%s" — expected CREATE, UPDATE or UPSERT.', $raw));
+            }
+
+            return $mode;
+        }
+
+        return $profile?->getMode() ?? ImportMode::Upsert;
+    }
+
+    private function resolveMatchAttributeCode(mixed $raw, ?ImportProfile $profile, Tenant $tenant): ?string
+    {
+        $code = \is_string($raw) && '' !== trim($raw) ? trim($raw) : $profile?->getMatchAttributeCode();
+        if (null === $code || '' === $code) {
+            return null;
+        }
+
+        $attribute = $this->attributes->findByCode($code, $tenant);
+        if (!$attribute instanceof Attribute) {
+            throw new BadRequestHttpException(\sprintf('Unknown "match_attribute_code" "%s".', $code));
+        }
+        if (AttributeType::Identifier !== $attribute->getType()) {
+            throw new BadRequestHttpException(\sprintf('"match_attribute_code" "%s" must be an identifier attribute, got "%s".', $code, $attribute->getType()->value));
+        }
+
+        return $code;
     }
 }

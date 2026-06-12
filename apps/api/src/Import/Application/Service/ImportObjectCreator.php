@@ -13,6 +13,7 @@ use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Provenance;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Import\Domain\ValueObject\ResolvedImportValue;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,6 +38,7 @@ final class ImportObjectCreator
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly CatalogObjectRepositoryInterface $catalogObjects,
+        private readonly ObjectValueRepositoryInterface $objectValues,
         private readonly CompositeValueParser $compositeValueParser,
     ) {
     }
@@ -101,6 +103,54 @@ final class ImportObjectCreator
         }
 
         return $object;
+    }
+
+    /**
+     * IMP2-1.3 (#1465, ADR-0019 D2/D11) — applies row values to an EXISTING
+     * object. Empty cells never touch stored values, categories are left
+     * untouched on update, and import_session_id is NOT stamped (created-by
+     * marker only — a delete-rollback must never reach pre-existing catalog).
+     * Per-value findOneByScope is the deliberate N+1 of this ticket; the
+     * chunk prefetch lands with ImportValueWriter (#1466).
+     *
+     * @param list<ResolvedImportValue> $resolvedValues
+     * @param array<string, Attribute>  $attributesByCode
+     */
+    public function update(
+        CatalogObject $object,
+        array $resolvedValues,
+        array $attributesByCode,
+    ): void {
+        foreach ($resolvedValues as $resolved) {
+            $rawValue = $resolved->rawValue;
+            if (null === $rawValue || '' === $rawValue) {
+                continue;
+            }
+            $attribute = $attributesByCode[$resolved->attributeCode] ?? null;
+            if (!$attribute instanceof Attribute) {
+                continue;
+            }
+
+            $valuePayload = $this->buildValuePayload($attribute, $rawValue);
+            if (null === $valuePayload) {
+                continue;
+            }
+
+            $existing = $this->objectValues->findOneByScope($object, $attribute, null, $resolved->locale);
+            if ($existing instanceof ObjectValue) {
+                $existing->updateValue($valuePayload);
+                $existing->changeProvenance(Provenance::Import);
+                continue;
+            }
+
+            $this->em->persist(new ObjectValue(
+                object: $object,
+                attribute: $attribute,
+                value: $valuePayload,
+                provenance: Provenance::Import,
+                locale: $resolved->locale,
+            ));
+        }
     }
 
     /**

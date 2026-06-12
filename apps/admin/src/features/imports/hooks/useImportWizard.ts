@@ -55,6 +55,8 @@ export interface WizardState {
   } | null;
   doBackup: boolean;
   emailNotification: boolean;
+  /** IMP2-1.3 (#1465) — write strategy sent to POST /api/import-sessions. */
+  mode: 'CREATE' | 'UPDATE' | 'UPSERT';
 }
 
 const INITIAL_STATE: WizardState = {
@@ -69,6 +71,7 @@ const INITIAL_STATE: WizardState = {
   saveAsProfileName: null,
   targetObjectTypeId: null,
   mapping: {},
+  mode: 'UPSERT',
   suggestions: [],
   parsed: null,
   validation: null,

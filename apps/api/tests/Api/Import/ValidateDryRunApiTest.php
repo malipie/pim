@@ -60,9 +60,12 @@ final class ValidateDryRunApiTest extends CatalogApiTestCase
             $body = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
             self::assertIsArray($body);
 
-            self::assertSame(280, $body['total_rows'], 'Fixture has 247 OK + 33 errored rows.');
-            self::assertSame(247, $body['success_count']);
-            self::assertSame(33, $body['error_count']);
+            // IMP2-1.3 (#1465): the 18 duplicate-SKU-in-DB rows of the spec
+            // fixture are no longer validation errors — the run loop decides
+            // per ImportMode (dry-run buckets arrive with #1492).
+            self::assertSame(280, $body['total_rows'], 'Fixture has 265 OK + 15 errored rows.');
+            self::assertSame(265, $body['success_count']);
+            self::assertSame(15, $body['error_count']);
 
             $topErrors = $body['top_errors'] ?? null;
             self::assertIsArray($topErrors);

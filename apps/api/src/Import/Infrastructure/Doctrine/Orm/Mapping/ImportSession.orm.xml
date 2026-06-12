@@ -49,6 +49,16 @@
                 <option name="default">0</option>
             </options>
         </field>
+        <field name="mode" type="string" length="16" column="mode">
+            <options><option name="default">UPSERT</option></options>
+        </field>
+        <field name="matchAttributeCode" type="string" length="64" column="match_attribute_code" nullable="true"/>
+        <field name="updatedCount" type="integer" column="updated_count">
+            <options><option name="default">0</option></options>
+        </field>
+        <field name="skippedCount" type="integer" column="skipped_count">
+            <options><option name="default">0</option></options>
+        </field>
         <field name="errorCount" type="integer" column="error_count">
             <options>
                 <option name="default">0</option>

@@ -31,7 +31,7 @@ final class ImportProfileInput
     /**
      * One of: `ADD`, `UPDATE`, `UPSERT`, `MERGE`, `INCREMENT`, `DELETE`.
      */
-    #[Assert\Choice(choices: ['ADD', 'UPDATE', 'UPSERT', 'MERGE', 'INCREMENT', 'DELETE'])]
+    #[Assert\Choice(choices: ['CREATE', 'UPDATE', 'UPSERT'])]
     public ?string $mode = null;
 
     #[Assert\NotBlank]

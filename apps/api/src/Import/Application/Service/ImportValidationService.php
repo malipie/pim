@@ -210,17 +210,9 @@ final readonly class ImportValidationService
                 );
             } else {
                 $skuSeenInFile[$sku] = $rowNumber;
-                if (null !== $this->catalogObjects->findByCode($sku, ObjectKind::Product, $tenant)) {
-                    $errors[] = new ValidationError(
-                        rowNumber: $rowNumber,
-                        sku: $sku,
-                        errorType: ImportErrorType::DuplicateSkuInDb,
-                        level: ImportLogLevel::Warning,
-                        message: \sprintf('SKU "%s" already exists in the catalog.', $sku),
-                        columnName: 'sku',
-                        columnValue: $sku,
-                    );
-                }
+                // IMP2-1.3 (#1465): the in-DB duplicate decision moved to the run
+                // loop (ObjectResolver + ImportMode) — CREATE skips, UPDATE
+                // requires, UPSERT branches. Dry-run buckets arrive in #1492.
             }
         }
 

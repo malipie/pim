@@ -14,6 +14,7 @@ enum ImportErrorType: string
     case MissingRequired = 'missing_required';
     case DuplicateSkuInFile = 'duplicate_sku_in_file';
     case DuplicateSkuInDb = 'duplicate_sku_in_db';
+    case NoMatchInDb = 'no_match_in_db';
     case InvalidType = 'invalid_type';
     case InvalidValue = 'invalid_value';
     case ImageNotFound = 'image_not_found';

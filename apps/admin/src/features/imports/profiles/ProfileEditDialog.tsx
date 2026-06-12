@@ -17,14 +17,7 @@ import { Label } from '@/components/ui/label';
 import type { ImportMode } from '../primitives';
 import type { ImportProfileRow } from './types';
 
-const MODES: ReadonlyArray<ImportMode> = [
-  'ADD',
-  'UPDATE',
-  'UPSERT',
-  'MERGE',
-  'INCREMENT',
-  'DELETE',
-];
+const MODES: ReadonlyArray<ImportMode> = ['CREATE', 'UPDATE', 'UPSERT'];
 
 interface ProfileEditDialogProps {
   open: boolean;

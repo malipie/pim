@@ -6,11 +6,15 @@ namespace App\Import\Application\Handler;
 
 use App\Import\Application\Service\ImportObjectCreator;
 use App\Import\Application\Service\ImportProgressPublisher;
+use App\Import\Application\Service\ImportRowDecision;
 use App\Import\Application\Service\ImportRowReader;
 use App\Import\Application\Service\ImportValidationService;
+use App\Import\Application\Service\ObjectResolver;
 use App\Import\Domain\ColumnHeader;
 use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportSession;
+use App\Import\Domain\Enum\ImportErrorType;
+use App\Import\Domain\Enum\ImportLogLevel;
 use App\Import\Domain\Message\ImportRunMessage;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
 use App\Import\Domain\ReservedMappingTarget;
@@ -57,6 +61,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ImportRowReader $rowReader,
         private readonly ImportValidationService $validator,
         private readonly ImportObjectCreator $creator,
+        private readonly ObjectResolver $objectResolver,
         private readonly ImportProgressPublisher $progressPublisher,
         private readonly TenantContext $tenantContext,
         private readonly FilesystemOperator $importsStorage,
@@ -172,16 +177,48 @@ final class ImportRunHandler extends AbstractBatchHandler
 
                 if ($rowOk) {
                     $resolvedValues = $this->materialiseValues($cells, $columnMapping);
-                    $this->creator->create(
-                        objectType: $session->getTargetObjectType(),
-                        sku: $this->skuFrom($resolvedValues, $rowNumber),
-                        resolvedValues: $resolvedValues,
-                        attributesByCode: $attributesByCode,
-                        importSessionId: $session->getId(),
-                        categoryCode: $this->extractCategoryCode($cells, $columnMapping),
-                        tenant: $tenant,
+                    $matchKey = $this->matchKey($session, $cells, $columnMapping, $resolvedValues, $rowNumber);
+                    $existing = $this->objectResolver->resolve(
+                        $matchKey,
+                        $session->getTargetObjectType(),
+                        $tenant,
+                        $session->getMatchAttributeCode(),
                     );
-                    $session->incrementSuccess();
+                    $decision = $this->objectResolver->decide($session->getMode(), $existing);
+
+                    if (ImportRowDecision::Create === $decision) {
+                        $this->creator->create(
+                            objectType: $session->getTargetObjectType(),
+                            sku: $this->skuFrom($resolvedValues, $rowNumber),
+                            resolvedValues: $resolvedValues,
+                            attributesByCode: $attributesByCode,
+                            importSessionId: $session->getId(),
+                            categoryCode: $this->extractCategoryCode($cells, $columnMapping),
+                            tenant: $tenant,
+                        );
+                        $session->incrementSuccess();
+                    } elseif (ImportRowDecision::Update === $decision && null !== $existing) {
+                        $this->creator->update($existing, $resolvedValues, $attributesByCode);
+                        $session->incrementSuccess();
+                        $session->incrementUpdated();
+                    } else {
+                        $session->incrementSkipped();
+                        $errors[] = ImportRowDecision::SkipExists === $decision
+                            ? new ValidationError(
+                                rowNumber: $rowNumber,
+                                sku: $sku,
+                                errorType: ImportErrorType::DuplicateSkuInDb,
+                                level: ImportLogLevel::Warning,
+                                message: \sprintf('Match key "%s" already exists — row skipped (mode CREATE).', $matchKey),
+                            )
+                            : new ValidationError(
+                                rowNumber: $rowNumber,
+                                sku: $sku,
+                                errorType: ImportErrorType::NoMatchInDb,
+                                level: ImportLogLevel::Warning,
+                                message: \sprintf('No object matches key "%s" — row skipped (mode UPDATE).', $matchKey),
+                            );
+                    }
                 } else {
                     $session->incrementError();
                 }
@@ -416,5 +453,35 @@ final class ImportRunHandler extends AbstractBatchHandler
         }
 
         return $reloaded;
+    }
+
+    /**
+     * IMP2-1.3 — the row match key: the cell mapped to the configured
+     * identifier attribute, or the SKU cell by default (trimmed; the
+     * synthetic IMPORT-{row} fallback only feeds brand-new rows).
+     *
+     * @param array<string, string|null> $cells
+     * @param array<string, string>      $columnMapping
+     * @param list<ResolvedImportValue>  $resolvedValues
+     */
+    private function matchKey(
+        ImportSession $session,
+        array $cells,
+        array $columnMapping,
+        array $resolvedValues,
+        int $rowNumber,
+    ): string {
+        $matchCode = $session->getMatchAttributeCode();
+        if (null !== $matchCode) {
+            foreach ($columnMapping as $header => $target) {
+                if ($target === $matchCode) {
+                    return trim($cells[$header] ?? '');
+                }
+            }
+
+            return '';
+        }
+
+        return trim($this->skuFrom($resolvedValues, $rowNumber));
     }
 }
