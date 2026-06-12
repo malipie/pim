@@ -2239,20 +2239,26 @@
       "empty": "No imports yet. Start your first import."
     },
     "wizard": {
-      "eyebrow": "Self-service import — 4 steps",
+      "eyebrow": "Import wizard — self-service, 6 steps",
       "title": "New import",
-      "subtitle": "Every file goes through 4 steps: upload, map columns to attributes, validate with a dry-run, commit to the database. After commit the session shows up under \"Sessions\" — you can roll it back within 24h.",
+      "subtitle": "Every file goes through 6 steps: source, format detection, column mapping, rules, dry-run and commit. After commit the session shows up under \"Sessions\" — you can roll it back within 24h.",
       "descriptions": {
         "upload": "CSV / XLSX + optional ZIP with images",
-        "mapping": "Columns → attributes + categories",
-        "validation": "Dry-run, validation errors",
-        "confirm": "Backup + commit"
+        "mapping": "columns → attributes + categories",
+        "validation": "dry-run, validation errors",
+        "confirm": "backup + commit",
+        "source": "file origin · CSV / XLSX / ZIP",
+        "detect": "encoding / delimiter / sheet",
+        "rules": "mode · validation"
       },
       "steps": {
         "upload": "Upload",
         "mapping": "Mapping",
-        "validation": "Validation",
-        "confirm": "Confirm"
+        "validation": "Preview",
+        "confirm": "Start",
+        "source": "Source",
+        "detect": "Detection",
+        "rules": "Rules"
       },
       "next": "Next",
       "back": "Back",
@@ -2297,7 +2303,8 @@
       },
       "skip": "Skip column",
       "category": "Category (assign by code)",
-      "category_hint": "Links the product to the category whose code matches the cell"
+      "category_hint": "Links the product to the category whose code matches the cell",
+      "computed_cta": "New computed column"
     },
     "validation": {
       "ok": "{{count}} products OK",
@@ -2371,6 +2378,75 @@
       "load_failed": "Could not load import session.",
       "rollback_failed": "Rollback failed.",
       "upload_failed": "File upload failed."
+    },
+    "source": {
+      "upload_title": "Upload a file",
+      "saved_sources": "Or pick a saved source (FTP/SFTP)",
+      "no_sources": "No saved sources — configure them in the Sources tab.",
+      "test": "Test",
+      "run": "Run",
+      "test_result": "{{name}}: {{health}} ({{ms}} ms)",
+      "test_failed": "Connection test failed",
+      "run_mock": "MOCK — ad-hoc run from a saved source requires backend; use Schedule (run-now)",
+      "profiles_title": "Suggested profiles",
+      "profiles_subtitle": "Saved mapping profiles",
+      "new_profile": "New profile (configure in the wizard)",
+      "settings_title": "File settings"
+    },
+    "detect": {
+      "title": "Auto-detection results",
+      "file_label": "File",
+      "no_file": "Go back to the Source step and upload a file.",
+      "parse_error": "Failed to parse the file",
+      "format": "Format",
+      "encoding": "Encoding",
+      "delimiter": "Delimiter",
+      "delimiter_xlsx": "— (XLSX cells)",
+      "header": "Header",
+      "header_value": "{{count}} columns detected",
+      "sheet": "Sheet",
+      "multisheet": "Multi-sheet (Excel)",
+      "multisheet_single": "Single sheet / CSV.",
+      "multisheet_warning": "The file has multiple sheets — the import processes the first one ({{sheet}}).",
+      "multisheet_mock": "MOCK — the backend parses the first sheet; sheet selection needs a parameter (NUI-10 backlog)",
+      "empty_cells": "Empty cell",
+      "empty_cells_mock": "MOCK — empty-cell strategy needs a backend parameter (NUI-10 backlog)",
+      "empty_null": "NULL (no value)",
+      "empty_string": "Empty string \"\"",
+      "empty_default": "Model default value",
+      "preview_title": "First 5 rows preview",
+      "ready": "Pre-validation passed — {{count}} rows ready for mapping."
+    },
+    "rules": {
+      "truth": "The import engine currently runs in a single mode: upsert by identifier — existing entries are updated, new ones created, and rows failing validation are skipped (see the Preview step). The controls below show the target rules scope and stay disabled until the backend ships.",
+      "mode_title": "Import mode",
+      "mode_subtitle": "What happens when the identifier already exists",
+      "mode_upsert": "Update existing, create new (current behaviour)",
+      "mode_add": "New records only · skip duplicates",
+      "mode_update": "Existing only · overwrite values",
+      "validation_title": "Validation",
+      "locks_title": "Per-attribute lock",
+      "locks_subtitle": "Fields the import never overwrites (always human-edited)",
+      "confirm_title": "Per-row confirmation",
+      "confirm_subtitle": "Hold a row for approval when…",
+      "confirm_price": "price change > 20%",
+      "confirm_fields": "more than 10 fields change in one record",
+      "v_type": "Type-check (number, date, URL, email)",
+      "v_required": "Required fields (per ObjectType model)",
+      "v_unique": "Identifier uniqueness (file + database)",
+      "v_allowed": "Allowed values (select/multiselect)",
+      "v_range": "Range check (numeric bounds)",
+      "v_regex": "Per-column regex (e.g. EAN ^[0-9]{13}$)"
+    },
+    "computed": {
+      "title": "New computed column",
+      "columns": "Source columns (click order)",
+      "separator": "Separator",
+      "separator_custom": "Custom separator",
+      "preview": "Preview (first file row)",
+      "preview_empty": "— pick columns —",
+      "apply": "Apply",
+      "mock_tooltip": "MOCK — server-side concatenation needs a mapping contract extension (NUI-10 backlog)"
     }
   },
   "rbac": {
