@@ -6,6 +6,7 @@ namespace App\Import\Domain\Entity;
 
 use App\Backup\Domain\Entity\Backup;
 use App\Catalog\Domain\Entity\ObjectType;
+use App\Import\Domain\Enum\ImportMode;
 use App\Import\Domain\Enum\ImportSessionStatus;
 use App\Shared\Application\TenantScoped;
 use App\Shared\Domain\AggregateRoot;
@@ -58,6 +59,16 @@ class ImportSession extends AggregateRoot implements TenantScoped
     private int $successCount = 0;
 
     private int $errorCount = 0;
+
+    /** ADR-0019 D3 — write strategy of THIS run (profile only pre-fills it). */
+    private string $mode = ImportMode::Upsert->value;
+
+    /** ADR-0019 D1 — identifier-attribute match key; null = objects.code (SKU). */
+    private ?string $matchAttributeCode = null;
+
+    private int $updatedCount = 0;
+
+    private int $skippedCount = 0;
 
     private int $imagesDownloaded = 0;
 
@@ -201,6 +212,42 @@ class ImportSession extends AggregateRoot implements TenantScoped
     public function incrementSuccess(): void
     {
         ++$this->successCount;
+    }
+
+    public function getMode(): ImportMode
+    {
+        return ImportMode::from($this->mode);
+    }
+
+    public function configureRun(ImportMode $mode, ?string $matchAttributeCode): void
+    {
+        $this->mode = $mode->value;
+        $this->matchAttributeCode = $matchAttributeCode;
+    }
+
+    public function getMatchAttributeCode(): ?string
+    {
+        return $this->matchAttributeCode;
+    }
+
+    public function getUpdatedCount(): int
+    {
+        return $this->updatedCount;
+    }
+
+    public function incrementUpdated(): void
+    {
+        ++$this->updatedCount;
+    }
+
+    public function getSkippedCount(): int
+    {
+        return $this->skippedCount;
+    }
+
+    public function incrementSkipped(): void
+    {
+        ++$this->skippedCount;
     }
 
     public function incrementError(): void

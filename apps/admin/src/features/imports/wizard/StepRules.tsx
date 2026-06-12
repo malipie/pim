@@ -22,7 +22,7 @@ interface StepRulesProps {
  */
 export function StepRules({ wizard }: StepRulesProps): React.ReactElement {
   const { t } = useTranslation();
-  const { next, back } = wizard;
+  const { next, back, state, setField } = wizard;
 
   const validations = [
     {
@@ -58,14 +58,13 @@ export function StepRules({ wizard }: StepRulesProps): React.ReactElement {
         <div className="text-[12.5px] leading-relaxed text-zinc-700">
           {t('imports.rules.truth', {
             defaultValue:
-              'Silnik importu działa dziś w jednym trybie: upsert po identyfikatorze — istniejące wpisy są aktualizowane, nowe tworzone, a wiersze z błędami walidacji pomijane (szczegóły w kroku Podgląd). Poniższe przełączniki pokazują docelowy zakres reguł i są nieaktywne do czasu oprogramowania backendu.',
+              'Tryb importu jest realny (IMP2-1.3): CREATE pomija istniejące, UPDATE pomija brakujące, UPSERT tworzy lub aktualizuje po SKU. Pozostałe przełączniki walidacji pokazują docelowy zakres i czekają na backend.',
           })}
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]">
         <div className="relative rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
-          <MockBadge variant="corner" />
           <div className="text-[13.5px] font-semibold">
             {t('imports.rules.mode_title', { defaultValue: 'Tryb importu' })}
           </div>
@@ -79,44 +78,46 @@ export function StepRules({ wizard }: StepRulesProps): React.ReactElement {
               {
                 id: 'UPSERT',
                 desc: t('imports.rules.mode_upsert', {
-                  defaultValue: 'Aktualizuj istniejące, twórz nowe (obecne zachowanie)',
+                  defaultValue: 'Aktualizuj istniejące, twórz nowe (domyślny)',
                 }),
-                active: true,
               },
               {
-                id: 'ADD',
+                id: 'CREATE',
                 desc: t('imports.rules.mode_add', {
                   defaultValue: 'Tylko nowe rekordy · pomiń duplikaty',
                 }),
-                active: false,
               },
               {
                 id: 'UPDATE',
                 desc: t('imports.rules.mode_update', {
                   defaultValue: 'Tylko istniejące · nadpisz wartości',
                 }),
-                active: false,
               },
             ].map((m) => (
-              <div
+              <button
+                type="button"
                 key={m.id}
-                aria-disabled="true"
+                onClick={() => setField('mode', m.id as 'CREATE' | 'UPDATE' | 'UPSERT')}
+                aria-pressed={state.mode === m.id}
                 className={cn(
                   'rounded-xl border px-3 py-3 text-left',
-                  m.active
+                  state.mode === m.id
                     ? 'border-zinc-900 bg-zinc-900 text-white'
-                    : 'cursor-not-allowed border-zinc-200 bg-white opacity-60',
+                    : 'border-zinc-200 bg-white hover:border-zinc-400',
                 )}
               >
                 <div className="font-mono text-[11px] font-semibold uppercase tracking-wider">
                   {m.id}
                 </div>
                 <div
-                  className={cn('mt-1.5 text-[12px]', m.active ? 'text-white/80' : 'text-zinc-600')}
+                  className={cn(
+                    'mt-1.5 text-[12px]',
+                    state.mode === m.id ? 'text-white/80' : 'text-zinc-600',
+                  )}
                 >
                   {m.desc}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
 

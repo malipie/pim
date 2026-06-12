@@ -37,6 +37,9 @@ use const JSON_THROW_ON_ERROR;
  */
 final class ImportImportProfileController
 {
+    /** IMP2-1.3 — pre-ADR-0019 envelopes may carry retired mode values. */
+    private const array LEGACY_MODE_MAP = ['ADD' => 'CREATE', 'MERGE' => 'UPSERT', 'INCREMENT' => 'UPSERT', 'DELETE' => 'UPSERT'];
+
     public function __construct(
         private readonly ImportProfileRepositoryInterface $profiles,
         private readonly ObjectTypeRepositoryInterface $objectTypes,
@@ -96,7 +99,7 @@ final class ImportImportProfileController
         $modeRaw = $this->stringOrFail($profileBlock, 'mode');
         $targetCode = $this->stringOrFail($profileBlock, 'target_object_type_code');
 
-        $mode = ImportMode::tryFrom($modeRaw);
+        $mode = ImportMode::tryFrom(self::LEGACY_MODE_MAP[strtoupper($modeRaw)] ?? strtoupper($modeRaw));
         if (!$mode instanceof ImportMode) {
             throw new BadRequestHttpException(\sprintf('Unknown import mode "%s".', $modeRaw));
         }

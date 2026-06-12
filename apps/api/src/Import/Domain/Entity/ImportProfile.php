@@ -39,7 +39,10 @@ class ImportProfile extends AggregateRoot implements TenantScoped
     #[Assert\Regex(pattern: '/^[a-z0-9-]+$/', message: 'Code must contain only lowercase letters, digits, and dashes.')]
     private string $code = '';
 
-    private string $mode = ImportMode::Update->value;
+    private string $mode = ImportMode::Upsert->value;
+
+    /** Attribute code (type=identifier) used as the row match key; null = objects.code / SKU (ADR-0019 D1). */
+    private ?string $matchAttributeCode = null;
 
     private ObjectType $targetObjectType;
 
@@ -79,7 +82,7 @@ class ImportProfile extends AggregateRoot implements TenantScoped
         ObjectType $targetObjectType,
         ?Uuid $id = null,
         ?string $code = null,
-        ImportMode $mode = ImportMode::Update,
+        ImportMode $mode = ImportMode::Upsert,
     ) {
         $this->id = $id ?? Uuid::v7();
         $this->userId = $userId;
@@ -153,6 +156,16 @@ class ImportProfile extends AggregateRoot implements TenantScoped
     public function getMode(): ImportMode
     {
         return ImportMode::from($this->mode);
+    }
+
+    public function getMatchAttributeCode(): ?string
+    {
+        return $this->matchAttributeCode;
+    }
+
+    public function setMatchAttributeCode(?string $code): void
+    {
+        $this->matchAttributeCode = $code;
     }
 
     public function setMode(ImportMode $mode): void

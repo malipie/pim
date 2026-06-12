@@ -5,18 +5,16 @@ declare(strict_types=1);
 namespace App\Import\Domain\Enum;
 
 /**
- * VIEW-IMP-02 (#498) — write strategy a profile applies to its target.
+ * ADR-0019 / IMP2-1.3 (#1465) — write strategy of an import run.
  *
- * Surfaced as a `ModeBadge` in the imports hub. The worker today
- * always upserts; `ADD` / `DELETE` are reserved for the bulk
- * operations follow-up.
+ * CREATE skips rows whose match key already exists, UPDATE skips rows
+ * without a match, UPSERT (default) branches per row. Legacy values
+ * (ADD/MERGE/INCREMENT/DELETE) were never implemented and are mapped
+ * away by migration Version20260612230000.
  */
 enum ImportMode: string
 {
-    case Add = 'ADD';
+    case Create = 'CREATE';
     case Update = 'UPDATE';
     case Upsert = 'UPSERT';
-    case Merge = 'MERGE';
-    case Increment = 'INCREMENT';
-    case Delete = 'DELETE';
 }

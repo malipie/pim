@@ -132,6 +132,8 @@ final class ListImportSessionsController
             'total_rows' => $session->getTotalRows(),
             'success_count' => $session->getSuccessCount(),
             'error_count' => $session->getErrorCount(),
+            'updated_count' => $session->getUpdatedCount(),
+            'skipped_count' => $session->getSkippedCount(),
             'started_at' => $startedAt?->format(DateTimeInterface::RFC3339_EXTENDED),
             'completed_at' => $completedAt?->format(DateTimeInterface::RFC3339_EXTENDED),
             'rollback_until' => $session->getRollbackUntil()?->format(DateTimeInterface::RFC3339_EXTENDED),
@@ -139,7 +141,7 @@ final class ListImportSessionsController
             'profile_name' => $profile?->getName(),
             'profile_id' => $profile?->getId()->toRfc4122(),
             'target_object_type_code' => $session->getTargetObjectType()->getCode(),
-            'mode' => 'UPDATE',
+            'mode' => $session->getMode()->value,
         ];
     }
 }

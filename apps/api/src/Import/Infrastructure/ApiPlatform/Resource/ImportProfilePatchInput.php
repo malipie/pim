@@ -19,7 +19,7 @@ final class ImportProfilePatchInput
     #[Assert\Regex(pattern: '/^[a-z0-9-]+$/', message: 'Code must contain only lowercase letters, digits, and dashes.')]
     public ?string $code = null;
 
-    #[Assert\Choice(choices: ['ADD', 'UPDATE', 'UPSERT', 'MERGE', 'INCREMENT', 'DELETE'])]
+    #[Assert\Choice(choices: ['CREATE', 'UPDATE', 'UPSERT'])]
     public ?string $mode = null;
 
     /**

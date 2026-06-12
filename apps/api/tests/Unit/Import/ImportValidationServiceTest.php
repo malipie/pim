@@ -68,12 +68,15 @@ final class ImportValidationServiceTest extends TestCase
             );
 
             self::assertSame(6, $result->totalRows);
-            // OK-1 + first appearance of DUP-1 pass; the rest land in errors.
-            self::assertSame(2, $result->successCount);
-            self::assertSame(4, $result->errorCount);
+            // IMP2-1.3 (#1465): the in-DB duplicate check moved to the run
+            // loop (ObjectResolver + ImportMode) — EXISTING-1 now validates
+            // clean here; mode buckets surface in the dry-run rework (#1492).
+            // OK-1, EXISTING-1 and the first DUP-1 pass; the rest error out.
+            self::assertSame(3, $result->successCount);
+            self::assertSame(3, $result->errorCount);
 
             $errorTypes = array_map(static fn ($e): string => $e->errorType->value, $result->errors);
-            self::assertContains(ImportErrorType::DuplicateSkuInDb->value, $errorTypes);
+            self::assertNotContains(ImportErrorType::DuplicateSkuInDb->value, $errorTypes);
             self::assertContains(ImportErrorType::MissingRequired->value, $errorTypes);
             self::assertContains(ImportErrorType::DuplicateSkuInFile->value, $errorTypes);
             self::assertContains(ImportErrorType::InvalidType->value, $errorTypes);

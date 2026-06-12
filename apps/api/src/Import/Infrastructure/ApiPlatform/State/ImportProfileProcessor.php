@@ -89,7 +89,7 @@ final readonly class ImportProfileProcessor implements ProcessorInterface
             ));
         }
 
-        $mode = null !== $data->mode ? ImportMode::from($data->mode) : ImportMode::Update;
+        $mode = null !== $data->mode ? ImportMode::from($data->mode) : ImportMode::Upsert;
         $code = $data->code ?? ImportProfile::slugify($data->name);
 
         $profile = new ImportProfile(
