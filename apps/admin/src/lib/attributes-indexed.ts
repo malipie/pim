@@ -23,8 +23,20 @@ export function unwrapAttributesIndexed(
   if (raw === null || raw === undefined) return {};
   const out: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(raw)) {
-    if (entry !== null && typeof entry === 'object' && !Array.isArray(entry) && 'value' in entry) {
-      out[key] = (entry as { value: unknown }).value;
+    if (entry !== null && typeof entry === 'object' && !Array.isArray(entry)) {
+      const env = entry as Record<string, unknown>;
+      // ADR-0019 canonical envelopes (IMP2-1.2 / #1464): selects carry
+      // option_code, multiselects option_codes, prices {amount, currency}
+      // (kept whole — price renderers need both fields).
+      if ('value' in env) {
+        out[key] = env.value;
+      } else if ('option_code' in env) {
+        out[key] = env.option_code;
+      } else if ('option_codes' in env) {
+        out[key] = env.option_codes;
+      } else {
+        out[key] = entry;
+      }
     } else {
       out[key] = entry;
     }

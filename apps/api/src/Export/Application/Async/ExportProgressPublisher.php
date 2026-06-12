@@ -37,7 +37,7 @@ final class ExportProgressPublisher
 
     public function __construct(
         private readonly HubInterface $hub,
-        private readonly string $topicBase = 'https://pim.localhost',
+        private readonly string $topicBase,
         ?LoggerInterface $logger = null,
     ) {
         $this->logger = $logger ?? new NullLogger();

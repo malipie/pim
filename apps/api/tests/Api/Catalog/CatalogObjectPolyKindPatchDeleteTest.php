@@ -186,6 +186,8 @@ final class CatalogObjectPolyKindPatchDeleteTest extends CatalogApiTestCase
         ]);
         self::assertResponseStatusCodeSame(409);
         $body = $response->toArray(false);
-        self::assertStringContainsString('DUP-409', (string) ($body['detail'] ?? ''));
+        $detail = $body['detail'] ?? '';
+        self::assertIsString($detail);
+        self::assertStringContainsString('DUP-409', $detail);
     }
 }

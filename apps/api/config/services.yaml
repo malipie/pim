@@ -190,6 +190,16 @@ services:
             $url: '%env(default::MEILI_URL)%'
             $masterKey: '%env(default::MEILI_KEY)%'
 
+    # Mercure topic base for progress publishers (IMP2-0.2 / #1461).
+    # Subscribers (admin SPA) build the same topics from
+    # window.location.origin — the value must match the public origin.
+    App\Import\Application\Service\ImportProgressPublisher:
+        arguments:
+            $topicBase: '%env(MERCURE_TOPIC_BASE)%'
+    App\Export\Application\Async\ExportProgressPublisher:
+        arguments:
+            $topicBase: '%env(MERCURE_TOPIC_BASE)%'
+
     # Bind the named Flysystem storage for the Asset uploader. Without
     # this Symfony has multiple FilesystemOperator services (one per
     # named storage) and autowire can't pick. The named alias
