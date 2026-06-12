@@ -21,6 +21,7 @@ use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
 use App\Shared\Application\BulkOperationInProgressException;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
+use App\Shared\Infrastructure\Messenger\Stamp\TenantStamp;
 use DateTimeInterface;
 use InvalidArgumentException;
 use League\Flysystem\FilesystemException;
@@ -185,7 +186,7 @@ final class StartImportController
         $this->bus->dispatch(new ImportRunMessage(
             importSessionId: $session->getId(),
             tenantId: $tenant->getId(),
-        ));
+        ), [new TenantStamp($tenant->getId())]);
 
         return new JsonResponse($this->serialise($session), Response::HTTP_ACCEPTED);
     }

@@ -12,6 +12,7 @@ use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Messenger\Middleware\StackInterface;
 use Symfony\Component\Messenger\Stamp\ConsumedByWorkerStamp;
 use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Drops duplicate-handle attempts on top of Doctrine's at-least-once
@@ -56,6 +57,13 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
         $messageId = (string) $rawId;
         if ('' === $messageId) {
             return $stack->next()->handle($envelope, $stack);
+        }
+        // IMP2-1.6a (#1468): the doctrine transport hands out sequential
+        // bigint delivery ids, not UUIDs — the processed_messages PK is
+        // UUID, so derive a stable v5 from the id (sync/AMQP UUID ids pass
+        // through untouched).
+        if (!Uuid::isValid($messageId)) {
+            $messageId = Uuid::v5(Uuid::fromString(Uuid::NAMESPACE_OID), 'messenger:'.$messageId)->toRfc4122();
         }
 
         try {
