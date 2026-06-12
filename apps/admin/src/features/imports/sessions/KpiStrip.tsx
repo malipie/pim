@@ -108,7 +108,7 @@ export function KpiStrip({ sessions, throughput }: KpiStripProps) {
       <div className="rounded-2xl border border-zinc-100 bg-white p-4 soft-shadow">
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-[10.5px] uppercase tracking-wider text-zinc-400 font-medium">
+            <div className="text-[10.5px] uppercase tracking-wider text-zinc-500 font-medium">
               {t('imports.sessions.kpi.active')}
             </div>
             <div className="font-display text-[28px] font-semibold tracking-tight num mt-1 flex items-baseline gap-2">
@@ -135,7 +135,7 @@ export function KpiStrip({ sessions, throughput }: KpiStripProps) {
       <div className="rounded-2xl border border-zinc-100 bg-white p-4 soft-shadow">
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-[10.5px] uppercase tracking-wider text-zinc-400 font-medium">
+            <div className="text-[10.5px] uppercase tracking-wider text-zinc-500 font-medium">
               {t('imports.sessions.kpi.today', { date: todayLabel })}
             </div>
             <div className="font-display text-[28px] font-semibold tracking-tight num mt-1">
@@ -155,7 +155,7 @@ export function KpiStrip({ sessions, throughput }: KpiStripProps) {
 
       <div className="rounded-2xl border border-zinc-100 bg-white p-4 soft-shadow">
         <div className="flex flex-col">
-          <div className="text-[10.5px] uppercase tracking-wider text-zinc-400 font-medium">
+          <div className="text-[10.5px] uppercase tracking-wider text-zinc-500 font-medium">
             {t('imports.sessions.kpi.rate30')}
           </div>
           <div className="font-display text-[28px] font-semibold tracking-tight num mt-1 flex items-baseline gap-1">
@@ -176,11 +176,11 @@ export function KpiStrip({ sessions, throughput }: KpiStripProps) {
 
       <div className="rounded-2xl border border-zinc-100 bg-white p-4 soft-shadow">
         <div>
-          <div className="text-[10.5px] uppercase tracking-wider text-zinc-400 font-medium">
+          <div className="text-[10.5px] uppercase tracking-wider text-zinc-500 font-medium">
             {t('imports.sessions.kpi.top_errors')}
           </div>
           {kpi.topErrors.length === 0 ? (
-            <div className="text-[11.5px] text-zinc-400 mt-2">
+            <div className="text-[11.5px] text-zinc-500 mt-2">
               {t('imports.sessions.kpi.no_errors')}
             </div>
           ) : (

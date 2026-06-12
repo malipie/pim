@@ -196,7 +196,7 @@ export function AttributePicker({
         className="h-9 w-full inline-flex items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-[12.5px] hover:border-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
       >
         <span className="truncate text-left">{triggerLabel}</span>
-        <ChevronDown className="size-4 shrink-0 text-zinc-400" aria-hidden="true" />
+        <ChevronDown className="size-4 shrink-0 text-zinc-500" aria-hidden="true" />
       </button>
       {open && panelRect && typeof document !== 'undefined'
         ? createPortal(
@@ -213,7 +213,7 @@ export function AttributePicker({
               <div className="p-2 border-b border-zinc-100">
                 <div className="relative">
                   <Search
-                    className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-zinc-500"
                     aria-hidden="true"
                   />
                   <Input
@@ -231,7 +231,7 @@ export function AttributePicker({
               <div className="max-h-[320px] overflow-y-auto py-1">
                 {favoriteRows.length > 0 ? (
                   <>
-                    <div className="px-3 py-1 text-[10.5px] uppercase tracking-wider font-semibold text-zinc-400">
+                    <div className="px-3 py-1 text-[10.5px] uppercase tracking-wider font-semibold text-zinc-500">
                       {t('attribute_picker.favorites', { defaultValue: 'Ulubione' })}
                     </div>
                     {favoriteRows.map((row) => (
@@ -254,11 +254,11 @@ export function AttributePicker({
                   </>
                 ) : null}
 
-                <div className="px-3 py-1 text-[10.5px] uppercase tracking-wider font-semibold text-zinc-400">
+                <div className="px-3 py-1 text-[10.5px] uppercase tracking-wider font-semibold text-zinc-500">
                   {t('attribute_picker.all', { defaultValue: 'Wszystkie atrybuty' })}
                 </div>
                 {filteredRows.length === 0 ? (
-                  <div className="px-3 py-2 text-[12px] text-zinc-400">
+                  <div className="px-3 py-2 text-[12px] text-zinc-500">
                     {t('attribute_picker.empty', { defaultValue: 'Brak atrybutów' })}
                   </div>
                 ) : (
@@ -330,7 +330,7 @@ function PickerRow({
         className="flex-1 flex items-center justify-between gap-2 text-left"
       >
         <span className="truncate">{attrLabel(row, locale)}</span>
-        <span className="font-mono text-[10.5px] text-zinc-400 shrink-0">{row.code}</span>
+        <span className="font-mono text-[10.5px] text-zinc-500 shrink-0">{row.code}</span>
       </button>
     </div>
   );

@@ -73,7 +73,7 @@ export function AttributeLockToggle({
         'h-6 w-6 grid place-items-center rounded-md transition disabled:opacity-50',
         locked
           ? 'text-amber-600 bg-amber-50 hover:bg-amber-100'
-          : 'text-zinc-400 hover:bg-zinc-100',
+          : 'text-zinc-500 hover:bg-zinc-100',
       )}
     >
       <Icon className="size-3.5" aria-hidden="true" />

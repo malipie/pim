@@ -146,7 +146,7 @@ export function ImportProfilesView() {
 
       <div className="flex items-center gap-3 flex-wrap">
         <label className="flex items-center gap-2 bg-white soft-shadow rounded-xl pl-3 pr-2 h-9">
-          <Search className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+          <Search className="h-4 w-4 text-zinc-500" aria-hidden="true" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -186,7 +186,7 @@ export function ImportProfilesView() {
 
       {query.isLoading ? (
         <div
-          className="rounded-2xl border border-zinc-100 bg-white px-5 py-10 text-center text-[13px] text-zinc-400"
+          className="rounded-2xl border border-zinc-100 bg-white px-5 py-10 text-center text-[13px] text-zinc-500"
           aria-busy="true"
         >
           {t('app.loading')}
@@ -207,7 +207,7 @@ export function ImportProfilesView() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-zinc-100 bg-white soft-shadow">
-          <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_90px_120px_90px_110px_110px_36px] gap-3 text-[10.5px] uppercase tracking-wider text-zinc-400 font-medium px-5 py-2.5 border-b border-zinc-100 bg-zinc-50/40">
+          <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_90px_120px_90px_110px_110px_36px] gap-3 text-[10.5px] uppercase tracking-wider text-zinc-500 font-medium px-5 py-2.5 border-b border-zinc-100 bg-zinc-50/40">
             <div>{t('imports.profiles.list.col_name')}</div>
             <div>{t('imports.profiles.list.col_target')}</div>
             <div>{t('imports.profiles.list.col_format')}</div>
@@ -230,7 +230,7 @@ export function ImportProfilesView() {
                 />
               ))
             ) : (
-              <div className="px-5 py-8 text-center text-[13px] text-zinc-400">
+              <div className="px-5 py-8 text-center text-[13px] text-zinc-500">
                 {t('imports.profiles.list.empty_filtered')}
               </div>
             )}

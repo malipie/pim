@@ -66,7 +66,7 @@ export function CoverageStrip({ perModule, overallPct }: CoverageStripProps) {
                 />
               ) : null}
             </div>
-            <div className="truncate text-center font-mono text-[9px] uppercase text-zinc-400">
+            <div className="truncate text-center font-mono text-[9px] uppercase text-zinc-500">
               {m.short}
             </div>
           </div>

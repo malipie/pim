@@ -230,9 +230,7 @@ export function KpiCards({ counts = {}, isPending = false }: KpiCardsProps) {
                   <span
                     className={cn(
                       'num inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium',
-                      isPositive
-                        ? 'bg-accent-emerald/10 text-accent-emerald'
-                        : 'bg-accent-rose/10 text-accent-rose',
+                      isPositive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700',
                     )}
                   >
                     <ArrowUpRight className={cn('size-3', !isPositive && 'rotate-90')} />

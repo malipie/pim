@@ -213,7 +213,7 @@ export function AddUserManuallyModal({ open, onOpenChange, onSuccess }: AddUserM
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-700"
                   aria-label={
                     showPassword
                       ? t('settings.users.add_manually.password_hide', {

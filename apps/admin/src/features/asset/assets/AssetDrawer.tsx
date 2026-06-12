@@ -181,7 +181,7 @@ export function AssetDrawer({ asset, onClose, onDeleted, onEdit }: AssetDrawerPr
           </div>
 
           <div>
-            <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+            <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
               {t('assets.drawer.metadata', { defaultValue: 'Metadane' })}
             </div>
             <div className="rounded-2xl border border-zinc-100 bg-zinc-50/70 px-3.5">
@@ -206,7 +206,7 @@ export function AssetDrawer({ asset, onClose, onDeleted, onEdit }: AssetDrawerPr
 
           {absoluteUrl !== null ? (
             <div>
-              <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+              <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
                 URL
               </div>
               <button

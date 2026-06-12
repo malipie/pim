@@ -244,6 +244,7 @@ export function AttrRow({
           ) : attribute.type === 'richtext' || attribute.type === 'textarea' ? (
             <Textarea
               id={`attr-${attribute.code}`}
+              aria-label={label}
               rows={3}
               value={stringValue}
               onChange={(event) => onChange(event.target.value)}
@@ -252,6 +253,7 @@ export function AttrRow({
           ) : attribute.type === 'number' ? (
             <Input
               id={`attr-${attribute.code}`}
+              aria-label={label}
               type="number"
               value={typeof value === 'number' ? value : stringValue}
               onChange={(event) => {
@@ -263,6 +265,7 @@ export function AttrRow({
           ) : attribute.type === 'boolean' ? (
             <input
               id={`attr-${attribute.code}`}
+              aria-label={label}
               type="checkbox"
               checked={value === true}
               onChange={(event) => onChange(event.target.checked)}
@@ -271,6 +274,7 @@ export function AttrRow({
           ) : attribute.type === 'date' ? (
             <Input
               id={`attr-${attribute.code}`}
+              aria-label={label}
               type="date"
               value={readDateValue(value)}
               onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
@@ -279,6 +283,7 @@ export function AttrRow({
           ) : attribute.type === 'datetime' ? (
             <Input
               id={`attr-${attribute.code}`}
+              aria-label={label}
               type="datetime-local"
               value={readDatetimeValue(value)}
               onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
@@ -301,6 +306,7 @@ export function AttrRow({
               />
               <Input
                 type="text"
+                aria-label={label}
                 value={stringValue}
                 onChange={(event) => onChange(event.target.value)}
                 placeholder="#RRGGBB"
@@ -310,6 +316,7 @@ export function AttrRow({
           ) : attribute.type === 'email' ? (
             <Input
               id={`attr-${attribute.code}`}
+              aria-label={label}
               type="email"
               value={stringValue}
               onChange={(event) => onChange(event.target.value)}
@@ -321,6 +328,7 @@ export function AttrRow({
             // uniqueness per ObjectType is enforced server-side (409 on save).
             <Input
               id={`attr-${attribute.code}`}
+              aria-label={label}
               type="text"
               inputMode="text"
               value={stringValue}
@@ -350,6 +358,7 @@ export function AttrRow({
           ) : (
             <Input
               id={`attr-${attribute.code}`}
+              aria-label={label}
               type="text"
               value={stringValue}
               onChange={(event) => onChange(event.target.value)}
@@ -381,7 +390,7 @@ export function AttrRow({
             )}
           >
             {renderReadOnlyValue(attribute, value, selectOptions, valueLang) ?? (
-              <span className="italic text-zinc-400">
+              <span className="italic text-zinc-500">
                 {t('products.detail.field.empty', { defaultValue: '—' })}
               </span>
             )}
@@ -402,7 +411,7 @@ export function AttrRow({
               defaultValue: 'Kopiuj wartość {{label}} do innych wariantów',
               label,
             })}
-            className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+            className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
           >
             <Copy className="size-3.5" aria-hidden />
           </button>

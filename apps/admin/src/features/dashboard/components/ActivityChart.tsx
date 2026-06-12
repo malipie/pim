@@ -49,7 +49,7 @@ export function ActivityChart() {
             {t('dashboard.activity.legend_added')}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-accent-violet" />
+            <span className="size-2 rounded-full bg-orange-500" />
             {t('dashboard.activity.legend_modified')}
           </span>
           <div
@@ -67,7 +67,7 @@ export function ActivityChart() {
                 className={cn(
                   'rounded px-2 py-0.5 text-[11px] font-medium transition-colors',
                   range === r
-                    ? 'bg-accent-violet/10 text-accent-violet'
+                    ? 'bg-orange-500/10 text-orange-700'
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >

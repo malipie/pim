@@ -251,7 +251,7 @@ export function CategorySelectorCard(props: Props) {
         </p>
       ) : isEmpty ? (
         <div className="rounded-xl border border-dashed border-line bg-surface px-3 py-4 text-center">
-          <FolderTree className="mx-auto size-5 text-zinc-400" />
+          <FolderTree className="mx-auto size-5 text-zinc-500" />
           <p className="mt-1 text-[12.5px] font-medium text-ink">
             {t('products.detail.sidebar.categories.empty', {
               defaultValue: 'Brak kategorii',
@@ -286,7 +286,7 @@ export function CategorySelectorCard(props: Props) {
                     'grid size-4 place-items-center rounded-full',
                     assignment.isPrimary
                       ? 'cursor-default text-amber-600'
-                      : 'text-zinc-400 hover:bg-amber-100 hover:text-amber-700',
+                      : 'text-zinc-500 hover:bg-amber-100 hover:text-amber-700',
                   )}
                   aria-label={
                     assignment.isPrimary
@@ -306,7 +306,7 @@ export function CategorySelectorCard(props: Props) {
                   type="button"
                   onClick={() => handleDetach(assignment.categoryId)}
                   disabled={isBusy}
-                  className="grid size-4 place-items-center rounded-full text-zinc-400 hover:bg-red-100 hover:text-red-600"
+                  className="grid size-4 place-items-center rounded-full text-zinc-500 hover:bg-red-100 hover:text-red-600"
                   aria-label={t('products.detail.categories.detach', {
                     defaultValue: 'Odepnij kategorię',
                   })}

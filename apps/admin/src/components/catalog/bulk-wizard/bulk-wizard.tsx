@@ -240,7 +240,7 @@ export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizard
                         ? 'bg-zinc-900 text-white'
                         : done
                           ? 'text-emerald-700 bg-emerald-50'
-                          : 'text-zinc-400 bg-zinc-50',
+                          : 'text-zinc-500 bg-zinc-50',
                     )}
                   >
                     <span className="h-4 w-4 grid place-items-center rounded-full text-[10px] font-mono">
@@ -256,7 +256,7 @@ export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizard
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="ml-2 h-8 w-8 grid place-items-center rounded-lg text-zinc-400 hover:bg-zinc-100"
+            className="ml-2 h-8 w-8 grid place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100"
           >
             <X className="size-4" />
           </button>
@@ -476,7 +476,7 @@ export function BulkWizard({ open, selectedIds, onClose, onApplied }: BulkWizard
                     style={{ gridTemplateColumns: '120px 1fr 140px 140px' }}
                   >
                     <div className="px-3 py-2 font-mono">{row.sku}</div>
-                    <div className="px-3 py-2 font-mono text-zinc-400 text-[11px] truncate">
+                    <div className="px-3 py-2 font-mono text-zinc-500 text-[11px] truncate">
                       {row.id}
                     </div>
                     <div className="px-3 py-2 text-zinc-500 line-through font-mono text-[11.5px]">

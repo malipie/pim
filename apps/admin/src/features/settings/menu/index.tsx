@@ -93,7 +93,7 @@ function Row({ item, draggable, trailing, labelText }: RowProps) {
           aria-label="Drag handle"
           {...sortable.attributes}
           {...sortable.listeners}
-          className="grid size-7 cursor-grab place-items-center rounded-lg text-zinc-400 hover:bg-zinc-100 active:cursor-grabbing"
+          className="grid size-7 cursor-grab place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100 active:cursor-grabbing"
         >
           <GripVertical className="size-4" />
         </button>
@@ -290,7 +290,7 @@ export function MenuSettingsPage() {
                         type="button"
                         aria-label={t('settings.menu.action_hide', { defaultValue: 'Ukryj' })}
                         onClick={() => hideItem(item)}
-                        className="grid size-8 place-items-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                        className="grid size-8 place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
                       >
                         <EyeOff className="size-4" />
                       </button>

@@ -170,7 +170,7 @@ export function StepDetect({ wizard }: StepDetectProps): React.ReactElement {
                   })}
                 </p>
               ) : (
-                <p className="text-[11.5px] text-zinc-400">
+                <p className="text-[11.5px] text-zinc-500">
                   {t('imports.detect.multisheet_single', { defaultValue: 'Jeden arkusz / CSV.' })}
                 </p>
               )}

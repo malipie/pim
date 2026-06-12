@@ -12,7 +12,7 @@ export function HistoryTable({ rows, total }: HistoryTableProps) {
   const { t } = useTranslation();
   return (
     <div className="overflow-hidden rounded-2xl border border-zinc-100 bg-white soft-shadow">
-      <div className="grid grid-cols-[28px_minmax(0,1.6fr)_minmax(0,1.2fr)_110px_90px_minmax(0,1fr)_130px_120px_36px] gap-3 text-[10.5px] uppercase tracking-wider text-zinc-400 font-medium px-5 py-2.5 border-b border-zinc-100 bg-zinc-50/40">
+      <div className="grid grid-cols-[28px_minmax(0,1.6fr)_minmax(0,1.2fr)_110px_90px_minmax(0,1fr)_130px_120px_36px] gap-3 text-[10.5px] uppercase tracking-wider text-zinc-500 font-medium px-5 py-2.5 border-b border-zinc-100 bg-zinc-50/40">
         <div />
         <div>{t('imports.sessions.history.col_file')}</div>
         <div>{t('imports.sessions.history.col_profile')}</div>
@@ -27,7 +27,7 @@ export function HistoryTable({ rows, total }: HistoryTableProps) {
         {rows.length > 0 ? (
           rows.map((row) => <HistoryRow key={row.id} row={row} />)
         ) : (
-          <div className="px-5 py-8 text-center text-[13px] text-zinc-400">
+          <div className="px-5 py-8 text-center text-[13px] text-zinc-500">
             {t('imports.sessions.history.empty_filtered')}
           </div>
         )}

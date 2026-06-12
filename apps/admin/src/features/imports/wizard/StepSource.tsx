@@ -130,13 +130,13 @@ export function StepSource({ wizard }: StepSourceProps): React.ReactElement {
           </section>
 
           <section className="space-y-2">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+            <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
               {t('imports.source.saved_sources', {
                 defaultValue: 'Lub wybierz zapisane źródło (FTP/SFTP)',
               })}
             </div>
             {sources.length === 0 ? (
-              <p className="text-[12px] text-zinc-400">
+              <p className="text-[12px] text-zinc-500">
                 {t('imports.source.no_sources', {
                   defaultValue: 'Brak zapisanych źródeł — skonfiguruj je w zakładce Źródła.',
                 })}
@@ -371,7 +371,7 @@ function SelectField({
   options: Array<{ value: string; label: string }>;
 }): React.ReactElement {
   return (
-    <div className="flex flex-col gap-1">
+    <label className="flex flex-col gap-1">
       <span className="text-[12.5px] font-medium">{label}</span>
       <select
         value={value}
@@ -384,6 +384,6 @@ function SelectField({
           </option>
         ))}
       </select>
-    </div>
+    </label>
   );
 }

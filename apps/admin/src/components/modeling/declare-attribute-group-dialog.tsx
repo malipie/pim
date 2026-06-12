@@ -173,7 +173,7 @@ export function DeclareAttributeGroupDialog({
 
         <div className="space-y-3 px-7 py-4">
           <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2">
-            <Search className="size-4 text-zinc-400" />
+            <Search className="size-4 text-zinc-500" />
             <input
               type="text"
               value={q}
@@ -258,7 +258,7 @@ export function DeclareAttributeGroupDialog({
                         </span>
                         {isLockedSystem ? <BuiltInLockBadge tone="quiet" /> : null}
                       </div>
-                      <div className="font-mono text-[11px] text-zinc-400">{g.code}</div>
+                      <div className="font-mono text-[11px] text-zinc-500">{g.code}</div>
                     </div>
                     {isInherited ? (
                       <span className="rounded bg-white px-2 py-0.5 font-mono text-[10.5px] text-zinc-500">

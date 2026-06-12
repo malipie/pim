@@ -73,7 +73,7 @@ export function AssetField({ value, isEditing, onChange, ariaLabel }: AssetField
   if (!isEditing) {
     if (assetId === null) {
       return (
-        <span className="italic text-zinc-400">
+        <span className="italic text-zinc-500">
           {t('products.detail.field.empty', { defaultValue: '—' })}
         </span>
       );
@@ -97,7 +97,7 @@ export function AssetField({ value, isEditing, onChange, ariaLabel }: AssetField
             {filename ?? assetId}
           </span>
         ) : (
-          <span className="text-[13px] italic text-zinc-400">
+          <span className="text-[13px] italic text-zinc-500">
             {t('products.detail.asset.none', { defaultValue: 'Brak wybranego zasobu' })}
           </span>
         )}

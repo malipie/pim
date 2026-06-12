@@ -142,7 +142,7 @@ export function ChannelPlacementsSection({ productId }: Props) {
                   ) : (
                     <p className="truncate text-[11.5px] text-muted-foreground">
                       {row.placement.nodePath}{' '}
-                      <span className="text-zinc-400">
+                      <span className="text-zinc-500">
                         {row.placement.source === 'manual'
                           ? t('products.detail.placements.manual', { defaultValue: '(ręcznie)' })
                           : t('products.detail.placements.auto', { defaultValue: '(auto)' })}

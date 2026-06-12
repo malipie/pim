@@ -56,7 +56,7 @@ export function StagePipeline({ stage, className }: StagePipelineProps) {
                     'h-4 w-4 rounded-full grid place-items-center text-[9px]',
                     state === 'done' && 'bg-emerald-500 text-white',
                     state === 'active' && 'bg-zinc-900 text-white',
-                    state === 'pending' && 'bg-zinc-200 text-zinc-400',
+                    state === 'pending' && 'bg-zinc-200 text-zinc-500',
                   )}
                 >
                   {state === 'done' ? (
@@ -72,7 +72,7 @@ export function StagePipeline({ stage, className }: StagePipelineProps) {
                     'text-[12px] font-semibold tracking-tight truncate',
                     state === 'active' && 'text-zinc-900',
                     state === 'done' && 'text-emerald-800',
-                    state === 'pending' && 'text-zinc-400',
+                    state === 'pending' && 'text-zinc-500',
                   )}
                 >
                   {s.label}

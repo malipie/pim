@@ -28,7 +28,7 @@ export function SettingToggleRow({
       <div>
         <div className="flex items-center gap-2 text-[13.5px] font-medium tracking-tight">
           {label}
-          {locked ? <Lock aria-label="Zablokowane" className="size-3 text-zinc-400" /> : null}
+          {locked ? <Lock aria-label="Zablokowane" className="size-3 text-zinc-500" /> : null}
         </div>
         <div className="mt-0.5 text-[11.5px] text-zinc-500">{description}</div>
       </div>

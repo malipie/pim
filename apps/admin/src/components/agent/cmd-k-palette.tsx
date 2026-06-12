@@ -164,8 +164,8 @@ export function CmdKPalette({
         aria-modal="true"
         aria-labelledby="cmd-k-title"
       >
-        <div className="px-5 h-14 flex items-center gap-3 border-b border-zinc-100 bg-gradient-to-br from-violet-50/80 to-white">
-          <span className="h-8 w-8 rounded-xl bg-violet-500 text-white grid place-items-center">
+        <div className="px-5 h-14 flex items-center gap-3 border-b border-zinc-100 bg-gradient-to-br from-orange-50/80 to-white">
+          <span className="h-8 w-8 rounded-xl bg-orange-500 text-white grid place-items-center">
             <Sparkles className="size-4" />
           </span>
           <div className="leading-tight">
@@ -182,7 +182,7 @@ export function CmdKPalette({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="ml-auto h-8 w-8 grid place-items-center rounded-lg text-zinc-400 hover:bg-zinc-100"
+            className="ml-auto h-8 w-8 grid place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100"
           >
             <X className="size-4" />
           </button>
@@ -204,7 +204,7 @@ export function CmdKPalette({
               placeholder={t('agent.cmd_k.placeholder', {
                 defaultValue: 'Np. „pomnóż price przez 1.10 dla wszystkich z brand IS Festo"',
               })}
-              className="w-full h-12 px-4 rounded-xl border border-zinc-200 text-[14px] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+              className="w-full h-12 px-4 rounded-xl border border-zinc-200 text-[14px] focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
             />
           </form>
 
@@ -224,7 +224,7 @@ export function CmdKPalette({
                       type="button"
                       onClick={() => void applyPlan()}
                       disabled={isLoading || selectedIds.length === 0}
-                      className="h-9 px-4 rounded-lg bg-violet-600 text-white text-[12.5px] font-medium hover:bg-violet-500 disabled:opacity-50"
+                      className="h-9 px-4 rounded-lg bg-orange-600 text-white text-[12.5px] font-medium hover:bg-orange-500 disabled:opacity-50"
                     >
                       {t('agent.cmd_k.apply', { defaultValue: 'Zastosuj' })}
                     </button>

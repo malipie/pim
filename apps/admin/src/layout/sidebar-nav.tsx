@@ -331,7 +331,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           >
             {SETTINGS_NAV_GROUPS.map((group) => (
               <div key={group.id}>
-                <div className="mt-1.5 mb-0.5 px-2 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+                <div className="mt-1.5 mb-0.5 px-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
                   {t(group.labelKey)}
                 </div>
                 {group.items.map((sub) => (
@@ -514,7 +514,7 @@ function SettingsAuditCard() {
   return (
     <div className="mt-2 mr-1 rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
       <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-        <FileLock2 className="size-3 text-zinc-400" aria-hidden />
+        <FileLock2 className="size-3 text-zinc-500" aria-hidden />
         {t('settings.audit_card_title', { defaultValue: 'Audyt zmian' })}
       </div>
       <p className="text-[11px] leading-snug text-zinc-700">

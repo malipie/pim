@@ -35,7 +35,7 @@ export function ProfileCard({
   return (
     <article className="rounded-2xl border border-zinc-100 bg-white p-4 soft-shadow flex flex-col gap-3">
       <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-xl grid place-items-center shrink-0 bg-violet-50 text-violet-700">
+        <div className="h-10 w-10 rounded-xl grid place-items-center shrink-0 bg-orange-50 text-orange-700">
           <Layers className="h-5 w-5" aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1">
@@ -84,13 +84,13 @@ export function ProfileCard({
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11.5px]">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.profiles.card.target')}
           </div>
           <div className="text-zinc-700 truncate">{targetCodeOf(profile)}</div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.profiles.card.encoding')}
           </div>
           <div className="font-mono text-zinc-700">
@@ -99,7 +99,7 @@ export function ProfileCard({
           </div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.profiles.card.columns')}
           </div>
           <div className="text-zinc-700 num">
@@ -107,7 +107,7 @@ export function ProfileCard({
           </div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.profiles.card.locale')}
           </div>
           <div className="text-zinc-700 font-mono uppercase tracking-wider">
@@ -116,7 +116,7 @@ export function ProfileCard({
         </div>
       </div>
 
-      <div className="pt-3 border-t border-zinc-100 text-[10.5px] text-zinc-400 font-mono">
+      <div className="pt-3 border-t border-zinc-100 text-[10.5px] text-zinc-500 font-mono">
         {profile.lastUsedAt
           ? t('imports.profiles.card.last_used', {
               date: new Intl.DateTimeFormat('pl-PL', {

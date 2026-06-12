@@ -82,7 +82,7 @@ export function EffectivePermissionsPanel({
             </div>
           )}
           {selectedRoles.length >= 2 ? (
-            <div className="mt-1 font-mono text-[10.5px] text-zinc-400">
+            <div className="mt-1 font-mono text-[10.5px] text-zinc-500">
               {t('settings.users.role_union', {
                 count: selectedRoles.length,
                 defaultValue: 'union · {{count}} ról',

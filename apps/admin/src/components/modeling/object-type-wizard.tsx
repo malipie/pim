@@ -563,7 +563,7 @@ export function ObjectTypeWizard() {
                             <div className="truncate text-[13px] font-medium tracking-tight">
                               {labelText}
                             </div>
-                            <div className="truncate font-mono text-[11px] text-zinc-400">
+                            <div className="truncate font-mono text-[11px] text-zinc-500">
                               {g.code}
                             </div>
                           </div>
@@ -587,7 +587,7 @@ export function ObjectTypeWizard() {
                               defaultValue: 'Usuń grupę',
                             })}
                             onClick={() => removeGroup(g.id)}
-                            className="grid size-8 place-items-center rounded-lg text-zinc-400 transition hover:bg-rose-50 hover:text-rose-600"
+                            className="grid size-8 place-items-center rounded-lg text-zinc-500 transition hover:bg-rose-50 hover:text-rose-600"
                           >
                             <Trash2 className="size-3.5" />
                           </button>
@@ -669,7 +669,7 @@ export function ObjectTypeWizard() {
                               defaultValue: 'Usuń atrybut',
                             })}
                             onClick={() => removeAttribute(a.id)}
-                            className="grid size-8 place-items-center rounded-lg text-zinc-400 transition hover:bg-rose-50 hover:text-rose-600"
+                            className="grid size-8 place-items-center rounded-lg text-zinc-500 transition hover:bg-rose-50 hover:text-rose-600"
                           >
                             <Trash2 className="size-3.5" />
                           </button>
@@ -796,7 +796,7 @@ export function ObjectTypeWizard() {
                       :
                     </span>{' '}
                     {pickedGroupIds.size === 0 ? (
-                      <span className="text-zinc-400">
+                      <span className="text-zinc-500">
                         {t('object_type_wizard.summary_groups_empty', {
                           defaultValue: '— (tylko built-in)',
                         })}
@@ -817,7 +817,7 @@ export function ObjectTypeWizard() {
                       :
                     </span>{' '}
                     {pickedAttributeIds.size === 0 ? (
-                      <span className="text-zinc-400">
+                      <span className="text-zinc-500">
                         {t('object_type_wizard.summary_attrs_empty', {
                           defaultValue: '— (brak)',
                         })}
@@ -894,7 +894,7 @@ export function ObjectTypeWizard() {
               </div>
               <ul className="space-y-1.5 text-[12px] text-zinc-600">
                 <li className="flex items-start gap-2">
-                  <Lock className="mt-0.5 size-3 text-zinc-400" />
+                  <Lock className="mt-0.5 size-3 text-zinc-500" />
                   {t('object_type_wizard.tip_snake_case', {
                     defaultValue: 'Code powinien być w snake_case',
                   })}

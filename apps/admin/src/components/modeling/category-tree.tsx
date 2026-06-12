@@ -185,7 +185,7 @@ function CategoryTreeRow({
             <ChevronRight
               className={cn(
                 'size-3.5 transition-transform',
-                isSelected && !isMulti ? 'text-white/70' : 'text-zinc-400',
+                isSelected && !isMulti ? 'text-white/70' : 'text-zinc-500',
               )}
               style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
               aria-hidden
@@ -208,7 +208,7 @@ function CategoryTreeRow({
             <span
               className={cn(
                 'ml-1 font-mono text-[10.5px] tabular-nums',
-                isSelected && !isMulti ? 'text-white/50' : 'text-zinc-400',
+                isSelected && !isMulti ? 'text-white/50' : 'text-zinc-500',
               )}
             >
               {node.instanceCount}
@@ -228,7 +228,7 @@ function CategoryTreeRow({
                 <span
                   className={cn(
                     'ml-0.5 text-[10px]',
-                    isSelected ? 'text-white/50' : 'text-zinc-400',
+                    isSelected ? 'text-white/50' : 'text-zinc-500',
                   )}
                 >
                   +{groupColors.length - 3}
@@ -250,7 +250,7 @@ function CategoryTreeRow({
               isPrimary
                 ? 'bg-amber-100 text-amber-700'
                 : isChecked
-                  ? 'text-zinc-400 hover:bg-amber-50 hover:text-amber-600'
+                  ? 'text-zinc-500 hover:bg-amber-50 hover:text-amber-600'
                   : 'cursor-not-allowed text-zinc-200',
             )}
             aria-label={isPrimary ? 'Kategoria główna' : 'Ustaw jako główną'}

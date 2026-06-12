@@ -103,7 +103,7 @@ export function LiveSessionCard({ session, throughput }: LiveSessionCardProps) {
                 </div>
                 <FormatPill format={detectFormat(session.file_name)} />
                 {session.file_size_bytes ? (
-                  <span className="text-[11.5px] text-zinc-400 num">
+                  <span className="text-[11.5px] text-zinc-500 num">
                     {formatBytes(session.file_size_bytes)}
                   </span>
                 ) : null}
@@ -147,7 +147,7 @@ export function LiveSessionCard({ session, throughput }: LiveSessionCardProps) {
                     total: session.total_rows?.toLocaleString('pl-PL') ?? '—',
                   })}
                 </span>
-                <span className="text-[12px] text-zinc-400">·</span>
+                <span className="text-[12px] text-zinc-500">·</span>
                 <span className="text-[12px] num text-zinc-700 font-medium">{pct}%</span>
               </div>
               <div

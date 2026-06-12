@@ -169,12 +169,12 @@ export function BulkSessionsPopover() {
         aria-expanded={open}
         className={cn(
           'relative inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
-          hasSessions ? 'text-zinc-700 hover:text-zinc-900' : 'text-zinc-400 hover:text-zinc-700',
+          hasSessions ? 'text-zinc-700 hover:text-zinc-900' : 'text-zinc-500 hover:text-zinc-700',
         )}
       >
         <Clock className="size-4" aria-hidden="true" />
         {hasSessions ? (
-          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 font-mono text-[10px] font-semibold text-white">
+          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-orange-600 px-1 font-mono text-[10px] font-semibold text-white">
             {sessions.length > 9 ? '9+' : sessions.length}
           </span>
         ) : null}
@@ -218,7 +218,7 @@ export function BulkSessionsPopover() {
                   <span className="truncate text-[12.5px] font-medium text-zinc-900">
                     {ACTION_LABEL_FALLBACK[s.action_type] ?? s.action_type}
                   </span>
-                  <span className="shrink-0 font-mono text-[10.5px] text-zinc-400">
+                  <span className="shrink-0 font-mono text-[10.5px] text-zinc-500">
                     {formatTimeAgo(s.completed_at ?? s.started_at)}
                   </span>
                 </div>
@@ -242,7 +242,7 @@ export function BulkSessionsPopover() {
                       'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11.5px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
                       s.is_rollback_available && rollingBack !== s.id
                         ? 'bg-zinc-900 text-white hover:bg-zinc-800'
-                        : 'bg-zinc-100 text-zinc-400',
+                        : 'bg-zinc-100 text-zinc-500',
                     )}
                   >
                     {rollingBack === s.id ? (

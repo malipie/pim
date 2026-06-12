@@ -225,7 +225,7 @@ export function AssetsListPage() {
         <div className="ml-auto flex items-center gap-2">
           <div className="relative">
             <Search
-              className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400"
+              className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-zinc-500"
               aria-hidden
             />
             <input
@@ -318,7 +318,7 @@ export function AssetsListPage() {
       {/* Folder tiles */}
       {showFolderTiles ? (
         <div>
-          <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+          <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
             {t('assets.folders_label', { defaultValue: 'Foldery' })}
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -343,19 +343,19 @@ export function AssetsListPage() {
       {/* Files */}
       <div>
         <div className="mb-2.5 flex items-center gap-2">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
             {t('assets.files_label', { defaultValue: 'Pliki' })}
           </div>
-          <div className="text-[11.5px] text-zinc-400">
+          <div className="text-[11.5px] text-zinc-500">
             <span className="num font-semibold text-zinc-600">{assets.length}</span>
           </div>
           {isLoading ? (
-            <Loader2 className="size-3.5 animate-spin text-zinc-400" aria-hidden />
+            <Loader2 className="size-3.5 animate-spin text-zinc-500" aria-hidden />
           ) : null}
         </div>
 
         {assets.length === 0 && !isLoading ? (
-          <div className="rounded-2xl border border-dashed border-zinc-200 px-6 py-16 text-center text-[13px] text-zinc-400">
+          <div className="rounded-2xl border border-dashed border-zinc-200 px-6 py-16 text-center text-[13px] text-zinc-500">
             {t('assets.empty')}
           </div>
         ) : view === 'grid' ? (
@@ -376,7 +376,7 @@ export function AssetsListPage() {
           </ul>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm">
-            <div className="grid grid-cols-[40px_44px_1fr_110px_90px] gap-3 border-b border-zinc-100 px-4 py-2.5 text-[10.5px] font-medium uppercase tracking-wider text-zinc-400">
+            <div className="grid grid-cols-[40px_44px_1fr_110px_90px] gap-3 border-b border-zinc-100 px-4 py-2.5 text-[10.5px] font-medium uppercase tracking-wider text-zinc-500">
               <div />
               <div />
               <div>{t('assets.columns.name', { defaultValue: 'Nazwa' })}</div>
@@ -417,7 +417,7 @@ export function AssetsListPage() {
                       {asset.filename}
                     </span>
                     {asset.folder !== null ? (
-                      <span className="block font-mono text-[11px] text-zinc-400">
+                      <span className="block font-mono text-[11px] text-zinc-500">
                         {asset.folder}
                       </span>
                     ) : null}
@@ -511,7 +511,7 @@ function AssetCard({ asset, selected, onToggle, onOpen }: AssetCardProps) {
           <div className="truncate text-[11.5px] font-medium" title={asset.filename}>
             {asset.filename}
           </div>
-          <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] text-zinc-400">
+          <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] text-zinc-500">
             <span className="font-mono uppercase">{asset.ext}</span>
             {asset.sizeLabel !== null ? (
               <>
@@ -534,7 +534,7 @@ function AssetCard({ asset, selected, onToggle, onOpen }: AssetCardProps) {
           'absolute left-2 top-2 grid h-6 w-6 place-items-center rounded-md transition',
           selected
             ? 'bg-zinc-900 text-white'
-            : 'border border-zinc-200 bg-white/80 text-transparent group-hover:text-zinc-400',
+            : 'border border-zinc-200 bg-white/80 text-transparent group-hover:text-zinc-500',
         )}
       >
         <Check className="size-3.5" />
@@ -570,7 +570,7 @@ function FolderTile({ name, count, warning = false, onOpen }: FolderTileProps) {
       <div className="mt-0.5 w-full truncate text-center text-[12.5px] font-medium leading-tight text-zinc-800">
         {name}
       </div>
-      <div className="num text-[10.5px] text-zinc-400">
+      <div className="num text-[10.5px] text-zinc-500">
         {count !== null
           ? t('assets.folder.count_short', { defaultValue: '{{count}} elem.', count })
           : ' '}

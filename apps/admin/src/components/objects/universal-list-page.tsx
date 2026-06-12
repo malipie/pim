@@ -648,7 +648,7 @@ export function UniversalListPage({
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[280px]">
           <Search
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-500"
             aria-hidden="true"
           />
           <input
@@ -846,8 +846,8 @@ export function UniversalListPage({
               className={cn(
                 'ml-1 inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[12px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
                 showSelectedOnly
-                  ? 'bg-violet-600 text-white hover:bg-violet-500'
-                  : 'bg-violet-100 text-violet-700 hover:bg-violet-200',
+                  ? 'bg-orange-600 text-white hover:bg-orange-500'
+                  : 'bg-orange-100 text-orange-700 hover:bg-orange-200',
               )}
             >
               {showSelectedOnly

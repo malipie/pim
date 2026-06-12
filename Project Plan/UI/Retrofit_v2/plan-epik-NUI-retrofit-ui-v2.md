@@ -547,3 +547,18 @@ e2e, dotknięte widoki (naprawy), docs.
 - **Agent ⌘K — realne wykonanie zadań** — Faza 2 (epik 0.7); paleta NUI-03 zostawia sekcję agenta jako MOCK.
 - **Eksporty** — D2; ewentualne rozjazdy z `Eksport-nowy.html` wychwytują smoke testy, bez dedykowanego ticketu.
 - **`design_handoff_modelowanie/`** — bundle z własnym CLAUDE.md/tasks.md zakłada stack Next.js + Drizzle — **ignorujemy wskazania stackowe**, obowiązuje stack repo; bundle służy tylko jako opis intencji designu (sekcje Screens/Interactions/Design System).
+
+---
+
+## 9. Korekta po realizacji (NUI-13, 2026-06-12) — odstępstwa od planu
+
+Epik zrealizowany w 13/13 ticketach (issues #1420–#1432, PR #1444–#1449, #1451–#1457 + bramka). Wiążące odstępstwa od sekcji ticketowych:
+
+1. **§NUI-02 (dashboard)**: plan nakazywał usunięcie `HeroAgentPanel`/`ChannelDistribution`/`CompletenessMetrics` jako „nieobecnych w designie" — **błąd eksploracji planu**: `Dashboard.html` zawiera Hero (CTA agenta), CompletenessGauge i ChannelDistribution. Widgety ZOSTAŁY; usunięto tylko sztuczne opóźnienie skeletonów i martwe komponenty skeletonów.
+2. **§NUI-08 (Multimedia)**: plan opisywał „lewą szynę folderów" — design nie ma osobnej szyny (nawigacja = kafle folderów + path bar ze strzałką w górę). Zaimplementowano wg designu. Dodatkowo: nowa semantyka roota („Wszystkie zasoby" = wszystkie pliki, bez parametru folder; pseudo-folder „Bez przypisania" = `folder=root`).
+3. **§NUI-06 (karta produktu)**: zakres strukturalny dostarczyła równoległa seria #1434 (unifikacja detalu) + #1351/#1440/#1442 — `universal-detail-page.tsx` usunięty, więc ekstrakcja `DetailHeaderV2` bezprzedmiotowa. Ticket domknięty weryfikacją parytetu + spec-em strażniczym `1425-product-detail-v2.spec.ts` (zero restyle'u — najgoręcej bugfixowana powierzchnia).
+4. **§NUI-07 (modelowanie)**: dwa świadome wyjątki od violet→orange: aktywny tab = podkreślenie ink/czarne (spec tabów designu), `CompletenessRing` <50% = rose (semantyka błędu). Hue-coded palety (typy atrybutów, moduły RBAC CoverageStrip/PermissionMatrix, odcienie awatarów, `ScopePill`) świadomie zachowują wielobarwność — to kodowanie kategorii, nie akcent.
+5. **§NUI-10 (wizard)**: lokalny `WizardStepper` importów ZOSTAŁ (jest pixel-perfect ze stepperem designu — emerald done / dark active / hint line); ui-v2 stepper ma inną stylistykę. Spec happy-path odsłonił **pre-existing bug backendu widoczny tylko w CI**: 500 FK `objects_import_session_fk` na ścieżce inline-commit → issue **#1455** (spec skipuje wyłącznie na tej sygnaturze).
+6. **§NUI-03 (⌘K)**: zamiast rozszerzać paletę listy (ryzyko regresji VIEW-19) — osobny `GlobalCmdK`; na trasach universal listy skrót zostaje przy palecie kontekstowej. Modal „Plan zmian" pominięty (sekcja agenta disabled do epiku 0.7).
+7. **§NUI-12 (Users/Roles)**: weryfikacja wykazała, że RBAC P5 zbudował strony 1:1 z mockupów — realna delta = de-violet 15 plików ustawień.
+8. **NUI-13 a11y (nowe, poza planem)**: bramka axe wymusiła **przyciemnienie tokenów akcentów** w `index.css` (accent-emerald/rose/amber/blue/sky/zinc → odcienie AA-safe na tintach /10 przy 10–11px) oraz globalny sweep `text-zinc-400`→`text-zinc-500` dla tekstów (65 plików; placeholdery bez zmian); `role="grid"` listy produktów zastąpiony semantyczną `<section>` (wzorzec ARIA grid wymaga keyboard nav, której nie implementujemy). Trwała bramka: `e2e/nui-13-a11y.spec.ts` (10 widoków, serious+critical = 0).

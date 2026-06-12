@@ -68,7 +68,7 @@ export function AttrGroupCard({
             <span className="truncate">{title}</span>
             {isSystem ? (
               <span className="inline-flex items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
-                <Lock className="size-3 text-zinc-400" aria-hidden />
+                <Lock className="size-3 text-zinc-500" aria-hidden />
                 {t('products.detail.group.system', { defaultValue: 'system' })}
               </span>
             ) : null}
@@ -90,7 +90,7 @@ export function AttrGroupCard({
           />
         </div>
         <ChevronRight
-          className={cn('size-4 text-zinc-400 transition-transform', expanded && 'rotate-90')}
+          className={cn('size-4 text-zinc-500 transition-transform', expanded && 'rotate-90')}
           aria-hidden
         />
       </button>

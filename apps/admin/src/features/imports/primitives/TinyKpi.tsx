@@ -8,7 +8,7 @@ const ACCENT_COLORS: Record<TinyKpiAccent, string> = {
   sky: 'text-sky-700',
   amber: 'text-amber-800',
   zinc: 'text-zinc-900',
-  violet: 'text-violet-700',
+  violet: 'text-orange-700',
 };
 
 export interface TinyKpiProps {
@@ -23,7 +23,7 @@ export interface TinyKpiProps {
 export function TinyKpi({ label, value, unit, trend, accent = 'zinc', className }: TinyKpiProps) {
   return (
     <div className={cn('flex flex-col', className)}>
-      <div className="text-[10.5px] uppercase tracking-wider text-zinc-400 font-medium">
+      <div className="text-[10.5px] uppercase tracking-wider text-zinc-500 font-medium">
         {label}
       </div>
       <div className="flex items-baseline gap-1 mt-0.5">

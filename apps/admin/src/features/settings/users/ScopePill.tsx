@@ -25,7 +25,7 @@ export function ScopePill({ values, kind }: ScopePillProps) {
 
   if (isUnrestricted) {
     return (
-      <span className="text-[11px] text-zinc-400">
+      <span className="text-[11px] text-zinc-500">
         {t('settings.users.scope_all', { defaultValue: 'wszystkie' })}
       </span>
     );

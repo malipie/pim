@@ -101,7 +101,7 @@ export function BulkDeleteConfirmModal({ selectedIds, onClose, onApplied }: Hard
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="ml-auto h-8 w-8 grid place-items-center rounded-lg text-zinc-400 hover:bg-zinc-100"
+            className="ml-auto h-8 w-8 grid place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100"
           >
             <X className="size-4" />
           </button>

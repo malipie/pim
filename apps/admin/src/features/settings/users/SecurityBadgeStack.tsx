@@ -67,7 +67,7 @@ export function SecurityBadgeStack({
           {t('settings.users.mfa_required', { defaultValue: 'MFA wymagane' })}
         </span>
       ) : (
-        <span className="text-[10.5px] text-zinc-400">
+        <span className="text-[10.5px] text-zinc-500">
           {t('settings.users.mfa_none', { defaultValue: 'brak MFA' })}
         </span>
       )}

@@ -31,7 +31,7 @@ export function FieldDisplay({
     <div>
       <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-medium text-zinc-500">
         <span>{label}</span>
-        {locked ? <Lock aria-label="Zablokowane" className="size-3 text-zinc-400" /> : null}
+        {locked ? <Lock aria-label="Zablokowane" className="size-3 text-zinc-500" /> : null}
       </div>
       <div
         className={cn(

@@ -118,12 +118,12 @@
 
   /* Handoff accent palette — semantic by hue, used per attribute type / state */
   --color-accent-violet: #a855f7;
-  --color-accent-emerald: #10b981;
-  --color-accent-blue: #3b82f6;
-  --color-accent-amber: #f59e0b;
-  --color-accent-rose: #f43f5e;
-  --color-accent-sky: #0ea5e9;
-  --color-accent-zinc: #71717a;
+  --color-accent-emerald: #176a47; /* NUI-13 — AA on /10 tint at 11px (was #10b981) */
+  --color-accent-blue: #1d4ed8; /* NUI-13 — AA on /10 tint at 11px (was #3b82f6) */
+  --color-accent-amber: #92400e; /* NUI-13 — AA on /10 tint at 10-11px (was #f59e0b) */
+  --color-accent-rose: #be123c; /* NUI-13 — AA on /10 tint at 11px (was #f43f5e) */
+  --color-accent-sky: #0369a1; /* NUI-13 — AA on /10 tint at 11px (was #0ea5e9) */
+  --color-accent-zinc: #52525b; /* NUI-13 — AA on /10 tint at 11px (was #71717a) */
 
   /* Radii scale — v2: chips md=8 / controls+pills xl=12 / cards 2xl=16 */
   --radius-sm: 0.375rem;
