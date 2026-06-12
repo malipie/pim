@@ -137,6 +137,10 @@ services:
       # `doctrine://default?queue_name=async` so the FrankenPHP worker
       # pool drains the queue (audit MEDIUM-007).
       MESSENGER_TRANSPORT_DSN: sync://
+      # IMP2-1.6a (#1468) — the import queue IS asynchronous in dev: the
+      # `worker` service below drains it, so big files leave the request
+      # path and pause/cancel (IMP2-2.3) have a real worker to act on.
+      MESSENGER_IMPORT_TRANSPORT_DSN: doctrine://default?auto_setup=1
       MERCURE_URL: http://mercure/.well-known/mercure
       MERCURE_PUBLIC_URL: https://pim.localhost/.well-known/mercure
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
@@ -167,6 +171,39 @@ services:
       timeout: 3s
       retries: 5
       start_period: 60s
+
+  # ─── Import queue worker (IMP2-1.6a #1468, ADR-0019 D8) ───────────────────
+  # Mirrors the api container (same image, same bind mounts) but runs the
+  # Messenger consumer for the dedicated `import` transport. time-limit
+  # recycles the process well under the redeliver window; failure stops
+  # the container and compose restarts it (crash → redelivery → resume).
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    <<: *default_restart
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: php bin/console messenger:consume import --time-limit=3600 --memory-limit=256M
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      APP_SECRET: ${APP_SECRET:-ChangeMeBeforeDeploy}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      MESSENGER_TRANSPORT_DSN: sync://
+      MESSENGER_IMPORT_TRANSPORT_DSN: doctrine://default?auto_setup=1
+      MERCURE_URL: http://mercure/.well-known/mercure
+      MERCURE_PUBLIC_URL: https://pim.localhost/.well-known/mercure
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
+      MERCURE_TOPIC_BASE: ${MERCURE_TOPIC_BASE:-https://pim.localhost}
+      MEILI_URL: http://meilisearch:7700
+      MEILI_KEY: ${MEILI_MASTER_KEY:-masterKeyPleaseChangeMe}
+    volumes:
+      - ./apps/api:/app
+      - api_var:/app/var
+      - api_vendor:/app/vendor
 
   # ─── Frontend admin (Vite dev server) ─────────────────────────────────────
   admin:

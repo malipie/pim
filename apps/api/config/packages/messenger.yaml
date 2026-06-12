@@ -20,6 +20,18 @@ framework:
             # worker pool drains the queue.
             async: '%env(MESSENGER_TRANSPORT_DSN)%'
 
+            # IMP2-1.6a (#1468, ADR-0019 D8) — dedicated import queue so a
+            # 200k-row import never starves UI-adjacent async jobs (Akeneo's
+            # ui_job / import_export_job split). Doctrine transport with a
+            # redeliver window safely above the worst-case import duration:
+            # the worker heartbeats per chunk, a crashed run is re-delivered
+            # and resumes idempotently (checkpoint lands in IMP2-2.3 #1479).
+            import:
+                dsn: '%env(MESSENGER_IMPORT_TRANSPORT_DSN)%'
+                options:
+                    queue_name: import
+                    redeliver_timeout: 14400
+
             failed: 'doctrine://default?queue_name=failed'
 
         buses:
@@ -98,7 +110,7 @@ framework:
             # row-by-row via {@see ImportRunHandler}. Sync small (<50
             # rows) imports bypass dispatch by calling `run()` directly
             # on the same handler from the controller.
-            App\Import\Domain\Message\ImportRunMessage: async
+            App\Import\Domain\Message\ImportRunMessage: import
 
             # Imports MVP (#447). pgBackRest snapshot can take 5-30
             # minutes — handler runs out-of-band so `POST /api/backups`

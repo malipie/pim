@@ -10,7 +10,7 @@
 #     (ObjectValuesChangedMessage, AssetThumbnailsRequested, ImportRunMessage,
 #     BackupSnapshotMessage) drain via the worker pool below instead of
 #     blocking the HTTP request thread.
-#   - Adds a dedicated `worker` service that runs `messenger:consume async`
+#   - Adds a dedicated `worker` service that runs `messenger:consume async import`
 #     with a per-process memory cap. Replicas scale the pool horizontally
 #     without touching the web container.
 #
@@ -129,6 +129,7 @@ services:
       - "bin/console"
       - "messenger:consume"
       - "async"
+      - "import"
       - "--memory-limit=256M"
       - "--time-limit=3600"
       - "--failure-limit=5"
