@@ -21,6 +21,7 @@ use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
 use App\Shared\Application\BulkOperationInProgressException;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
+use App\Shared\Infrastructure\Messenger\Stamp\TenantStamp;
 use DateTimeInterface;
 use InvalidArgumentException;
 use League\Flysystem\FilesystemException;
@@ -103,6 +104,16 @@ final class StartImportController
         if ('' === $originalName) {
             $originalName = 'upload.csv';
         }
+
+        // IMP2-1.6a (#1468, ADR-0019 D8): the sync/async split counts DATA
+        // ROWS, not bytes — a wide 20-row CSV stays inline, a narrow 500-row
+        // one goes to the worker. Counting stops at the threshold; the +1
+        // header line is excluded.
+        $dataRowCount = str_ends_with(strtolower($originalName), '.csv')
+            ? $this->countDataRows($file->getPathname(), self::SYNC_THRESHOLD_ROWS + 1)
+            // XLSX is a zip — line counting is meaningless; spreadsheets
+            // always take the worker path (cheap now that dev runs one).
+            : self::SYNC_THRESHOLD_ROWS + 1;
         $session = new ImportSession(
             userId: $user->getId(),
             targetObjectType: $objectType,
@@ -151,7 +162,7 @@ final class StartImportController
         // wait on a worker; `total_rows` is unknown until the handler
         // streams the file, so we use the request-time threshold based on
         // `file_size_bytes` heuristic (small files always sync).
-        if ($session->getFileSizeBytes() <= self::SYNC_THRESHOLD_ROWS * 1024) {
+        if ($dataRowCount <= self::SYNC_THRESHOLD_ROWS) {
             $reload = $this->sessions->findById($session->getId());
             if ($reload instanceof ImportSession) {
                 try {
@@ -175,7 +186,7 @@ final class StartImportController
         $this->bus->dispatch(new ImportRunMessage(
             importSessionId: $session->getId(),
             tenantId: $tenant->getId(),
-        ));
+        ), [new TenantStamp($tenant->getId())]);
 
         return new JsonResponse($this->serialise($session), Response::HTTP_ACCEPTED);
     }
@@ -290,5 +301,33 @@ final class StartImportController
         }
 
         return $code;
+    }
+
+    /**
+     * Counts non-empty data lines (header excluded), stopping at $cap —
+     * enough to answer "inline or worker?" without reading a huge file.
+     */
+    private function countDataRows(string $path, int $cap): int
+    {
+        $handle = @fopen($path, 'r');
+        if (false === $handle) {
+            return $cap;
+        }
+        $count = -1; // first line is the header
+        try {
+            while (false !== ($line = fgets($handle))) {
+                if ('' === trim($line)) {
+                    continue;
+                }
+                ++$count;
+                if ($count >= $cap) {
+                    return $count;
+                }
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        return max(0, $count);
     }
 }

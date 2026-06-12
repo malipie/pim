@@ -2460,3 +2460,11 @@ Self-audit ujawnił 12 znalezisk; korekty wprowadzone w drugiej iteracji:
 - **Nowe pokrycie E2E odsłania stare bugi** — happy-path commitu importu (nigdy nietestowany w CI) wykrył FK violation `objects_import_session_fk` na ścieżce inline (tylko CI; #1455). Skip wyłącznie na dokładną sygnaturę znanego buga + osobny issue z diagnostyką — nie maskować szerokim catch-em.
 - **Rate limiter auth ogranicza lokalną pełną suitę** — ~140 speców × login > 50/15min; ogon suity failuje lokalnie (1177/1138/VIEW-09 itd.), te same specki pass w izolacji i w CI. Nie debugować ogona przed sprawdzeniem izolacji; storageState rollout pozostaje właściwym fixem.
 - **`gh pr merge` 401 (keyring)** — merge przez `gh api -X PUT .../pulls/N/merge -f merge_method=squash` działa zawsze (potwierdzone ×9 w epiku).
+
+## Lessons z IMP2 fala A (#1460–#1468, 2026-06-12)
+
+1. **PHPUnit w kontenerze ZAWSZE z `-e APP_ENV=test`** — kontener api ma `APP_ENV=dev` w compose i realne env wygrywa z phpunit `<server force="true">`: kernel bootuje DEV, Foundry `ResetDatabase` **zeruje dev DB** (incydent 2026-06-12, odtworzone z dumpa `backups/pre-imp2-1.2-*`). Kanon: `docker compose exec -T -e APP_ENV=test api vendor/bin/phpunit …`. Objaw-sygnatura: `Could not find service "test.service_container"`.
+2. **Test DB powstaje ze schematu ORM (Foundry reset: schema), nie z migracji** — kolumny trigger-maintained (np. `object_values.identifier_*` z Version20260531120000) muszą mieć read-only mapping w ORM XML (`insertable=false updatable=false`), inaczej każdy path który ich dotyka wybucha tylko w testach.
+3. **Operator JSONB `?` w Doctrine addSql koliduje z placeholderami** — w migracjach używać `jsonb_exists(col, 'key')`; dotyczy też DO-bloków (cały string idzie przez DBAL).
+4. **`docker compose exec` z cwd `apps/api` nie widzi serwisów** — compose root to katalog główny repo; objaw: `service "api" is not running` mimo zdrowego stacka.
+5. **Golden test (eksport→import→równość envelope) łapie luki, których testy kontraktowe nie widzą** — pierwsze uruchomienie wykryło hardcoded required `['sku','name']` i brak kolumn identifier w test DB. Wzorzec: matryca per `AttributeType` + scenariusz „edytuj jedną komórkę".
