@@ -2,11 +2,10 @@ import { Menu } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet } from 'react-router';
-
+import { GlobalCmdK } from '@/components/agent/global-cmd-k';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { TooltipProvider } from '@/components/ui/tooltip';
-
 import { ExportsLiveBridge } from '@/features/exports/hooks/ExportsLiveBridge';
 
 import { AppFooter } from './app-footer';
@@ -24,6 +23,7 @@ export function AppLayout() {
       <PageActionsProvider>
         <NotificationsInboxProvider>
           <ExportsLiveBridge />
+          <GlobalCmdK />
           <div className="flex min-h-screen bg-background">
             <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col px-4 py-5 md:flex">
               <SidebarNav />
