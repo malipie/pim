@@ -2187,7 +2187,8 @@
         "title": "Usuń profil mapowań",
         "confirm": "Czy na pewno usunąć profil „{{name}}”? Tej operacji nie da się cofnąć.",
         "confirm_button": "Usuń profil"
-      }
+      },
+      "export_failed": "Eksport profilu nie powiódł się"
     },
     "sessions": {
       "title": "Sesje importów",
@@ -2410,7 +2411,8 @@
       "view_products": "Zobacz zaimportowane produkty",
       "rollback": "Wycofaj import",
       "rollback_window": "Dostępne do {{date}}",
-      "rollback_expired": "Okno wycofania wygasło"
+      "rollback_expired": "Okno wycofania wygasło",
+      "download_failed": "Pobieranie raportu nie powiodło się"
     },
     "profile_manager": {
       "title": "Moje profile importu",

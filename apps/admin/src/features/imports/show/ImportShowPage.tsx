@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 
 import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/toast';
 import { RollbackButton } from '@/features/imports/components/RollbackButton';
 import { useImportProgress } from '@/features/imports/hooks/useImportProgress';
 import { type ImportStatus, StatusBadge } from '@/features/imports/list/StatusBadge';
@@ -14,6 +15,7 @@ import {
   ResultBar,
   StagePipeline,
 } from '@/features/imports/primitives';
+import { downloadWithAuth } from '@/lib/download';
 import { cn } from '@/lib/utils';
 
 interface ImportSession {
@@ -56,6 +58,21 @@ export function ImportShowPage(): React.ReactElement {
   });
   const progress = useImportProgress(sessionId);
   const logRef = React.useRef<HTMLDivElement | null>(null);
+
+  const handleDownloadReport = async () => {
+    try {
+      await downloadWithAuth(
+        `${apiUrl}/import-sessions/${sessionId}/report.csv`,
+        `import-report-${sessionId}.csv`,
+      );
+    } catch {
+      toast.error(
+        t('imports.results.download_failed', {
+          defaultValue: 'Pobieranie raportu nie powiodło się',
+        }),
+      );
+    }
+  };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll follows the log length
   React.useEffect(() => {
@@ -214,11 +231,9 @@ export function ImportShowPage(): React.ReactElement {
           )}
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="outline">
-              <a href={`${apiUrl}/import-sessions/${sessionId}/report.csv`}>
-                <Download className="size-4" />
-                {t('imports.results.download_report', { defaultValue: 'Pobierz raport CSV' })}
-              </a>
+            <Button variant="outline" onClick={handleDownloadReport}>
+              <Download className="size-4" />
+              {t('imports.results.download_report', { defaultValue: 'Pobierz raport CSV' })}
             </Button>
             <Button asChild variant="outline">
               <Link to={`/products?import_session_id=${sessionId}`}>

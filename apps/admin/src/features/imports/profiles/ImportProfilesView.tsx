@@ -12,6 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { toast } from '@/components/ui/toast';
+import { downloadWithAuth } from '@/lib/download';
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
@@ -74,14 +76,16 @@ export function ImportProfilesView() {
   }
 
   async function handleExport(profile: ImportProfileRow) {
-    // Drive the download through a regular anchor click so the
-    // browser honours `Content-Disposition: attachment`.
-    const link = document.createElement('a');
-    link.href = `${apiUrl}/import-profiles/${profile.id}/export`;
-    link.download = `import-profile-${profile.code}.json`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    try {
+      await downloadWithAuth(
+        `${apiUrl}/import-profiles/${profile.id}/export`,
+        `import-profile-${profile.code}.json`,
+      );
+    } catch {
+      toast.error(
+        t('imports.profiles.export_failed', { defaultValue: 'Eksport profilu nie powiódł się' }),
+      );
+    }
   }
 
   function handleDelete(profile: ImportProfileRow) {
