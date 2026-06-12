@@ -104,6 +104,18 @@ parameters:
               - type: directory
                 value: 'src/ApiConfigurator/.*'
 
+        # ─── Import / Export (ADR-0019, IMP2-1.1 #1463) ────────────────
+        # Target ruleset: only *_Contracts + Shared. Existing reaches into
+        # Catalog_Internals are baselined below and burned down by #1466.
+        - name: Import
+          collectors:
+              - type: directory
+                value: 'src/Import/.*'
+        - name: Export
+          collectors:
+              - type: directory
+                value: 'src/Export/.*'
+
         # ─── Tooling — fixtures, benchmarks, foundry stories, PHPStan rules ───
         - name: Tooling
           collectors:
@@ -144,6 +156,19 @@ parameters:
             - Identity_Contracts
             - Shared
         Asset_Contracts:
+            - Shared
+
+        Import:
+            - Catalog_Contracts
+            - Channel_Contracts
+            - Asset_Contracts
+            - Identity_Contracts
+            - Shared
+        Export:
+            - Catalog_Contracts
+            - Channel_Contracts
+            - Asset_Contracts
+            - Identity_Contracts
             - Shared
 
         Identity_Internals:
@@ -199,6 +224,8 @@ parameters:
             - Identity_Internals
             - Identity_Contracts
             - Shared
+            - Import
+            - Export
 
     # Inline baseline of pre-existing cross-BC violations that the cleanup
     # tickets handle in follow-ups (see ADR-0013). Three clusters:
@@ -245,3 +272,127 @@ parameters:
             - App\Catalog\Domain\Entity\Attribute
         App\Identity\Infrastructure\Security\Prd\AttributeGroupVoter:
             - App\Catalog\Domain\Entity\AttributeGroup
+
+        # 3. IMP2-1.1 (#1463): Import/Export layers added with target ruleset
+        #    (*_Contracts + Shared only). Existing reaches into Catalog/Channel/
+        #    Identity internals + Identity voters importing Import entities are
+        #    baselined here; #1466 (shared writer core) burns the bulk down.
+        App\Export\Application\Builder\ExportBuilder:
+            - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\Entity\ObjectValue
+            - App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface
+            - App\Catalog\Domain\Repository\ObjectValueRepositoryInterface
+        App\Export\Application\Builder\Structural\AttributesGroupsExportBuilder:
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Entity\AttributeGroupAttribute
+            - App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface
+            - App\Catalog\Domain\Repository\AttributeRepositoryInterface
+            - App\Channel\Domain\Repository\TenantLocaleRepositoryInterface
+        App\Export\Application\Builder\Structural\CategoriesExportBuilder:
+            - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\ObjectKind
+            - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface
+            - App\Catalog\Domain\Repository\CategoryAttributeGroupRepositoryInterface
+            - App\Channel\Domain\Repository\TenantLocaleRepositoryInterface
+        App\Export\Application\Builder\Structural\ModuleSchemaExportBuilder:
+            - App\Catalog\Domain\Entity\AttributeGroup
+            - App\Catalog\Domain\Entity\AttributeGroupAttribute
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\Entity\ObjectTypeAttributeGroup
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+        App\Export\Application\Builder\ValueSerializer:
+            - App\Catalog\Domain\AttributeType
+            - App\Catalog\Domain\Entity\ObjectValue
+        App\Export\Application\Sync\SyncExportRunner:
+            - App\Catalog\Application\Filter\FilterDslResolver
+            - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\ObjectKind
+            - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+        App\Export\Presentation\Controller\ExportPreflightController:
+            - App\Catalog\Application\Filter\FilterDslResolver
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\ObjectKind
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+        App\Export\Presentation\Support\ExportEntityTypeResolver:
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+        App\Identity\Infrastructure\Security\ImportProfileVoter:
+            - App\Import\Domain\Entity\ImportProfile
+        App\Identity\Infrastructure\Security\ImportScheduleVoter:
+            - App\Import\Domain\Entity\ImportSchedule
+        App\Identity\Infrastructure\Security\ImportSessionVoter:
+            - App\Import\Domain\Entity\ImportSession
+        App\Identity\Infrastructure\Security\ImportSourceVoter:
+            - App\Import\Domain\Entity\ImportSource
+        App\Import\Application\Service\ImportObjectCreator:
+            - App\Catalog\Domain\AttributeType
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\Entity\ObjectCategory
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\Entity\ObjectValue
+            - App\Catalog\Domain\ObjectKind
+            - App\Catalog\Domain\Provenance
+            - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface
+        App\Import\Application\Service\ImportValidationService:
+            - App\Catalog\Domain\AttributeType
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\ObjectKind
+            - App\Catalog\Domain\Repository\AttributeRepositoryInterface
+            - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface
+        App\Import\Domain\Entity\ImportProfile:
+            - App\Catalog\Domain\Entity\ObjectType
+        App\Import\Domain\Entity\ImportSession:
+            - App\Catalog\Domain\Entity\ObjectType
+        App\Import\Infrastructure\ApiPlatform\State\ImportProfileProcessor:
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+            - App\Identity\Domain\Entity\User
+        App\Import\Infrastructure\ApiPlatform\State\ImportScheduleProcessor:
+            - App\Identity\Domain\Entity\User
+        App\Import\Infrastructure\ApiPlatform\State\ImportSourceProcessor:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\AutoMapController:
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\ObjectKind
+            - App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+        App\Import\Presentation\Controller\DuplicateImportProfileController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\ExportImportProfileController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\GetImportSessionController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\ImportImportProfileController:
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\ImportReportCsvController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\ImportSessionStateController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\ImportThroughputController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\ListImportSessionsController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\ListScheduleRunsController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\ParsePreviewController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\RollbackImportController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\ScheduleStateController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\StartImportController:
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\TestImportSourceConnectionController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\UpcomingSchedulesController:
+            - App\Identity\Domain\Entity\User
+        App\Import\Presentation\Controller\ValidateDryRunController:
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface

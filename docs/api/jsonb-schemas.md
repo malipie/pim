@@ -57,9 +57,9 @@ Mapa `attribute.code → wartość`. Każda wartość to **envelope** (nie raw v
 ```json
 {
   "name":        { "value": "Buty sportowe Air Max 90" },
-  "color":       { "value": "red" },
-  "tags":        { "value": ["new", "sale"] },
-  "price":       { "value": { "amount": 299.00, "currency": "PLN" } },
+  "color":       { "option_code": "red" },
+  "tags":        { "option_codes": ["new", "sale"] },
+  "price":       { "amount": 299.00, "currency": "PLN" },
   "release_date":{ "value": "2027-03-15" },
   "in_stock":    { "value": true }
 }
@@ -270,3 +270,27 @@ Schema unionowa — pole `validation_rules` jest interpretowane przez validator 
 - `agent/lessons.md` "Patterns to Follow" → "`attributes_indexed` ma envelope `{value: ...}`" (PR #511).
 - [`apps/admin/src/lib/attributes-indexed.ts`](apps/admin/src/lib/attributes-indexed.ts) — shared reader helper.
 - [`apps/api/src/Catalog/Application/AttributesIndexedRebuilder.php`](apps/api/src/Catalog/Application/AttributesIndexedRebuilder.php) — single writer dla cache.
+
+---
+
+## 6. `object_values.value` — kanon per `AttributeType` (ADR-0019)
+
+Cache `attributes_indexed` kopiuje envelope **verbatim** z `ObjectValue.value`
+— poniższe shape'y obowiązują w obu miejscach. Authoritative: ADR-0019
+(`docs/adr/0019-import-v2-engine-contracts.md`), egzekwowane przez wspólny
+rdzeń walidacji (IMP2-1.4 / #1466).
+
+| Typy | Shape |
+|---|---|
+| text, textarea, wysiwyg, number, date, datetime, boolean, color, email, identifier | `{"value": <scalar>}` |
+| select | `{"option_code": "<code>"}` |
+| multiselect | `{"option_codes": ["<code>", …]}` |
+| price | `{"amount": <number>, "currency": "<ISO>"}` |
+| metric | `{"value": <number>, "unit": "<code>"}` |
+| asset | `{"asset_id": "<uuid>"}` |
+| relation, reference | `{"object_id": "<uuid>"}` |
+
+Legacy odstępstwa (select `{"value": code}` z admina, osie wariantów
+`{"value": x}` z GenerateVariants, price `{"value": n}` bez waluty) migruje
+jednorazowo #1464; do tego czasu readery mogą mieć tolerancyjny fallback,
+po migracji fallbacki znikają.
