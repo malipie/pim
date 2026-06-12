@@ -6,6 +6,7 @@ namespace App\Catalog\Presentation\Controller;
 
 use App\Catalog\Application\AttributesIndexedRebuilder;
 use App\Catalog\Application\BulkContext;
+use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectValue;
@@ -250,7 +251,11 @@ final class GenerateVariantsController
                         $axisOV = new ObjectValue(
                             object: $variant,
                             attribute: $axisAttribute,
-                            value: ['value' => $axisValue],
+                            // ADR-0019: select axes stamp the canonical
+                            // {option_code} envelope, not a blind {value}.
+                            value: AttributeType::Select === $axisAttribute->getType()
+                                ? ['option_code' => $axisValue]
+                                : ['value' => $axisValue],
                             provenance: Provenance::Manual,
                         );
                         $this->em->persist($axisOV);

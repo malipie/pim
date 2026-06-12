@@ -160,4 +160,19 @@ final class ValueSerializerTest extends TestCase
 
         return $stub;
     }
+
+    /**
+     * IMP2-1.2 (#1464): legacy admin-written selects carried {value} — the
+     * transitional fallback keeps them exportable until #1466 removes it.
+     */
+    #[Test]
+    public function selectFallsBackToLegacyValueKey(): void
+    {
+        $serializer = new ValueSerializer();
+        $legacy = $this->valueWithPayload(AttributeType::Select, ['value' => 'red']);
+        self::assertSame('red', $serializer->serialize($legacy));
+
+        $canonicalWins = $this->valueWithPayload(AttributeType::Select, ['option_code' => 'blue', 'value' => 'red']);
+        self::assertSame('blue', $serializer->serialize($canonicalWins));
+    }
 }
