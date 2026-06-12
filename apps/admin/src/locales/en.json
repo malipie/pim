@@ -2137,7 +2137,8 @@
         "title": "Delete mapping profile",
         "confirm": "Delete profile \"{{name}}\"? This action cannot be undone.",
         "confirm_button": "Delete profile"
-      }
+      },
+      "export_failed": "Profile export failed"
     },
     "sessions": {
       "title": "Import sessions",
@@ -2360,7 +2361,8 @@
       "view_products": "View imported products",
       "rollback": "Rollback",
       "rollback_window": "Available until {{date}}",
-      "rollback_expired": "Rollback window expired"
+      "rollback_expired": "Rollback window expired",
+      "download_failed": "Report download failed"
     },
     "profile_manager": {
       "title": "My import profiles",
