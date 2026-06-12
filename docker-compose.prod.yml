@@ -113,6 +113,7 @@ services:
       MERCURE_URL: http://mercure/.well-known/mercure
       MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:-https://pim.localhost/.well-known/mercure}
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
+      MERCURE_TOPIC_BASE: ${MERCURE_TOPIC_BASE:-https://pim.localhost}
       MEILI_URL: http://meilisearch:7700
       MEILI_KEY: ${MEILI_MASTER_KEY:-masterKeyPleaseChangeMe}
     # Worker entrypoint: drain `async` then exit cleanly. Docker restarts the

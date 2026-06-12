@@ -71,7 +71,9 @@ export function useImportProgress(sessionId: string | null): ImportProgressState
       return;
     }
 
-    const topic = `https://pim.localhost/imports/${sessionId}`;
+    // Topic base = SPA origin (Caddy single-origin); BE publishers use the
+    // matching MERCURE_TOPIC_BASE env (IMP2-0.2 / #1461) — no hardcoded host.
+    const topic = `${window.location.origin}/imports/${sessionId}`;
     const url = `${window.location.origin}/.well-known/mercure?topic=${encodeURIComponent(topic)}`;
     const source = new EventSource(url, { withCredentials: true });
 
