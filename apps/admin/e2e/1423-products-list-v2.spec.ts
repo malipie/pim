@@ -13,11 +13,14 @@ test.describe('NUI-04 — products list v2', () => {
     await loginAsAdmin(page);
     await page.goto('/products');
 
-    const rail = page.getByRole('tablist', { name: /zapisane widoki|saved views/i });
-    await expect(rail).toBeVisible();
+    // The saved-views tablist renders only when views exist; the rail's
+    // save-view CTA is the always-present surface marker.
+    await expect(page.getByRole('button', { name: /zapisz widok|save view/i })).toBeVisible();
 
+    // The smart-filters row label is always present; the tablist role
+    // appears only when presets exist (a11y — empty tablists are hidden).
+    await expect(page.getByText(/smart filtry|smart filters/i).first()).toBeVisible();
     const smartRow = page.getByRole('tablist', { name: /smart filtry|smart filters/i });
-    await expect(smartRow).toBeVisible();
 
     // Grid header in v2 typography renders the SKU column.
     await expect(page.getByText('SKU', { exact: true }).first()).toBeVisible();
@@ -42,13 +45,13 @@ test.describe('NUI-04 — products list v2', () => {
     await loginAsAdmin(page);
     await page.goto('/objects/uslugi');
 
-    const rail = page.getByRole('tablist', { name: /zapisane widoki|saved views/i });
-    const railVisible = await rail
+    const saveCta = page.getByRole('button', { name: /zapisz widok|save view/i });
+    const railVisible = await saveCta
       .waitFor({ state: 'visible', timeout: 15_000 })
       .then(() => true)
       .catch(() => false);
     test.skip(!railVisible, 'No custom ObjectType `uslugi` in this environment seed');
 
-    await expect(page.getByRole('tablist', { name: /smart filtry|smart filters/i })).toBeVisible();
+    await expect(page.getByText(/smart filtry|smart filters/i).first()).toBeVisible();
   });
 });

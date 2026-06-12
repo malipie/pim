@@ -75,20 +75,25 @@ export function SmartFilterPresetsRow({
 
       <span className="h-7 w-px bg-zinc-100 shrink-0" />
 
-      <div
-        role="tablist"
-        aria-label={t('products.smart_filters.label', { defaultValue: 'Smart filtry' })}
-        className="flex items-center gap-1.5 overflow-x-auto scrollbar-thin flex-1 min-w-0"
-      >
-        {isLoading && (
-          <>
-            <SkeletonChip />
-            <SkeletonChip />
-            <SkeletonChip />
-          </>
-        )}
-        {!isLoading &&
-          presets.map((preset) => {
+      {/* NUI-13 — an empty tablist reads as hidden to AT; the role mounts
+          only once presets exist (skeleton/empty states are decorative). */}
+      {isLoading || presets.length === 0 ? (
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-thin flex-1 min-w-0">
+          {isLoading && (
+            <>
+              <SkeletonChip />
+              <SkeletonChip />
+              <SkeletonChip />
+            </>
+          )}
+        </div>
+      ) : (
+        <div
+          role="tablist"
+          aria-label={t('products.smart_filters.label', { defaultValue: 'Smart filtry' })}
+          className="flex items-center gap-1.5 overflow-x-auto scrollbar-thin flex-1 min-w-0"
+        >
+          {presets.map((preset) => {
             const isActive = activeId === preset.id;
             const labelKey = BUILT_IN_LABEL_KEY[preset.slug];
             const fallbackLabel = preset.name[lang] ?? preset.name.pl;
@@ -151,7 +156,8 @@ export function SmartFilterPresetsRow({
               </div>
             );
           })}
-      </div>
+        </div>
+      )}
 
       <button
         type="button"
