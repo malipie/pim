@@ -1252,7 +1252,7 @@ Opcja (Y) zachowuje killer feature ADR-012 (dziedziczenie grup atrybutów po drz
 
 **Referencje:** ADR-014 (rewidowany w zakresie scope drzewa; reszta — primary category overlay, cumulative resolution, EffectiveAttributeGroupResolver — w mocy). Plan implementacji: PR-A (#1118) schema+encja+create, PR-B API+resolver+walidacja przypisania, PR-C FE (dropdown all-categorizable + objectTypeId, list/new/show per drzewo, reword etykiety `is_categorizable` → „czy obiekty mogą być przypisane do drzewa").
 
-### ADR-0016, ADR-0017, ADR-0018 (per-file MADR)
+### ADR-0016, ADR-0017, ADR-0018, ADR-0019 (per-file MADR)
 
 Decyzje ADR-0016 (format kluczy API + Argon2id), ADR-0017 (BYOK AES-256-GCM) i ADR-0018 (ChannelPublicationProfile — per-channel attribute/locale allow-list, `?publication=<channel>` oddzielne od `?channel=`) są zarchiwizowane w plikach per-file MADR w `docs/adr/`. Streszczenie ADR-0018:
 
@@ -1260,6 +1260,8 @@ Decyzje ADR-0016 (format kluczy API + Argon2id), ADR-0017 (BYOK AES-256-GCM) i A
 - Param `?publication=<channel>` dedykowany dla filtrowania atrybutów do profilu — NIE przeciążamy `?channel=` (który nadal znaczy overlay wartości).
 - Cross-BC dostęp przez `Channel\Contracts\ChannelPublicationResolverInterface` (Deptrac-safe).
 - Bare UUID refs (`channel_id`, `object_type_id`) zgodnie z ADR-015.
+
+Streszczenie ADR-0019 (Import v2 — kontrakty silnika, epik IMP2 #1460–#1498): tryby importu `CREATE/UPDATE/UPSERT` (default upsert) z matchem po SKU lub atrybucie `identifier` per profil; semantyka komórek „pusta = nie ruszaj" + `clear_if_empty` opt-in per kolumna; kanon shape'ów JSONB `object_values.value` per typ (z migracją legacy `{value}`-selectów w #1464); gramatyka kolumn `code[.locale][.channel]` z rejestrami tenanta i precedencją locale; `import_session_id` wyłącznie jako marker created-by (rollback upsertów przez undo-log); mapping v2 kluczowany indeksem kolumny; transport Messenger `import` z workerem w dev i prod; reguły normalizacji golden testu (wersjonowane). Pełny plik: `docs/adr/0019-import-v2-engine-contracts.md`.
 
 ## 14. Roadmap rozwoju
 
