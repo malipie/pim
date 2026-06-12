@@ -76,7 +76,11 @@ test('NUI-10 — wizard walks six steps and commits an import session', async ({
     commitResponse.status() === 409,
     'PROD-05 bulk lock held by a concurrent suite operation',
   );
-  expect(commitResponse.ok()).toBeTruthy();
+  const commitBody = await commitResponse.text().catch(() => '<unreadable>');
+  expect(
+    commitResponse.ok(),
+    `POST /api/import-sessions -> ${commitResponse.status()}: ${commitBody.slice(0, 500)}`,
+  ).toBeTruthy();
 
   // Commit redirects to the session show page.
   await expect(page).toHaveURL(/\/integrations\/imports\/[0-9a-f-]{8,}/, { timeout: 30_000 });
