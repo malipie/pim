@@ -12,19 +12,26 @@ test('imports wizard — header + stepper + step 1 active', async ({ page }) => 
   await loginAsAdmin(page);
   await page.goto('/integrations/imports/new');
 
-  // Header eyebrow + h2 title.
-  await expect(page.getByText(/self-service import — 4 (kroki|steps)/i)).toBeVisible();
+  // Header eyebrow + h2 title (NUI-10 — six steps).
+  await expect(page.getByText(/self-service, 6 (kroków|steps)/i)).toBeVisible();
   await expect(page.getByRole('heading', { name: /^nowy import$|^new import$/i })).toBeVisible();
 
   // Stepper: aria-current step pinned to the first pill — it carries
   // the step number + label + description, so match a substring.
   const activePill = page.locator('[aria-current="step"]');
   await expect(activePill).toBeVisible();
-  await expect(activePill).toContainText(/upload/i);
+  await expect(activePill).toContainText(/źródło|source/i);
 
-  // All 4 step pills visible (numbered 1..4 or with check icons).
-  await expect(page.getByText('Upload').first()).toBeVisible();
-  await expect(page.getByText('Mapping').first()).toBeVisible();
-  await expect(page.getByText(/^walidacja$|^validation$/i).first()).toBeVisible();
-  await expect(page.getByText(/^potwierdzenie$|^confirm$/i).first()).toBeVisible();
+  // All 6 step pills visible.
+  const stepper = page.getByLabel('Wizard steps');
+  for (const label of [
+    /źródło|source/i,
+    /wykrywanie|detection/i,
+    /mapowanie|mapping/i,
+    /reguły|rules/i,
+    /podgląd|preview/i,
+    /start/i,
+  ]) {
+    await expect(stepper.getByText(label).first()).toBeVisible();
+  }
 });

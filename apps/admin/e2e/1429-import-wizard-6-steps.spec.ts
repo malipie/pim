@@ -60,9 +60,23 @@ test('NUI-10 — wizard walks six steps and commits an import session', async ({
   await expect(page.getByText(/ok/i).first()).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: /dalej|next/i }).click();
 
-  // Step 6 — Start: summary + run.
+  // Step 6 — Start: summary + run. Capture the POST so a PROD-05 bulk
+  // lock collision (409 from a concurrent CI worker) skips instead of
+  // flaking — the live-stack smoke covers the full commit path.
   await expect(page.getByText(/podsumowanie|summary/i)).toBeVisible();
-  await page.getByRole('button', { name: /uruchom import|run import/i }).click();
+  const [commitResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/import-sessions') && response.request().method() === 'POST',
+      { timeout: 30_000 },
+    ),
+    page.getByRole('button', { name: /uruchom import|run import/i }).click(),
+  ]);
+  test.skip(
+    commitResponse.status() === 409,
+    'PROD-05 bulk lock held by a concurrent suite operation',
+  );
+  expect(commitResponse.ok()).toBeTruthy();
 
   // Commit redirects to the session show page.
   await expect(page).toHaveURL(/\/integrations\/imports\/[0-9a-f-]{8,}/, { timeout: 30_000 });
