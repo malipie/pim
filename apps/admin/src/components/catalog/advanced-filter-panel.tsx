@@ -245,7 +245,7 @@ export function AdvancedFilterPanel({
             type="button"
             aria-label={t('app.close', { defaultValue: 'Close' })}
             onClick={onClose}
-            className="h-7 w-7 grid place-items-center rounded-lg text-zinc-400 hover:bg-zinc-100"
+            className="h-7 w-7 grid place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100"
           >
             <X className="size-4" />
           </button>
@@ -368,7 +368,7 @@ export function AdvancedFilterPanel({
                   type="button"
                   onClick={() => removeCondition(idx)}
                   aria-label="Usuń warunek"
-                  className="h-9 w-9 grid place-items-center text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                  className="h-9 w-9 grid place-items-center text-zinc-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
                 >
                   <Trash2 className="size-4" />
                 </button>

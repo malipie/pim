@@ -19,7 +19,7 @@ export function ImportProfilesPlaceholder() {
   const [open, setOpen] = React.useState(false);
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/60 px-6 py-16 text-center">
-      <Layers className="h-8 w-8 text-zinc-400" aria-hidden="true" />
+      <Layers className="h-8 w-8 text-zinc-500" aria-hidden="true" />
       <div className="space-y-1">
         <h2 className="text-base font-semibold text-zinc-900">
           {t('imports.placeholder.coming_soon')}

@@ -116,7 +116,7 @@ export function ScheduleCard({
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11.5px]">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.schedule.card.source')}
           </div>
           <div className="text-zinc-700 truncate">
@@ -124,7 +124,7 @@ export function ScheduleCard({
           </div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.schedule.card.profile')}
           </div>
           <div className="text-zinc-700 truncate">
@@ -132,13 +132,13 @@ export function ScheduleCard({
           </div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.schedule.card.next_run')}
           </div>
           <div className="font-mono text-zinc-700">{formatDateTime(schedule.nextRun)}</div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.schedule.card.last_run')}
           </div>
           <div className="font-mono text-zinc-700">{formatDateTime(schedule.lastRunAt)}</div>
@@ -147,7 +147,7 @@ export function ScheduleCard({
 
       {schedule.notifyChannels.length > 0 ? (
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <span className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.schedule.card.notify')}
           </span>
           {schedule.notifyChannels.map((ch) => (

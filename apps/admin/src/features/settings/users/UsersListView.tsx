@@ -202,7 +202,7 @@ export function UsersListView() {
       <div className="flex flex-wrap items-center gap-3 rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)]">
         <div className="relative max-w-md flex-1">
           <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500"
             aria-hidden
           />
           <Input
@@ -427,7 +427,7 @@ function UserRow({
 
       <td className="px-3 py-3">
         {user.roles.length === 0 ? (
-          <span className="text-xs text-zinc-400">{t('settings.users.no_roles')}</span>
+          <span className="text-xs text-zinc-500">{t('settings.users.no_roles')}</span>
         ) : (
           <div className="space-y-1">
             <div className="flex flex-wrap gap-1">
@@ -436,7 +436,7 @@ function UserRow({
               ))}
             </div>
             {user.roles.length >= 2 ? (
-              <div className="font-mono text-[10px] text-zinc-400">
+              <div className="font-mono text-[10px] text-zinc-500">
                 {t('settings.users.role_union', {
                   count: user.roles.length,
                   defaultValue: 'union · {{count}} ról',
@@ -470,7 +470,7 @@ function UserRow({
             <div className="font-mono text-[10.5px] text-amber-700">{invitationValidLabel}</div>
           ) : null}
           {deactivationMeta ? (
-            <div className="text-[10.5px] text-zinc-400">{deactivationMeta}</div>
+            <div className="text-[10.5px] text-zinc-500">{deactivationMeta}</div>
           ) : null}
         </div>
       </td>
@@ -478,7 +478,7 @@ function UserRow({
       <td className="px-3 py-3">
         <div className="text-[12px] text-zinc-700">{lastLogin}</div>
         {user.last_login_ip ? (
-          <div className="font-mono text-[10.5px] text-zinc-400">
+          <div className="font-mono text-[10.5px] text-zinc-500">
             {user.last_login_ip}
             {user.last_login_country ? <> · {user.last_login_country.toUpperCase()}</> : null}
           </div>
@@ -578,7 +578,7 @@ function EmptyState() {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center gap-2 text-center">
-      <UserPlus className="size-8 text-zinc-400" aria-hidden />
+      <UserPlus className="size-8 text-zinc-500" aria-hidden />
       <div className="text-sm font-medium text-zinc-900">{t('settings.users.empty_title')}</div>
       <div className="max-w-md text-xs text-zinc-500">{t('settings.users.empty_description')}</div>
     </div>

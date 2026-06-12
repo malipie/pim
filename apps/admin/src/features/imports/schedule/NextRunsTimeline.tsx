@@ -24,11 +24,11 @@ export function NextRunsTimeline({ entries, horizonHours }: NextRunsTimelineProp
   return (
     <section className="rounded-2xl border border-zinc-100 bg-white p-4 soft-shadow">
       <div className="flex items-center gap-2 mb-3">
-        <div className="text-[11px] uppercase tracking-wider text-zinc-400 font-medium">
+        <div className="text-[11px] uppercase tracking-wider text-zinc-500 font-medium">
           {t('imports.schedule.timeline.eyebrow', { hours: horizonHours })}
         </div>
         <div className="h-px bg-zinc-100 flex-1" />
-        <div className="text-[11px] font-mono text-zinc-400">
+        <div className="text-[11px] font-mono text-zinc-500">
           {t('imports.schedule.timeline.now')}{' '}
           {new Intl.DateTimeFormat('pl-PL', { hour: '2-digit', minute: '2-digit' }).format(
             new Date(),
@@ -45,7 +45,7 @@ export function NextRunsTimeline({ entries, horizonHours }: NextRunsTimelineProp
             style={{ left: `${(i / 11) * 100}%` }}
           >
             <div className="h-2 w-px bg-zinc-200" />
-            <div className="text-[9.5px] font-mono text-zinc-400 mt-1">
+            <div className="text-[9.5px] font-mono text-zinc-500 mt-1">
               {`+${Math.round(((i / 11) * horizonHours) / 1) | 0}h`}
             </div>
           </div>
@@ -85,7 +85,7 @@ export function NextRunsTimeline({ entries, horizonHours }: NextRunsTimelineProp
       </div>
 
       {entries.length === 0 ? (
-        <div className="mt-2 text-center text-[12px] text-zinc-400">
+        <div className="mt-2 text-center text-[12px] text-zinc-500">
           {t('imports.schedule.timeline.empty')}
         </div>
       ) : null}

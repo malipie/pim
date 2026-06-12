@@ -70,7 +70,7 @@ export function UserMenu() {
           <div className="truncate text-[11px] text-zinc-500">{subtitle}</div>
         </div>
         <SettingsIcon
-          className="size-4 shrink-0 text-zinc-400 transition group-hover:text-zinc-700"
+          className="size-4 shrink-0 text-zinc-500 transition group-hover:text-zinc-700"
           aria-hidden
         />
       </DropdownMenuTrigger>

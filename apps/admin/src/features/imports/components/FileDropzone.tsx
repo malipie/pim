@@ -113,6 +113,7 @@ export function FileDropzone({
       <input
         ref={inputRef}
         type="file"
+        aria-label={label}
         className="sr-only"
         accept={ACCEPT[kind]}
         disabled={disabled}

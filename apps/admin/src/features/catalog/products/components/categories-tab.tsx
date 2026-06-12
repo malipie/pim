@@ -150,7 +150,7 @@ export function CategoriesTab({ productId, objectTypeId, kind = 'product' }: Pro
         </p>
       ) : assignments.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line bg-surface p-6 text-center">
-          <FolderTree className="mx-auto size-6 text-zinc-400" />
+          <FolderTree className="mx-auto size-6 text-zinc-500" />
           <p className="mt-2 text-[13px] font-medium text-ink">
             {t('products.detail.categories.empty', {
               defaultValue: 'Brak przypisanych kategorii',
@@ -187,7 +187,7 @@ export function CategoriesTab({ productId, objectTypeId, kind = 'product' }: Pro
                     'grid size-5 place-items-center rounded-full',
                     isPrimary
                       ? 'cursor-default text-amber-600'
-                      : 'text-zinc-400 hover:bg-amber-100 hover:text-amber-700',
+                      : 'text-zinc-500 hover:bg-amber-100 hover:text-amber-700',
                   )}
                   aria-label={
                     isPrimary
@@ -216,7 +216,7 @@ export function CategoriesTab({ productId, objectTypeId, kind = 'product' }: Pro
                   type="button"
                   onClick={() => void handleDetach(assignment.categoryId)}
                   disabled={isBusy}
-                  className="grid size-5 place-items-center rounded-full text-zinc-400 hover:bg-red-100 hover:text-red-600"
+                  className="grid size-5 place-items-center rounded-full text-zinc-500 hover:bg-red-100 hover:text-red-600"
                   aria-label={t('products.detail.categories.detach', {
                     defaultValue: 'Odepnij kategorię',
                   })}

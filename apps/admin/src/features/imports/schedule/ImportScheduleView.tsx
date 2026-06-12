@@ -149,7 +149,7 @@ export function ImportScheduleView() {
 
       {query.isLoading ? (
         <div
-          className="rounded-2xl border border-zinc-100 bg-white px-5 py-10 text-center text-[13px] text-zinc-400"
+          className="rounded-2xl border border-zinc-100 bg-white px-5 py-10 text-center text-[13px] text-zinc-500"
           aria-busy="true"
         >
           {t('app.loading')}
@@ -194,7 +194,7 @@ export function ImportScheduleView() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-[12.5px] text-zinc-400">
+              <div className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-[12.5px] text-zinc-500">
                 {t('imports.schedule.active.empty')}
               </div>
             )}

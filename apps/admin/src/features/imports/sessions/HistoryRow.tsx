@@ -71,7 +71,7 @@ export function HistoryRow({ row }: HistoryRowProps) {
       </div>
       <div className="text-[12px] text-zinc-700">
         <div>{formatStarted(row.started_at)}</div>
-        <div className="font-mono text-[10.5px] text-zinc-400">
+        <div className="font-mono text-[10.5px] text-zinc-500">
           {formatDuration(row.duration_sec)}
         </div>
       </div>

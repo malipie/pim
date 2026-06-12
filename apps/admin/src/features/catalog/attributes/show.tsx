@@ -884,7 +884,7 @@ function AllowedValuesCard({ attribute, locale }: { attribute: AttributeDetail; 
                     aria-hidden
                   />
                 ) : null}
-                <span className="font-mono text-[10.5px] text-zinc-400">{option.code}</span>
+                <span className="font-mono text-[10.5px] text-zinc-500">{option.code}</span>
                 <span>{optionLabel}</span>
                 {option.default ? (
                   <span className="rounded bg-emerald-100 px-1 text-[9.5px] font-semibold uppercase tracking-wider text-emerald-700">
@@ -1096,7 +1096,7 @@ function AttachedGroupsCard({ attribute, locale }: { attribute: AttributeDetail;
                       void detach(groupId);
                     }}
                     aria-label={t('app.remove', { defaultValue: 'Usuń' })}
-                    className="grid size-3.5 place-items-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
+                    className="grid size-3.5 place-items-center rounded text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700"
                   >
                     <X className="size-3" />
                   </button>

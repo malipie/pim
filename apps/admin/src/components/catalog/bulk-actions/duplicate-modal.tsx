@@ -76,7 +76,7 @@ export function BulkDuplicateModal({ selectedIds, onClose, onApplied }: Duplicat
         aria-labelledby="bulk-duplicate-title"
       >
         <div className="px-6 h-14 flex items-center gap-3 border-b border-zinc-100">
-          <span className="h-8 w-8 rounded-xl bg-violet-50 text-violet-600 grid place-items-center">
+          <span className="h-8 w-8 rounded-xl bg-orange-50 text-orange-600 grid place-items-center">
             <Copy className="size-4" />
           </span>
           <div className="leading-tight">
@@ -94,7 +94,7 @@ export function BulkDuplicateModal({ selectedIds, onClose, onApplied }: Duplicat
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="ml-auto h-8 w-8 grid place-items-center rounded-lg text-zinc-400 hover:bg-zinc-100"
+            className="ml-auto h-8 w-8 grid place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100"
           >
             <X className="size-4" />
           </button>

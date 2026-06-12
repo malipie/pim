@@ -105,9 +105,11 @@ export function ProductsGrid({
   const headerStyle: CSSProperties = { gridTemplateColumns: GRID_TPL };
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: 12-column CSS Grid layout matches the mockup pixel-perfect; <table> cannot host `grid-template-columns`.
-    <div
-      role="grid"
+    // NUI-13 — no `role="grid"`: the ARIA grid pattern mandates grid keyboard
+    // navigation we do not implement, and the CSS-grid markup cannot satisfy
+    // the required row/gridcell structure. A labelled <section> keeps the
+    // landmark; every interactive control carries its own accessible name.
+    <section
       aria-label={t('products.grid.aria_label', { defaultValue: 'Lista produktów' })}
       data-testid="products-grid"
       className="w-full overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm"
@@ -160,7 +162,7 @@ export function ProductsGrid({
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -272,7 +274,7 @@ function ProductsGridRowView({
                     defaultValue: 'Rozwiń warianty {{sku}}',
                   })
             }
-            className="-ml-1 size-5 rounded grid place-items-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
+            className="-ml-1 size-5 rounded grid place-items-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
           >
             <ChevronRight
               className={cn('size-3.5 transition-transform', isExpanded && 'rotate-90')}
@@ -330,11 +332,11 @@ function ProductsGridRowView({
               </span>
             ))}
             {row.categories.length > 2 ? (
-              <span className="text-[10.5px] text-zinc-400">+{row.categories.length - 2}</span>
+              <span className="text-[10.5px] text-zinc-500">+{row.categories.length - 2}</span>
             ) : null}
           </>
         ) : (
-          <span className="text-[12px] text-zinc-400">—</span>
+          <span className="text-[12px] text-zinc-500">—</span>
         )}
       </div>
 
@@ -355,10 +357,10 @@ function ProductsGridRowView({
         {row.price !== null ? (
           <>
             {row.price.amount.toLocaleString('pl-PL', { maximumFractionDigits: 2 })}
-            <span className="text-zinc-400 ml-1 text-[11px]">{row.price.currency}</span>
+            <span className="text-zinc-500 ml-1 text-[11px]">{row.price.currency}</span>
           </>
         ) : (
-          <span className="text-zinc-400">—</span>
+          <span className="text-zinc-500">—</span>
         )}
       </div>
 
@@ -393,7 +395,7 @@ function ProductsGridRowView({
         )}
       </div>
 
-      <div className="px-3 py-2 text-zinc-400 hover:text-zinc-900 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+      <div className="px-3 py-2 text-zinc-500 hover:text-zinc-900 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
         {variant ? null : (
           <ProductRowActions productId={row.id} enabled={row.enabled} onChanged={onChangedRow} />
         )}

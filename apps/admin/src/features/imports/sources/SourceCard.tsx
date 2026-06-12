@@ -81,19 +81,19 @@ export function SourceCard({ source, testing, onTest, onEdit, onDelete }: Source
 
       <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 text-[12px]">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.sources.card.path')}
           </div>
           <div className="font-mono text-zinc-700 truncate">{source.path ?? '—'}</div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.sources.card.pattern')}
           </div>
           <div className="font-mono text-zinc-700 truncate">{source.filePattern ?? '—'}</div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.sources.card.polling')}
           </div>
           <div className="font-mono text-zinc-700">
@@ -103,7 +103,7 @@ export function SourceCard({ source, testing, onTest, onEdit, onDelete }: Source
           </div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
             {t('imports.sources.card.profile')}
           </div>
           <div className="text-zinc-700 truncate">

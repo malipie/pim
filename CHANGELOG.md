@@ -6,6 +6,35 @@ versioning per epic milestones (`0.X.Y` matches ticket numbering in
 
 ## [Unreleased]
 
+### Added — epik NUI (Retrofit UI v2, 2026-06-11/12)
+
+- **NUI-01..13** retrofit widoków do nowego designu `PIM-nowoczesny`
+  (13/13 ticketów #1420–#1432; PR #1444–#1449, #1451–#1457 + bramka):
+  - sidebar v2: podmenu Ustawień w głównym sidebarze, custom OT bez
+    wyróżnienia, live-dot Importów (#1420)
+  - dashboard v2: KPI live (totale encji), układ rzędów wg designu,
+    widget backupu (MOCK) (#1421)
+  - lista produktów v2 (tab-rail widoków, de-violet, szerokości wg
+    designu) + wygaszenie `/products/legacy` (#1423, #1424)
+  - modelowanie: de-violet 25 plików, ink underline tabów (#1426)
+  - Multimedia v2: eksplorator plików (kafle folderów, drawer 460px,
+    upload w modalu, bulk bar) (#1427)
+  - importy: hub w shellu v2 (PillTabs + liczniki, retire
+    IntegrationsLayout), wizard 6 kroków na istniejącym backendzie,
+    widok sesji z pipeline'em faz i live logiem Mercure (#1428–#1430)
+  - globalna paleta ⌘K (nawigacja realna, sekcja agenta MOCK) (#1422)
+  - ustawienia Users/Roles: de-violet 15 plików (#1431)
+  - bramka jakości: trwały gate axe WCAG A/AA na 10 widokach
+    (serious+critical = 0), AA-safe tokeny akcentów, globalny sweep
+    text-zinc-400→500, semantyka listy produktów bez role="grid"
+    (#1432)
+
+### Fixed — przy okazji epiku NUI
+
+- wykryty CI-only bug backendu: FK violation `objects_import_session_fk`
+  na ścieżce inline-commit importu → #1455 (open)
+
+
 ### Added — epik UI-10 (Product Categories Assignment)
 
 - **PCAT-01..07** Product↔category assignment end-to-end (1-day burst,

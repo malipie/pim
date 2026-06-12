@@ -107,7 +107,7 @@ export function ImportSessionsView() {
         {liveSession ? (
           <LiveSessionCard session={liveSession} throughput={throughput} />
         ) : (
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/60 px-6 py-10 text-center text-[13px] text-zinc-400">
+          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/60 px-6 py-10 text-center text-[13px] text-zinc-500">
             {t('imports.sessions.live.empty')}
           </div>
         )}
@@ -123,7 +123,7 @@ export function ImportSessionsView() {
           </span>
           <div className="ml-auto flex items-center gap-2 flex-wrap">
             <label className="flex items-center gap-2 bg-white soft-shadow rounded-xl pl-3 pr-2 h-9">
-              <Search className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+              <Search className="h-4 w-4 text-zinc-500" aria-hidden="true" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -137,7 +137,7 @@ export function ImportSessionsView() {
         </div>
         {isLoading ? (
           <div
-            className="rounded-2xl border border-zinc-100 bg-white px-5 py-10 text-center text-[13px] text-zinc-400"
+            className="rounded-2xl border border-zinc-100 bg-white px-5 py-10 text-center text-[13px] text-zinc-500"
             aria-busy="true"
           >
             {t('app.loading')}

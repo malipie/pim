@@ -196,11 +196,11 @@ export function BulkValueInput({
     return (
       <div className="rounded-lg border border-zinc-200 bg-white max-h-[180px] overflow-y-auto">
         {optionsLoading ? (
-          <div className="px-3 py-2 text-[12px] text-zinc-400">
+          <div className="px-3 py-2 text-[12px] text-zinc-500">
             {t('bulk_value.loading', { defaultValue: 'Ładuję…' })}
           </div>
         ) : options.length === 0 ? (
-          <div className="px-3 py-2 text-[12px] text-zinc-400">
+          <div className="px-3 py-2 text-[12px] text-zinc-500">
             {t('bulk_value.no_options', { defaultValue: 'Brak opcji dla tego atrybutu' })}
           </div>
         ) : (

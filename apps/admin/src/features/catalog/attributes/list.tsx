@@ -228,7 +228,7 @@ function AttributeRowItem({
       to={`/modeling/attributes/${row.id}`}
       className="group grid w-full grid-cols-[40px_1.4fr_100px_140px_100px_90px_100px_120px] items-center gap-3 px-5 py-3 transition hover:bg-zinc-50/70"
     >
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-zinc-50 text-zinc-400">
+      <span className="grid h-8 w-8 place-items-center rounded-lg bg-zinc-50 text-zinc-500">
         {row.system ? <Shield className="size-4" /> : <Zap className="size-4" />}
       </span>
       <span className="min-w-0">

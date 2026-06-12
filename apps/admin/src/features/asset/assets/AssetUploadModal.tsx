@@ -45,7 +45,7 @@ export function AssetUploadModal({
           folderCode={folderCode}
         />
         <div className="flex items-center gap-2 text-[12px] text-zinc-500">
-          <Info className="size-3.5 shrink-0 text-zinc-400" aria-hidden />
+          <Info className="size-3.5 shrink-0 text-zinc-500" aria-hidden />
           {t('assets.upload_thumbnails_note', {
             defaultValue: 'Miniatury wygenerują się automatycznie po przesłaniu.',
           })}

@@ -1,5 +1,21 @@
 # Current Status
 
+## 2026-06-12: ✅ Epik NUI DOMKNIĘTY — 13/13 ticketów (#1420–#1432), retrofit UI v2 kompletny
+
+**Marathon dokończony** (operator: „kontynuuj" po pauzie). Drugą połowę dostarczono w PR #1451–#1457 + bramka:
+
+- **NUI-09 (#1428 → PR #1451)** hub Importów w shellu v2 (PillTabs z licznikami, CTA w topbarze, IntegrationsLayout usunięty).
+- **NUI-10 (#1429 → PR #1452)** wizard importu 6 kroków (Źródło/Wykrywanie/Mapowanie/Reguły/Podgląd/Start) na niezmienionym backendzie; happy-path E2E z commitem. Spec odsłonił **CI-only bug backendu** → **#1455** (FK `objects_import_session_fk` na inline-commit).
+- **NUI-11 (#1430 → PR #1453)** widok sesji: StagePipeline ze statusu, live log z Mercure (buforowany), ResultBar.
+- **NUI-03 (#1422 → PR #1454)** globalna paleta ⌘K (nawigacja realna, agent MOCK; bez double-bindingu z paletą listy).
+- **NUI-12 (#1431 → PR #1456)** Users/Roles: weryfikacja parytetu (RBAC P5 = mockupy) + de-violet 15 plików.
+- **NUI-06 (#1425 → PR #1457)** karta produktu: zakres strukturalny dostarczyła seria #1434/#1351 (unifikacja) — domknięte spec-em strażniczym parytetu.
+- **NUI-13 (#1432)** bramka: **axe WCAG A/AA = 0 serious+ na 10 widokach** (trwały gate `nui-13-a11y.spec.ts`); root-cause fixy: AA-safe tokeny akcentów (emerald/rose/amber/blue/sky/zinc na tintach /10), globalny sweep `text-zinc-400`→500 (65 plików), `role="grid"`→`<section>`; plan-doc §9 korekta odstępstw; CHANGELOG; screenshoty w `Project Plan/UI/Retrofit_v2/screens-final/`.
+
+Świadome odejścia zsumowane w plan-doc §9. Otwarte follow-upy: #1455 (backend FK), nit „Could not load per-attribute overrides" w edytorze roli systemowej, lokalne env-flaki 1177/1138 (PATCH timeout — tylko lokalna baza).
+
+**Następny krok**: screencast 5 min (zasada sub-faz) = operator; backlogi BE epiku w `Retrofit_v2/*-do-oprogramowania.md`.
+
 ## 2026-06-11: ⏸️ Marathon NUI zatrzymany przez operatora po NUI-08 — 6/13 ticketów DONE (PR #1444–#1449)
 
 Operator: „po NUI-08 zatrzymaj prace". Wszystkie zamknięte tickety z live smoke proofem w issue (CLOSED MEANS CLOSED) + CI green.
@@ -289,6 +305,22 @@ Wszystkie 18 zgłoszeń z manualnego smoke testu operatora wdrożone na main. Ta
 - **#1127** (PR #1129, `1f5541f`): `categories/show.tsx` `EffectiveAttributesPreview` — preview po `objectTypeId` + lista categorizable OT (built-in+custom) zamiast hardcoded PREVIEW_KINDS; fix błędu „Built-in ObjectType for kind 'custom'". Default = pierwszy categorizable (GET category nie serializuje categoryTargetObjectType — default-to-own-tree = ewent. drobny follow-up).
 
 # Current Status
+
+## 2026-06-12: ✅ Epik NUI DOMKNIĘTY — 13/13 ticketów (#1420–#1432), retrofit UI v2 kompletny
+
+**Marathon dokończony** (operator: „kontynuuj" po pauzie). Drugą połowę dostarczono w PR #1451–#1457 + bramka:
+
+- **NUI-09 (#1428 → PR #1451)** hub Importów w shellu v2 (PillTabs z licznikami, CTA w topbarze, IntegrationsLayout usunięty).
+- **NUI-10 (#1429 → PR #1452)** wizard importu 6 kroków (Źródło/Wykrywanie/Mapowanie/Reguły/Podgląd/Start) na niezmienionym backendzie; happy-path E2E z commitem. Spec odsłonił **CI-only bug backendu** → **#1455** (FK `objects_import_session_fk` na inline-commit).
+- **NUI-11 (#1430 → PR #1453)** widok sesji: StagePipeline ze statusu, live log z Mercure (buforowany), ResultBar.
+- **NUI-03 (#1422 → PR #1454)** globalna paleta ⌘K (nawigacja realna, agent MOCK; bez double-bindingu z paletą listy).
+- **NUI-12 (#1431 → PR #1456)** Users/Roles: weryfikacja parytetu (RBAC P5 = mockupy) + de-violet 15 plików.
+- **NUI-06 (#1425 → PR #1457)** karta produktu: zakres strukturalny dostarczyła seria #1434/#1351 (unifikacja) — domknięte spec-em strażniczym parytetu.
+- **NUI-13 (#1432)** bramka: **axe WCAG A/AA = 0 serious+ na 10 widokach** (trwały gate `nui-13-a11y.spec.ts`); root-cause fixy: AA-safe tokeny akcentów (emerald/rose/amber/blue/sky/zinc na tintach /10), globalny sweep `text-zinc-400`→500 (65 plików), `role="grid"`→`<section>`; plan-doc §9 korekta odstępstw; CHANGELOG; screenshoty w `Project Plan/UI/Retrofit_v2/screens-final/`.
+
+Świadome odejścia zsumowane w plan-doc §9. Otwarte follow-upy: #1455 (backend FK), nit „Could not load per-attribute overrides" w edytorze roli systemowej, lokalne env-flaki 1177/1138 (PATCH timeout — tylko lokalna baza).
+
+**Następny krok**: screencast 5 min (zasada sub-faz) = operator; backlogi BE epiku w `Retrofit_v2/*-do-oprogramowania.md`.
 
 ## 2026-06-11: ⏸️ Marathon NUI zatrzymany przez operatora po NUI-08 — 6/13 ticketów DONE (PR #1444–#1449)
 

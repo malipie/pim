@@ -27,7 +27,7 @@ export function TopEditedProducts() {
             <span className="font-mono text-[12px] text-ink-2">{p.sku}</span>
             <span className="flex-1 truncate text-ink">{p.name}</span>
             <span className="hidden text-muted-foreground sm:inline">{p.family}</span>
-            <span className="num inline-flex items-center gap-1 rounded-md bg-accent-violet/10 px-2 py-0.5 text-[12px] font-medium text-accent-violet">
+            <span className="num inline-flex items-center gap-1 rounded-md bg-orange-500/10 px-2 py-0.5 text-[12px] font-medium text-orange-700">
               {p.edits}×
             </span>
             <span className="num hidden w-10 text-right text-[12px] tabular-nums text-ink-2 lg:inline">

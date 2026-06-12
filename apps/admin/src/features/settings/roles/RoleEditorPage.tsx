@@ -541,7 +541,7 @@ export function RoleEditorPage() {
                   active ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900',
                 )}
               >
-                <Icon className={cn('size-3.5', active ? 'text-zinc-900' : 'text-zinc-400')} />
+                <Icon className={cn('size-3.5', active ? 'text-zinc-900' : 'text-zinc-500')} />
                 {t(tab.labelKey)}
                 {meta ? (
                   <span
@@ -650,7 +650,7 @@ export function RoleEditorPage() {
 
           {activeTab === 'scope' ? (
             <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50 p-6 text-center">
-              <Layers className="mx-auto mb-2 size-6 text-zinc-400" aria-hidden />
+              <Layers className="mx-auto mb-2 size-6 text-zinc-500" aria-hidden />
               <div className="text-[13px] font-medium text-zinc-900">
                 {t('settings.roles.editor.scope_tab_title', {
                   defaultValue: 'Locale & Channel scope',
@@ -797,7 +797,7 @@ export function RoleEditorPage() {
                 'h-10 rounded-xl px-4 text-[13px] font-medium',
                 isDirty && name.trim().length > 0 && !submitting
                   ? 'bg-zinc-900 text-white hover:bg-zinc-800'
-                  : 'bg-zinc-200 text-zinc-400',
+                  : 'bg-zinc-200 text-zinc-500',
               )}
             >
               <Check className="mr-1.5 size-4" aria-hidden />

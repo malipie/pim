@@ -49,11 +49,7 @@ export function SmartFilterPresetsRow({
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
 
   return (
-    <div
-      role="tablist"
-      aria-label={t('products.smart_filters.label', { defaultValue: 'Smart filtry' })}
-      className="rounded-3xl bg-white shadow-sm border border-zinc-100 px-3 py-2.5 flex items-center gap-2"
-    >
+    <div className="rounded-3xl bg-white shadow-sm border border-zinc-100 px-3 py-2.5 flex items-center gap-2">
       <div className="px-2 flex items-center gap-1.5 shrink-0">
         <span
           className="h-7 w-7 rounded-xl bg-zinc-900 text-white grid place-items-center"
@@ -65,7 +61,7 @@ export function SmartFilterPresetsRow({
           <div className="text-[11.5px] font-semibold tracking-tight">
             {t('products.smart_filters.label', { defaultValue: 'Smart filtry' })}
           </div>
-          <div className="text-[10px] text-zinc-400 inline-flex items-center gap-1">
+          <div className="text-[10px] text-zinc-500 inline-flex items-center gap-1">
             <span className="font-mono px-1 rounded bg-zinc-100 text-zinc-500">
               {t('products.smart_filters.subtitle_rules', { defaultValue: 'reguły' })}
             </span>
@@ -79,7 +75,11 @@ export function SmartFilterPresetsRow({
 
       <span className="h-7 w-px bg-zinc-100 shrink-0" />
 
-      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-thin flex-1 min-w-0">
+      <div
+        role="tablist"
+        aria-label={t('products.smart_filters.label', { defaultValue: 'Smart filtry' })}
+        className="flex items-center gap-1.5 overflow-x-auto scrollbar-thin flex-1 min-w-0"
+      >
         {isLoading && (
           <>
             <SkeletonChip />
@@ -121,7 +121,7 @@ export function SmartFilterPresetsRow({
                     <span
                       className={cn(
                         'text-[10.5px] tabular-nums font-mono',
-                        isActive ? 'text-white/60' : 'text-zinc-400',
+                        isActive ? 'text-white/60' : 'text-zinc-500',
                       )}
                     >
                       {preset.count}
@@ -142,7 +142,7 @@ export function SmartFilterPresetsRow({
                       'absolute right-1 top-1/2 -translate-y-1/2 grid h-5 w-5 place-items-center rounded-full opacity-0 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 group-hover/preset:opacity-100 group-focus-within/preset:opacity-100',
                       isActive
                         ? 'text-white/70 hover:bg-white/20 hover:text-white'
-                        : 'text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700',
+                        : 'text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700',
                     )}
                   >
                     <X className="size-3" />

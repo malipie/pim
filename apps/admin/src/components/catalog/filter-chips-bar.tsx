@@ -60,7 +60,7 @@ export function FilterChipsBar({
       aria-label={t('products.filter_chips.active_label', { defaultValue: 'Aktywne filtry' })}
       className="flex items-center gap-2 flex-wrap"
     >
-      <span className="text-[10.5px] uppercase tracking-wider font-semibold text-zinc-400">
+      <span className="text-[10.5px] uppercase tracking-wider font-semibold text-zinc-500">
         {t('products.filter_chips.active_label', { defaultValue: 'Aktywne filtry' })}
       </span>
       {chips.map((chip, i) => {

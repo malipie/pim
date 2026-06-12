@@ -55,7 +55,7 @@ export function WizardStepper({ steps, currentIndex }: WizardStepperProps) {
                     'h-5 w-5 rounded-full grid place-items-center text-[10.5px] font-semibold shrink-0',
                     state === 'done' && 'bg-emerald-500 text-white',
                     state === 'active' && 'bg-zinc-900 text-white',
-                    state === 'pending' && 'bg-zinc-200 text-zinc-500',
+                    state === 'pending' && 'bg-zinc-200 text-zinc-600',
                   )}
                 >
                   {state === 'done' ? <Check className="h-3 w-3" aria-hidden="true" /> : i + 1}
@@ -65,7 +65,7 @@ export function WizardStepper({ steps, currentIndex }: WizardStepperProps) {
                     'text-[13px] font-semibold tracking-tight truncate',
                     state === 'active' && 'text-zinc-900',
                     state === 'done' && 'text-emerald-800',
-                    state === 'pending' && 'text-zinc-400',
+                    state === 'pending' && 'text-zinc-500',
                   )}
                 >
                   {step.label}
@@ -74,7 +74,7 @@ export function WizardStepper({ steps, currentIndex }: WizardStepperProps) {
               <div
                 className={cn(
                   'text-[11.5px] mt-1 ml-7 truncate',
-                  state === 'pending' ? 'text-zinc-300' : 'text-zinc-500',
+                  state === 'pending' ? 'text-zinc-500' : 'text-zinc-500',
                 )}
               >
                 {step.description}
@@ -84,7 +84,7 @@ export function WizardStepper({ steps, currentIndex }: WizardStepperProps) {
               <div
                 className={cn(
                   'flex items-center px-1',
-                  state === 'done' ? 'text-emerald-400' : 'text-zinc-300',
+                  state === 'done' ? 'text-emerald-400' : 'text-zinc-500',
                 )}
                 aria-hidden="true"
               >

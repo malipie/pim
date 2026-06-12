@@ -15,13 +15,13 @@ export function HeroAgentPanel() {
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-violet-50 via-white to-white p-8 soft-shadow-lg',
+        'relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-orange-50 via-white to-white p-8 soft-shadow-lg',
       )}
     >
       <MockBadge variant="corner" />
       <div className="flex items-start justify-between gap-6">
         <div className="max-w-2xl">
-          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-accent-violet/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-accent-violet">
+          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-orange-700">
             <Sparkles className="size-3.5" />
             {t('dashboard.hero.badge')}
           </div>

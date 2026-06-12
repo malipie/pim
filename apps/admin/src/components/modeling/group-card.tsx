@@ -82,7 +82,7 @@ export function GroupCard({
         <div className="flex min-w-0 items-center gap-2">
           <div className="truncate text-[14px] font-semibold tracking-tight">{labelText}</div>
           {isLocked ? <BuiltInLockBadge /> : null}
-          <span className="num shrink-0 text-[11px] text-zinc-400">
+          <span className="num shrink-0 text-[11px] text-zinc-500">
             {t('object_types.attrs_count', {
               defaultValue: '{{count}} atrybutów',
               count: group.attrsCount,
@@ -110,7 +110,7 @@ export function GroupCard({
               type="button"
               aria-label={t('object_types.group_card_edit', { defaultValue: 'Edytuj grupę' })}
               onClick={() => onEdit(group)}
-              className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
+              className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900"
             >
               <Pencil className="size-3.5" />
             </button>
@@ -120,7 +120,7 @@ export function GroupCard({
               type="button"
               aria-label={t('object_types.group_card_remove', { defaultValue: 'Usuń grupę' })}
               onClick={() => onRemove(group)}
-              className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-rose-50 hover:text-rose-600"
+              className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-rose-50 hover:text-rose-600"
             >
               <Trash2 className="size-3.5" />
             </button>
@@ -137,7 +137,7 @@ export function GroupCard({
           </span>
         ))}
         {remaining > 0 ? (
-          <span className="text-[11px] text-zinc-400">
+          <span className="text-[11px] text-zinc-500">
             {t('object_types.more_attrs', { defaultValue: '+{{count}} więcej', count: remaining })}
           </span>
         ) : null}

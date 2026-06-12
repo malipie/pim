@@ -491,7 +491,7 @@ export function AttributeCreatePage() {
                           });
                         }}
                         aria-label={t('app.remove', { defaultValue: 'Usuń' })}
-                        className="grid size-3.5 place-items-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
+                        className="grid size-3.5 place-items-center rounded text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700"
                       >
                         <X className="size-3" />
                       </button>

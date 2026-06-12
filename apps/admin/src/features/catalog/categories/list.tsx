@@ -184,7 +184,7 @@ export function CategoriesTreePage() {
         <Card className="p-3">
           <div className="mb-2 flex items-center gap-2 border-b border-zinc-100 px-3 py-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
             <span>{t('categories.tree_label', { defaultValue: 'Drzewo kategorii' })}</span>
-            <span className="ml-auto font-mono text-[10.5px] text-zinc-400">
+            <span className="ml-auto font-mono text-[10.5px] text-zinc-500">
               target: {targetType}
             </span>
           </div>
@@ -213,7 +213,7 @@ export function CategoriesTreePage() {
             />
           ) : (
             <Card className="p-12">
-              <p className="text-center text-[13px] italic text-zinc-400">
+              <p className="text-center text-[13px] italic text-zinc-500">
                 {t('categories.empty_select_node', {
                   defaultValue: '← Wybierz kategorię z drzewa',
                 })}
@@ -340,7 +340,7 @@ function CategoryDetailPanel({
               {t('categories.detail.declared_directly', { defaultValue: 'Declared directly' })}
             </div>
             {(declared?.declaredGroups.length ?? 0) === 0 ? (
-              <div className="text-[12px] italic text-zinc-400">
+              <div className="text-[12px] italic text-zinc-500">
                 {t('categories.detail.empty_declared', {
                   defaultValue: '— brak własnych grup, dziedziczy wszystko',
                 })}

@@ -163,7 +163,7 @@ export function BulkCategoryModal({ selectedIds, onClose, onApplied }: CategoryM
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="ml-auto h-8 w-8 grid place-items-center rounded-lg text-zinc-400 hover:bg-zinc-100"
+            className="ml-auto h-8 w-8 grid place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100"
           >
             <X className="size-4" />
           </button>
@@ -202,7 +202,7 @@ export function BulkCategoryModal({ selectedIds, onClose, onApplied }: CategoryM
 
           <div className="rounded-2xl border border-zinc-200 max-h-[260px] overflow-y-auto">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-2 text-[12px] text-zinc-400">
+              <div className="px-3 py-2 text-[12px] text-zinc-500">
                 {t('products.bulk_category.empty', { defaultValue: 'Brak kategorii do pokazania' })}
               </div>
             ) : (

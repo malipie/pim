@@ -80,7 +80,7 @@ export function CategoryProductsCard({ categoryId }: Props) {
         </p>
       ) : total === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center">
-          <FolderTree className="mx-auto size-6 text-zinc-400" />
+          <FolderTree className="mx-auto size-6 text-zinc-500" />
           <p className="mt-2 text-[12.5px] text-zinc-600">
             {t('categories.products_card.empty', {
               defaultValue: 'Brak produktów w tej kategorii.',

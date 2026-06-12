@@ -22,7 +22,7 @@ export function BackupWidget() {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
-            <ShieldCheck className="size-4 text-zinc-400" aria-hidden />
+            <ShieldCheck className="size-4 text-zinc-500" aria-hidden />
             {t('dashboard.backup.title', { defaultValue: 'Backup bazy' })}
           </div>
           <div className="display mt-1 text-[22px] font-semibold tracking-tight">
@@ -68,7 +68,7 @@ export function BackupWidget() {
             />
           ))}
         </div>
-        <div className="num mt-1.5 flex justify-between text-[10.5px] text-zinc-400">
+        <div className="num mt-1.5 flex justify-between text-[10.5px] text-zinc-500">
           <span>{BACKUP_MOCK.days[0]?.date}</span>
           <span>{BACKUP_MOCK.days[BACKUP_MOCK.days.length - 1]?.date}</span>
         </div>

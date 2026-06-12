@@ -139,7 +139,7 @@ export function GlobalCmdK() {
         aria-label={t('cmdk.title', { defaultValue: 'Szukaj lub przejdź' })}
       >
         <div className="flex h-14 items-center gap-3 border-b border-zinc-100 px-5">
-          <Search className="size-4 shrink-0 text-zinc-400" aria-hidden />
+          <Search className="size-4 shrink-0 text-zinc-500" aria-hidden />
           <input
             ref={inputRef}
             type="text"
@@ -172,11 +172,11 @@ export function GlobalCmdK() {
 
         <div className="max-h-[420px] space-y-4 overflow-y-auto p-4">
           <div>
-            <div className="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-zinc-400">
+            <div className="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-zinc-500">
               {t('cmdk.section_nav', { defaultValue: 'Przejdź do' })}
             </div>
             {filtered.length === 0 ? (
-              <p className="px-2 py-2 text-[12.5px] text-zinc-400">
+              <p className="px-2 py-2 text-[12.5px] text-zinc-500">
                 {t('cmdk.no_results', { defaultValue: 'Brak pasujących stron.' })}
               </p>
             ) : (
@@ -192,13 +192,13 @@ export function GlobalCmdK() {
                         index === cursor ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-700',
                       )}
                     >
-                      <ArrowRight className="size-3.5 shrink-0 text-zinc-400" aria-hidden />
+                      <ArrowRight className="size-3.5 shrink-0 text-zinc-500" aria-hidden />
                       <span className="flex-1 truncate">{entry.label}</span>
-                      <span className="text-[10.5px] uppercase tracking-wider text-zinc-400">
+                      <span className="text-[10.5px] uppercase tracking-wider text-zinc-500">
                         {entry.group}
                       </span>
                       {index === cursor ? (
-                        <CornerDownLeft className="size-3.5 text-zinc-400" aria-hidden />
+                        <CornerDownLeft className="size-3.5 text-zinc-500" aria-hidden />
                       ) : null}
                     </button>
                   </li>
@@ -208,7 +208,7 @@ export function GlobalCmdK() {
           </div>
 
           <div>
-            <div className="flex items-center gap-1.5 px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-zinc-400">
+            <div className="flex items-center gap-1.5 px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-zinc-500">
               <Sparkles className="size-3 text-orange-500" aria-hidden />
               {t('cmdk.section_agent', { defaultValue: 'Agent' })}
               <MockBadge
@@ -230,7 +230,7 @@ export function GlobalCmdK() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 border-t border-zinc-100 bg-zinc-50/60 px-5 py-2.5 text-[10.5px] text-zinc-400">
+        <div className="flex items-center gap-3 border-t border-zinc-100 bg-zinc-50/60 px-5 py-2.5 text-[10.5px] text-zinc-500">
           <span>↑↓ {t('cmdk.kbd_navigate', { defaultValue: 'nawiguj' })}</span>
           <span>↵ {t('cmdk.kbd_open', { defaultValue: 'otwórz' })}</span>
           <span>esc {t('cmdk.kbd_close', { defaultValue: 'zamknij' })}</span>

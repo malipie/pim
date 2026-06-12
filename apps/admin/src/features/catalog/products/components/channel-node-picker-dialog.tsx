@@ -148,7 +148,7 @@ export function ChannelNodePickerDialog({
                     )}
                     aria-pressed={selected === node.id}
                   >
-                    <FolderTree className="size-3.5 shrink-0 text-zinc-400" />
+                    <FolderTree className="size-3.5 shrink-0 text-zinc-500" />
                     <span className="font-medium">
                       {resolveLabel(node.label, i18n.language, node.code)}
                     </span>

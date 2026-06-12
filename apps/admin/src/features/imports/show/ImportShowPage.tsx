@@ -136,7 +136,7 @@ export function ImportShowPage(): React.ReactElement {
           <ProgressBar value={pct} />
 
           <div>
-            <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+            <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
               {t('imports.show.live_log', { defaultValue: 'Live log' })}
             </div>
             <div

@@ -132,7 +132,7 @@ export function PermissionMatrixAccordion({
                       })}
                 </button>
                 <ChevronRight
-                  className={cn('size-4 text-zinc-400 transition', isOpen && 'rotate-90')}
+                  className={cn('size-4 text-zinc-500 transition', isOpen && 'rotate-90')}
                   aria-hidden
                 />
               </div>
@@ -170,7 +170,7 @@ export function PermissionMatrixAccordion({
                         <div className="text-[12.5px] text-zinc-800">
                           {permissionActionLabel(t, permission.action)}
                         </div>
-                        <div className="font-mono text-[10.5px] text-zinc-400">
+                        <div className="font-mono text-[10.5px] text-zinc-500">
                           {permission.code}
                         </div>
                       </div>

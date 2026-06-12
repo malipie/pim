@@ -35,7 +35,7 @@ export function ModelingSection({
           {locked ? <Lock className="size-3" /> : null}
           {label}
         </span>
-        {tagline ? <span className="text-muted-foreground/80">— {tagline}</span> : null}
+        {tagline ? <span className="text-muted-foreground">— {tagline}</span> : null}
         {summary ? <span className="ml-auto text-muted-foreground">{summary}</span> : null}
       </header>
       <ul className="divide-y divide-line/60">{children}</ul>

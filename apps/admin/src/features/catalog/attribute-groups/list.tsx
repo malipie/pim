@@ -92,7 +92,7 @@ export function AttributeGroupsListPage() {
                 count: groups.length,
               })}
             </span>
-            <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-orange-700">
+            <span className="rounded bg-orange-50 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-orange-800">
               {t('modeling.attributeGroups.list_first_class_badge', {
                 defaultValue: '⭐ first-class entity',
               })}

@@ -151,7 +151,7 @@ function ToastCard({ entry, onDismiss }: ToastCardProps) {
       ? 'text-rose-500'
       : entry.level === 'success'
         ? 'text-emerald-500'
-        : 'text-violet-500';
+        : 'text-orange-500';
   return (
     <div
       role={entry.level === 'error' ? 'alert' : 'status'}
@@ -170,7 +170,7 @@ function ToastCard({ entry, onDismiss }: ToastCardProps) {
             entry.action?.onClick();
             onDismiss(entry.id);
           }}
-          className="rounded-md px-2 py-1 text-[12px] font-semibold text-violet-600 hover:bg-violet-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          className="rounded-md px-2 py-1 text-[12px] font-semibold text-orange-600 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
         >
           {entry.action.label}
         </button>
@@ -180,7 +180,7 @@ function ToastCard({ entry, onDismiss }: ToastCardProps) {
         onClick={() => {
           onDismiss(entry.id);
         }}
-        className="rounded p-0.5 text-zinc-400 transition hover:text-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
+        className="rounded p-0.5 text-zinc-500 transition hover:text-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
         aria-label="Dismiss"
       >
         <X className="size-3.5" aria-hidden="true" />

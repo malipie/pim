@@ -645,7 +645,7 @@ export function UserDetailPage() {
                 'h-10 rounded-xl px-4 text-[13px] font-medium',
                 isDirty && !isSelf && !submitting
                   ? 'bg-zinc-900 text-white hover:bg-zinc-800'
-                  : 'bg-zinc-200 text-zinc-400',
+                  : 'bg-zinc-200 text-zinc-500',
               )}
             >
               <Check className="mr-1.5 size-4" aria-hidden />

@@ -129,7 +129,7 @@ function SortableGroupCard({
         })}
         {...sortable.attributes}
         {...sortable.listeners}
-        className="mt-1 grid size-7 shrink-0 cursor-grab place-items-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 active:cursor-grabbing"
+        className="mt-1 grid size-7 shrink-0 cursor-grab place-items-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 active:cursor-grabbing"
       >
         <GripVertical className="size-4" />
       </button>
@@ -521,7 +521,7 @@ export function ObjectTypeShowPage() {
                 aria-label={t('object_types.edit_name', { defaultValue: 'Edytuj nazwę' })}
               >
                 <span className="flex-1 truncate">{labelText}</span>
-                <Pencil className="size-3.5 text-zinc-400" />
+                <Pencil className="size-3.5 text-zinc-500" />
               </button>
             )}
           </div>
@@ -556,7 +556,7 @@ export function ObjectTypeShowPage() {
                     kind={objectType.kind}
                     size="sm"
                   />
-                  <Pencil className="ml-auto size-3.5 text-zinc-400" />
+                  <Pencil className="ml-auto size-3.5 text-zinc-500" />
                 </button>
               )}
             </div>
@@ -583,7 +583,7 @@ export function ObjectTypeShowPage() {
                     style={{ background: objectType.color ?? '#a1a1aa' }}
                   />
                   <span className="font-mono text-[12px]">{objectType.color ?? '—'}</span>
-                  <Pencil className="ml-auto size-3.5 text-zinc-400" />
+                  <Pencil className="ml-auto size-3.5 text-zinc-500" />
                 </button>
               )}
             </div>
@@ -606,7 +606,7 @@ export function ObjectTypeShowPage() {
                   defaultValue: 'Custom attribute groups',
                 })}
               </span>
-              <span className="text-[11px] text-zinc-400">
+              <span className="text-[11px] text-zinc-500">
                 —{' '}
                 {t('object_types.custom_groups_tagline', {
                   defaultValue: 'globalne grupy dla wszystkich obiektów typu „{{name}}"',
@@ -690,7 +690,7 @@ export function ObjectTypeShowPage() {
                   defaultValue: 'Custom attribute',
                 })}
               </span>
-              <span className="text-[11px] text-zinc-400">
+              <span className="text-[11px] text-zinc-500">
                 —{' '}
                 {t('object_types.custom_attributes_tagline', {
                   defaultValue: 'pojedyncze atrybuty dołączone bezpośrednio (poza grupami)',
@@ -763,7 +763,7 @@ export function ObjectTypeShowPage() {
                       defaultValue: 'Odepnij atrybut',
                     })}
                     onClick={() => void handleDetachAttribute(a.id)}
-                    className="grid size-8 place-items-center rounded-lg text-zinc-400 transition hover:bg-rose-50 hover:text-rose-600"
+                    className="grid size-8 place-items-center rounded-lg text-zinc-500 transition hover:bg-rose-50 hover:text-rose-600"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
@@ -944,7 +944,7 @@ export function ObjectTypeShowPage() {
 
       <AuditTrailCompact resource="object_types" id={id} limit={5} />
 
-      <footer className="flex flex-col items-start justify-between gap-2 border-t border-zinc-100 pt-6 text-[11.5px] text-zinc-400 sm:flex-row sm:items-center">
+      <footer className="flex flex-col items-start justify-between gap-2 border-t border-zinc-100 pt-6 text-[11.5px] text-zinc-500 sm:flex-row sm:items-center">
         <span>
           {t('object_types.footer_workspace', {
             defaultValue:

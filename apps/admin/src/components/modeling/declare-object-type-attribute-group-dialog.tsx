@@ -189,7 +189,7 @@ export function DeclareObjectTypeAttributeGroupDialog({
 
         <div className="space-y-3 px-7 py-4">
           <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2">
-            <Search className="size-4 text-zinc-400" />
+            <Search className="size-4 text-zinc-500" />
             <input
               type="text"
               value={q}
@@ -261,7 +261,7 @@ export function DeclareObjectTypeAttributeGroupDialog({
                         </span>
                         {isSystem ? <BuiltInLockBadge /> : null}
                       </div>
-                      <div className="font-mono text-[11px] text-zinc-400">{g.code}</div>
+                      <div className="font-mono text-[11px] text-zinc-500">{g.code}</div>
                     </div>
                   </button>
                 );
