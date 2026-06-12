@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Application\Handler;
 
+use App\Catalog\Domain\Entity\Attribute;
 use App\Import\Application\Service\ImportObjectCreator;
 use App\Import\Application\Service\ImportProgressPublisher;
 use App\Import\Application\Service\ImportRowDecision;
@@ -62,6 +63,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ImportValidationService $validator,
         private readonly ImportObjectCreator $creator,
         private readonly ObjectResolver $objectResolver,
+        private readonly \App\Catalog\Application\BatchValueWriter $valueWriter,
         private readonly ImportProgressPublisher $progressPublisher,
         private readonly TenantContext $tenantContext,
         private readonly FilesystemOperator $importsStorage,
@@ -155,115 +157,45 @@ final class ImportRunHandler extends AbstractBatchHandler
             $skuSeenInFile = [];
             $processed = 0;
             $totalRows = 0;
+            /** @var list<array{rowNumber: int, cells: array<string, string|null>}> $buffer */
+            $buffer = [];
 
+            // IMP2-1.4 (#1466): rows are buffered per chunk so the resolver
+            // and the value writer pay one query per chunk (resolveMany +
+            // primeChunk) instead of one per row. flushAndClear() detaches
+            // everything, so the re-merge block below replays the lookups.
             foreach ($this->rowReader->read($sourcePath) as $rowNumber => $cells) {
-                ++$processed;
                 ++$totalRows;
-                $errors = $this->validator->validateRow(
-                    rowNumber: $rowNumber,
-                    cells: $cells,
-                    columnMapping: $columnMapping,
-                    attributesByCode: $attributesByCode,
-                    tenant: $tenant,
-                    skuSeenInFile: $skuSeenInFile,
-                );
+                $buffer[] = ['rowNumber' => $rowNumber, 'cells' => $cells];
 
-                $sku = $cells[$this->skuColumnHeader($columnMapping)] ?? null;
-                $blockingErrors = array_values(array_filter(
-                    $errors,
-                    static fn (ValidationError $error): bool => $error->isRowBlocking(),
-                ));
-                $rowOk = [] === $blockingErrors;
-
-                if ($rowOk) {
-                    $resolvedValues = $this->materialiseValues($cells, $columnMapping);
-                    $matchKey = $this->matchKey($session, $cells, $columnMapping, $resolvedValues, $rowNumber);
-                    $existing = $this->objectResolver->resolve(
-                        $matchKey,
-                        $session->getTargetObjectType(),
-                        $tenant,
-                        $session->getMatchAttributeCode(),
-                    );
-                    $decision = $this->objectResolver->decide($session->getMode(), $existing);
-
-                    if (ImportRowDecision::Create === $decision) {
-                        $this->creator->create(
-                            objectType: $session->getTargetObjectType(),
-                            sku: $this->skuFrom($resolvedValues, $rowNumber),
-                            resolvedValues: $resolvedValues,
-                            attributesByCode: $attributesByCode,
-                            importSessionId: $session->getId(),
-                            categoryCode: $this->extractCategoryCode($cells, $columnMapping),
-                            tenant: $tenant,
-                        );
-                        $session->incrementSuccess();
-                    } elseif (ImportRowDecision::Update === $decision && null !== $existing) {
-                        $this->creator->update($existing, $resolvedValues, $attributesByCode);
-                        $session->incrementSuccess();
-                        $session->incrementUpdated();
-                    } else {
-                        $session->incrementSkipped();
-                        $errors[] = ImportRowDecision::SkipExists === $decision
-                            ? new ValidationError(
-                                rowNumber: $rowNumber,
-                                sku: $sku,
-                                errorType: ImportErrorType::DuplicateSkuInDb,
-                                level: ImportLogLevel::Warning,
-                                message: \sprintf('Match key "%s" already exists — row skipped (mode CREATE).', $matchKey),
-                            )
-                            : new ValidationError(
-                                rowNumber: $rowNumber,
-                                sku: $sku,
-                                errorType: ImportErrorType::NoMatchInDb,
-                                level: ImportLogLevel::Warning,
-                                message: \sprintf('No object matches key "%s" — row skipped (mode UPDATE).', $matchKey),
-                            );
-                    }
-                } else {
-                    $session->incrementError();
+                if (!$this->shouldFlush(\count($buffer))) {
+                    continue;
                 }
 
-                // Persist every finding so the post-import report (IMP-05)
-                // surfaces both row-blocking errors and non-blocking
-                // warnings (e.g. CategoryNotFound on an otherwise OK row).
-                foreach ($errors as $error) {
-                    $this->entityManager->persist(new ImportLog(
-                        importSession: $session,
-                        rowNumber: $error->rowNumber,
-                        level: $error->level,
-                        message: $error->message,
-                        sku: $error->sku,
-                        errorType: $error->errorType->value,
-                        columnName: $error->columnName,
-                        columnValue: $error->columnValue,
+                $processed += $this->processChunk($session, $tenant, $buffer, $columnMapping, $attributesByCode, $skuSeenInFile);
+                $buffer = [];
+
+                $this->flushAndClear();
+                // After clear() every previously-loaded entity is detached —
+                // re-merge by reloading the session and tenant, replaying the
+                // attribute lookup and resetting TenantContext.
+                $session = $this->refreshSession($session);
+                $tenant = $session->getTenant();
+                if (!$tenant instanceof Tenant) {
+                    throw new RuntimeException(\sprintf(
+                        'Import session "%s" lost its tenant assignment mid-run.',
+                        $session->getId()->toRfc4122(),
                     ));
                 }
+                $this->tenantContext->set($tenant);
+                $attributesByCode = $this->validator->loadAttributesByCode($tenant, $columnMapping);
+                $this->progressPublisher->progress($session, $processed, null);
+            }
 
-                $this->progressPublisher->rowProcessed($session, $rowNumber, $sku, $rowOk);
-
-                if ($this->shouldFlush($processed)) {
-                    $this->flushAndClear();
-                    // After clear() every previously-loaded entity is
-                    // detached. The catalog-side lookups in the next
-                    // iteration (Attribute references on ObjectValue,
-                    // Tenant stamped by TenantAssignmentListener) would
-                    // throw "Multiple non-persisted new entities" on the
-                    // next flush — re-merge by reloading the session and
-                    // its tenant, replaying the attribute lookup, and
-                    // resetting TenantContext so the listener pulls the
-                    // managed reference.
-                    $session = $this->refreshSession($session);
-                    $tenant = $session->getTenant();
-                    if (!$tenant instanceof Tenant) {
-                        throw new RuntimeException(\sprintf(
-                            'Import session "%s" lost its tenant assignment mid-run.',
-                            $session->getId()->toRfc4122(),
-                        ));
-                    }
-                    $this->tenantContext->set($tenant);
-                    $attributesByCode = $this->validator->loadAttributesByCode($tenant, $columnMapping);
-                    $this->progressPublisher->progress($session, $processed, $sku);
-                }
+            if ([] !== $buffer) {
+                $processed += $this->processChunk($session, $tenant, $buffer, $columnMapping, $attributesByCode, $skuSeenInFile);
+                $this->flushAndClear();
+                $session = $this->refreshSession($session);
             }
 
             $session->setTotalRows($totalRows);
@@ -459,6 +391,153 @@ final class ImportRunHandler extends AbstractBatchHandler
      * IMP2-1.3 — the row match key: the cell mapped to the configured
      * identifier attribute, or the SKU cell by default (trimmed; the
      * synthetic IMPORT-{row} fallback only feeds brand-new rows).
+     *
+     * @param array<string, string> $columnMapping
+     */
+    /**
+     * IMP2-1.4 (#1466) — validate + resolve + write one buffered chunk.
+     * Returns the number of rows consumed (== chunk size).
+     *
+     * @param list<array{rowNumber: int, cells: array<string, string|null>}> $buffer
+     * @param array<string, string>                                          $columnMapping
+     * @param array<string, Attribute>                                       $attributesByCode
+     * @param array<string, int>                                             $skuSeenInFile
+     */
+    private function processChunk(
+        ImportSession $session,
+        Tenant $tenant,
+        array $buffer,
+        array $columnMapping,
+        array $attributesByCode,
+        array &$skuSeenInFile,
+    ): int {
+        // Pass 1 — validate rows and gather match keys for the batch resolve.
+        /** @var list<array{rowNumber: int, cells: array<string, string|null>, sku: ?string, errors: list<ValidationError>, rowOk: bool, resolvedValues: list<ResolvedImportValue>, matchKey: string}> $prepared */
+        $prepared = [];
+        $matchKeys = [];
+        foreach ($buffer as $entry) {
+            $rowNumber = $entry['rowNumber'];
+            $cells = $entry['cells'];
+            $errors = $this->validator->validateRow(
+                rowNumber: $rowNumber,
+                cells: $cells,
+                columnMapping: $columnMapping,
+                attributesByCode: $attributesByCode,
+                tenant: $tenant,
+                skuSeenInFile: $skuSeenInFile,
+            );
+            $sku = $cells[$this->skuColumnHeader($columnMapping)] ?? null;
+            $blocking = array_values(array_filter(
+                $errors,
+                static fn (ValidationError $error): bool => $error->isRowBlocking(),
+            ));
+            $rowOk = [] === $blocking;
+            $resolvedValues = $rowOk ? $this->materialiseValues($cells, $columnMapping) : [];
+            $matchKey = $rowOk ? $this->matchKey($session, $cells, $columnMapping, $resolvedValues, $rowNumber) : '';
+            if ('' !== $matchKey) {
+                $matchKeys[] = $matchKey;
+            }
+            $prepared[] = [
+                'rowNumber' => $rowNumber,
+                'cells' => $cells,
+                'sku' => $sku,
+                'errors' => $errors,
+                'rowOk' => $rowOk,
+                'resolvedValues' => $resolvedValues,
+                'matchKey' => $matchKey,
+            ];
+        }
+
+        $existingByKey = $this->objectResolver->resolveMany(
+            $matchKeys,
+            $session->getTargetObjectType(),
+            $tenant,
+            $session->getMatchAttributeCode(),
+        );
+        $this->valueWriter->primeChunk(array_values($existingByKey), $attributesByCode);
+
+        // Pass 2 — decide + write per row.
+        foreach ($prepared as $row) {
+            $errors = $row['errors'];
+            $issues = [];
+
+            if ($row['rowOk']) {
+                $existing = $existingByKey[$row['matchKey']] ?? null;
+                $decision = $this->objectResolver->decide($session->getMode(), $existing);
+
+                if (ImportRowDecision::Create === $decision) {
+                    $created = $this->creator->create(
+                        objectType: $session->getTargetObjectType(),
+                        sku: $this->skuFrom($row['resolvedValues'], $row['rowNumber']),
+                        resolvedValues: $row['resolvedValues'],
+                        attributesByCode: $attributesByCode,
+                        importSessionId: $session->getId(),
+                        categoryCode: $this->extractCategoryCode($row['cells'], $columnMapping),
+                        tenant: $tenant,
+                    );
+                    $issues = $created->issues;
+                    $session->incrementSuccess();
+                } elseif (ImportRowDecision::Update === $decision && null !== $existing) {
+                    $issues = $this->creator->update($existing, $row['resolvedValues'], $attributesByCode);
+                    $session->incrementSuccess();
+                    $session->incrementUpdated();
+                } else {
+                    $session->incrementSkipped();
+                    $errors[] = ImportRowDecision::SkipExists === $decision
+                        ? new ValidationError(
+                            rowNumber: $row['rowNumber'],
+                            sku: $row['sku'],
+                            errorType: ImportErrorType::DuplicateSkuInDb,
+                            level: ImportLogLevel::Warning,
+                            message: \sprintf('Match key "%s" already exists — row skipped (mode CREATE).', $row['matchKey']),
+                        )
+                        : new ValidationError(
+                            rowNumber: $row['rowNumber'],
+                            sku: $row['sku'],
+                            errorType: ImportErrorType::NoMatchInDb,
+                            level: ImportLogLevel::Warning,
+                            message: \sprintf('No object matches key "%s" — row skipped (mode UPDATE).', $row['matchKey']),
+                        );
+                }
+            } else {
+                $session->incrementError();
+            }
+
+            // Writer issues are value-level: the row stays imported, the
+            // offending value is skipped — surfaced as warnings.
+            foreach ($issues as $issue) {
+                $errors[] = new ValidationError(
+                    rowNumber: $row['rowNumber'],
+                    sku: $row['sku'],
+                    errorType: 'required_empty' === $issue['kind'] ? ImportErrorType::MissingRequired : ImportErrorType::InvalidValue,
+                    level: ImportLogLevel::Warning,
+                    message: $issue['message'],
+                    columnName: $issue['attributeCode'],
+                );
+            }
+
+            foreach ($errors as $error) {
+                $this->entityManager->persist(new ImportLog(
+                    importSession: $session,
+                    rowNumber: $error->rowNumber,
+                    level: $error->level,
+                    message: $error->message,
+                    sku: $error->sku,
+                    errorType: $error->errorType->value,
+                    columnName: $error->columnName,
+                    columnValue: $error->columnValue,
+                ));
+            }
+
+            $this->progressPublisher->rowProcessed($session, $row['rowNumber'], $row['sku'], $row['rowOk']);
+        }
+
+        return \count($prepared);
+    }
+
+    /**
+     * IMP2-1.3 — the row match key: the cell mapped to the configured
+     * identifier attribute, or the SKU cell by default (trimmed).
      *
      * @param array<string, string|null> $cells
      * @param array<string, string>      $columnMapping

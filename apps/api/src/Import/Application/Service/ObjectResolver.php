@@ -75,6 +75,76 @@ final readonly class ObjectResolver
     }
 
     /**
+     * IMP2-1.4 (#1466) — batch resolve for a chunk: one query instead of one
+     * per row. Keys are trimmed, empty keys ignored.
+     *
+     * @param list<string> $keys
+     *
+     * @return array<string, CatalogObject> key => object (missing keys absent)
+     */
+    public function resolveMany(
+        array $keys,
+        \App\Catalog\Domain\Entity\ObjectType $objectType,
+        Tenant $tenant,
+        ?string $matchAttributeCode,
+    ): array {
+        $keys = array_values(array_unique(array_filter(array_map(trim(...), $keys), static fn (string $k): bool => '' !== $k)));
+        if ([] === $keys) {
+            return [];
+        }
+
+        if (null === $matchAttributeCode) {
+            $rows = $this->em->createQueryBuilder()
+                ->select('o')
+                ->from(CatalogObject::class, 'o')
+                ->where('o.code IN (:keys)')
+                ->andWhere('o.objectType = :objectType')
+                ->setParameter('keys', $keys)
+                ->setParameter('objectType', $objectType)
+                ->getQuery()
+                ->getResult();
+
+            /** @var list<CatalogObject> $rows */
+            $map = [];
+            foreach ($rows as $row) {
+                $map[$row->getCode()] = $row;
+            }
+
+            return $map;
+        }
+
+        $idRows = $this->em->getConnection()->fetchAllAssociative(
+            <<<'SQL'
+                SELECT o.id, ov.value->>'value' AS match_key
+                FROM objects o
+                JOIN object_values ov ON ov.object_id = o.id
+                JOIN attributes a ON a.id = ov.attribute_id
+                WHERE a.code = :code
+                  AND o.object_type_id = :objectTypeId
+                  AND o.tenant_id = :tenantId
+                  AND ov.value->>'value' IN (:keys)
+                SQL,
+            [
+                'code' => $matchAttributeCode,
+                'objectTypeId' => $objectType->getId()->toRfc4122(),
+                'tenantId' => $tenant->getId()->toRfc4122(),
+                'keys' => $keys,
+            ],
+            ['keys' => \Doctrine\DBAL\ArrayParameterType::STRING],
+        );
+
+        $map = [];
+        foreach ($idRows as $idRow) {
+            $object = $this->em->find(CatalogObject::class, $idRow['id']);
+            if ($object instanceof CatalogObject && \is_string($idRow['match_key'])) {
+                $map[$idRow['match_key']] = $object;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
      * CREATE skips matched rows, UPDATE skips unmatched ones, UPSERT
      * branches — returns the decision for the run loop.
      */

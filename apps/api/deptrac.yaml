@@ -331,10 +331,10 @@ parameters:
             - App\Catalog\Domain\Entity\CatalogObject
             - App\Catalog\Domain\Entity\ObjectCategory
             - App\Catalog\Domain\Entity\ObjectType
-            - App\Catalog\Domain\Entity\ObjectValue
             - App\Catalog\Domain\ObjectKind
             - App\Catalog\Domain\Provenance
             - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface
+            - App\Catalog\Application\BatchValueWriter
         App\Import\Application\Service\ImportValidationService:
             - App\Catalog\Domain\AttributeType
             - App\Catalog\Domain\Entity\Attribute
@@ -389,6 +389,9 @@ parameters:
             - App\Catalog\Domain\Entity\ObjectType
             - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
             - App\Identity\Domain\Entity\User
+            - App\Catalog\Domain\AttributeType
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Repository\AttributeRepositoryInterface
         App\Import\Presentation\Controller\TestImportSourceConnectionController:
             - App\Identity\Domain\Entity\User
         App\Import\Presentation\Controller\UpcomingSchedulesController:
@@ -396,3 +399,15 @@ parameters:
         App\Import\Presentation\Controller\ValidateDryRunController:
             - App\Catalog\Domain\Entity\ObjectType
             - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+        # IMP2-1.4 (#1466) writer touchpoint
+        App\Import\Application\Handler\ImportRunHandler:
+            - App\Catalog\Application\BatchValueWriter
+            - App\Catalog\Domain\Entity\Attribute
+        # IMP2-1.4 (#1466) writer touchpoint
+        App\Import\Application\Service\CreatedImportObject:
+            - App\Catalog\Domain\Entity\CatalogObject
+        # IMP2-1.4 (#1466) writer touchpoint
+        App\Import\Application\Service\ObjectResolver:
+            - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface

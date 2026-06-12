@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Application\Service;
 
+use App\Catalog\Application\BatchValueWriter;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -13,7 +14,6 @@ use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Provenance;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
-use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Import\Domain\ValueObject\ResolvedImportValue;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -38,7 +38,7 @@ final class ImportObjectCreator
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly CatalogObjectRepositoryInterface $catalogObjects,
-        private readonly ObjectValueRepositoryInterface $objectValues,
+        private readonly BatchValueWriter $valueWriter,
         private readonly CompositeValueParser $compositeValueParser,
     ) {
     }
@@ -61,34 +61,16 @@ final class ImportObjectCreator
         Uuid $importSessionId,
         ?string $categoryCode = null,
         ?Tenant $tenant = null,
-    ): CatalogObject {
+    ): CreatedImportObject {
         $object = new CatalogObject($objectType, $sku);
         $object->assignImportSession($importSessionId);
         $this->em->persist($object);
 
-        foreach ($resolvedValues as $resolved) {
-            $rawValue = $resolved->rawValue;
-            if (null === $rawValue || '' === $rawValue) {
-                continue;
-            }
-            $attribute = $attributesByCode[$resolved->attributeCode] ?? null;
-            if (!$attribute instanceof Attribute) {
-                continue;
-            }
-
-            $valuePayload = $this->buildValuePayload($attribute, $rawValue);
-            if (null === $valuePayload) {
-                continue;
-            }
-
-            $this->em->persist(new ObjectValue(
-                object: $object,
-                attribute: $attribute,
-                value: $valuePayload,
-                provenance: Provenance::Import,
-                locale: $resolved->locale,
-            ));
-        }
+        $issues = $this->valueWriter->writeMany(
+            $object,
+            $this->buildWrites($resolvedValues, $attributesByCode),
+            Provenance::Import,
+        );
 
         if (null !== $categoryCode && '' !== $categoryCode && $tenant instanceof Tenant) {
             $category = $this->catalogObjects->findByCode($categoryCode, ObjectKind::Category, $tenant);
@@ -102,7 +84,7 @@ final class ImportObjectCreator
             }
         }
 
-        return $object;
+        return new CreatedImportObject($object, $issues);
     }
 
     /**
@@ -116,11 +98,38 @@ final class ImportObjectCreator
      * @param list<ResolvedImportValue> $resolvedValues
      * @param array<string, Attribute>  $attributesByCode
      */
+    /**
+     * @param list<ResolvedImportValue> $resolvedValues
+     * @param array<string, Attribute>  $attributesByCode
+     *
+     * @return list<array{attributeCode: string, kind: string, message: string}>
+     */
     public function update(
         CatalogObject $object,
         array $resolvedValues,
         array $attributesByCode,
-    ): void {
+    ): array {
+        return $this->valueWriter->writeMany(
+            $object,
+            $this->buildWrites($resolvedValues, $attributesByCode),
+            Provenance::Import,
+        );
+    }
+
+    /**
+     * Map resolved cells to writer entries. Empty cells never become writes
+     * (ADR-0019 D2 — absent/empty means "do not touch"); cells the composite
+     * parsers cannot interpret are dropped here because the row validator
+     * already emitted InvalidType for them.
+     *
+     * @param list<ResolvedImportValue> $resolvedValues
+     * @param array<string, Attribute>  $attributesByCode
+     *
+     * @return list<array{attribute: Attribute, envelope: array<string, mixed>, locale: ?string, channelId: ?Uuid}>
+     */
+    private function buildWrites(array $resolvedValues, array $attributesByCode): array
+    {
+        $writes = [];
         foreach ($resolvedValues as $resolved) {
             $rawValue = $resolved->rawValue;
             if (null === $rawValue || '' === $rawValue) {
@@ -130,27 +139,14 @@ final class ImportObjectCreator
             if (!$attribute instanceof Attribute) {
                 continue;
             }
-
             $valuePayload = $this->buildValuePayload($attribute, $rawValue);
             if (null === $valuePayload) {
                 continue;
             }
-
-            $existing = $this->objectValues->findOneByScope($object, $attribute, null, $resolved->locale);
-            if ($existing instanceof ObjectValue) {
-                $existing->updateValue($valuePayload);
-                $existing->changeProvenance(Provenance::Import);
-                continue;
-            }
-
-            $this->em->persist(new ObjectValue(
-                object: $object,
-                attribute: $attribute,
-                value: $valuePayload,
-                provenance: Provenance::Import,
-                locale: $resolved->locale,
-            ));
+            $writes[] = ['attribute' => $attribute, 'envelope' => $valuePayload, 'locale' => $resolved->locale, 'channelId' => null];
         }
+
+        return $writes;
     }
 
     /**
