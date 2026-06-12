@@ -84,9 +84,9 @@ final class RollbackAndReportApiTest extends CatalogApiTestCase
     {
         $this->seedAttributes();
 
-        // Force one error by sending a row missing `name` so the
-        // validator logs a MissingRequired entry.
-        $csv = "sku;name\nGOOD-1;OK\nBAD-1;";
+        // Force one error with a row missing `sku` (the only always-required
+        // code since #1467 — `name` follows Attribute::isRequired now).
+        $csv = "sku;name\nGOOD-1;OK\n;Bez SKU";
         $sessionId = $this->runImportWithCsv($csv);
 
         $client = $this->authenticatedClient();

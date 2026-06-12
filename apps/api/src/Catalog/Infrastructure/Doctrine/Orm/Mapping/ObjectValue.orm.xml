@@ -39,6 +39,12 @@
         </many-to-one>
 
         <field name="channelId" type="uuid" column="channel_id" nullable="true"/>
+        <!-- Trigger-maintained (Version20260531120000): identifier uniqueness
+             support columns. Mapped read-only so schema-built test databases
+             (Foundry reset mode: schema, from ORM metadata) carry them; the
+             trigger that fills them exists only on migration-built DBs. -->
+        <field name="identifierValue" type="string" column="identifier_value" nullable="true" insertable="false" updatable="false"/>
+        <field name="identifierObjectTypeId" type="uuid" column="identifier_object_type_id" nullable="true" insertable="false" updatable="false"/>
         <field name="locale" type="string" length="8" nullable="true"/>
         <field name="value" type="json">
             <options>
