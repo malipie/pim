@@ -1,10 +1,8 @@
 import { useApiUrl, useCustom, useList } from '@refinedev/core';
-import { Plus, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 
-import { Button } from '@/components/ui/button';
 import { HistoryTable } from './HistoryTable';
 import { KpiStrip } from './KpiStrip';
 import { LiveSessionCard } from './LiveSessionCard';
@@ -76,26 +74,16 @@ export function ImportSessionsView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-6">
-        <div className="max-w-2xl space-y-1">
-          <div className="text-[13px] text-zinc-500 font-medium">
-            {t('imports.sessions.subtitle_eyebrow')}
-          </div>
-          <h2 className="font-display text-[24px] font-semibold tracking-tight">
-            {t('imports.sessions.title')}
-          </h2>
-          <p className="text-[13.5px] text-zinc-500 leading-relaxed">
-            {t('imports.sessions.description')}
-          </p>
+      <div className="max-w-2xl space-y-1">
+        <div className="text-[13px] text-zinc-500 font-medium">
+          {t('imports.sessions.subtitle_eyebrow')}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button asChild>
-            <Link to="/integrations/imports/new">
-              <Plus className="size-4" />
-              {t('imports.sessions.new_import')}
-            </Link>
-          </Button>
-        </div>
+        <h2 className="font-display text-[24px] font-semibold tracking-tight">
+          {t('imports.sessions.title')}
+        </h2>
+        <p className="text-[13.5px] text-zinc-500 leading-relaxed">
+          {t('imports.sessions.description')}
+        </p>
       </div>
 
       <KpiStrip sessions={sessions} throughput={throughput} />
