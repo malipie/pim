@@ -6,7 +6,7 @@ export type ModeBadgeSize = 'sm' | 'md';
 const MODE_STYLES: Record<ImportMode, { bg: string; fg: string; dot: string }> = {
   ADD: { bg: 'bg-zinc-100', fg: 'text-zinc-700', dot: 'bg-zinc-400' },
   UPDATE: { bg: 'bg-sky-50', fg: 'text-sky-700', dot: 'bg-sky-500' },
-  UPSERT: { bg: 'bg-violet-50', fg: 'text-violet-700', dot: 'bg-violet-500' },
+  UPSERT: { bg: 'bg-orange-50', fg: 'text-orange-700', dot: 'bg-orange-500' },
   MERGE: { bg: 'bg-emerald-50', fg: 'text-emerald-700', dot: 'bg-emerald-500' },
   INCREMENT: { bg: 'bg-amber-50', fg: 'text-amber-800', dot: 'bg-amber-500' },
   DELETE: { bg: 'bg-rose-50', fg: 'text-rose-700', dot: 'bg-rose-500' },

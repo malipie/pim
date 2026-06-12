@@ -1916,16 +1916,7 @@
     }
   },
   "integrations": {
-    "title": "Integrations",
-    "description": "Imports, exports, connectors and API Configurator",
-    "tabs": {
-      "imports": "Imports",
-      "exports": "Exports",
-      "connectors": "Connectors",
-      "api_configurator": "API Configurator"
-    },
-    "tabs_aria": "Integrations sub-tabs",
-    "coming_soon": "Coming with epik 0.10 / UI-04"
+    "tabs_aria": "Integrations sub-tabs"
   },
   "imports": {
     "tabs": {

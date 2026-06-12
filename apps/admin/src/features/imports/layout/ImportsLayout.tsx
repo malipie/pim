@@ -1,63 +1,101 @@
+import { useQuery } from '@tanstack/react-query';
+import { Plus } from 'lucide-react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 
-interface TabDef {
-  value: string;
-  to: string;
-  labelKey: string;
+import { PillTabs } from '@/components/ui-v2/pill-tabs';
+import { usePageActions } from '@/layout/page-actions-context';
+import { jsonFetch } from '@/lib/http';
+
+interface LdCollection {
+  totalItems?: number;
+  'hydra:totalItems'?: number;
 }
 
-const TABS: readonly TabDef[] = [
-  { value: 'sessions', to: '/integrations/imports/sessions', labelKey: 'imports.tabs.sessions' },
-  { value: 'profiles', to: '/integrations/imports/profiles', labelKey: 'imports.tabs.profiles' },
-  { value: 'sources', to: '/integrations/imports/sources', labelKey: 'imports.tabs.sources' },
-  { value: 'schedule', to: '/integrations/imports/schedule', labelKey: 'imports.tabs.schedule' },
-] as const;
+const TAB_IDS = ['sessions', 'profiles', 'sources', 'schedule'] as const;
+type TabId = (typeof TAB_IDS)[number];
 
-const WIZARD_FALLBACK_VALUE = 'sessions';
+const COUNT_ENDPOINTS: Record<TabId, string> = {
+  sessions: '/api/import-sessions',
+  profiles: '/api/import-profiles',
+  sources: '/api/import-sources',
+  schedule: '/api/import-schedules',
+};
 
-function activeTabFor(pathname: string): string {
-  const match = TABS.find((tab) => pathname.startsWith(tab.to));
-  return match?.value ?? WIZARD_FALLBACK_VALUE;
+function useTabCounts() {
+  return useQuery({
+    queryKey: ['imports', 'tab-counts'],
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<Partial<Record<TabId, number>>> => {
+      const entries = await Promise.all(
+        TAB_IDS.map(async (id) => {
+          try {
+            const data = await jsonFetch<LdCollection>(COUNT_ENDPOINTS[id], {
+              accept: 'application/ld+json',
+              query: { itemsPerPage: 1 },
+            });
+            return [id, data.totalItems ?? data['hydra:totalItems'] ?? undefined] as const;
+          } catch {
+            return [id, undefined] as const;
+          }
+        }),
+      );
+      const counts: Partial<Record<TabId, number>> = {};
+      for (const [id, value] of entries) {
+        if (value !== undefined) counts[id] = value;
+      }
+      return counts;
+    },
+  });
 }
 
+/**
+ * NUI-09 (#1428) — Imports hub in the v2 shell (exact EXR-08 pattern):
+ * pill tabs with live counts + the "Nowy import" CTA registered into the
+ * global topbar via PageActionsContext. The legacy IntegrationsLayout
+ * wrapper (header + second tab row) is retired.
+ */
 export function ImportsLayout() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
-  const activeTab = activeTabFor(pathname);
+  const navigate = useNavigate();
+  const counts = useTabCounts().data ?? {};
+
+  usePageActions(
+    useMemo(
+      () => (
+        <Link
+          to="/integrations/imports/new"
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-xl bg-cta px-3.5 text-[13px] font-semibold text-cta-foreground transition hover:bg-accent-hover"
+        >
+          <Plus className="size-4" aria-hidden />
+          {t('imports.sessions.new_import')}
+        </Link>
+      ),
+      [t],
+    ),
+  );
+
+  const activeId: TabId =
+    TAB_IDS.find((id) => pathname.startsWith(`/integrations/imports/${id}`)) ?? 'sessions';
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="display text-[28px] font-semibold tracking-tight">
-          {t('imports.tabs.section_title')}
-        </h1>
-        <p className="text-sm text-muted-foreground">{t('imports.tabs.section_subtitle')}</p>
-      </header>
-      <div className="flex gap-1 border-b" role="tablist" aria-label={t('imports.tabs.aria_label')}>
-        {TABS.map((tab) => {
-          const isActive = activeTab === tab.value;
-          return (
-            <NavLink
-              key={tab.value}
-              to={tab.to}
-              role="tab"
-              aria-selected={isActive}
-              aria-controls={`imports-panel-${tab.value}`}
-              className={
-                isActive
-                  ? 'border-accent-violet text-foreground -mb-px flex items-center border-b-2 px-4 py-2 text-sm font-medium'
-                  : 'text-muted-foreground hover:text-foreground -mb-px flex items-center border-b-2 border-transparent px-4 py-2 text-sm'
-              }
-            >
-              <span>{t(tab.labelKey)}</span>
-            </NavLink>
-          );
-        })}
-      </div>
-      <div role="tabpanel" id={`imports-panel-${activeTab}`}>
-        <Outlet />
-      </div>
+    <div className="space-y-5">
+      <PillTabs
+        ariaLabel={t('imports.tabs.aria_label')}
+        activeId={activeId}
+        onChange={(id) => {
+          void navigate(`/integrations/imports/${id}`);
+        }}
+        items={TAB_IDS.map((id) => ({
+          id,
+          label: t(`imports.tabs.${id}`),
+          count: counts[id],
+        }))}
+      />
+      <Outlet />
     </div>
   );
 }

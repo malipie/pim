@@ -30,7 +30,7 @@ const PRIORITY_BADGE: Record<SchedulePriority, string> = {
 };
 
 const NOTIFY_BADGE: Record<NotifyChannel, string> = {
-  slack: 'bg-violet-50 text-violet-700',
+  slack: 'bg-orange-50 text-orange-700',
   email: 'bg-sky-50 text-sky-700',
   webhook: 'bg-amber-50 text-amber-700',
 };

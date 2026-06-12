@@ -1964,16 +1964,7 @@
     }
   },
   "integrations": {
-    "title": "Integracje",
-    "description": "Imports, exports, konektory i API Configurator",
-    "tabs": {
-      "imports": "Imports",
-      "exports": "Exports",
-      "connectors": "Konektory",
-      "api_configurator": "API Configurator"
-    },
-    "tabs_aria": "Sub-tabs Integracje",
-    "coming_soon": "Coming with epik 0.10 / UI-04"
+    "tabs_aria": "Sub-tabs Integracje"
   },
   "imports": {
     "tabs": {

@@ -199,10 +199,6 @@ const ExportWizardPage = lazyPage(
   () => import('@/features/exports/wizard/ExportWizardPage'),
   'ExportWizardPage',
 );
-const IntegrationsLayout = lazyPage(
-  () => import('@/features/integration-hub/IntegrationsLayout'),
-  'IntegrationsLayout',
-);
 const AiSettingsPage = lazyPage(() => import('@/features/settings/ai'), 'AiSettingsPage');
 const BillingSettingsPage = lazyPage(
   () => import('@/features/settings/billing'),
@@ -517,14 +513,11 @@ function App() {
                 <Route path="/admin/tenants" element={<AdminTenantsListPage />} />
                 <Route path="/admin/tenants/:id" element={<AdminTenantShowPage />} />
                 <Route path="/admin/break-glass" element={<AdminBreakGlassPage />} />
-                {/* Top-level Integracje hub — łączy Imports MVP (epik 0.13)
-                    + Profile API z VIEW-08 (sub-tab API Configurator). Stare
-                    ścieżki /publications/* i /api-profiles/* redirectują niżej. */}
-                {/* EXR-08 (#1384) — Exports live OUTSIDE IntegrationsLayout:
-                    screen 1 renders the exports hub directly under the v2
-                    shell (sidebar second-level + topbar breadcrumb replace
-                    the old in-page Integrations header/tabs). Imports keep
-                    the legacy IntegrationsLayout until their redesign. */}
+                {/* Integracje — every hub (exports EXR-08, imports NUI-09,
+                    api-configurator) renders directly under the v2 shell;
+                    sidebar second-level + topbar breadcrumb replaced the old
+                    in-page Integrations header/tabs. Old /publications/* and
+                    /api-profiles/* paths redirect below. */}
                 <Route path="/integrations/exports" element={<ExportsLayout />}>
                   <Route index element={<Navigate to="sessions" replace />} />
                   <Route path="sessions" element={<ExportSessionsView />} />
@@ -535,26 +528,33 @@ function App() {
                   element={<ExportSessionShowPage />}
                 />
                 <Route path="/integrations/exports/new" element={<ExportWizardPage />} />
-                <Route path="/integrations" element={<IntegrationsLayout />}>
-                  <Route index element={<Navigate to="/integrations/imports" replace />} />
-                  {/* VIEW-IMP-00 (#493) — Importy hub with 4 tabs. Old flat
-                      /integrations/imports keeps working via redirect to the
-                      Sessions tab (default). Wizard + show pages live at the
-                      same depth so deep-links from emails/reports survive. */}
-                  <Route path="imports" element={<ImportsLayout />}>
-                    <Route index element={<Navigate to="sessions" replace />} />
-                    <Route path="sessions" element={<ImportSessionsView />} />
-                    <Route path="profiles" element={<ImportProfilesView />} />
-                    <Route path="sources" element={<ImportSourcesView />} />
-                    <Route path="schedule" element={<ImportScheduleView />} />
-                  </Route>
-                  <Route path="imports/new" element={<ImportWizardPage />} />
-                  <Route path="imports/:id" element={<ImportShowPage />} />
-                  <Route path="api-configurator" element={<ApiProfilesListPage />} />
-                  <Route path="api-configurator/create" element={<ApiProfileCreatePage />} />
-                  <Route path="api-configurator/:id/edit" element={<ApiProfileEditPage />} />
-                  <Route path="api-configurator/:id" element={<ApiProfileShowPage />} />
+                {/* NUI-09 (#1428) — Imports join Exports directly under the
+                    v2 shell; the legacy IntegrationsLayout wrapper is retired.
+                    Wizard + show pages live at the same depth so deep-links
+                    from emails/reports survive (VIEW-IMP-00 #493). */}
+                <Route path="/integrations/imports" element={<ImportsLayout />}>
+                  <Route index element={<Navigate to="sessions" replace />} />
+                  <Route path="sessions" element={<ImportSessionsView />} />
+                  <Route path="profiles" element={<ImportProfilesView />} />
+                  <Route path="sources" element={<ImportSourcesView />} />
+                  <Route path="schedule" element={<ImportScheduleView />} />
                 </Route>
+                <Route path="/integrations/imports/new" element={<ImportWizardPage />} />
+                <Route path="/integrations/imports/:id" element={<ImportShowPage />} />
+                <Route path="/integrations/api-configurator" element={<ApiProfilesListPage />} />
+                <Route
+                  path="/integrations/api-configurator/create"
+                  element={<ApiProfileCreatePage />}
+                />
+                <Route
+                  path="/integrations/api-configurator/:id/edit"
+                  element={<ApiProfileEditPage />}
+                />
+                <Route path="/integrations/api-configurator/:id" element={<ApiProfileShowPage />} />
+                <Route
+                  path="/integrations"
+                  element={<Navigate to="/integrations/imports/sessions" replace />}
+                />
                 {/* Back-compat redirects for bookmarks + Refine resource lookups
                     before the consolidation landed. Drop in next epik gdy
                     telemetria pokaże 0 trafień. */}

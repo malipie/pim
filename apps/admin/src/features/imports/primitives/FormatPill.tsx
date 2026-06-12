@@ -6,7 +6,7 @@ const FORMAT_STYLES: Record<FileFormat, string> = {
   XLSX: 'bg-emerald-50 text-emerald-700',
   XLS: 'bg-emerald-50/70 text-emerald-700/80',
   CSV: 'bg-sky-50 text-sky-700',
-  JSON: 'bg-violet-50 text-violet-700',
+  JSON: 'bg-orange-50 text-orange-700',
   XML: 'bg-amber-50 text-amber-700',
 };
 
