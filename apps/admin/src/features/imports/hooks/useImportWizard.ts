@@ -1,6 +1,17 @@
 import * as React from 'react';
 
-export type WizardStepIndex = 0 | 1 | 2 | 3;
+export type WizardStepIndex = 0 | 1 | 2 | 3 | 4 | 5;
+
+/** Authoritative parse-preview snapshot captured on the Detect step (NUI-10). */
+export interface ParsedFilePreview {
+  headers: string[];
+  sampleRows: Array<Array<string | null>>;
+  totalRows: number;
+  encoding: string;
+  delimiter: string | null;
+  sheetName: string | null;
+  hadMultipleSheets: boolean;
+}
 
 export interface ColumnSuggestion {
   column_index: number;
@@ -34,6 +45,8 @@ export interface WizardState {
   /** Header → attribute_code (or "skip"). */
   mapping: Record<string, string>;
   suggestions: ColumnSuggestion[];
+  /** Set by the Detect step; Mapping reuses it instead of re-parsing. Not persisted (derived from the File). */
+  parsed: ParsedFilePreview | null;
   validation: {
     totalRows: number;
     successCount: number;
@@ -57,6 +70,7 @@ const INITIAL_STATE: WizardState = {
   targetObjectTypeId: null,
   mapping: {},
   suggestions: [],
+  parsed: null,
   validation: null,
   doBackup: false,
   emailNotification: true,
@@ -106,7 +120,7 @@ export function useImportWizard(): WizardController {
   const next = React.useCallback(() => {
     setState((prev) => ({
       ...prev,
-      step: Math.min(prev.step + 1, 3) as WizardStepIndex,
+      step: Math.min(prev.step + 1, 5) as WizardStepIndex,
     }));
   }, []);
 

@@ -2288,20 +2288,26 @@
       "empty": "Brak importów. Utwórz pierwszy import."
     },
     "wizard": {
-      "eyebrow": "Self-service import — 4 kroki",
+      "eyebrow": "Kreator importu — self-service, 6 kroków",
       "title": "Nowy import",
-      "subtitle": "Każdy plik przechodzi przez 4 kroki: upload, mapowanie kolumn na atrybuty, walidacja dry-run, commit do bazy. Po commicie sesja trafia do zakładki „Sesje” — możesz ją wycofać w oknie 24h.",
+      "subtitle": "Każdy plik przechodzi przez 6 kroków: źródło, wykrywanie formatu, mapowanie kolumn, reguły, dry-run i commit do bazy. Po commicie sesja trafia do zakładki „Sesje\", gdzie możesz ją wycofać w oknie 24h.",
       "descriptions": {
         "upload": "CSV / XLSX + opcjonalny ZIP ze zdjęciami",
-        "mapping": "Kolumny → atrybuty + kategorie",
-        "validation": "Dry-run, błędy walidacji",
-        "confirm": "Backup + commit do bazy"
+        "mapping": "kolumny → atrybuty + kategorie",
+        "validation": "dry-run, błędy walidacji",
+        "confirm": "backup + commit do bazy",
+        "source": "skąd plik · CSV / XLSX / ZIP",
+        "detect": "encoding / separator / arkusz",
+        "rules": "tryb · walidacja"
       },
       "steps": {
         "upload": "Upload",
-        "mapping": "Mapping",
-        "validation": "Walidacja",
-        "confirm": "Potwierdzenie"
+        "mapping": "Mapowanie",
+        "validation": "Podgląd",
+        "confirm": "Start",
+        "source": "Źródło",
+        "detect": "Wykrywanie",
+        "rules": "Reguły"
       },
       "next": "Dalej",
       "back": "Wstecz",
@@ -2346,7 +2352,8 @@
       },
       "skip": "Pomiń kolumnę",
       "category": "Kategoria (przypisanie po kodzie)",
-      "category_hint": "Linkuje produkt do kategorii o pasującym code"
+      "category_hint": "Linkuje produkt do kategorii o pasującym code",
+      "computed_cta": "Nowa kolumna obliczona"
     },
     "validation": {
       "ok": "{{count}} produktów OK",
@@ -2420,6 +2427,75 @@
       "load_failed": "Nie udało się wczytać sesji importu.",
       "rollback_failed": "Wycofanie importu nie powiodło się.",
       "upload_failed": "Wgranie pliku nie powiodło się."
+    },
+    "source": {
+      "upload_title": "Wgraj plik z dysku",
+      "saved_sources": "Lub wybierz zapisane źródło (FTP/SFTP)",
+      "no_sources": "Brak zapisanych źródeł — skonfiguruj je w zakładce Źródła.",
+      "test": "Testuj",
+      "run": "Uruchom",
+      "test_result": "{{name}}: {{health}} ({{ms}} ms)",
+      "test_failed": "Test połączenia nie powiódł się",
+      "run_mock": "MOCK — uruchomienie ad-hoc z zapisanego źródła wymaga backendu; użyj Harmonogramu (run-now)",
+      "profiles_title": "Sugerowane profile",
+      "profiles_subtitle": "Zapisane profile mapowań",
+      "new_profile": "Nowy profil (skonfiguruj w kreatorze)",
+      "settings_title": "Ustawienia pliku"
+    },
+    "detect": {
+      "title": "Wyniki auto-detekcji",
+      "file_label": "Plik",
+      "no_file": "Wróć do kroku Źródło i wgraj plik.",
+      "parse_error": "Nie udało się sparsować pliku",
+      "format": "Format",
+      "encoding": "Kodowanie",
+      "delimiter": "Separator",
+      "delimiter_xlsx": "— (komórki XLSX)",
+      "header": "Nagłówek",
+      "header_value": "{{count}} kolumn wykrytych",
+      "sheet": "Arkusz",
+      "multisheet": "Multi-sheet (Excel)",
+      "multisheet_single": "Jeden arkusz / CSV.",
+      "multisheet_warning": "Plik ma wiele arkuszy — import przetworzy pierwszy ({{sheet}}).",
+      "multisheet_mock": "MOCK — backend parsuje pierwszy arkusz; wybór arkusza wymaga parametru (backlog NUI-10)",
+      "empty_cells": "Pusta komórka",
+      "empty_cells_mock": "MOCK — strategia pustych komórek wymaga parametru backendu (backlog NUI-10)",
+      "empty_null": "NULL (brak wartości)",
+      "empty_string": "Pusty string \"\"",
+      "empty_default": "Wartość domyślna z modelu",
+      "preview_title": "Podgląd pierwszych 5 wierszy",
+      "ready": "Wstępna walidacja przeszła — {{count}} wierszy gotowych do mapowania."
+    },
+    "rules": {
+      "truth": "Silnik importu działa dziś w jednym trybie: upsert po identyfikatorze — istniejące wpisy są aktualizowane, nowe tworzone, a wiersze z błędami walidacji pomijane (szczegóły w kroku Podgląd). Poniższe przełączniki pokazują docelowy zakres reguł i są nieaktywne do czasu oprogramowania backendu.",
+      "mode_title": "Tryb importu",
+      "mode_subtitle": "Co system robi, gdy identyfikator jest już w bazie",
+      "mode_upsert": "Aktualizuj istniejące, twórz nowe (obecne zachowanie)",
+      "mode_add": "Tylko nowe rekordy · pomiń duplikaty",
+      "mode_update": "Tylko istniejące · nadpisz wartości",
+      "validation_title": "Walidacja",
+      "locks_title": "Per-attribute lock",
+      "locks_subtitle": "Pola, których import nigdy nie nadpisze (zawsze human-edited)",
+      "confirm_title": "Per-row confirmation",
+      "confirm_subtitle": "Wstrzymaj wiersz i zażądaj akceptacji, jeśli…",
+      "confirm_price": "zmiana ceny > 20%",
+      "confirm_fields": "zmiana > 10 pól w jednym rekordzie",
+      "v_type": "Type-check (number, date, URL, email)",
+      "v_required": "Pola wymagane (wg modelu ObjectType)",
+      "v_unique": "Unikalność identyfikatora (plik + baza)",
+      "v_allowed": "Dozwolone wartości (select/multiselect)",
+      "v_range": "Range check (zakresy liczbowe)",
+      "v_regex": "Regex per kolumna (np. EAN ^[0-9]{13}$)"
+    },
+    "computed": {
+      "title": "Nowa kolumna obliczona",
+      "columns": "Kolumny źródłowe (kolejność klikania)",
+      "separator": "Separator",
+      "separator_custom": "Własny separator",
+      "preview": "Podgląd (pierwszy wiersz pliku)",
+      "preview_empty": "— wybierz kolumny —",
+      "apply": "Zastosuj",
+      "mock_tooltip": "MOCK — konkatenacja server-side wymaga rozszerzenia kontraktu mappingu (backlog NUI-10)"
     }
   },
   "rbac": {

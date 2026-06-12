@@ -9,6 +9,8 @@ import type { ColumnSuggestion, useImportWizard } from '@/features/imports/hooks
 import { jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
+import { ComputedColumnModal } from './ComputedColumnModal';
+
 interface StepMappingProps {
   wizard: ReturnType<typeof useImportWizard>;
 }
@@ -59,6 +61,7 @@ const CATEGORY_VALUE = '__category__';
 export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
   const { t } = useTranslation();
   const { state, setField, patchMapping, next, back, persist } = wizard;
+  const [computedOpen, setComputedOpen] = React.useState(false);
   const apiUrl = useApiUrl();
 
   const file = state.file;
@@ -71,10 +74,20 @@ export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
   // one fake column — solved by routing both formats through the same
   // server-side parser used by the validate / start-import flows.
   const {
-    snapshot: parsed,
+    snapshot: freshParse,
     isLoading: isParsing,
     error: parseError,
-  } = useParsedSnapshot(file, state.encoding, state.delimiter);
+  } = useParsedSnapshot(state.parsed !== null ? null : file, state.encoding, state.delimiter);
+  // NUI-10 — the Detect step already paid for parse-preview; reuse its
+  // snapshot and only re-parse when it is missing (deep-link restore).
+  const parsed: ParsedFileSnapshot | null =
+    state.parsed !== null
+      ? {
+          headers: state.parsed.headers,
+          sampleRows: state.parsed.sampleRows,
+          totalRows: state.parsed.totalRows,
+        }
+      : freshParse;
 
   const { result: autoMapResult, query: autoMapQuery } = useCustom<AutoMapResponse>({
     url: `${apiUrl}/import-sessions/auto-map`,
@@ -256,13 +269,18 @@ export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button asChild variant="outline" size="sm" onClick={() => persist()}>
-          <Link to="/modeling/attributes">
-            {t('imports.wizard.create_attribute', {
-              defaultValue: '+ Stwórz nowy atrybut',
-            })}
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm" onClick={() => persist()}>
+            <Link to="/modeling/attributes">
+              {t('imports.wizard.create_attribute', {
+                defaultValue: '+ Stwórz nowy atrybut',
+              })}
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setComputedOpen(true)}>
+            {t('imports.mapping.computed_cta', { defaultValue: 'Nowa kolumna obliczona' })}
+          </Button>
+        </div>
         <div className="ml-auto flex gap-2">
           <Button variant="ghost" onClick={() => back()}>
             ← {t('imports.wizard.back', { defaultValue: 'Wstecz' })}
@@ -272,6 +290,13 @@ export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
           </Button>
         </div>
       </div>
+
+      <ComputedColumnModal
+        open={computedOpen}
+        onClose={() => setComputedOpen(false)}
+        headers={parsed?.headers ?? []}
+        sampleRow={parsed?.sampleRows[0] ?? []}
+      />
     </div>
   );
 }
