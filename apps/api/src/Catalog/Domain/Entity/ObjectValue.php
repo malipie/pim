@@ -37,6 +37,12 @@ class ObjectValue implements TenantScoped
     private CatalogObject $object;
     private Attribute $attribute;
     private ?Uuid $channelId = null;
+    /** Trigger-maintained (read-only mapping) — see Version20260531120000. */
+    private ?string $identifierValue = null;
+
+    /** Trigger-maintained (read-only mapping) — see Version20260531120000. */
+    private ?Uuid $identifierObjectTypeId = null;
+
     private ?string $locale = null;
 
     /**
@@ -123,6 +129,16 @@ class ObjectValue implements TenantScoped
     public function changeChannelId(?Uuid $channelId): void
     {
         $this->channelId = $channelId;
+    }
+
+    public function getIdentifierValue(): ?string
+    {
+        return $this->identifierValue;
+    }
+
+    public function getIdentifierObjectTypeId(): ?Uuid
+    {
+        return $this->identifierObjectTypeId;
     }
 
     public function getLocale(): ?string

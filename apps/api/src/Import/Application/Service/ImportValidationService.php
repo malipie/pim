@@ -35,9 +35,6 @@ use LogicException;
  */
 final readonly class ImportValidationService
 {
-    /** @var list<string> */
-    private const array REQUIRED_ATTRIBUTE_CODES = ['sku', 'name'];
-
     private const string SKU_ATTRIBUTE_CODE = 'sku';
 
     private const int SAMPLE_LIMIT = 100;
@@ -181,7 +178,19 @@ final readonly class ImportValidationService
 
         $sku = $this->firstNonEmptyValueFor(self::SKU_ATTRIBUTE_CODE, $cellValues);
 
-        foreach (self::REQUIRED_ATTRIBUTE_CODES as $requiredCode) {
+        // IMP2-1.4/1.5 (#1466/#1467, ADR-0019): required follows
+        // Attribute::isRequired instead of a hardcoded sku+name pair —
+        // custom ObjectTypes without a "name" attribute import fine, and
+        // modelling-defined required attributes are enforced. `sku` stays
+        // technically required (it is the objects.code / match key).
+        $requiredCodes = [self::SKU_ATTRIBUTE_CODE];
+        foreach ($attributesByCode as $attributeCode => $attribute) {
+            if ($attribute->isRequired() && AttributeType::Boolean !== $attribute->getType()) {
+                $requiredCodes[] = $attributeCode;
+            }
+        }
+
+        foreach (array_unique($requiredCodes) as $requiredCode) {
             // A localised required attribute (`name.pl`/`name.en`) is
             // satisfied when any one locale carries a value.
             if (!isset($presentByAttribute[$requiredCode])) {
