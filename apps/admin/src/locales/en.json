@@ -932,7 +932,8 @@
     "agent_mock_tooltip": "MOCK · Agent layer requires implementation (epic 0.7, Phase 2)",
     "audit_log": "Audit log",
     "audit_log_tooltip": "MOCK · Audit log requires BE endpoint",
-    "history": "History"
+    "history": "History",
+    "agent_pill_tooltip": "⌘K navigation works; the agent section is a MOCK (epic 0.7, Phase 2)"
   },
   "mock": {
     "label": "MOCK",
@@ -2672,5 +2673,18 @@
     "status": {
       "cancelled": "cancelled"
     }
+  },
+  "cmdk": {
+    "group_nav": "Navigation",
+    "group_settings": "Settings",
+    "title": "Search or jump to",
+    "placeholder": "Jump to… (e.g. Users, Modeling, Imports)",
+    "section_nav": "Jump to",
+    "no_results": "No matching pages.",
+    "section_agent": "Agent",
+    "agent_mock_tooltip": "MOCK — the agent layer ships in epic 0.7 (Phase 2)",
+    "kbd_navigate": "navigate",
+    "kbd_open": "open",
+    "kbd_close": "close"
   }
 }

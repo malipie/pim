@@ -430,8 +430,8 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const brandSubtitle =
     refineIdentity?.tenant?.name ?? t('app.brand_subtitle_fallback', { defaultValue: 'Workspace' });
 
-  const agentTooltip = t('topbar.agent_mock_tooltip', {
-    defaultValue: 'MOCK · Agent layer wymaga oprogramowania (epik 0.7, Faza 2)',
+  const agentTooltip = t('topbar.agent_pill_tooltip', {
+    defaultValue: 'Nawigacja ⌘K działa; sekcja agenta = MOCK (epik 0.7, Faza 2)',
   });
 
   return (
@@ -455,8 +455,8 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         <TooltipTrigger asChild>
           <button
             type="button"
-            disabled
-            className="mt-1 flex w-full cursor-not-allowed items-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => window.dispatchEvent(new CustomEvent('pim:open-cmdk'))}
+            className="mt-1 flex w-full items-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)] transition hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={t('topbar.search_agent_placeholder', {
               defaultValue: 'Zapytaj agenta lub szukaj...',
             })}

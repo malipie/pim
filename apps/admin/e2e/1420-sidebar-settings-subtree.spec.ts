@@ -53,8 +53,12 @@ test.describe('NUI-01 — settings subtree in main sidebar', () => {
     // Class-level check needs a custom ObjectType in the menu. The operator's
     // local DB ships "Usługi"; CI fixtures seed no custom OT — skip there.
     const customLink = nav.getByRole('link', { name: /usługi/i });
-    const customCount = await customLink.count();
-    test.skip(customCount === 0, 'No custom ObjectType in this environment seed');
+    // The effective menu loads async — give the custom OT entry a beat.
+    const hasCustom = await customLink
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false);
+    test.skip(!hasCustom, 'No custom ObjectType in this environment seed');
 
     const className = (await customLink.getAttribute('class')) ?? '';
     expect(className).not.toContain('violet');

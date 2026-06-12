@@ -942,7 +942,8 @@
     "agent_mock_tooltip": "MOCK · Agent layer wymaga oprogramowania (epik 0.7, Faza 2)",
     "audit_log": "Audit log",
     "audit_log_tooltip": "MOCK · Audit log wymaga endpointu BE",
-    "history": "Historia"
+    "history": "Historia",
+    "agent_pill_tooltip": "Nawigacja ⌘K działa; sekcja agenta = MOCK (epik 0.7, Faza 2)"
   },
   "mock": {
     "label": "MOCK",
@@ -2728,5 +2729,18 @@
     "status": {
       "cancelled": "anulowano"
     }
+  },
+  "cmdk": {
+    "group_nav": "Nawigacja",
+    "group_settings": "Ustawienia",
+    "title": "Szukaj lub przejdź",
+    "placeholder": "Przejdź do… (np. Użytkownicy, Modelowanie, Importy)",
+    "section_nav": "Przejdź do",
+    "no_results": "Brak pasujących stron.",
+    "section_agent": "Agent",
+    "agent_mock_tooltip": "MOCK — agent layer wymaga oprogramowania (epik 0.7, Faza 2)",
+    "kbd_navigate": "nawiguj",
+    "kbd_open": "otwórz",
+    "kbd_close": "zamknij"
   }
 }
