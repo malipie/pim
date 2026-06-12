@@ -15,8 +15,9 @@ test.describe('Imports MVP', () => {
     await loginAsAdmin(page);
 
     await page.goto('/integrations/imports');
-    await expect(page.getByRole('heading', { name: /integracje|integrations/i })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /importy|imports/i })).toBeVisible();
+    // NUI-09 — the legacy IntegrationsLayout header is gone; the hub
+    // renders pill tabs + the sessions view heading under the v2 shell.
+    await expect(page.getByRole('heading', { name: /importy|import sessions/i })).toBeVisible();
 
     await page.getByRole('link', { name: /nowy import|new import/i }).click();
     await expect(page).toHaveURL(/\/integrations\/imports\/new$/);
