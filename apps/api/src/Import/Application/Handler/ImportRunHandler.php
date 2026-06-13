@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Import\Application\Handler;
 
 use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectCategory;
+use App\Catalog\Domain\ObjectKind;
 use App\Import\Application\Service\ImportColumnGrammar;
 use App\Import\Application\Service\ImportObjectCreator;
 use App\Import\Application\Service\ImportProgressPublisher;
@@ -34,6 +37,7 @@ use LogicException;
 use RuntimeException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\Exception\RecoverableMessageHandlingException;
+use Symfony\Component\Uid\Uuid;
 use Throwable;
 
 use const PATHINFO_EXTENSION;
@@ -65,6 +69,8 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ObjectResolver $objectResolver,
         private readonly ImportColumnGrammar $columnGrammar,
         private readonly \App\Catalog\Application\BatchValueWriter $valueWriter,
+        private readonly \App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface $catalogObjects,
+        private readonly \App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface $objectCategories,
         private readonly ImportProgressPublisher $progressPublisher,
         private readonly TenantContext $tenantContext,
         private readonly FilesystemOperator $importsStorage,
@@ -312,24 +318,97 @@ final class ImportRunHandler extends AbstractBatchHandler
     }
 
     /**
-     * Finds the first non-empty cell whose mapping targets the reserved
-     * __category__ marker. The validator already emitted a warning when
-     * the lookup did not resolve, so we only need to surface the raw
-     * code here — the creator drops the assignment silently if the row
-     * imports without a category match.
+     * IMP2-1.7 — pipe-split list of category codes from the cell mapped to a
+     * reserved category target (`code-a|code-b|code-c`). Trimmed, empties
+     * dropped, order preserved (first becomes primary). The validator emits a
+     * per-code CategoryNotFound warning; unresolved codes are simply absent
+     * from the resolved set the writer assigns.
+     *
+     * @param array<string, string|null> $cells
+     * @param array<string, string>      $columnMapping
+     *
+     * @return list<string>
+     */
+    private function extractCategoryCodes(array $cells, array $columnMapping): array
+    {
+        foreach ($columnMapping as $columnHeader => $target) {
+            if (!ReservedMappingTarget::isCategory($target)) {
+                continue;
+            }
+            $cell = $cells[$columnHeader] ?? null;
+            if (null === $cell || '' === $cell) {
+                continue;
+            }
+
+            return array_values(array_filter(
+                array_map('trim', explode('|', $cell)),
+                static fn (string $code): bool => '' !== $code,
+            ));
+        }
+
+        return [];
+    }
+
+    /**
+     * IMP2-1.7 (D2 collection policy) — true when the category column maps to
+     * the append target; default (plain `__category__`) is replace.
+     *
+     * @param array<string, string> $columnMapping
+     */
+    private function categoryAppend(array $columnMapping): bool
+    {
+        return \in_array(ReservedMappingTarget::CATEGORY_APPEND, $columnMapping, true);
+    }
+
+    /**
+     * IMP2-1.7 — validated publication status pulled from the `__status__`
+     * column (lower-cased), or null when the column is absent/empty (D2 — do
+     * not touch). The validator already rejected out-of-enum values.
      *
      * @param array<string, string|null> $cells
      * @param array<string, string>      $columnMapping
      */
-    private function extractCategoryCode(array $cells, array $columnMapping): ?string
+    private function extractStatus(array $cells, array $columnMapping): ?string
     {
-        foreach ($columnMapping as $columnHeader => $target) {
-            if (ReservedMappingTarget::CATEGORY !== $target) {
+        $raw = $this->reservedCell($cells, $columnMapping, ReservedMappingTarget::STATUS);
+
+        return null === $raw ? null : strtolower($raw);
+    }
+
+    /**
+     * IMP2-1.7 — enabled flag from the `__enabled__` column, or null when
+     * absent/empty. Accepts true|1 (→true) / false|0 (→false); the validator
+     * rejected anything else.
+     *
+     * @param array<string, string|null> $cells
+     * @param array<string, string>      $columnMapping
+     */
+    private function extractEnabled(array $cells, array $columnMapping): ?bool
+    {
+        $raw = $this->reservedCell($cells, $columnMapping, ReservedMappingTarget::ENABLED);
+        if (null === $raw) {
+            return null;
+        }
+
+        return \in_array(strtolower($raw), ['1', 'true'], true);
+    }
+
+    /**
+     * First non-empty (trimmed) cell whose mapping targets the given reserved
+     * marker, or null.
+     *
+     * @param array<string, string|null> $cells
+     * @param array<string, string>      $columnMapping
+     */
+    private function reservedCell(array $cells, array $columnMapping, string $target): ?string
+    {
+        foreach ($columnMapping as $columnHeader => $mapped) {
+            if ($mapped !== $target) {
                 continue;
             }
             $cell = $cells[$columnHeader] ?? null;
-            if (null !== $cell && '' !== $cell) {
-                return $cell;
+            if (null !== $cell && '' !== trim($cell)) {
+                return trim($cell);
             }
         }
 
@@ -464,6 +543,12 @@ final class ImportRunHandler extends AbstractBatchHandler
         );
         $this->valueWriter->primeChunk(array_values($existingByKey), $attributesByCode);
 
+        // IMP2-1.7: resolve every distinct category code in the chunk once
+        // (per-chunk prefetch — not one SELECT per code per row).
+        $categoryByCode = $this->resolveChunkCategories($prepared, $columnMapping, $tenant);
+        /** @var list<array{product: CatalogObject, codes: list<string>, append: bool}> $pendingCategoryOps */
+        $pendingCategoryOps = [];
+
         // Pass 2 — decide + write per row.
         foreach ($prepared as $row) {
             $errors = $row['errors'];
@@ -480,15 +565,33 @@ final class ImportRunHandler extends AbstractBatchHandler
                         resolvedValues: $row['resolvedValues'],
                         attributesByCode: $attributesByCode,
                         importSessionId: $session->getId(),
-                        categoryCode: $this->extractCategoryCode($row['cells'], $columnMapping),
-                        tenant: $tenant,
+                        categories: $this->resolveCategories($this->extractCategoryCodes($row['cells'], $columnMapping), $categoryByCode),
+                        status: $this->extractStatus($row['cells'], $columnMapping),
+                        enabled: $this->extractEnabled($row['cells'], $columnMapping),
                     );
                     $issues = $created->issues;
                     $session->incrementSuccess();
                 } elseif (ImportRowDecision::Update === $decision && null !== $existing) {
-                    $issues = $this->creator->update($existing, $row['resolvedValues'], $attributesByCode);
+                    $issues = $this->creator->update(
+                        $existing,
+                        $row['resolvedValues'],
+                        $attributesByCode,
+                        $this->extractStatus($row['cells'], $columnMapping),
+                        $this->extractEnabled($row['cells'], $columnMapping),
+                    );
                     $session->incrementSuccess();
                     $session->incrementUpdated();
+                    // IMP2-1.7: category replace/append runs after the value
+                    // pass (replaceForProduct flushes around the primary index).
+                    // Empty cell = untouched (D2), so only collect non-empty.
+                    $categoryCodes = $this->extractCategoryCodes($row['cells'], $columnMapping);
+                    if ([] !== $categoryCodes) {
+                        $pendingCategoryOps[] = [
+                            'product' => $existing,
+                            'codes' => $categoryCodes,
+                            'append' => $this->categoryAppend($columnMapping),
+                        ];
+                    }
                 } else {
                     $session->incrementSkipped();
                     $errors[] = ImportRowDecision::SkipExists === $decision
@@ -540,7 +643,123 @@ final class ImportRunHandler extends AbstractBatchHandler
             $this->progressPublisher->rowProcessed($session, $row['rowNumber'], $row['sku'], $row['rowOk']);
         }
 
+        // IMP2-1.7: category replace/append for UPDATE rows, after the value
+        // writes are staged (replaceForProduct flushes the EM in its own
+        // transaction to DELETE-then-INSERT around the primary unique index).
+        $this->applyCategoryOps($pendingCategoryOps, $categoryByCode);
+
         return \count($prepared);
+    }
+
+    /**
+     * Resolve every distinct category code referenced in the chunk to its
+     * {@see CatalogObject} once. Unresolved codes are dropped (the validator
+     * emitted the per-code CategoryNotFound warning).
+     *
+     * @param list<array{rowNumber: int, cells: array<string, string|null>, sku: ?string, errors: list<ValidationError>, rowOk: bool, resolvedValues: list<ResolvedImportValue>, matchKey: string}> $prepared
+     * @param array<string, string>                                                                                                                                                                 $columnMapping
+     *
+     * @return array<string, CatalogObject>
+     */
+    private function resolveChunkCategories(array $prepared, array $columnMapping, Tenant $tenant): array
+    {
+        $codes = [];
+        foreach ($prepared as $row) {
+            if (!$row['rowOk']) {
+                continue;
+            }
+            foreach ($this->extractCategoryCodes($row['cells'], $columnMapping) as $code) {
+                $codes[$code] = true;
+            }
+        }
+
+        $map = [];
+        foreach (array_keys($codes) as $code) {
+            $category = $this->catalogObjects->findByCode($code, ObjectKind::Category, $tenant);
+            if (null !== $category) {
+                $map[$code] = $category;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param list<string>                 $codes
+     * @param array<string, CatalogObject> $categoryByCode
+     *
+     * @return list<CatalogObject>
+     */
+    private function resolveCategories(array $codes, array $categoryByCode): array
+    {
+        $out = [];
+        foreach ($codes as $code) {
+            if (isset($categoryByCode[$code])) {
+                $out[] = $categoryByCode[$code];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param list<array{product: CatalogObject, codes: list<string>, append: bool}> $ops
+     * @param array<string, CatalogObject>                                           $categoryByCode
+     */
+    private function applyCategoryOps(array $ops, array $categoryByCode): void
+    {
+        foreach ($ops as $op) {
+            $categories = $this->resolveCategories($op['codes'], $categoryByCode);
+            if ([] === $categories) {
+                // All codes unresolved — leave existing assignments untouched
+                // rather than wiping a product from a typo (D2-safe; per-code
+                // warnings already surfaced).
+                continue;
+            }
+
+            if ($op['append']) {
+                $this->appendCategories($op['product'], $categories);
+
+                continue;
+            }
+
+            $ids = array_map(static fn (CatalogObject $c): Uuid => $c->getId(), $categories);
+            $this->objectCategories->replaceForProduct($op['product'], $ids, $ids[0]);
+        }
+    }
+
+    /**
+     * Append categories to an object's existing assignments without
+     * duplicates (D2 append policy). Position continues after the current
+     * max; if the object had no primary, the first appended becomes primary.
+     *
+     * @param list<CatalogObject> $categories
+     */
+    private function appendCategories(CatalogObject $product, array $categories): void
+    {
+        $existingIds = [];
+        $maxPosition = -1;
+        $hasPrimary = false;
+        foreach ($this->objectCategories->findByProduct($product) as $assignment) {
+            $existingIds[$assignment->getCategory()->getId()->toRfc4122()] = true;
+            $maxPosition = max($maxPosition, $assignment->getPosition());
+            $hasPrimary = $hasPrimary || $assignment->isPrimary();
+        }
+
+        $position = $maxPosition + 1;
+        foreach ($categories as $category) {
+            if (isset($existingIds[$category->getId()->toRfc4122()])) {
+                continue;
+            }
+            $primary = !$hasPrimary;
+            $this->entityManager->persist(new ObjectCategory(
+                product: $product,
+                category: $category,
+                isPrimary: $primary,
+                position: $position++,
+            ));
+            $hasPrimary = $hasPrimary || $primary;
+        }
     }
 
     /**

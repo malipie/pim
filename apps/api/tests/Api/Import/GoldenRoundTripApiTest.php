@@ -130,9 +130,14 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
             ->find(Uuid::fromString($this->objectTypeIdFor(ObjectKind::Category)));
         \assert($categoryType instanceof ObjectType);
         $category = new CatalogObject($categoryType, 'gr-cat');
+        $category2 = new CatalogObject($categoryType, 'gr-cat2');
         $em->persist($category);
+        $em->persist($category2);
 
         $product = new CatalogObject($objectType, 'GR-001');
+        // IMP2-1.7: non-default status/enabled exercise the column round-trip.
+        $product->transitionTo('published');
+        $product->changeEnabled(false);
         $em->persist($product);
         foreach (self::MATRIX as $code => [, $envelope]) {
             $em->persist(new ObjectValue($product, $attributes[$code], $envelope, Provenance::Manual));
@@ -144,6 +149,7 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         $em->persist(new ObjectValue($product, $chan, ['value' => 'Chan shopify'], Provenance::Manual, $shopifyId));
         $em->persist(new ObjectValue($product, $chan, ['value' => 'Chan EN shopify'], Provenance::Manual, $shopifyId, 'en'));
         $em->persist(new ObjectCategory(product: $product, category: $category, isPrimary: true, position: 0));
+        $em->persist(new ObjectCategory(product: $product, category: $category2, isPrimary: false, position: 1));
         $em->flush();
         $productId = $product->getId();
 
@@ -154,7 +160,7 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         $columns = array_merge(
             ['sku', 'category'],
             array_keys(self::MATRIX),
-            ['gr_name', 'gr_name.en', 'gr_chan', 'gr_chan.shopify', 'gr_chan.en.shopify'],
+            ['gr_name', 'gr_name.en', 'gr_chan', 'gr_chan.shopify', 'gr_chan.en.shopify', 'status', 'enabled'],
         );
         $csv = $this->runProductExport($tenant, $columns, [$productId], ['shopify']);
         self::assertStringContainsString('GR-001', $csv);
@@ -171,6 +177,8 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         $mapping['gr_chan'] = 'gr_chan';
         $mapping['gr_chan.shopify'] = 'gr_chan';
         $mapping['gr_chan.en.shopify'] = 'gr_chan';
+        $mapping['status'] = '__status__';
+        $mapping['enabled'] = '__enabled__';
 
         $body = $this->postImport($client, $csv, $objectType->getId()->toRfc4122(), $mapping);
         $sessionId = $body['id'];
@@ -194,6 +202,32 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
             self::assertArrayHasKey($key, $actual, \sprintf('value "%s" lost in round-trip', $key));
             self::assertEnvelopeEquals($envelope, $actual[$key], $key);
         }
+
+        // ── Assert: IMP2-1.7 — categories (replace, primary + order) and
+        // status/enabled round-trip 1:1. ──
+        $catCodes = $em->getConnection()->fetchFirstColumn(
+            <<<'SQL'
+                SELECT c.code FROM object_categories oc
+                JOIN objects c ON c.id = oc.category_id
+                JOIN objects o ON o.id = oc.object_id
+                WHERE o.code = 'GR-001' ORDER BY oc.position
+                SQL,
+        );
+        self::assertSame(['gr-cat', 'gr-cat2'], $catCodes, 'both categories survive the round-trip, in order');
+        $primaryCode = $em->getConnection()->fetchOne(
+            <<<'SQL'
+                SELECT c.code FROM object_categories oc
+                JOIN objects c ON c.id = oc.category_id
+                JOIN objects o ON o.id = oc.object_id
+                WHERE o.code = 'GR-001' AND oc.is_primary = true
+                SQL,
+        );
+        self::assertSame('gr-cat', $primaryCode, 'first category stays primary');
+
+        $reloaded = $em->find(CatalogObject::class, $productId);
+        \assert($reloaded instanceof CatalogObject);
+        self::assertSame('published', $reloaded->getStatus());
+        self::assertFalse($reloaded->isEnabled());
 
         // ── Act 3: edit one cell → re-import updates exactly that value ──
         $edited = str_replace('Uchwyt globalny', 'Uchwyt v2', $csv);

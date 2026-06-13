@@ -21,18 +21,45 @@ final class ReservedMappingTarget
     public const string SKIP = 'skip';
 
     /**
-     * Assign the row's product to the category whose `code` matches
-     * the cell value (single category per row, becomes primary).
-     * Missing category emits a warning, not a row-level error.
+     * Assign the row's product to the categories whose `code` matches the
+     * cell value (pipe-separated list — IMP2-1.7; first becomes primary,
+     * cell order drives `position`). An unresolved code emits a warning per
+     * code, not a row-level error.
      */
     public const string CATEGORY = '__category__';
+
+    /**
+     * Append variant of {@see CATEGORY} (IMP2-1.7, D2 collection policy):
+     * the cell's categories are ADDED to the object's existing assignments
+     * (no duplicates) instead of replacing them. Plain `__category__`
+     * defaults to replace.
+     */
+    public const string CATEGORY_APPEND = '__category_append__';
+
+    /**
+     * Set the object's publication status from the cell (IMP2-1.7).
+     * Allowed literals mirror the exporter: draft|published|archived.
+     */
+    public const string STATUS = '__status__';
+
+    /**
+     * Set the object's enabled flag from the cell (IMP2-1.7).
+     * Accepts true|false|1|0.
+     */
+    public const string ENABLED = '__enabled__';
 
     /**
      * @return list<string>
      */
     public static function all(): array
     {
-        return [self::SKIP, self::CATEGORY];
+        return [self::SKIP, self::CATEGORY, self::CATEGORY_APPEND, self::STATUS, self::ENABLED];
+    }
+
+    /** Both category targets (replace + append). */
+    public static function isCategory(string $target): bool
+    {
+        return self::CATEGORY === $target || self::CATEGORY_APPEND === $target;
     }
 
     public static function isReserved(string $target): bool

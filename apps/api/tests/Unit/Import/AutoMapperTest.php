@@ -135,9 +135,11 @@ final class AutoMapperTest extends TestCase
             'sku' => ['aliases' => ['sku']],
         ]);
 
+        // IMP2-1.7: status / enabled are no longer system columns — they
+        // auto-map to reserved targets (covered by the test below).
         $suggestions = $mapper->map(
             ['sku'],
-            ['sku', 'created_at', 'updated_at', 'completeness_pct', 'status', 'enabled', 'parent_sku'],
+            ['sku', 'created_at', 'updated_at', 'completeness_pct', 'parent_sku'],
             [],
         );
 
@@ -150,6 +152,21 @@ final class AutoMapperTest extends TestCase
             );
             self::assertNull($suggestion->suggestedAttributeCode);
         }
+    }
+
+    #[Test]
+    public function statusAndEnabledAutoMapToReservedTargets(): void
+    {
+        // IMP2-1.7: a re-imported export wires status / enabled to their
+        // reserved targets automatically.
+        $mapper = $this->mapperWithDictionary(['sku' => ['aliases' => ['sku']]]);
+
+        $suggestions = $mapper->map(['sku'], ['status', 'enabled'], []);
+
+        self::assertSame('__status__', $suggestions[0]->suggestedAttributeCode);
+        self::assertSame(MappingConfidence::Auto, $suggestions[0]->confidence);
+        self::assertSame('__enabled__', $suggestions[1]->suggestedAttributeCode);
+        self::assertSame(MappingConfidence::Auto, $suggestions[1]->confidence);
     }
 
     #[Test]

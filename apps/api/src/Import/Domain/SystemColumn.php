@@ -23,10 +23,10 @@ namespace App\Import\Domain;
 final class SystemColumn
 {
     /** @var list<string> */
+    // IMP2-1.7 (#1470): `status` / `enabled` removed — they are now explicit,
+    // mappable targets (ReservedMappingTarget::STATUS / ENABLED), not auto-skip.
     private const array HEADERS = [
         'parent_sku',
-        'status',
-        'enabled',
         'completeness_pct',
         'created_at',
         'updated_at',

@@ -166,15 +166,47 @@ final readonly class ImportValidationService
             if (ReservedMappingTarget::SKIP === $attributeCode || '' === $attributeCode) {
                 continue;
             }
-            if (ReservedMappingTarget::CATEGORY === $attributeCode) {
-                // Take the first non-empty category cell. Multiple
-                // category columns are not expected in MVP (single
-                // category per row); follow-ups can extend this to a
-                // list when multi-value support lands.
+            if (ReservedMappingTarget::isCategory($attributeCode)) {
+                // IMP2-1.7: capture the raw (pipe-separated) category cell;
+                // per-code resolution + CategoryNotFound warnings run after
+                // the loop.
                 $cell = $cells[$columnHeader] ?? null;
                 if (null !== $cell && '' !== $cell && null === $categoryCellValue) {
                     $categoryCellValue = $cell;
                     $categoryColumnName = $columnHeader;
+                }
+                continue;
+            }
+            if (ReservedMappingTarget::STATUS === $attributeCode) {
+                // IMP2-1.7: status must be one of the exact export literals;
+                // empty = untouched (D2). Bad value blocks the row.
+                $cell = $cells[$columnHeader] ?? null;
+                if (null !== $cell && '' !== trim($cell) && !\in_array(strtolower(trim($cell)), ['draft', 'published', 'archived'], true)) {
+                    $errors[] = new ValidationError(
+                        rowNumber: $rowNumber,
+                        sku: null,
+                        errorType: ImportErrorType::InvalidValue,
+                        level: ImportLogLevel::Error,
+                        message: \sprintf('Status "%s" is not one of: draft, published, archived.', trim($cell)),
+                        columnName: $columnHeader,
+                        columnValue: $cell,
+                    );
+                }
+                continue;
+            }
+            if (ReservedMappingTarget::ENABLED === $attributeCode) {
+                // IMP2-1.7: enabled accepts true|false|1|0; empty = untouched.
+                $cell = $cells[$columnHeader] ?? null;
+                if (null !== $cell && '' !== trim($cell) && !\in_array(strtolower(trim($cell)), ['true', 'false', '1', '0'], true)) {
+                    $errors[] = new ValidationError(
+                        rowNumber: $rowNumber,
+                        sku: null,
+                        errorType: ImportErrorType::InvalidValue,
+                        level: ImportLogLevel::Error,
+                        message: \sprintf('Enabled "%s" must be one of: true, false, 1, 0.', trim($cell)),
+                        columnName: $columnHeader,
+                        columnValue: $cell,
+                    );
                 }
                 continue;
             }
@@ -263,21 +295,25 @@ final readonly class ImportValidationService
         }
 
         if (null !== $categoryCellValue) {
-            $category = $this->catalogObjects->findByCode($categoryCellValue, ObjectKind::Category, $tenant);
-            if (null === $category) {
-                // Missing category does not fail the row — the product
-                // imports without the assignment and the operator gets
-                // a warning to fix the category catalogue or the source
-                // file.
-                $errors[] = new ValidationError(
-                    rowNumber: $rowNumber,
-                    sku: $sku,
-                    errorType: ImportErrorType::CategoryNotFound,
-                    level: ImportLogLevel::Warning,
-                    message: \sprintf('Category "%s" was not found — product imported without assignment.', $categoryCellValue),
-                    columnName: $categoryColumnName,
-                    columnValue: $categoryCellValue,
-                );
+            // IMP2-1.7: validate every code in the pipe-separated list.
+            // Each missing code warns separately; the row still imports with
+            // whichever codes resolved (the writer skips the rest).
+            $codes = array_values(array_filter(
+                array_map('trim', explode('|', $categoryCellValue)),
+                static fn (string $code): bool => '' !== $code,
+            ));
+            foreach ($codes as $code) {
+                if (null === $this->catalogObjects->findByCode($code, ObjectKind::Category, $tenant)) {
+                    $errors[] = new ValidationError(
+                        rowNumber: $rowNumber,
+                        sku: $sku,
+                        errorType: ImportErrorType::CategoryNotFound,
+                        level: ImportLogLevel::Warning,
+                        message: \sprintf('Category "%s" was not found — skipped for this product.', $code),
+                        columnName: $categoryColumnName,
+                        columnValue: $code,
+                    );
+                }
             }
         }
 
