@@ -54,6 +54,7 @@ final class ImportValidationServiceTest extends TestCase
             tenantContext: $tenantContext,
             rowReader: new ImportRowReader(new EncodingDetector(), new DelimiterDetector()),
             compositeValueParser: new CompositeValueParser(),
+            columnGrammar: $this->grammarWith(['pl', 'en']),
         );
 
         $csv = "sku;name;price\nOK-1;Foo;9.99\nEXISTING-1;Bar;14.99\n;Anon;5\nDUP-1;Dup;1\nDUP-1;Dup again;2\nBAD-1;Has bad price;not-a-number\n";
@@ -106,6 +107,7 @@ final class ImportValidationServiceTest extends TestCase
             tenantContext: $tenantContext,
             rowReader: new ImportRowReader(new EncodingDetector(), new DelimiterDetector()),
             compositeValueParser: new CompositeValueParser(),
+            columnGrammar: $this->grammarWith(['pl', 'en']),
         );
 
         // The exporter's own format: a system column (created_at), a
@@ -147,6 +149,18 @@ final class ImportValidationServiceTest extends TestCase
         file_put_contents($renamed, $contents);
 
         return $renamed;
+    }
+
+    /**
+     * @param list<string> $localeCodes
+     */
+    private function grammarWith(array $localeCodes): \App\Import\Application\Service\ImportColumnGrammar
+    {
+        $scopes = $this->createStub(\App\Channel\Contracts\ScopeEnumeratorInterface::class);
+        $scopes->method('localeShortCodes')->willReturn($localeCodes);
+        $scopes->method('channelIdsByCode')->willReturn([]);
+
+        return new \App\Import\Application\Service\ImportColumnGrammar($scopes);
     }
 }
 

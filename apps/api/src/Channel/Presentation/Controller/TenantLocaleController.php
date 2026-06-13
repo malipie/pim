@@ -7,6 +7,8 @@ namespace App\Channel\Presentation\Controller;
 use App\Channel\Application\Locale\LocaleFallbackCycleDetector;
 use App\Channel\Domain\Entity\Locale;
 use App\Channel\Domain\Entity\TenantLocale;
+use App\Channel\Domain\LocaleCode;
+use App\Channel\Domain\Repository\ChannelRepositoryInterface;
 use App\Channel\Domain\Repository\LocaleRepositoryInterface;
 use App\Channel\Domain\Repository\TenantLocaleRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
@@ -66,6 +68,7 @@ final class TenantLocaleController
         private readonly EntityManagerInterface $em,
         private readonly Connection $connection,
         private readonly LocaleFallbackCycleDetector $cycleDetector,
+        private readonly ChannelRepositoryInterface $channels,
     ) {
     }
 
@@ -149,6 +152,19 @@ final class TenantLocaleController
         $existing = $this->tenantLocales->findByTenantAndLocale($tenant, $locale);
         if (null !== $existing) {
             throw new ConflictHttpException(\sprintf('Locale "%s" is already activated for this tenant.', $code));
+        }
+
+        // IMP2-1.6 (#1469): the import column grammar gives locales precedence
+        // over channels on a code collision, so activating a locale whose
+        // short code matches an existing channel would shadow that channel's
+        // columns. Reject it — the reverse guard to CreateChannelHandler.
+        $shortCode = LocaleCode::toShort($locale->getCode());
+        if (null !== $this->channels->findByCode($shortCode, $tenant)) {
+            throw new UnprocessableEntityHttpException(\sprintf(
+                'Locale "%s" (short code "%s") collides with an existing channel code; rename the channel before activating this locale.',
+                $code,
+                $shortCode,
+            ));
         }
 
         $isDefault = (bool) ($body['isDefault'] ?? false);

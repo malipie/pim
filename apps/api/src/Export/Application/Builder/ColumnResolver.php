@@ -17,17 +17,17 @@ namespace App\Export\Application\Builder;
  *     contract 4 — `description.pl`).
  *   - `<attribute_code>.<channel>` → channel-scoped value (PRD §6.1 —
  *     `description.shopify`).
+ *   - `<attribute_code>.<locale>.<channel>` → combined locale+channel
+ *     value (IMP2-1.6 #1469 — `description.pl.shopify`). Fixed segment
+ *     order mirrors the import grammar ({@see \App\Import\Application\Service\ImportColumnGrammar}):
+ *     the LAST segment is the channel, the middle one the locale.
  *
- * The parser does NOT verify that the attribute / locale / channel
- * exists — that walidacja lives on the export profile validator
- * (EXP-07). The builder treats unknown attributes as "blank cell" so
- * partial profile staleness (R-47 from PRD §14) degrades gracefully
- * rather than 500-ing the entire job.
- *
- * The grammar is intentionally trivial — one optional `.` segment. PRD
- * deferred channel + locale combined notation (`description.pl.shopify`)
- * to Faza 1; if both ever ship in one column, this resolver is the
- * surface to extend.
+ * The parser does NOT verify that the attribute / locale exists — that
+ * walidacja lives on the export profile validator (EXP-07) and, for
+ * channels, on the preflight (R-47, IMP2-1.6). It only uses the session's
+ * channel codes to disambiguate a suffix as channel vs locale. A suffix
+ * the resolver cannot interpret as the combined notation degrades to a
+ * locale-only column, which the builder turns into a blank cell (R-47).
  */
 final class ColumnResolver
 {
@@ -81,28 +81,42 @@ final class ColumnResolver
             );
         }
 
-        if (!str_contains($key, '.')) {
-            return new ColumnDefinition(
-                key: $key,
-                kind: ColumnDefinition::KIND_ATTRIBUTE,
-                code: $key,
-            );
-        }
+        $segments = explode('.', $key);
+        $code = array_shift($segments);
 
-        [$code, $modifier] = explode('.', $key, 2);
-
-        // #1229: a modifier naming one of the session's active channels is a
-        // channel-scoped column (`description.shopify`); anything else is a
-        // locale (`description.pl`). Disambiguating by membership beats a
-        // "short = locale, kebab = channel" heuristic, which would collide on
-        // a 2-letter channel code. Combined notation (`description.pl.shopify`)
-        // stays deferred (PRD §5.3); `explode(..., 2)` keeps the tail intact.
-        if (\in_array($modifier, $channelCodes, true)) {
+        if ([] === $segments) {
             return new ColumnDefinition(
                 key: $key,
                 kind: ColumnDefinition::KIND_ATTRIBUTE,
                 code: $code,
-                channel: $modifier,
+            );
+        }
+
+        // Single modifier (#1229): a modifier naming one of the session's
+        // active channels is a channel-scoped column (`description.shopify`);
+        // anything else is a locale (`description.pl`). Disambiguating by
+        // membership beats a "short = locale, kebab = channel" heuristic,
+        // which would collide on a 2-letter channel code.
+        if (1 === \count($segments)) {
+            $modifier = $segments[0];
+
+            return \in_array($modifier, $channelCodes, true)
+                ? new ColumnDefinition($key, ColumnDefinition::KIND_ATTRIBUTE, $code, channel: $modifier)
+                : new ColumnDefinition($key, ColumnDefinition::KIND_ATTRIBUTE, $code, locale: $modifier);
+        }
+
+        // Combined notation (IMP2-1.6): `code.locale.channel`. The last
+        // segment is the channel; it must name a session channel for this to
+        // be the combined form. Anything else degrades to a locale-only
+        // column (blank cell, R-47) — never a misread channel.
+        $channel = end($segments);
+        if (\in_array($channel, $channelCodes, true)) {
+            return new ColumnDefinition(
+                key: $key,
+                kind: ColumnDefinition::KIND_ATTRIBUTE,
+                code: $code,
+                locale: $segments[0],
+                channel: $channel,
             );
         }
 
@@ -110,7 +124,7 @@ final class ColumnResolver
             key: $key,
             kind: ColumnDefinition::KIND_ATTRIBUTE,
             code: $code,
-            locale: $modifier,
+            locale: implode('.', $segments),
         );
     }
 }

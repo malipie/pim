@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Channel;
 
+use App\Channel\Domain\Entity\Channel;
 use App\Channel\Domain\Entity\Locale;
 use App\Channel\Domain\Entity\TenantLocale;
 use App\Shared\Domain\Tenant;
@@ -112,6 +113,30 @@ final class TenantLocalesApiTest extends ChannelApiTestCase
         self::assertSame('en_US', $payload['fallbackCode']);
         self::assertTrue($payload['isActive']);
         self::assertSame(2, $payload['sortOrder']);
+    }
+
+    #[Test]
+    public function postRejectsLocaleCollidingWithExistingChannelCode(): void
+    {
+        // IMP2-1.6 (#1469) — reverse of the CreateChannelHandler guard: a
+        // locale whose short code ('de') matches an existing channel would
+        // shadow that channel in the import grammar, so activation is
+        // rejected with 422.
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $channel = new Channel('de', 'Niemcy');
+        $channel->assignTenant($tenant);
+        $em->persist($channel);
+        $em->flush();
+
+        $client = $this->authenticatedClient();
+        $response = $client->request('POST', '/api/tenant-locales', [
+            'json' => ['code' => 'de_DE'],
+        ]);
+
+        self::assertSame(422, $response->getStatusCode());
+        self::assertStringContainsStringIgnoringCase('channel', $response->getContent(false));
     }
 
     #[Test]

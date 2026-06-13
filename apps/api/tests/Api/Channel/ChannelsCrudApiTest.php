@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Channel;
 
+use App\Channel\Domain\Entity\Locale;
+use App\Channel\Domain\Entity\TenantLocale;
+use App\Shared\Domain\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\Uid\Uuid;
 
@@ -57,6 +60,30 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
         ]);
 
         self::assertSame(422, $response->getStatusCode());
+    }
+
+    #[Test]
+    public function postRejectsCodeCollidingWithActiveLocale(): void
+    {
+        // IMP2-1.6 (#1469) — a channel code equal to an active locale's short
+        // code would be shadowed by the locale in the import column grammar
+        // (locale wins on collision). Rejected with 422, distinct from the
+        // 409 duplicate-code path.
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $locale = $em->getRepository(Locale::class)->findOneBy(['code' => 'pl_PL']);
+        \assert($locale instanceof Locale);
+        $em->persist(new TenantLocale($locale, false, false, null, 0, $tenant));
+        $em->flush();
+
+        $client = $this->authenticatedClient();
+        $response = $client->request('POST', '/api/channels', [
+            'json' => ['code' => 'pl', 'name' => 'Polski kanał'],
+        ]);
+
+        self::assertSame(422, $response->getStatusCode());
+        self::assertStringContainsStringIgnoringCase('locale', $response->getContent(false));
     }
 
     #[Test]

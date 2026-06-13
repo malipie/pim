@@ -16,8 +16,8 @@ use Symfony\Component\Uid\Uuid;
  * When `ExportSession.selectedColumns` is empty and the session carries at
  * least one channel, this service queries the publication profile of the
  * first session channel and expands it into a flat list of column keys
- * (`code`, `code.locale`, `code.channel`) that the {@see ColumnResolver}
- * understands. ADR-0018.
+ * (`code`, `code.locale`, `code.channel`, `code.locale.channel`) that the
+ * {@see ColumnResolver} understands. ADR-0018, IMP2-1.6 (#1469).
  *
  * Falls back to `null` (no generated columns) when:
  *   - The profile has no explicit allow-list (`publishedAttributeCodes = null`
@@ -84,9 +84,15 @@ final readonly class PublicationColumnPlanner
                     $columns[] = "{$code}.{$locale}";
                 }
 
-                // Per-channel columns for each session channel.
+                // Per-channel columns for each session channel, plus the
+                // combined locale+channel notation (IMP2-1.6) so attributes
+                // scoped to both surface; non-matching combinations degrade
+                // to blank cells in the builder (R-47).
                 foreach ($sessionChannels as $channel) {
                     $columns[] = "{$code}.{$channel}";
+                    foreach ($sessionLocales as $locale) {
+                        $columns[] = "{$code}.{$locale}.{$channel}";
+                    }
                 }
             }
         }

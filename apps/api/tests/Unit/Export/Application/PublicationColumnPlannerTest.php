@@ -70,6 +70,23 @@ final class PublicationColumnPlannerTest extends TestCase
     }
 
     #[Test]
+    public function generatesCombinedLocaleChannelColumns(): void
+    {
+        // IMP2-1.6 (#1469) — attributes scoped to both a locale and a channel
+        // need the combined `code.locale.channel` notation in the plan.
+        $this->resolver->method('resolvePublishedCodes')->willReturn(['name']);
+        $session = $this->makeSession(channels: ['shopify', 'allegro'], locales: ['pl', 'en']);
+
+        $result = $this->planner->plan($session, [Uuid::v7()->toRfc4122()]);
+
+        self::assertNotNull($result);
+        self::assertContains('name.pl.shopify', $result);
+        self::assertContains('name.en.shopify', $result);
+        self::assertContains('name.pl.allegro', $result);
+        self::assertContains('name.en.allegro', $result);
+    }
+
+    #[Test]
     public function deduplicatesColumnsAcrossMultipleObjectTypes(): void
     {
         $this->resolver->method('resolvePublishedCodes')->willReturn(['name', 'ean']);

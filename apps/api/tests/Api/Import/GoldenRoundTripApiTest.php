@@ -40,9 +40,10 @@ use const JSON_THROW_ON_ERROR;
  *
  * v0 matrix: every value-carrying AttributeType (global + one non-primary-locale (en; primary-locale columns normalise to the global row like the admin path — #1146 covered in IMP2-1.6)
  * column), single category assignment, plus the modified-cell scenario
- * (export → edit → re-import updates exactly one value). Channels,
- * variants, relations and multi-categories extend this in IMP2-1.10
- * after their engine tickets (1.6–1.8) land.
+ * (export → edit → re-import updates exactly one value). IMP2-1.6 adds the
+ * channel-only and combined locale+channel scopes (gr_chan); variants,
+ * relations and multi-categories extend this in IMP2-1.10 after their
+ * engine tickets (1.7–1.8) land.
  *
  * Normalisation rules v1 (ADR-0019): numeric string ≡ number for
  * number/price.amount/metric.value; everything else compares strictly.
@@ -98,9 +99,32 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         $em->persist(new ObjectTypeAttribute($objectType, $name));
         $attributes['gr_name'] = $name;
 
+        // IMP2-1.6 (#1469): a localizable + scopable attribute drives the
+        // channel and locale+channel round-trip rows of the matrix.
+        $chan = new Attribute('gr_chan', ['en' => 'Channel-scoped'], AttributeType::Text);
+        $chan->changeLocalizable(true);
+        $chan->changeScopable(true);
+        $em->persist($chan);
+        $em->persist(new ObjectTypeAttribute($objectType, $chan));
+        $attributes['gr_chan'] = $chan;
+
         $em->persist(new AttributeOption($attributes['gr_select'], 'red', ['en' => 'Red'], 1));
         $em->persist(new AttributeOption($attributes['gr_multiselect'], 'new', ['en' => 'New'], 1));
         $em->persist(new AttributeOption($attributes['gr_multiselect'], 'sale', ['en' => 'Sale'], 2));
+
+        // Active tenant locale 'en_US' (language 'en') — the column grammar
+        // (IMP2-1.6) validates header suffixes against this registry; the
+        // schema-built test DB ships no locale seeds.
+        $enLocale = new \App\Channel\Domain\Entity\Locale('en_US', 'English (US)', null, 'en');
+        $em->persist($enLocale);
+        $em->persist(new \App\Channel\Domain\Entity\TenantLocale($enLocale));
+
+        // Channel 'shopify' — the grammar resolves `gr_chan.shopify` /
+        // `gr_chan.en.shopify` headers against it (tenant stamped by the
+        // listener from the TenantContext set above).
+        $shopify = new \App\Channel\Domain\Entity\Channel('shopify', 'Shopify');
+        $em->persist($shopify);
+        $shopifyId = $shopify->getId();
 
         $categoryType = $em->getRepository(ObjectType::class)
             ->find(Uuid::fromString($this->objectTypeIdFor(ObjectKind::Category)));
@@ -115,6 +139,10 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         }
         $em->persist(new ObjectValue($product, $name, ['value' => 'Uchwyt globalny'], Provenance::Manual));
         $em->persist(new ObjectValue($product, $name, ['value' => 'Uchwyt PL'], Provenance::Manual, null, 'en'));
+        // gr_chan: global, channel-only, and locale+channel scopes (IMP2-1.6).
+        $em->persist(new ObjectValue($product, $chan, ['value' => 'Chan global'], Provenance::Manual));
+        $em->persist(new ObjectValue($product, $chan, ['value' => 'Chan shopify'], Provenance::Manual, $shopifyId));
+        $em->persist(new ObjectValue($product, $chan, ['value' => 'Chan EN shopify'], Provenance::Manual, $shopifyId, 'en'));
         $em->persist(new ObjectCategory(product: $product, category: $category, isPrimary: true, position: 0));
         $em->flush();
         $productId = $product->getId();
@@ -123,10 +151,15 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         self::assertNotSame([], $expected);
 
         // ── Act 1: real exporter → CSV ──
-        $columns = array_merge(['sku', 'category'], array_keys(self::MATRIX), ['gr_name', 'gr_name.en']);
-        $csv = $this->runProductExport($tenant, $columns, [$productId]);
+        $columns = array_merge(
+            ['sku', 'category'],
+            array_keys(self::MATRIX),
+            ['gr_name', 'gr_name.en', 'gr_chan', 'gr_chan.shopify', 'gr_chan.en.shopify'],
+        );
+        $csv = $this->runProductExport($tenant, $columns, [$productId], ['shopify']);
         self::assertStringContainsString('GR-001', $csv);
         self::assertStringContainsString('249.99 PLN', $csv, 'price serialises as "amount CUR"');
+        self::assertStringContainsString('Chan EN shopify', $csv, 'combined locale+channel cell present in export');
 
         // ── Act 2: real import (UPSERT) of that very file ──
         $mapping = ['sku' => 'sku', 'category' => '__category__'];
@@ -135,6 +168,9 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         }
         $mapping['gr_name'] = 'gr_name';
         $mapping['gr_name.en'] = 'gr_name';
+        $mapping['gr_chan'] = 'gr_chan';
+        $mapping['gr_chan.shopify'] = 'gr_chan';
+        $mapping['gr_chan.en.shopify'] = 'gr_chan';
 
         $body = $this->postImport($client, $csv, $objectType->getId()->toRfc4122(), $mapping);
         $sessionId = $body['id'];
@@ -166,8 +202,8 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         self::assertSame(1, $body2['updated_count']);
 
         $after = $this->envelopesOf($productId);
-        self::assertSame('Uchwyt v2', $after['gr_name|']['value'] ?? null);
-        unset($expected['gr_name|'], $after['gr_name|']);
+        self::assertSame('Uchwyt v2', $after['gr_name||']['value'] ?? null);
+        unset($expected['gr_name||'], $after['gr_name||']);
         foreach ($expected as $key => $envelope) {
             self::assertEnvelopeEquals($envelope, $after[$key], $key.' (po edycji innej komórki)');
         }
@@ -198,17 +234,17 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
     }
 
     /**
-     * @return array<string, array<string, mixed>> "code|locale" => envelope
+     * @return array<string, array<string, mixed>> "code|locale|channelId" => envelope
      */
     private function envelopesOf(Uuid $productId): array
     {
         $rows = $this->em()->getConnection()->fetchAllAssociative(
             <<<'SQL'
-                SELECT a.code, ov.locale, ov.value
+                SELECT a.code, ov.locale, ov.channel_id, ov.value
                 FROM object_values ov
                 JOIN attributes a ON a.id = ov.attribute_id
                 WHERE ov.object_id = :id AND a.code LIKE 'gr_%'
-                ORDER BY a.code, ov.locale NULLS FIRST
+                ORDER BY a.code, ov.locale NULLS FIRST, ov.channel_id NULLS FIRST
                 SQL,
             ['id' => $productId->toRfc4122()],
         );
@@ -221,8 +257,9 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
             $envelope = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
             $code = $row['code'];
             $locale = $row['locale'];
+            $channelId = $row['channel_id'];
             \assert(\is_string($code));
-            $map[$code.'|'.(\is_string($locale) ? $locale : '')] = $envelope;
+            $map[$code.'|'.(\is_string($locale) ? $locale : '').'|'.(\is_string($channelId) ? $channelId : '')] = $envelope;
         }
 
         return $map;
@@ -231,8 +268,9 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
     /**
      * @param list<string> $columns
      * @param list<Uuid>   $ids
+     * @param list<string> $channels
      */
-    private function runProductExport(Tenant $tenant, array $columns, array $ids): string
+    private function runProductExport(Tenant $tenant, array $columns, array $ids, array $channels = []): string
     {
         $session = new ExportSession(
             userId: Uuid::v7(),
@@ -242,6 +280,7 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
             selectedColumns: $columns,
             entityType: ExportEntityType::Product,
             selectedObjectIds: array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids),
+            channels: $channels,
         );
         $session->assignTenant($tenant);
 

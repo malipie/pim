@@ -10,7 +10,6 @@ use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
-use App\Import\Domain\ColumnHeader;
 use App\Import\Domain\Enum\FileEncoding;
 use App\Import\Domain\Enum\ImportErrorType;
 use App\Import\Domain\Enum\ImportLogLevel;
@@ -45,6 +44,7 @@ final readonly class ImportValidationService
         private TenantContext $tenantContext,
         private ImportRowReader $rowReader,
         private CompositeValueParser $compositeValueParser,
+        private ImportColumnGrammar $columnGrammar,
     ) {
     }
 
@@ -143,6 +143,20 @@ final readonly class ImportValidationService
         $categoryCellValue = null;
         $categoryColumnName = null;
         foreach ($columnMapping as $columnHeader => $attributeCode) {
+            $parsed = $this->columnGrammar->parse($columnHeader, $tenant);
+            if (null !== $parsed->unknownSuffix) {
+                $errors[] = new ValidationError(
+                    rowNumber: $rowNumber,
+                    sku: null,
+                    errorType: ImportErrorType::InvalidValue,
+                    level: ImportLogLevel::Error,
+                    message: \sprintf('Column "%s": suffix "%s" is neither an active locale nor a channel code.', $columnHeader, $parsed->unknownSuffix),
+                    columnName: $columnHeader,
+                );
+
+                continue;
+            }
+
             // System / read-only export columns (timestamps, status,
             // completeness, …) never carry an Attribute value — skip them
             // so re-importing an export does not flag them.
@@ -167,7 +181,7 @@ final readonly class ImportValidationService
             $cell = $cells[$columnHeader] ?? null;
             $cellValues[] = [
                 'code' => $attributeCode,
-                'locale' => ColumnHeader::localeOf($columnHeader),
+                'locale' => $parsed->locale,
                 'value' => $cell,
                 'header' => $columnHeader,
             ];

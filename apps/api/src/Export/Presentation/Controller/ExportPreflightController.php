@@ -8,6 +8,8 @@ use App\Catalog\Application\Filter\FilterDslResolver;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Channel\Contracts\ChannelResolverInterface;
+use App\Export\Application\Builder\ColumnResolver;
 use App\Export\Application\Builder\Structural\StructuralExportBuilderInterface;
 use App\Export\Domain\Enum\ExportEntityType;
 use App\Export\Domain\Enum\ExportTargetScope;
@@ -50,6 +52,8 @@ final class ExportPreflightController
         private readonly FilterDslResolver $filterDsl,
         private readonly Connection $connection,
         private readonly TenantContext $tenantContext,
+        private readonly ColumnResolver $columnResolver,
+        private readonly ChannelResolverInterface $channelResolver,
         /** @var iterable<StructuralExportBuilderInterface> */
         #[AutowireIterator('app.export.structural_builder')]
         private readonly iterable $structuralBuilders = [],
@@ -75,6 +79,11 @@ final class ExportPreflightController
         $scope = $this->parseScope($payload);
         $this->entityTypeResolver->assertScopeAllowed($selection->entityType, $scope);
 
+        // IMP2-1.6 (R-47): reject a channel-scoped column whose channel no
+        // longer exists BEFORE the export runs, so a stale profile cannot
+        // produce an empty column that clear_if_empty then wipes downstream.
+        $this->assertChannelColumnsResolvable($payload, $tenant);
+
         if ($selection->entityType->isStructural()) {
             // EXR-06: structural exports always run target_scope=all; the row
             // count comes from the matching structural builder.
@@ -97,6 +106,60 @@ final class ExportPreflightController
             'soft_cap' => SyncExportController::SOFT_CAP,
             'exceeds_cap' => $count > SyncExportController::SOFT_CAP,
         ]);
+    }
+
+    /**
+     * IMP2-1.6 (#1469, R-47): 422 when a `selected_columns` entry is a
+     * channel-scoped column (`price.shopify`, `name.pl.shopify`) whose
+     * channel does not resolve in the tenant. Columns/channels are optional
+     * in the payload — when absent the preflight stays a pure count.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function assertChannelColumnsResolvable(array $payload, Tenant $tenant): void
+    {
+        $rawColumns = $payload['selected_columns'] ?? null;
+        if (!\is_array($rawColumns) || [] === $rawColumns) {
+            return;
+        }
+
+        $columnKeys = [];
+        foreach ($rawColumns as $key) {
+            if (\is_string($key)) {
+                $columnKeys[] = $key;
+            }
+        }
+
+        $channelCodes = [];
+        $rawChannels = $payload['channels'] ?? null;
+        if (\is_array($rawChannels)) {
+            foreach ($rawChannels as $code) {
+                if (\is_string($code)) {
+                    $channelCodes[] = $code;
+                }
+            }
+        }
+
+        $referenced = [];
+        foreach ($this->columnResolver->resolve($columnKeys, $channelCodes) as $column) {
+            if (null !== $column->channel) {
+                $referenced[$column->channel] = true;
+            }
+        }
+
+        $unresolved = [];
+        foreach (array_keys($referenced) as $code) {
+            if (null === $this->channelResolver->resolveId($code, $tenant)) {
+                $unresolved[] = $code;
+            }
+        }
+
+        if ([] !== $unresolved) {
+            throw new UnprocessableEntityHttpException(sprintf(
+                'Export references channel(s) that no longer exist in this tenant: %s. Remove or remap the channel columns before exporting.',
+                implode(', ', $unresolved),
+            ));
+        }
     }
 
     private function structuralCount(ExportEntityType $type, Tenant $tenant): int

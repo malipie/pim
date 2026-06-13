@@ -7,6 +7,7 @@ namespace App\Tests\Api\Export;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
+use App\Channel\Domain\Entity\Channel;
 use App\Shared\Domain\Tenant;
 use App\Tests\Api\Catalog\CatalogApiTestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -137,6 +138,42 @@ final class ExportPreflightApiTest extends CatalogApiTestCase
         ]);
 
         self::assertSame(422, $response);
+    }
+
+    #[Test]
+    public function rejectsChannelColumnWhoseChannelDoesNotResolve(): void
+    {
+        // IMP2-1.6 (#1469, R-47) — a `price.ghost` column referencing a
+        // channel that no longer exists must 422 at preflight, not silently
+        // export a blank column a clear_if_empty could weaponise.
+        $response = $this->preflightRaw([
+            'entity_type' => 'product',
+            'target_scope' => 'all',
+            'selected_columns' => ['sku', 'price.ghost'],
+            'channels' => ['ghost'],
+        ]);
+
+        self::assertSame(422, $response);
+    }
+
+    #[Test]
+    public function acceptsChannelColumnWhenChannelResolves(): void
+    {
+        // The same shape passes once the channel exists in the tenant.
+        $tenant = $this->tenant();
+        $channel = new Channel('shopify', 'Shopify');
+        $channel->assignTenant($tenant);
+        $this->em()->persist($channel);
+        $this->em()->flush();
+
+        $body = $this->preflight([
+            'entity_type' => 'product',
+            'target_scope' => 'all',
+            'selected_columns' => ['sku', 'price.shopify'],
+            'channels' => ['shopify'],
+        ]);
+
+        self::assertSame('sync', $body['mode']);
     }
 
     /**
