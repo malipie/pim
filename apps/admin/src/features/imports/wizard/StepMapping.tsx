@@ -49,6 +49,11 @@ interface AttributeOption {
 
 const SKIP_VALUE = '__skip__';
 const CATEGORY_VALUE = '__category__';
+// IMP2-1.7 — reserved mapping targets mirrored from
+// App\Import\Domain\ReservedMappingTarget.
+const CATEGORY_APPEND_VALUE = '__category_append__';
+const STATUS_VALUE = '__status__';
+const ENABLED_VALUE = '__enabled__';
 
 /**
  * Spec §5.3 — column mapping. Streams the uploaded headers + first
@@ -138,6 +143,29 @@ export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
       }),
       description: t('imports.mapping.category_hint', {
         defaultValue: 'Linkuje produkt do kategorii o pasującym code',
+      }),
+    },
+    {
+      value: CATEGORY_APPEND_VALUE,
+      label: t('imports.mapping.category_append', {
+        defaultValue: 'Kategoria (dołącz)',
+      }),
+      description: t('imports.mapping.category_append_hint', {
+        defaultValue: 'Dokłada kategorie do istniejących zamiast zastępować',
+      }),
+    },
+    {
+      value: STATUS_VALUE,
+      label: t('imports.mapping.status', { defaultValue: 'Status' }),
+      description: t('imports.mapping.status_hint', {
+        defaultValue: 'Ustawia status: draft, published lub archived',
+      }),
+    },
+    {
+      value: ENABLED_VALUE,
+      label: t('imports.mapping.enabled', { defaultValue: 'Włączony' }),
+      description: t('imports.mapping.enabled_hint', {
+        defaultValue: 'Ustawia flagę włączenia (true/false)',
       }),
     },
     ...attributeOptions,

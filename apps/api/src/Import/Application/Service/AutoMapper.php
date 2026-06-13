@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Import\Application\Service;
 
 use App\Import\Domain\Enum\MappingConfidence;
+use App\Import\Domain\ReservedMappingTarget;
 use App\Import\Domain\SystemColumn;
 use App\Import\Domain\ValueObject\ColumnMappingSuggestion;
 
@@ -72,6 +73,25 @@ final readonly class AutoMapper
                     columnHeader: $header,
                     suggestedAttributeCode: null,
                     confidence: MappingConfidence::Skip,
+                    sampleValues: $sampleValues,
+                );
+                continue;
+            }
+
+            // IMP2-1.7: `status` / `enabled` headers map to their reserved
+            // targets (object state, not Attribute values), so a re-imported
+            // export wires them automatically.
+            $reservedTarget = match ($normalised) {
+                'status' => ReservedMappingTarget::STATUS,
+                'enabled' => ReservedMappingTarget::ENABLED,
+                default => null,
+            };
+            if (null !== $reservedTarget) {
+                $suggestions[] = new ColumnMappingSuggestion(
+                    columnIndex: $index,
+                    columnHeader: $header,
+                    suggestedAttributeCode: $reservedTarget,
+                    confidence: MappingConfidence::Auto,
                     sampleValues: $sampleValues,
                 );
                 continue;

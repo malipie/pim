@@ -11,11 +11,8 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectCategory;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectValue;
-use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Provenance;
-use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Import\Domain\ValueObject\ResolvedImportValue;
-use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -37,7 +34,6 @@ final class ImportObjectCreator
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly CatalogObjectRepositoryInterface $catalogObjects,
         private readonly BatchValueWriter $valueWriter,
         private readonly CompositeValueParser $compositeValueParser,
     ) {
@@ -47,11 +43,14 @@ final class ImportObjectCreator
      * @param list<ResolvedImportValue> $resolvedValues   mapped cells with the locale parsed from
      *                                                    their dotted header (`name.pl` → `pl`)
      * @param array<string, Attribute>  $attributesByCode
-     * @param ?string                   $categoryCode     `code` of the category to assign the new
-     *                                                    product to. Single category per row
-     *                                                    (becomes primary). Silently skipped when
-     *                                                    the lookup fails — the validator emitted
-     *                                                    the CategoryNotFound warning earlier.
+     * @param list<CatalogObject>       $categories       resolved category objects in cell order
+     *                                                    (IMP2-1.7) — first becomes primary,
+     *                                                    index drives `position`. The handler
+     *                                                    resolves codes once per chunk and emits
+     *                                                    a per-code CategoryNotFound warning for
+     *                                                    any that did not resolve.
+     * @param ?string                   $status           validated publication status (draft|published|archived) or null = untouched
+     * @param ?bool                     $enabled          parsed enabled flag or null = untouched
      */
     public function create(
         ObjectType $objectType,
@@ -59,11 +58,13 @@ final class ImportObjectCreator
         array $resolvedValues,
         array $attributesByCode,
         Uuid $importSessionId,
-        ?string $categoryCode = null,
-        ?Tenant $tenant = null,
+        array $categories = [],
+        ?string $status = null,
+        ?bool $enabled = null,
     ): CreatedImportObject {
         $object = new CatalogObject($objectType, $sku);
         $object->assignImportSession($importSessionId);
+        $this->applyState($object, $status, $enabled);
         $this->em->persist($object);
 
         $issues = $this->valueWriter->writeMany(
@@ -72,19 +73,38 @@ final class ImportObjectCreator
             Provenance::Import,
         );
 
-        if (null !== $categoryCode && '' !== $categoryCode && $tenant instanceof Tenant) {
-            $category = $this->catalogObjects->findByCode($categoryCode, ObjectKind::Category, $tenant);
-            if (null !== $category) {
-                $this->em->persist(new ObjectCategory(
-                    product: $object,
-                    category: $category,
-                    isPrimary: true,
-                    position: 0,
-                ));
-            }
+        // New object has no existing assignments, so batch-persist the
+        // junction rows directly (no flush — the chunk handler owns it).
+        // Replace/append on EXISTING objects runs after the value pass via
+        // ObjectCategoryRepository (IMP2-1.7) because it must DELETE-then-INSERT
+        // around the primary partial-unique index.
+        $position = 0;
+        foreach ($categories as $category) {
+            $this->em->persist(new ObjectCategory(
+                product: $object,
+                category: $category,
+                isPrimary: 0 === $position,
+                position: $position,
+            ));
+            ++$position;
         }
 
         return new CreatedImportObject($object, $issues);
+    }
+
+    /**
+     * IMP2-1.7 — applies publication status / enabled flag pulled from the
+     * row's reserved columns. Null means "column absent or empty" (D2 — do
+     * not touch). Values are pre-validated by {@see ImportValidationService}.
+     */
+    private function applyState(CatalogObject $object, ?string $status, ?bool $enabled): void
+    {
+        if (null !== $status) {
+            $object->transitionTo($status);
+        }
+        if (null !== $enabled) {
+            $object->changeEnabled($enabled);
+        }
     }
 
     /**
@@ -101,6 +121,8 @@ final class ImportObjectCreator
     /**
      * @param list<ResolvedImportValue> $resolvedValues
      * @param array<string, Attribute>  $attributesByCode
+     * @param ?string                   $status           validated status or null = untouched (IMP2-1.7)
+     * @param ?bool                     $enabled          parsed enabled flag or null = untouched (IMP2-1.7)
      *
      * @return list<array{attributeCode: string, kind: string, message: string}>
      */
@@ -108,7 +130,11 @@ final class ImportObjectCreator
         CatalogObject $object,
         array $resolvedValues,
         array $attributesByCode,
+        ?string $status = null,
+        ?bool $enabled = null,
     ): array {
+        $this->applyState($object, $status, $enabled);
+
         return $this->valueWriter->writeMany(
             $object,
             $this->buildWrites($resolvedValues, $attributesByCode),

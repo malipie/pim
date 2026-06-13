@@ -47,6 +47,12 @@ test('NUI-10 — wizard walks six steps and commits an import session', async ({
     timeout: 20_000,
   });
   await expect(page.getByText('sku', { exact: true }).first()).toBeVisible();
+  // IMP2-1.7 — the mapping combobox exposes the new Status / Enabled
+  // reserved targets alongside Kategoria.
+  await page.locator('button[aria-haspopup="listbox"]').first().click();
+  await expect(page.getByText('Status', { exact: true })).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText('Włączony', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
   const nextOnMapping = page.getByRole('button', { name: /dalej|next/i });
   await expect(nextOnMapping).toBeEnabled({ timeout: 20_000 });
   await nextOnMapping.click();

@@ -168,6 +168,141 @@ final class StartImportApiTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function importPipeSplitsCategoriesWithPrimaryPositionAndPerCodeWarning(): void
+    {
+        // IMP2-1.7 (AC 1,2) — `cat-a|cat-b|cat-c` → 3 assignments (first
+        // primary, position by order); a code missing mid-list is dropped
+        // with a per-code warning, the row still imports with the rest.
+        $this->seedAttributes();
+        $this->seedCategories(['cat_a', 'cat_b', 'cat_c']);
+
+        $csvPath = $this->writeCsv(
+            "sku;name;kategoria\nMULTI-1;Trzy;cat_a|cat_b|cat_c\nMULTI-2;Luka;cat_a|GHOST|cat_c\n",
+            'pim-multicat-',
+        );
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode([
+                            'sku' => 'sku',
+                            'name' => 'name',
+                            'kategoria' => '__category__',
+                        ], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'multi.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame('success', $body['status']);
+            self::assertSame(2, $body['success_count']);
+            self::assertSame(0, $body['error_count'], 'a missing category is a warning, not a row error');
+
+            $em = $this->em();
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $catalogObjects = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+            $categories = self::getContainer()->get(ObjectCategoryRepositoryInterface::class);
+
+            $m1 = $catalogObjects->findByCode('MULTI-1', ObjectKind::Product, $tenant);
+            \assert(null !== $m1);
+            $a1 = $categories->findByProduct($m1);
+            self::assertCount(3, $a1);
+            self::assertSame(['cat_a', 'cat_b', 'cat_c'], array_map(static fn ($a): string => $a->getCategory()->getCode(), $a1));
+            self::assertSame([0, 1, 2], array_map(static fn ($a): int => $a->getPosition(), $a1));
+            self::assertTrue($a1[0]->isPrimary());
+            self::assertFalse($a1[1]->isPrimary());
+            self::assertFalse($a1[2]->isPrimary());
+
+            $m2 = $catalogObjects->findByCode('MULTI-2', ObjectKind::Product, $tenant);
+            \assert(null !== $m2);
+            $a2 = $categories->findByProduct($m2);
+            self::assertCount(2, $a2, 'GHOST dropped, the row keeps cat_a + cat_c');
+            self::assertSame(['cat_a', 'cat_c'], array_map(static fn ($a): string => $a->getCategory()->getCode(), $a2));
+
+            $ghostWarnings = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM import_logs WHERE column_value = 'GHOST'",
+            );
+            self::assertSame(1, (int) (\is_scalar($ghostWarnings) ? $ghostWarnings : 0), 'per-code CategoryNotFound warning for GHOST');
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function importSetsStatusAndEnabledFromColumnsAndBlocksBadStatus(): void
+    {
+        // IMP2-1.7 (AC 4,5) — status/enabled columns set the object fields;
+        // an out-of-enum status blocks the row (InvalidValue).
+        $this->seedAttributes();
+
+        $csvPath = $this->writeCsv(
+            "sku;name;status;enabled\nST-1;Opublikowany;published;false\nST-2;Zly;bogus;true\n",
+            'pim-status-',
+        );
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode([
+                            'sku' => 'sku',
+                            'name' => 'name',
+                            'status' => '__status__',
+                            'enabled' => '__enabled__',
+                        ], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'status.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame(1, $body['success_count']);
+            self::assertSame(1, $body['error_count'], 'bogus status blocks the row');
+
+            $em = $this->em();
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $catalogObjects = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+
+            $st1 = $catalogObjects->findByCode('ST-1', ObjectKind::Product, $tenant);
+            \assert(null !== $st1);
+            self::assertSame('published', $st1->getStatus());
+            self::assertFalse($st1->isEnabled());
+
+            self::assertNull(
+                $catalogObjects->findByCode('ST-2', ObjectKind::Product, $tenant),
+                'the row with a bogus status is rejected, not created',
+            );
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    private function writeCsv(string $contents, string $prefix): string
+    {
+        $path = tempnam(sys_get_temp_dir(), $prefix);
+        \assert(false !== $path);
+        $renamed = $path.'.csv';
+        rename($path, $renamed);
+        file_put_contents($renamed, $contents);
+
+        return $renamed;
+    }
+
     private function seedAttributes(): void
     {
         $em = $this->em();
