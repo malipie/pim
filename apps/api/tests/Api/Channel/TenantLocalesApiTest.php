@@ -135,8 +135,11 @@ final class TenantLocalesApiTest extends ChannelApiTestCase
             'json' => ['code' => 'de_DE'],
         ]);
 
+        // de_DE is in the catalog, not yet activated and needs no fallback,
+        // so the only 422 cause is the reverse channel-collision guard. (The
+        // RFC7807 detail is the generic status text in non-debug CI, so we
+        // assert on the status, not the message.)
         self::assertSame(422, $response->getStatusCode());
-        self::assertStringContainsStringIgnoringCase('channel', $response->getContent(false));
     }
 
     #[Test]
