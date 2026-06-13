@@ -77,8 +77,34 @@ final class ExportBuilder
             }
         }
 
+        // IMP2-1.6 (R-47): a channel-scoped column whose channel no longer
+        // resolves fails the whole export loudly. The pre-1.6 silent blank
+        // column, combined with clear_if_empty downstream, could wipe a
+        // destination. Preflight catches this as a 422; this is the
+        // defensive guard for a bypassed preflight.
+        $this->assertChannelColumnsResolvable($columns, $channelIdByCode);
+
+        $primaryLocale = $tenant->getPrimaryLocale();
         foreach ($objects as $object) {
-            yield $this->renderRow($object, $columns, $channelIdByCode);
+            yield $this->renderRow($object, $columns, $channelIdByCode, $primaryLocale);
+        }
+    }
+
+    /**
+     * @param array<int, ColumnDefinition> $columns
+     * @param array<string, string>        $channelIdByCode channel code => UUID RFC 4122 (#1229)
+     */
+    private function assertChannelColumnsResolvable(array $columns, array $channelIdByCode): void
+    {
+        $unresolved = [];
+        foreach ($columns as $column) {
+            if (null !== $column->channel && !isset($channelIdByCode[$column->channel])) {
+                $unresolved[$column->channel] = true;
+            }
+        }
+
+        if ([] !== $unresolved) {
+            throw new UnresolvedExportChannelException(array_keys($unresolved));
         }
     }
 
@@ -88,13 +114,13 @@ final class ExportBuilder
      *
      * @return array<string, string>
      */
-    private function renderRow(CatalogObject $object, array $columns, array $channelIdByCode): array
+    private function renderRow(CatalogObject $object, array $columns, array $channelIdByCode, string $primaryLocale): array
     {
         $valueIndex = $this->indexValuesByObject($object);
         $row = [];
 
         foreach ($columns as $column) {
-            $row[$column->key] = $this->cellFor($object, $column, $valueIndex, $channelIdByCode);
+            $row[$column->key] = $this->cellFor($object, $column, $valueIndex, $channelIdByCode, $primaryLocale);
         }
 
         return $row;
@@ -132,24 +158,27 @@ final class ExportBuilder
         ColumnDefinition $column,
         array $valueIndex,
         array $channelIdByCode,
+        string $primaryLocale,
     ): string {
         if ($column->isBuiltIn()) {
             return $this->builtIn($object, $column->code);
         }
 
-        // #1229: channel-scoped column (`description.shopify`) narrows the
-        // lookup to the channel's UUID; a channel that didn't resolve yields
-        // a blank cell rather than silently falling back to the global value.
-        $channelId = null;
-        if (null !== $column->channel) {
-            $channelId = $channelIdByCode[$column->channel] ?? null;
-            if (null === $channelId) {
-                return '';
-            }
-        }
+        // #1229: a channel-scoped column narrows the lookup to the channel's
+        // UUID. Resolvability is guaranteed by assertChannelColumnsResolvable().
+        $channelId = null !== $column->channel ? ($channelIdByCode[$column->channel] ?? null) : null;
 
-        $key = $this->indexKey($column->code, $column->locale, $channelId);
-        $value = $valueIndex[$key] ?? null;
+        $value = $valueIndex[$this->indexKey($column->code, $column->locale, $channelId)] ?? null;
+
+        // #1146 fan-out: the writer collapses the PRIMARY locale into the
+        // global (locale=NULL) row, so a `name.pl` column (pl primary) finds
+        // nothing under its own locale — fall back to the global value,
+        // keeping the channel scope. Non-primary locales never fan out: that
+        // would leak the primary value into a locale that has none and break
+        // the round-trip.
+        if (null === $value && null !== $column->locale && $column->locale === $primaryLocale) {
+            $value = $valueIndex[$this->indexKey($column->code, null, $channelId)] ?? null;
+        }
 
         // Stale profile / missing attribute (R-47 from PRD §14). Don't
         // 500 — emit blank cell so the rest of the row stays useful.

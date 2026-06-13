@@ -16,6 +16,7 @@ use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Channel\Contracts\ChannelResolverInterface;
 use App\Export\Application\Builder\ColumnResolver;
 use App\Export\Application\Builder\ExportBuilder;
+use App\Export\Application\Builder\UnresolvedExportChannelException;
 use App\Export\Application\Builder\ValueSerializer;
 use App\Export\Domain\Entity\ExportSession;
 use App\Export\Domain\Enum\ExportFormat;
@@ -96,9 +97,7 @@ final class ExportBuilderTest extends TestCase
     public function rendersAttributeColumnsWithChannelScoping(): void
     {
         // #1229 — `description.shopify` resolves to the channel-scoped value;
-        // the bare `description` column still emits the global value, and a
-        // channel column whose channel does not resolve stays blank (it does
-        // NOT silently fall back to the global value).
+        // the bare `description` column still emits the global value.
         $product = $this->newProduct('SKU-CH');
         $desc = $this->newAttribute('description', AttributeType::Text);
         $shopifyId = Uuid::v7();
@@ -116,8 +115,8 @@ final class ExportBuilderTest extends TestCase
             channelIds: ['shopify' => $shopifyId],
         );
         $session = $this->newSessionWithTenant(
-            ['sku', 'description', 'description.shopify', 'description.allegro'],
-            channels: ['shopify', 'allegro'],
+            ['sku', 'description', 'description.shopify'],
+            channels: ['shopify'],
         );
         $rows = iterator_to_array($builder->build([$product], $session));
 
@@ -125,8 +124,82 @@ final class ExportBuilderTest extends TestCase
             'sku' => 'SKU-CH',
             'description' => 'Global desc',
             'description.shopify' => 'Shopify desc',
-            'description.allegro' => '',
         ], $rows[0]);
+    }
+
+    #[Test]
+    public function rendersCombinedLocaleAndChannelColumn(): void
+    {
+        // IMP2-1.6 (#1469) — `description.en.shopify` looks up the value
+        // scoped to BOTH locale en and channel shopify (en is non-primary so
+        // no fan-out interferes).
+        $product = $this->newProduct('SKU-LC');
+        $desc = $this->newAttribute('description', AttributeType::Text);
+        $shopifyId = Uuid::v7();
+
+        $valuesByObject = [
+            spl_object_id($product) => [
+                new ObjectValue($product, $desc, ['value' => 'EN Shopify'], channelId: $shopifyId, locale: 'en'),
+                new ObjectValue($product, $desc, ['value' => 'Global']),
+            ],
+        ];
+
+        $builder = $this->newBuilder(
+            valuesByObject: $valuesByObject,
+            categoriesByObject: [],
+            channelIds: ['shopify' => $shopifyId],
+        );
+        $session = $this->newSessionWithTenant(['description.en.shopify'], channels: ['shopify']);
+        $rows = iterator_to_array($builder->build([$product], $session));
+
+        self::assertSame(['description.en.shopify' => 'EN Shopify'], $rows[0]);
+    }
+
+    #[Test]
+    public function fansOutPrimaryLocaleColumnToGlobalValue(): void
+    {
+        // #1146 — the writer stores the PRIMARY locale (pl) as the global
+        // row, so a `name.pl` column must fall back to that global value
+        // instead of a blank cell. A non-primary `name.en` with no row stays
+        // blank (no leak of the primary value).
+        $product = $this->newProduct('SKU-FO');
+        $name = $this->newAttribute('name', AttributeType::Text);
+
+        $valuesByObject = [
+            spl_object_id($product) => [
+                new ObjectValue($product, $name, ['value' => 'Globalna nazwa']),
+            ],
+        ];
+
+        $builder = $this->newBuilder(valuesByObject: $valuesByObject, categoriesByObject: []);
+        // Tenant primary locale defaults to 'pl'.
+        $session = $this->newSessionWithTenant(['sku', 'name.pl', 'name.en']);
+        $rows = iterator_to_array($builder->build([$product], $session));
+
+        self::assertSame([
+            'sku' => 'SKU-FO',
+            'name.pl' => 'Globalna nazwa',
+            'name.en' => '',
+        ], $rows[0]);
+    }
+
+    #[Test]
+    public function throwsWhenChannelColumnReferencesUnresolvableChannel(): void
+    {
+        // IMP2-1.6 (R-47) — a stale channel column no longer degrades to a
+        // silent blank; the export fails loudly so clear_if_empty downstream
+        // cannot wipe a destination from an empty file.
+        $product = $this->newProduct('SKU-STALE');
+
+        $builder = $this->newBuilder(
+            valuesByObject: [spl_object_id($product) => []],
+            categoriesByObject: [],
+            channelIds: [],
+        );
+        $session = $this->newSessionWithTenant(['sku', 'description.allegro'], channels: ['allegro']);
+
+        $this->expectException(UnresolvedExportChannelException::class);
+        iterator_to_array($builder->build([$product], $session));
     }
 
     #[Test]

@@ -76,6 +76,31 @@ final class ColumnResolverTest extends TestCase
     }
 
     #[Test]
+    public function combinedLocaleChannelNotationResolvesBothSegments(): void
+    {
+        // IMP2-1.6 (#1469) — `description.pl.shopify`: fixed order, last
+        // segment is the channel (must be a session channel), middle is the
+        // locale.
+        $col = new ColumnResolver()->resolveOne('description.pl.shopify', ['shopify', 'baselinker']);
+        self::assertTrue($col->isAttribute());
+        self::assertSame('description', $col->code);
+        self::assertSame('pl', $col->locale);
+        self::assertSame('shopify', $col->channel);
+    }
+
+    #[Test]
+    public function combinedNotationWithNonChannelLastSegmentDegradesToLocale(): void
+    {
+        // IMP2-1.6 — when the last segment is not a session channel the key
+        // is not the combined notation; it degrades to a locale-only column
+        // (blank cell via the value-index miss), never a misread channel.
+        $col = new ColumnResolver()->resolveOne('description.pl.unknown', ['shopify']);
+        self::assertSame('description', $col->code);
+        self::assertSame('pl.unknown', $col->locale);
+        self::assertNull($col->channel);
+    }
+
+    #[Test]
     public function resolveArrayReturnsDefinitionsInOrder(): void
     {
         $resolver = new ColumnResolver();

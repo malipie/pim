@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Import\Application\Handler;
 
 use App\Catalog\Domain\Entity\Attribute;
+use App\Import\Application\Service\ImportColumnGrammar;
 use App\Import\Application\Service\ImportObjectCreator;
 use App\Import\Application\Service\ImportProgressPublisher;
 use App\Import\Application\Service\ImportRowDecision;
 use App\Import\Application\Service\ImportRowReader;
 use App\Import\Application\Service\ImportValidationService;
 use App\Import\Application\Service\ObjectResolver;
-use App\Import\Domain\ColumnHeader;
 use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Enum\ImportErrorType;
@@ -63,6 +63,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ImportValidationService $validator,
         private readonly ImportObjectCreator $creator,
         private readonly ObjectResolver $objectResolver,
+        private readonly ImportColumnGrammar $columnGrammar,
         private readonly \App\Catalog\Application\BatchValueWriter $valueWriter,
         private readonly ImportProgressPublisher $progressPublisher,
         private readonly TenantContext $tenantContext,
@@ -248,7 +249,7 @@ final class ImportRunHandler extends AbstractBatchHandler
      *
      * @return list<ResolvedImportValue>
      */
-    private function materialiseValues(array $cells, array $columnMapping): array
+    private function materialiseValues(array $cells, array $columnMapping, Tenant $tenant): array
     {
         $out = [];
         foreach ($columnMapping as $columnHeader => $attributeCode) {
@@ -258,10 +259,17 @@ final class ImportRunHandler extends AbstractBatchHandler
             if ('' === $attributeCode || ReservedMappingTarget::isReserved($attributeCode)) {
                 continue;
             }
+            $parsed = $this->columnGrammar->parse($columnHeader, $tenant);
+            if (null !== $parsed->unknownSuffix) {
+                // The validator already flagged the column; never write a
+                // bogus locale row (pre-1.6 silent corruption).
+                continue;
+            }
             $out[] = new ResolvedImportValue(
                 attributeCode: $attributeCode,
-                locale: ColumnHeader::localeOf($columnHeader),
+                locale: $parsed->locale,
                 rawValue: $cells[$columnHeader] ?? null,
+                channelId: $parsed->channelId,
             );
         }
 
@@ -432,7 +440,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                 static fn (ValidationError $error): bool => $error->isRowBlocking(),
             ));
             $rowOk = [] === $blocking;
-            $resolvedValues = $rowOk ? $this->materialiseValues($cells, $columnMapping) : [];
+            $resolvedValues = $rowOk ? $this->materialiseValues($cells, $columnMapping, $tenant) : [];
             $matchKey = $rowOk ? $this->matchKey($session, $cells, $columnMapping, $resolvedValues, $rowNumber) : '';
             if ('' !== $matchKey) {
                 $matchKeys[] = $matchKey;

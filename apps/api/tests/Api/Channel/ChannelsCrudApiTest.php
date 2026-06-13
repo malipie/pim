@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Channel;
 
+use App\Channel\Domain\Entity\Locale;
+use App\Channel\Domain\Entity\TenantLocale;
+use App\Shared\Domain\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\Uid\Uuid;
 
@@ -56,6 +59,33 @@ final class ChannelsCrudApiTest extends ChannelApiTestCase
             'json' => ['code' => 'INVALID-WITH-DASH', 'name' => 'X'],
         ]);
 
+        self::assertSame(422, $response->getStatusCode());
+    }
+
+    #[Test]
+    public function postRejectsCodeCollidingWithActiveLocale(): void
+    {
+        // IMP2-1.6 (#1469) — a channel code equal to an active locale's short
+        // code would be shadowed by the locale in the import column grammar
+        // (locale wins on collision). Rejected with 422, distinct from the
+        // 409 duplicate-code path.
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $locale = $em->getRepository(Locale::class)->findOneBy(['code' => 'pl_PL']);
+        \assert($locale instanceof Locale);
+        $em->persist(new TenantLocale($locale, false, false, null, 0, $tenant));
+        $em->flush();
+
+        $client = $this->authenticatedClient();
+        $response = $client->request('POST', '/api/channels', [
+            'json' => ['code' => 'pl', 'name' => 'Polski kanał'],
+        ]);
+
+        // 422, not the 409 duplicate path. The 'pl' code passes the charset
+        // regex and is not a duplicate, so the only cause is the locale
+        // collision guard. (The RFC7807 detail is the generic status text in
+        // non-debug CI, so we assert on the status, not the message.)
         self::assertSame(422, $response->getStatusCode());
     }
 

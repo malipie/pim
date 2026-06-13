@@ -143,7 +143,11 @@ final class ImportObjectCreator
             if (null === $valuePayload) {
                 continue;
             }
-            $writes[] = ['attribute' => $attribute, 'envelope' => $valuePayload, 'locale' => $resolved->locale, 'channelId' => null];
+            // channelId was resolved once per session by ImportColumnGrammar
+            // (a dead channel code never reaches here — the grammar emits an
+            // unknownSuffix column error instead). routeScope in the writer
+            // drops it for non-scopable attributes.
+            $writes[] = ['attribute' => $attribute, 'envelope' => $valuePayload, 'locale' => $resolved->locale, 'channelId' => $resolved->channelId];
         }
 
         return $writes;
