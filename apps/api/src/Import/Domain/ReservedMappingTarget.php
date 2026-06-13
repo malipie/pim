@@ -49,11 +49,19 @@ final class ReservedMappingTarget
     public const string ENABLED = '__enabled__';
 
     /**
+     * Link the row's object to its parent (variant → master) by the parent's
+     * `code` (IMP2-1.8). Resolved in the two-pass relation step after all
+     * objects are written, so variant rows may appear before OR after their
+     * master. An unresolved / self / cyclic parent is a row error.
+     */
+    public const string PARENT_SKU = '__parent_sku__';
+
+    /**
      * @return list<string>
      */
     public static function all(): array
     {
-        return [self::SKIP, self::CATEGORY, self::CATEGORY_APPEND, self::STATUS, self::ENABLED];
+        return [self::SKIP, self::CATEGORY, self::CATEGORY_APPEND, self::STATUS, self::ENABLED, self::PARENT_SKU];
     }
 
     /** Both category targets (replace + append). */

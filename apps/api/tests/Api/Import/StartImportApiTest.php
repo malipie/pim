@@ -292,6 +292,73 @@ final class StartImportApiTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function importLinksVariantsToParentRegardlessOfRowOrder(): void
+    {
+        // IMP2-1.8 (AC) — two-pass parent linking: a variant row may appear
+        // BEFORE its master (VAR-2 → MST-2 which is a later row). A missing
+        // parent → row still imports, session partial, warning logged.
+        $this->seedAttributes();
+
+        $csvPath = $this->writeCsv(
+            "sku;name;parent_sku\n"
+            ."MST-1;Master 1;\n"
+            ."VAR-1;Variant 1;MST-1\n"
+            ."VAR-2;Variant 2;MST-2\n"
+            ."MST-2;Master 2;\n"
+            ."VAR-3;Variant 3;GHOST-MASTER\n",
+            'pim-parent-',
+        );
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode([
+                            'sku' => 'sku',
+                            'name' => 'name',
+                            'parent_sku' => '__parent_sku__',
+                        ], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'parent.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame(5, $body['success_count'], 'all five rows create their object');
+            self::assertSame('partial', $body['status'], 'the GHOST parent makes the session partial');
+
+            $em = $this->em();
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $repo = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+
+            $var1 = $repo->findByCode('VAR-1', ObjectKind::Product, $tenant);
+            \assert(null !== $var1);
+            self::assertSame('MST-1', $var1->getParent()?->getCode());
+
+            $var2 = $repo->findByCode('VAR-2', ObjectKind::Product, $tenant);
+            \assert(null !== $var2);
+            self::assertSame('MST-2', $var2->getParent()?->getCode(), 'parent resolved though its row came AFTER');
+
+            $var3 = $repo->findByCode('VAR-3', ObjectKind::Product, $tenant);
+            \assert(null !== $var3);
+            self::assertNull($var3->getParent(), 'missing parent → unparented but still imported');
+
+            $ghostWarning = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM import_logs WHERE message LIKE '%GHOST-MASTER%'",
+            );
+            self::assertSame(1, (int) (\is_scalar($ghostWarning) ? $ghostWarning : 0));
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
     private function writeCsv(string $contents, string $prefix): string
     {
         $path = tempnam(sys_get_temp_dir(), $prefix);

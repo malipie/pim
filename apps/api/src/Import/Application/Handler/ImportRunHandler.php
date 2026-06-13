@@ -15,6 +15,7 @@ use App\Import\Application\Service\ImportRowDecision;
 use App\Import\Application\Service\ImportRowReader;
 use App\Import\Application\Service\ImportValidationService;
 use App\Import\Application\Service\ObjectResolver;
+use App\Import\Application\Service\RelationImportStep;
 use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Enum\ImportErrorType;
@@ -67,6 +68,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ImportValidationService $validator,
         private readonly ImportObjectCreator $creator,
         private readonly ObjectResolver $objectResolver,
+        private readonly RelationImportStep $relationStep,
         private readonly ImportColumnGrammar $columnGrammar,
         private readonly \App\Catalog\Application\BatchValueWriter $valueWriter,
         private readonly \App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface $catalogObjects,
@@ -155,6 +157,10 @@ final class ImportRunHandler extends AbstractBatchHandler
             return;
         }
 
+        // IMP2-1.8: the cross-object link buffer accumulates across all chunks
+        // of THIS run; reset so a long-lived worker never carries stale tuples.
+        $this->relationStep->reset();
+
         $sourcePath = null;
         try {
             $columnMapping = $this->resolveColumnMapping($session);
@@ -205,8 +211,31 @@ final class ImportRunHandler extends AbstractBatchHandler
                 $session = $this->refreshSession($session);
             }
 
+            // IMP2-1.8 — pass 2: wire buffered cross-object links (parent →
+            // master) now that EVERY object exists, so variant rows may appear
+            // before or after their master. resolve() flush+clears in chunks.
+            if ($this->relationStep->hasWork()) {
+                $linkTenant = $session->getTenant();
+                if ($linkTenant instanceof Tenant) {
+                    $linkErrors = $this->relationStep->resolve($session->getTargetObjectType()->getKind(), $linkTenant);
+                    $session = $this->refreshSession($session);
+                    foreach ($linkErrors as $error) {
+                        $session->incrementError();
+                        $this->entityManager->persist(new ImportLog(
+                            importSession: $session,
+                            rowNumber: $error->rowNumber,
+                            level: $error->level,
+                            message: $error->message,
+                            sku: $error->sku,
+                            errorType: $error->errorType->value,
+                            columnName: $error->columnName,
+                            columnValue: $error->columnValue,
+                        ));
+                    }
+                }
+            }
+
             $session->setTotalRows($totalRows);
-            $session = $this->refreshSession($session);
             $session->markCompleted();
             $this->sessions->save($session);
             $this->progressPublisher->completed($session);
@@ -394,6 +423,22 @@ final class ImportRunHandler extends AbstractBatchHandler
     }
 
     /**
+     * IMP2-1.8 — buffer a parent link for pass 2 when the row carries a
+     * non-empty `__parent_sku__` cell. Existence / cycle validation happens
+     * in pass 2 once every object is written.
+     *
+     * @param array<string, string|null> $cells
+     * @param array<string, string>      $columnMapping
+     */
+    private function recordParentLink(string $childSku, array $cells, array $columnMapping, int $rowNumber): void
+    {
+        $parentSku = $this->reservedCell($cells, $columnMapping, ReservedMappingTarget::PARENT_SKU);
+        if (null !== $parentSku) {
+            $this->relationStep->recordParent($childSku, $parentSku, $rowNumber);
+        }
+    }
+
+    /**
      * First non-empty (trimmed) cell whose mapping targets the given reserved
      * marker, or null.
      *
@@ -571,6 +616,9 @@ final class ImportRunHandler extends AbstractBatchHandler
                     );
                     $issues = $created->issues;
                     $session->incrementSuccess();
+                    // IMP2-1.8: buffer the parent link; resolved in pass 2 once
+                    // every object exists (variant row may precede its master).
+                    $this->recordParentLink($this->skuFrom($row['resolvedValues'], $row['rowNumber']), $row['cells'], $columnMapping, $row['rowNumber']);
                 } elseif (ImportRowDecision::Update === $decision && null !== $existing) {
                     $issues = $this->creator->update(
                         $existing,
@@ -581,6 +629,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                     );
                     $session->incrementSuccess();
                     $session->incrementUpdated();
+                    $this->recordParentLink($existing->getCode(), $row['cells'], $columnMapping, $row['rowNumber']);
                     // IMP2-1.7: category replace/append runs after the value
                     // pass (replaceForProduct flushes around the primary index).
                     // Empty cell = untouched (D2), so only collect non-empty.

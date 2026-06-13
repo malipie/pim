@@ -84,6 +84,7 @@ final readonly class AutoMapper
             $reservedTarget = match ($normalised) {
                 'status' => ReservedMappingTarget::STATUS,
                 'enabled' => ReservedMappingTarget::ENABLED,
+                'parentsku' => ReservedMappingTarget::PARENT_SKU,
                 default => null,
             };
             if (null !== $reservedTarget) {

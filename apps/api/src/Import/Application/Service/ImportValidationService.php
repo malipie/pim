@@ -166,6 +166,11 @@ final readonly class ImportValidationService
             if (ReservedMappingTarget::SKIP === $attributeCode || '' === $attributeCode) {
                 continue;
             }
+            // IMP2-1.8 — parent_sku is wired in the two-pass relation step
+            // (existence/cycle checked there, after all objects are written).
+            if (ReservedMappingTarget::PARENT_SKU === $attributeCode) {
+                continue;
+            }
             if (ReservedMappingTarget::isCategory($attributeCode)) {
                 // IMP2-1.7: capture the raw (pipe-separated) category cell;
                 // per-code resolution + CategoryNotFound warnings run after

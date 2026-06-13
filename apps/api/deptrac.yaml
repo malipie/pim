@@ -325,6 +325,11 @@ parameters:
             - App\Import\Domain\Entity\ImportSession
         App\Identity\Infrastructure\Security\ImportSourceVoter:
             - App\Import\Domain\Entity\ImportSource
+        # IMP2-1.8 (#1471) two-pass relation/parent linker
+        App\Import\Application\Service\RelationImportStep:
+            - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\ObjectKind
+            - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface
         App\Import\Application\Service\ImportObjectCreator:
             - App\Catalog\Domain\AttributeType
             - App\Catalog\Domain\Entity\Attribute
