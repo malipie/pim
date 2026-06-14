@@ -100,6 +100,10 @@ final readonly class ImportRollbackService
             $this->reindexQueue->queueAll($affectedIds);
 
             // --- 3. Delete the objects the import created (D11), capture for Meili ---
+            // tenant-safe: every raw DELETE/SELECT below is keyed by
+            // import_session_id (a tenant-scoped session, loaded owner-scoped),
+            // and objects/object_values enforce RLS on app.current_tenant set
+            // via $tenantContext above — no cross-tenant reach.
             $createdIds = $this->createdObjectIds($session);
             $deletedValues = 0;
             $deletedObjects = 0;

@@ -14,6 +14,11 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<ImportUndoLog>
+ *
+ * tenant-safe: every raw query is keyed by import_session_id (a tenant-scoped
+ * session resolved through the owner-scoped session repo) and import_undo_log
+ * itself enforces RLS (tenant_isolation policy on app.current_tenant), so the
+ * undo rows inherit tenant via the FK chain — no cross-tenant reach.
  */
 class DoctrineImportUndoLogRepository extends ServiceEntityRepository implements ImportUndoLogRepositoryInterface
 {
