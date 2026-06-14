@@ -301,9 +301,11 @@ final class ImageDownloadHandlerTest extends CatalogApiTestCase
         $client = $this->authenticatedClient();
         $csvPath = tempnam(sys_get_temp_dir(), 'pim-zcsv-').'.csv';
         file_put_contents($csvPath, "sku;photo\nZIPPROD-1;front.jpg\n");
-        $zipPath = tempnam(sys_get_temp_dir(), 'pim-zfix-').'.zip';
+        $zipPath = tempnam(sys_get_temp_dir(), 'pim-zfix-');
         $zip = new ZipArchive();
-        \assert(true === $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE));
+        if (true !== $zip->open($zipPath, ZipArchive::OVERWRITE)) {
+            throw new RuntimeException('Failed to create test ZIP fixture.');
+        }
         $zip->addFromString('catalog/Front.JPG', $png);
         $zip->close();
 
@@ -512,9 +514,11 @@ final class ImageDownloadHandlerTest extends CatalogApiTestCase
      */
     private function makeZipBytes(array $entries): string
     {
-        $path = tempnam(sys_get_temp_dir(), 'pim-ztest-').'.zip';
+        $path = tempnam(sys_get_temp_dir(), 'pim-ztest-');
         $zip = new ZipArchive();
-        \assert(true === $zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE));
+        if (true !== $zip->open($path, ZipArchive::OVERWRITE)) {
+            throw new RuntimeException('Failed to create test ZIP fixture.');
+        }
         foreach ($entries as $name => $contents) {
             $zip->addFromString($name, $contents);
         }

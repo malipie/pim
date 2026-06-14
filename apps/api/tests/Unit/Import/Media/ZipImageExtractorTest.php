@@ -131,10 +131,18 @@ final class ZipImageExtractorTest extends TestCase
      */
     private function makeZip(array $entries): string
     {
-        $path = tempnam(sys_get_temp_dir(), 'pim-ziptest-').'.zip';
+        // tempnam() creates the file, so OVERWRITE (overwrite-existing) is the
+        // portable open mode — CREATE|OVERWRITE on a non-existent `.zip` path
+        // errors on some libzip builds (CI). Throw explicitly because assert is
+        // a no-op when zend.assertions is off (CI), which would otherwise
+        // surface only as a later "Invalid or uninitialized Zip object".
+        $path = tempnam(sys_get_temp_dir(), 'pim-ziptest-');
         $this->tmpFiles[] = $path;
         $zip = new ZipArchive();
-        \assert(true === $zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE));
+        $opened = $zip->open($path, ZipArchive::OVERWRITE);
+        if (true !== $opened) {
+            throw new RuntimeException('Failed to create test ZIP: '.var_export($opened, true));
+        }
         foreach ($entries as $name => $contents) {
             $zip->addFromString($name, $contents);
         }
