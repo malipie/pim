@@ -235,6 +235,16 @@ final class InMemoryCatalogObjectRepository implements CatalogObjectRepositoryIn
         return $this->bySku[$code] ?? null;
     }
 
+    public function findByCodeInObjectTypes(string $code, array $objectTypeIds, Tenant $tenant): ?CatalogObject
+    {
+        return $this->bySku[$code] ?? null;
+    }
+
+    public function findChildrenByParentIds(array $parentIdsRfc4122, Tenant $tenant): array
+    {
+        return [];
+    }
+
     public function findById(Uuid $id): ?CatalogObject
     {
         return null;

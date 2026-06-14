@@ -106,6 +106,16 @@ final class InMemoryCatalogObjectRepo implements CatalogObjectRepositoryInterfac
         throw new LogicException('not used in this test');
     }
 
+    public function findByCodeInObjectTypes(string $code, array $objectTypeIds, Tenant $tenant): ?CatalogObject
+    {
+        throw new LogicException('not used in this test');
+    }
+
+    public function findChildrenByParentIds(array $parentIdsRfc4122, Tenant $tenant): array
+    {
+        throw new LogicException('not used in this test');
+    }
+
     public function findByKind(ObjectKind $kind, Tenant $tenant): array
     {
         throw new LogicException('not used in this test');

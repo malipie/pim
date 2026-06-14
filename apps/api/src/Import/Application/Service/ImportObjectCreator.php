@@ -200,7 +200,10 @@ final class ImportObjectCreator
             AttributeType::Select => ['option_code' => $raw],
             AttributeType::Multiselect => $this->multiSelectPayload($raw),
             AttributeType::Asset => ['asset_id' => $raw],
-            AttributeType::Relation, AttributeType::Reference => ['object_id' => $raw],
+            // IMP2-1.8: Relation/Reference cells are NOT written as
+            // ObjectValue{object_id} anymore — the two-pass RelationImportStep
+            // resolves their targets by code and writes object_relations rows.
+            AttributeType::Relation, AttributeType::Reference => null,
             default => ['value' => $raw],
         };
     }

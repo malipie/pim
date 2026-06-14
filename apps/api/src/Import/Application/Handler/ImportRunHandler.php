@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Application\Handler;
 
+use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectCategory;
@@ -439,6 +440,38 @@ final class ImportRunHandler extends AbstractBatchHandler
     }
 
     /**
+     * IMP2-1.8 — buffer relation links from Relation/Reference cells for
+     * pass 2. The values were NOT written as ObjectValue (the creator skips
+     * them); their pipe-separated target codes become object_relations rows.
+     *
+     * @param list<ResolvedImportValue> $resolvedValues
+     * @param array<string, Attribute>  $attributesByCode
+     */
+    private function recordRelationLinks(string $sourceSku, array $resolvedValues, array $attributesByCode, int $rowNumber): void
+    {
+        foreach ($resolvedValues as $resolved) {
+            $attribute = $attributesByCode[$resolved->attributeCode] ?? null;
+            if (!$attribute instanceof Attribute) {
+                continue;
+            }
+            if (AttributeType::Relation !== $attribute->getType() && AttributeType::Reference !== $attribute->getType()) {
+                continue;
+            }
+            $raw = $resolved->rawValue;
+            if (null === $raw || '' === $raw) {
+                continue;
+            }
+            $targetCodes = array_values(array_filter(
+                array_map('trim', explode('|', $raw)),
+                static fn (string $code): bool => '' !== $code,
+            ));
+            if ([] !== $targetCodes) {
+                $this->relationStep->recordRelation($sourceSku, $attribute->getCode(), $targetCodes, $rowNumber);
+            }
+        }
+    }
+
+    /**
      * First non-empty (trimmed) cell whose mapping targets the given reserved
      * marker, or null.
      *
@@ -616,9 +649,11 @@ final class ImportRunHandler extends AbstractBatchHandler
                     );
                     $issues = $created->issues;
                     $session->incrementSuccess();
-                    // IMP2-1.8: buffer the parent link; resolved in pass 2 once
-                    // every object exists (variant row may precede its master).
-                    $this->recordParentLink($this->skuFrom($row['resolvedValues'], $row['rowNumber']), $row['cells'], $columnMapping, $row['rowNumber']);
+                    // IMP2-1.8: buffer parent + relation links; resolved in
+                    // pass 2 once every object exists (target row may precede).
+                    $createdSku = $this->skuFrom($row['resolvedValues'], $row['rowNumber']);
+                    $this->recordParentLink($createdSku, $row['cells'], $columnMapping, $row['rowNumber']);
+                    $this->recordRelationLinks($createdSku, $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
                 } elseif (ImportRowDecision::Update === $decision && null !== $existing) {
                     $issues = $this->creator->update(
                         $existing,
@@ -630,6 +665,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                     $session->incrementSuccess();
                     $session->incrementUpdated();
                     $this->recordParentLink($existing->getCode(), $row['cells'], $columnMapping, $row['rowNumber']);
+                    $this->recordRelationLinks($existing->getCode(), $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
                     // IMP2-1.7: category replace/append runs after the value
                     // pass (replaceForProduct flushes around the primary index).
                     // Empty cell = untouched (D2), so only collect non-empty.

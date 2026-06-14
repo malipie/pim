@@ -10,8 +10,11 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\RelationCardinality;
+use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
@@ -354,6 +357,80 @@ final class StartImportApiTest extends CatalogApiTestCase
                 "SELECT COUNT(*) FROM import_logs WHERE message LIKE '%GHOST-MASTER%'",
             );
             self::assertSame(1, (int) (\is_scalar($ghostWarning) ? $ghostWarning : 0));
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function importRelationCellCreatesObjectRelationsNotObjectValues(): void
+    {
+        // IMP2-1.8 (AC) — `REL-A|REL-B` in a Relation cell → 2 object_relations
+        // (position 0,1), and NO ObjectValue{object_id}. Targets follow the
+        // source row, so the two-pass resolves order-independently.
+        $this->seedAttributes();
+
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $productOt = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($productOt instanceof ObjectType);
+
+        $related = new Attribute('related', ['en' => 'Related'], AttributeType::Relation);
+        $related->setRelationTargetObjectTypeIds([$productOt->getId()->toRfc4122()]);
+        $related->setRelationCardinality(RelationCardinality::Many);
+        $em->persist($related);
+        $em->persist(new ObjectTypeAttribute($productOt, $related, false, 3));
+        $em->flush();
+
+        $csvPath = $this->writeCsv(
+            "sku;name;related\nSRC-1;Source;REL-A|REL-B\nREL-A;Target A;\nREL-B;Target B;\n",
+            'pim-rel-',
+        );
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode([
+                            'sku' => 'sku',
+                            'name' => 'name',
+                            'related' => 'related',
+                        ], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'rel.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame('success', $body['status']);
+            self::assertSame(3, $body['success_count']);
+
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $repo = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+            $relations = self::getContainer()->get(ObjectRelationRepositoryInterface::class);
+            $relAttr = self::getContainer()->get(AttributeRepositoryInterface::class)->findByCode('related', $tenant);
+            \assert(null !== $relAttr);
+
+            $src = $repo->findByCode('SRC-1', ObjectKind::Product, $tenant);
+            \assert(null !== $src);
+            $links = $relations->findBySourceAndAttribute($src, $relAttr);
+            self::assertCount(2, $links);
+            self::assertSame(['REL-A', 'REL-B'], array_map(static fn ($l): string => $l->getTarget()->getCode(), $links));
+            self::assertSame([0, 1], array_map(static fn ($l): int => $l->getPosition(), $links));
+
+            $ovCount = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='related' AND o.code='SRC-1'",
+            );
+            self::assertSame(0, (int) (\is_scalar($ovCount) ? $ovCount : 1), 'a Relation cell must NOT write an ObjectValue');
         } finally {
             @unlink($csvPath);
         }

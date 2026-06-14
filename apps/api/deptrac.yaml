@@ -278,9 +278,13 @@ parameters:
         #    Identity internals + Identity voters importing Import entities are
         #    baselined here; #1466 (shared writer core) burns the bulk down.
         App\Export\Application\Builder\ExportBuilder:
+            - App\Catalog\Domain\AttributeType
+            - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Entity\CatalogObject
             - App\Catalog\Domain\Entity\ObjectValue
+            - App\Catalog\Domain\Repository\AttributeRepositoryInterface
             - App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface
+            - App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface
             - App\Catalog\Domain\Repository\ObjectValueRepositoryInterface
         App\Export\Application\Builder\Structural\AttributesGroupsExportBuilder:
             - App\Catalog\Domain\Entity\Attribute
@@ -328,8 +332,11 @@ parameters:
         # IMP2-1.8 (#1471) two-pass relation/parent linker
         App\Import\Application\Service\RelationImportStep:
             - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\Entity\ObjectRelation
             - App\Catalog\Domain\ObjectKind
+            - App\Catalog\Domain\Repository\AttributeRepositoryInterface
             - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface
+            - App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface
         App\Import\Application\Service\ImportObjectCreator:
             - App\Catalog\Domain\AttributeType
             - App\Catalog\Domain\Entity\Attribute
@@ -406,6 +413,7 @@ parameters:
         # status/enabled write — per-chunk category resolve + replace/append.
         App\Import\Application\Handler\ImportRunHandler:
             - App\Catalog\Application\BatchValueWriter
+            - App\Catalog\Domain\AttributeType
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Entity\CatalogObject
             - App\Catalog\Domain\Entity\ObjectCategory

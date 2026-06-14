@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Export\Application\Builder;
 
+use App\Catalog\Domain\AttributeType;
+use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Channel\Contracts\ChannelResolverInterface;
 use App\Export\Domain\Entity\ExportSession;
+use App\Shared\Domain\Tenant;
 use Generator;
 use LogicException;
 
@@ -47,6 +50,8 @@ final class ExportBuilder
         private readonly ColumnResolver $columnResolver,
         private readonly ValueSerializer $serializer,
         private readonly ChannelResolverInterface $channels,
+        private readonly \App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface $relations,
+        private readonly \App\Catalog\Domain\Repository\AttributeRepositoryInterface $attributes,
     ) {
     }
 
@@ -84,10 +89,35 @@ final class ExportBuilder
         // defensive guard for a bypassed preflight.
         $this->assertChannelColumnsResolvable($columns, $channelIdByCode);
 
+        // IMP2-1.8: resolve the attribute behind each attribute column once so
+        // cellFor can route Relation/Reference columns to object_relations.
+        $attributeMap = $this->resolveColumnAttributes($columns, $tenant);
+
         $primaryLocale = $tenant->getPrimaryLocale();
         foreach ($objects as $object) {
-            yield $this->renderRow($object, $columns, $channelIdByCode, $primaryLocale);
+            yield $this->renderRow($object, $columns, $channelIdByCode, $primaryLocale, $attributeMap);
         }
+    }
+
+    /**
+     * @param array<int, ColumnDefinition> $columns
+     *
+     * @return array<string, Attribute>
+     */
+    private function resolveColumnAttributes(array $columns, Tenant $tenant): array
+    {
+        $map = [];
+        foreach ($columns as $column) {
+            if (!$column->isAttribute() || isset($map[$column->code])) {
+                continue;
+            }
+            $attribute = $this->attributes->findByCode($column->code, $tenant);
+            if (null !== $attribute) {
+                $map[$column->code] = $attribute;
+            }
+        }
+
+        return $map;
     }
 
     /**
@@ -111,16 +141,17 @@ final class ExportBuilder
     /**
      * @param array<int, ColumnDefinition> $columns
      * @param array<string, string>        $channelIdByCode channel code => UUID RFC 4122 (#1229)
+     * @param array<string, Attribute>     $attributeMap    attribute column code => Attribute (#1471)
      *
      * @return array<string, string>
      */
-    private function renderRow(CatalogObject $object, array $columns, array $channelIdByCode, string $primaryLocale): array
+    private function renderRow(CatalogObject $object, array $columns, array $channelIdByCode, string $primaryLocale, array $attributeMap): array
     {
         $valueIndex = $this->indexValuesByObject($object);
         $row = [];
 
         foreach ($columns as $column) {
-            $row[$column->key] = $this->cellFor($object, $column, $valueIndex, $channelIdByCode, $primaryLocale);
+            $row[$column->key] = $this->cellFor($object, $column, $valueIndex, $channelIdByCode, $primaryLocale, $attributeMap);
         }
 
         return $row;
@@ -152,6 +183,7 @@ final class ExportBuilder
     /**
      * @param array<string, ObjectValue> $valueIndex
      * @param array<string, string>      $channelIdByCode channel code => UUID RFC 4122 (#1229)
+     * @param array<string, Attribute>   $attributeMap    attribute column code => Attribute (#1471)
      */
     private function cellFor(
         CatalogObject $object,
@@ -159,9 +191,24 @@ final class ExportBuilder
         array $valueIndex,
         array $channelIdByCode,
         string $primaryLocale,
+        array $attributeMap,
     ): string {
         if ($column->isBuiltIn()) {
             return $this->builtIn($object, $column->code);
+        }
+
+        // IMP2-1.8 (D5): Relation/Reference columns emit pipe-joined target
+        // CODES read from object_relations (symmetry with the import, which
+        // writes relations there — not as ObjectValue).
+        $attribute = $attributeMap[$column->code] ?? null;
+        if ($attribute instanceof Attribute
+            && (AttributeType::Relation === $attribute->getType() || AttributeType::Reference === $attribute->getType())) {
+            $codes = [];
+            foreach ($this->relations->findBySourceAndAttribute($object, $attribute) as $relation) {
+                $codes[] = $relation->getTarget()->getCode();
+            }
+
+            return implode(ValueSerializer::MULTI_VALUE_GLUE, $codes);
         }
 
         // #1229: a channel-scoped column narrows the lookup to the channel's
