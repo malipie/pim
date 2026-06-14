@@ -6,6 +6,7 @@ namespace App\Import\Domain\Entity;
 
 use App\Backup\Domain\Entity\Backup;
 use App\Catalog\Domain\Entity\ObjectType;
+use App\Import\Domain\Enum\ImportImageSource;
 use App\Import\Domain\Enum\ImportMode;
 use App\Import\Domain\Enum\ImportSessionStatus;
 use App\Shared\Application\TenantScoped;
@@ -49,6 +50,9 @@ class ImportSession extends AggregateRoot implements TenantScoped
     private ?string $zipFileName = null;
 
     private ?int $zipFileSizeBytes = null;
+
+    /** IMP2-1.13 — media source for Asset cells: http | zip | none. */
+    private string $imageSource = ImportImageSource::None->value;
 
     private ObjectType $targetObjectType;
 
@@ -183,6 +187,16 @@ class ImportSession extends AggregateRoot implements TenantScoped
     public function getZipFileSizeBytes(): ?int
     {
         return $this->zipFileSizeBytes;
+    }
+
+    public function getImageSource(): ImportImageSource
+    {
+        return ImportImageSource::from($this->imageSource);
+    }
+
+    public function setImageSource(ImportImageSource $imageSource): void
+    {
+        $this->imageSource = $imageSource->value;
     }
 
     public function getTargetObjectType(): ObjectType

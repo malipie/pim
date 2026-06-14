@@ -17,6 +17,7 @@ use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Import\Application\Service\ImportProgressPublisher;
 use App\Import\Application\Service\Media\SsrfGuard;
+use App\Import\Application\Service\Media\ZipImageExtractor;
 use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Enum\ImportErrorType;
@@ -28,6 +29,7 @@ use App\Shared\Application\AbstractBatchHandler;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
+use League\Flysystem\FilesystemOperator;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -82,6 +84,7 @@ final class ImageDownloadHandler extends AbstractBatchHandler
         private readonly TenantContext $tenantContext,
         private readonly ImportProgressPublisher $progressPublisher,
         private readonly LoggerInterface $logger,
+        private readonly FilesystemOperator $importsStorage,
     ) {
         parent::__construct($entityManager);
     }
@@ -107,25 +110,68 @@ final class ImageDownloadHandler extends AbstractBatchHandler
         $pendingWrites = [];
         $urlCache = [];
 
-        foreach ($message->jobs as $job) {
-            $ids = [];
-            foreach ($job->urls as $url) {
-                if (isset($urlCache[$url])) {
-                    $ids[] = $urlCache[$url];
-
-                    continue;
+        // IMP2-1.13 — stage the run's ZIP once (streamed from MinIO) and open
+        // the extractor. A zip-bomb / unreadable archive is a SYSTEMIC failure:
+        // fail the session with a clear message rather than per-row.
+        $stagedZip = null;
+        $extractor = null;
+        if (null !== $message->zipStoragePath) {
+            try {
+                $stagedZip = $this->stageZip($message->zipStoragePath);
+                $extractor = new ZipImageExtractor($stagedZip);
+            } catch (Throwable $exception) {
+                if (null !== $stagedZip && is_file($stagedZip)) {
+                    @unlink($stagedZip);
                 }
-                $assetId = $this->fetchAndIngest($job, $url, $pendingLogs);
-                if (null === $assetId) {
-                    ++$failed;
+                $this->failSessionSystemic($message->importSessionId, 'Import ZIP could not be read: '.$exception->getMessage());
 
-                    continue;
-                }
-                $urlCache[$url] = $assetId;
-                $ids[] = $assetId;
-                ++$downloaded;
+                return;
             }
-            $pendingWrites[] = ['job' => $job, 'downloaded' => $ids];
+        }
+
+        try {
+            foreach ($message->jobs as $job) {
+                $ids = [];
+                foreach ($job->urls as $url) {
+                    if (isset($urlCache[$url])) {
+                        $ids[] = $urlCache[$url];
+
+                        continue;
+                    }
+                    $assetId = $this->fetchAndIngest($job, $url, $pendingLogs);
+                    if (null === $assetId) {
+                        ++$failed;
+
+                        continue;
+                    }
+                    $urlCache[$url] = $assetId;
+                    $ids[] = $assetId;
+                    ++$downloaded;
+                }
+                foreach ($job->zipNames as $name) {
+                    $cacheKey = 'zip:'.$name;
+                    if (isset($urlCache[$cacheKey])) {
+                        $ids[] = $urlCache[$cacheKey];
+
+                        continue;
+                    }
+                    $assetId = null !== $extractor ? $this->extractAndIngest($extractor, $job, $name, $pendingLogs) : null;
+                    if (null === $assetId) {
+                        ++$failed;
+
+                        continue;
+                    }
+                    $urlCache[$cacheKey] = $assetId;
+                    $ids[] = $assetId;
+                    ++$downloaded;
+                }
+                $pendingWrites[] = ['job' => $job, 'downloaded' => $ids];
+            }
+        } finally {
+            $extractor?->close();
+            if (null !== $stagedZip && is_file($stagedZip)) {
+                @unlink($stagedZip);
+            }
         }
 
         // ── Phase 2: APPLY (EM may have been cleared by ingest) ──
@@ -164,13 +210,21 @@ final class ImageDownloadHandler extends AbstractBatchHandler
         $rowPhaseDone = \is_array($row) && (bool) $row['row_phase_complete'];
 
         // The batch that drives the counter to zero AFTER the row phase is done
-        // finalizes the session (success / partial).
+        // finalizes the session (success / partial) and removes the now-spent
+        // ZIP from MinIO (IMP2-1.13 item 7 — full TTL sweep is IMP2-2.2).
         if (0 === $pending && $rowPhaseDone) {
             $session = $this->sessions->findById($message->importSessionId);
             if ($session instanceof ImportSession && !$session->getStatus()->isTerminal()) {
                 $session->markCompleted();
                 $this->sessions->save($session);
                 $this->progressPublisher->completed($session);
+            }
+            if (null !== $message->zipStoragePath) {
+                try {
+                    $this->importsStorage->delete($message->zipStoragePath);
+                } catch (Throwable $exception) {
+                    $this->logger->warning('Failed to delete spent import ZIP from storage.', ['path' => $message->zipStoragePath, 'exception' => $exception]);
+                }
             }
         }
     }
@@ -312,6 +366,78 @@ final class ImageDownloadHandler extends AbstractBatchHandler
         $this->tenantContext->set($tenant);
 
         return $tenant;
+    }
+
+    /**
+     * Stream the run's ZIP from MinIO to a local temp path (constant memory).
+     * Caller unlinks. Throws on a missing/unreadable archive (systemic).
+     */
+    private function stageZip(string $storagePath): string
+    {
+        $stream = $this->importsStorage->readStream($storagePath);
+        $local = tempnam(sys_get_temp_dir(), 'pim-zip-src-');
+        if (false === $local) {
+            throw new RuntimeException('Failed to allocate a temp file for the import ZIP.');
+        }
+        $out = fopen($local, 'w');
+        if (false === $out) {
+            throw new RuntimeException('Failed to open the import ZIP temp file.');
+        }
+        try {
+            stream_copy_to_stream($stream, $out);
+        } finally {
+            fclose($out);
+            if (\is_resource($stream)) {
+                fclose($stream);
+            }
+        }
+
+        return $local;
+    }
+
+    /**
+     * @param list<array{job: ImageDownloadJob, type: ImportErrorType, message: string, value: string}> $pendingLogs by ref
+     */
+    private function extractAndIngest(ZipImageExtractor $extractor, ImageDownloadJob $job, string $name, array &$pendingLogs): ?string
+    {
+        $tmp = null;
+        try {
+            $tmp = $extractor->extractToTemp($name);
+            if (null === $tmp) {
+                $pendingLogs[] = ['job' => $job, 'type' => ImportErrorType::ImageNotFound, 'message' => \sprintf('File "%s" was not found in the uploaded ZIP.', $name), 'value' => $name];
+
+                return null;
+            }
+
+            return $this->assetIngestor->ingest($tmp, $name)->assetId->toRfc4122();
+        } catch (UnsupportedMediaFormatException $exception) {
+            $pendingLogs[] = ['job' => $job, 'type' => ImportErrorType::ImageFormatUnsupported, 'message' => \sprintf('ZIP entry "%s": %s', $name, $exception->getMessage()), 'value' => $name];
+
+            return null;
+        } catch (Throwable $exception) {
+            $this->logger->warning('Import ZIP entry ingest failed.', ['name' => $name, 'exception' => $exception]);
+            $pendingLogs[] = ['job' => $job, 'type' => ImportErrorType::ImageNotFound, 'message' => \sprintf('ZIP entry "%s" could not be extracted: %s', $name, $exception->getMessage()), 'value' => $name];
+
+            return null;
+        } finally {
+            if (null !== $tmp && is_file($tmp)) {
+                @unlink($tmp);
+            }
+        }
+    }
+
+    /**
+     * Mark the session failed for a systemic media fault (e.g. zip bomb /
+     * unreadable archive) instead of letting the batch dead-letter.
+     */
+    private function failSessionSystemic(Uuid $sessionId, string $message): void
+    {
+        $session = $this->sessions->findById($sessionId);
+        if ($session instanceof ImportSession && !$session->getStatus()->isTerminal()) {
+            $session->markFailed($message);
+            $this->sessions->save($session);
+            $this->progressPublisher->completed($session);
+        }
     }
 
     private function filenameFor(string $url): string

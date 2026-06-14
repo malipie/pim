@@ -34,6 +34,7 @@ use RuntimeException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Uid\Uuid;
+use ZipArchive;
 
 use const JSON_THROW_ON_ERROR;
 
@@ -287,6 +288,68 @@ final class ImageDownloadHandlerTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function multipartZipImportExtractsLinksAndSetsZipName(): void
+    {
+        // End-to-end through the endpoint: multipart `file` + `zip_file` +
+        // image_source=zip → ZIP staged, filename cell extracted + linked
+        // (sync transport runs the media handler inline).
+        $png = base64_decode(self::PNG, true);
+        \assert(false !== $png);
+        $this->seedSkuAndPhoto();
+
+        $client = $this->authenticatedClient();
+        $csvPath = tempnam(sys_get_temp_dir(), 'pim-zcsv-').'.csv';
+        file_put_contents($csvPath, "sku;photo\nZIPPROD-1;front.jpg\n");
+        $zipPath = tempnam(sys_get_temp_dir(), 'pim-zfix-').'.zip';
+        $zip = new ZipArchive();
+        \assert(true === $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE));
+        $zip->addFromString('catalog/Front.JPG', $png);
+        $zip->close();
+
+        try {
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'photo' => 'photo'], JSON_THROW_ON_ERROR),
+                        'mode' => 'UPSERT',
+                        'image_source' => 'zip',
+                    ],
+                    'files' => [
+                        'file' => new \Symfony\Component\HttpFoundation\File\UploadedFile($csvPath, 'data.csv', 'text/csv', null, true),
+                        'zip_file' => new \Symfony\Component\HttpFoundation\File\UploadedFile($zipPath, 'images.zip', 'application/zip', null, true),
+                    ],
+                ],
+            ]);
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            \assert(\is_array($body));
+            $sessionId = $body['id'];
+            \assert(\is_string($sessionId));
+
+            $em = $this->em();
+            $em->clear();
+            $session = $em->find(ImportSession::class, Uuid::fromString($sessionId));
+            \assert($session instanceof ImportSession);
+            self::assertSame('images.zip', $session->getZipFileName(), 'zip metadata recorded on the session');
+            self::assertNotNull($session->getZipFileSizeBytes());
+            self::assertSame(1, $session->getImagesDownloaded(), 'ZIP entry extracted + ingested inline');
+
+            $envelope = $em->getConnection()->fetchOne(
+                "SELECT ov.value FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='photo' AND o.code='ZIPPROD-1'",
+            );
+            self::assertIsString($envelope);
+            self::assertStringContainsString('asset_id', $envelope);
+            self::assertStringNotContainsString('front.jpg', $envelope, 'filename never lands raw in JSONB');
+            $links = $em->getConnection()->fetchOne("SELECT COUNT(*) FROM product_assets pa JOIN objects o ON o.id=pa.product_id WHERE o.code='ZIPPROD-1'");
+            self::assertSame(1, (int) (\is_scalar($links) ? $links : 0));
+        } finally {
+            @unlink($csvPath);
+            @unlink($zipPath);
+        }
+    }
+
     private function seedSkuAndPhoto(): void
     {
         $em = $this->em();
@@ -377,6 +440,88 @@ final class ImageDownloadHandlerTest extends CatalogApiTestCase
             $c->get(TenantContext::class),
             $c->get(ImportProgressPublisher::class),
             new NullLogger(),
+            $c->get('imports.storage'),
         );
+    }
+
+    #[Test]
+    public function extractsFromZipLinksAndWritesEnvelope(): void
+    {
+        $png = base64_decode(self::PNG, true);
+        \assert(false !== $png);
+        [$sessionId, $objectId] = $this->seed();
+
+        // Stage a ZIP (with one image) in the imports storage + point the
+        // message at it; the handler streams it down and extracts by filename.
+        $zipBytes = $this->makeZipBytes(['catalog/Front.JPG' => $png]);
+        $tenantId = $this->tenantId()->toRfc4122();
+        $zipPath = $tenantId.'/'.$sessionId->toRfc4122().'/images.zip';
+        self::getContainer()->get('imports.storage')->write($zipPath, $zipBytes);
+
+        $job = new ImageDownloadJob($objectId, 'photo', null, null, [], [], 2, 'MED-1', ['front.jpg']);
+        $handler = $this->handler(new MockHttpClient([]));
+        $handler(new ImageDownloadMessage($sessionId, $this->tenantId(), [$job], $zipPath));
+
+        $em = $this->em();
+        $em->clear();
+        $session = $em->find(ImportSession::class, $sessionId);
+        \assert($session instanceof ImportSession);
+        self::assertSame(1, $session->getImagesDownloaded(), 'ZIP entry counts as a downloaded image');
+        self::assertSame(ImportSessionStatus::Success, $session->getStatus());
+
+        $envelope = $em->getConnection()->fetchOne(
+            "SELECT ov.value FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id WHERE a.code='photo' AND ov.object_id = :p",
+            ['p' => $objectId],
+        );
+        self::assertIsString($envelope);
+        $decoded = json_decode($envelope, true, 512, JSON_THROW_ON_ERROR);
+        \assert(\is_array($decoded));
+        self::assertArrayHasKey('asset_id', $decoded);
+        $links = $em->getConnection()->fetchOne('SELECT COUNT(*) FROM product_assets WHERE product_id = :p', ['p' => $objectId]);
+        self::assertSame(1, (int) (\is_scalar($links) ? $links : 0));
+
+        // The spent ZIP is removed from storage on finalize.
+        self::assertFalse(self::getContainer()->get('imports.storage')->fileExists($zipPath), 'spent ZIP deleted');
+    }
+
+    #[Test]
+    public function missingZipEntryIsImageNotFound(): void
+    {
+        $png = base64_decode(self::PNG, true);
+        \assert(false !== $png);
+        [$sessionId, $objectId] = $this->seed();
+        $zipBytes = $this->makeZipBytes(['other.jpg' => $png]);
+        $zipPath = $this->tenantId()->toRfc4122().'/'.$sessionId->toRfc4122().'/images.zip';
+        self::getContainer()->get('imports.storage')->write($zipPath, $zipBytes);
+
+        $job = new ImageDownloadJob($objectId, 'photo', null, null, [], [], 2, 'MED-1', ['absent.jpg']);
+        $handler = $this->handler(new MockHttpClient([]));
+        $handler(new ImageDownloadMessage($sessionId, $this->tenantId(), [$job], $zipPath));
+
+        $em = $this->em();
+        $em->clear();
+        $session = $em->find(ImportSession::class, $sessionId);
+        \assert($session instanceof ImportSession);
+        self::assertSame(1, $session->getImagesFailed());
+        $logs = $em->getConnection()->fetchOne("SELECT COUNT(*) FROM import_logs WHERE error_type='image_not_found' AND import_session_id = :s", ['s' => $sessionId->toRfc4122()]);
+        self::assertSame(1, (int) (\is_scalar($logs) ? $logs : 0));
+    }
+
+    /**
+     * @param array<string, string> $entries
+     */
+    private function makeZipBytes(array $entries): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'pim-ztest-').'.zip';
+        $zip = new ZipArchive();
+        \assert(true === $zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE));
+        foreach ($entries as $name => $contents) {
+            $zip->addFromString($name, $contents);
+        }
+        $zip->close();
+        $bytes = (string) file_get_contents($path);
+        @unlink($path);
+
+        return $bytes;
     }
 }

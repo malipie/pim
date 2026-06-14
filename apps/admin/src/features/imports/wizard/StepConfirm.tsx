@@ -51,6 +51,11 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
     formData.set('delimiter', state.delimiter);
     formData.set('do_backup', state.doBackup ? '1' : '0');
     formData.set('mode', state.mode);
+    // IMP2-1.13 — image source + optional ZIP of images (was never sent before).
+    formData.set('image_source', state.imageSource);
+    if (state.imageSource === 'zip' && state.zipFile) {
+      formData.append('zip_file', state.zipFile);
+    }
 
     jsonFetch<{ id: string }>('/api/import-sessions', {
       method: 'POST',

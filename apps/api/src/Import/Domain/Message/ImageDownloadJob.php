@@ -17,7 +17,8 @@ final readonly class ImageDownloadJob
 {
     /**
      * @param list<string> $existingUuids already-classified existing asset UUIDs (RFC 4122)
-     * @param list<string> $urls          http(s) image URLs to download
+     * @param list<string> $urls          http(s) image URLs to download (http mode)
+     * @param list<string> $zipNames      filenames to extract from the run's ZIP (zip mode, IMP2-1.13)
      */
     public function __construct(
         public string $objectId,
@@ -28,6 +29,7 @@ final readonly class ImageDownloadJob
         public array $urls,
         public int $rowNumber,
         public ?string $sku,
+        public array $zipNames = [],
     ) {
     }
 }

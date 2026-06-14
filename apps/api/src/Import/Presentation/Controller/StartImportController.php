@@ -14,6 +14,7 @@ use App\Identity\Domain\Entity\User;
 use App\Import\Application\Handler\ImportRunHandler;
 use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Entity\ImportSession;
+use App\Import\Domain\Enum\ImportImageSource;
 use App\Import\Domain\Enum\ImportMode;
 use App\Import\Domain\Message\ImportRunMessage;
 use App\Import\Domain\Repository\ImportProfileRepositoryInterface;
@@ -36,6 +37,7 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
@@ -57,6 +59,9 @@ use Symfony\Component\Uid\Uuid;
 final class StartImportController
 {
     private const int SYNC_THRESHOLD_ROWS = 50;
+
+    /** IMP2-1.13 — server-side ZIP upload cap (D13). */
+    private const int MAX_ZIP_BYTES = 500 * 1024 * 1024;
 
     public function __construct(
         private readonly ImportSessionRepositoryInterface $sessions,
@@ -114,12 +119,31 @@ final class StartImportController
             // XLSX is a zip — line counting is meaningless; spreadsheets
             // always take the worker path (cheap now that dev runs one).
             : self::SYNC_THRESHOLD_ROWS + 1;
+        // IMP2-1.13 — optional ZIP of images. Validate extension + 500 MB cap
+        // server-side (FE pre-validates too); the bytes are streamed to MinIO
+        // after the session is persisted.
+        $zipFile = $request->files->get('zip_file');
+        $zipName = null;
+        $zipSize = null;
+        if ($zipFile instanceof UploadedFile) {
+            $zipName = $zipFile->getClientOriginalName();
+            if ('' === $zipName || !str_ends_with(strtolower($zipName), '.zip')) {
+                throw new BadRequestHttpException('"zip_file" must be a .zip archive.');
+            }
+            $zipSize = (int) $zipFile->getSize();
+            if ($zipSize > self::MAX_ZIP_BYTES) {
+                throw new UnprocessableEntityHttpException(\sprintf('ZIP exceeds the %d MB limit.', self::MAX_ZIP_BYTES >> 20));
+            }
+        }
+
         $session = new ImportSession(
             userId: $user->getId(),
             targetObjectType: $objectType,
             fileName: $originalName,
             fileSizeBytes: (int) $file->getSize(),
             profile: $profile,
+            zipFileName: $zipName,
+            zipFileSizeBytes: $zipSize,
         );
 
         $mode = $this->resolveMode($request->request->get('mode'), $profile);
@@ -130,6 +154,14 @@ final class StartImportController
         );
         $session->configureRun($mode, $matchAttributeCode);
         $session->setColumnMapping($mapping);
+        // IMP2-1.13 — a ZIP forces zip mode; otherwise honour the wizard's
+        // image_source (http|none). http behaves like none for the engine
+        // (URL cells are auto-detected), so only `zip` changes routing.
+        $session->setImageSource(
+            null !== $zipName
+                ? ImportImageSource::Zip
+                : (ImportImageSource::tryFrom((string) $request->request->get('image_source', 'none')) ?? ImportImageSource::None),
+        );
 
         // Persist before upload so a later upload failure has a session id
         // to attach to (status stays `pending`, error_message captures
@@ -156,6 +188,26 @@ final class StartImportController
             $session->markFailed(\sprintf('Failed to stage uploaded file: %s', $exception->getMessage()));
             $this->sessions->save($session);
             throw new BadRequestHttpException('Failed to stage the uploaded file.', $exception);
+        }
+
+        // IMP2-1.13 — stage the ZIP next to the data file (same tenant/session
+        // prefix); the media handler downloads + extracts it after the row phase.
+        if ($zipFile instanceof UploadedFile) {
+            $zipRemotePath = \sprintf('%s/%s/%s', $tenant->getId()->toRfc4122(), $session->getId()->toRfc4122(), $zipName);
+            try {
+                $zipStream = fopen($zipFile->getPathname(), 'r');
+                if (false === $zipStream) {
+                    throw new RuntimeException('Failed to open uploaded ZIP for reading.');
+                }
+                $this->importsStorage->writeStream($zipRemotePath, $zipStream);
+                if (\is_resource($zipStream)) {
+                    fclose($zipStream);
+                }
+            } catch (FilesystemException|RuntimeException $exception) {
+                $session->markFailed(\sprintf('Failed to stage uploaded ZIP: %s', $exception->getMessage()));
+                $this->sessions->save($session);
+                throw new BadRequestHttpException('Failed to stage the uploaded ZIP.', $exception);
+            }
         }
 
         // Spec decision §3: <50 rows runs inline so the operator does not
