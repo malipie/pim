@@ -2499,6 +2499,12 @@
       "preview_empty": "— wybierz kolumny —",
       "apply": "Zastosuj",
       "mock_tooltip": "MOCK — konkatenacja server-side wymaga rozszerzenia kontraktu mappingu (backlog NUI-10)"
+    },
+    "controls": {
+      "pause": "Pauza",
+      "resume": "Wznów",
+      "cancel": "Anuluj",
+      "action_failed": "Akcja nie powiodła się"
     }
   },
   "rbac": {

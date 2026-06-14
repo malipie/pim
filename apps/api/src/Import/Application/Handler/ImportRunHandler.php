@@ -23,6 +23,7 @@ use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Enum\ImportErrorType;
 use App\Import\Domain\Enum\ImportImageSource;
 use App\Import\Domain\Enum\ImportLogLevel;
+use App\Import\Domain\Enum\ImportSessionStatus;
 use App\Import\Domain\Message\ImageDownloadJob;
 use App\Import\Domain\Message\ImageDownloadMessage;
 use App\Import\Domain\Message\ImportRunMessage;
@@ -154,6 +155,14 @@ final class ImportRunHandler extends AbstractBatchHandler
             return;
         }
 
+        // IMP2-2.3 — a message redelivered for a session the operator PAUSED
+        // (and did not resume) must NOT auto-resume. Resume re-dispatches with
+        // the status already flipped to `running`, so a still-`paused` status
+        // here means "leave it paused" — drop the message without running.
+        if (ImportSessionStatus::Paused === $session->getStatus()) {
+            return;
+        }
+
         // PROD-05 — at-most-one bulk job per tenant. Non-blocking acquire;
         // on collision raise a domain exception so the caller decides
         // (controller -> 409 Conflict, async handler -> recoverable
@@ -177,6 +186,12 @@ final class ImportRunHandler extends AbstractBatchHandler
         // IMP2-1.8: the cross-object link buffer accumulates across all chunks
         // of THIS run; reset so a long-lived worker never carries stale tuples.
         $this->relationStep->reset();
+
+        // IMP2-2.3 — resume point: a prior (paused/crashed) run left a checkpoint.
+        // Rows at/below it are already written, so we skip their writes (still
+        // re-buffering their cross-object links for pass 2) and keep the
+        // persisted counters. 0 on a fresh run.
+        $resumeFrom = $session->getCheckpointOffset() ?? 0;
 
         $sourcePath = null;
         try {
@@ -213,9 +228,15 @@ final class ImportRunHandler extends AbstractBatchHandler
                     continue;
                 }
 
-                $processed += $this->processChunk($session, $tenant, $buffer, $columnMapping, $attributesByCode, $skuSeenInFile, $identifierSeenInFile, $mediaJobs);
+                $chunkLastRow = $buffer[array_key_last($buffer)]['rowNumber'];
+                $processed += $this->processChunk($session, $tenant, $buffer, $columnMapping, $attributesByCode, $skuSeenInFile, $identifierSeenInFile, $mediaJobs, $resumeFrom);
                 $buffer = [];
 
+                // IMP2-2.3 — record the checkpoint on the still-managed session
+                // BEFORE the flush, so the chunk's rows AND the checkpoint commit
+                // in the SAME transaction. A crash between commit and a separate
+                // checkpoint save would otherwise re-process committed rows.
+                $session->recordCheckpoint($chunkLastRow, 'rows');
                 $this->flushAndClear();
                 // After clear() every previously-loaded entity is detached —
                 // re-merge by reloading the session and tenant, replaying the
@@ -229,24 +250,50 @@ final class ImportRunHandler extends AbstractBatchHandler
                     ));
                 }
                 $this->tenantContext->set($tenant);
+
+                // Extend the bulk lock so a long import outlives the TTL, then
+                // honour a pause/cancel the endpoint persisted during this chunk
+                // (the refreshed session carries the just-written status).
+                $lock->refresh();
+                if ($this->haltRequested($session)) {
+                    $this->progressPublisher->progress($session, $processed, null);
+
+                    return;
+                }
+
                 $attributesByCode = $this->validator->loadAttributesByCode($tenant, $columnMapping);
                 $this->progressPublisher->progress($session, $processed, null);
             }
 
             if ([] !== $buffer) {
-                $processed += $this->processChunk($session, $tenant, $buffer, $columnMapping, $attributesByCode, $skuSeenInFile, $identifierSeenInFile, $mediaJobs);
+                $chunkLastRow = $buffer[array_key_last($buffer)]['rowNumber'];
+                $processed += $this->processChunk($session, $tenant, $buffer, $columnMapping, $attributesByCode, $skuSeenInFile, $identifierSeenInFile, $mediaJobs, $resumeFrom);
+                $session->recordCheckpoint($chunkLastRow, 'rows');
                 $this->flushAndClear();
                 $session = $this->refreshSession($session);
+                $lock->refresh();
+                if ($this->haltRequested($session)) {
+                    $this->progressPublisher->progress($session, $processed, null);
+
+                    return;
+                }
             }
 
             // IMP2-1.8 — pass 2: wire buffered cross-object links (parent →
             // master) now that EVERY object exists, so variant rows may appear
             // before or after their master. resolve() flush+clears in chunks.
             if ($this->relationStep->hasWork()) {
+                // IMP2-2.3 — mark the relation phase: a crash/redelivery here
+                // resumes with offset = totalRows, so every row is re-buffered
+                // (links only) and the idempotent pass 2 re-runs cleanly.
+                $session->recordCheckpoint($totalRows, 'relations');
+                $this->sessions->save($session);
                 $linkTenant = $session->getTenant();
                 if ($linkTenant instanceof Tenant) {
                     $linkErrors = $this->relationStep->resolve($session->getTargetObjectType()->getKind(), $linkTenant);
                     $session = $this->refreshSession($session);
+                    // Extend the lock past the (potentially long) relation pass.
+                    $lock->refresh();
                     foreach ($linkErrors as $error) {
                         $session->incrementError();
                         $this->entityManager->persist(new ImportLog(
@@ -263,6 +310,15 @@ final class ImportRunHandler extends AbstractBatchHandler
                 }
             }
 
+            // IMP2-2.3 — a pause/cancel that landed during pass 2 stops here;
+            // the checkpoint (relations) lets a resume re-run the idempotent
+            // link pass without touching already-written rows.
+            if ($this->haltRequested($session)) {
+                $this->progressPublisher->progress($session, $processed, null);
+
+                return;
+            }
+
             $session->setTotalRows($totalRows);
             $this->sessions->save($session);
 
@@ -272,8 +328,22 @@ final class ImportRunHandler extends AbstractBatchHandler
             // does it right here when there is no media / sync already drained
             // the batches.
             $session = $this->dispatchMediaBatches($session, $mediaJobs);
+
+            // IMP2-2.3 — a pause/cancel may have landed during the relation pass
+            // or media dispatch; dispatchMediaBatches can return a stale session
+            // (no media jobs), so read the COMMITTED status straight from the DB
+            // and never force a paused/cancelled session into a terminal state.
+            if ($this->persistedStatusHalts($session)) {
+                $this->progressPublisher->progress($session, $processed, null);
+
+                return;
+            }
+
             $session->markRowPhaseComplete();
-            if ($session->canFinalizeMedia() && !$session->getStatus()->isTerminal()) {
+            if ($session->canFinalizeMedia() && ImportSessionStatus::Running === $session->getStatus()) {
+                // Fully processed — drop the resume marker only now that we are
+                // committing the terminal state.
+                $session->clearCheckpoint();
                 $session->markCompleted();
                 $this->sessions->save($session);
                 $this->progressPublisher->completed($session);
@@ -589,7 +659,12 @@ final class ImportRunHandler extends AbstractBatchHandler
             return;
         }
         $session = $em->find(ImportSession::class, $sessionId);
-        if (!$session instanceof ImportSession || $session->getStatus()->isTerminal()) {
+        // IMP2-2.3 — Paused is NOT terminal but the operator's intent must win:
+        // a pause that landed just before a late exception must not be
+        // overwritten with failed/partial. (Cancelled is already terminal.)
+        if (!$session instanceof ImportSession
+            || $session->getStatus()->isTerminal()
+            || ImportSessionStatus::Paused === $session->getStatus()) {
             return;
         }
 
@@ -951,6 +1026,37 @@ final class ImportRunHandler extends AbstractBatchHandler
      * so any further state mutation has to happen on a fresh managed
      * instance. Repository lookup re-merges and keeps counters live.
      */
+    /**
+     * IMP2-2.3 — true once the operator pressed Pauza / Anuluj: the per-chunk
+     * refresh reloaded the status the endpoint persisted. The handler then
+     * stops gracefully (checkpoint already saved) and the lock releases in the
+     * finally block, leaving the session paused/cancelled rather than failed.
+     */
+    private function haltRequested(ImportSession $session): bool
+    {
+        $status = $session->getStatus();
+
+        return ImportSessionStatus::Paused === $status || ImportSessionStatus::Cancelled === $status;
+    }
+
+    /**
+     * IMP2-2.3 — read the COMMITTED status straight from the DB (not the
+     * possibly-stale in-memory entity). Used at finalization, where
+     * dispatchMediaBatches() may return a session that was never re-merged, so
+     * a pause/cancel persisted by the endpoint during media dispatch would be
+     * invisible to {@see haltRequested()} and the session wrongly completed.
+     */
+    private function persistedStatusHalts(ImportSession $session): bool
+    {
+        $status = $this->entityManager->getConnection()->fetchOne(
+            'SELECT status FROM import_sessions WHERE id = :id',
+            ['id' => $session->getId()->toRfc4122()],
+        );
+
+        return ImportSessionStatus::Paused->value === $status
+            || ImportSessionStatus::Cancelled->value === $status;
+    }
+
     private function refreshSession(ImportSession $session): ImportSession
     {
         $reloaded = $this->sessions->findById($session->getId());
@@ -981,6 +1087,7 @@ final class ImportRunHandler extends AbstractBatchHandler
      * @param array<string, int>                                             $skuSeenInFile
      * @param array<string, array<string, int>>                              $identifierSeenInFile attributeCode → (value → rowNumber)
      * @param list<ImageDownloadJob>                                         $mediaJobs            accumulated across chunks (IMP2-1.12), by ref
+     * @param int                                                            $resumeFrom           IMP2-2.3 — rows ≤ this were written by a prior run: skip their writes, re-buffer links only
      */
     private function processChunk(
         ImportSession $session,
@@ -991,6 +1098,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         array &$skuSeenInFile,
         array &$identifierSeenInFile,
         array &$mediaJobs,
+        int $resumeFrom = 0,
     ): int {
         // Pass 1 — validate rows and gather match keys for the batch resolve.
         /** @var list<array{rowNumber: int, cells: array<string, string|null>, sku: ?string, errors: list<ValidationError>, rowOk: bool, resolvedValues: list<ResolvedImportValue>, matchKey: string, duplicateInFile: bool}> $prepared */
@@ -1081,6 +1189,28 @@ final class ImportRunHandler extends AbstractBatchHandler
 
         // Pass 2 — decide + write per row.
         foreach ($prepared as $row) {
+            // IMP2-2.3 — this row was already written by a prior (paused/crashed)
+            // run: leave the persisted counters + logs untouched and skip the
+            // write, but re-buffer its cross-object links so pass 2 still wires
+            // variants/relations whose master may live in a not-yet-skipped row.
+            if ($resumeFrom > 0 && $row['rowNumber'] <= $resumeFrom) {
+                if ($row['rowOk']) {
+                    // Use the object's REAL code: a row matched by a non-code
+                    // identifier (matchAttributeCode) updates an object whose
+                    // code differs from the SKU cell, so links must key on the
+                    // existing code (mirrors the Update branch) — falling back
+                    // to the SKU only for a fresh create.
+                    $existing = $existingByKey[$row['matchKey']] ?? null;
+                    $code = null !== $existing
+                        ? $existing->getCode()
+                        : $this->skuFrom($row['resolvedValues'], $row['rowNumber']);
+                    $this->recordParentLink($code, $row['cells'], $columnMapping, $row['rowNumber']);
+                    $this->recordRelationLinks($code, $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
+                }
+
+                continue;
+            }
+
             $errors = $row['errors'];
             $issues = [];
 

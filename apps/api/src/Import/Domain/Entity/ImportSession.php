@@ -94,6 +94,19 @@ class ImportSession extends AggregateRoot implements TenantScoped
      */
     private bool $rowPhaseComplete = false;
 
+    /**
+     * IMP2-2.3 — crash/pause checkpoint: the last data-row index whose chunk
+     * was flushed. A resumed run skips writes at or below this offset (the
+     * objects already exist) and continues the persisted counters, so a
+     * pause/resume or a redelivered message does not duplicate rows.
+     */
+    private ?int $checkpointOffset = null;
+
+    /** IMP2-2.3 — phase the checkpoint belongs to: `rows` | `relations`. */
+    private ?string $checkpointPhase = null;
+
+    private ?DateTimeImmutable $pausedAt = null;
+
     private ?DateTimeImmutable $startedAt = null;
 
     private ?DateTimeImmutable $completedAt = null;
@@ -396,8 +409,16 @@ class ImportSession extends AggregateRoot implements TenantScoped
 
     public function markRunning(): void
     {
-        $this->ensureTransitionable([ImportSessionStatus::Pending, ImportSessionStatus::Paused]);
+        // IMP2-2.3 — Running is accepted as a no-op so a redelivered message
+        // or a resume that already flipped the status to running re-enters the
+        // handler idempotently (instead of throwing → early-return → stuck run).
+        $this->ensureTransitionable([
+            ImportSessionStatus::Pending,
+            ImportSessionStatus::Paused,
+            ImportSessionStatus::Running,
+        ]);
         $this->status = ImportSessionStatus::Running->value;
+        $this->pausedAt = null;
         if (null === $this->startedAt) {
             $this->startedAt = new DateTimeImmutable();
         }
@@ -407,6 +428,7 @@ class ImportSession extends AggregateRoot implements TenantScoped
     {
         $this->ensureTransitionable([ImportSessionStatus::Running]);
         $this->status = ImportSessionStatus::Paused->value;
+        $this->pausedAt = new DateTimeImmutable();
     }
 
     public function markCancelled(): void
@@ -466,6 +488,37 @@ class ImportSession extends AggregateRoot implements TenantScoped
         }
 
         return $this->rollbackUntil > ($now ?? new DateTimeImmutable());
+    }
+
+    public function getCheckpointOffset(): ?int
+    {
+        return $this->checkpointOffset;
+    }
+
+    public function getCheckpointPhase(): ?string
+    {
+        return $this->checkpointPhase;
+    }
+
+    /**
+     * IMP2-2.3 — record progress so a resume/redelivery can skip already-done
+     * work. Called after each flushed chunk with the highest row index it held.
+     */
+    public function recordCheckpoint(int $offset, string $phase): void
+    {
+        $this->checkpointOffset = $offset;
+        $this->checkpointPhase = $phase;
+    }
+
+    public function clearCheckpoint(): void
+    {
+        $this->checkpointOffset = null;
+        $this->checkpointPhase = null;
+    }
+
+    public function getPausedAt(): ?DateTimeImmutable
+    {
+        return $this->pausedAt;
     }
 
     /**

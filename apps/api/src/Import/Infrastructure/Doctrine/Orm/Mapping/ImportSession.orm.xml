@@ -90,6 +90,10 @@
             </options>
         </field>
 
+        <field name="checkpointOffset" type="integer" column="checkpoint_offset" nullable="true"/>
+        <field name="checkpointPhase" type="string" length="16" column="checkpoint_phase" nullable="true"/>
+        <field name="pausedAt" type="datetime_immutable" column="paused_at" nullable="true"/>
+
         <field name="startedAt" type="datetime_immutable" column="started_at" nullable="true"/>
         <field name="completedAt" type="datetime_immutable" column="completed_at" nullable="true"/>
         <field name="rollbackUntil" type="datetime_immutable" column="rollback_until" nullable="true"/>

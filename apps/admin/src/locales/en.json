@@ -2449,6 +2449,12 @@
       "preview_empty": "— pick columns —",
       "apply": "Apply",
       "mock_tooltip": "MOCK — server-side concatenation needs a mapping contract extension (NUI-10 backlog)"
+    },
+    "controls": {
+      "pause": "Pause",
+      "resume": "Resume",
+      "cancel": "Cancel",
+      "action_failed": "Action failed"
     }
   },
   "rbac": {

@@ -16,6 +16,7 @@ import {
   StagePipeline,
 } from '@/features/imports/primitives';
 import { downloadWithAuth } from '@/lib/download';
+import { HttpError, jsonFetch } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
 interface ImportSession {
@@ -58,6 +59,28 @@ export function ImportShowPage(): React.ReactElement {
   });
   const progress = useImportProgress(sessionId);
   const logRef = React.useRef<HTMLDivElement | null>(null);
+  const [actionPending, setActionPending] = React.useState(false);
+
+  // IMP2-2.3 — pause / resume / cancel a running import. The endpoints flip
+  // the persisted status (resume also re-dispatches the worker); the handler
+  // honours it at the next chunk boundary.
+  const handleStateAction = async (action: 'pause' | 'resume' | 'cancel'): Promise<void> => {
+    if (sessionId === null) {
+      return;
+    }
+    setActionPending(true);
+    try {
+      await jsonFetch(`/api/import-sessions/${sessionId}/${action}`, { method: 'POST' });
+      await query.refetch();
+    } catch (err: unknown) {
+      const suffix = err instanceof HttpError ? ` (HTTP ${err.status})` : '';
+      toast.error(
+        t('imports.controls.action_failed', { defaultValue: 'Akcja nie powiodła się' }) + suffix,
+      );
+    } finally {
+      setActionPending(false);
+    }
+  };
 
   const handleDownloadReport = async () => {
     try {
@@ -137,6 +160,43 @@ export function ImportShowPage(): React.ReactElement {
 
       {!isTerminal && (
         <div className="space-y-4 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">
+          <div
+            className="flex flex-wrap items-center justify-end gap-2"
+            data-testid="import-controls"
+          >
+            {session.status === 'running' && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={actionPending}
+                onClick={() => handleStateAction('pause')}
+              >
+                {t('imports.controls.pause', { defaultValue: 'Pauza' })}
+              </Button>
+            )}
+            {session.status === 'paused' && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={actionPending}
+                onClick={() => handleStateAction('resume')}
+              >
+                {t('imports.controls.resume', { defaultValue: 'Wznów' })}
+              </Button>
+            )}
+            {(session.status === 'running' ||
+              session.status === 'paused' ||
+              session.status === 'pending') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={actionPending}
+                onClick={() => handleStateAction('cancel')}
+              >
+                {t('imports.controls.cancel', { defaultValue: 'Anuluj' })}
+              </Button>
+            )}
+          </div>
           <div className="flex items-center justify-between text-sm">
             <span className="num font-medium">
               {processed} / {total > 0 ? total : '?'} ({pct}%)

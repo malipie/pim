@@ -7,7 +7,10 @@ namespace App\Import\Presentation\Controller;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Domain\Entity\ImportSession;
+use App\Import\Domain\Message\ImportRunMessage;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
+use App\Shared\Domain\Tenant;
+use App\Shared\Infrastructure\Messenger\Stamp\TenantStamp;
 use InvalidArgumentException;
 use LogicException;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -16,6 +19,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
@@ -33,6 +37,7 @@ final class ImportSessionStateController
     public function __construct(
         private readonly ImportSessionRepositoryInterface $sessions,
         private readonly Security $security,
+        private readonly MessageBusInterface $bus,
     ) {
     }
 
@@ -72,6 +77,20 @@ final class ImportSessionStateController
             throw new ConflictHttpException($exception->getMessage());
         }
         $this->sessions->save($session);
+
+        // IMP2-2.3 — re-dispatch the run so the worker picks the session back
+        // up from its checkpoint. Just flipping the status (the MVP behaviour)
+        // was a no-op once the handler had already exited on pause.
+        $tenant = $session->getTenant();
+        if ($tenant instanceof Tenant) {
+            $this->bus->dispatch(
+                new ImportRunMessage(
+                    importSessionId: $session->getId(),
+                    tenantId: $tenant->getId(),
+                ),
+                [new TenantStamp($tenant->getId())],
+            );
+        }
 
         return $this->respond($session);
     }
