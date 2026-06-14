@@ -20,14 +20,18 @@ use App\Export\Domain\Enum\ExportEntityType;
 use App\Export\Domain\Enum\ExportFormat;
 use App\Export\Domain\Enum\ExportSource;
 use App\Export\Domain\Enum\ExportTargetScope;
+use App\Import\Domain\Entity\ImportSession;
+use App\Import\Domain\Enum\ImportSessionStatus;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use App\Tests\Api\Catalog\CatalogApiTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Uid\Uuid;
 
 use const JSON_THROW_ON_ERROR;
+use const PATHINFO_EXTENSION;
 
 /**
  * IMP2-1.5 (#1467, ADR-0019) — GOLDEN ROUND-TRIP v0: the REAL exporter
@@ -72,8 +76,22 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         'gr_metric' => [AttributeType::Metric, ['value' => 0.75, 'unit' => 'kg']],
     ];
 
+    /**
+     * IMP2-1.10 — the full matrix rides BOTH serialisation formats through the
+     * real export → import engine. Same seeding, same envelope-equality
+     * contract; only the writer/reader (CSV vs PhpSpreadsheet xlsx) differ.
+     *
+     * @return iterable<string, array{ExportFormat}>
+     */
+    public static function formats(): iterable
+    {
+        yield 'csv' => [ExportFormat::Csv];
+        yield 'xlsx' => [ExportFormat::Xlsx];
+    }
+
     #[Test]
-    public function exportedCsvReimportsWithEnvelopeEquality(): void
+    #[DataProvider('formats')]
+    public function exportedFileReimportsWithEnvelopeEquality(ExportFormat $format): void
     {
         $client = $this->authenticatedClient();
         $tenant = $this->tenant();
@@ -162,10 +180,13 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
             array_keys(self::MATRIX),
             ['gr_name', 'gr_name.en', 'gr_chan', 'gr_chan.shopify', 'gr_chan.en.shopify', 'status', 'enabled'],
         );
-        $csv = $this->runProductExport($tenant, $columns, [$productId], ['shopify']);
-        self::assertStringContainsString('GR-001', $csv);
-        self::assertStringContainsString('249.99 PLN', $csv, 'price serialises as "amount CUR"');
-        self::assertStringContainsString('Chan EN shopify', $csv, 'combined locale+channel cell present in export');
+        $file = $this->exportToFile($tenant, $columns, [$productId], $format, ['shopify']);
+        $csv = ExportFormat::Csv === $format ? (string) file_get_contents($file) : '';
+        if (ExportFormat::Csv === $format) {
+            self::assertStringContainsString('GR-001', $csv);
+            self::assertStringContainsString('249.99 PLN', $csv, 'price serialises as "amount CUR"');
+            self::assertStringContainsString('Chan EN shopify', $csv, 'combined locale+channel cell present in export');
+        }
 
         // ── Act 2: real import (UPSERT) of that very file ──
         $mapping = ['sku' => 'sku', 'category' => '__category__'];
@@ -180,14 +201,24 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         $mapping['status'] = '__status__';
         $mapping['enabled'] = '__enabled__';
 
-        $body = $this->postImport($client, $csv, $objectType->getId()->toRfc4122(), $mapping);
+        $body = $this->postImportFile($client, $file, $objectType->getId()->toRfc4122(), $mapping);
+        @unlink($file);
         $sessionId = $body['id'];
         \assert(\is_string($sessionId));
         self::assertSame([], $this->reportRows($client, $sessionId), 'no findings expected');
-        self::assertSame('success', $body['status']);
-        self::assertSame(1, $body['success_count']);
-        self::assertSame(1, $body['updated_count'], 'UPSERT must update, not duplicate');
-        self::assertSame(0, $body['error_count']);
+
+        // Read the outcome from the persisted session, not the response body:
+        // xlsx routes through the async path (the controller can't pre-count
+        // xlsx rows), and although the sync transport completes it inline, the
+        // response carries the pre-dispatch `running` snapshot. The DB row is
+        // the contract for both formats.
+        $em->clear();
+        $session = $em->find(ImportSession::class, Uuid::fromString($sessionId));
+        \assert($session instanceof ImportSession);
+        self::assertSame(ImportSessionStatus::Success, $session->getStatus());
+        self::assertSame(1, $session->getSuccessCount());
+        self::assertSame(1, $session->getUpdatedCount(), 'UPSERT must update, not duplicate');
+        self::assertSame(0, $session->getErrorCount());
 
         // Same object — no duplicate row was created.
         $em->clear();
@@ -230,16 +261,20 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         self::assertFalse($reloaded->isEnabled());
 
         // ── Act 3: edit one cell → re-import updates exactly that value ──
-        $edited = str_replace('Uchwyt globalny', 'Uchwyt v2', $csv);
-        self::assertNotSame($csv, $edited);
-        $body2 = $this->postImport($client, $edited, $objectType->getId()->toRfc4122(), $mapping);
-        self::assertSame(1, $body2['updated_count']);
+        // CSV-only — the act edits the serialised text directly; the xlsx run
+        // already proved the binary round-trip above via envelope equality.
+        if (ExportFormat::Csv === $format) {
+            $edited = str_replace('Uchwyt globalny', 'Uchwyt v2', $csv);
+            self::assertNotSame($csv, $edited);
+            $body2 = $this->postImport($client, $edited, $objectType->getId()->toRfc4122(), $mapping);
+            self::assertSame(1, $body2['updated_count']);
 
-        $after = $this->envelopesOf($productId);
-        self::assertSame('Uchwyt v2', $after['gr_name||']['value'] ?? null);
-        unset($expected['gr_name||'], $after['gr_name||']);
-        foreach ($expected as $key => $envelope) {
-            self::assertEnvelopeEquals($envelope, $after[$key], $key.' (po edycji innej komórki)');
+            $after = $this->envelopesOf($productId);
+            self::assertSame('Uchwyt v2', $after['gr_name||']['value'] ?? null);
+            unset($expected['gr_name||'], $after['gr_name||']);
+            foreach ($expected as $key => $envelope) {
+                self::assertEnvelopeEquals($envelope, $after[$key], $key.' (po edycji innej komórki)');
+            }
         }
     }
 
@@ -489,6 +524,34 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         self::assertSame(['option_code' => 'red'], json_decode($redOption, true, 512, JSON_THROW_ON_ERROR));
     }
 
+    #[Test]
+    public function everyAttributeTypeHasGoldenCoverage(): void
+    {
+        // IMP2-1.10 (AC item 4) — every AttributeType is exercised by the
+        // golden suite, and the coverage is DERIVED (not a 17×4 cartesian):
+        //  - 14 value types ride the envelope matrix in both CSV + xlsx, each
+        //    with only the scopes its isLocalizable/isScopable flags permit
+        //    (gr_name adds locale rows, gr_chan adds channel + locale+channel);
+        //  - asset rides the 2-image gallery round-trip;
+        //  - relation + reference write object_relations (NOT object_values),
+        //    so they ride the relation round-trip instead of the envelope diff.
+        // A new AttributeType added without coverage flips this red.
+        $matrixTypes = array_map(static fn (array $entry): AttributeType => $entry[0], array_values(self::MATRIX));
+        $covered = array_merge($matrixTypes, [
+            AttributeType::Asset,
+            AttributeType::Relation,
+            AttributeType::Reference,
+        ]);
+
+        foreach (AttributeType::cases() as $type) {
+            self::assertContains(
+                $type,
+                $covered,
+                \sprintf('AttributeType "%s" has no golden round-trip coverage.', $type->value),
+            );
+        }
+    }
+
     /**
      * @param array<string, mixed> $expected
      * @param array<string, mixed> $actual
@@ -614,6 +677,80 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         } finally {
             @unlink($path);
         }
+    }
+
+    /**
+     * IMP2-1.10 — export the real file in the given format to a temp path with
+     * the matching extension. The caller owns the file (the format matrix needs
+     * the binary xlsx on disk for the import reader, not a string).
+     *
+     * @param list<string> $columns
+     * @param list<Uuid>   $ids
+     * @param list<string> $channels
+     */
+    private function exportToFile(Tenant $tenant, array $columns, array $ids, ExportFormat $format, array $channels = [], bool $includeVariants = true): string
+    {
+        $session = new ExportSession(
+            userId: Uuid::v7(),
+            source: ExportSource::CentralTab,
+            format: $format,
+            targetScope: ExportTargetScope::Selected,
+            selectedColumns: $columns,
+            entityType: ExportEntityType::Product,
+            selectedObjectIds: array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids),
+            channels: $channels,
+            includeVariants: $includeVariants,
+        );
+        $session->assignTenant($tenant);
+
+        $extension = ExportFormat::Xlsx === $format ? 'xlsx' : 'csv';
+        $path = tempnam(sys_get_temp_dir(), 'golden-').'.'.$extension;
+        $runner = self::getContainer()->get(SyncExportRunner::class);
+        $runner->runToFile($session, $path);
+
+        return $path;
+    }
+
+    /**
+     * IMP2-1.10 — import a previously-exported file (CSV or xlsx) by path. The
+     * reader picks the parser from the extension, so the same matrix rides both
+     * formats through the real engine.
+     *
+     * @param array<string, string> $mapping
+     *
+     * @return array<string, mixed>
+     */
+    private function postImportFile(
+        \ApiPlatform\Symfony\Bundle\Test\Client $client,
+        string $path,
+        string $objectTypeId,
+        array $mapping,
+    ): array {
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime = 'xlsx' === $extension
+            ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            : 'text/csv';
+
+        $client->request('POST', '/api/import-sessions', [
+            'extra' => [
+                'parameters' => [
+                    'target_object_type_id' => $objectTypeId,
+                    'mapping' => json_encode($mapping, JSON_THROW_ON_ERROR),
+                    'mode' => 'UPSERT',
+                ],
+                'files' => [
+                    'file' => new UploadedFile($path, 'golden.'.$extension, $mime, null, true),
+                ],
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $response = $client->getResponse();
+        \assert(null !== $response);
+        $content = $response->getContent();
+        /** @var array<string, mixed> $body */
+        $body = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+
+        return $body;
     }
 
     /** @return list<string> */
