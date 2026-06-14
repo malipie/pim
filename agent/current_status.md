@@ -20,8 +20,8 @@
   - [x] **IMP2-1.13 (#1476)** — media z ZIP. **MERGED** (#1517, `d31d42b5`). Live smoke ZIP ✅ (extract case-insensitive+subdir, link, success, zip-deleted), #1476 zamknięte. `ZipImageExtractor` (NFC/NFD, traversal, zip-bomb), controller zip_file≤500MB→MinIO+image_source, reużycie pipeline 1.12. 2 fixy CI (libzip OVERWRITE, tempnam string|false).
 
 ### ✅ ETAP 1 IMP2 KOMPLETNY (1.1–1.13) — silnik importu v2 z mediami
-  - [→] **IMP2-2.1 (#1477)** — streaming readers (openspout XLSX, league/csv stream CSV). START etapu 2.
-  - [ ] Etap 2 (#1477–1486): staged upload, pauza/resume+checkpoint, undo-log, RLS GUC, perf/bench, security plików, równoległość, backup.
+  - [→] **IMP2-2.1 (#1477)** — streaming readers (openspout XLSX, league/csv stream CSV). **PR otwarty, gates+smoke zielone.** ImportRowReader+FileParserService strumieniowo (Reader::from + iconv stream-filter / openspout row iterator), detekcja na 16 KiB prefix, HeaderNormalizer dedup + mapowanie pozycyjne (duplikaty/blanki bez throw). Adversarial review (29 agentów, 8/25 confirmed): naprawione UTF-8 boundary misdetect + suffix collision + empty-prefix guard; CP1250/ISO + billion-row DoS świadomie deferred (2.7). Smoke: parse-preview GA_List.csv 90k/10MB = 0.27s, 0.0 MiB.
+  - [ ] Etap 2 (#1478–1486): staged upload, pauza/resume+checkpoint, undo-log, RLS GUC, perf/bench, security plików, równoległość, backup.
 
 ## Ostatnie akcje
 1. IMP2-1.13 zmergowane (#1517) i #1476 zamknięte — ETAP 1 KOMPLETNY (1.8–1.13 w tej sesji: #1512–1517).

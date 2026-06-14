@@ -8,7 +8,8 @@ use App\Import\Domain\Enum\FileEncoding;
 use App\Import\Domain\Exception\InvalidImportFileException;
 use App\Import\Domain\ValueObject\ParsedFile;
 use League\Csv\Reader;
-use PhpOffice\PhpSpreadsheet\IOFactory;
+use OpenSpout\Reader\XLSX\Options as XlsxOptions;
+use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 use Throwable;
 
 use const PATHINFO_EXTENSION;
@@ -27,6 +28,7 @@ use const PATHINFO_EXTENSION;
 final class FileParserService
 {
     private const int SAMPLE_ROWS = 5;
+    private const int DETECT_PREFIX_BYTES = 16384;
     private const array XLSX_EXTENSIONS = ['xlsx'];
     private const array CSV_EXTENSIONS = ['csv'];
 
@@ -56,101 +58,151 @@ final class FileParserService
 
     private function parseXlsx(string $absolutePath): ParsedFile
     {
+        // IMP2-2.1 — stream the first sheet with openspout (no full-workbook
+        // load). Header dedup mirrors ImportRowReader so the wizard maps against
+        // the exact labels the run keys cells by.
         try {
-            $reader = IOFactory::createReaderForFile($absolutePath);
+            $reader = new XlsxReader(new XlsxOptions(SHOULD_FORMAT_DATES: false));
+            $reader->open($absolutePath);
         } catch (Throwable $exception) {
             throw InvalidImportFileException::corrupted($absolutePath, $exception);
         }
 
-        // Cell formula evaluation is OFF (spec §10): cached values only.
-        $reader->setReadDataOnly(true);
+        /** @var list<string> $headers */
+        $headers = [];
+        /** @var list<list<string|null>> $sampleRows */
+        $sampleRows = [];
+        $totalRows = 0;
+        $sheetName = null;
+        $sheetCount = 0;
 
-        $spreadsheet = $reader->load($absolutePath);
-        $sheetNames = $spreadsheet->getSheetNames();
-        $hadMultipleSheets = \count($sheetNames) > 1;
-        $sheet = $spreadsheet->getSheet(0);
-        $sheetName = $sheet->getTitle();
+        try {
+            foreach ($reader->getSheetIterator() as $sheet) {
+                ++$sheetCount;
+                if ($sheetCount > 1) {
+                    continue; // only the first sheet is read; count the rest for the flag
+                }
+                $sheetName = $sheet->getName();
+                $rowNumber = 0;
+                foreach ($sheet->getRowIterator() as $row) {
+                    ++$rowNumber;
+                    $values = $row->toArray();
+                    if (1 === $rowNumber) {
+                        $headers = HeaderNormalizer::deduplicate(array_values(array_map(
+                            static fn (mixed $v): string => \is_scalar($v) ? (string) $v : '',
+                            $values,
+                        )));
 
-        $rows = [];
-        foreach ($sheet->getRowIterator() as $row) {
-            $cells = [];
-            foreach ($row->getCellIterator() as $cell) {
-                $value = $cell->getValue();
-                $cells[] = null === $value ? null : (string) (\is_scalar($value) ? $value : '');
+                        continue;
+                    }
+                    ++$totalRows;
+                    if (\count($sampleRows) < self::SAMPLE_ROWS) {
+                        $sampleRows[] = $this->positionalSample($headers, $values);
+                    }
+                }
             }
-            $rows[] = $cells;
+        } finally {
+            $reader->close();
         }
 
-        if ([] === $rows || array_filter($rows[0], static fn ($v): bool => null !== $v && '' !== $v) === []) {
+        if ([] === $headers || [] === array_filter($headers, static fn (string $h): bool => '' !== $h)) {
             throw InvalidImportFileException::noHeaderRow();
         }
-
-        $headers = array_map(static fn (?string $value): string => $value ?? '', $rows[0]);
-        $bodyRows = \array_slice($rows, 1);
-        $sampleRows = \array_slice($bodyRows, 0, self::SAMPLE_ROWS);
 
         return new ParsedFile(
             headers: $headers,
             sampleRows: $sampleRows,
-            totalRows: \count($bodyRows),
+            totalRows: $totalRows,
             encoding: FileEncoding::Utf8,
             delimiter: null,
             sheetName: $sheetName,
-            hadMultipleSheets: $hadMultipleSheets,
+            hadMultipleSheets: $sheetCount > 1,
         );
+    }
+
+    private function readPrefix(string $absolutePath): string
+    {
+        $handle = fopen($absolutePath, 'r');
+        if (false === $handle) {
+            throw InvalidImportFileException::unreadable($absolutePath);
+        }
+        try {
+            $prefix = fread($handle, self::DETECT_PREFIX_BYTES);
+        } finally {
+            fclose($handle);
+        }
+
+        return false === $prefix ? '' : $prefix;
+    }
+
+    /**
+     * Build a positional preview row aligned to the (deduplicated) header list.
+     *
+     * @param list<string>      $headers
+     * @param array<int, mixed> $values
+     *
+     * @return list<string|null>
+     */
+    private function positionalSample(array $headers, array $values): array
+    {
+        $row = [];
+        foreach (array_keys($headers) as $i) {
+            $value = $values[$i] ?? null;
+            $string = \is_scalar($value) ? (string) $value : '';
+            $row[] = '' === $string ? null : $string;
+        }
+
+        return $row;
     }
 
     private function parseCsv(string $absolutePath, ?FileEncoding $encodingOverride, ?string $delimiterOverride): ParsedFile
     {
-        $bytes = file_get_contents($absolutePath);
-        if (false === $bytes) {
-            throw InvalidImportFileException::unreadable($absolutePath);
-        }
-        if ('' === trim($bytes)) {
+        // IMP2-2.1 — stream from the path with an iconv read filter; detect
+        // encoding + delimiter from a bounded prefix (no whole-file read).
+        $prefix = $this->readPrefix($absolutePath);
+        if ('' === trim($prefix)) {
             throw InvalidImportFileException::empty();
         }
+        $encoding = $encodingOverride ?? $this->encodingDetector->detect($prefix);
+        $delimiter = $delimiterOverride ?? $this->delimiterDetector->detect($this->encodingDetector->stripBom($prefix));
 
-        $encoding = $encodingOverride ?? $this->encodingDetector->detect($bytes);
-        $body = $this->encodingDetector->stripBom($bytes);
+        $reader = Reader::from($absolutePath, 'r');
         if (FileEncoding::Utf8 !== $encoding && FileEncoding::Utf8Bom !== $encoding) {
-            $converted = @iconv($encoding->iconvName(), 'UTF-8//TRANSLIT', $body);
-            if (false === $converted) {
-                throw InvalidImportFileException::corruptedEncoding($encoding->value);
-            }
-            $body = $converted;
+            $reader->appendStreamFilterOnRead('convert.iconv.'.$encoding->iconvName().'/UTF-8//TRANSLIT');
         }
-
-        $delimiter = $delimiterOverride ?? $this->delimiterDetector->detect(substr($body, 0, 4096));
-
-        $reader = Reader::fromString($body);
         $reader->setDelimiter($delimiter);
-        $reader->setHeaderOffset(0);
 
-        $headers = $reader->getHeader();
-        if ([] === $headers) {
-            throw InvalidImportFileException::noHeaderRow();
-        }
-
+        // Read positionally (see ImportRowReader::iterateCsv): a header passed to
+        // getRecords() trips league/csv's duplicate-column guard on repeated
+        // blank columns that real exports carry (bosch-09-01-2026.csv).
+        $headers = null;
         $sampleRows = [];
         $totalRows = 0;
         foreach ($reader->getRecords() as $record) {
+            $values = array_values($record);
+            if (null === $headers) {
+                $headers = HeaderNormalizer::deduplicate(array_map(
+                    static fn (mixed $v): string => \is_scalar($v) ? (string) $v : '',
+                    $values,
+                ));
+                if ([] === array_filter($headers, static fn (string $h): bool => '' !== $h)) {
+                    throw InvalidImportFileException::noHeaderRow();
+                }
+
+                continue;
+            }
             ++$totalRows;
             if (\count($sampleRows) < self::SAMPLE_ROWS) {
-                $row = [];
-                foreach ($headers as $header) {
-                    $value = $record[$header] ?? null;
-                    if (null === $value || '' === $value) {
-                        $row[] = null;
-                    } else {
-                        $row[] = \is_scalar($value) ? (string) $value : '';
-                    }
-                }
-                $sampleRows[] = $row;
+                $sampleRows[] = $this->positionalSample($headers, $values);
             }
         }
 
+        if (null === $headers) {
+            throw InvalidImportFileException::noHeaderRow();
+        }
+
         return new ParsedFile(
-            headers: array_values($headers),
+            headers: $headers,
             sampleRows: $sampleRows,
             totalRows: $totalRows,
             encoding: $encoding,

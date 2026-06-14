@@ -40,6 +40,27 @@ final class EncodingDetectorTest extends TestCase
     }
 
     #[Test]
+    public function truncatedTrailingUtf8CharStillDetectsUtf8(): void
+    {
+        // IMP2-2.1 — detection runs on a fixed-size prefix that can cut a
+        // multi-byte char in half. A clean UTF-8 file must NOT be misread as
+        // CP1250 just because the window split its last character.
+        $detector = new EncodingDetector();
+        $full = "sku;name\nABC-1;Czujnik ciśnienia 😀"; // ends with a 4-byte emoji
+        self::assertSame(FileEncoding::Utf8, $detector->detect($full));
+
+        // Cut two bytes off the trailing 4-byte sequence (simulates the prefix
+        // boundary landing mid-character).
+        $truncated = substr($full, 0, -2);
+        self::assertFalse(mb_check_encoding($truncated, 'UTF-8'), 'precondition: raw bytes are now invalid UTF-8');
+        self::assertSame(
+            FileEncoding::Utf8,
+            $detector->detect($truncated),
+            'a UTF-8 char split by the prefix boundary must not flip detection to CP1250',
+        );
+    }
+
+    #[Test]
     public function bomIsStrippedFromBytes(): void
     {
         $detector = new EncodingDetector();
