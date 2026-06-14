@@ -72,9 +72,11 @@ final class ImportValidationServiceTest extends TestCase
             // IMP2-1.3 (#1465): the in-DB duplicate check moved to the run
             // loop (ObjectResolver + ImportMode) — EXISTING-1 now validates
             // clean here; mode buckets surface in the dry-run rework (#1492).
-            // OK-1, EXISTING-1 and the first DUP-1 pass; the rest error out.
+            // IMP2-1.9: OK-1, EXISTING-1 and the first DUP-1 import (3); the
+            // empty-SKU + bad-price rows error (2); the second DUP-1 is a
+            // non-blocking skip (D1) — neither success nor error.
             self::assertSame(3, $result->successCount);
-            self::assertSame(3, $result->errorCount);
+            self::assertSame(2, $result->errorCount);
 
             $errorTypes = array_map(static fn ($e): string => $e->errorType->value, $result->errors);
             self::assertNotContains(ImportErrorType::DuplicateSkuInDb->value, $errorTypes);
