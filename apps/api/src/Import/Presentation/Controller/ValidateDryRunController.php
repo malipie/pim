@@ -7,18 +7,22 @@ namespace App\Import\Presentation\Controller;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Identity\Domain\Entity\User;
 use App\Import\Application\Service\ImportValidationService;
+use App\Import\Application\Service\StagedFileService;
 use App\Import\Domain\Enum\FileEncoding;
 use App\Import\Domain\Exception\InvalidImportFileException;
 use App\Import\Domain\ValueObject\ValidationError;
 use App\Import\Domain\ValueObject\ValidationResult;
 use InvalidArgumentException;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
@@ -38,6 +42,8 @@ final class ValidateDryRunController
     public function __construct(
         private readonly ImportValidationService $validator,
         private readonly ObjectTypeRepositoryInterface $objectTypes,
+        private readonly StagedFileService $stagedFiles,
+        private readonly Security $security,
     ) {
     }
 
@@ -49,9 +55,9 @@ final class ValidateDryRunController
     #[RequiresPermission(module: 'imports', action: 'run')]
     public function __invoke(Request $request): JsonResponse
     {
-        $file = $request->files->get('file');
-        if (!$file instanceof UploadedFile) {
-            throw new BadRequestHttpException('"file" multipart field is required.');
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            throw new UnauthorizedHttpException('JWT', 'Authenticated user required.');
         }
 
         $rawTargetId = (string) $request->request->get('target_object_type_id', '');
@@ -83,29 +89,9 @@ final class ValidateDryRunController
         $encoding = $this->parseEncoding($request->request->get('encoding'));
         $delimiter = $this->parseDelimiter($request->request->get('delimiter'));
 
-        // ImportRowReader dispatches by extension via pathinfo(), but
-        // FrankenPHP / PHP-FPM write multipart uploads to /tmp/phpXXXX
-        // with no extension. Copy to a temp path that preserves the
-        // client's original extension before validating (same dance as
-        // ParsePreviewController) — without this the wizard's Step 3
-        // browser path 400s with "Unsupported import file extension".
-        $extension = strtolower($file->getClientOriginalExtension());
-        if ('' === $extension) {
-            throw new BadRequestHttpException('Uploaded file must have an extension (.csv or .xlsx).');
-        }
-        $tempPath = tempnam(sys_get_temp_dir(), 'pim_dry_run_');
-        if (false === $tempPath) {
-            throw new BadRequestHttpException('Failed to allocate a temp file for validation.');
-        }
-        $finalPath = $tempPath.'.'.$extension;
-        if (!@rename($tempPath, $finalPath)) {
-            @unlink($tempPath);
-            throw new BadRequestHttpException('Failed to prepare a temp file for validation.');
-        }
-        if (!@copy($file->getPathname(), $finalPath)) {
-            @unlink($finalPath);
-            throw new BadRequestHttpException('Failed to copy uploaded file for validation.');
-        }
+        // IMP2-2.2 — prefer a staged_file_id (single upload reused across
+        // steps); fall back to a fresh multipart upload for back-compat.
+        $finalPath = $this->resolveSourcePath($request, $user);
 
         try {
             $result = $this->validator->validate(
@@ -158,6 +144,56 @@ final class ValidateDryRunController
                 $result->errors,
             ),
         ];
+    }
+
+    /**
+     * Returns a local temp path for the source file (caller unlinks it),
+     * resolved from either a staged_file_id or a fresh multipart upload.
+     */
+    private function resolveSourcePath(Request $request, User $user): string
+    {
+        $rawStagedId = (string) $request->request->get('staged_file_id', '');
+        if ('' !== $rawStagedId) {
+            try {
+                $stagedId = Uuid::fromString($rawStagedId);
+            } catch (InvalidArgumentException) {
+                throw new BadRequestHttpException(\sprintf('Invalid staged_file_id "%s".', $rawStagedId));
+            }
+            $staged = $this->stagedFiles->resolveOwned($stagedId, $user->getTenant(), $user->getId());
+            if (null === $staged) {
+                throw new NotFoundHttpException(\sprintf('Staged file "%s" was not found.', $rawStagedId));
+            }
+
+            return $this->stagedFiles->downloadToTemp($staged);
+        }
+
+        $file = $request->files->get('file');
+        if (!$file instanceof UploadedFile) {
+            throw new BadRequestHttpException('Either "staged_file_id" or a "file" multipart field is required.');
+        }
+
+        // ImportRowReader dispatches by extension via pathinfo(), but PHP writes
+        // multipart uploads to /tmp/phpXXXX with no extension. Copy to a temp
+        // path that preserves the client's original extension before validating.
+        $extension = strtolower($file->getClientOriginalExtension());
+        if ('' === $extension) {
+            throw new BadRequestHttpException('Uploaded file must have an extension (.csv or .xlsx).');
+        }
+        $tempPath = tempnam(sys_get_temp_dir(), 'pim_dry_run_');
+        if (false === $tempPath) {
+            throw new BadRequestHttpException('Failed to allocate a temp file for validation.');
+        }
+        $finalPath = $tempPath.'.'.$extension;
+        if (!@rename($tempPath, $finalPath)) {
+            @unlink($tempPath);
+            throw new BadRequestHttpException('Failed to prepare a temp file for validation.');
+        }
+        if (!@copy($file->getPathname(), $finalPath)) {
+            @unlink($finalPath);
+            throw new BadRequestHttpException('Failed to copy uploaded file for validation.');
+        }
+
+        return $finalPath;
     }
 
     private function parseEncoding(mixed $raw): ?FileEncoding

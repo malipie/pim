@@ -12,8 +12,10 @@ use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Application\Handler\ImportRunHandler;
+use App\Import\Application\Service\StagedFileService;
 use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Entity\ImportSession;
+use App\Import\Domain\Entity\StagedFile;
 use App\Import\Domain\Enum\ImportImageSource;
 use App\Import\Domain\Enum\ImportMode;
 use App\Import\Domain\Message\ImportRunMessage;
@@ -73,6 +75,7 @@ final class StartImportController
         private readonly Security $security,
         private readonly TenantContext $tenantContext,
         private readonly FilesystemOperator $importsStorage,
+        private readonly StagedFileService $stagedFiles,
     ) {
     }
 
@@ -91,10 +94,23 @@ final class StartImportController
         $tenant = $user->getTenant();
         $this->tenantContext->set($tenant);
 
+        // IMP2-2.2 — accept a staged_file_id (uploaded once at parse-preview)
+        // or, for back-compat, a fresh multipart `file`. With a staged id the
+        // bytes already live on MinIO; we pull a local copy only to count rows
+        // and then server-side-copy them to the session key (no re-upload).
+        $stagedFile = $this->resolveStagedFile($request, $user);
         $file = $request->files->get('file');
-        if (!$file instanceof UploadedFile) {
-            throw new BadRequestHttpException('"file" multipart field is required.');
+        if (null === $stagedFile && !$file instanceof UploadedFile) {
+            throw new BadRequestHttpException('Either "staged_file_id" or a "file" multipart field is required.');
         }
+        $localPath = null !== $stagedFile
+            ? $this->stagedFiles->downloadToTemp($stagedFile)
+            : $file->getPathname();
+        $originalName = null !== $stagedFile ? $stagedFile->getFileName() : $file->getClientOriginalName();
+        if ('' === $originalName) {
+            $originalName = 'upload.csv';
+        }
+        $fileSizeBytes = null !== $stagedFile ? $stagedFile->getSizeBytes() : (int) $file->getSize();
 
         $targetId = $this->parseUuid($request->request->get('target_object_type_id'), 'target_object_type_id');
         $objectType = $this->objectTypes->findById($targetId);
@@ -105,17 +121,12 @@ final class StartImportController
         $mapping = $this->parseMapping($request->request->get('mapping', '{}'));
         $profile = $this->resolveProfile($request->request->get('profile_id'), $tenant, $user->getId(), $mapping, $objectType);
 
-        $originalName = $file->getClientOriginalName();
-        if ('' === $originalName) {
-            $originalName = 'upload.csv';
-        }
-
         // IMP2-1.6a (#1468, ADR-0019 D8): the sync/async split counts DATA
         // ROWS, not bytes — a wide 20-row CSV stays inline, a narrow 500-row
         // one goes to the worker. Counting stops at the threshold; the +1
         // header line is excluded.
         $dataRowCount = str_ends_with(strtolower($originalName), '.csv')
-            ? $this->countDataRows($file->getPathname(), self::SYNC_THRESHOLD_ROWS + 1)
+            ? $this->countDataRows($localPath, self::SYNC_THRESHOLD_ROWS + 1)
             // XLSX is a zip — line counting is meaningless; spreadsheets
             // always take the worker path (cheap now that dev runs one).
             : self::SYNC_THRESHOLD_ROWS + 1;
@@ -140,7 +151,7 @@ final class StartImportController
             userId: $user->getId(),
             targetObjectType: $objectType,
             fileName: $originalName,
-            fileSizeBytes: (int) $file->getSize(),
+            fileSizeBytes: $fileSizeBytes,
             profile: $profile,
             zipFileName: $zipName,
             zipFileSizeBytes: $zipSize,
@@ -176,18 +187,32 @@ final class StartImportController
             $session->getFileName(),
         );
         try {
-            $stream = fopen($file->getPathname(), 'r');
-            if (false === $stream) {
-                throw new RuntimeException('Failed to open uploaded file for reading.');
-            }
-            $this->importsStorage->writeStream($remotePath, $stream);
-            if (\is_resource($stream)) {
-                fclose($stream);
+            if (null !== $stagedFile) {
+                // Bytes already on MinIO — server-side copy to the session key,
+                // no client/byte re-transfer.
+                $this->stagedFiles->copyToKey($stagedFile, $remotePath);
+            } else {
+                $stream = fopen($localPath, 'r');
+                if (false === $stream) {
+                    throw new RuntimeException('Failed to open uploaded file for reading.');
+                }
+                try {
+                    $this->importsStorage->writeStream($remotePath, $stream);
+                } finally {
+                    if (\is_resource($stream)) {
+                        fclose($stream);
+                    }
+                }
             }
         } catch (FilesystemException|RuntimeException $exception) {
             $session->markFailed(\sprintf('Failed to stage uploaded file: %s', $exception->getMessage()));
             $this->sessions->save($session);
             throw new BadRequestHttpException('Failed to stage the uploaded file.', $exception);
+        } finally {
+            // The staged temp copy was only needed for row counting.
+            if (null !== $stagedFile) {
+                @unlink($localPath);
+            }
         }
 
         // IMP2-1.13 — stage the ZIP next to the data file (same tenant/session
@@ -241,6 +266,29 @@ final class StartImportController
         ), [new TenantStamp($tenant->getId())]);
 
         return new JsonResponse($this->serialise($session), Response::HTTP_ACCEPTED);
+    }
+
+    /**
+     * Resolve an optional staged_file_id to its owner-scoped {@see StagedFile},
+     * or null when the field is absent (back-compat multipart path).
+     */
+    private function resolveStagedFile(Request $request, User $user): ?StagedFile
+    {
+        $raw = (string) $request->request->get('staged_file_id', '');
+        if ('' === $raw) {
+            return null;
+        }
+        try {
+            $id = Uuid::fromString($raw);
+        } catch (InvalidArgumentException) {
+            throw new BadRequestHttpException(\sprintf('Invalid staged_file_id "%s".', $raw));
+        }
+        $staged = $this->stagedFiles->resolveOwned($id, $user->getTenant(), $user->getId());
+        if (null === $staged) {
+            throw new NotFoundHttpException(\sprintf('Staged file "%s" was not found.', $raw));
+        }
+
+        return $staged;
     }
 
     private function parseUuid(mixed $raw, string $field): Uuid

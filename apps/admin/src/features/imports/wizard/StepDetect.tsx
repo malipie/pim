@@ -12,6 +12,7 @@ interface StepDetectProps {
 }
 
 interface ParsePreviewResponse {
+  staged_file_id: string;
   headers: string[];
   sample_rows: Array<Array<string | null>>;
   total_rows: number;
@@ -66,6 +67,9 @@ export function StepDetect({ wizard }: StepDetectProps): React.ReactElement {
           hadMultipleSheets: data.had_multiple_sheets,
         };
         setField('parsed', snapshot);
+        // IMP2-2.2 — remember the staged id so dry-run + start reuse the
+        // already-uploaded bytes instead of re-sending the file.
+        setField('stagedFileId', data.staged_file_id);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
