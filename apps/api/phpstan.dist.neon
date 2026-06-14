@@ -117,6 +117,7 @@ parameters:
               - src/Catalog/Domain/Entity/MenuConfiguration.php
               - src/Import/Domain/Entity/ImportSession.php
               - src/Import/Domain/Entity/StagedFile.php
+              - src/Import/Domain/Entity/ImportUndoLog.php
               - src/Import/Domain/Entity/ImportProfile.php
               - src/Import/Domain/Entity/ImportSource.php
               - src/Import/Domain/Entity/ImportSourceLog.php

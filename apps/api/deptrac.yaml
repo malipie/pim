@@ -345,6 +345,21 @@ parameters:
             - App\Catalog\Domain\Entity\ObjectType
             - App\Catalog\Domain\Provenance
             - App\Catalog\Application\BatchValueWriter
+        # IMP2-2.4 — undo-log capture + rollback v2 reuse Catalog read/rebuild/
+        # reindex via the same Import→Catalog seam as ImportObjectCreator.
+        App\Import\Application\Service\ImportUndoLogger:
+            - App\Catalog\Application\ValueWriteCore
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\Entity\ObjectValue
+            - App\Catalog\Domain\Repository\ObjectValueRepositoryInterface
+        App\Import\Application\Service\ImportRollbackService:
+            - App\Catalog\Application\AttributesIndexedRebuilder
+            - App\Catalog\Application\Reindex\BulkReindexQueueInterface
+            - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\Entity\ObjectValue
+            - App\Catalog\Domain\Provenance
+            - App\Catalog\Domain\Repository\ObjectValueRepositoryInterface
         App\Import\Application\Service\ImportValidationService:
             - App\Catalog\Domain\AttributeType
             - App\Catalog\Domain\Entity\Attribute

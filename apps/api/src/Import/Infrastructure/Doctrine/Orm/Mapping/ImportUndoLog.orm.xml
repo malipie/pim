@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Import\Domain\Entity\ImportUndoLog"
+            table="import_undo_log"
+            repository-class="App\Import\Infrastructure\Doctrine\Repository\DoctrineImportUndoLogRepository">
+
+        <indexes>
+            <index name="import_undo_log_session_idx" columns="import_session_id"/>
+            <index name="import_undo_log_object_idx" columns="object_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <many-to-one field="importSession" target-entity="App\Import\Domain\Entity\ImportSession">
+            <join-column name="import_session_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="objectId" type="uuid" column="object_id"/>
+        <field name="operation" type="string" length="32" column="operation"/>
+        <field name="attributeCode" type="string" length="128" column="attribute_code" nullable="true"/>
+        <field name="locale" type="string" length="8" column="locale" nullable="true"/>
+        <field name="channelId" type="uuid" column="channel_id" nullable="true"/>
+        <field name="payload" type="json" column="payload"/>
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+    </entity>
+</doctrine-mapping>

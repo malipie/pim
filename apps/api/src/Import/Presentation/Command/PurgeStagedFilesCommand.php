@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Command;
 
+use App\Import\Domain\Repository\ImportUndoLogRepositoryInterface;
 use App\Import\Domain\Repository\StagedFileRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Repository\TenantRepositoryInterface;
@@ -39,6 +40,7 @@ final class PurgeStagedFilesCommand extends Command
     public function __construct(
         private readonly TenantRepositoryInterface $tenants,
         private readonly StagedFileRepositoryInterface $stagedFiles,
+        private readonly ImportUndoLogRepositoryInterface $undoLog,
         private readonly FilesystemOperator $importsStorage,
         private readonly TenantContext $tenantContext,
         private readonly EntityManagerInterface $entityManager,
@@ -63,6 +65,7 @@ final class PurgeStagedFilesCommand extends Command
 
         $deleted = 0;
         $failed = 0;
+        $undoPurged = 0;
         foreach ($this->tenants->findAllOrderedByCode() as $tenant) {
             $this->tenantContext->set($tenant);
             $expired = $this->stagedFiles->findExpired($tenant, $cutoff);
@@ -98,13 +101,20 @@ final class PurgeStagedFilesCommand extends Command
                 $this->entityManager->flush();
                 $this->entityManager->clear();
             }
+
+            // IMP2-2.4 (spec §6) — purge undo-log of sessions whose rollback
+            // window has closed (tenant-scoped via the context set above).
+            if (!$dryRun) {
+                $undoPurged += $this->undoLog->purgeForClosedWindows(new DateTimeImmutable());
+            }
         }
 
         $io->success(\sprintf(
-            '%s %d staged upload(s)%s.',
+            '%s %d staged upload(s)%s; purged %d closed-window undo-log row(s).',
             $dryRun ? 'Would delete' : 'Deleted',
             $deleted,
             $failed > 0 ? \sprintf(' (%d with storage warnings)', $failed) : '',
+            $undoPurged,
         ));
 
         return Command::SUCCESS;
