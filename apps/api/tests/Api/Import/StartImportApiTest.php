@@ -10,8 +10,11 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\RelationCardinality;
+use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
@@ -287,6 +290,227 @@ final class StartImportApiTest extends CatalogApiTestCase
                 $catalogObjects->findByCode('ST-2', ObjectKind::Product, $tenant),
                 'the row with a bogus status is rejected, not created',
             );
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function importLinksVariantsToParentRegardlessOfRowOrder(): void
+    {
+        // IMP2-1.8 (AC) — two-pass parent linking: a variant row may appear
+        // BEFORE its master (VAR-2 → MST-2 which is a later row). A missing
+        // parent → row still imports, session partial, warning logged.
+        $this->seedAttributes();
+
+        $csvPath = $this->writeCsv(
+            "sku;name;parent_sku\n"
+            ."MST-1;Master 1;\n"
+            ."VAR-1;Variant 1;MST-1\n"
+            ."VAR-2;Variant 2;MST-2\n"
+            ."MST-2;Master 2;\n"
+            ."VAR-3;Variant 3;GHOST-MASTER\n",
+            'pim-parent-',
+        );
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode([
+                            'sku' => 'sku',
+                            'name' => 'name',
+                            'parent_sku' => '__parent_sku__',
+                        ], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'parent.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame(5, $body['success_count'], 'all five rows create their object');
+            self::assertSame('partial', $body['status'], 'the GHOST parent makes the session partial');
+
+            $em = $this->em();
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $repo = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+
+            $var1 = $repo->findByCode('VAR-1', ObjectKind::Product, $tenant);
+            \assert(null !== $var1);
+            self::assertSame('MST-1', $var1->getParent()?->getCode());
+
+            $var2 = $repo->findByCode('VAR-2', ObjectKind::Product, $tenant);
+            \assert(null !== $var2);
+            self::assertSame('MST-2', $var2->getParent()?->getCode(), 'parent resolved though its row came AFTER');
+
+            $var3 = $repo->findByCode('VAR-3', ObjectKind::Product, $tenant);
+            \assert(null !== $var3);
+            self::assertNull($var3->getParent(), 'missing parent → unparented but still imported');
+
+            $ghostWarning = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM import_logs WHERE message LIKE '%GHOST-MASTER%'",
+            );
+            self::assertSame(1, (int) (\is_scalar($ghostWarning) ? $ghostWarning : 0));
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function importRelationCellCreatesObjectRelationsNotObjectValues(): void
+    {
+        // IMP2-1.8 (AC) — `REL-A|REL-B` in a Relation cell → 2 object_relations
+        // (position 0,1), and NO ObjectValue{object_id}. Targets follow the
+        // source row, so the two-pass resolves order-independently.
+        $this->seedAttributes();
+
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $productOt = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($productOt instanceof ObjectType);
+
+        $related = new Attribute('related', ['en' => 'Related'], AttributeType::Relation);
+        $related->setRelationTargetObjectTypeIds([$productOt->getId()->toRfc4122()]);
+        $related->setRelationCardinality(RelationCardinality::Many);
+        $em->persist($related);
+        $em->persist(new ObjectTypeAttribute($productOt, $related, false, 3));
+        $em->flush();
+
+        $csvPath = $this->writeCsv(
+            "sku;name;related\nSRC-1;Source;REL-A|REL-B\nREL-A;Target A;\nREL-B;Target B;\n",
+            'pim-rel-',
+        );
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode([
+                            'sku' => 'sku',
+                            'name' => 'name',
+                            'related' => 'related',
+                        ], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'rel.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame('success', $body['status']);
+            self::assertSame(3, $body['success_count']);
+
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $repo = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+            $relations = self::getContainer()->get(ObjectRelationRepositoryInterface::class);
+            $relAttr = self::getContainer()->get(AttributeRepositoryInterface::class)->findByCode('related', $tenant);
+            \assert(null !== $relAttr);
+
+            $src = $repo->findByCode('SRC-1', ObjectKind::Product, $tenant);
+            \assert(null !== $src);
+            $links = $relations->findBySourceAndAttribute($src, $relAttr);
+            self::assertCount(2, $links);
+            self::assertSame(['REL-A', 'REL-B'], array_map(static fn ($l): string => $l->getTarget()->getCode(), $links));
+            self::assertSame([0, 1], array_map(static fn ($l): int => $l->getPosition(), $links));
+
+            $ovCount = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='related' AND o.code='SRC-1'",
+            );
+            self::assertSame(0, (int) (\is_scalar($ovCount) ? $ovCount : 1), 'a Relation cell must NOT write an ObjectValue');
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function importGalleryCellSplitsAssetsAndDropsDanglingIds(): void
+    {
+        // IMP2-1.8 (AC) — `id1|id2` in an Asset cell → envelope with a list;
+        // a non-existent asset id → row warning, nothing dangling in JSONB.
+        $this->seedAttributes();
+
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $productOt = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($productOt instanceof ObjectType);
+
+        $gallery = new Attribute('gallery', ['en' => 'Gallery'], AttributeType::Asset);
+        $em->persist($gallery);
+        $em->persist(new ObjectTypeAttribute($productOt, $gallery, false, 3));
+
+        $assetA = new \App\Asset\Domain\Entity\Asset('AST-A', 'a.jpg', 'image/jpeg', 10, 'p/a.jpg');
+        $assetB = new \App\Asset\Domain\Entity\Asset('AST-B', 'b.jpg', 'image/jpeg', 10, 'p/b.jpg');
+        $em->persist($assetA);
+        $em->persist($assetB);
+        $em->flush();
+        $idA = $assetA->getId()->toRfc4122();
+        $idB = $assetB->getId()->toRfc4122();
+        $bogus = '01914aaa-bbbb-7ccc-8ddd-eeeeeeeeeeee';
+
+        $csvPath = $this->writeCsv(
+            "sku;name;gallery\nGAL-1;Two assets;{$idA}|{$idB}\nGAL-2;One bad;{$idA}|{$bogus}\n",
+            'pim-gal-',
+        );
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode([
+                            'sku' => 'sku',
+                            'name' => 'name',
+                            'gallery' => 'gallery',
+                        ], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'gal.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame(2, $body['success_count']);
+
+            // GAL-1 → both ids survive → list envelope.
+            $valueOne = $em->getConnection()->fetchOne(
+                "SELECT ov.value FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='gallery' AND o.code='GAL-1'",
+            );
+            \assert(\is_string($valueOne));
+            self::assertSame(['asset_id' => [$idA, $idB]], json_decode($valueOne, true, 512, JSON_THROW_ON_ERROR));
+
+            // GAL-2 → only the existing id survives (scalar), bogus dropped.
+            $valueTwo = $em->getConnection()->fetchOne(
+                "SELECT ov.value FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='gallery' AND o.code='GAL-2'",
+            );
+            \assert(\is_string($valueTwo));
+            $decodedTwo = json_decode($valueTwo, true, 512, JSON_THROW_ON_ERROR);
+            self::assertSame(['asset_id' => $idA], $decodedTwo);
+            self::assertStringNotContainsString($bogus, $valueTwo, 'dangling asset id must not reach JSONB');
+
+            // The dropped id surfaced as a row warning.
+            $warnings = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM import_logs WHERE level='warning' AND message LIKE '%does not exist for this tenant%'",
+            );
+            self::assertSame(1, (int) (\is_scalar($warnings) ? $warnings : 0));
         } finally {
             @unlink($csvPath);
         }

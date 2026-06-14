@@ -99,11 +99,68 @@ final class SyncExportRunner
         // rather than the hardcoded Product kind.
         $objectType = $this->resolveObjectType($session, $tenant);
 
-        return match ($session->getTargetScope()) {
+        $base = match ($session->getTargetScope()) {
             ExportTargetScope::Selected => $this->resolveSelected($session),
             ExportTargetScope::All => $this->objects->findByObjectType($objectType, $tenant),
             ExportTargetScope::Filter => $this->resolveFilter($session, $tenant, $objectType),
         };
+
+        return $this->applyVariantFanout($base, $session, $tenant);
+    }
+
+    /**
+     * IMP2-1.8 (#1471) — `include_variants` fan-out. With the flag OFF the
+     * export carries masters only; with it ON each master is immediately
+     * followed by its variants (tenant-scoped child query), giving the export
+     * the deterministic `master, then its variants` order the variants golden
+     * relies on. A directly-selected variant whose master is absent is still
+     * emitted.
+     *
+     * @param list<CatalogObject> $base
+     *
+     * @return list<CatalogObject>
+     */
+    private function applyVariantFanout(array $base, ExportSession $session, Tenant $tenant): array
+    {
+        if (!$session->includesVariants()) {
+            return array_values(array_filter($base, static fn (CatalogObject $o): bool => null === $o->getParent()));
+        }
+
+        $masterIds = [];
+        foreach ($base as $object) {
+            if (null === $object->getParent()) {
+                $masterIds[] = $object->getId()->toRfc4122();
+            }
+        }
+
+        $childrenByParent = [];
+        foreach ($this->objects->findChildrenByParentIds($masterIds, $tenant) as $child) {
+            $parentId = $child->getParent()?->getId()->toRfc4122();
+            if (null !== $parentId) {
+                $childrenByParent[$parentId][] = $child;
+            }
+        }
+
+        $result = [];
+        $seen = [];
+        foreach ($base as $object) {
+            $id = $object->getId()->toRfc4122();
+            if (isset($seen[$id])) {
+                continue;
+            }
+            $result[] = $object;
+            $seen[$id] = true;
+
+            foreach ($childrenByParent[$id] ?? [] as $child) {
+                $childId = $child->getId()->toRfc4122();
+                if (!isset($seen[$childId])) {
+                    $result[] = $child;
+                    $seen[$childId] = true;
+                }
+            }
+        }
+
+        return $result;
     }
 
     /**

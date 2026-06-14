@@ -8,10 +8,13 @@ use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectCategory;
+use App\Catalog\Domain\Entity\ObjectRelation;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Channel\Contracts\ChannelResolverInterface;
 use App\Export\Application\Builder\ColumnResolver;
@@ -262,17 +265,48 @@ final class ExportBuilderTest extends TestCase
         self::assertSame(['sku' => 'SKU-D', 'category' => 'CAT-A|CAT-B'], $rows[0]);
     }
 
+    #[Test]
+    public function rendersRelationColumnAsPipeJoinedTargetCodes(): void
+    {
+        // IMP2-1.8 (D5) — a Relation column emits pipe-joined target CODES
+        // read from object_relations, not a UUID from ObjectValue.
+        $product = $this->newProduct('SKU-R');
+        $related = $this->newAttribute('related', AttributeType::Relation);
+        $targetA = $this->newProduct('REL-A');
+        $targetB = $this->newProduct('REL-B');
+
+        $relA = $this->createStub(ObjectRelation::class);
+        $relA->method('getTarget')->willReturn($targetA);
+        $relB = $this->createStub(ObjectRelation::class);
+        $relB->method('getTarget')->willReturn($targetB);
+
+        $builder = $this->newBuilder(
+            valuesByObject: [],
+            categoriesByObject: [],
+            relationsBySource: [spl_object_id($product) => [$relA, $relB]],
+            attributesByCode: ['related' => $related],
+        );
+        $session = $this->newSessionWithTenant(['sku', 'related']);
+        $rows = iterator_to_array($builder->build([$product], $session));
+
+        self::assertSame(['sku' => 'SKU-R', 'related' => 'REL-A|REL-B'], $rows[0]);
+    }
+
     // ----- helpers -----
 
     /**
      * @param array<int, list<ObjectValue>>    $valuesByObject     keyed by spl_object_id($product)
      * @param array<int, list<ObjectCategory>> $categoriesByObject same
      * @param array<string, Uuid>              $channelIds         channel code => id (#1229)
+     * @param array<int, list<ObjectRelation>> $relationsBySource  keyed by spl_object_id($source) (#1471)
+     * @param array<string, Attribute>         $attributesByCode   attribute column code => Attribute (#1471)
      */
     private function newBuilder(
         array $valuesByObject,
         array $categoriesByObject,
         array $channelIds = [],
+        array $relationsBySource = [],
+        array $attributesByCode = [],
     ): ExportBuilder {
         $values = $this->createStub(ObjectValueRepositoryInterface::class);
         $values->method('findByObject')->willReturnCallback(
@@ -289,12 +323,24 @@ final class ExportBuilderTest extends TestCase
             static fn (string $code): ?Uuid => $channelIds[$code] ?? null
         );
 
+        $relations = $this->createStub(ObjectRelationRepositoryInterface::class);
+        $relations->method('findBySourceAndAttribute')->willReturnCallback(
+            static fn (CatalogObject $source): array => $relationsBySource[spl_object_id($source)] ?? []
+        );
+
+        $attributes = $this->createStub(AttributeRepositoryInterface::class);
+        $attributes->method('findByCode')->willReturnCallback(
+            static fn (string $code): ?Attribute => $attributesByCode[$code] ?? null
+        );
+
         return new ExportBuilder(
             values: $values,
             categories: $categories,
             columnResolver: new ColumnResolver(),
             serializer: new ValueSerializer(),
             channels: $channels,
+            relations: $relations,
+            attributes: $attributes,
         );
     }
 

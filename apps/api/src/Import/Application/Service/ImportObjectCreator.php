@@ -40,17 +40,23 @@ final class ImportObjectCreator
     }
 
     /**
-     * @param list<ResolvedImportValue> $resolvedValues   mapped cells with the locale parsed from
-     *                                                    their dotted header (`name.pl` → `pl`)
-     * @param array<string, Attribute>  $attributesByCode
-     * @param list<CatalogObject>       $categories       resolved category objects in cell order
-     *                                                    (IMP2-1.7) — first becomes primary,
-     *                                                    index drives `position`. The handler
-     *                                                    resolves codes once per chunk and emits
-     *                                                    a per-code CategoryNotFound warning for
-     *                                                    any that did not resolve.
-     * @param ?string                   $status           validated publication status (draft|published|archived) or null = untouched
-     * @param ?bool                     $enabled          parsed enabled flag or null = untouched
+     * @param list<ResolvedImportValue>                        $resolvedValues   mapped cells with the locale parsed from
+     *                                                                           their dotted header (`name.pl` → `pl`)
+     * @param array<string, Attribute>                         $attributesByCode
+     * @param list<CatalogObject>                              $categories       resolved category objects in cell order
+     *                                                                           (IMP2-1.7) — first becomes primary,
+     *                                                                           index drives `position`. The handler
+     *                                                                           resolves codes once per chunk and emits
+     *                                                                           a per-code CategoryNotFound warning for
+     *                                                                           any that did not resolve.
+     * @param ?string                                          $status           validated publication status (draft|published|archived) or null = untouched
+     * @param ?bool                                            $enabled          parsed enabled flag or null = untouched
+     * @param ?list<array{code: string, values: list<string>}> $variantAxes      parsed variant axes or null = untouched (IMP2-1.8)
+     * @param array<string, true>                              $existingAssetIds set of asset ids (lower-cased RFC 4122)
+     *                                                                           that exist for the tenant, prefetched per
+     *                                                                           chunk (IMP2-1.8). A gallery cell id absent
+     *                                                                           from the set is dropped with a row warning
+     *                                                                           instead of writing a dangling asset_id.
      */
     public function create(
         ObjectType $objectType,
@@ -61,17 +67,17 @@ final class ImportObjectCreator
         array $categories = [],
         ?string $status = null,
         ?bool $enabled = null,
+        ?array $variantAxes = null,
+        array $existingAssetIds = [],
     ): CreatedImportObject {
         $object = new CatalogObject($objectType, $sku);
         $object->assignImportSession($importSessionId);
-        $this->applyState($object, $status, $enabled);
+        $this->applyState($object, $status, $enabled, $variantAxes);
         $this->em->persist($object);
 
-        $issues = $this->valueWriter->writeMany(
-            $object,
-            $this->buildWrites($resolvedValues, $attributesByCode),
-            Provenance::Import,
-        );
+        $assetIssues = [];
+        $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues);
+        $issues = array_merge($assetIssues, $this->valueWriter->writeMany($object, $writes, Provenance::Import));
 
         // New object has no existing assignments, so batch-persist the
         // junction rows directly (no flush — the chunk handler owns it).
@@ -97,13 +103,19 @@ final class ImportObjectCreator
      * row's reserved columns. Null means "column absent or empty" (D2 — do
      * not touch). Values are pre-validated by {@see ImportValidationService}.
      */
-    private function applyState(CatalogObject $object, ?string $status, ?bool $enabled): void
+    /**
+     * @param ?list<array{code: string, values: list<string>}> $variantAxes
+     */
+    private function applyState(CatalogObject $object, ?string $status, ?bool $enabled, ?array $variantAxes): void
     {
         if (null !== $status) {
             $object->transitionTo($status);
         }
         if (null !== $enabled) {
             $object->changeEnabled($enabled);
+        }
+        if (null !== $variantAxes) {
+            $object->declareVariantAxes($variantAxes);
         }
     }
 
@@ -119,10 +131,12 @@ final class ImportObjectCreator
      * @param array<string, Attribute>  $attributesByCode
      */
     /**
-     * @param list<ResolvedImportValue> $resolvedValues
-     * @param array<string, Attribute>  $attributesByCode
-     * @param ?string                   $status           validated status or null = untouched (IMP2-1.7)
-     * @param ?bool                     $enabled          parsed enabled flag or null = untouched (IMP2-1.7)
+     * @param list<ResolvedImportValue>                        $resolvedValues
+     * @param array<string, Attribute>                         $attributesByCode
+     * @param ?string                                          $status           validated status or null = untouched (IMP2-1.7)
+     * @param ?bool                                            $enabled          parsed enabled flag or null = untouched (IMP2-1.7)
+     * @param ?list<array{code: string, values: list<string>}> $variantAxes      parsed variant axes or null = untouched (IMP2-1.8)
+     * @param array<string, true>                              $existingAssetIds set of existing asset ids (IMP2-1.8)
      *
      * @return list<array{attributeCode: string, kind: string, message: string}>
      */
@@ -132,14 +146,15 @@ final class ImportObjectCreator
         array $attributesByCode,
         ?string $status = null,
         ?bool $enabled = null,
+        ?array $variantAxes = null,
+        array $existingAssetIds = [],
     ): array {
-        $this->applyState($object, $status, $enabled);
+        $this->applyState($object, $status, $enabled, $variantAxes);
 
-        return $this->valueWriter->writeMany(
-            $object,
-            $this->buildWrites($resolvedValues, $attributesByCode),
-            Provenance::Import,
-        );
+        $assetIssues = [];
+        $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues);
+
+        return array_merge($assetIssues, $this->valueWriter->writeMany($object, $writes, Provenance::Import));
     }
 
     /**
@@ -148,12 +163,15 @@ final class ImportObjectCreator
      * parsers cannot interpret are dropped here because the row validator
      * already emitted InvalidType for them.
      *
-     * @param list<ResolvedImportValue> $resolvedValues
-     * @param array<string, Attribute>  $attributesByCode
+     * @param list<ResolvedImportValue>                                         $resolvedValues
+     * @param array<string, Attribute>                                          $attributesByCode
+     * @param array<string, true>                                               $existingAssetIds
+     * @param list<array{attributeCode: string, kind: string, message: string}> $issues           collects per-cell warnings
+     *                                                                                            (dangling asset ids) — by ref
      *
      * @return list<array{attribute: Attribute, envelope: array<string, mixed>, locale: ?string, channelId: ?Uuid}>
      */
-    private function buildWrites(array $resolvedValues, array $attributesByCode): array
+    private function buildWrites(array $resolvedValues, array $attributesByCode, array $existingAssetIds, array &$issues): array
     {
         $writes = [];
         foreach ($resolvedValues as $resolved) {
@@ -165,7 +183,9 @@ final class ImportObjectCreator
             if (!$attribute instanceof Attribute) {
                 continue;
             }
-            $valuePayload = $this->buildValuePayload($attribute, $rawValue);
+            $valuePayload = AttributeType::Asset === $attribute->getType()
+                ? $this->assetPayload($attribute, $rawValue, $existingAssetIds, $issues)
+                : $this->buildValuePayload($attribute, $rawValue);
             if (null === $valuePayload) {
                 continue;
             }
@@ -199,10 +219,55 @@ final class ImportObjectCreator
             AttributeType::Boolean => ['value' => $this->parseBoolean($raw)],
             AttributeType::Select => ['option_code' => $raw],
             AttributeType::Multiselect => $this->multiSelectPayload($raw),
-            AttributeType::Asset => ['asset_id' => $raw],
-            AttributeType::Relation, AttributeType::Reference => ['object_id' => $raw],
+            // IMP2-1.8: Asset cells are handled by assetPayload() (pipe-split +
+            // tenant-scoped existence validation) before this match is reached.
+            // IMP2-1.8: Relation/Reference cells are NOT written as
+            // ObjectValue{object_id} anymore — the two-pass RelationImportStep
+            // resolves their targets by code and writes object_relations rows.
+            AttributeType::Relation, AttributeType::Reference => null,
             default => ['value' => $raw],
         };
+    }
+
+    /**
+     * IMP2-1.8 galleries — pipe-split an Asset cell (`id1|id2`) and validate
+     * every id against the per-chunk existence set (tenant-scoped). Missing ids
+     * are dropped with a row warning so a dangling id never lands in JSONB
+     * (ticket AC). A single surviving id keeps the scalar `{asset_id: <uuid>}`
+     * shape (round-trips with admin-authored single assets); two or more keep
+     * the list `{asset_id: [...]}` shape. Returns null when nothing survives.
+     *
+     * @param array<string, true>                                               $existingAssetIds
+     * @param list<array{attributeCode: string, kind: string, message: string}> $issues           by ref
+     *
+     * @return array{asset_id: string|list<string>}|null
+     */
+    private function assetPayload(Attribute $attribute, string $raw, array $existingAssetIds, array &$issues): ?array
+    {
+        $ids = array_values(array_filter(
+            array_map('trim', explode('|', $raw)),
+            static fn (string $id): bool => '' !== $id,
+        ));
+
+        $survivors = [];
+        foreach ($ids as $id) {
+            if (isset($existingAssetIds[strtolower($id)])) {
+                $survivors[] = $id;
+
+                continue;
+            }
+            $issues[] = [
+                'attributeCode' => $attribute->getCode(),
+                'kind' => 'invalid_value',
+                'message' => \sprintf('Asset "%s" does not exist for this tenant — skipped.', $id),
+            ];
+        }
+
+        if ([] === $survivors) {
+            return null;
+        }
+
+        return ['asset_id' => 1 === \count($survivors) ? $survivors[0] : $survivors];
     }
 
     /**

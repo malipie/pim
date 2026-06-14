@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Application\Handler;
 
+use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectCategory;
@@ -15,6 +16,7 @@ use App\Import\Application\Service\ImportRowDecision;
 use App\Import\Application\Service\ImportRowReader;
 use App\Import\Application\Service\ImportValidationService;
 use App\Import\Application\Service\ObjectResolver;
+use App\Import\Application\Service\RelationImportStep;
 use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Enum\ImportErrorType;
@@ -67,10 +69,12 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ImportValidationService $validator,
         private readonly ImportObjectCreator $creator,
         private readonly ObjectResolver $objectResolver,
+        private readonly RelationImportStep $relationStep,
         private readonly ImportColumnGrammar $columnGrammar,
         private readonly \App\Catalog\Application\BatchValueWriter $valueWriter,
         private readonly \App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface $catalogObjects,
         private readonly \App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface $objectCategories,
+        private readonly \App\Asset\Domain\Repository\AssetRepositoryInterface $assets,
         private readonly ImportProgressPublisher $progressPublisher,
         private readonly TenantContext $tenantContext,
         private readonly FilesystemOperator $importsStorage,
@@ -155,6 +159,10 @@ final class ImportRunHandler extends AbstractBatchHandler
             return;
         }
 
+        // IMP2-1.8: the cross-object link buffer accumulates across all chunks
+        // of THIS run; reset so a long-lived worker never carries stale tuples.
+        $this->relationStep->reset();
+
         $sourcePath = null;
         try {
             $columnMapping = $this->resolveColumnMapping($session);
@@ -205,8 +213,31 @@ final class ImportRunHandler extends AbstractBatchHandler
                 $session = $this->refreshSession($session);
             }
 
+            // IMP2-1.8 — pass 2: wire buffered cross-object links (parent →
+            // master) now that EVERY object exists, so variant rows may appear
+            // before or after their master. resolve() flush+clears in chunks.
+            if ($this->relationStep->hasWork()) {
+                $linkTenant = $session->getTenant();
+                if ($linkTenant instanceof Tenant) {
+                    $linkErrors = $this->relationStep->resolve($session->getTargetObjectType()->getKind(), $linkTenant);
+                    $session = $this->refreshSession($session);
+                    foreach ($linkErrors as $error) {
+                        $session->incrementError();
+                        $this->entityManager->persist(new ImportLog(
+                            importSession: $session,
+                            rowNumber: $error->rowNumber,
+                            level: $error->level,
+                            message: $error->message,
+                            sku: $error->sku,
+                            errorType: $error->errorType->value,
+                            columnName: $error->columnName,
+                            columnValue: $error->columnValue,
+                        ));
+                    }
+                }
+            }
+
             $session->setTotalRows($totalRows);
-            $session = $this->refreshSession($session);
             $session->markCompleted();
             $this->sessions->save($session);
             $this->progressPublisher->completed($session);
@@ -394,6 +425,91 @@ final class ImportRunHandler extends AbstractBatchHandler
     }
 
     /**
+     * IMP2-1.8 — parse the `__variant_axes__` cell (`code:v1,v2|code:v3`) into
+     * the stored shape, or null when absent/empty (D2 — do not touch).
+     *
+     * @param array<string, string|null> $cells
+     * @param array<string, string>      $columnMapping
+     *
+     * @return ?list<array{code: string, values: list<string>}>
+     */
+    private function extractVariantAxes(array $cells, array $columnMapping): ?array
+    {
+        $raw = $this->reservedCell($cells, $columnMapping, ReservedMappingTarget::VARIANT_AXES);
+        if (null === $raw) {
+            return null;
+        }
+
+        $axes = [];
+        foreach (explode('|', $raw) as $part) {
+            $part = trim($part);
+            if ('' === $part) {
+                continue;
+            }
+            [$code, $valuesRaw] = array_pad(explode(':', $part, 2), 2, '');
+            $code = trim($code);
+            if ('' === $code) {
+                continue;
+            }
+            $values = array_values(array_filter(
+                array_map('trim', explode(',', $valuesRaw)),
+                static fn (string $value): bool => '' !== $value,
+            ));
+            $axes[] = ['code' => $code, 'values' => $values];
+        }
+
+        return [] === $axes ? null : $axes;
+    }
+
+    /**
+     * IMP2-1.8 — buffer a parent link for pass 2 when the row carries a
+     * non-empty `__parent_sku__` cell. Existence / cycle validation happens
+     * in pass 2 once every object is written.
+     *
+     * @param array<string, string|null> $cells
+     * @param array<string, string>      $columnMapping
+     */
+    private function recordParentLink(string $childSku, array $cells, array $columnMapping, int $rowNumber): void
+    {
+        $parentSku = $this->reservedCell($cells, $columnMapping, ReservedMappingTarget::PARENT_SKU);
+        if (null !== $parentSku) {
+            $this->relationStep->recordParent($childSku, $parentSku, $rowNumber);
+        }
+    }
+
+    /**
+     * IMP2-1.8 — buffer relation links from Relation/Reference cells for
+     * pass 2. The values were NOT written as ObjectValue (the creator skips
+     * them); their pipe-separated target codes become object_relations rows.
+     *
+     * @param list<ResolvedImportValue> $resolvedValues
+     * @param array<string, Attribute>  $attributesByCode
+     */
+    private function recordRelationLinks(string $sourceSku, array $resolvedValues, array $attributesByCode, int $rowNumber): void
+    {
+        foreach ($resolvedValues as $resolved) {
+            $attribute = $attributesByCode[$resolved->attributeCode] ?? null;
+            if (!$attribute instanceof Attribute) {
+                continue;
+            }
+            if (AttributeType::Relation !== $attribute->getType() && AttributeType::Reference !== $attribute->getType()) {
+                continue;
+            }
+            $raw = $resolved->rawValue;
+            if (null === $raw || '' === $raw) {
+                continue;
+            }
+            $targetCodes = array_values(array_filter(
+                array_map('trim', explode('|', $raw)),
+                static fn (string $code): bool => '' !== $code,
+            ));
+            if ([] !== $targetCodes) {
+                $this->relationStep->recordRelation($sourceSku, $attribute->getCode(), $targetCodes, $rowNumber);
+            }
+        }
+    }
+
+    /**
      * First non-empty (trimmed) cell whose mapping targets the given reserved
      * marker, or null.
      *
@@ -546,6 +662,10 @@ final class ImportRunHandler extends AbstractBatchHandler
         // IMP2-1.7: resolve every distinct category code in the chunk once
         // (per-chunk prefetch — not one SELECT per code per row).
         $categoryByCode = $this->resolveChunkCategories($prepared, $columnMapping, $tenant);
+        // IMP2-1.8 galleries: prefetch which referenced asset ids actually
+        // exist (tenant-scoped) so the creator can drop dangling ids with a
+        // row warning — one query per chunk, mirroring the category prefetch.
+        $existingAssetIds = $this->resolveChunkAssets($prepared, $attributesByCode, $tenant);
         /** @var list<array{product: CatalogObject, codes: list<string>, append: bool}> $pendingCategoryOps */
         $pendingCategoryOps = [];
 
@@ -568,9 +688,16 @@ final class ImportRunHandler extends AbstractBatchHandler
                         categories: $this->resolveCategories($this->extractCategoryCodes($row['cells'], $columnMapping), $categoryByCode),
                         status: $this->extractStatus($row['cells'], $columnMapping),
                         enabled: $this->extractEnabled($row['cells'], $columnMapping),
+                        variantAxes: $this->extractVariantAxes($row['cells'], $columnMapping),
+                        existingAssetIds: $existingAssetIds,
                     );
                     $issues = $created->issues;
                     $session->incrementSuccess();
+                    // IMP2-1.8: buffer parent + relation links; resolved in
+                    // pass 2 once every object exists (target row may precede).
+                    $createdSku = $this->skuFrom($row['resolvedValues'], $row['rowNumber']);
+                    $this->recordParentLink($createdSku, $row['cells'], $columnMapping, $row['rowNumber']);
+                    $this->recordRelationLinks($createdSku, $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
                 } elseif (ImportRowDecision::Update === $decision && null !== $existing) {
                     $issues = $this->creator->update(
                         $existing,
@@ -578,9 +705,13 @@ final class ImportRunHandler extends AbstractBatchHandler
                         $attributesByCode,
                         $this->extractStatus($row['cells'], $columnMapping),
                         $this->extractEnabled($row['cells'], $columnMapping),
+                        $this->extractVariantAxes($row['cells'], $columnMapping),
+                        $existingAssetIds,
                     );
                     $session->incrementSuccess();
                     $session->incrementUpdated();
+                    $this->recordParentLink($existing->getCode(), $row['cells'], $columnMapping, $row['rowNumber']);
+                    $this->recordRelationLinks($existing->getCode(), $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
                     // IMP2-1.7: category replace/append runs after the value
                     // pass (replaceForProduct flushes around the primary index).
                     // Empty cell = untouched (D2), so only collect non-empty.
@@ -682,6 +813,54 @@ final class ImportRunHandler extends AbstractBatchHandler
         }
 
         return $map;
+    }
+
+    /**
+     * IMP2-1.8 galleries — collect every asset id referenced by an Asset-type
+     * cell in the chunk (pipe-split) and return the subset that exists for the
+     * tenant as a lower-cased lookup set. One query per chunk; the creator uses
+     * the set to drop dangling ids with a row warning.
+     *
+     * @param list<array{rowNumber: int, cells: array<string, string|null>, sku: ?string, errors: list<ValidationError>, rowOk: bool, resolvedValues: list<ResolvedImportValue>, matchKey: string}> $prepared
+     * @param array<string, Attribute>                                                                                                                                                              $attributesByCode
+     *
+     * @return array<string, true>
+     */
+    private function resolveChunkAssets(array $prepared, array $attributesByCode, Tenant $tenant): array
+    {
+        $ids = [];
+        foreach ($prepared as $row) {
+            if (!$row['rowOk']) {
+                continue;
+            }
+            foreach ($row['resolvedValues'] as $resolved) {
+                $attribute = $attributesByCode[$resolved->attributeCode] ?? null;
+                if (!$attribute instanceof Attribute || AttributeType::Asset !== $attribute->getType()) {
+                    continue;
+                }
+                $raw = $resolved->rawValue;
+                if (null === $raw || '' === $raw) {
+                    continue;
+                }
+                foreach (explode('|', $raw) as $id) {
+                    $id = trim($id);
+                    if ('' !== $id) {
+                        $ids[$id] = true;
+                    }
+                }
+            }
+        }
+
+        if ([] === $ids) {
+            return [];
+        }
+
+        $set = [];
+        foreach ($this->assets->existingIds(array_keys($ids), $tenant) as $existing) {
+            $set[strtolower($existing)] = true;
+        }
+
+        return $set;
     }
 
     /**

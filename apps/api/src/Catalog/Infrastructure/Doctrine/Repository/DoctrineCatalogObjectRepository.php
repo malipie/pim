@@ -27,6 +27,49 @@ class DoctrineCatalogObjectRepository extends ServiceEntityRepository implements
         return $this->findOneBy(['code' => $code, 'kind' => $kind, 'tenant' => $tenant]);
     }
 
+    public function findByCodeInObjectTypes(string $code, array $objectTypeIds, Tenant $tenant): ?CatalogObject
+    {
+        $qb = $this->createQueryBuilder('o')
+            ->where('o.code = :code')
+            ->andWhere('o.tenant = :tenant')
+            ->setParameter('code', $code)
+            ->setParameter('tenant', $tenant)
+            ->setMaxResults(1);
+
+        if ([] !== $objectTypeIds) {
+            $qb->andWhere('o.objectType IN (:ots)')->setParameter('ots', $objectTypeIds);
+        }
+
+        /** @var ?CatalogObject $result */
+        $result = $qb->getQuery()->getOneOrNullResult();
+
+        return $result;
+    }
+
+    /**
+     * @param list<string> $parentIdsRfc4122
+     *
+     * @return list<CatalogObject>
+     */
+    public function findChildrenByParentIds(array $parentIdsRfc4122, Tenant $tenant): array
+    {
+        if ([] === $parentIdsRfc4122) {
+            return [];
+        }
+
+        /** @var list<CatalogObject> $rows */
+        $rows = $this->createQueryBuilder('o')
+            ->where('o.parent IN (:parents)')
+            ->andWhere('o.tenant = :tenant')
+            ->setParameter('parents', $parentIdsRfc4122)
+            ->setParameter('tenant', $tenant)
+            ->orderBy('o.code', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     /**
      * @return list<CatalogObject>
      */

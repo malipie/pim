@@ -28,6 +28,29 @@ interface CatalogObjectRepositoryInterface
     public function findByCode(string $code, ObjectKind $kind, Tenant $tenant): ?CatalogObject;
 
     /**
+     * IMP2-1.8 (#1471) — resolve an object by `code` within a set of allowed
+     * ObjectTypes (a relation attribute's `relationTargetObjectTypeIds`),
+     * tenant-scoped. An empty `$objectTypeIds` matches any type in the
+     * tenant. Returns the first match or null. Used by the import relation
+     * step; the tenant filter guarantees a code that only exists in another
+     * tenant resolves to null (cross-tenant isolation).
+     *
+     * @param list<string> $objectTypeIds UUID strings; empty = any type
+     */
+    public function findByCodeInObjectTypes(string $code, array $objectTypeIds, Tenant $tenant): ?CatalogObject;
+
+    /**
+     * IMP2-1.8 (#1471) — children (variants) of the given parents,
+     * tenant-scoped, ordered by `code` ASC for a deterministic export
+     * fan-out. Drives `include_variants` on the export runner.
+     *
+     * @param list<string> $parentIdsRfc4122
+     *
+     * @return list<CatalogObject>
+     */
+    public function findChildrenByParentIds(array $parentIdsRfc4122, Tenant $tenant): array;
+
+    /**
      * @return list<CatalogObject>
      */
     public function findByKind(ObjectKind $kind, Tenant $tenant): array;
