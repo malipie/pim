@@ -137,6 +137,9 @@ final class ZipImageExtractorTest extends TestCase
         // a no-op when zend.assertions is off (CI), which would otherwise
         // surface only as a later "Invalid or uninitialized Zip object".
         $path = tempnam(sys_get_temp_dir(), 'pim-ziptest-');
+        if (false === $path) {
+            throw new RuntimeException('tempnam() failed for the test ZIP.');
+        }
         $this->tmpFiles[] = $path;
         $zip = new ZipArchive();
         $opened = $zip->open($path, ZipArchive::OVERWRITE);
