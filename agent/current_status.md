@@ -14,16 +14,18 @@
   - [x] **IMP2-1.7 (#1470)** — multi-kategorie pipe-split + import status/enabled. **MERGED** (PR #1511, `5dd98b8c`, 2026-06-13). Live smoke 3/3, zamknięte z dowodem. CREATE multi-kat (primary+position), replace/append (D2), status/enabled z kolumn (`__status__`/`__enabled__`), FE StepMapping + Playwright, golden round-trip.
   - [x] **IMP2-1.8 (#1471)** — warianty parent_sku two-pass + relacje ObjectRelation + fan-out + galerie + variant_axes. **MERGED** (PR #1512, `0722c50e`, 2026-06-14). Live smoke ✅ (generate-variants→export include_variants→reimport renamed→psql parent_id+variant_axes), #598 zamknięte z dowodem. Dwuprzebieg (`RelationImportStep`): pass-1 buforuje kody, pass-2 resolve tenant-scoped. Galerie pipe-split asset_id + prefetch istnienia per chunk. variant_axes pełny shape `code:v,v|code:v`. **Item 2 (pole fazy checkpoint) DEFERRED** — substrat checkpoint z 1.6a nie istnieje (#1509 = transport only), pełny resume to IMP2-2.3; dwuprzebieg już redelivery-safe (idempotentny upsert + dedupe trójki).
   - [x] **IMP2-1.9 (#1472)** — izolacja błędów per wiersz + severity + partial. **MERGED** (PR #1513, `192afe78`, 2026-06-14). Live smoke `dirty.csv` ✅ (partial 5/2, skip 1, raport z numerami wierszy), #1472 zamknięte z dowodem. severity-driven `isRowBlocking` (Warning nie blokuje), dup SKU→skip (D1), pre-check setowy identifierów (JSONB `value->>'value'`), wiersz śmieciowy→błąd wiersza, recovery przez ManagerRegistry po zamknięciu EM. **Item 3 per-row replay DEFERRED→IMP2-2.3** (EM-lifecycle, ServiceEntityRepository cache'uje EM).
-  - [→] **IMP2-1.10 (#1473)** — test: golden pełna matryca (17 typów × scope) + XLSX + pierwsze testy async ImportRunHandler. START.
-  - [ ] 1.11+ (media, etap 2/3).
+  - [x] **IMP2-1.10 (#1473)** — golden CSV+XLSX matryca + pierwsze testy async. **MERGED** (#1514).
+  - [x] **IMP2-1.11 (#1474)** — higiena backlogu (8→1 open IMP-16..19). **MERGED** (#1515).
+  - [x] **IMP2-1.12 (#1475)** — media z URL. **MERGED** (#1516, `c0aa5c01`). Live smoke ✅ (async: import→consume→success, envelope `{asset_id}` nie URL, dedup content_hash, link, gating, TenantStamp), #1475/#600/#604 zamknięte. Szew `Asset\Contracts\AssetIngestor` (decyzja operatora). **Adversarial review (16 agentów) złapał 3 critical** → NoPrivateNetworkHttpClient (SSRF rebinding+redirect), TenantStamp, atomowy decrement — naprawione przed merge.
+  - [→] **IMP2-1.13 (#1476)** — media z ZIP (reużywa AssetIngestor+resolver+liczniki+gating). START.
 
 ## Ostatnie akcje
-1. IMP2-1.9 zmergowane (#1513) i #1472 zamknięte z live-smoke proof (dirty.csv).
-2. IMP2-1.8 zmergowane (#1512), #598 zamknięte. Dup #602 → dedupe w 1.11 per scope.
-3. Suite import/export 206→ golden 4 testy + matryca severity 28 (ValidationErrorTest) + 3 Api izolacji błędów.
+1. IMP2-1.12 zmergowane (#1516) po adversarial review (3 critical SSRF/tenant fixed); #1475/#600/#604 zamknięte z dowodem.
+2. IMP2-1.8/1.9/1.10/1.11 zmergowane wcześniej (#1512/1513/1514/1515).
+3. Dev DB env-repair: dorobiono `processed_messages` (zgubione przy rebuildzie z dumpu) + odpalono migrację 1.12.
 
-## Następny krok — IMP2-1.10 (#1473)
-Ticket TESTOWY (PHPUnit/ApiTestCase only). Golden pełna matryca 17 typów × realne scope (z `isLocalizable`/`isScopable`, NIE kartezjan) + XLSX (data provider) + ≥4 testy async ImportRunHandler (transport `import`, routing >50, end-to-end, recoverable na locku) + asercje per-typ envelope. Fixtures syntetyczne (zero plików z `Zrodla/`). IMP2 maraton.
+## Następny krok — IMP2-1.13 (#1476)
+Media z pliku ZIP (część 2). Reużywa `AssetIngestorInterface` (binary→Asset, dedup), `AssetUrlResolver` (rozszerz o resolveFromZip / bare-filename), liczniki + completion gating z 1.12. Stream ZIP w chunkach (zip-bomb cap), Unicode NFC/NFD filename match (case Tubądzin). Zależy od 1.12 (merged ✓).
 
 ## Aktywne blokery
 - Brak (IMP2-1.8 pozostałe items to praca, nie bloker).
