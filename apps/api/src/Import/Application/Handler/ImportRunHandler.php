@@ -74,6 +74,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly \App\Catalog\Application\BatchValueWriter $valueWriter,
         private readonly \App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface $catalogObjects,
         private readonly \App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface $objectCategories,
+        private readonly \App\Asset\Domain\Repository\AssetRepositoryInterface $assets,
         private readonly ImportProgressPublisher $progressPublisher,
         private readonly TenantContext $tenantContext,
         private readonly FilesystemOperator $importsStorage,
@@ -661,6 +662,10 @@ final class ImportRunHandler extends AbstractBatchHandler
         // IMP2-1.7: resolve every distinct category code in the chunk once
         // (per-chunk prefetch — not one SELECT per code per row).
         $categoryByCode = $this->resolveChunkCategories($prepared, $columnMapping, $tenant);
+        // IMP2-1.8 galleries: prefetch which referenced asset ids actually
+        // exist (tenant-scoped) so the creator can drop dangling ids with a
+        // row warning — one query per chunk, mirroring the category prefetch.
+        $existingAssetIds = $this->resolveChunkAssets($prepared, $attributesByCode, $tenant);
         /** @var list<array{product: CatalogObject, codes: list<string>, append: bool}> $pendingCategoryOps */
         $pendingCategoryOps = [];
 
@@ -684,6 +689,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                         status: $this->extractStatus($row['cells'], $columnMapping),
                         enabled: $this->extractEnabled($row['cells'], $columnMapping),
                         variantAxes: $this->extractVariantAxes($row['cells'], $columnMapping),
+                        existingAssetIds: $existingAssetIds,
                     );
                     $issues = $created->issues;
                     $session->incrementSuccess();
@@ -700,6 +706,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                         $this->extractStatus($row['cells'], $columnMapping),
                         $this->extractEnabled($row['cells'], $columnMapping),
                         $this->extractVariantAxes($row['cells'], $columnMapping),
+                        $existingAssetIds,
                     );
                     $session->incrementSuccess();
                     $session->incrementUpdated();
@@ -806,6 +813,54 @@ final class ImportRunHandler extends AbstractBatchHandler
         }
 
         return $map;
+    }
+
+    /**
+     * IMP2-1.8 galleries — collect every asset id referenced by an Asset-type
+     * cell in the chunk (pipe-split) and return the subset that exists for the
+     * tenant as a lower-cased lookup set. One query per chunk; the creator uses
+     * the set to drop dangling ids with a row warning.
+     *
+     * @param list<array{rowNumber: int, cells: array<string, string|null>, sku: ?string, errors: list<ValidationError>, rowOk: bool, resolvedValues: list<ResolvedImportValue>, matchKey: string}> $prepared
+     * @param array<string, Attribute>                                                                                                                                                              $attributesByCode
+     *
+     * @return array<string, true>
+     */
+    private function resolveChunkAssets(array $prepared, array $attributesByCode, Tenant $tenant): array
+    {
+        $ids = [];
+        foreach ($prepared as $row) {
+            if (!$row['rowOk']) {
+                continue;
+            }
+            foreach ($row['resolvedValues'] as $resolved) {
+                $attribute = $attributesByCode[$resolved->attributeCode] ?? null;
+                if (!$attribute instanceof Attribute || AttributeType::Asset !== $attribute->getType()) {
+                    continue;
+                }
+                $raw = $resolved->rawValue;
+                if (null === $raw || '' === $raw) {
+                    continue;
+                }
+                foreach (explode('|', $raw) as $id) {
+                    $id = trim($id);
+                    if ('' !== $id) {
+                        $ids[$id] = true;
+                    }
+                }
+            }
+        }
+
+        if ([] === $ids) {
+            return [];
+        }
+
+        $set = [];
+        foreach ($this->assets->existingIds(array_keys($ids), $tenant) as $existing) {
+            $set[strtolower($existing)] = true;
+        }
+
+        return $set;
     }
 
     /**

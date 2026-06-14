@@ -420,6 +420,8 @@ parameters:
             - App\Catalog\Domain\ObjectKind
             - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface
             - App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface
+            # IMP2-1.8 galleries — per-chunk asset existence prefetch
+            - App\Asset\Domain\Repository\AssetRepositoryInterface
         # IMP2-1.4 (#1466) writer touchpoint
         App\Import\Application\Service\CreatedImportObject:
             - App\Catalog\Domain\Entity\CatalogObject

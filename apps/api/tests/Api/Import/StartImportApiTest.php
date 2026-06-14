@@ -436,6 +436,86 @@ final class StartImportApiTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function importGalleryCellSplitsAssetsAndDropsDanglingIds(): void
+    {
+        // IMP2-1.8 (AC) — `id1|id2` in an Asset cell → envelope with a list;
+        // a non-existent asset id → row warning, nothing dangling in JSONB.
+        $this->seedAttributes();
+
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $productOt = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($productOt instanceof ObjectType);
+
+        $gallery = new Attribute('gallery', ['en' => 'Gallery'], AttributeType::Asset);
+        $em->persist($gallery);
+        $em->persist(new ObjectTypeAttribute($productOt, $gallery, false, 3));
+
+        $assetA = new \App\Asset\Domain\Entity\Asset('AST-A', 'a.jpg', 'image/jpeg', 10, 'p/a.jpg');
+        $assetB = new \App\Asset\Domain\Entity\Asset('AST-B', 'b.jpg', 'image/jpeg', 10, 'p/b.jpg');
+        $em->persist($assetA);
+        $em->persist($assetB);
+        $em->flush();
+        $idA = $assetA->getId()->toRfc4122();
+        $idB = $assetB->getId()->toRfc4122();
+        $bogus = '01914aaa-bbbb-7ccc-8ddd-eeeeeeeeeeee';
+
+        $csvPath = $this->writeCsv(
+            "sku;name;gallery\nGAL-1;Two assets;{$idA}|{$idB}\nGAL-2;One bad;{$idA}|{$bogus}\n",
+            'pim-gal-',
+        );
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode([
+                            'sku' => 'sku',
+                            'name' => 'name',
+                            'gallery' => 'gallery',
+                        ], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'gal.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame(2, $body['success_count']);
+
+            // GAL-1 → both ids survive → list envelope.
+            $valueOne = $em->getConnection()->fetchOne(
+                "SELECT ov.value FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='gallery' AND o.code='GAL-1'",
+            );
+            \assert(\is_string($valueOne));
+            self::assertSame(['asset_id' => [$idA, $idB]], json_decode($valueOne, true, 512, JSON_THROW_ON_ERROR));
+
+            // GAL-2 → only the existing id survives (scalar), bogus dropped.
+            $valueTwo = $em->getConnection()->fetchOne(
+                "SELECT ov.value FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='gallery' AND o.code='GAL-2'",
+            );
+            \assert(\is_string($valueTwo));
+            $decodedTwo = json_decode($valueTwo, true, 512, JSON_THROW_ON_ERROR);
+            self::assertSame(['asset_id' => $idA], $decodedTwo);
+            self::assertStringNotContainsString($bogus, $valueTwo, 'dangling asset id must not reach JSONB');
+
+            // The dropped id surfaced as a row warning.
+            $warnings = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM import_logs WHERE level='warning' AND message LIKE '%does not exist for this tenant%'",
+            );
+            self::assertSame(1, (int) (\is_scalar($warnings) ? $warnings : 0));
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
     private function writeCsv(string $contents, string $prefix): string
     {
         $path = tempnam(sys_get_temp_dir(), $prefix);
