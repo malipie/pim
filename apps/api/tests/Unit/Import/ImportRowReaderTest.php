@@ -143,6 +143,14 @@ final class ImportRowReaderTest extends TestCase
 
         try {
             $reader = new ImportRowReader(new EncodingDetector(), new DelimiterDetector());
+            // Measure the peak DELTA the read forces over the pre-existing
+            // baseline, not the absolute peak: memory_get_peak_usage(true)
+            // reports the OS arena high-water, which in the full suite is
+            // already ~100 MiB from earlier tests and never shrinks. Only the
+            // delta isolates this reader's footprint. Streaming → near-zero;
+            // accumulating all 100k assoc rows would add ~50 MiB.
+            gc_collect_cycles();
+            $baseline = memory_get_usage(true);
             memory_reset_peak_usage();
             $count = 0;
             foreach ($reader->read($path) as $row) {
@@ -151,8 +159,12 @@ final class ImportRowReaderTest extends TestCase
             }
 
             self::assertSame(100_000, $count);
-            $peakMib = memory_get_peak_usage(true) / (1024 * 1024);
-            self::assertLessThan(64, $peakMib, \sprintf('peak %.1f MiB — reader is not streaming', $peakMib));
+            $peakDeltaMib = (memory_get_peak_usage(true) - $baseline) / (1024 * 1024);
+            self::assertLessThan(
+                24,
+                $peakDeltaMib,
+                \sprintf('reader added %.1f MiB over baseline — not streaming (100k rows accumulated ≈ 50 MiB)', $peakDeltaMib),
+            );
         } finally {
             @unlink($path);
         }
