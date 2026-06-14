@@ -12,6 +12,7 @@ use App\Catalog\Domain\Entity\ObjectCategory;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\Provenance;
+use App\Import\Application\Service\Media\AssetUrlResolver;
 use App\Import\Domain\ValueObject\ResolvedImportValue;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -36,6 +37,7 @@ final class ImportObjectCreator
         private readonly EntityManagerInterface $em,
         private readonly BatchValueWriter $valueWriter,
         private readonly CompositeValueParser $compositeValueParser,
+        private readonly AssetUrlResolver $assetUrlResolver,
     ) {
     }
 
@@ -279,14 +281,14 @@ final class ImportObjectCreator
     }
 
     /**
-     * IMP2-1.12 — true when the cell contains an http(s) image URL anywhere
-     * (case-insensitive). Such cells are handled by the async media path.
+     * IMP2-1.12 — true when the cell yields any http(s) URL token. Uses the
+     * SAME tokenizer ({@see AssetUrlResolver}) as ImportRunHandler's media-job
+     * collection, so "owned by the media path" is decided in exactly one place
+     * (no substring/tokenizer drift).
      */
     private function cellHasUrl(string $raw): bool
     {
-        $lower = strtolower($raw);
-
-        return str_contains($lower, 'http://') || str_contains($lower, 'https://');
+        return [] !== $this->assetUrlResolver->classify($raw)['urls'];
     }
 
     /**

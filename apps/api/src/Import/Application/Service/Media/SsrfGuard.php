@@ -12,16 +12,21 @@ use const FILTER_FLAG_NO_RES_RANGE;
 use const FILTER_VALIDATE_IP;
 
 /**
- * IMP2-1.12 / IMP2-2.8 — blocks server-side request forgery on import image
- * downloads. Only http/https is allowed, and the host MUST resolve solely to
- * public unicast addresses. Resolving the hostname and inspecting every
- * resolved IP (not just the literal) defeats DNS-rebinding / hostname tricks;
- * the check runs BEFORE any HTTP request is made.
+ * IMP2-1.12 / IMP2-2.8 — cheap PRE-FILTER for server-side request forgery on
+ * import image downloads: rejects non-http(s) schemes and hosts that resolve to
+ * a non-public address BEFORE any request, with a clean log message. It is NOT
+ * the sole defence — a one-shot pre-resolution cannot stop DNS-rebinding (the
+ * client re-resolves at connect time) nor a redirect to a private host. The
+ * authoritative connection-time + per-redirect peer-IP check is
+ * {@see \Symfony\Component\HttpClient\NoPrivateNetworkHttpClient}, which wraps
+ * the client injected into {@see \App\Import\Application\Handler\ImageDownloadHandler}
+ * (`import.ssrf_safe_http_client` in services.yaml). This guard is the fast
+ * early reject; that client is the real backstop.
  *
- * Rejected: private (RFC1918), loopback (127.0.0.0/8, ::1), link-local
+ * Rejected here: private (RFC1918), loopback (127.0.0.0/8, ::1), link-local
  * (169.254.0.0/16, fe80::/10), reserved/ULA (fc00::/7, 0.0.0.0/8, …) — the
- * NO_PRIV_RANGE | NO_RES_RANGE filter flags cover them, with explicit
- * literal guards as defence in depth.
+ * NO_PRIV_RANGE | NO_RES_RANGE filter flags cover them, with explicit literal
+ * guards as defence in depth.
  */
 final class SsrfGuard
 {

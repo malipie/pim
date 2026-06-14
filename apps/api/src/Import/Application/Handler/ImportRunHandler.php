@@ -35,6 +35,7 @@ use App\Shared\Application\BulkOperationInProgressException;
 use App\Shared\Application\BulkOperationLock;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
+use App\Shared\Infrastructure\Messenger\Stamp\TenantStamp;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Exception\ConnectionException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -794,7 +795,7 @@ final class ImportRunHandler extends AbstractBatchHandler
      * @param array{rowNumber: int, cells: array<string, string|null>, sku: ?string, errors: list<ValidationError>, rowOk: bool, resolvedValues: list<ResolvedImportValue>, matchKey: string, duplicateInFile: bool} $row
      * @param array<string, Attribute>                                                                                                                                                                               $attributesByCode
      */
-    private function collectMediaJobs(array &$mediaJobs, Uuid $objectId, array $row, array $attributesByCode): void
+    private function collectMediaJobs(array &$mediaJobs, ImportSession $session, Uuid $objectId, array $row, array $attributesByCode): void
     {
         foreach ($row['resolvedValues'] as $resolved) {
             $attribute = $attributesByCode[$resolved->attributeCode] ?? null;
@@ -806,8 +807,24 @@ final class ImportRunHandler extends AbstractBatchHandler
                 continue;
             }
             $classified = $this->assetUrlResolver->classify($raw);
+            // IMP2-1.12 (1c) — a bare-filename token is neither an existing
+            // asset id nor an http(s) URL (relative paths land in IMP2-1.13 ZIP
+            // / IMP2-3.4 prefix transform); surface each as a row warning rather
+            // than dropping it silently.
+            foreach ($classified['unresolved'] as $token) {
+                $this->entityManager->persist(new ImportLog(
+                    importSession: $session,
+                    rowNumber: $row['rowNumber'],
+                    level: ImportLogLevel::Warning,
+                    message: \sprintf('Asset reference "%s" is neither a known asset id nor an http(s) URL — skipped.', $token),
+                    sku: $row['sku'],
+                    errorType: ImportErrorType::ImageNotFound->value,
+                    columnName: $resolved->attributeCode,
+                    columnValue: $token,
+                ));
+            }
             if ([] === $classified['urls']) {
-                continue; // pure UUID / unresolved cell — handled by the value writer
+                continue; // pure UUID / handled by the value writer
             }
             $mediaJobs[] = new ImageDownloadJob(
                 objectId: $objectId->toRfc4122(),
@@ -843,11 +860,13 @@ final class ImportRunHandler extends AbstractBatchHandler
             }
             $session->incrementPendingImageBatches();
             $this->sessions->save($session);
-            $this->messageBus->dispatch(new ImageDownloadMessage(
-                $session->getId(),
-                $tenant->getId(),
-                $batch,
-            ));
+            // TenantStamp so the async worker rebinds the tenant before the
+            // handler runs (TenantContextRebindingMiddleware) — mirrors the
+            // ImportRunMessage dispatch; without it the worker dead-letters.
+            $this->messageBus->dispatch(
+                new ImageDownloadMessage($session->getId(), $tenant->getId(), $batch),
+                [new TenantStamp($tenant->getId())],
+            );
         }
 
         return $this->refreshSession($session);
@@ -1078,7 +1097,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                     $createdSku = $this->skuFrom($row['resolvedValues'], $row['rowNumber']);
                     $this->recordParentLink($createdSku, $row['cells'], $columnMapping, $row['rowNumber']);
                     $this->recordRelationLinks($createdSku, $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
-                    $this->collectMediaJobs($mediaJobs, $created->object->getId(), $row, $attributesByCode);
+                    $this->collectMediaJobs($mediaJobs, $session, $created->object->getId(), $row, $attributesByCode);
                 } elseif (ImportRowDecision::Update === $decision && null !== $existing) {
                     $issues = $this->creator->update(
                         $existing,
@@ -1093,7 +1112,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                     $session->incrementUpdated();
                     $this->recordParentLink($existing->getCode(), $row['cells'], $columnMapping, $row['rowNumber']);
                     $this->recordRelationLinks($existing->getCode(), $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
-                    $this->collectMediaJobs($mediaJobs, $existing->getId(), $row, $attributesByCode);
+                    $this->collectMediaJobs($mediaJobs, $session, $existing->getId(), $row, $attributesByCode);
                     // IMP2-1.7: category replace/append runs after the value
                     // pass (replaceForProduct flushes around the primary index).
                     // Empty cell = untouched (D2), so only collect non-empty.

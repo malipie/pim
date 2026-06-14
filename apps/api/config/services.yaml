@@ -229,6 +229,20 @@ services:
         arguments:
             $importsStorage: '@imports.storage'
 
+    # IMP2-1.12 — SSRF-safe HTTP client for image downloads. Wraps the default
+    # client in Symfony's NoPrivateNetworkHttpClient, which validates the
+    # ACTUALLY-connected peer IP on every progress tick AND every redirect hop
+    # (closing the DNS-rebinding TOCTOU + redirect-to-private gaps that a
+    # one-shot pre-resolution cannot). SsrfGuard stays as a cheap early reject.
+    import.ssrf_safe_http_client:
+        class: Symfony\Component\HttpClient\NoPrivateNetworkHttpClient
+        arguments:
+            - '@http_client'
+
+    App\Import\Application\Handler\ImageDownloadHandler:
+        arguments:
+            $httpClient: '@import.ssrf_safe_http_client'
+
     # EXP-06 (#585) — async export worker. Same named-storage binding so
     # the handler can write the generated XLSX/CSV to MinIO under
     # `<tenant_id>/<session_id>.<format>` (PRD §11.1).

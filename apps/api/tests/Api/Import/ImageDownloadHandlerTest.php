@@ -244,6 +244,49 @@ final class ImageDownloadHandlerTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function bareFilenameTokenIsWarnedNotSilentlyDropped(): void
+    {
+        // IMP2-1.12 (1c) — a non-UUID, non-URL token (relative path; ZIP/transform
+        // territory) surfaces as an image_not_found row warning, and writes no
+        // asset value.
+        $this->seedSkuAndPhoto();
+        $client = $this->authenticatedClient();
+        $path = tempnam(sys_get_temp_dir(), 'pim-bare-').'.csv';
+        file_put_contents($path, "sku;photo\nBARE-1;product-front.png\n");
+        try {
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'photo' => 'photo'], JSON_THROW_ON_ERROR),
+                        'mode' => 'UPSERT',
+                    ],
+                    'files' => ['file' => new \Symfony\Component\HttpFoundation\File\UploadedFile($path, 'bare.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            \assert(\is_array($body));
+            $sessionId = $body['id'];
+            \assert(\is_string($sessionId));
+
+            $em = $this->em();
+            $em->clear();
+            $logs = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM import_logs WHERE error_type='image_not_found' AND import_session_id = :s",
+                ['s' => $sessionId],
+            );
+            self::assertSame(1, (int) (\is_scalar($logs) ? $logs : 0), 'bare filename surfaced as a warning');
+            $photoValues = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='photo' AND o.code='BARE-1'",
+            );
+            self::assertSame(0, (int) (\is_scalar($photoValues) ? $photoValues : 1));
+        } finally {
+            @unlink($path);
+        }
+    }
+
     private function seedSkuAndPhoto(): void
     {
         $em = $this->em();

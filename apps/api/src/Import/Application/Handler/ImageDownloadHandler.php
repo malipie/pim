@@ -134,31 +134,43 @@ final class ImageDownloadHandler extends AbstractBatchHandler
         if (!$session instanceof ImportSession) {
             return;
         }
-
-        for ($i = 0; $i < $downloaded; ++$i) {
-            $session->incrementImagesDownloaded();
-        }
-        for ($i = 0; $i < $failed; ++$i) {
-            $session->incrementImagesFailed();
-        }
         foreach ($pendingLogs as $entry) {
             $this->persistLog($session, $entry['job'], $entry['type'], $entry['message'], $entry['value']);
         }
         foreach ($pendingWrites as $write) {
             $this->applyWrite($session, $write['job'], $write['downloaded'], $tenant);
         }
-
-        $session->decrementPendingImageBatches();
-        $finalize = $session->canFinalizeMedia() && !$session->getStatus()->isTerminal();
-        if ($finalize) {
-            $session->markCompleted();
-        }
+        // The session entity is intentionally NOT mutated here — its counters
+        // and the batch gate move via ONE atomic SQL statement below, so
+        // concurrent media batches (multiple `import` consumers) cannot lose an
+        // increment or a decrement and strand the session non-terminal.
         $this->flushAndClear();
 
-        if ($finalize) {
-            $reloaded = $this->sessions->findById($message->importSessionId);
-            if ($reloaded instanceof ImportSession) {
-                $this->progressPublisher->completed($reloaded);
+        $row = $this->entityManager->getConnection()->fetchAssociative(
+            'UPDATE import_sessions'
+            .' SET images_downloaded = images_downloaded + :d,'
+            .'     images_failed = images_failed + :f,'
+            .'     pending_image_batches = GREATEST(0, pending_image_batches - 1)'
+            .' WHERE id = :id'
+            .' RETURNING pending_image_batches, row_phase_complete',
+            [
+                'd' => $downloaded,
+                'f' => $failed,
+                'id' => $message->importSessionId->toRfc4122(),
+            ],
+        );
+        $pendingRaw = \is_array($row) ? $row['pending_image_batches'] : 1;
+        $pending = \is_scalar($pendingRaw) ? (int) $pendingRaw : 1;
+        $rowPhaseDone = \is_array($row) && (bool) $row['row_phase_complete'];
+
+        // The batch that drives the counter to zero AFTER the row phase is done
+        // finalizes the session (success / partial).
+        if (0 === $pending && $rowPhaseDone) {
+            $session = $this->sessions->findById($message->importSessionId);
+            if ($session instanceof ImportSession && !$session->getStatus()->isTerminal()) {
+                $session->markCompleted();
+                $this->sessions->save($session);
+                $this->progressPublisher->completed($session);
             }
         }
     }
