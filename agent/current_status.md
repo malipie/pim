@@ -12,22 +12,17 @@
 - **Fala B — w toku:**
   - [x] **IMP2-1.6 (#1469)** — gramatyka kolumn `code.locale.channel` + zapis channelId. **MERGED** (PR #1510, `440a63a3`, 2026-06-13). Live smoke 3/3 na pim.localhost, issue zamknięte z dowodem. Grammar przez `Channel\Contracts\ScopeEnumerator` (deptrac-clean, channelId raz/sesja), export 3-segment + fan-out #1146 + R-47 preflight 422, kolizja kanał↔locale (oba kierunki), golden + kanały.
   - [x] **IMP2-1.7 (#1470)** — multi-kategorie pipe-split + import status/enabled. **MERGED** (PR #1511, `5dd98b8c`, 2026-06-13). Live smoke 3/3, zamknięte z dowodem. CREATE multi-kat (primary+position), replace/append (D2), status/enabled z kolumn (`__status__`/`__enabled__`), FE StepMapping + Playwright, golden round-trip.
-  - [→] **IMP2-1.8 (#1471)** — warianty parent_sku two-pass + relacje ObjectRelation + fan-out. Branch `feat/imp2-1.8-variants-relations` (push'nięty). **CZĘŚCIOWE — parent_sku two-pass DONE** (commit `f8f22973`, NIE na main).
-  - [ ] 1.9 (#1472) izolacja błędów · 1.10 (#1473) golden pełna matryca + async · 1.11+ (media, etap 2/3).
+  - [x] **IMP2-1.8 (#1471)** — warianty parent_sku two-pass + relacje ObjectRelation + fan-out + galerie + variant_axes. **MERGED** (PR #1512, `0722c50e`, 2026-06-14). Live smoke ✅ (generate-variants→export include_variants→reimport renamed→psql parent_id+variant_axes), #598 zamknięte z dowodem. Dwuprzebieg (`RelationImportStep`): pass-1 buforuje kody, pass-2 resolve tenant-scoped. Galerie pipe-split asset_id + prefetch istnienia per chunk. variant_axes pełny shape `code:v,v|code:v`. **Item 2 (pole fazy checkpoint) DEFERRED** — substrat checkpoint z 1.6a nie istnieje (#1509 = transport only), pełny resume to IMP2-2.3; dwuprzebieg już redelivery-safe (idempotentny upsert + dedupe trójki).
+  - [→] **IMP2-1.9 (#1472)** — izolacja błędów per wiersz + naprawa maszyny stanów + semantyka severity. START.
+  - [ ] 1.10 (#1473) golden pełna matryca + async · 1.11+ (media, etap 2/3).
 
 ## Ostatnie akcje
-1. IMP2-1.6 + IMP2-1.7 zmergowane i zamknięte z live-smoke proof (#1469, #1470).
-2. Lekcje 1.6/1.7 → `lessons.md` + 2 wpisy pamięci trwałej. `current_status.md` zslimowany (2066→~40).
-3. Start IMP2-1.8: parent_sku two-pass (`RelationImportStep`) zacommitowany na branchu (f8f22973).
+1. IMP2-1.8 zmergowane (#1512) i #598 zamknięte z live-smoke proof. Dup #602 → dedupe w 1.11 per scope.
+2. IMP2-1.6 + IMP2-1.7 wcześniej zmergowane (#1469, #1470).
+3. Suite import/export 206 passed; golden 4 testy (warianty+relacje+galerie+GenerateVariants+cross-tenant).
 
-## Następny krok — WZNOWIENIE IMP2-1.8 (świeży kontekst)
-Branch `feat/imp2-1.8-variants-relations` @ `f8f22973`. **Zrobione:** parent_sku two-pass (RelationImportStep buforuje child→parent po code, resolve po pass-1, cycle/self/missing guard; reserved target `__parent_sku__`; StartImportApiTest 5/5; PHPStan/deptrac/Unit zielone). **Pozostało (items #1471):**
-- **Relacje → ObjectRelation** (item 4): rozszerz `RelationImportStep` o relation-linki; Relation/Reference cele NIE piszą `ObjectValue{object_id}` (zmień `ImportObjectCreator::buildValuePayload`), pass-2 tworzy `ObjectRelation(source,target,attr,position)` z resolve targetów po code. **UWAGA: target może być w innym ObjectType** (`relationTargetObjectTypeIds` na atrybucie) — `findByCode` wymaga `kind`; trzeba iterować docelowe OT atrybutu. **Test izolacji cross-tenant** (target tylko w tenant B → 0 linków + błąd).
-- **Export relations-by-code** (item 5): `ExportBuilder` czyta `object_relations` (ObjectRelationRepositoryInterface, `findBySourceAndAttribute`) i emituje pipe-joined **kody** zamiast UUID.
-- **include_variants fan-out** (item 8): nowa metoda repo `findChildrenByParentIds(parentIds, tenant)` (brak jej w `CatalogObjectRepositoryInterface`); `SyncExportRunner::resolveTargets` przy true dokłada dzieci (master, potem warianty); przy false tylko mastery. Ścieżka krytyczna golden wariantów.
-- **variant_axes** (item 6): built-in kolumna; shape to `[{code, values}]`. **DECYZJA OPERATORA: pełny shape w eksporcie** (np. `color:red,blue|size:s,m`) — round-trip naprawdę identyczny (AC). Export serializuje code+values, import parsuje + `declareVariantAxes()` z walidacją że kody to atrybuty select.
-- **Galerie** (item 7): pipe-split `asset_id` + walidacja istnienia assetów tenant-scoped (prefetch per chunk).
-- **Checkpoint faza** (item 2, values/links) · **golden** (item 10: master+2warianty+relacja+galeria) · **testy integracyjne** (items 4,9, realny Postgres, no-mocking) · **zamknięcie #598** z dowodem.
+## Następny krok — IMP2-1.9 (#1472)
+Izolacja błędów per wiersz + naprawa maszyny stanów + semantyka severity. Przeczytać AC ticketu + `Project Plan/UI/feature-imports-v2.md`. IMP2 to maraton (operator: „leć z ticketami po kolei, wdrażaj").
 
 ## Aktywne blokery
 - Brak (IMP2-1.8 pozostałe items to praca, nie bloker).
