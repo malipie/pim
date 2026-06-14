@@ -20,16 +20,18 @@
   - [x] **IMP2-1.13 (#1476)** — media z ZIP. **MERGED** (#1517, `d31d42b5`). Live smoke ZIP ✅ (extract case-insensitive+subdir, link, success, zip-deleted), #1476 zamknięte. `ZipImageExtractor` (NFC/NFD, traversal, zip-bomb), controller zip_file≤500MB→MinIO+image_source, reużycie pipeline 1.12. 2 fixy CI (libzip OVERWRITE, tempnam string|false).
 
 ### ✅ ETAP 1 IMP2 KOMPLETNY (1.1–1.13) — silnik importu v2 z mediami
-  - [→] **IMP2-2.1 (#1477)** — streaming readers (openspout XLSX, league/csv stream CSV). **PR otwarty, gates+smoke zielone.** ImportRowReader+FileParserService strumieniowo (Reader::from + iconv stream-filter / openspout row iterator), detekcja na 16 KiB prefix, HeaderNormalizer dedup + mapowanie pozycyjne (duplikaty/blanki bez throw). Adversarial review (29 agentów, 8/25 confirmed): naprawione UTF-8 boundary misdetect + suffix collision + empty-prefix guard; CP1250/ISO + billion-row DoS świadomie deferred (2.7). Smoke: parse-preview GA_List.csv 90k/10MB = 0.27s, 0.0 MiB.
-  - [ ] Etap 2 (#1478–1486): staged upload, pauza/resume+checkpoint, undo-log, RLS GUC, perf/bench, security plików, równoległość, backup.
+### ETAP 2 — w toku
+  - [x] **IMP2-2.1 (#1477)** — streaming readers (openspout XLSX, league/csv stream CSV). **MERGED** (PR #1518, `1ee88ae8`, 2026-06-14). Live HTTP smoke na pim.localhost ✅ (bosch.csv dup+puste nagłówki→200/51 wierszy/zero SyntaxError; GA_List.csv 10MB/90k→200/0.88s/90032), #1477 zamknięte z dowodem. ImportRowReader+FileParserService strumieniowo (`Reader::from`+iconv stream-filter / openspout row iterator), detekcja na 16 KiB prefix, `HeaderNormalizer` dedup + mapowanie POZYCYJNE (duplikaty/puste kolumny bez `getRecords($header)` throw). Adversarial review (29 agentów, 8/25 confirmed): UTF-8 boundary misdetect + suffix collision + empty-prefix guard naprawione; CP1250/ISO + billion-row DoS świadomie deferred (→2.7). CI fix: memory test = delta nad baseline (absolutny peak failował przez arena 121MB pełnego suite).
+  - [→] **IMP2-2.2 (#1478)** — staged upload (plik wgrywany 1×, `staged_file_id`, tabela `import_staged_files`+RLS, purge TTL 24h, FE debounce). NEXT.
+  - [ ] Etap 2 reszta (#1479–1486): pauza/resume+checkpoint, undo-log, RLS GUC, perf/bench, security plików, równoległość, backup.
 
 ## Ostatnie akcje
-1. IMP2-1.13 zmergowane (#1517) i #1476 zamknięte — ETAP 1 KOMPLETNY (1.8–1.13 w tej sesji: #1512–1517).
-2. IMP2-1.12 po adversarial review (3 critical SSRF/tenant fixed).
-3. Operator: kontynuować etap 2 BEZ przeglądu zakresu.
+1. IMP2-2.1 zmergowane (#1518, `1ee88ae8`), #1477 zamknięte z live-stack HTTP proof. Adversarial review złapał UTF-8-boundary + suffix-collision (naprawione przed merge); CI memory-test fix (delta nad baseline).
+2. ETAP 1 IMP2 KOMPLETNY (1.8–1.13: #1512–1517).
+3. Operator: ultracode ON; kontynuować etap 2 BEZ przeglądu zakresu.
 
-## Następny krok — IMP2-2.1 (#1477)
-Streaming readers: refactor `ImportRowReader` → openspout (XLSX) + league/csv stream (CSV) zamiast wczytywania całości; stała pamięć dla 200k+ wierszy. Przeczytać AC + obecny ImportRowReader.
+## Następny krok — IMP2-2.2 (#1478)
+Staged upload: `parse-preview` staguje plik w MinIO `{tenant}/staged/{uuid}/{filename}` + zwraca `staged_file_id`; nowa tabela `import_staged_files` (tenant_id NOT NULL + ORM default, RLS policy); `validate-dry-run`+`POST import-sessions` przyjmują `staged_file_id` (back-compat multipart) + ownership check (cross-tenant 404); komenda `pim:import:purge-staged` (TTL 24h); FE `useImportWizard` trzyma stagedFileId + debounce dry-run 500ms; OpenAPI regen. Single-context (Import) → marathon direct, bez Plan Mode.
 
 ## Aktywne blokery
 - Brak (IMP2-1.8 pozostałe items to praca, nie bloker).
