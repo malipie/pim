@@ -74,6 +74,16 @@
                 <option name="default">0</option>
             </options>
         </field>
+        <field name="pendingImageBatches" type="integer" column="pending_image_batches">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="rowPhaseComplete" type="boolean" column="row_phase_complete">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
 
         <field name="startedAt" type="datetime_immutable" column="started_at" nullable="true"/>
         <field name="completedAt" type="datetime_immutable" column="completed_at" nullable="true"/>

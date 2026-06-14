@@ -15,12 +15,15 @@ use App\Import\Application\Service\ImportProgressPublisher;
 use App\Import\Application\Service\ImportRowDecision;
 use App\Import\Application\Service\ImportRowReader;
 use App\Import\Application\Service\ImportValidationService;
+use App\Import\Application\Service\Media\AssetUrlResolver;
 use App\Import\Application\Service\ObjectResolver;
 use App\Import\Application\Service\RelationImportStep;
 use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Enum\ImportErrorType;
 use App\Import\Domain\Enum\ImportLogLevel;
+use App\Import\Domain\Message\ImageDownloadJob;
+use App\Import\Domain\Message\ImageDownloadMessage;
 use App\Import\Domain\Message\ImportRunMessage;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
 use App\Import\Domain\ReservedMappingTarget;
@@ -42,6 +45,7 @@ use LogicException;
 use RuntimeException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\Exception\RecoverableMessageHandlingException;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Uuid;
 use Throwable;
 
@@ -65,6 +69,9 @@ use const PATHINFO_EXTENSION;
 #[AsMessageHandler]
 final class ImportRunHandler extends AbstractBatchHandler
 {
+    /** IMP2-1.12 — image-download jobs per dispatched media batch. */
+    private const int MEDIA_BATCH_SIZE = 50;
+
     public function __construct(
         EntityManagerInterface $entityManager,
         private readonly ImportSessionRepositoryInterface $sessions,
@@ -83,6 +90,8 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly FilesystemOperator $importsStorage,
         private readonly BulkOperationLock $bulkLock,
         private readonly ManagerRegistry $managerRegistry,
+        private readonly AssetUrlResolver $assetUrlResolver,
+        private readonly MessageBusInterface $messageBus,
         int $batchSize = 200,
     ) {
         parent::__construct($entityManager, $batchSize);
@@ -178,6 +187,13 @@ final class ImportRunHandler extends AbstractBatchHandler
             // already claimed, keyed by attributeCode, so a duplicate identifier
             // across chunks is caught as a skip before the DB unique index.
             $identifierSeenInFile = [];
+            // IMP2-1.12 — image-download jobs (Asset cells carrying URLs) are
+            // buffered across ALL chunks as plain DTOs (survive clear) and
+            // dispatched AFTER the row phase: dispatching mid-loop would let a
+            // sync-transport ImageDownloadHandler clear the EM under the row
+            // loop's feet.
+            /** @var list<ImageDownloadJob> $mediaJobs */
+            $mediaJobs = [];
             $processed = 0;
             $totalRows = 0;
             /** @var list<array{rowNumber: int, cells: array<string, string|null>}> $buffer */
@@ -195,7 +211,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                     continue;
                 }
 
-                $processed += $this->processChunk($session, $tenant, $buffer, $columnMapping, $attributesByCode, $skuSeenInFile, $identifierSeenInFile);
+                $processed += $this->processChunk($session, $tenant, $buffer, $columnMapping, $attributesByCode, $skuSeenInFile, $identifierSeenInFile, $mediaJobs);
                 $buffer = [];
 
                 $this->flushAndClear();
@@ -216,7 +232,7 @@ final class ImportRunHandler extends AbstractBatchHandler
             }
 
             if ([] !== $buffer) {
-                $processed += $this->processChunk($session, $tenant, $buffer, $columnMapping, $attributesByCode, $skuSeenInFile, $identifierSeenInFile);
+                $processed += $this->processChunk($session, $tenant, $buffer, $columnMapping, $attributesByCode, $skuSeenInFile, $identifierSeenInFile, $mediaJobs);
                 $this->flushAndClear();
                 $session = $this->refreshSession($session);
             }
@@ -246,9 +262,23 @@ final class ImportRunHandler extends AbstractBatchHandler
             }
 
             $session->setTotalRows($totalRows);
-            $session->markCompleted();
             $this->sessions->save($session);
-            $this->progressPublisher->completed($session);
+
+            // IMP2-1.12 — dispatch the buffered media batches now (after the
+            // row phase + relation links), then defer finalization: the last
+            // download batch to finish finalizes the session, or this handler
+            // does it right here when there is no media / sync already drained
+            // the batches.
+            $session = $this->dispatchMediaBatches($session, $mediaJobs);
+            $session->markRowPhaseComplete();
+            if ($session->canFinalizeMedia() && !$session->getStatus()->isTerminal()) {
+                $session->markCompleted();
+                $this->sessions->save($session);
+                $this->progressPublisher->completed($session);
+            } else {
+                $this->sessions->save($session);
+                $this->progressPublisher->progress($session, $processed, null);
+            }
         } catch (Throwable $exception) {
             // IMP2-1.9 — a throw from flush() leaves the EM CLOSED, so the old
             // path (findById + save on the same manager) threw again and left
@@ -754,6 +784,76 @@ final class ImportRunHandler extends AbstractBatchHandler
     }
 
     /**
+     * IMP2-1.12 — buffer an image-download job for each Asset-attribute cell on
+     * the row that carries http(s) URLs. Existing-asset UUIDs in the same cell
+     * ride along so the handler writes ONE merged `{asset_id}` envelope. The
+     * object id is captured as a string so the buffered job survives
+     * flushAndClear.
+     *
+     * @param list<ImageDownloadJob>                                                                                                                                                                                 $mediaJobs        by ref
+     * @param array{rowNumber: int, cells: array<string, string|null>, sku: ?string, errors: list<ValidationError>, rowOk: bool, resolvedValues: list<ResolvedImportValue>, matchKey: string, duplicateInFile: bool} $row
+     * @param array<string, Attribute>                                                                                                                                                                               $attributesByCode
+     */
+    private function collectMediaJobs(array &$mediaJobs, Uuid $objectId, array $row, array $attributesByCode): void
+    {
+        foreach ($row['resolvedValues'] as $resolved) {
+            $attribute = $attributesByCode[$resolved->attributeCode] ?? null;
+            if (!$attribute instanceof Attribute || AttributeType::Asset !== $attribute->getType()) {
+                continue;
+            }
+            $raw = $resolved->rawValue;
+            if (null === $raw || '' === $raw) {
+                continue;
+            }
+            $classified = $this->assetUrlResolver->classify($raw);
+            if ([] === $classified['urls']) {
+                continue; // pure UUID / unresolved cell — handled by the value writer
+            }
+            $mediaJobs[] = new ImageDownloadJob(
+                objectId: $objectId->toRfc4122(),
+                attributeCode: $resolved->attributeCode,
+                locale: $resolved->locale,
+                channelId: $resolved->channelId?->toRfc4122(),
+                existingUuids: $classified['uuids'],
+                urls: $classified['urls'],
+                rowNumber: $row['rowNumber'],
+                sku: $row['sku'],
+            );
+        }
+    }
+
+    /**
+     * IMP2-1.12 — dispatch buffered media jobs in batches to the `import`
+     * transport, bumping the session's pending-batch counter per batch so the
+     * run is not finalized until every batch reports back. Returns a fresh
+     * managed session (a sync-transport handler may have cleared the EM).
+     *
+     * @param list<ImageDownloadJob> $mediaJobs
+     */
+    private function dispatchMediaBatches(ImportSession $session, array $mediaJobs): ImportSession
+    {
+        if ([] === $mediaJobs) {
+            return $session;
+        }
+        foreach (array_chunk($mediaJobs, self::MEDIA_BATCH_SIZE) as $batch) {
+            $session = $this->refreshSession($session);
+            $tenant = $session->getTenant();
+            if (!$tenant instanceof Tenant) {
+                break;
+            }
+            $session->incrementPendingImageBatches();
+            $this->sessions->save($session);
+            $this->messageBus->dispatch(new ImageDownloadMessage(
+                $session->getId(),
+                $tenant->getId(),
+                $batch,
+            ));
+        }
+
+        return $this->refreshSession($session);
+    }
+
+    /**
      * First non-empty (trimmed) cell whose mapping targets the given reserved
      * marker, or null.
      *
@@ -850,6 +950,7 @@ final class ImportRunHandler extends AbstractBatchHandler
      * @param array<string, Attribute>                                       $attributesByCode
      * @param array<string, int>                                             $skuSeenInFile
      * @param array<string, array<string, int>>                              $identifierSeenInFile attributeCode → (value → rowNumber)
+     * @param list<ImageDownloadJob>                                         $mediaJobs            accumulated across chunks (IMP2-1.12), by ref
      */
     private function processChunk(
         ImportSession $session,
@@ -859,6 +960,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         array $attributesByCode,
         array &$skuSeenInFile,
         array &$identifierSeenInFile,
+        array &$mediaJobs,
     ): int {
         // Pass 1 — validate rows and gather match keys for the batch resolve.
         /** @var list<array{rowNumber: int, cells: array<string, string|null>, sku: ?string, errors: list<ValidationError>, rowOk: bool, resolvedValues: list<ResolvedImportValue>, matchKey: string, duplicateInFile: bool}> $prepared */
@@ -976,6 +1078,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                     $createdSku = $this->skuFrom($row['resolvedValues'], $row['rowNumber']);
                     $this->recordParentLink($createdSku, $row['cells'], $columnMapping, $row['rowNumber']);
                     $this->recordRelationLinks($createdSku, $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
+                    $this->collectMediaJobs($mediaJobs, $created->object->getId(), $row, $attributesByCode);
                 } elseif (ImportRowDecision::Update === $decision && null !== $existing) {
                     $issues = $this->creator->update(
                         $existing,
@@ -990,6 +1093,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                     $session->incrementUpdated();
                     $this->recordParentLink($existing->getCode(), $row['cells'], $columnMapping, $row['rowNumber']);
                     $this->recordRelationLinks($existing->getCode(), $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
+                    $this->collectMediaJobs($mediaJobs, $existing->getId(), $row, $attributesByCode);
                     // IMP2-1.7: category replace/append runs after the value
                     // pass (replaceForProduct flushes around the primary index).
                     // Empty cell = untouched (D2), so only collect non-empty.
@@ -1124,11 +1228,12 @@ final class ImportRunHandler extends AbstractBatchHandler
                 if (null === $raw || '' === $raw) {
                     continue;
                 }
-                foreach (explode('|', $raw) as $id) {
-                    $id = trim($id);
-                    if ('' !== $id) {
-                        $ids[$id] = true;
-                    }
+                // IMP2-1.12 — only UUID tokens are existing-asset references;
+                // URL tokens are downloaded by the media path and bare strings
+                // are unresolved. Querying a non-UUID against the uuid id column
+                // would blow up the prefetch.
+                foreach ($this->assetUrlResolver->classify($raw)['uuids'] as $id) {
+                    $ids[$id] = true;
                 }
             }
         }

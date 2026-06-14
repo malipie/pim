@@ -244,6 +244,14 @@ final class ImportObjectCreator
      */
     private function assetPayload(Attribute $attribute, string $raw, array $existingAssetIds, array &$issues): ?array
     {
+        // IMP2-1.12 — a cell carrying any http(s) URL is owned by the media
+        // download path: the whole Asset value (existing UUIDs + downloaded
+        // ids) is written by ImageDownloadHandler after the row phase, so the
+        // raw URL never lands in JSONB. Skip it here entirely.
+        if ($this->cellHasUrl($raw)) {
+            return null;
+        }
+
         $ids = array_values(array_filter(
             array_map('trim', explode('|', $raw)),
             static fn (string $id): bool => '' !== $id,
@@ -268,6 +276,17 @@ final class ImportObjectCreator
         }
 
         return ['asset_id' => 1 === \count($survivors) ? $survivors[0] : $survivors];
+    }
+
+    /**
+     * IMP2-1.12 — true when the cell contains an http(s) image URL anywhere
+     * (case-insensitive). Such cells are handled by the async media path.
+     */
+    private function cellHasUrl(string $raw): bool
+    {
+        $lower = strtolower($raw);
+
+        return str_contains($lower, 'http://') || str_contains($lower, 'https://');
     }
 
     /**

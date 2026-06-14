@@ -112,6 +112,11 @@ framework:
             # on the same handler from the controller.
             App\Import\Domain\Message\ImportRunMessage: import
 
+            # IMP2-1.12 (#1475). Image-download batches buffered by the import
+            # run and dispatched after the row phase. Same dedicated `import`
+            # queue so media never starves UI-adjacent async jobs.
+            App\Import\Domain\Message\ImageDownloadMessage: import
+
             # Imports MVP (#447). pgBackRest snapshot can take 5-30
             # minutes — handler runs out-of-band so `POST /api/backups`
             # returns 202 immediately and the wizard polls
