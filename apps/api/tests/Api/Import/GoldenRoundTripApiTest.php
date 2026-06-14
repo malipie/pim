@@ -243,6 +243,46 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function exportIncludeVariantsFansOutMasterBeforeItsVariants(): void
+    {
+        // IMP2-1.8 (AC) — include_variants=true emits each master followed by
+        // its variants (parent_sku filled); =false emits masters only.
+        $this->authenticatedClient();
+        $tenant = $this->tenant();
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $em = $this->em();
+        $productType = $em->getRepository(ObjectType::class)
+            ->find(Uuid::fromString($this->objectTypeIdFor(ObjectKind::Product)));
+        \assert($productType instanceof ObjectType);
+
+        $master = new CatalogObject($productType, 'FAN-M');
+        $em->persist($master);
+        $v1 = new CatalogObject($productType, 'FAN-V1');
+        $v1->assignParent($master);
+        $v2 = new CatalogObject($productType, 'FAN-V2');
+        $v2->assignParent($master);
+        $em->persist($v1);
+        $em->persist($v2);
+        $em->flush();
+        $masterId = $master->getId();
+
+        $csvOn = $this->runProductExport($tenant, ['sku', 'parent_sku'], [$masterId], [], true);
+        self::assertStringContainsString('FAN-V1', $csvOn, 'variants exported when include_variants=true');
+        self::assertStringContainsString('FAN-V2', $csvOn);
+        self::assertMatchesRegularExpression('/FAN-V1\W+FAN-M/', $csvOn, 'variant row carries parent_sku');
+        self::assertLessThan(
+            (int) strpos($csvOn, 'FAN-V1'),
+            (int) strpos($csvOn, 'FAN-M'),
+            'master row precedes its variant rows',
+        );
+
+        $csvOff = $this->runProductExport($tenant, ['sku', 'parent_sku'], [$masterId], [], false);
+        self::assertStringContainsString('FAN-M', $csvOff);
+        self::assertStringNotContainsString('FAN-V1', $csvOff, 'variants excluded when include_variants=false');
+        self::assertStringNotContainsString('FAN-V2', $csvOff);
+    }
+
     /**
      * @param array<string, mixed> $expected
      * @param array<string, mixed> $actual
@@ -304,7 +344,7 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
      * @param list<Uuid>   $ids
      * @param list<string> $channels
      */
-    private function runProductExport(Tenant $tenant, array $columns, array $ids, array $channels = []): string
+    private function runProductExport(Tenant $tenant, array $columns, array $ids, array $channels = [], bool $includeVariants = true): string
     {
         $session = new ExportSession(
             userId: Uuid::v7(),
@@ -315,6 +355,7 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
             entityType: ExportEntityType::Product,
             selectedObjectIds: array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids),
             channels: $channels,
+            includeVariants: $includeVariants,
         );
         $session->assignTenant($tenant);
 
