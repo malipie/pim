@@ -516,6 +516,157 @@ final class StartImportApiTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function mixedRowsFinishPartialWithPerRowIsolation(): void
+    {
+        // IMP2-1.9 (AC) — 10 rows, 2 bad (missing SKU + bad number type):
+        // session ends partial, success=8, error=2, exactly 2 Error logs.
+        $this->seedAttributes();
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $productOt = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($productOt instanceof ObjectType);
+        $qty = new Attribute('qty', ['en' => 'Qty'], AttributeType::Number);
+        $em->persist($qty);
+        $em->persist(new ObjectTypeAttribute($productOt, $qty, false, 3));
+        $em->flush();
+
+        $rows = ['sku;name;qty'];
+        for ($i = 1; $i <= 8; ++$i) {
+            $rows[] = \sprintf('MIX-%d;Product %d;%d', $i, $i, $i);
+        }
+        $rows[] = ';No sku;5';           // missing SKU → Error
+        $rows[] = 'MIX-BAD;Bad qty;abc'; // non-numeric → InvalidType Error
+        $csvPath = $this->writeCsv(implode("\n", $rows)."\n", 'pim-mix-');
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name', 'qty' => 'qty'], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'mix.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame('partial', $body['status']);
+            self::assertSame(8, $body['success_count']);
+            self::assertSame(2, $body['error_count']);
+
+            $errorLogs = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM import_logs WHERE level='error' AND import_session_id = :id",
+                ['id' => $body['id']],
+            );
+            self::assertSame(2, (int) (\is_scalar($errorLogs) ? $errorLogs : 0));
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function duplicateSkuInFileSkipsWithoutError(): void
+    {
+        // IMP2-1.9 (AC D1) — the first occurrence imports; later duplicates are
+        // skipped with a Warning, never an error, and never explode the DB.
+        $this->seedAttributes();
+        $em = $this->em();
+
+        $csvPath = $this->writeCsv("sku;name\nDUP-1;First\nDUP-2;Second\nDUP-1;Again\n", 'pim-dup-');
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'dup.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame('success', $body['status'], 'a pure skip leaves no errors → success');
+            self::assertSame(2, $body['success_count']);
+            self::assertSame(0, $body['error_count']);
+            self::assertSame(1, $body['skipped_count']);
+
+            $warnings = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM import_logs WHERE level='warning' AND error_type='duplicate_sku_in_file' AND import_session_id = :id",
+                ['id' => $body['id']],
+            );
+            self::assertSame(1, (int) (\is_scalar($warnings) ? $warnings : 0));
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function identifierDuplicateVsDbBlocksRowGracefully(): void
+    {
+        // IMP2-1.9 (AC item 2) — an identifier value already used in the catalog
+        // is caught by the set pre-check: the row errors, the session ends
+        // partial, and the DB partial-unique index never throws.
+        $this->seedAttributes();
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $productOt = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($productOt instanceof ObjectType);
+
+        $ean = new Attribute('ean', ['en' => 'EAN'], AttributeType::Identifier);
+        $em->persist($ean);
+        $em->persist(new ObjectTypeAttribute($productOt, $ean, false, 3));
+        $existing = new CatalogObject($productOt, 'EXIST-1');
+        $em->persist($existing);
+        $em->flush();
+        $em->persist(new \App\Catalog\Domain\Entity\ObjectValue($existing, $ean, ['value' => '111'], \App\Catalog\Domain\Provenance::Import));
+        $em->flush();
+
+        $csvPath = $this->writeCsv("sku;name;ean\nNEW-1;Collides;111\nNEW-2;Fresh;222\n", 'pim-ident-');
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name', 'ean' => 'ean'], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'ident.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame('partial', $body['status']);
+            self::assertSame(1, $body['success_count'], 'only the non-colliding row imports');
+            self::assertSame(1, $body['error_count']);
+
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $repo = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+            self::assertNotNull($repo->findByCode('NEW-2', ObjectKind::Product, $tenant), 'fresh identifier imports');
+            self::assertNull($repo->findByCode('NEW-1', ObjectKind::Product, $tenant), 'colliding identifier row is not created');
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
     private function writeCsv(string $contents, string $prefix): string
     {
         $path = tempnam(sys_get_temp_dir(), $prefix);

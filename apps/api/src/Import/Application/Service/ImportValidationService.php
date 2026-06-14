@@ -85,10 +85,17 @@ final readonly class ImportValidationService
                 $rowErrors,
                 static fn (ValidationError $error): bool => $error->isRowBlocking(),
             ));
-            if ([] === $blockingErrors) {
-                ++$successCount;
-            } else {
+            // IMP2-1.9 — mirror the run loop: a blocking Error counts as a row
+            // error; a Warning-level DuplicateSkuInFile is a skip (D1) — neither
+            // imported nor an error; everything else previews as a clean import.
+            $duplicateInFile = [] !== array_filter(
+                $rowErrors,
+                static fn (ValidationError $error): bool => ImportErrorType::DuplicateSkuInFile === $error->errorType,
+            );
+            if ([] !== $blockingErrors) {
                 ++$errorCount;
+            } elseif (!$duplicateInFile) {
+                ++$successCount;
             }
             // Surface every finding in the report — including non-blocking
             // warnings (e.g. CategoryNotFound) — so the operator sees

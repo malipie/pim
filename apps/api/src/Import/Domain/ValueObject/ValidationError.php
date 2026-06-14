@@ -25,13 +25,19 @@ final readonly class ValidationError
     }
 
     /**
-     * Returns false for findings that the operator wants surfaced in
-     * the report but should NOT skip the row (e.g. a category that the
-     * lookup did not resolve — the product still imports, just without
-     * the assignment).
+     * IMP2-1.9 — blocking is driven by SEVERITY, not by error type (ADR
+     * IMP2-1.1): only an {@see ImportLogLevel::Error} skips the row. Warnings
+     * and infos are surfaced in the report but never block — so a re-import of
+     * one's own export into a non-empty catalog (DuplicateSkuInFile /
+     * DuplicateSkuInDb in CREATE mode, CategoryNotFound, …) degrades to
+     * skip-with-warning instead of rejecting every row.
+     *
+     * Each emitter is responsible for choosing the right level:
+     * MissingRequired / InvalidType / InvalidValue → Error; the duplicate and
+     * lookup-miss findings → Warning.
      */
     public function isRowBlocking(): bool
     {
-        return ImportErrorType::CategoryNotFound !== $this->errorType;
+        return ImportLogLevel::Error === $this->level;
     }
 }
