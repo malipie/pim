@@ -18,11 +18,13 @@ final readonly class ImageDownloadMessage
 {
     /**
      * @param list<ImageDownloadJob> $jobs
+     * @param ?string                $zipStoragePath MinIO path of the run's ZIP (zip mode, IMP2-1.13); null in http mode
      */
     public function __construct(
         public Uuid $importSessionId,
         public Uuid $tenantId,
         public array $jobs,
+        public ?string $zipStoragePath = null,
     ) {
     }
 }

@@ -21,6 +21,7 @@ use App\Import\Application\Service\RelationImportStep;
 use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Enum\ImportErrorType;
+use App\Import\Domain\Enum\ImportImageSource;
 use App\Import\Domain\Enum\ImportLogLevel;
 use App\Import\Domain\Message\ImageDownloadJob;
 use App\Import\Domain\Message\ImageDownloadMessage;
@@ -807,23 +808,26 @@ final class ImportRunHandler extends AbstractBatchHandler
                 continue;
             }
             $classified = $this->assetUrlResolver->classify($raw);
-            // IMP2-1.12 (1c) — a bare-filename token is neither an existing
-            // asset id nor an http(s) URL (relative paths land in IMP2-1.13 ZIP
-            // / IMP2-3.4 prefix transform); surface each as a row warning rather
-            // than dropping it silently.
-            foreach ($classified['unresolved'] as $token) {
-                $this->entityManager->persist(new ImportLog(
-                    importSession: $session,
-                    rowNumber: $row['rowNumber'],
-                    level: ImportLogLevel::Warning,
-                    message: \sprintf('Asset reference "%s" is neither a known asset id nor an http(s) URL — skipped.', $token),
-                    sku: $row['sku'],
-                    errorType: ImportErrorType::ImageNotFound->value,
-                    columnName: $resolved->attributeCode,
-                    columnValue: $token,
-                ));
+            // IMP2-1.13 — in ZIP mode a bare-filename token is a ZIP entry to
+            // extract (not unresolved); in HTTP/none mode it stays unresolved
+            // and is warned (1c) — relative paths arrive in IMP2-3.4.
+            $zipMode = ImportImageSource::Zip === $session->getImageSource();
+            $zipNames = $zipMode ? $classified['unresolved'] : [];
+            if (!$zipMode) {
+                foreach ($classified['unresolved'] as $token) {
+                    $this->entityManager->persist(new ImportLog(
+                        importSession: $session,
+                        rowNumber: $row['rowNumber'],
+                        level: ImportLogLevel::Warning,
+                        message: \sprintf('Asset reference "%s" is neither a known asset id nor an http(s) URL — skipped.', $token),
+                        sku: $row['sku'],
+                        errorType: ImportErrorType::ImageNotFound->value,
+                        columnName: $resolved->attributeCode,
+                        columnValue: $token,
+                    ));
+                }
             }
-            if ([] === $classified['urls']) {
+            if ([] === $classified['urls'] && [] === $zipNames) {
                 continue; // pure UUID / handled by the value writer
             }
             $mediaJobs[] = new ImageDownloadJob(
@@ -835,6 +839,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                 urls: $classified['urls'],
                 rowNumber: $row['rowNumber'],
                 sku: $row['sku'],
+                zipNames: $zipNames,
             );
         }
     }
@@ -858,13 +863,19 @@ final class ImportRunHandler extends AbstractBatchHandler
             if (!$tenant instanceof Tenant) {
                 break;
             }
+            // IMP2-1.13 — pass the run's ZIP location so the handler stages +
+            // extracts entries (only in zip mode with an uploaded archive).
+            $zipStoragePath = null;
+            if (ImportImageSource::Zip === $session->getImageSource() && null !== $session->getZipFileName()) {
+                $zipStoragePath = \sprintf('%s/%s/%s', $tenant->getId()->toRfc4122(), $session->getId()->toRfc4122(), $session->getZipFileName());
+            }
             $session->incrementPendingImageBatches();
             $this->sessions->save($session);
             // TenantStamp so the async worker rebinds the tenant before the
             // handler runs (TenantContextRebindingMiddleware) — mirrors the
             // ImportRunMessage dispatch; without it the worker dead-letters.
             $this->messageBus->dispatch(
-                new ImageDownloadMessage($session->getId(), $tenant->getId(), $batch),
+                new ImageDownloadMessage($session->getId(), $tenant->getId(), $batch, $zipStoragePath),
                 [new TenantStamp($tenant->getId())],
             );
         }

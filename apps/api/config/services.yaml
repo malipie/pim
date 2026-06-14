@@ -242,6 +242,7 @@ services:
     App\Import\Application\Handler\ImageDownloadHandler:
         arguments:
             $httpClient: '@import.ssrf_safe_http_client'
+            $importsStorage: '@imports.storage'
 
     # EXP-06 (#585) — async export worker. Same named-storage binding so
     # the handler can write the generated XLSX/CSV to MinIO under
