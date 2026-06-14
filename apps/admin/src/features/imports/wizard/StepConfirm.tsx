@@ -37,14 +37,20 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
     (state.doBackup === false || backupStatus === 'completed' || backupStatus === 'idle');
 
   const handleRun = (): void => {
-    if (state.file === null || state.targetObjectTypeId === null) {
+    if ((state.file === null && state.stagedFileId === null) || state.targetObjectTypeId === null) {
       return;
     }
     setSubmitting(true);
     setSubmitError(null);
 
     const formData = new FormData();
-    formData.set('file', state.file);
+    // IMP2-2.2 — reuse the file staged at parse-preview; fall back to the raw
+    // File only when no staged id is present (e.g. after a page round-trip).
+    if (state.stagedFileId !== null) {
+      formData.set('staged_file_id', state.stagedFileId);
+    } else if (state.file !== null) {
+      formData.set('file', state.file);
+    }
     formData.set('target_object_type_id', state.targetObjectTypeId);
     formData.set('mapping', JSON.stringify(state.mapping));
     formData.set('encoding', state.encoding);

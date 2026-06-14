@@ -47,6 +47,7 @@ export function StepValidationPlaceholder({ wizard }: StepValidationProps): Reac
   const [decision, setDecision] = React.useState<'import_ok' | 'back_to_mapping'>('import_ok');
 
   const file = wizard.state.file;
+  const stagedFileId = wizard.state.stagedFileId;
   const targetId = wizard.state.targetObjectTypeId;
   const mapping = wizard.state.mapping;
   const setValidation = wizard.setField;
@@ -54,55 +55,66 @@ export function StepValidationPlaceholder({ wizard }: StepValidationProps): Reac
   const delimiter = wizard.state.delimiter;
 
   React.useEffect(() => {
-    if (file === null || targetId === null) {
+    // IMP2-2.2 — prefer the staged_file_id (single upload reused across
+    // steps); fall back to the raw File only when no staged id is available.
+    if (targetId === null || (stagedFileId === null && file === null)) {
       return;
     }
     let cancelled = false;
-    const formData = new FormData();
-    formData.set('file', file);
-    formData.set('target_object_type_id', targetId);
-    formData.set('mapping', JSON.stringify(mapping));
-    formData.set('encoding', encoding);
-    formData.set('delimiter', delimiter);
+    // Debounce 500ms so rapid mapping edits fire a single dry-run on pause,
+    // not one request per keystroke.
+    const timer = setTimeout(() => {
+      const formData = new FormData();
+      if (stagedFileId !== null) {
+        formData.set('staged_file_id', stagedFileId);
+      } else if (file !== null) {
+        formData.set('file', file);
+      }
+      formData.set('target_object_type_id', targetId);
+      formData.set('mapping', JSON.stringify(mapping));
+      formData.set('encoding', encoding);
+      formData.set('delimiter', delimiter);
 
-    setLoading(true);
-    setError(null);
-    jsonFetch<DryRunResponse>('/api/import-sessions/validate-dry-run', {
-      method: 'POST',
-      body: formData,
-    })
-      .then((data) => {
-        if (cancelled) {
-          return;
-        }
-        setResponse(data);
-        setValidation('validation', {
-          totalRows: data.total_rows,
-          successCount: data.success_count,
-          errorCount: data.error_count,
-          topErrors: data.top_errors.map(toFinding),
+      setLoading(true);
+      setError(null);
+      jsonFetch<DryRunResponse>('/api/import-sessions/validate-dry-run', {
+        method: 'POST',
+        body: formData,
+      })
+        .then((data) => {
+          if (cancelled) {
+            return;
+          }
+          setResponse(data);
+          setValidation('validation', {
+            totalRows: data.total_rows,
+            successCount: data.success_count,
+            errorCount: data.error_count,
+            topErrors: data.top_errors.map(toFinding),
+          });
+        })
+        .catch((err: unknown) => {
+          if (cancelled) {
+            return;
+          }
+          if (err instanceof HttpError) {
+            setError(`HTTP ${err.status}`);
+          } else {
+            setError(err instanceof Error ? err.message : 'unknown');
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setLoading(false);
+          }
         });
-      })
-      .catch((err: unknown) => {
-        if (cancelled) {
-          return;
-        }
-        if (err instanceof HttpError) {
-          setError(`HTTP ${err.status}`);
-        } else {
-          setError(err instanceof Error ? err.message : 'unknown');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
+    }, 500);
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [file, targetId, mapping, encoding, delimiter, setValidation]);
+  }, [file, stagedFileId, targetId, mapping, encoding, delimiter, setValidation]);
 
   const handleNext = (): void => {
     if (decision === 'back_to_mapping') {

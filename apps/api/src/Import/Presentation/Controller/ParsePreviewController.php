@@ -7,6 +7,7 @@ namespace App\Import\Presentation\Controller;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Application\Service\FileParserService;
+use App\Import\Application\Service\StagedFileService;
 use App\Import\Domain\Enum\FileEncoding;
 use App\Import\Domain\Exception\InvalidImportFileException;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -26,14 +27,15 @@ use Symfony\Component\Routing\Attribute\Route;
  * had a CSV-only in-browser parser and an xlsx sentinel that left the
  * Mapping step with a single "__xlsx__" row.
  *
- * The endpoint is read-only — it does not persist an ImportSession or
- * stage the file on Flysystem. The start-import flow re-uploads the
- * file inside its own multipart request.
+ * IMP2-2.2 — besides parsing, it stages the upload once (MinIO) and
+ * returns a `staged_file_id` the dry-run + start steps reuse, so the wizard
+ * sends the bytes exactly once instead of three times.
  */
 final class ParsePreviewController
 {
     public function __construct(
         private readonly FileParserService $parser,
+        private readonly StagedFileService $stagedFiles,
         private readonly Security $security,
     ) {
     }
@@ -89,8 +91,23 @@ final class ParsePreviewController
             @unlink($finalPath);
         }
 
+        // Stage the (valid) upload once so the dry-run + start steps reuse it
+        // by id. Original name carries the extension the staged reader needs.
+        $originalName = $file->getClientOriginalName();
+        if ('' === $originalName) {
+            $originalName = 'upload.'.$extension;
+        }
+        $staged = $this->stagedFiles->stage(
+            $file->getPathname(),
+            $originalName,
+            (int) $file->getSize(),
+            $user->getTenant(),
+            $user->getId(),
+        );
+
         return new JsonResponse(
             [
+                'staged_file_id' => $staged->getId()->toRfc4122(),
                 'headers' => $parsed->headers,
                 'sample_rows' => $parsed->sampleRows,
                 'total_rows' => $parsed->totalRows,

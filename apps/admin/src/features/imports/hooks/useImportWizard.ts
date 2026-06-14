@@ -47,6 +47,12 @@ export interface WizardState {
   suggestions: ColumnSuggestion[];
   /** Set by the Detect step; Mapping reuses it instead of re-parsing. Not persisted (derived from the File). */
   parsed: ParsedFilePreview | null;
+  /**
+   * IMP2-2.2 — id of the file staged once at parse-preview; the dry-run +
+   * start steps send this instead of re-uploading the bytes. Reset to null
+   * whenever a new file is chosen.
+   */
+  stagedFileId: string | null;
   validation: {
     totalRows: number;
     successCount: number;
@@ -74,6 +80,7 @@ const INITIAL_STATE: WizardState = {
   mode: 'UPSERT',
   suggestions: [],
   parsed: null,
+  stagedFileId: null,
   validation: null,
   doBackup: false,
   emailNotification: true,
@@ -155,6 +162,7 @@ export function useImportWizard(): WizardController {
       saveAsProfileName: state.saveAsProfileName,
       targetObjectTypeId: state.targetObjectTypeId,
       mapping: state.mapping,
+      stagedFileId: state.stagedFileId,
       doBackup: state.doBackup,
       emailNotification: state.emailNotification,
     };

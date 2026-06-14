@@ -122,8 +122,9 @@ export function StepSource({ wizard }: StepSourceProps): React.ReactElement {
               })}
               onFile={(file) => {
                 setField('file', file);
-                // New file invalidates the previous parse snapshot.
+                // New file invalidates the previous parse snapshot + staged upload.
                 setField('parsed', null);
+                setField('stagedFileId', null);
                 setField('suggestions', []);
               }}
             />
@@ -292,6 +293,7 @@ export function StepSource({ wizard }: StepSourceProps): React.ReactElement {
                 onChange={(value) => {
                   setField('encoding', value);
                   setField('parsed', null);
+                  setField('stagedFileId', null);
                 }}
                 options={[
                   { value: 'auto', label: 'auto' },
@@ -307,6 +309,7 @@ export function StepSource({ wizard }: StepSourceProps): React.ReactElement {
                 onChange={(value) => {
                   setField('delimiter', value);
                   setField('parsed', null);
+                  setField('stagedFileId', null);
                 }}
                 options={[
                   { value: 'auto', label: 'auto' },
