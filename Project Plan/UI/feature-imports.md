@@ -1,5 +1,10 @@
 # Feature — Import produktów (CSV / Excel + zdjęcia)
 
+> ## ⚠️ SUPERSEDED (2026-06-12)
+> Silnik importu jest **przebudowywany** wg [`feature-imports-v2.md`](feature-imports-v2.md) (epik IMP2, #1499).
+> Sekcje silnika tego dokumentu (IMP-01..IMP-15) są **historyczne** — **nie implementować wg tej wersji**.
+> Aktualny kontrakt silnika (tryby CREATE/UPDATE/UPSERT, gramatyka kolumn `code.locale.channel`, envelope JSONB, warianty/relacje/galerie, izolacja błędów per wiersz, golden round-trip CSV+XLSX) opisuje `feature-imports-v2.md` i jest realizowany w ticketach IMP2-1.x. Mapa „stary ticket → następca IMP2-*" w komentarzu zbiorczym epika #1499.
+
 ## Status: 🟢 zaimplementowane (epik 0.13 / UI-09 — IMP-01..IMP-15 merged 2026-05-07)
 
 > **Część epiku 04 Publikacje** — sub-tab "Imports". Standalone dokument, bo feature jest na tyle obszerny, że zasługuje na własną iterację designu.
