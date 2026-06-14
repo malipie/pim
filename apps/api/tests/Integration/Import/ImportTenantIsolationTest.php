@@ -7,10 +7,16 @@ namespace App\Tests\Integration\Import;
 use App\Backup\Domain\Entity\Backup;
 use App\Backup\Domain\Enum\BackupTriggerAction;
 use App\Backup\Domain\Repository\BackupRepositoryInterface;
+use App\Catalog\Domain\AttributeType;
+use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
+use App\Catalog\Domain\RelationCardinality;
+use App\Import\Application\Service\RelationImportStep;
 use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Entity\ImportSession;
+use App\Import\Domain\Enum\ImportLogLevel;
 use App\Import\Domain\Repository\ImportProfileRepositoryInterface;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
 use App\Shared\Application\TenantContext;
@@ -115,6 +121,51 @@ final class ImportTenantIsolationTest extends KernelTestCase
         $this->activateTenantFilter($beta);
         $betaCount = $repo->countSince($alpha, new DateTimeImmutable('-1 hour'));
         self::assertSame(0, $betaCount, 'TenantFilter must hide alpha backups from beta context.');
+    }
+
+    #[Test]
+    public function relationTargetInAnotherTenantNeverLinks(): void
+    {
+        // IMP2-1.8 (AC) — a relation target whose code exists only in tenant
+        // beta must NOT link when resolved for tenant alpha: 0 object_relations
+        // + one row error. findByCodeInObjectTypes is tenant-scoped, so the
+        // cross-tenant code resolves to null — never a leaked link.
+        $alpha = $this->createTenant('alpha');
+        $beta = $this->createTenant('beta');
+        $em = $this->em();
+
+        $this->tenantContext()->set($alpha);
+        $type = $this->productObjectType($em);
+        $typeId = $type->getId()->toRfc4122();
+
+        $source = new CatalogObject($type, 'SRC-A');
+        $em->persist($source);
+        $attr = new Attribute('rel', ['en' => 'Rel'], AttributeType::Relation);
+        $attr->setRelationTargetObjectTypeIds([$typeId]);
+        $attr->setRelationCardinality(RelationCardinality::Many);
+        $em->persist($attr);
+        $em->flush();
+
+        // beta owns a product that shares the target CODE but not the tenant.
+        $this->tenantContext()->set($beta);
+        $betaTarget = new CatalogObject($type, 'CROSS-TGT');
+        $em->persist($betaTarget);
+        $em->flush();
+        $em->clear();
+
+        // Resolve the buffered relation in ALPHA's context.
+        $step = self::getContainer()->get(RelationImportStep::class);
+        $step->reset();
+        $step->recordRelation('SRC-A', 'rel', ['CROSS-TGT'], 7);
+        $errors = $step->resolve(ObjectKind::Product, $alpha);
+
+        self::assertCount(1, $errors, 'cross-tenant target must produce exactly one row error');
+        self::assertSame(7, $errors[0]->rowNumber);
+        self::assertSame(ImportLogLevel::Error, $errors[0]->level);
+        self::assertStringContainsString('CROSS-TGT', $errors[0]->message);
+
+        $linkCount = $em->getConnection()->fetchOne('SELECT COUNT(*) FROM object_relations');
+        self::assertSame(0, (int) (\is_scalar($linkCount) ? $linkCount : 1), 'no object_relations row may be written');
     }
 
     /**

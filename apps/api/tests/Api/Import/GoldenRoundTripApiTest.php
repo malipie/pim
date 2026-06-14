@@ -328,6 +328,167 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         );
     }
 
+    #[Test]
+    public function goldenRoundTripCarriesVariantsRelationsAndGallery(): void
+    {
+        // IMP2-1.8 (AC item 10) — master + 2 variants + a relation + a 2-asset
+        // gallery survive export(include_variants=true) → import with their full
+        // structure: parent_id, object_relations (by code), and the asset list.
+        $client = $this->authenticatedClient();
+        $tenant = $this->tenant();
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $em = $this->em();
+        $productType = $em->getRepository(ObjectType::class)
+            ->find(Uuid::fromString($this->objectTypeIdFor(ObjectKind::Product)));
+        \assert($productType instanceof ObjectType);
+
+        // Relation + gallery attributes on the product type.
+        $acc = new Attribute('acc', ['en' => 'Accessories'], AttributeType::Relation);
+        $acc->setRelationTargetObjectTypeIds([$productType->getId()->toRfc4122()]);
+        $acc->setRelationCardinality(\App\Catalog\Domain\RelationCardinality::Many);
+        $em->persist($acc);
+        $em->persist(new ObjectTypeAttribute($productType, $acc));
+        $gal = new Attribute('gal', ['en' => 'Gallery'], AttributeType::Asset);
+        $em->persist($gal);
+        $em->persist(new ObjectTypeAttribute($productType, $gal));
+
+        $assetA = new \App\Asset\Domain\Entity\Asset('G-A', 'a.jpg', 'image/jpeg', 10, 'p/a.jpg');
+        $assetB = new \App\Asset\Domain\Entity\Asset('G-B', 'b.jpg', 'image/jpeg', 10, 'p/b.jpg');
+        $em->persist($assetA);
+        $em->persist($assetB);
+
+        $master = new CatalogObject($productType, 'MA-M');
+        $v1 = new CatalogObject($productType, 'MA-V1');
+        $v1->assignParent($master);
+        $v2 = new CatalogObject($productType, 'MA-V2');
+        $v2->assignParent($master);
+        $relTarget = new CatalogObject($productType, 'MA-REL');
+        $em->persist($master);
+        $em->persist($v1);
+        $em->persist($v2);
+        $em->persist($relTarget);
+        $em->flush();
+
+        $idA = $assetA->getId()->toRfc4122();
+        $idB = $assetB->getId()->toRfc4122();
+        $em->persist(new \App\Catalog\Domain\Entity\ObjectRelation($master, $relTarget, $acc, 0));
+        $em->persist(new ObjectValue($master, $gal, ['asset_id' => [$idA, $idB]], Provenance::Manual));
+        $em->flush();
+        $masterId = $master->getId();
+        $relTargetId = $relTarget->getId();
+
+        // Export master + relation target (both selected) with variant fan-out.
+        $csv = $this->runProductExport($tenant, ['sku', 'parent_sku', 'acc', 'gal'], [$masterId, $relTargetId], [], true);
+        foreach (['MA-M', 'MA-V1', 'MA-V2', 'MA-REL'] as $code) {
+            self::assertStringContainsString($code, $csv, $code.' present in export');
+        }
+        self::assertStringContainsString($idA.'|'.$idB, $csv, 'gallery exported as pipe-joined asset ids');
+
+        // Re-import as a fresh tree (MA- → RT-): parent_sku + relation codes
+        // rename together; asset ids stay (the assets already exist).
+        $reimport = str_replace('MA-', 'RT-', $csv);
+        $body = $this->postImport($client, $reimport, $productType->getId()->toRfc4122(), [
+            'sku' => 'sku',
+            'parent_sku' => '__parent_sku__',
+            'acc' => 'acc',
+            'gal' => 'gal',
+        ]);
+        self::assertSame('success', $body['status']);
+        self::assertSame(4, $body['success_count']);
+
+        $em->clear();
+        // Variants point at the freshly-imported master (two-pass parent link).
+        $parents = $em->getConnection()->fetchAllKeyValue(
+            "SELECT o.code, p.code FROM objects o JOIN objects p ON p.id = o.parent_id WHERE o.code IN ('RT-V1','RT-V2') ORDER BY o.code",
+        );
+        self::assertSame(['RT-V1' => 'RT-M', 'RT-V2' => 'RT-M'], $parents);
+
+        // Relation resolved by code into object_relations (RT-M → RT-REL).
+        $relTargets = $em->getConnection()->fetchFirstColumn(
+            "SELECT t.code FROM object_relations r JOIN objects s ON s.id=r.source_object_id JOIN objects t ON t.id=r.target_object_id JOIN attributes a ON a.id=r.attribute_id WHERE s.code='RT-M' AND a.code='acc'",
+        );
+        self::assertSame(['RT-REL'], $relTargets);
+
+        // Gallery asset list survived intact and in order.
+        $galValue = $em->getConnection()->fetchOne(
+            "SELECT ov.value FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='gal' AND o.code='RT-M'",
+        );
+        \assert(\is_string($galValue));
+        self::assertSame(['asset_id' => [$idA, $idB]], json_decode($galValue, true, 512, JSON_THROW_ON_ERROR));
+    }
+
+    #[Test]
+    public function generatedVariantsRoundTripOneToOne(): void
+    {
+        // IMP2-1.8 (AC item 9) — a master whose variants come from the REAL
+        // GenerateVariants endpoint (canonical select-axis shape, D7) exports
+        // with parent_sku + axes and re-imports 1:1.
+        $client = $this->authenticatedClient();
+        $tenant = $this->tenant();
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $em = $this->em();
+        $productType = $em->getRepository(ObjectType::class)
+            ->find(Uuid::fromString($this->objectTypeIdFor(ObjectKind::Product)));
+        \assert($productType instanceof ObjectType);
+
+        $color = new Attribute('color', ['en' => 'Color'], AttributeType::Select);
+        $em->persist($color);
+        $em->persist(new ObjectTypeAttribute($productType, $color));
+        $em->persist(new AttributeOption($color, 'red', ['en' => 'Red'], 1));
+        $em->persist(new AttributeOption($color, 'blue', ['en' => 'Blue'], 2));
+        $master = new CatalogObject($productType, 'GV-1');
+        $em->persist($master);
+        $em->flush();
+        $masterId = $master->getId();
+
+        // Generate two variants through the real endpoint.
+        $client->request('POST', '/api/products/'.$masterId->toRfc4122().'/generate-variants', [
+            'headers' => ['Content-Type' => 'application/json'],
+            'body' => json_encode(['axes' => ['color' => ['red', 'blue']]], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertResponseIsSuccessful();
+
+        // Export master + its generated variants.
+        $csv = $this->runProductExport($tenant, ['sku', 'parent_sku', 'variant_axes', 'color'], [$masterId], [], true);
+        self::assertStringContainsString('GV-1-RED', $csv);
+        self::assertStringContainsString('GV-1-BLUE', $csv);
+        self::assertStringContainsString('color:red,blue', $csv, 'master carries the canonical axes definition');
+
+        // Re-import as a fresh tree (GV-1 → RT-1 renames master + variant skus
+        // + the parent_sku cell together; option codes stay).
+        $reimport = str_replace('GV-1', 'RT-1', $csv);
+        $body = $this->postImport($client, $reimport, $productType->getId()->toRfc4122(), [
+            'sku' => 'sku',
+            'parent_sku' => '__parent_sku__',
+            'variant_axes' => '__variant_axes__',
+            'color' => 'color',
+        ]);
+        self::assertSame('success', $body['status']);
+        self::assertSame(3, $body['success_count']);
+
+        $em->clear();
+        // Variants reparented to the freshly-imported master.
+        $parents = $em->getConnection()->fetchAllKeyValue(
+            "SELECT o.code, p.code FROM objects o JOIN objects p ON p.id = o.parent_id WHERE o.code IN ('RT-1-RED','RT-1-BLUE') ORDER BY o.code",
+        );
+        self::assertSame(['RT-1-BLUE' => 'RT-1', 'RT-1-RED' => 'RT-1'], $parents);
+
+        // Master axes definition survived intact.
+        $axes = $em->getConnection()->fetchOne("SELECT variant_axes FROM objects WHERE code = 'RT-1'");
+        \assert(\is_string($axes));
+        self::assertSame(
+            [['code' => 'color', 'values' => ['red', 'blue']]],
+            json_decode($axes, true, 512, JSON_THROW_ON_ERROR),
+        );
+
+        // Each variant kept its axis option code.
+        $redOption = $em->getConnection()->fetchOne(
+            "SELECT ov.value FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='color' AND o.code='RT-1-RED'",
+        );
+        \assert(\is_string($redOption));
+        self::assertSame(['option_code' => 'red'], json_decode($redOption, true, 512, JSON_THROW_ON_ERROR));
+    }
+
     /**
      * @param array<string, mixed> $expected
      * @param array<string, mixed> $actual
