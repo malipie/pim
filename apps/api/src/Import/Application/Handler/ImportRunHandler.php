@@ -14,6 +14,7 @@ use App\Import\Application\Service\ImportObjectCreator;
 use App\Import\Application\Service\ImportProgressPublisher;
 use App\Import\Application\Service\ImportRowDecision;
 use App\Import\Application\Service\ImportRowReader;
+use App\Import\Application\Service\ImportUndoLogger;
 use App\Import\Application\Service\ImportValidationService;
 use App\Import\Application\Service\Media\AssetUrlResolver;
 use App\Import\Application\Service\ObjectResolver;
@@ -83,6 +84,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ImportObjectCreator $creator,
         private readonly ObjectResolver $objectResolver,
         private readonly RelationImportStep $relationStep,
+        private readonly ImportUndoLogger $undoLogger,
         private readonly ImportColumnGrammar $columnGrammar,
         private readonly \App\Catalog\Application\BatchValueWriter $valueWriter,
         private readonly \App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface $catalogObjects,
@@ -186,6 +188,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         // IMP2-1.8: the cross-object link buffer accumulates across all chunks
         // of THIS run; reset so a long-lived worker never carries stale tuples.
         $this->relationStep->reset();
+        $this->undoLogger->reset();
 
         // IMP2-2.3 — resume point: a prior (paused/crashed) run left a checkpoint.
         // Rows at/below it are already written, so we skip their writes (still
@@ -1170,6 +1173,9 @@ final class ImportRunHandler extends AbstractBatchHandler
             $session->getMatchAttributeCode(),
         );
         $this->valueWriter->primeChunk(array_values($existingByKey), $attributesByCode);
+        // IMP2-2.4 — snapshot the current values of the chunk's UPDATE targets
+        // (one query) so the undo-log can record before-state per overwritten cell.
+        $this->undoLogger->primeChunk(array_values($existingByKey));
 
         // IMP2-1.7: resolve every distinct category code in the chunk once
         // (per-chunk prefetch — not one SELECT per code per row).
@@ -1206,6 +1212,12 @@ final class ImportRunHandler extends AbstractBatchHandler
                         : $this->skuFrom($row['resolvedValues'], $row['rowNumber']);
                     $this->recordParentLink($code, $row['cells'], $columnMapping, $row['rowNumber']);
                     $this->recordRelationLinks($code, $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
+                    // The prior run already logged this row's before-state; keep
+                    // first-write-wins honest so a later row in THIS run touching
+                    // the same scope cannot append a duplicate undo entry.
+                    if (null !== $existing) {
+                        $this->undoLogger->markScopesCaptured($existing, $row['resolvedValues'], $attributesByCode, $tenant);
+                    }
                 }
 
                 continue;
@@ -1240,6 +1252,10 @@ final class ImportRunHandler extends AbstractBatchHandler
                     $this->recordRelationLinks($createdSku, $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
                     $this->collectMediaJobs($mediaJobs, $session, $created->object->getId(), $row, $attributesByCode);
                 } elseif (ImportRowDecision::Update === $decision && null !== $existing) {
+                    // IMP2-2.4 — capture the before-state of every value this row
+                    // is about to overwrite/add on the pre-existing object, so
+                    // rollback v2 can restore it.
+                    $this->undoLogger->captureValueWrites($session, $existing, $row['resolvedValues'], $attributesByCode, $tenant);
                     $issues = $this->creator->update(
                         $existing,
                         $row['resolvedValues'],

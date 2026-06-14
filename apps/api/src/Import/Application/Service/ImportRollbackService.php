@@ -4,34 +4,37 @@ declare(strict_types=1);
 
 namespace App\Import\Application\Service;
 
+use App\Catalog\Application\AttributesIndexedRebuilder;
+use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
+use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Provenance;
+use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Import\Domain\Entity\ImportSession;
+use App\Import\Domain\Enum\ImportUndoOperation;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
+use App\Import\Domain\Repository\ImportUndoLogRepositoryInterface;
+use App\Shared\Application\BulkOperationLock;
+use App\Shared\Application\TenantContext;
+use App\Shared\Domain\Tenant;
+use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Exception as DBALException;
 use Doctrine\ORM\EntityManagerInterface;
+use LogicException;
 
 /**
- * Reverses an import within the 24h rollback window — deletes every
- * CatalogObject + ObjectValue stamped with the session id and flips
- * the session status to `rolled_back`.
+ * IMP2-2.4 — rollback v2. Truthful "Wycofaj import":
+ *   1. Replay the undo-log on PRE-EXISTING objects — restore each overwritten
+ *      value, delete each value the import newly added — UNLESS the value was
+ *      edited by hand after the import (provenance no longer `import`), in which
+ *      case it is left and reported as a skip.
+ *   2. Delete the objects the import CREATED (stamped with import_session_id, D11).
+ *   3. Rebuild attributes_indexed + completeness for the restored objects and
+ *      queue Meilisearch: re-index the restored ones, DELETE the created ones
+ *      (fixing the v1 ghost-documents bug).
+ *   4. Persist a rollback report (counts + manual-edit skips) on the session.
  *
- * The delete is hard, not soft, because the catalog has no soft-delete
- * column today and re-importing the same SKU after rollback must
- * succeed (`DuplicateSkuInDb` would otherwise fire). Spec §7.7
- * describes a "soft rollback" pattern with a 7-day restore window —
- * lining that up needs `deleted_at` everywhere; deferred to Phase 2
- * once `pending_changes` is wired.
- *
- * Linked Asset rows stay untouched on purpose (spec §7.7: "klient
- * ręcznie usuwa w DAM"). The 24h window guard lives on the entity;
- * this service just orchestrates the DBAL DELETE.
- *
- * tenant-safe: import_session_id is the natural tenant anchor.
- * The ImportSession entity is loaded through TenantFilter via the
- * repository; objects/values created by that import inherit the
- * same tenant on the FK chain (every CatalogObject has tenant_id
- * stamped on prePersist). Filtering by import_session_id therefore
- * cannot reach rows from other tenants.
+ * Linked Asset rows stay in the DAM (spec §7.7, unchanged from v1). The whole
+ * run holds the per-tenant {@see BulkOperationLock} so it never races an import.
  */
 final readonly class ImportRollbackService
 {
@@ -39,56 +42,303 @@ final readonly class ImportRollbackService
         private EntityManagerInterface $em,
         private Connection $connection,
         private ImportSessionRepositoryInterface $sessions,
+        private ImportUndoLogRepositoryInterface $undoLog,
+        private ObjectValueRepositoryInterface $objectValues,
+        private AttributesIndexedRebuilder $rebuilder,
+        private BulkReindexQueueInterface $reindexQueue,
+        private BulkOperationLock $bulkLock,
+        private TenantContext $tenantContext,
     ) {
     }
 
     /**
-     * @return array{deletedObjects: int, deletedValues: int}
+     * @return array{deletedObjects: int, deletedValues: int, restoredValues: int, removedValues: int, skippedManualEdits: int, skippedSuperseded: int}
      */
     public function rollback(ImportSession $session): array
     {
-        $session->markRolledBack();
-
-        try {
-            $this->connection->beginTransaction();
-            $sessionId = $session->getId()->toRfc4122();
-
-            $deletedValues = (int) $this->connection->executeStatement(
-                <<<'SQL'
-                        DELETE FROM object_values
-                        WHERE object_id IN (
-                            SELECT id FROM objects WHERE import_session_id = :session_id
-                        )
-                    SQL,
-                ['session_id' => $sessionId],
-            );
-
-            $deletedObjects = (int) $this->connection->executeStatement(
-                'DELETE FROM objects WHERE import_session_id = :session_id',
-                ['session_id' => $sessionId],
-            );
-
-            $this->connection->commit();
-        } catch (DBALException $exception) {
-            if ($this->connection->isTransactionActive()) {
-                $this->connection->rollBack();
-            }
-            throw $exception;
+        // One "authorized-at" instant for both the entry guard and the final
+        // status flip: a window that lapses DURING the (sub-second) rollback work
+        // must not abort markRolledBack() after the data was already mutated.
+        $now = new DateTimeImmutable();
+        // Fail fast BEFORE touching data if the window closed / status is not
+        // rollbackable — mirrors markRolledBack()'s guards without mutating yet.
+        if (!$session->getStatus()->isRollbackable() || !$session->isWithinRollbackWindow($now)) {
+            throw new LogicException(\sprintf(
+                'Import session %s cannot be rolled back (status "%s" or window expired).',
+                $session->getId()->toRfc4122(),
+                $session->getStatus()->value,
+            ));
         }
 
-        // The session row was mutated through the EM (markRolledBack), but
-        // the bulk DELETEs ran via raw DBAL — re-merge so flush stamps
-        // `rolled_back_at` + `status='rolled_back'` cleanly.
-        $this->em->clear();
-        $reload = $this->sessions->findById($session->getId());
-        if (null !== $reload) {
-            $reload->markRolledBack();
-            $this->sessions->save($reload);
+        $tenant = $session->getTenant();
+        if ($tenant instanceof Tenant) {
+            $this->tenantContext->set($tenant);
+        }
+        $lock = $this->bulkLock->acquire($tenant instanceof Tenant ? $tenant : throw new LogicException('Import session has no tenant.'));
+        if (null === $lock) {
+            throw new LogicException('Another bulk operation is in progress for this tenant; retry shortly.');
+        }
+
+        try {
+            $kind = $session->getTargetObjectType()->getKind();
+
+            // --- 1. Replay the value undo-log on pre-existing objects ---
+            $report = $this->replayUndoLog($session);
+
+            // --- 2. Rebuild attributes_indexed + completeness for restored objects ---
+            $affectedIds = $report['affectedIds'];
+            foreach ($affectedIds as $idRfc) {
+                $object = $this->em->find(CatalogObject::class, $idRfc);
+                if ($object instanceof CatalogObject) {
+                    $this->rebuilder->rebuild($object);
+                }
+            }
+            if ([] !== $affectedIds) {
+                $this->em->flush();
+            }
+            // Re-index the restored objects in Meilisearch.
+            $this->reindexQueue->queueAll($affectedIds);
+
+            // --- 3. Delete the objects the import created (D11), capture for Meili ---
+            // tenant-safe: every raw DELETE/SELECT below is keyed by
+            // import_session_id (a tenant-scoped session, loaded owner-scoped),
+            // and objects/object_values enforce RLS on app.current_tenant set
+            // via $tenantContext above — no cross-tenant reach.
+            $createdIds = $this->createdObjectIds($session);
+            $deletedValues = 0;
+            $deletedObjects = 0;
+            if ([] !== $createdIds) {
+                $deletedValues = (int) $this->connection->executeStatement(
+                    'DELETE FROM object_values WHERE object_id IN (SELECT id FROM objects WHERE import_session_id = :sid)',
+                    ['sid' => $session->getId()->toRfc4122()],
+                );
+                $deletedObjects = (int) $this->connection->executeStatement(
+                    'DELETE FROM objects WHERE import_session_id = :sid',
+                    ['sid' => $session->getId()->toRfc4122()],
+                );
+                // Fix the v1 ghost-documents bug: drop the created docs from search.
+                $this->reindexQueue->queueAllDeleted($createdIds, $kind);
+            }
+
+            // --- 4. Finalize: flip status + persist the report ---
+            // The raw DELETEs ran outside the ORM; clear + reload so the session
+            // mutation flushes cleanly (mirrors v1).
+            $this->em->clear();
+            $reload = $this->sessions->findById($session->getId());
+            if ($reload instanceof ImportSession) {
+                $reload->markRolledBack($now);
+                $reload->recordRollbackReport([
+                    'deleted_objects' => $deletedObjects,
+                    'deleted_values' => $deletedValues,
+                    'restored_values' => $report['restoredValues'],
+                    'removed_values' => $report['removedValues'],
+                    'skipped_manual_edits' => $report['skippedManualEdits'],
+                    'skipped_superseded' => $report['skippedSuperseded'],
+                ]);
+                $this->sessions->save($reload);
+            }
+
+            return [
+                'deletedObjects' => $deletedObjects,
+                'deletedValues' => $deletedValues,
+                'restoredValues' => $report['restoredValues'],
+                'removedValues' => $report['removedValues'],
+                'skippedManualEdits' => $report['skippedManualEdits'],
+                'skippedSuperseded' => $report['skippedSuperseded'],
+            ];
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Read-only pre-rollback preview: what rollback WOULD do, without mutating.
+     *
+     * @return array{created_to_delete: int, values_to_restore: int, values_to_remove: int, manual_edits_to_skip: int, superseded_to_skip: int, rollbackable: bool}
+     */
+    public function preview(ImportSession $session): array
+    {
+        $tenant = $session->getTenant();
+        if ($tenant instanceof Tenant) {
+            $this->tenantContext->set($tenant);
+        }
+
+        $createdRaw = $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM objects WHERE import_session_id = :sid',
+            ['sid' => $session->getId()->toRfc4122()],
+        );
+        $createdToDelete = (int) (\is_scalar($createdRaw) ? $createdRaw : 0);
+
+        $toRestore = 0;
+        $toRemove = 0;
+        $manualSkips = 0;
+        $supersededSkips = 0;
+        $superseded = $this->undoLog->supersededScopeKeys($session);
+        $index = $this->currentValueIndex($session);
+        foreach ($this->undoLog->findBySession($session) as $row) {
+            $code = $row->getAttributeCode();
+            if (null === $code) {
+                continue;
+            }
+            $key = $this->scopeKey(
+                $row->getObjectId()->toRfc4122(),
+                $code,
+                $row->getLocale(),
+                $row->getChannelId()?->toRfc4122(),
+            );
+            if (isset($superseded[$key])) {
+                ++$supersededSkips;
+
+                continue;
+            }
+            $value = $index[$key] ?? null;
+            if (null === $value) {
+                continue;
+            }
+            if (Provenance::Import !== $value->getProvenance()) {
+                ++$manualSkips;
+
+                continue;
+            }
+            ImportUndoOperation::ValueOverwritten === $row->getOperation() ? ++$toRestore : ++$toRemove;
         }
 
         return [
-            'deletedObjects' => $deletedObjects,
-            'deletedValues' => $deletedValues,
+            'created_to_delete' => $createdToDelete,
+            'values_to_restore' => $toRestore,
+            'values_to_remove' => $toRemove,
+            'manual_edits_to_skip' => $manualSkips,
+            'superseded_to_skip' => $supersededSkips,
+            'rollbackable' => $session->getStatus()->isRollbackable() && $session->isWithinRollbackWindow(),
         ];
+    }
+
+    /**
+     * Current ObjectValues of the session's affected objects, keyed by scope.
+     *
+     * @return array<string, \App\Catalog\Domain\Entity\ObjectValue>
+     */
+    private function currentValueIndex(ImportSession $session): array
+    {
+        $index = [];
+        // findByObjectIds returns values grouped by object id (RFC4122 => list).
+        foreach ($this->objectValues->findByObjectIds($this->undoLog->affectedObjectIds($session)) as $values) {
+            foreach ($values as $value) {
+                $index[$this->scopeKey(
+                    $value->getObject()->getId()->toRfc4122(),
+                    $value->getAttribute()->getCode(),
+                    $value->getLocale(),
+                    $value->getChannelId()?->toRfc4122(),
+                )] = $value;
+            }
+        }
+
+        return $index;
+    }
+
+    /**
+     * Restore/remove each logged value and report the outcome. Two guards keep a
+     * rollback from corrupting the catalog:
+     *   - manual-edit guard (provenance no longer `import`) — leave + report;
+     *   - superseded guard (a LATER import session overwrote the same cell) —
+     *     leave + report, never clobber the newer import.
+     *
+     * @return array{restoredValues: int, removedValues: int, skippedManualEdits: int, skippedSuperseded: int, affectedIds: list<string>}
+     */
+    private function replayUndoLog(ImportSession $session): array
+    {
+        $undoRows = $this->undoLog->findBySession($session);
+        $superseded = $this->undoLog->supersededScopeKeys($session);
+        $restored = 0;
+        $removed = 0;
+        $skipped = 0;
+        $skippedSuperseded = 0;
+        /** @var array<string, true> $affected */
+        $affected = [];
+
+        // One query for every current value of the affected objects, keyed by
+        // (objectId|attributeCode|locale|channel) so each undo row maps directly.
+        $index = $this->currentValueIndex($session);
+
+        foreach ($undoRows as $row) {
+            $code = $row->getAttributeCode();
+            if (null === $code) {
+                continue; // non-value op (object-field/category/relation undo — deferred)
+            }
+            $key = $this->scopeKey(
+                $row->getObjectId()->toRfc4122(),
+                $code,
+                $row->getLocale(),
+                $row->getChannelId()?->toRfc4122(),
+            );
+            // A later import owns this cell now: restoring would silently revert
+            // its write (both carry provenance `import`, so only the undo-log's
+            // chronology can tell them apart).
+            if (isset($superseded[$key])) {
+                ++$skippedSuperseded;
+
+                continue;
+            }
+            $value = $index[$key] ?? null;
+            if (null === $value) {
+                continue; // value already gone (e.g. manually deleted) — nothing to do
+            }
+            // Manual-edit guard: only reverse what the import still owns.
+            if (Provenance::Import !== $value->getProvenance()) {
+                ++$skipped;
+
+                continue;
+            }
+
+            $affected[$row->getObjectId()->toRfc4122()] = true;
+            if (ImportUndoOperation::ValueOverwritten === $row->getOperation()) {
+                $payload = $row->getPayload();
+                /** @var array<string, mixed> $envelope */
+                $envelope = \is_array($payload['value'] ?? null) ? $payload['value'] : [];
+                $value->updateValue($envelope);
+                $before = $payload['provenance'] ?? null;
+                if (\is_string($before) && null !== Provenance::tryFrom($before)) {
+                    $value->changeProvenance(Provenance::from($before));
+                }
+                // Restore the FULL before-envelope, including provenance_meta
+                // (who/when), so the UI badge reflects the pre-import state.
+                /** @var array<string, mixed> $meta */
+                $meta = \is_array($payload['provenance_meta'] ?? null) ? $payload['provenance_meta'] : [];
+                $value->updateProvenanceMeta($meta);
+                ++$restored;
+            } elseif (ImportUndoOperation::ValueCreated === $row->getOperation()) {
+                $this->em->remove($value);
+                ++$removed;
+            }
+        }
+
+        $this->em->flush();
+
+        return [
+            'restoredValues' => $restored,
+            'removedValues' => $removed,
+            'skippedManualEdits' => $skipped,
+            'skippedSuperseded' => $skippedSuperseded,
+            'affectedIds' => array_keys($affected),
+        ];
+    }
+
+    /**
+     * @return list<string> RFC4122 ids of objects the import created
+     */
+    private function createdObjectIds(ImportSession $session): array
+    {
+        /** @var list<array{id: string}> $rows */
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT id FROM objects WHERE import_session_id = :sid',
+            ['sid' => $session->getId()->toRfc4122()],
+        );
+
+        return array_map(static fn (array $r): string => $r['id'], $rows);
+    }
+
+    private function scopeKey(string $objectId, string $attributeCode, ?string $locale, ?string $channelId): string
+    {
+        return $objectId.'|'.$attributeCode.'|'.($locale ?? '').'|'.($channelId ?? '');
     }
 }

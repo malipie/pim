@@ -107,6 +107,12 @@ class ImportSession extends AggregateRoot implements TenantScoped
 
     private ?DateTimeImmutable $pausedAt = null;
 
+    /** IMP2-2.4 — undo-log capture toggle (off for very large imports, spec §3). */
+    private bool $undoLogEnabled = true;
+
+    /** @var array<string, mixed>|null IMP2-2.4 — rollback v2 outcome (counts + skipped manual edits) */
+    private ?array $rollbackReport = null;
+
     private ?DateTimeImmutable $startedAt = null;
 
     private ?DateTimeImmutable $completedAt = null;
@@ -462,8 +468,16 @@ class ImportSession extends AggregateRoot implements TenantScoped
         $this->errorMessage = $message;
     }
 
-    public function markRolledBack(): void
+    /**
+     * @param ?DateTimeImmutable $now the instant the rollback was authorized; pass
+     *                                the same value used for the entry guard so a
+     *                                window that expires DURING the (sub-second)
+     *                                rollback work cannot abort the status flip
+     *                                after the data was already mutated
+     */
+    public function markRolledBack(?DateTimeImmutable $now = null): void
     {
+        $now ??= new DateTimeImmutable();
         if (!$this->getStatus()->isRollbackable()) {
             throw new LogicException(\sprintf(
                 'Import session %s cannot be rolled back from status "%s".',
@@ -471,7 +485,7 @@ class ImportSession extends AggregateRoot implements TenantScoped
                 $this->status,
             ));
         }
-        if (null === $this->rollbackUntil || $this->rollbackUntil < new DateTimeImmutable()) {
+        if (null === $this->rollbackUntil || $this->rollbackUntil < $now) {
             throw new LogicException(\sprintf(
                 'Rollback window for import session %s has expired.',
                 $this->id->toRfc4122(),
@@ -519,6 +533,32 @@ class ImportSession extends AggregateRoot implements TenantScoped
     public function getPausedAt(): ?DateTimeImmutable
     {
         return $this->pausedAt;
+    }
+
+    public function isUndoLogEnabled(): bool
+    {
+        return $this->undoLogEnabled;
+    }
+
+    public function disableUndoLog(): void
+    {
+        $this->undoLogEnabled = false;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function getRollbackReport(): ?array
+    {
+        return $this->rollbackReport;
+    }
+
+    /**
+     * @param array<string, mixed> $report
+     */
+    public function recordRollbackReport(array $report): void
+    {
+        $this->rollbackReport = $report;
     }
 
     /**

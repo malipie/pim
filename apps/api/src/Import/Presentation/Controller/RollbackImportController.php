@@ -63,7 +63,31 @@ final class RollbackImportController
             'rolled_back_at' => $reload->getRolledBackAt()?->format(DateTimeInterface::RFC3339_EXTENDED),
             'deleted_objects' => $result['deletedObjects'],
             'deleted_object_values' => $result['deletedValues'],
+            // IMP2-2.4 — rollback v2 also reverses overwrites on existing objects.
+            'restored_values' => $result['restoredValues'],
+            'removed_values' => $result['removedValues'],
+            'skipped_manual_edits' => $result['skippedManualEdits'],
+            // Values a LATER import owns now — left intact, not clobbered.
+            'skipped_superseded' => $result['skippedSuperseded'],
         ], Response::HTTP_OK);
+    }
+
+    /**
+     * IMP2-2.4 — pre-rollback preview: what "Wycofaj import" would do (objects
+     * deleted, values restored/removed, manual edits left untouched). Read-only.
+     */
+    #[Route(
+        path: '/api/import-sessions/{id}/rollback-preview',
+        name: 'imports_rollback_preview',
+        requirements: ['id' => '[0-9a-fA-F-]{36}'],
+        methods: ['GET'],
+    )]
+    #[RequiresPermission(module: 'import_session', action: 'admin')]
+    public function preview(string $id): JsonResponse
+    {
+        $session = $this->loadOwned($id);
+
+        return new JsonResponse($this->rollbackService->preview($session), Response::HTTP_OK);
     }
 
     private function loadOwned(string $rawId): ImportSession
