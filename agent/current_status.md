@@ -13,16 +13,17 @@
   - [x] **IMP2-1.6 (#1469)** — gramatyka kolumn `code.locale.channel` + zapis channelId. **MERGED** (PR #1510, `440a63a3`, 2026-06-13). Live smoke 3/3 na pim.localhost, issue zamknięte z dowodem. Grammar przez `Channel\Contracts\ScopeEnumerator` (deptrac-clean, channelId raz/sesja), export 3-segment + fan-out #1146 + R-47 preflight 422, kolizja kanał↔locale (oba kierunki), golden + kanały.
   - [x] **IMP2-1.7 (#1470)** — multi-kategorie pipe-split + import status/enabled. **MERGED** (PR #1511, `5dd98b8c`, 2026-06-13). Live smoke 3/3, zamknięte z dowodem. CREATE multi-kat (primary+position), replace/append (D2), status/enabled z kolumn (`__status__`/`__enabled__`), FE StepMapping + Playwright, golden round-trip.
   - [x] **IMP2-1.8 (#1471)** — warianty parent_sku two-pass + relacje ObjectRelation + fan-out + galerie + variant_axes. **MERGED** (PR #1512, `0722c50e`, 2026-06-14). Live smoke ✅ (generate-variants→export include_variants→reimport renamed→psql parent_id+variant_axes), #598 zamknięte z dowodem. Dwuprzebieg (`RelationImportStep`): pass-1 buforuje kody, pass-2 resolve tenant-scoped. Galerie pipe-split asset_id + prefetch istnienia per chunk. variant_axes pełny shape `code:v,v|code:v`. **Item 2 (pole fazy checkpoint) DEFERRED** — substrat checkpoint z 1.6a nie istnieje (#1509 = transport only), pełny resume to IMP2-2.3; dwuprzebieg już redelivery-safe (idempotentny upsert + dedupe trójki).
-  - [→] **IMP2-1.9 (#1472)** — izolacja błędów per wiersz + naprawa maszyny stanów + semantyka severity. START.
-  - [ ] 1.10 (#1473) golden pełna matryca + async · 1.11+ (media, etap 2/3).
+  - [x] **IMP2-1.9 (#1472)** — izolacja błędów per wiersz + severity + partial. **MERGED** (PR #1513, `192afe78`, 2026-06-14). Live smoke `dirty.csv` ✅ (partial 5/2, skip 1, raport z numerami wierszy), #1472 zamknięte z dowodem. severity-driven `isRowBlocking` (Warning nie blokuje), dup SKU→skip (D1), pre-check setowy identifierów (JSONB `value->>'value'`), wiersz śmieciowy→błąd wiersza, recovery przez ManagerRegistry po zamknięciu EM. **Item 3 per-row replay DEFERRED→IMP2-2.3** (EM-lifecycle, ServiceEntityRepository cache'uje EM).
+  - [→] **IMP2-1.10 (#1473)** — test: golden pełna matryca (17 typów × scope) + XLSX + pierwsze testy async ImportRunHandler. START.
+  - [ ] 1.11+ (media, etap 2/3).
 
 ## Ostatnie akcje
-1. IMP2-1.8 zmergowane (#1512) i #598 zamknięte z live-smoke proof. Dup #602 → dedupe w 1.11 per scope.
-2. IMP2-1.6 + IMP2-1.7 wcześniej zmergowane (#1469, #1470).
-3. Suite import/export 206 passed; golden 4 testy (warianty+relacje+galerie+GenerateVariants+cross-tenant).
+1. IMP2-1.9 zmergowane (#1513) i #1472 zamknięte z live-smoke proof (dirty.csv).
+2. IMP2-1.8 zmergowane (#1512), #598 zamknięte. Dup #602 → dedupe w 1.11 per scope.
+3. Suite import/export 206→ golden 4 testy + matryca severity 28 (ValidationErrorTest) + 3 Api izolacji błędów.
 
-## Następny krok — IMP2-1.9 (#1472)
-Izolacja błędów per wiersz + naprawa maszyny stanów + semantyka severity. Przeczytać AC ticketu + `Project Plan/UI/feature-imports-v2.md`. IMP2 to maraton (operator: „leć z ticketami po kolei, wdrażaj").
+## Następny krok — IMP2-1.10 (#1473)
+Ticket TESTOWY (PHPUnit/ApiTestCase only). Golden pełna matryca 17 typów × realne scope (z `isLocalizable`/`isScopable`, NIE kartezjan) + XLSX (data provider) + ≥4 testy async ImportRunHandler (transport `import`, routing >50, end-to-end, recoverable na locku) + asercje per-typ envelope. Fixtures syntetyczne (zero plików z `Zrodla/`). IMP2 maraton.
 
 ## Aktywne blokery
 - Brak (IMP2-1.8 pozostałe items to praca, nie bloker).
