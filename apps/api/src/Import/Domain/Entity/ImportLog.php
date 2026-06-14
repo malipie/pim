@@ -5,20 +5,30 @@ declare(strict_types=1);
 namespace App\Import\Domain\Entity;
 
 use App\Import\Domain\Enum\ImportLogLevel;
+use App\Shared\Application\TenantScoped;
+use App\Shared\Domain\Tenant;
 use DateTimeImmutable;
+use LogicException;
 use Symfony\Component\Uid\Uuid;
 
 /**
  * Per-row log entry feeding the validation preview, the live progress
  * stream, and the post-import CSV report.
  *
- * Not tenant-scoped on its own — tenant isolation flows through the
- * parent {@see ImportSession}, and the FK has `ON DELETE CASCADE` so
- * dropping a session deletes its log trail.
+ * IMP2-2.5 (#1481) — carries its own `tenant_id` so Postgres RLS can isolate
+ * the trail directly (FORCE RLS readiness), not only through the parent
+ * {@see ImportSession} FK. The tenant is stamped on `prePersist` by
+ * {@see \App\Shared\Infrastructure\Doctrine\EventListener\TenantAssignmentListener}
+ * from the active context — every log is created inside an import run that
+ * already has the tenant resolved (HTTP request or worker rebinding). The
+ * session FK keeps `ON DELETE CASCADE` so dropping a session still drops its
+ * log trail.
  */
-class ImportLog
+class ImportLog implements TenantScoped
 {
     private Uuid $id;
+
+    private ?Tenant $tenant = null;
 
     private ImportSession $importSession;
 
@@ -64,6 +74,19 @@ class ImportLog
     public function getId(): Uuid
     {
         return $this->id;
+    }
+
+    public function getTenant(): ?Tenant
+    {
+        return $this->tenant;
+    }
+
+    public function assignTenant(Tenant $tenant): void
+    {
+        if (null !== $this->tenant) {
+            throw new LogicException('Import log tenant is already assigned.');
+        }
+        $this->tenant = $tenant;
     }
 
     public function getImportSession(): ImportSession

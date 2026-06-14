@@ -86,11 +86,9 @@ final class TenantAuditCommand extends Command
         // UI-08.6 (#261) — pre-migration JSONB backup snapshots. Tenant
         // scope inherited via the parent attribute.
         'attribute_migration_backups',
-        // IMP-01 (#442) — per-row import trace. Tenant scope inherited
-        // via the parent ImportSession (FK CASCADE on delete); no own
-        // tenant_id column to keep writes lean (5k rows × 5 errors =
-        // 25k log inserts per realistic import).
-        'import_logs',
+        // IMP2-2.5 (#1481) — import_logs LEFT this list: it now carries its
+        // own tenant_id + RLS (FORCE-RLS readiness), so the audit verifies the
+        // column directly instead of exempting it.
         // VIEW-12 (#543) — bulk_logs inherits tenant scope through the
         // parent bulk_session (FK CASCADE on delete); keeps the
         // append-only log free of redundant tenant columns.
@@ -99,8 +97,9 @@ final class TenantAuditCommand extends Command
         // scope inherited via users.tenant_id (FK CASCADE on user delete).
         'user_filter_favorites',
         // EXP-01 (#580) — per-job export trace. Tenant scope inherited
-        // via the parent ExportSession (FK CASCADE on delete); pairs
-        // with the same pattern used by import_logs and bulk_logs.
+        // via the parent ExportSession (FK CASCADE on delete); same
+        // pattern as bulk_logs. (Pairs with IMP2-2.6+ if export_logs ever
+        // needs direct RLS like import_logs got in IMP2-2.5.)
         'export_logs',
         // RBAC-P1-008 (#647) — platform-level operators. No tenant_id by
         // design; SuperAdmin sits outside the tenant boundary and is

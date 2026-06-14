@@ -50,6 +50,11 @@ framework:
                     # through — the request listener already set the
                     # context from the JWT principal.
                     - 'App\Shared\Infrastructure\Messenger\TenantContextRebindingMiddleware'
+                    # IMP2-2.5 (#1481) — sets the Postgres `app.current_tenant`
+                    # GUC RLS policies read, so worker handlers stay isolated
+                    # once FORCE RLS lands. Runs after the rebinding above (PHP
+                    # TenantContext) and before the transaction opens.
+                    - 'App\Shared\Infrastructure\Messenger\TenantRlsGucMiddleware'
                     - 'App\Shared\Infrastructure\Messenger\IdempotencyMiddleware'
                     - doctrine_transaction
 

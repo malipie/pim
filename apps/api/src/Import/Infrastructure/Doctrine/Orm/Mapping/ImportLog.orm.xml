@@ -11,11 +11,16 @@
         <indexes>
             <index name="import_logs_session_idx" columns="import_session_id,row_number"/>
             <index name="import_logs_session_level_idx" columns="import_session_id,level"/>
+            <index name="import_logs_tenant_idx" columns="tenant_id"/>
         </indexes>
 
         <id name="id" type="uuid" column="id">
             <generator strategy="NONE"/>
         </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
 
         <many-to-one field="importSession" target-entity="App\Import\Domain\Entity\ImportSession">
             <join-column name="import_session_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>

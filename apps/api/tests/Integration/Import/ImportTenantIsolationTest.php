@@ -14,6 +14,7 @@ use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\RelationCardinality;
 use App\Import\Application\Service\RelationImportStep;
+use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Enum\ImportLogLevel;
@@ -121,6 +122,59 @@ final class ImportTenantIsolationTest extends KernelTestCase
         $this->activateTenantFilter($beta);
         $betaCount = $repo->countSince($alpha, new DateTimeImmutable('-1 hour'));
         self::assertSame(0, $betaCount, 'TenantFilter must hide alpha backups from beta context.');
+    }
+
+    #[Test]
+    public function importLogsAreIsolatedByTenantFilter(): void
+    {
+        // IMP2-2.5 (#1481) — import_logs now carries its own tenant_id, so the
+        // TenantFilter scopes its queries directly (not only via the session FK).
+        $alpha = $this->createTenant('alpha');
+        $beta = $this->createTenant('beta');
+        $em = $this->em();
+
+        $this->tenantContext()->set($alpha);
+        $type = $this->productObjectType($em);
+
+        $alphaSession = new ImportSession(
+            userId: Uuid::v7(),
+            targetObjectType: $type,
+            fileName: 'alpha.csv',
+            fileSizeBytes: 10,
+        );
+        $alphaSession->assignTenant($alpha);
+        $em->persist($alphaSession);
+        $alphaLog = new ImportLog($alphaSession, 1, ImportLogLevel::Error, 'alpha row failed');
+        $alphaLog->assignTenant($alpha);
+        $em->persist($alphaLog);
+
+        $betaSession = new ImportSession(
+            userId: Uuid::v7(),
+            targetObjectType: $type,
+            fileName: 'beta.csv',
+            fileSizeBytes: 10,
+        );
+        $betaSession->assignTenant($beta);
+        $em->persist($betaSession);
+        $betaLog = new ImportLog($betaSession, 1, ImportLogLevel::Warning, 'beta row warned');
+        $betaLog->assignTenant($beta);
+        $em->persist($betaLog);
+
+        $em->flush();
+        $em->clear();
+
+        $repo = $em->getRepository(ImportLog::class);
+
+        $this->activateTenantFilter($alpha);
+        $alphaLogs = $repo->findAll();
+        self::assertCount(1, $alphaLogs, 'alpha context sees only its own log row');
+        self::assertSame('alpha row failed', $alphaLogs[0]->getMessage());
+
+        $em->clear();
+        $this->activateTenantFilter($beta);
+        $betaLogs = $repo->findAll();
+        self::assertCount(1, $betaLogs, 'TenantFilter must not leak alpha logs into beta context');
+        self::assertSame('beta row warned', $betaLogs[0]->getMessage());
     }
 
     #[Test]
