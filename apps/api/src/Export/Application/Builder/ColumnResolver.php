@@ -47,6 +47,7 @@ final class ColumnResolver
         'updated_at' => 'updated_at',
         'status' => 'status',
         'enabled' => 'enabled',
+        'variant_axes' => 'variant_axes',
         'completeness_pct' => 'completeness_pct',
     ];
 

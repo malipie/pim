@@ -40,17 +40,18 @@ final class ImportObjectCreator
     }
 
     /**
-     * @param list<ResolvedImportValue> $resolvedValues   mapped cells with the locale parsed from
-     *                                                    their dotted header (`name.pl` → `pl`)
-     * @param array<string, Attribute>  $attributesByCode
-     * @param list<CatalogObject>       $categories       resolved category objects in cell order
-     *                                                    (IMP2-1.7) — first becomes primary,
-     *                                                    index drives `position`. The handler
-     *                                                    resolves codes once per chunk and emits
-     *                                                    a per-code CategoryNotFound warning for
-     *                                                    any that did not resolve.
-     * @param ?string                   $status           validated publication status (draft|published|archived) or null = untouched
-     * @param ?bool                     $enabled          parsed enabled flag or null = untouched
+     * @param list<ResolvedImportValue>                        $resolvedValues   mapped cells with the locale parsed from
+     *                                                                           their dotted header (`name.pl` → `pl`)
+     * @param array<string, Attribute>                         $attributesByCode
+     * @param list<CatalogObject>                              $categories       resolved category objects in cell order
+     *                                                                           (IMP2-1.7) — first becomes primary,
+     *                                                                           index drives `position`. The handler
+     *                                                                           resolves codes once per chunk and emits
+     *                                                                           a per-code CategoryNotFound warning for
+     *                                                                           any that did not resolve.
+     * @param ?string                                          $status           validated publication status (draft|published|archived) or null = untouched
+     * @param ?bool                                            $enabled          parsed enabled flag or null = untouched
+     * @param ?list<array{code: string, values: list<string>}> $variantAxes      parsed variant axes or null = untouched (IMP2-1.8)
      */
     public function create(
         ObjectType $objectType,
@@ -61,10 +62,11 @@ final class ImportObjectCreator
         array $categories = [],
         ?string $status = null,
         ?bool $enabled = null,
+        ?array $variantAxes = null,
     ): CreatedImportObject {
         $object = new CatalogObject($objectType, $sku);
         $object->assignImportSession($importSessionId);
-        $this->applyState($object, $status, $enabled);
+        $this->applyState($object, $status, $enabled, $variantAxes);
         $this->em->persist($object);
 
         $issues = $this->valueWriter->writeMany(
@@ -97,13 +99,19 @@ final class ImportObjectCreator
      * row's reserved columns. Null means "column absent or empty" (D2 — do
      * not touch). Values are pre-validated by {@see ImportValidationService}.
      */
-    private function applyState(CatalogObject $object, ?string $status, ?bool $enabled): void
+    /**
+     * @param ?list<array{code: string, values: list<string>}> $variantAxes
+     */
+    private function applyState(CatalogObject $object, ?string $status, ?bool $enabled, ?array $variantAxes): void
     {
         if (null !== $status) {
             $object->transitionTo($status);
         }
         if (null !== $enabled) {
             $object->changeEnabled($enabled);
+        }
+        if (null !== $variantAxes) {
+            $object->declareVariantAxes($variantAxes);
         }
     }
 
@@ -119,10 +127,11 @@ final class ImportObjectCreator
      * @param array<string, Attribute>  $attributesByCode
      */
     /**
-     * @param list<ResolvedImportValue> $resolvedValues
-     * @param array<string, Attribute>  $attributesByCode
-     * @param ?string                   $status           validated status or null = untouched (IMP2-1.7)
-     * @param ?bool                     $enabled          parsed enabled flag or null = untouched (IMP2-1.7)
+     * @param list<ResolvedImportValue>                        $resolvedValues
+     * @param array<string, Attribute>                         $attributesByCode
+     * @param ?string                                          $status           validated status or null = untouched (IMP2-1.7)
+     * @param ?bool                                            $enabled          parsed enabled flag or null = untouched (IMP2-1.7)
+     * @param ?list<array{code: string, values: list<string>}> $variantAxes      parsed variant axes or null = untouched (IMP2-1.8)
      *
      * @return list<array{attributeCode: string, kind: string, message: string}>
      */
@@ -132,8 +141,9 @@ final class ImportObjectCreator
         array $attributesByCode,
         ?string $status = null,
         ?bool $enabled = null,
+        ?array $variantAxes = null,
     ): array {
-        $this->applyState($object, $status, $enabled);
+        $this->applyState($object, $status, $enabled, $variantAxes);
 
         return $this->valueWriter->writeMany(
             $object,

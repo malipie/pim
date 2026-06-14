@@ -85,6 +85,7 @@ final readonly class AutoMapper
                 'status' => ReservedMappingTarget::STATUS,
                 'enabled' => ReservedMappingTarget::ENABLED,
                 'parentsku' => ReservedMappingTarget::PARENT_SKU,
+                'variantaxes' => ReservedMappingTarget::VARIANT_AXES,
                 default => null,
             };
             if (null !== $reservedTarget) {

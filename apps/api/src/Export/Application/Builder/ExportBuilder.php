@@ -247,8 +247,37 @@ final class ExportBuilder
             'created_at' => $this->serializer->serializeScalar($object->getCreatedAt()),
             'updated_at' => $this->serializer->serializeScalar($object->getUpdatedAt()),
             'category' => $this->resolveCategories($object),
+            'variant_axes' => $this->serializeVariantAxes($object),
             default => '',
         };
+    }
+
+    /**
+     * IMP2-1.8 — serialise the master's variant axes to the round-trippable
+     * full shape `code:value,value|code:value`. Empty for non-masters /
+     * objects without declared axes.
+     */
+    private function serializeVariantAxes(CatalogObject $object): string
+    {
+        $axes = $object->getVariantAxes();
+        if (null === $axes || [] === $axes) {
+            return '';
+        }
+
+        $parts = [];
+        foreach ($axes as $axis) {
+            $code = $axis['code'] ?? null;
+            if (!\is_string($code) || '' === $code) {
+                continue;
+            }
+            $values = $axis['values'] ?? [];
+            $valueList = \is_array($values)
+                ? array_values(array_filter(array_map(static fn (mixed $v): string => \is_scalar($v) ? (string) $v : '', $values), static fn (string $v): bool => '' !== $v))
+                : [];
+            $parts[] = $code.':'.implode(',', $valueList);
+        }
+
+        return implode(ValueSerializer::MULTI_VALUE_GLUE, $parts);
     }
 
     private function resolveCategories(CatalogObject $object): string

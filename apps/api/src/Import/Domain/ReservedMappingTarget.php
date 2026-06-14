@@ -57,11 +57,18 @@ final class ReservedMappingTarget
     public const string PARENT_SKU = '__parent_sku__';
 
     /**
+     * Set the master's variant axes (IMP2-1.8). Round-trippable full shape
+     * `code:value,value|code:value` — the axis attribute codes plus their
+     * option-code values. Applied via {@see \App\Catalog\Domain\Entity\CatalogObject::declareVariantAxes()}.
+     */
+    public const string VARIANT_AXES = '__variant_axes__';
+
+    /**
      * @return list<string>
      */
     public static function all(): array
     {
-        return [self::SKIP, self::CATEGORY, self::CATEGORY_APPEND, self::STATUS, self::ENABLED, self::PARENT_SKU];
+        return [self::SKIP, self::CATEGORY, self::CATEGORY_APPEND, self::STATUS, self::ENABLED, self::PARENT_SKU, self::VARIANT_AXES];
     }
 
     /** Both category targets (replace + append). */

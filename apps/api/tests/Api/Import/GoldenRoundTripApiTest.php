@@ -283,6 +283,51 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         self::assertStringNotContainsString('FAN-V2', $csvOff);
     }
 
+    #[Test]
+    public function variantAxesRoundTripsViaFullShape(): void
+    {
+        // IMP2-1.8 (AC) — variant_axes round-trips 1:1 via the full
+        // `code:value,value|code:value` shape.
+        $client = $this->authenticatedClient();
+        $tenant = $this->tenant();
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $em = $this->em();
+        $productType = $em->getRepository(ObjectType::class)
+            ->find(Uuid::fromString($this->objectTypeIdFor(ObjectKind::Product)));
+        \assert($productType instanceof ObjectType);
+
+        $master = new CatalogObject($productType, 'VA-1');
+        $master->declareVariantAxes([
+            ['code' => 'color', 'values' => ['red', 'blue']],
+            ['code' => 'size', 'values' => ['m']],
+        ]);
+        $em->persist($master);
+        $em->flush();
+        $masterId = $master->getId();
+
+        $csv = $this->runProductExport($tenant, ['sku', 'variant_axes'], [$masterId]);
+        self::assertStringContainsString('color:red,blue', $csv);
+        self::assertStringContainsString('size:m', $csv);
+
+        // Re-import as a NEW object (rename the sku) → variant_axes parsed back.
+        $reimport = str_replace('VA-1', 'VA-2', $csv);
+        $this->postImport($client, $reimport, $productType->getId()->toRfc4122(), [
+            'sku' => 'sku',
+            'variant_axes' => '__variant_axes__',
+        ]);
+
+        $em->clear();
+        $stored = $em->getConnection()->fetchOne("SELECT variant_axes FROM objects WHERE code = 'VA-2'");
+        \assert(\is_string($stored));
+        self::assertSame(
+            [
+                ['code' => 'color', 'values' => ['red', 'blue']],
+                ['code' => 'size', 'values' => ['m']],
+            ],
+            json_decode($stored, true, 512, JSON_THROW_ON_ERROR),
+        );
+    }
+
     /**
      * @param array<string, mixed> $expected
      * @param array<string, mixed> $actual

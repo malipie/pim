@@ -424,6 +424,43 @@ final class ImportRunHandler extends AbstractBatchHandler
     }
 
     /**
+     * IMP2-1.8 — parse the `__variant_axes__` cell (`code:v1,v2|code:v3`) into
+     * the stored shape, or null when absent/empty (D2 — do not touch).
+     *
+     * @param array<string, string|null> $cells
+     * @param array<string, string>      $columnMapping
+     *
+     * @return ?list<array{code: string, values: list<string>}>
+     */
+    private function extractVariantAxes(array $cells, array $columnMapping): ?array
+    {
+        $raw = $this->reservedCell($cells, $columnMapping, ReservedMappingTarget::VARIANT_AXES);
+        if (null === $raw) {
+            return null;
+        }
+
+        $axes = [];
+        foreach (explode('|', $raw) as $part) {
+            $part = trim($part);
+            if ('' === $part) {
+                continue;
+            }
+            [$code, $valuesRaw] = array_pad(explode(':', $part, 2), 2, '');
+            $code = trim($code);
+            if ('' === $code) {
+                continue;
+            }
+            $values = array_values(array_filter(
+                array_map('trim', explode(',', $valuesRaw)),
+                static fn (string $value): bool => '' !== $value,
+            ));
+            $axes[] = ['code' => $code, 'values' => $values];
+        }
+
+        return [] === $axes ? null : $axes;
+    }
+
+    /**
      * IMP2-1.8 — buffer a parent link for pass 2 when the row carries a
      * non-empty `__parent_sku__` cell. Existence / cycle validation happens
      * in pass 2 once every object is written.
@@ -646,6 +683,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                         categories: $this->resolveCategories($this->extractCategoryCodes($row['cells'], $columnMapping), $categoryByCode),
                         status: $this->extractStatus($row['cells'], $columnMapping),
                         enabled: $this->extractEnabled($row['cells'], $columnMapping),
+                        variantAxes: $this->extractVariantAxes($row['cells'], $columnMapping),
                     );
                     $issues = $created->issues;
                     $session->incrementSuccess();
@@ -661,6 +699,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                         $attributesByCode,
                         $this->extractStatus($row['cells'], $columnMapping),
                         $this->extractEnabled($row['cells'], $columnMapping),
+                        $this->extractVariantAxes($row['cells'], $columnMapping),
                     );
                     $session->incrementSuccess();
                     $session->incrementUpdated();
