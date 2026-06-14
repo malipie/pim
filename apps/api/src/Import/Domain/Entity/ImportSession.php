@@ -74,6 +74,22 @@ class ImportSession extends AggregateRoot implements TenantScoped
 
     private int $imagesFailed = 0;
 
+    /**
+     * IMP2-1.12 — number of media (image-download) batches dispatched for this
+     * run that have not yet finished. While > 0 the session is NOT finalized:
+     * the row phase may be done but downloads are still in flight (async
+     * `import` transport). The last batch to finish finalizes the session.
+     */
+    private int $pendingImageBatches = 0;
+
+    /**
+     * IMP2-1.12 — true once the row-write phase has dispatched every media
+     * batch. A media handler may only finalize the session after this flag is
+     * set (otherwise an early-finishing batch could complete a session whose
+     * later chunks are still importing).
+     */
+    private bool $rowPhaseComplete = false;
+
     private ?DateTimeImmutable $startedAt = null;
 
     private ?DateTimeImmutable $completedAt = null;
@@ -263,6 +279,49 @@ class ImportSession extends AggregateRoot implements TenantScoped
     public function incrementImagesFailed(): void
     {
         ++$this->imagesFailed;
+    }
+
+    public function getPendingImageBatches(): int
+    {
+        return $this->pendingImageBatches;
+    }
+
+    public function incrementPendingImageBatches(): void
+    {
+        ++$this->pendingImageBatches;
+    }
+
+    public function decrementPendingImageBatches(): void
+    {
+        $this->pendingImageBatches = max(0, $this->pendingImageBatches - 1);
+    }
+
+    /**
+     * IMP2-1.12 — the row-write phase finished dispatching media batches.
+     * Idempotent; the run handler calls it once at the end of the loop.
+     */
+    public function markRowPhaseComplete(): void
+    {
+        $this->rowPhaseComplete = true;
+    }
+
+    public function isRowPhaseComplete(): bool
+    {
+        return $this->rowPhaseComplete;
+    }
+
+    public function isAwaitingMedia(): bool
+    {
+        return $this->pendingImageBatches > 0;
+    }
+
+    /**
+     * True when the session is ready to transition to its terminal state:
+     * the row phase is done AND no media batch is still pending.
+     */
+    public function canFinalizeMedia(): bool
+    {
+        return $this->rowPhaseComplete && 0 === $this->pendingImageBatches;
     }
 
     public function getStartedAt(): ?DateTimeImmutable
