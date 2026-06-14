@@ -17,15 +17,19 @@
   - [x] **IMP2-1.10 (#1473)** — golden CSV+XLSX matryca + pierwsze testy async. **MERGED** (#1514).
   - [x] **IMP2-1.11 (#1474)** — higiena backlogu (8→1 open IMP-16..19). **MERGED** (#1515).
   - [x] **IMP2-1.12 (#1475)** — media z URL. **MERGED** (#1516, `c0aa5c01`). Live smoke ✅ (async: import→consume→success, envelope `{asset_id}` nie URL, dedup content_hash, link, gating, TenantStamp), #1475/#600/#604 zamknięte. Szew `Asset\Contracts\AssetIngestor` (decyzja operatora). **Adversarial review (16 agentów) złapał 3 critical** → NoPrivateNetworkHttpClient (SSRF rebinding+redirect), TenantStamp, atomowy decrement — naprawione przed merge.
-  - [→] **IMP2-1.13 (#1476)** — media z ZIP (reużywa AssetIngestor+resolver+liczniki+gating). START.
+  - [x] **IMP2-1.13 (#1476)** — media z ZIP. **MERGED** (#1517, `d31d42b5`). Live smoke ZIP ✅ (extract case-insensitive+subdir, link, success, zip-deleted), #1476 zamknięte. `ZipImageExtractor` (NFC/NFD, traversal, zip-bomb), controller zip_file≤500MB→MinIO+image_source, reużycie pipeline 1.12. 2 fixy CI (libzip OVERWRITE, tempnam string|false).
+
+### ✅ ETAP 1 IMP2 KOMPLETNY (1.1–1.13) — silnik importu v2 z mediami
+  - [→] **IMP2-2.1 (#1477)** — streaming readers (openspout XLSX, league/csv stream CSV). START etapu 2.
+  - [ ] Etap 2 (#1477–1486): staged upload, pauza/resume+checkpoint, undo-log, RLS GUC, perf/bench, security plików, równoległość, backup.
 
 ## Ostatnie akcje
-1. IMP2-1.12 zmergowane (#1516) po adversarial review (3 critical SSRF/tenant fixed); #1475/#600/#604 zamknięte z dowodem.
-2. IMP2-1.8/1.9/1.10/1.11 zmergowane wcześniej (#1512/1513/1514/1515).
-3. Dev DB env-repair: dorobiono `processed_messages` (zgubione przy rebuildzie z dumpu) + odpalono migrację 1.12.
+1. IMP2-1.13 zmergowane (#1517) i #1476 zamknięte — ETAP 1 KOMPLETNY (1.8–1.13 w tej sesji: #1512–1517).
+2. IMP2-1.12 po adversarial review (3 critical SSRF/tenant fixed).
+3. Operator: kontynuować etap 2 BEZ przeglądu zakresu.
 
-## Następny krok — IMP2-1.13 (#1476)
-Media z pliku ZIP (część 2). Reużywa `AssetIngestorInterface` (binary→Asset, dedup), `AssetUrlResolver` (rozszerz o resolveFromZip / bare-filename), liczniki + completion gating z 1.12. Stream ZIP w chunkach (zip-bomb cap), Unicode NFC/NFD filename match (case Tubądzin). Zależy od 1.12 (merged ✓).
+## Następny krok — IMP2-2.1 (#1477)
+Streaming readers: refactor `ImportRowReader` → openspout (XLSX) + league/csv stream (CSV) zamiast wczytywania całości; stała pamięć dla 200k+ wierszy. Przeczytać AC + obecny ImportRowReader.
 
 ## Aktywne blokery
 - Brak (IMP2-1.8 pozostałe items to praca, nie bloker).
