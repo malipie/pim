@@ -24,6 +24,7 @@ use App\Export\Infrastructure\Writer\RowWriter;
 use App\Export\Infrastructure\Writer\XlsxStreamWriter;
 use App\Shared\Domain\Tenant;
 use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
 use LogicException;
 use RuntimeException;
@@ -54,6 +55,9 @@ final class SyncExportRunner
 {
     public const int PROGRESS_CHUNK = 500;
 
+    /** IMP2-2.6 — detach hydrated objects every N rows so streaming stays flat. */
+    private const int CLEAR_INTERVAL = 200;
+
     public function __construct(
         private readonly ExportBuilder $builder,
         private readonly CatalogObjectRepositoryInterface $objects,
@@ -62,6 +66,7 @@ final class SyncExportRunner
         private readonly Connection $connection,
         private readonly PublicationColumnPlanner $columnPlanner,
         private readonly ObjectTypeRepositoryInterface $objectTypes,
+        private readonly EntityManagerInterface $em,
         /** @var iterable<StructuralExportBuilderInterface> */
         #[AutowireIterator('app.export.structural_builder')]
         private readonly iterable $structuralBuilders = [],
@@ -79,7 +84,28 @@ final class SyncExportRunner
             return $this->structuralBuilderFor($session->getEntityType())->count($this->requireTenant($session));
         }
 
+        // IMP2-2.6 — the streamable scope (All, masters only) counts via
+        // COUNT(*) instead of hydrating the whole result set just to size it.
+        if ($this->canStream($session)) {
+            $tenant = $this->requireTenant($session);
+
+            return $this->objects->countRootObjectsByType($this->resolveObjectType($session, $tenant), $tenant);
+        }
+
         return \count($this->resolveTargets($session));
+    }
+
+    /**
+     * IMP2-2.6 — a catalog-object export is streamable (root-by-root with
+     * EntityManager::clear() per chunk) when its scope is All and variant
+     * fan-out is off. Selected/Filter are already bounded id sets; variant
+     * fan-out interleaves children and needs the materialised pass.
+     */
+    private function canStream(ExportSession $session): bool
+    {
+        return !$session->getEntityType()->isStructural()
+            && ExportTargetScope::All === $session->getTargetScope()
+            && !$session->includesVariants();
     }
 
     /**
@@ -216,6 +242,12 @@ final class SyncExportRunner
             return $this->runStructuralToFile($session, $targetPath, $onChunk);
         }
 
+        // IMP2-2.6 — stream the All scope so a 50k export never materialises
+        // the full object graph (constant memory, enforced by the benchmark).
+        if ($this->canStream($session)) {
+            return $this->runStreamingToFile($session, $targetPath, $onChunk);
+        }
+
         $targets = $this->resolveTargets($session);
         $session->setTargetCount(\count($targets));
 
@@ -253,6 +285,83 @@ final class SyncExportRunner
         }
 
         $size = file_exists($targetPath) ? (int) filesize($targetPath) : 0;
+        $session->markDone($rows, $targetPath, $size);
+        $this->sessions->save($session);
+
+        return $rows;
+    }
+
+    /**
+     * IMP2-2.6 — streaming export of scope All (masters only). Walks the root
+     * objects in keyset pages and clears the EntityManager between pages, so the
+     * builder's per-object value/relation hydration never accumulates. Each page
+     * gets a FRESH {@see ExportBuilder::build()} call: its attribute/channel map
+     * is resolved from a clean EM, so the inter-page clear cannot leave it
+     * holding detached entities. The clear also detaches the session, so it is
+     * re-loaded each page (build() reads its tenant/channels) and before the
+     * final markDone.
+     *
+     * @param (callable(int): void)|null $onChunk invoked every PROGRESS_CHUNK rows
+     */
+    private function runStreamingToFile(ExportSession $session, string $targetPath, ?callable $onChunk): int
+    {
+        $sessionId = $session->getId();
+        $tenant = $this->requireTenant($session);
+        $objectType = $this->resolveObjectType($session, $tenant);
+
+        $total = $this->objects->countRootObjectsByType($objectType, $tenant);
+        $session->setTargetCount($total);
+        $this->sessions->save($session);
+
+        $columns = $session->getSelectedColumns();
+        if ([] === $columns) {
+            // #1235 — derive columns from the publication profile of the single
+            // scope-All ObjectType (no need to scan the whole target set).
+            $planned = $this->columnPlanner->plan($session, [$objectType->getId()->toRfc4122()]);
+            if (null === $planned) {
+                throw new InvalidArgumentException('Export session must list at least one column.');
+            }
+            $columns = $planned;
+        }
+
+        $writer = $this->openWriter($session->getFormat(), $session, $targetPath);
+        $writer->writeHeaders($columns);
+
+        $rows = 0;
+        $afterId = null;
+        try {
+            while (true) {
+                // $objectType/$tenant may be detached after a prior page's clear;
+                // Doctrine resolves them to ids for the WHERE params, so the query
+                // stays correct without re-hydrating them.
+                $page = $this->objects->findRootObjectsAfter($objectType, $tenant, $afterId, self::CLEAR_INTERVAL);
+                if ([] === $page) {
+                    break;
+                }
+                foreach ($this->builder->build($page, $session) as $row) {
+                    $values = [];
+                    foreach ($columns as $key) {
+                        $values[] = $row[$key] ?? '';
+                    }
+                    $writer->writeRow($values);
+                    ++$rows;
+                    if (null !== $onChunk && 0 === $rows % self::PROGRESS_CHUNK) {
+                        $onChunk($rows);
+                    }
+                }
+                $afterId = $page[array_key_last($page)]->getId();
+                // Detach the page (objects + their hydrated values) before the next.
+                $this->em->clear();
+                // build() needs a managed session next round (tenant/channels).
+                $session = $this->sessions->findById($sessionId) ?? $session;
+                $tenant = $this->requireTenant($session);
+            }
+        } finally {
+            $writer->close();
+        }
+
+        $size = file_exists($targetPath) ? (int) filesize($targetPath) : 0;
+        $session = $this->sessions->findById($sessionId) ?? $session;
         $session->markDone($rows, $targetPath, $size);
         $this->sessions->save($session);
 

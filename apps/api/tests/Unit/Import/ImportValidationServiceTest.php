@@ -267,6 +267,16 @@ final class InMemoryCatalogObjectRepository implements CatalogObjectRepositoryIn
         return [];
     }
 
+    public function findRootObjectsAfter(ObjectType $objectType, Tenant $tenant, ?Uuid $afterId, int $limit): array
+    {
+        return [];
+    }
+
+    public function countRootObjectsByType(ObjectType $objectType, Tenant $tenant): int
+    {
+        return 0;
+    }
+
     public function save(CatalogObject $object): void
     {
     }
