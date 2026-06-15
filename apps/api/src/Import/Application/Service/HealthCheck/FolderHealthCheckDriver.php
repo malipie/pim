@@ -16,6 +16,10 @@ use App\Import\Domain\Enum\ImportSourceType;
  */
 final class FolderHealthCheckDriver implements HealthCheckDriverInterface
 {
+    public function __construct(private readonly FolderPathGuard $pathGuard)
+    {
+    }
+
     public function supports(ImportSourceType $type): bool
     {
         return ImportSourceType::Folder === $type;
@@ -30,6 +34,16 @@ final class FolderHealthCheckDriver implements HealthCheckDriverInterface
             return new HealthCheckResult(
                 ImportSourceHealth::Error,
                 'Folder path is required.',
+                $this->elapsedMs($start),
+            );
+        }
+        // IMP2-2.8 (#1484) — containment check BEFORE any filesystem probe, with a
+        // single undifferentiated message: never reveal whether an out-of-base
+        // path exists / what it contains (anti directory-enumeration).
+        if (!$this->pathGuard->isWithinBase($path)) {
+            return new HealthCheckResult(
+                ImportSourceHealth::Error,
+                'Path is outside the allowed import sources directory.',
                 $this->elapsedMs($start),
             );
         }

@@ -6,6 +6,8 @@ namespace App\Import\Presentation\Controller;
 
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
+use App\Import\Application\Service\Archive\ArchiveSecurityException;
+use App\Import\Application\Service\Archive\XlsxArchiveGuard;
 use App\Import\Application\Service\FileParserService;
 use App\Import\Application\Service\StagedFileService;
 use App\Import\Domain\Enum\FileEncoding;
@@ -42,6 +44,7 @@ final class ParsePreviewController
         private readonly FileParserService $parser,
         private readonly StagedFileService $stagedFiles,
         private readonly Security $security,
+        private readonly XlsxArchiveGuard $xlsxArchiveGuard,
     ) {
     }
 
@@ -98,6 +101,17 @@ final class ParsePreviewController
         if (!@copy($file->getPathname(), $finalPath)) {
             @unlink($finalPath);
             throw new BadRequestHttpException('Failed to copy uploaded file for parsing.');
+        }
+
+        // IMP2-2.8 (#1484) — zip-bomb guard before parsing any XLSX (a crafted
+        // archive can OOM the worker during parse). Reject as RFC 7807 422.
+        if ('xlsx' === $extension) {
+            try {
+                $this->xlsxArchiveGuard->validate($finalPath);
+            } catch (ArchiveSecurityException $exception) {
+                @unlink($finalPath);
+                throw new UnprocessableEntityHttpException($exception->getMessage(), $exception);
+            }
         }
 
         try {

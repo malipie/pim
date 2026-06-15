@@ -266,6 +266,13 @@ services:
     # folder driver does a real probe in the MVP; sftp/ftp/http/webhook/
     # api/upload land with the polling daemon follow-up and use the
     # shared stub driver that simply returns "ok" with a note.
+    # IMP2-2.8 (#1484) — folder-source containment: paths must resolve inside
+    # IMPORT_SOURCE_BASE_PATH (anti directory-enumeration). Shared by the probe
+    # driver and the ImportSource save validation.
+    App\Import\Application\Service\HealthCheck\FolderPathGuard:
+        arguments:
+            $basePath: '%env(IMPORT_SOURCE_BASE_PATH)%'
+
     App\Import\Application\Service\HealthCheck\FolderHealthCheckDriver:
         tags: ['app.import.health_check_driver']
 

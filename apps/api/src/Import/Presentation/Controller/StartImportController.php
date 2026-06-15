@@ -12,6 +12,8 @@ use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Application\Handler\ImportRunHandler;
+use App\Import\Application\Service\Archive\ArchiveSecurityException;
+use App\Import\Application\Service\Archive\XlsxArchiveGuard;
 use App\Import\Application\Service\StagedFileService;
 use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Entity\ImportSession;
@@ -83,6 +85,7 @@ final class StartImportController
         private readonly FilesystemOperator $importsStorage,
         private readonly StagedFileService $stagedFiles,
         private readonly RateLimiterFactoryInterface $importTriggerLimiter,
+        private readonly XlsxArchiveGuard $xlsxArchiveGuard,
     ) {
     }
 
@@ -138,6 +141,15 @@ final class StartImportController
                 $fileSizeBytes,
                 intdiv($maxFileBytes, 1024 * 1024),
             ));
+        }
+
+        // IMP2-2.8 (#1484) — zip-bomb guard on XLSX before parsing/persisting.
+        if (str_ends_with(strtolower($originalName), '.xlsx')) {
+            try {
+                $this->xlsxArchiveGuard->validate($localPath);
+            } catch (ArchiveSecurityException $exception) {
+                throw new UnprocessableEntityHttpException($exception->getMessage(), $exception);
+            }
         }
 
         $targetId = $this->parseUuid($request->request->get('target_object_type_id'), 'target_object_type_id');
