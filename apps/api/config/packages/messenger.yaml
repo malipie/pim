@@ -18,7 +18,17 @@ framework:
             # during local + CI runs. Production points it at
             # `doctrine://default?queue_name=async` so the FrankenPHP
             # worker pool drains the queue.
-            async: '%env(MESSENGER_TRANSPORT_DSN)%'
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                # IMP2-2.9 (#1485) — lock contention (a long import holding the
+                # per-tenant bulk lock) is retried with a long backoff instead of
+                # dead-lettering after ~7 s: 5 retries, 30 s → 60 → 120 → 240 →
+                # capped 300 s ≈ 16 min total, covering a realistic import window.
+                retry_strategy:
+                    max_retries: 5
+                    delay: 30000
+                    multiplier: 2
+                    max_delay: 300000
 
             # IMP2-1.6a (#1468, ADR-0019 D8) — dedicated import queue so a
             # 200k-row import never starves UI-adjacent async jobs (Akeneo's
@@ -31,6 +41,13 @@ framework:
                 options:
                     queue_name: import
                     redeliver_timeout: 14400
+                # IMP2-2.9 (#1485) — same long-backoff policy for import lock
+                # contention (see `async`).
+                retry_strategy:
+                    max_retries: 5
+                    delay: 30000
+                    multiplier: 2
+                    max_delay: 300000
 
             failed: 'doctrine://default?queue_name=failed'
 

@@ -146,6 +146,9 @@ Extending this list requires bumping the rule version here and in the test.
 
 - Plan + decisions: `Project Plan/UI/feature-imports-v2.md` (§4.4 D1–D14, §9)
 - Tickets: #1463 (this ADR), #1464 (D7 migration), #1465 (modes), #1466
-  (shared writer core), #1467/#1473 (golden tests), #1480 (undo-log)
+  (shared writer core), #1467/#1473 (golden tests), #1480 (undo-log),
+  #1485 (D11 concurrency)
+- D11 concurrency matrix (per-tenant bulk lock + collision surfaces):
+  `docs/architecture/concurrency-matrix.md`
 - Related ADRs: 0014 (ObjectRelation), 0015 (category trees), 0018
   (publication profiles)

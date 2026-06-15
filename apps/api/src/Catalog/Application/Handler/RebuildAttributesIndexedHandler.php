@@ -10,6 +10,10 @@ use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Shared\Application\AbstractBatchHandler;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\OptimisticLockException;
+use Doctrine\Persistence\ManagerRegistry;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Uid\Uuid;
 
@@ -35,34 +39,77 @@ use Symfony\Component\Uid\Uuid;
 #[AsMessageHandler]
 final class RebuildAttributesIndexedHandler extends AbstractBatchHandler
 {
+    /** IMP2-2.9 (#1485) — attempts per object before giving up on a version conflict. */
+    private const int MAX_REBUILD_RETRIES = 3;
+
+    private readonly LoggerInterface $logger;
+
     public function __construct(
         EntityManagerInterface $entityManager,
         private readonly AttributesIndexedRebuilder $rebuilder,
         private readonly BulkReindexQueueInterface $reindexQueue,
+        private readonly ManagerRegistry $managerRegistry,
+        ?LoggerInterface $logger = null,
     ) {
         parent::__construct($entityManager);
+        $this->logger = $logger ?? new NullLogger();
     }
 
     public function __invoke(ObjectValuesChangedMessage $message): void
     {
-        foreach ($message->objectIds as $index => $idString) {
-            $object = $this->entityManager->find(CatalogObject::class, Uuid::fromString($idString));
-            if (!$object instanceof CatalogObject) {
-                continue;
-            }
-            $this->rebuilder->rebuild($object);
-
-            if ($this->shouldFlush($index + 1)) {
-                $this->flushAndClear();
-            }
+        // IMP2-2.9 (#1485) — rebuild + flush PER ID so a concurrent edit (UI bump
+        // of objects.version between find and flush) only affects the conflicting
+        // object: it is retried with a fresh read, and after exhausting retries it
+        // is logged + skipped — instead of an OptimisticLockException dead-lettering
+        // the whole batch (including the objects already rebuilt). The skipped
+        // object's next ObjectValuesChanged event re-queues it.
+        foreach ($message->objectIds as $idString) {
+            $this->rebuildOneWithRetry(Uuid::fromString($idString), $idString);
         }
 
-        // Tail flush — covers the last < batchSize chunk.
-        $this->flushAndClear();
-
-        // IMP2-2.6 — attributes_indexed is now rebuilt + committed; reindex the
-        // batch in Meilisearch (reads the fresh attributes_indexed). Queue only
-        // AFTER the rebuild flush so the search doc never reflects a stale cache.
+        // IMP2-2.6 — attributes_indexed is rebuilt + committed; reindex the batch
+        // in Meilisearch (reads the fresh attributes_indexed).
         $this->reindexQueue->queueAll($message->objectIds);
+    }
+
+    private function rebuildOneWithRetry(Uuid $id, string $idString): void
+    {
+        for ($attempt = 1; $attempt <= self::MAX_REBUILD_RETRIES; ++$attempt) {
+            // Pull the manager fresh each attempt: a prior conflict reset it
+            // (see catch), and the registry hands back the current open one.
+            $em = $this->managerRegistry->getManager();
+            \assert($em instanceof EntityManagerInterface);
+
+            $object = $em->find(CatalogObject::class, $id);
+            if (!$object instanceof CatalogObject) {
+                return;
+            }
+
+            try {
+                $this->rebuilder->rebuild($object);
+                $em->flush();
+                $em->clear();
+
+                return;
+            } catch (OptimisticLockException) {
+                // A concurrent edit bumped objects.version between find and
+                // flush. Doctrine's UnitOfWork::commit closes the EM on a failed
+                // commit (its `finally` calls em->close()), so clear() alone
+                // cannot recover — the next flush would hit EntityManagerClosed.
+                // resetManager() swaps in a fresh, open manager (the lazy
+                // service proxy now points at it) so the retry reads + flushes
+                // cleanly.
+                $this->managerRegistry->resetManager();
+
+                if ($attempt >= self::MAX_REBUILD_RETRIES) {
+                    $this->logger->warning(
+                        'attributes_indexed rebuild skipped after {attempts} version conflicts',
+                        ['object_id' => $idString, 'attempts' => $attempt],
+                    );
+
+                    return;
+                }
+            }
+        }
     }
 }
