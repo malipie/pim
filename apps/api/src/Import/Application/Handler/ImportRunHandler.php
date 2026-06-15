@@ -76,6 +76,18 @@ final class ImportRunHandler extends AbstractBatchHandler
     /** IMP2-1.12 — image-download jobs per dispatched media batch. */
     private const int MEDIA_BATCH_SIZE = 50;
 
+    /** IMP2-2.6 — id batch size for the async attributes_indexed rebuild dispatch. */
+    private const int REBUILD_DISPATCH_BATCH = 500;
+
+    /**
+     * IMP2-2.6 — RFC4122 ids of objects this run created or actually changed,
+     * collected for the end-of-run async rebuild + reindex. Strings (not
+     * entities) so they survive the per-chunk EntityManager::clear().
+     *
+     * @var list<string>
+     */
+    private array $bulkTouchedIds = [];
+
     public function __construct(
         EntityManagerInterface $entityManager,
         private readonly ImportSessionRepositoryInterface $sessions,
@@ -97,6 +109,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ManagerRegistry $managerRegistry,
         private readonly AssetUrlResolver $assetUrlResolver,
         private readonly MessageBusInterface $messageBus,
+        private readonly \App\Catalog\Application\BulkContext $bulkContext,
         int $batchSize = 200,
     ) {
         parent::__construct($entityManager, $batchSize);
@@ -189,6 +202,13 @@ final class ImportRunHandler extends AbstractBatchHandler
         // of THIS run; reset so a long-lived worker never carries stale tuples.
         $this->relationStep->reset();
         $this->undoLogger->reset();
+        // IMP2-2.6 — run the whole import under BulkContext so the per-flush
+        // sync AttributesIndexedSyncListener + CatalogIndexSubscriber stay out
+        // of the way (no rebuild/Meili work on every chunk flush). The touched
+        // objects are rebuilt + reindexed once, async, after the row phase.
+        // Reset in finally — a long-lived worker must not leak the flag.
+        $this->bulkContext->setBulk(true, $session->getId());
+        $this->bulkTouchedIds = [];
 
         // IMP2-2.3 — resume point: a prior (paused/crashed) run left a checkpoint.
         // Rows at/below it are already written, so we skip their writes (still
@@ -354,6 +374,14 @@ final class ImportRunHandler extends AbstractBatchHandler
                 $this->sessions->save($session);
                 $this->progressPublisher->progress($session, $processed, null);
             }
+
+            // IMP2-2.6 — the row phase ran under BulkContext (no per-flush
+            // rebuild/index). Rebuild attributes_indexed + reindex Meili for the
+            // touched objects asynchronously now (eventual consistency, per the
+            // >1000-objects async rule). Dispatched at end-of-run, never per
+            // chunk: in dev/test the async transport is sync, so a mid-loop
+            // inline rebuild would clear the EM under the row loop.
+            $this->dispatchAttributesRebuild($tenant);
         } catch (Throwable $exception) {
             // IMP2-1.9 — a throw from flush() leaves the EM CLOSED, so the old
             // path (findById + save on the same manager) threw again and left
@@ -369,8 +397,33 @@ final class ImportRunHandler extends AbstractBatchHandler
             if (null !== $sourcePath && file_exists($sourcePath)) {
                 @unlink($sourcePath);
             }
+            // IMP2-2.6 — clear the bulk flag for the next message on this worker.
+            $this->bulkContext->reset();
             $lock->release();
         }
+    }
+
+    /**
+     * IMP2-2.6 — dispatch the async attributes_indexed rebuild + Meilisearch
+     * reindex for every object the row phase created or actually changed, in id
+     * batches so a 50k import never ships one giant message. The TenantStamp
+     * lets the worker rebind the tenant before {@see RebuildAttributesIndexedHandler}
+     * runs. Cleared after dispatch so a re-run starts empty.
+     */
+    private function dispatchAttributesRebuild(Tenant $tenant): void
+    {
+        if ([] === $this->bulkTouchedIds) {
+            return;
+        }
+
+        foreach (array_chunk($this->bulkTouchedIds, self::REBUILD_DISPATCH_BATCH) as $batch) {
+            $this->messageBus->dispatch(
+                new \App\Catalog\Application\Message\ObjectValuesChangedMessage($batch),
+                [new TenantStamp($tenant->getId())],
+            );
+        }
+
+        $this->bulkTouchedIds = [];
     }
 
     /**
@@ -1245,6 +1298,10 @@ final class ImportRunHandler extends AbstractBatchHandler
                     );
                     $issues = $created->issues;
                     $session->incrementSuccess();
+                    // IMP2-2.6 — a created object needs its attributes_indexed
+                    // built + Meili doc indexed; the sync path is off under
+                    // BulkContext, so collect it for the end-of-run async rebuild.
+                    $this->bulkTouchedIds[] = $created->object->getId()->toRfc4122();
                     // IMP2-1.8: buffer parent + relation links; resolved in
                     // pass 2 once every object exists (target row may precede).
                     $createdSku = $this->skuFrom($row['resolvedValues'], $row['rowNumber']);
@@ -1273,6 +1330,8 @@ final class ImportRunHandler extends AbstractBatchHandler
                     if ($updateResult['changed'] > 0) {
                         $session->incrementSuccess();
                         $session->incrementUpdated();
+                        // IMP2-2.6 — values changed → async rebuild + reindex.
+                        $this->bulkTouchedIds[] = $existing->getId()->toRfc4122();
                     } else {
                         $session->incrementSkipped();
                     }

@@ -153,6 +153,38 @@ final class ImportRunHandlerAsyncTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function bulkImportRebuildsAttributesIndexedViaAsyncPath(): void
+    {
+        // IMP2-2.6 — the row phase runs under BulkContext, so the per-flush sync
+        // rebuild is suppressed; the end-of-run ObjectValuesChangedMessage (sync
+        // transport in test) must rebuild attributes_indexed inline instead.
+        // Prove every imported object ends up with a populated cache — i.e. the
+        // async path actually replaced the suppressed sync rebuild (the older
+        // count/object assertions would not have caught an empty cache).
+        $this->seedSkuName();
+        $em = $this->em();
+
+        $rows = ['sku;name'];
+        for ($i = 1; $i <= self::LARGE; ++$i) {
+            $rows[] = \sprintf('IDX-%d;Product %d', $i, $i);
+        }
+        $this->upload(implode("\n", $rows)."\n");
+
+        $em->clear();
+        $indexed = $em->getConnection()->fetchOne("SELECT attributes_indexed FROM objects WHERE code = 'IDX-1'");
+        self::assertIsString($indexed);
+        $decoded = json_decode($indexed, true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+        self::assertArrayHasKey('sku', $decoded, 'attributes_indexed rebuilt by the async handler');
+        self::assertArrayHasKey('name', $decoded);
+
+        $emptyCount = $em->getConnection()->fetchOne(
+            "SELECT COUNT(*) FROM objects WHERE code LIKE 'IDX-%' AND attributes_indexed = '{}'::jsonb",
+        );
+        self::assertSame(0, (int) (\is_scalar($emptyCount) ? $emptyCount : 1), 'no imported object left with an empty attributes_indexed cache');
+    }
+
     private function upload(string $csv): string
     {
         $path = tempnam(sys_get_temp_dir(), 'pim-async-').'.csv';
