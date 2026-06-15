@@ -88,6 +88,18 @@ final class ImportRunHandler extends AbstractBatchHandler
      */
     private array $bulkTouchedIds = [];
 
+    /**
+     * IMP2-2.6 — peak `memory_get_peak_usage(true)` reached by the end of the
+     * row phase, i.e. the figure the production import worker actually pays:
+     * read → write → flush/clear, BEFORE the attributes_indexed rebuild +
+     * Meili reindex (those run in a separate worker in prod, the `async`/`import`
+     * transport). Recorded here so the memory benchmark can assert on the import
+     * worker in isolation rather than on the dev/test artifact where the sync
+     * transport runs the rebuild inline in the same process. Null until a run
+     * reaches the dispatch point.
+     */
+    private ?int $rowPhasePeakBytes = null;
+
     public function __construct(
         EntityManagerInterface $entityManager,
         private readonly ImportSessionRepositoryInterface $sessions,
@@ -209,6 +221,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         // Reset in finally — a long-lived worker must not leak the flag.
         $this->bulkContext->setBulk(true, $session->getId());
         $this->bulkTouchedIds = [];
+        $this->rowPhasePeakBytes = null;
 
         // IMP2-2.3 — resume point: a prior (paused/crashed) run left a checkpoint.
         // Rows at/below it are already written, so we skip their writes (still
@@ -381,6 +394,7 @@ final class ImportRunHandler extends AbstractBatchHandler
             // >1000-objects async rule). Dispatched at end-of-run, never per
             // chunk: in dev/test the async transport is sync, so a mid-loop
             // inline rebuild would clear the EM under the row loop.
+            $this->rowPhasePeakBytes = \memory_get_peak_usage(true);
             $this->dispatchAttributesRebuild($tenant);
         } catch (Throwable $exception) {
             // IMP2-1.9 — a throw from flush() leaves the EM CLOSED, so the old
@@ -401,6 +415,17 @@ final class ImportRunHandler extends AbstractBatchHandler
             $this->bulkContext->reset();
             $lock->release();
         }
+    }
+
+    /**
+     * IMP2-2.6 — peak bytes the import worker reached by the end of the row
+     * phase (before the offloaded rebuild). Null until a run reaches dispatch.
+     * Used by the memory benchmark to measure the prod import worker in
+     * isolation from the dev/test sync-transport inline rebuild.
+     */
+    public function rowPhasePeakBytes(): ?int
+    {
+        return $this->rowPhasePeakBytes;
     }
 
     /**
