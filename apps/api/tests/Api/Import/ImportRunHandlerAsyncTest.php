@@ -23,6 +23,9 @@ use ReflectionClass;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\RecoverableMessageHandlingException;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\ReceivedStamp;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Messenger\Transport\Sender\SendersLocatorInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -106,7 +109,11 @@ final class ImportRunHandlerAsyncTest extends CatalogApiTestCase
 
         $second = $em->find(ImportSession::class, Uuid::fromString($secondId));
         \assert($second instanceof ImportSession);
-        self::assertSame(self::LARGE, $second->getUpdatedCount(), 'second run updates every row');
+        // IMP2-2.6 — the second (identical) run no longer re-writes every row:
+        // the compare-values diff detects unchanged value+provenance and skips
+        // the UPDATE, so re-delivery is not just object-idempotent but write-free.
+        self::assertSame(0, $second->getUpdatedCount(), 'second run rewrites nothing');
+        self::assertSame(self::LARGE, $second->getSkippedCount(), 'second run skips every unchanged row');
     }
 
     #[Test]
@@ -146,6 +153,62 @@ final class ImportRunHandlerAsyncTest extends CatalogApiTestCase
             $handler(new ImportRunMessage($sessionId, $tenant->getId()));
         } finally {
             $lock->release();
+        }
+    }
+
+    #[Test]
+    public function bulkImportRebuildsAttributesIndexedViaAsyncPath(): void
+    {
+        // IMP2-2.6 — the row phase runs under BulkContext, so the per-flush sync
+        // rebuild is suppressed; the end-of-run ObjectValuesChangedMessage (sync
+        // transport in test) must rebuild attributes_indexed inline instead.
+        // Prove every imported object ends up with a populated cache — i.e. the
+        // async path actually replaced the suppressed sync rebuild (the older
+        // count/object assertions would not have caught an empty cache).
+        $this->seedSkuName();
+        $em = $this->em();
+
+        $rows = ['sku;name'];
+        for ($i = 1; $i <= self::LARGE; ++$i) {
+            $rows[] = \sprintf('IDX-%d;Product %d', $i, $i);
+        }
+        $this->upload(implode("\n", $rows)."\n");
+        // The end-of-run rebuild is dispatched to the `async` transport. Under CI
+        // (`in-memory://`) it sits buffered; replay it so the cache is rebuilt.
+        $this->consumeAsyncQueue();
+
+        $em->clear();
+        $indexed = $em->getConnection()->fetchOne("SELECT attributes_indexed FROM objects WHERE code = 'IDX-1'");
+        self::assertIsString($indexed);
+        $decoded = json_decode($indexed, true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+        self::assertArrayHasKey('sku', $decoded, 'attributes_indexed rebuilt by the async handler');
+        self::assertArrayHasKey('name', $decoded);
+
+        $emptyCount = $em->getConnection()->fetchOne(
+            "SELECT COUNT(*) FROM objects WHERE code LIKE 'IDX-%' AND attributes_indexed = '{}'::jsonb",
+        );
+        self::assertSame(0, (int) (\is_scalar($emptyCount) ? $emptyCount : 1), 'no imported object left with an empty attributes_indexed cache');
+    }
+
+    /**
+     * Drain the in-memory `async` transport so the end-of-run attributes_indexed
+     * rebuild runs inside the test. Local dev uses `sync://` (the dispatch is
+     * in-band, so this is a no-op); CI overrides `async` to `in-memory://`, where
+     * the ObjectValuesChangedMessage would otherwise sit unhandled. Re-dispatching
+     * with a {@see ReceivedStamp} replays it through the full middleware stack
+     * (tenant rebind + RLS GUC from the message's TenantStamp) before the handler.
+     */
+    private function consumeAsyncQueue(): void
+    {
+        $transport = self::getContainer()->get('messenger.transport.async');
+        if (!$transport instanceof InMemoryTransport) {
+            return;
+        }
+        $bus = self::getContainer()->get(MessageBusInterface::class);
+        foreach ($transport->get() as $envelope) {
+            $bus->dispatch($envelope->with(new ReceivedStamp('async')));
+            $transport->ack($envelope);
         }
     }
 

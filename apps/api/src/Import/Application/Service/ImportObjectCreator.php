@@ -79,7 +79,10 @@ final class ImportObjectCreator
 
         $assetIssues = [];
         $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues);
-        $issues = array_merge($assetIssues, $this->valueWriter->writeMany($object, $writes, Provenance::Import));
+        // A freshly created object has no existing values, so the `changed`
+        // count is irrelevant (a created row is never a no-op skip) — only the
+        // value issues matter here.
+        $issues = array_merge($assetIssues, $this->valueWriter->writeMany($object, $writes, Provenance::Import)['issues']);
 
         // New object has no existing assignments, so batch-persist the
         // junction rows directly (no flush — the chunk handler owns it).
@@ -140,7 +143,9 @@ final class ImportObjectCreator
      * @param ?list<array{code: string, values: list<string>}> $variantAxes      parsed variant axes or null = untouched (IMP2-1.8)
      * @param array<string, true>                              $existingAssetIds set of existing asset ids (IMP2-1.8)
      *
-     * @return list<array{attributeCode: string, kind: string, message: string}>
+     * @return array{issues: list<array{attributeCode: string, kind: string, message: string}>, changed: int}
+     *                                                                                                        `changed` is 0 when every value already matched (IMP2-2.6
+     *                                                                                                        no-op re-import) — the caller counts that row as `skipped`
      */
     public function update(
         CatalogObject $object,
@@ -155,8 +160,12 @@ final class ImportObjectCreator
 
         $assetIssues = [];
         $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues);
+        $result = $this->valueWriter->writeMany($object, $writes, Provenance::Import);
 
-        return array_merge($assetIssues, $this->valueWriter->writeMany($object, $writes, Provenance::Import));
+        return [
+            'issues' => array_merge($assetIssues, $result['issues']),
+            'changed' => $result['changed'],
+        ];
     }
 
     /**

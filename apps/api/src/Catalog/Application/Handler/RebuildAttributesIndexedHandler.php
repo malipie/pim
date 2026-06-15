@@ -6,6 +6,7 @@ namespace App\Catalog\Application\Handler;
 
 use App\Catalog\Application\AttributesIndexedRebuilder;
 use App\Catalog\Application\Message\ObjectValuesChangedMessage;
+use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Shared\Application\AbstractBatchHandler;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,6 +25,12 @@ use Symfony\Component\Uid\Uuid;
  * the listener fires on the rebuilder's own flush, but the rebuilder
  * sets `attributes_indexed` directly on the entity so there is no
  * `ObjectValue` change to trigger a recursive rebuild).
+ *
+ * IMP2-2.6 — also reindexes the batch in Meilisearch, AFTER the rebuild has
+ * been flushed: the search document is built from `attributes_indexed`, so
+ * queueing the reindex before the rebuild would index an empty/stale doc. With
+ * BulkContext suppressing the per-flush sync indexer during the import, this is
+ * the path that gets imported objects into search.
  */
 #[AsMessageHandler]
 final class RebuildAttributesIndexedHandler extends AbstractBatchHandler
@@ -31,6 +38,7 @@ final class RebuildAttributesIndexedHandler extends AbstractBatchHandler
     public function __construct(
         EntityManagerInterface $entityManager,
         private readonly AttributesIndexedRebuilder $rebuilder,
+        private readonly BulkReindexQueueInterface $reindexQueue,
     ) {
         parent::__construct($entityManager);
     }
@@ -51,5 +59,10 @@ final class RebuildAttributesIndexedHandler extends AbstractBatchHandler
 
         // Tail flush — covers the last < batchSize chunk.
         $this->flushAndClear();
+
+        // IMP2-2.6 — attributes_indexed is now rebuilt + committed; reindex the
+        // batch in Meilisearch (reads the fresh attributes_indexed). Queue only
+        // AFTER the rebuild flush so the search doc never reflects a stale cache.
+        $this->reindexQueue->queueAll($message->objectIds);
     }
 }
