@@ -259,6 +259,22 @@ jobs:
           JWT_PASSPHRASE: ci
           APP_DEFAULT_TENANT_CODE: demo
 
+      # IMP2-2.6 (#1482) — etap-2 memory gate. Excluded from the default run
+      # (phpunit.dist.xml <groups>); the explicit --group overrides that and
+      # runs the heavy 5k/50k import + export benchmarks with a 256 MiB ceiling.
+      - name: Run memory benchmarks (import-benchmark group)
+        run: php bin/phpunit --group import-benchmark
+        env:
+          APP_ENV: test
+          APP_DEBUG: "0"
+          DATABASE_URL: postgresql://pim:ChangeMeInDev@127.0.0.1:5432/pim?serverVersion=16&charset=utf8
+          MESSENGER_TRANSPORT_DSN: in-memory://
+          MERCURE_URL: http://localhost/.well-known/mercure
+          MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
+          MERCURE_JWT_SECRET: ci-mercure-key-at-least-256-bits-long
+          JWT_PASSPHRASE: ci
+          APP_DEFAULT_TENANT_CODE: demo
+
   openapi-spec:
     name: OpenAPI spec drift
     runs-on: ubuntu-latest

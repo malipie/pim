@@ -44,6 +44,15 @@
         </testsuite>
     </testsuites>
 
+    <!-- IMP2-2.6: the memory benchmark is heavy (50k rows); it is excluded
+         from the default run and executed as a dedicated CI step by passing
+         the group on the CLI, which overrides this exclusion. -->
+    <groups>
+        <exclude>
+            <group>import-benchmark</group>
+        </exclude>
+    </groups>
+
     <source ignoreSuppressionOfDeprecations="true"
             ignoreIndirectDeprecations="true"
             restrictNotices="true"
