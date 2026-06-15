@@ -64,6 +64,27 @@ per-batch): on conflict it clears the unit of work, re-reads, and retries up to
 `ObjectValuesChanged` event re-queues it) — so one conflicting object never
 dead-letters the whole batch (including the objects already rebuilt).
 
+## `backup_trigger` rate limit (IMP2-2.10, #1486)
+
+The pre-import backup checkbox (wizard Step "Confirm") reuses the existing
+`backup_trigger` rate limiter (`config/packages/framework.yaml`): **1 backup
+per hour per tenant**, sliding window. The FE triggers the snapshot via
+`POST /api/backups` (`triggered_by_action=pre_import`), gates the "Run import"
+CTA on the backup reaching `completed`, then forwards `backup_id` to
+`POST /api/import-sessions`, which links it to the session
+(`backup_snapshot_id`). There is **no** backend "backup-then-auto-start" state
+machine — the FE gate is the orchestration (decision recorded in #1486).
+
+**Collision with scheduled imports (IMP2-4.1):** a cron-driven import that also
+wanted a pre-import snapshot would exhaust the 1/h budget (or starve a manual
+import that ran in the same hour). **Decision: the pre-import backup is a
+manual-wizard-only feature.** IMP2-4.1 (scheduled imports) MUST NOT
+auto-trigger backups through `backup_trigger`; if scheduled-import snapshots
+are ever wanted they need their own policy/budget. A second manual import in
+the same hour with the box ticked gets a 429 from `/api/backups` — the wizard
+surfaces a readable "1 backup/h" message and lets the operator continue without
+a backup.
+
 ## Links
 
 - ADR-0019 §4.4 D11 — `docs/adr/0019-import-v2-engine-contracts.md`

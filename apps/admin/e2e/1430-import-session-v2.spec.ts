@@ -32,3 +32,47 @@ test('NUI-11 — session view renders pipeline, summary and report link', async 
   await expect(page.getByText(/zaimportowano|imported/i).first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('link', { name: /raport|report/i })).toBeVisible();
 });
+
+/**
+ * IMP2-2.10 (#1486) — the session view surfaces the pre-import backup linked
+ * at start. Mocked so the assertion is deterministic regardless of whether the
+ * environment has a backup-linked session.
+ */
+test('IMP2-2.10 — session view shows the linked pre-import backup', async ({ page }) => {
+  await loginAsAdmin(page);
+
+  const sessionId = '01900000-0000-7000-8000-0000000000aa';
+  await page.route(`**/api/import-sessions/${sessionId}`, (route) =>
+    route.fulfill({
+      json: {
+        id: sessionId,
+        status: 'success',
+        file_name: 'backup-demo.csv',
+        total_rows: 3,
+        success_count: 3,
+        error_count: 0,
+        updated_count: 0,
+        skipped_count: 0,
+        mode: 'upsert',
+        images_downloaded: 0,
+        images_failed: 0,
+        started_at: '2026-06-15T10:00:00.000+00:00',
+        completed_at: '2026-06-15T10:01:00.000+00:00',
+        rollback_until: null,
+        rolled_back_at: null,
+        error_message: null,
+        backup: {
+          id: '01900000-0000-7000-8000-0000000000b1',
+          status: 'completed',
+          started_at: '2026-06-15T09:55:00.000+00:00',
+        },
+      },
+    }),
+  );
+
+  await page.goto(`/integrations/imports/${sessionId}`);
+
+  await expect(page.getByTestId('import-backup-info')).toContainText(
+    /(Backup przed importem|Backup before import).*✅/,
+  );
+});

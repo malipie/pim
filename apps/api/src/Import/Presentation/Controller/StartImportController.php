@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
+use App\Backup\Domain\Entity\Backup;
+use App\Backup\Domain\Enum\BackupStatus;
+use App\Backup\Domain\Repository\BackupRepositoryInterface;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\ObjectType;
@@ -60,7 +63,13 @@ use Symfony\Component\Uid\Uuid;
  *   - `mapping` — JSON `{column_header: attribute_code | "skip"}`
  *   - `profile_id` — UUID, optional
  *   - `locale`, `encoding`, `delimiter` — optional overrides
- *   - `do_backup` — boolean, optional (forwarded to IMP-06 in a follow-up)
+ *   - `do_backup` — boolean, optional. When `1`/`true` a `backup_id` of an
+ *     already-`completed` {@see Backup} is required (IMP2-2.10 #1486): the FE
+ *     wizard triggers the pre-import snapshot via the Backup module and gates
+ *     its CTA on `completed`, then passes the id here so the session records
+ *     which snapshot preceded it.
+ *   - `backup_id` — UUID, required when `do_backup=1`; must be a completed
+ *     backup owned by the caller's tenant.
  */
 final class StartImportController
 {
@@ -86,6 +95,7 @@ final class StartImportController
         private readonly StagedFileService $stagedFiles,
         private readonly RateLimiterFactoryInterface $importTriggerLimiter,
         private readonly XlsxArchiveGuard $xlsxArchiveGuard,
+        private readonly BackupRepositoryInterface $backups,
     ) {
     }
 
@@ -161,6 +171,12 @@ final class StartImportController
         $mapping = $this->parseMapping($request->request->get('mapping', '{}'));
         $profile = $this->resolveProfile($request->request->get('profile_id'), $tenant, $user->getId(), $mapping, $objectType);
 
+        // IMP2-2.10 (#1486) — when the wizard's "create a full backup" box is
+        // ticked it triggers the snapshot via the Backup module and gates its
+        // CTA on `completed`, then forwards the backup_id here. Validate it
+        // up-front (fail fast before persistence) and link it to the session.
+        $backup = $this->resolveBackup($request, $tenant);
+
         // IMP2-1.6a (#1468, ADR-0019 D8): the sync/async split counts DATA
         // ROWS, not bytes — a wide 20-row CSV stays inline, a narrow 500-row
         // one goes to the worker. Counting stops at the threshold; the +1
@@ -225,6 +241,9 @@ final class StartImportController
                 ? ImportImageSource::Zip
                 : (ImportImageSource::tryFrom((string) $request->request->get('image_source', 'none')) ?? ImportImageSource::None),
         );
+        if ($backup instanceof Backup) {
+            $session->setBackupSnapshot($backup);
+        }
 
         // Persist before upload so a later upload failure has a session id
         // to attach to (status stays `pending`, error_message captures
@@ -343,6 +362,63 @@ final class StartImportController
         return $staged;
     }
 
+    /**
+     * IMP2-2.10 (#1486) — resolve the optional pre-import backup. Returns null
+     * when `do_backup` is off; otherwise the referenced backup MUST exist, be
+     * owned by the caller's tenant, and be `completed`.
+     *
+     * Surfaces: missing `backup_id` while requested → 422; unknown / foreign
+     * tenant → 404 (no existence leak); not yet `completed` → 422 with the
+     * current status. The FE already gates its CTA on `completed`, so a 422
+     * here only fires on a tampered / out-of-band request.
+     */
+    private function resolveBackup(Request $request, Tenant $tenant): ?Backup
+    {
+        $rawFlag = strtolower((string) $request->request->get('do_backup', '0'));
+        if (!\in_array($rawFlag, ['1', 'true', 'on', 'yes'], true)) {
+            return null;
+        }
+
+        $rawId = (string) $request->request->get('backup_id', '');
+        if ('' === $rawId) {
+            throw new UnprocessableEntityHttpException(
+                'Zaznaczono utworzenie backupu, ale nie przekazano backup_id ukończonego backupu.',
+            );
+        }
+        try {
+            $id = Uuid::fromString($rawId);
+        } catch (InvalidArgumentException) {
+            throw new UnprocessableEntityHttpException(\sprintf('Nieprawidłowy backup_id "%s".', $rawId));
+        }
+
+        $backup = $this->backups->findById($id);
+        // 404 (not 403) for a foreign-tenant / unknown id — do not reveal that
+        // a backup with this id exists for another tenant.
+        if (!$backup instanceof Backup
+            || $backup->getTenant()?->getId()->toRfc4122() !== $tenant->getId()->toRfc4122()) {
+            throw new NotFoundHttpException(\sprintf('Backup "%s" nie został znaleziony.', $rawId));
+        }
+        // Every other path to a Backup gates on `backup:read` (GetBackupController
+        // + BackupVoter). This endpoint is only guarded by `imports:run`, so a
+        // same-tenant role with imports:run but no backup:read could otherwise
+        // probe backup existence/status through the 422 below. Run the same voter
+        // and 404 on denial to keep the no-leak contract. Catalog Manager — the
+        // import persona — holds backup:read for exactly this (RbacMatrix), and
+        // Owner/Admin bypass, so the wizard happy path is unaffected.
+        if (!$this->security->isGranted('READ', $backup)) {
+            throw new NotFoundHttpException(\sprintf('Backup "%s" nie został znaleziony.', $rawId));
+        }
+        if (BackupStatus::Completed !== $backup->getStatus()) {
+            throw new UnprocessableEntityHttpException(\sprintf(
+                'Backup "%s" nie jest ukończony (status: %s) — poczekaj na zakończenie snapshotu przed startem importu.',
+                $rawId,
+                $backup->getStatus()->value,
+            ));
+        }
+
+        return $backup;
+    }
+
     private function parseUuid(mixed $raw, string $field): Uuid
     {
         if (!\is_string($raw) || '' === $raw) {
@@ -420,6 +496,23 @@ final class StartImportController
             'started_at' => $session->getStartedAt()?->format(DateTimeInterface::RFC3339_EXTENDED),
             'completed_at' => $session->getCompletedAt()?->format(DateTimeInterface::RFC3339_EXTENDED),
             'rollback_until' => $session->getRollbackUntil()?->format(DateTimeInterface::RFC3339_EXTENDED),
+            'backup' => self::serializeBackup($session->getBackupSnapshot()),
+        ];
+    }
+
+    /**
+     * @return array{id: string, status: string, started_at: string}|null
+     */
+    private static function serializeBackup(?Backup $backup): ?array
+    {
+        if (!$backup instanceof Backup) {
+            return null;
+        }
+
+        return [
+            'id' => $backup->getId()->toRfc4122(),
+            'status' => $backup->getStatus()->value,
+            'started_at' => $backup->getStartedAt()->format(DateTimeInterface::RFC3339_EXTENDED),
         ];
     }
 

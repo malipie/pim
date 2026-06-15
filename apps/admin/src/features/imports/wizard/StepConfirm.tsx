@@ -27,6 +27,9 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
   const [backupStatus, setBackupStatus] = React.useState<
     'idle' | 'pending' | 'running' | 'completed' | 'failed'
   >('idle');
+  // IMP2-2.10 (#1486) — id of the pre-import backup, forwarded to the start
+  // request so the session records which snapshot preceded it.
+  const [backupId, setBackupId] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
@@ -56,6 +59,12 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
     formData.set('encoding', state.encoding);
     formData.set('delimiter', state.delimiter);
     formData.set('do_backup', state.doBackup ? '1' : '0');
+    // IMP2-2.10 (#1486) — when a backup was requested, the CTA only enables
+    // once it is `completed`, so backupId is set here; forward it so the
+    // backend links the snapshot to the session.
+    if (state.doBackup && backupId !== null) {
+      formData.set('backup_id', backupId);
+    }
     formData.set('mode', state.mode);
     // IMP2-1.13 — image source + optional ZIP of images (was never sent before).
     formData.set('image_source', state.imageSource);
@@ -108,6 +117,7 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
         checked={state.doBackup}
         onChange={(next) => setField('doBackup', next)}
         onStatusChange={setBackupStatus}
+        onBackupCreated={setBackupId}
       />
 
       <label className="flex items-center gap-2 text-sm">
