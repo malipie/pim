@@ -767,6 +767,41 @@ final class StartImportApiTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function malformedXlsxArchiveIsRejectedWith422(): void
+    {
+        // IMP2-2.8 (#1484) — XlsxArchiveGuard rejects a file that is not a valid
+        // ZIP (every real .xlsx is one) before the parser touches it: 422, not 500.
+        $this->seedAttributes();
+        $tmp = tempnam(sys_get_temp_dir(), 'pim-bomb-');
+        \assert(false !== $tmp);
+        $xlsxPath = $tmp.'.xlsx';
+        rename($tmp, $xlsxPath);
+        file_put_contents($xlsxPath, 'this is definitely not a zip archive');
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile(
+                        $xlsxPath,
+                        'bomb.xlsx',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        null,
+                        true,
+                    )],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(422);
+        } finally {
+            @unlink($xlsxPath);
+        }
+    }
+
     private function writeCsv(string $contents, string $prefix): string
     {
         $path = tempnam(sys_get_temp_dir(), $prefix);
