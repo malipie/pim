@@ -8,6 +8,7 @@ use App\Catalog\Application\Bulk\BulkRollbackHandler;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Shared\Application\BulkOperationLock;
 use App\Shared\Application\TenantContext;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -15,6 +16,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -36,6 +39,7 @@ final class BulkSessionsController
         private readonly EntityManagerInterface $em,
         private readonly BulkRollbackHandler $rollbackHandler,
         private readonly TenantContext $tenantContext,
+        private readonly BulkOperationLock $bulkLock,
     ) {
     }
 
@@ -148,13 +152,33 @@ final class BulkSessionsController
     #[RequiresPermission(module: 'products', action: 'bulk_operations')]
     public function rollback(string $id): JsonResponse
     {
-        $session = $this->loadSession($id);
-        $restored = $this->rollbackHandler->rollback($session);
+        $tenant = $this->tenantContext->get();
+        if (null === $tenant) {
+            throw new BadRequestHttpException('No tenant context.');
+        }
 
-        return new JsonResponse([
-            'restored' => $restored,
-            'rolled_back_at' => $session->getRolledBackAt()?->format(DateTimeInterface::ATOM),
-        ], Response::HTTP_OK);
+        $session = $this->loadSession($id);
+
+        // IMP2-2.9 (#1485) — rollback rewrites every touched object's values, so it
+        // shares the per-tenant bulk lock with imports / bulk-edit / bulk-actions.
+        // A collision is a 409 (RFC 7807); released in finally.
+        $lock = $this->bulkLock->acquire($tenant);
+        if (null === $lock) {
+            throw new ConflictHttpException(
+                'Inna operacja masowa trwa dla tego tenanta — spróbuj ponownie po jej zakończeniu.',
+            );
+        }
+
+        try {
+            $restored = $this->rollbackHandler->rollback($session);
+
+            return new JsonResponse([
+                'restored' => $restored,
+                'rolled_back_at' => $session->getRolledBackAt()?->format(DateTimeInterface::ATOM),
+            ], Response::HTTP_OK);
+        } finally {
+            $lock->release();
+        }
     }
 
     private function loadSession(string $id): BulkSession
