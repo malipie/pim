@@ -80,6 +80,13 @@ final class ImportRunHandler extends AbstractBatchHandler
     private const int REBUILD_DISPATCH_BATCH = 500;
 
     /**
+     * IMP2-2.7 (#1483) — minimum processed rows before the Allowed-Errors ratio is
+     * evaluated, so a single bad row in the first chunk (1/1 = 100%) cannot abort
+     * a run whose profile set a low threshold.
+     */
+    private const int ALLOWED_ERRORS_MIN_ROWS = 20;
+
+    /**
      * IMP2-2.6 — RFC4122 ids of objects this run created or actually changed,
      * collected for the end-of-run async rebuild + reindex. Strings (not
      * entities) so they survive the per-chunk EntityManager::clear().
@@ -314,6 +321,11 @@ final class ImportRunHandler extends AbstractBatchHandler
                 $attributesByCode = $this->validator->loadAttributesByCode($tenant, $columnMapping);
                 // Throttled: at most one snapshot per ~1% of the file (force=false).
                 $this->publishProgress($session, $processed);
+
+                // IMP2-2.7 (#1483) — Allowed-Errors guardrail (per full chunk).
+                if ($this->abortIfErrorRateExceeded($session, $processed, $tenant)) {
+                    return;
+                }
             }
 
             if ([] !== $buffer) {
@@ -326,6 +338,11 @@ final class ImportRunHandler extends AbstractBatchHandler
                 if ($this->haltRequested($session)) {
                     $this->publishProgress($session, $processed, true);
 
+                    return;
+                }
+                // IMP2-2.7 (#1483) — also evaluate after the tail chunk so a file
+                // smaller than one batch (< chunk size) still aborts on errors.
+                if ($this->abortIfErrorRateExceeded($session, $processed, $tenant)) {
                     return;
                 }
             }
@@ -460,6 +477,48 @@ final class ImportRunHandler extends AbstractBatchHandler
         }
         $this->lastProgressAt = $processed;
         $this->progressPublisher->progress($session, $processed, $this->lastProcessedSku);
+    }
+
+    /**
+     * IMP2-2.7 (#1483) — true when the profile set an Allowed-Errors threshold and
+     * the run's error ratio has crossed it (after a minimum sample). Integer math:
+     * `errorCount/processed*100 > threshold` ⟺ `errorCount*100 > threshold*processed`.
+     */
+    private function errorRateExceeded(ImportSession $session, int $processed): bool
+    {
+        $threshold = $session->getProfile()?->getAllowedErrorsPct();
+        if (null === $threshold || $processed < self::ALLOWED_ERRORS_MIN_ROWS) {
+            return false;
+        }
+
+        return $session->getErrorCount() * 100 > $threshold * $processed;
+    }
+
+    /**
+     * IMP2-2.7 (#1483) — if the Allowed-Errors ratio is crossed, index the rows
+     * already written, mark the session Failed (rows stay for rollback via
+     * IMP2-2.4), publish the terminal snapshot, and return true so the caller
+     * bails. Returns false to continue the run.
+     */
+    private function abortIfErrorRateExceeded(ImportSession $session, int $processed, Tenant $tenant): bool
+    {
+        if (!$this->errorRateExceeded($session, $processed)) {
+            return false;
+        }
+
+        $this->rowPhasePeakBytes = \memory_get_peak_usage(true);
+        $this->dispatchAttributesRebuild($tenant);
+        $threshold = $session->getProfile()?->getAllowedErrorsPct() ?? 0;
+        $session->markFailed(\sprintf(
+            'Przerwano import: odsetek błędnych wierszy przekroczył próg %d%% (%d błędów / %d wierszy).',
+            $threshold,
+            $session->getErrorCount(),
+            $processed,
+        ));
+        $this->sessions->save($session);
+        $this->publishProgress($session, $processed, true);
+
+        return true;
     }
 
     /**

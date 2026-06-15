@@ -65,6 +65,14 @@ framework:
             limit: 1
             interval: '1 hour'
 
+        # IMP2-2.7 (#1483) — import session start. A bulk import is heavy (parse +
+        # N×write + async rebuild); 20/h/tenant absorbs honest wizard re-runs and
+        # retries while clamping a script firing import-after-import.
+        import_trigger:
+            policy: 'sliding_window'
+            limit: 20
+            interval: '1 hour'
+
         # Refresh-token rotation (#28). The cookie-driven path is
         # invoked by every browser session every ~15 minutes, but
         # the only legitimate caller is a single tab — 30/h/IP

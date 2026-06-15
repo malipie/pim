@@ -11,6 +11,7 @@ use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Import\Application\Handler\ImportRunHandler;
+use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Enum\ImportSessionStatus;
 use App\Import\Domain\Message\ImportRunMessage;
@@ -252,6 +253,63 @@ final class ImportRunHandlerAsyncTest extends CatalogApiTestCase
         $progress = array_filter($types, static fn (string $t): bool => 'progress' === $t);
         self::assertGreaterThanOrEqual(1, \count($progress), 'a throttled progress snapshot is published; all types: ['.implode(',', $types).']');
         self::assertLessThanOrEqual(20, \count($progress), \sprintf('progress is throttled, not per-row (got %d for %d rows)', \count($progress), $count));
+    }
+
+    #[Test]
+    public function importAbortsWhenErrorRatioExceedsProfileThreshold(): void
+    {
+        // IMP2-2.7 (#1483) — a profile Allowed-Errors threshold aborts the run
+        // (Failed) once the blocking-error ratio crosses it. Half the rows have a
+        // blank sku (missing_required → blocking), so ~50% >> the 10% threshold.
+        $this->seedSkuName();
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $product = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($product instanceof ObjectType);
+
+        $profile = new ImportProfile(Uuid::v7(), 'abort-profile', $product);
+        $profile->assignTenant($tenant);
+        $profile->setColumnMapping(['sku' => 'sku', 'name' => 'name']);
+        $profile->setAllowedErrorsPct(10);
+        $em->persist($profile);
+
+        $session = new ImportSession(
+            userId: Uuid::v7(),
+            targetObjectType: $product,
+            fileName: 'abort.csv',
+            fileSizeBytes: 2048,
+            profile: $profile,
+        );
+        $session->assignTenant($tenant);
+        $session->setColumnMapping(['sku' => 'sku', 'name' => 'name']);
+        $em->persist($session);
+        $em->flush();
+        $sessionId = $session->getId();
+
+        $csv = "sku;name\n";
+        for ($i = 1; $i <= 60; ++$i) {
+            $csv .= 0 === $i % 2 ? \sprintf("AB-%d;Name %d\n", $i, $i) : \sprintf(";Name %d\n", $i);
+        }
+        self::getContainer()->get('imports.storage')->write(
+            \sprintf('%s/%s/abort.csv', $tenant->getId()->toRfc4122(), $sessionId->toRfc4122()),
+            $csv,
+        );
+
+        self::getContainer()->get(TenantFilterConfigurator::class)->apply();
+        self::getContainer()->get(ImportRunHandler::class)->run($session);
+
+        $em->clear();
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $reloaded = $em->find(ImportSession::class, $sessionId);
+        \assert($reloaded instanceof ImportSession);
+        self::assertSame(
+            ImportSessionStatus::Failed,
+            $reloaded->getStatus(),
+            'run aborts to Failed when the error ratio exceeds the profile threshold',
+        );
     }
 
     /**

@@ -38,9 +38,11 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
@@ -65,6 +67,10 @@ final class StartImportController
     /** IMP2-1.13 — server-side ZIP upload cap (D13). */
     private const int MAX_ZIP_BYTES = 500 * 1024 * 1024;
 
+    /** IMP2-2.7 (#1483) — D10 application defaults when a tenant sets no override. */
+    private const int DEFAULT_MAX_ROWS = 200_000;
+    private const int DEFAULT_MAX_FILE_BYTES = 100 * 1024 * 1024;
+
     public function __construct(
         private readonly ImportSessionRepositoryInterface $sessions,
         private readonly AttributeRepositoryInterface $attributes,
@@ -76,6 +82,7 @@ final class StartImportController
         private readonly TenantContext $tenantContext,
         private readonly FilesystemOperator $importsStorage,
         private readonly StagedFileService $stagedFiles,
+        private readonly RateLimiterFactoryInterface $importTriggerLimiter,
     ) {
     }
 
@@ -93,6 +100,16 @@ final class StartImportController
         }
         $tenant = $user->getTenant();
         $this->tenantContext->set($tenant);
+
+        // IMP2-2.7 (#1483) — per-tenant rate limit. Mirrors the backup_trigger
+        // pattern: sliding window keyed by tenant, 429 + Retry-After on overflow.
+        $reservation = $this->importTriggerLimiter->create($tenant->getId()->toRfc4122())->consume();
+        if (!$reservation->isAccepted()) {
+            throw new TooManyRequestsHttpException(
+                max(0, $reservation->getRetryAfter()->getTimestamp() - time()),
+                'Przekroczono limit importów dla tego tenanta. Spróbuj ponownie później.',
+            );
+        }
 
         // IMP2-2.2 — accept a staged_file_id (uploaded once at parse-preview)
         // or, for back-compat, a fresh multipart `file`. With a staged id the
@@ -112,6 +129,17 @@ final class StartImportController
         }
         $fileSizeBytes = null !== $stagedFile ? $stagedFile->getSizeBytes() : (int) $file->getSize();
 
+        // IMP2-2.7 (#1483) — file-size guardrail (D10 default 100 MB, per-tenant
+        // override). RFC 7807 422 instead of the raw PHP upload_max_filesize 400.
+        $maxFileBytes = $tenant->getImportMaxFileSize() ?? self::DEFAULT_MAX_FILE_BYTES;
+        if ($fileSizeBytes > $maxFileBytes) {
+            throw new UnprocessableEntityHttpException(\sprintf(
+                'Plik (%d B) przekracza limit %d MB.',
+                $fileSizeBytes,
+                intdiv($maxFileBytes, 1024 * 1024),
+            ));
+        }
+
         $targetId = $this->parseUuid($request->request->get('target_object_type_id'), 'target_object_type_id');
         $objectType = $this->objectTypes->findById($targetId);
         if (!$objectType instanceof ObjectType) {
@@ -125,11 +153,23 @@ final class StartImportController
         // ROWS, not bytes — a wide 20-row CSV stays inline, a narrow 500-row
         // one goes to the worker. Counting stops at the threshold; the +1
         // header line is excluded.
+        // IMP2-2.7 (#1483) — row-count guardrail (D10 default 200k, per-tenant
+        // override). For CSV we count on the stream up to maxRows+1 (cheap fgets,
+        // no parsing) and reject before any persistence; XLSX row-limit is caught
+        // at parse-preview (the parser yields totalRows there). The same count
+        // drives the sync/async split (<= 50 rows runs inline).
+        $maxRows = $tenant->getImportMaxRows() ?? self::DEFAULT_MAX_ROWS;
         $dataRowCount = str_ends_with(strtolower($originalName), '.csv')
-            ? $this->countDataRows($localPath, self::SYNC_THRESHOLD_ROWS + 1)
+            ? $this->countDataRows($localPath, $maxRows + 1)
             // XLSX is a zip — line counting is meaningless; spreadsheets
             // always take the worker path (cheap now that dev runs one).
             : self::SYNC_THRESHOLD_ROWS + 1;
+        if ($dataRowCount > $maxRows) {
+            throw new UnprocessableEntityHttpException(\sprintf(
+                'Plik przekracza limit %d wierszy.',
+                $maxRows,
+            ));
+        }
         // IMP2-1.13 — optional ZIP of images. Validate extension + 500 MB cap
         // server-side (FE pre-validates too); the bytes are streamed to MinIO
         // after the session is persisted.
