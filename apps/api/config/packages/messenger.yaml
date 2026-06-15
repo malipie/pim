@@ -55,6 +55,13 @@ framework:
                     # once FORCE RLS lands. Runs after the rebinding above (PHP
                     # TenantContext) and before the transaction opens.
                     - 'App\Shared\Infrastructure\Messenger\TenantRlsGucMiddleware'
+                    # IMP2-2.6 (#1482) — drains the Meilisearch index collector
+                    # after a worker message. After the tenant rebind + RLS GUC
+                    # (so the drain reads through a bound tenant) and before
+                    # doctrine_transaction (so its finally runs post-commit):
+                    # bulk async ops (import, bulk-edit/-delete) otherwise queue
+                    # upserts a worker never flushes (no per-message terminate).
+                    - 'App\Search\Application\CatalogIndexDrainMiddleware'
                     - 'App\Shared\Infrastructure\Messenger\IdempotencyMiddleware'
                     - doctrine_transaction
 
