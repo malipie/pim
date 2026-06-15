@@ -106,7 +106,11 @@ final class ImportRunHandlerAsyncTest extends CatalogApiTestCase
 
         $second = $em->find(ImportSession::class, Uuid::fromString($secondId));
         \assert($second instanceof ImportSession);
-        self::assertSame(self::LARGE, $second->getUpdatedCount(), 'second run updates every row');
+        // IMP2-2.6 — the second (identical) run no longer re-writes every row:
+        // the compare-values diff detects unchanged value+provenance and skips
+        // the UPDATE, so re-delivery is not just object-idempotent but write-free.
+        self::assertSame(0, $second->getUpdatedCount(), 'second run rewrites nothing');
+        self::assertSame(self::LARGE, $second->getSkippedCount(), 'second run skips every unchanged row');
     }
 
     #[Test]

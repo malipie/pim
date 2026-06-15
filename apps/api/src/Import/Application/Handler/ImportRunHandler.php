@@ -1256,7 +1256,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                     // is about to overwrite/add on the pre-existing object, so
                     // rollback v2 can restore it.
                     $this->undoLogger->captureValueWrites($session, $existing, $row['resolvedValues'], $attributesByCode, $tenant);
-                    $issues = $this->creator->update(
+                    $updateResult = $this->creator->update(
                         $existing,
                         $row['resolvedValues'],
                         $attributesByCode,
@@ -1265,8 +1265,17 @@ final class ImportRunHandler extends AbstractBatchHandler
                         $this->extractVariantAxes($row['cells'], $columnMapping),
                         $existingAssetIds,
                     );
-                    $session->incrementSuccess();
-                    $session->incrementUpdated();
+                    $issues = $updateResult['issues'];
+                    // IMP2-2.6 — a row whose values all already matched is a no-op
+                    // re-import (zero object_values UPDATE): count it as `skipped`,
+                    // not `updated`, so a re-imported unchanged export reports 100%
+                    // skipped. Any actual value change makes it a real update.
+                    if ($updateResult['changed'] > 0) {
+                        $session->incrementSuccess();
+                        $session->incrementUpdated();
+                    } else {
+                        $session->incrementSkipped();
+                    }
                     $this->recordParentLink($existing->getCode(), $row['cells'], $columnMapping, $row['rowNumber']);
                     $this->recordRelationLinks($existing->getCode(), $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
                     $this->collectMediaJobs($mediaJobs, $session, $existing->getId(), $row, $attributesByCode);
