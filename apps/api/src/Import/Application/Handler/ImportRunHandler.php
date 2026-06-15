@@ -100,6 +100,18 @@ final class ImportRunHandler extends AbstractBatchHandler
      */
     private ?int $rowPhasePeakBytes = null;
 
+    /**
+     * IMP2-2.6 — Mercure progress throttle. The batch path no longer publishes a
+     * `row_processed` event per row (50k rows = 50k HTTP POSTs to the hub);
+     * instead {@see publishProgress()} emits a `progress` snapshot no more often
+     * than every ~1% of the file. `$lastProgressAt` is the row count at the last
+     * emitted snapshot; `$lastProcessedSku` rides along as the snapshot's
+     * `current_sku`. Both reset per run.
+     */
+    private int $lastProgressAt = 0;
+
+    private ?string $lastProcessedSku = null;
+
     public function __construct(
         EntityManagerInterface $entityManager,
         private readonly ImportSessionRepositoryInterface $sessions,
@@ -222,6 +234,8 @@ final class ImportRunHandler extends AbstractBatchHandler
         $this->bulkContext->setBulk(true, $session->getId());
         $this->bulkTouchedIds = [];
         $this->rowPhasePeakBytes = null;
+        $this->lastProgressAt = 0;
+        $this->lastProcessedSku = null;
 
         // IMP2-2.3 — resume point: a prior (paused/crashed) run left a checkpoint.
         // Rows at/below it are already written, so we skip their writes (still
@@ -292,13 +306,14 @@ final class ImportRunHandler extends AbstractBatchHandler
                 // (the refreshed session carries the just-written status).
                 $lock->refresh();
                 if ($this->haltRequested($session)) {
-                    $this->progressPublisher->progress($session, $processed, null);
+                    $this->publishProgress($session, $processed, true);
 
                     return;
                 }
 
                 $attributesByCode = $this->validator->loadAttributesByCode($tenant, $columnMapping);
-                $this->progressPublisher->progress($session, $processed, null);
+                // Throttled: at most one snapshot per ~1% of the file (force=false).
+                $this->publishProgress($session, $processed);
             }
 
             if ([] !== $buffer) {
@@ -309,7 +324,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                 $session = $this->refreshSession($session);
                 $lock->refresh();
                 if ($this->haltRequested($session)) {
-                    $this->progressPublisher->progress($session, $processed, null);
+                    $this->publishProgress($session, $processed, true);
 
                     return;
                 }
@@ -350,7 +365,7 @@ final class ImportRunHandler extends AbstractBatchHandler
             // the checkpoint (relations) lets a resume re-run the idempotent
             // link pass without touching already-written rows.
             if ($this->haltRequested($session)) {
-                $this->progressPublisher->progress($session, $processed, null);
+                $this->publishProgress($session, $processed, true);
 
                 return;
             }
@@ -370,7 +385,7 @@ final class ImportRunHandler extends AbstractBatchHandler
             // (no media jobs), so read the COMMITTED status straight from the DB
             // and never force a paused/cancelled session into a terminal state.
             if ($this->persistedStatusHalts($session)) {
-                $this->progressPublisher->progress($session, $processed, null);
+                $this->publishProgress($session, $processed, true);
 
                 return;
             }
@@ -385,7 +400,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                 $this->progressPublisher->completed($session);
             } else {
                 $this->sessions->save($session);
-                $this->progressPublisher->progress($session, $processed, null);
+                $this->publishProgress($session, $processed, true);
             }
 
             // IMP2-2.6 — the row phase ran under BulkContext (no per-flush
@@ -426,6 +441,25 @@ final class ImportRunHandler extends AbstractBatchHandler
     public function rowPhasePeakBytes(): ?int
     {
         return $this->rowPhasePeakBytes;
+    }
+
+    /**
+     * IMP2-2.6 — publish a Mercure `progress` snapshot, throttled. The batch path
+     * dropped the per-row `row_processed` event (50k rows = 50k hub POSTs); this
+     * emits a `progress` snapshot at most once per ~1% of the file, so a 50k
+     * import lands ~100 hub messages instead of 50k. `$force` always emits — used
+     * for the terminal / halt snapshots so the UI never misses the final state.
+     * `current_sku` carries the last processed row's SKU for the live view.
+     */
+    private function publishProgress(ImportSession $session, int $processed, bool $force = false): void
+    {
+        $total = $session->getTotalRows() ?? 0;
+        $every = max($this->batchSize, (int) ceil($total / 100));
+        if (!$force && ($processed - $this->lastProgressAt) < $every) {
+            return;
+        }
+        $this->lastProgressAt = $processed;
+        $this->progressPublisher->progress($session, $processed, $this->lastProcessedSku);
     }
 
     /**
@@ -1433,9 +1467,20 @@ final class ImportRunHandler extends AbstractBatchHandler
                     columnName: $error->columnName,
                     columnValue: $error->columnValue,
                 ));
+                // IMP2-2.6 — only ROW-BLOCKING errors go per-row on Mercure for the
+                // live log; blocking errors are rare. Warnings (e.g. per-row
+                // duplicate findings on a self-reimport) stay in the persisted
+                // ImportLog only — emitting them would re-introduce O(N) hub POSTs.
+                // The per-row `row_processed` ticker is gone (replaced by the
+                // throttled `progress` snapshots in run()).
+                if ($error->isRowBlocking()) {
+                    $this->progressPublisher->error($session, $error->rowNumber, $error->sku, $error->errorType->value, $error->message);
+                }
             }
 
-            $this->progressPublisher->rowProcessed($session, $row['rowNumber'], $row['sku'], $row['rowOk']);
+            // IMP2-2.6 — feed the throttled `progress` snapshot's current_sku
+            // instead of emitting a Mercure event per row.
+            $this->lastProcessedSku = $row['sku'];
         }
 
         // IMP2-1.7: category replace/append for UPDATE rows, after the value
