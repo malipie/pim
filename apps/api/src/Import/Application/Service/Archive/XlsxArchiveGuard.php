@@ -56,8 +56,8 @@ final readonly class XlsxArchiveGuard
                 if (false === $stat) {
                     continue;
                 }
-                $totalUncompressed += (int) $stat['size'];
-                $totalCompressed += (int) $stat['comp_size'];
+                $totalUncompressed += $stat['size'];
+                $totalCompressed += $stat['comp_size'];
             }
 
             if ($totalUncompressed > $this->maxUncompressedBytes) {
