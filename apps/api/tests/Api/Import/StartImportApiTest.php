@@ -838,6 +838,7 @@ final class StartImportApiTest extends CatalogApiTestCase
             self::assertSame('completed', $body['backup']['status']);
 
             // The GET endpoint exposes the same backup.
+            self::assertIsString($body['id']);
             $client->request('GET', '/api/import-sessions/'.$body['id']);
             self::assertResponseIsSuccessful();
             $show = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
