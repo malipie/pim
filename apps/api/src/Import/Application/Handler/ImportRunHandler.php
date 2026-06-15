@@ -1270,6 +1270,15 @@ final class ImportRunHandler extends AbstractBatchHandler
                     // the same scope cannot append a duplicate undo entry.
                     if (null !== $existing) {
                         $this->undoLogger->markScopesCaptured($existing, $row['resolvedValues'], $attributesByCode, $tenant);
+                        // IMP2-2.6 — this row was written by the prior (paused)
+                        // run under BulkContext, but that run paused before the
+                        // rebuild dispatch fired. On resume we skip the re-write,
+                        // yet must still re-collect the object so the end-of-run
+                        // dispatch rebuilds its attributes_indexed + reindexes it
+                        // — otherwise a paused→resumed import leaves the first
+                        // run's objects unindexed (re-collecting an unchanged
+                        // object is an idempotent no-op rebuild).
+                        $this->bulkTouchedIds[] = $existing->getId()->toRfc4122();
                     }
                 }
 
