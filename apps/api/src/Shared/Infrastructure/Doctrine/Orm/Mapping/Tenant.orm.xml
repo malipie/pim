@@ -46,6 +46,9 @@
             </options>
         </field>
 
+        <field name="importMaxRows" type="integer" column="import_max_rows" nullable="true"/>
+        <field name="importMaxFileSize" type="integer" column="import_max_file_size" nullable="true"/>
+
     </entity>
 
 </doctrine-mapping>

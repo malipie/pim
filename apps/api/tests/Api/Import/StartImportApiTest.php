@@ -667,6 +667,106 @@ final class StartImportApiTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function oversizedFileIsRejectedWith422(): void
+    {
+        // IMP2-2.7 (#1483) — a per-tenant file-size limit below the upload size
+        // yields a clean RFC 7807 422, not the raw PHP truncation.
+        $this->seedAttributes();
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $tenant->setImportMaxFileSize(10); // 10 bytes — any real CSV exceeds it
+        $em->flush();
+
+        $csvPath = $this->writeSmallCsv();
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'small.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(422);
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function tooManyDataRowsIsRejectedWith422(): void
+    {
+        // IMP2-2.7 (#1483) — a per-tenant row limit rejects an oversized file
+        // before any persistence.
+        $this->seedAttributes();
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $tenant->setImportMaxRows(5);
+        $em->flush();
+
+        $rows = ['sku;name'];
+        for ($i = 1; $i <= 10; ++$i) {
+            $rows[] = \sprintf('OVER-%d;Product %d', $i, $i);
+        }
+        $csvPath = $this->writeCsv(implode("\n", $rows)."\n", 'pim-rows-');
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'over.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(422);
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function rateLimitExceededReturns429(): void
+    {
+        // IMP2-2.7 (#1483) — exhausting the per-tenant import_trigger window
+        // (limit 20/h) makes the next start return 429.
+        $this->seedAttributes();
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+
+        $limiter = self::getContainer()->get('limiter.import_trigger')->create($tenant->getId()->toRfc4122());
+        for ($i = 0; $i < 20; ++$i) {
+            $limiter->consume();
+        }
+
+        $csvPath = $this->writeSmallCsv();
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'small.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(429);
+        } finally {
+            // The limiter storage is shared (cache pool), so drain-then-leave
+            // would 429 every later import test for this tenant. Reset it.
+            $limiter->reset();
+            @unlink($csvPath);
+        }
+    }
+
     private function writeCsv(string $contents, string $prefix): string
     {
         $path = tempnam(sys_get_temp_dir(), $prefix);

@@ -74,6 +74,18 @@ class Tenant
      */
     private string $primaryLocale = 'pl';
 
+    /**
+     * IMP2-2.7 (#1483) — per-tenant import guardrails. `null` = fall back to the
+     * application default (D10: 200k rows / 100 MB). Set by an operator (admin
+     * UI / SQL); enforced in StartImportController + ParsePreviewController with
+     * RFC 7807. Kept on the Tenant (not a config file) so each tenant can be
+     * tuned independently in the multi-tenant target.
+     */
+    private ?int $importMaxRows = null;
+
+    /** IMP2-2.7 (#1483) — per-tenant max upload size in bytes; null = app default. */
+    private ?int $importMaxFileSize = null;
+
     public function __construct(
         string $code,
         string $name,
@@ -209,6 +221,26 @@ class Tenant
     public function getPrimaryLocale(): string
     {
         return $this->primaryLocale;
+    }
+
+    public function getImportMaxRows(): ?int
+    {
+        return $this->importMaxRows;
+    }
+
+    public function setImportMaxRows(?int $importMaxRows): void
+    {
+        $this->importMaxRows = $importMaxRows;
+    }
+
+    public function getImportMaxFileSize(): ?int
+    {
+        return $this->importMaxFileSize;
+    }
+
+    public function setImportMaxFileSize(?int $importMaxFileSize): void
+    {
+        $this->importMaxFileSize = $importMaxFileSize;
     }
 
     public function isLocaleEnabled(string $locale): bool

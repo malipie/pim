@@ -10,6 +10,7 @@ use App\Import\Domain\Enum\ImportLogLevel;
 use App\Import\Domain\Repository\ImportLogRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Generator;
 
 /**
  * @extends ServiceEntityRepository<ImportLog>
@@ -50,6 +51,35 @@ class DoctrineImportLogRepository extends ServiceEntityRepository implements Imp
         $result = $qb->getQuery()->getResult();
 
         return $result;
+    }
+
+    /**
+     * @param list<ImportLogLevel> $levels
+     *
+     * @return Generator<int, ImportLog>
+     */
+    public function iterateBySession(ImportSession $session, array $levels = []): Generator
+    {
+        $qb = $this->createQueryBuilder('l')
+            ->where('l.importSession = :session')
+            ->orderBy('l.rowNumber', 'ASC')
+            ->setParameter('session', $session);
+
+        if ([] !== $levels) {
+            $qb->andWhere('l.level IN (:levels)')
+                ->setParameter('levels', array_map(static fn (ImportLogLevel $level): string => $level->value, $levels));
+        }
+
+        // Memory-flat: hydrate one row at a time and detach every 500 so the
+        // identity map cannot accumulate the whole (up to 200k-row) log set.
+        $em = $this->getEntityManager();
+        $seen = 0;
+        foreach ($qb->getQuery()->toIterable() as $log) {
+            yield $log;
+            if (0 === ++$seen % 500) {
+                $em->clear();
+            }
+        }
     }
 
     public function countBySession(ImportSession $session, ?ImportLogLevel $level = null): int

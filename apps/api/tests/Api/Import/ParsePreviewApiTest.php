@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Import;
 
+use App\Shared\Domain\Tenant;
 use App\Tests\Api\Catalog\CatalogApiTestCase;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -53,6 +54,32 @@ final class ParsePreviewApiTest extends CatalogApiTestCase
             self::assertSame('utf-8', $body['encoding']);
             self::assertNull($body['sheet_name']);
             self::assertFalse($body['had_multiple_sheets']);
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function parsePreviewRejectsTooManyRowsWith422(): void
+    {
+        // IMP2-2.7 (#1483) — the wizard preview enforces the per-tenant row limit
+        // (here 1) so the user sees a clear 422 before mapping/start.
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $tenant->setImportMaxRows(1);
+        $em->flush();
+
+        $csvPath = $this->writeCsv(); // 2 data rows > limit 1
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions/parse-preview', [
+                'extra' => [
+                    'parameters' => [],
+                    'files' => ['file' => new UploadedFile($csvPath, 'sample.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(422);
         } finally {
             @unlink($csvPath);
         }
