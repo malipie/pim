@@ -17,7 +17,9 @@ use App\Import\Domain\Message\ImportRunMessage;
 use App\Shared\Application\BulkOperationLock;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
+use App\Shared\Infrastructure\Doctrine\Filter\TenantFilterConfigurator;
 use App\Tests\Api\Catalog\CatalogApiTestCase;
+use App\Tests\Support\InMemoryMercureHub;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionClass;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -189,6 +191,67 @@ final class ImportRunHandlerAsyncTest extends CatalogApiTestCase
             "SELECT COUNT(*) FROM objects WHERE code LIKE 'IDX-%' AND attributes_indexed = '{}'::jsonb",
         );
         self::assertSame(0, (int) (\is_scalar($emptyCount) ? $emptyCount : 1), 'no imported object left with an empty attributes_indexed cache');
+    }
+
+    #[Test]
+    public function batchImportThrottlesProgressInsteadOfPerRowEvents(): void
+    {
+        // IMP2-2.6 — the batch path must not emit a Mercure event per row (50k
+        // rows would be 50k hub POSTs). Prove a multi-chunk import publishes a
+        // handful of throttled `progress` snapshots and ZERO `row_processed`.
+        // Drive the handler directly: a functional request reboots the kernel and
+        // drops the in-memory hub's captured updates, so the hub assertion must
+        // run in-process.
+        $this->seedSkuName();
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $product = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($product instanceof ObjectType);
+
+        $session = new ImportSession(
+            userId: Uuid::v7(),
+            targetObjectType: $product,
+            fileName: 'throttle.csv',
+            fileSizeBytes: 1024,
+        );
+        $session->assignTenant($tenant);
+        $session->setColumnMapping(['sku' => 'sku', 'name' => 'name']);
+        $em->persist($session);
+        $em->flush();
+        $sessionId = $session->getId();
+
+        $count = 500; // > one chunk (batchSize 200) → several throttled snapshots
+        $csv = "sku;name\n";
+        for ($i = 1; $i <= $count; ++$i) {
+            $csv .= \sprintf("THR-%d;Product %d\n", $i, $i);
+        }
+        self::getContainer()->get('imports.storage')->write(
+            \sprintf('%s/%s/throttle.csv', $tenant->getId()->toRfc4122(), $sessionId->toRfc4122()),
+            $csv,
+        );
+
+        self::getContainer()->get(TenantFilterConfigurator::class)->apply();
+        $hub = self::getContainer()->get(InMemoryMercureHub::class);
+        \assert($hub instanceof InMemoryMercureHub);
+        $hub->reset();
+
+        self::getContainer()->get(ImportRunHandler::class)->run($session);
+
+        $types = [];
+        foreach ($hub->getCapturedUpdates() as $update) {
+            $decoded = json_decode($update->getData(), true, 512, JSON_THROW_ON_ERROR);
+            if (\is_array($decoded) && \is_string($decoded['type'] ?? null)) {
+                $types[] = $decoded['type'];
+            }
+        }
+
+        self::assertNotContains('row_processed', $types, 'batch path must not emit a Mercure event per row');
+        $progress = array_filter($types, static fn (string $t): bool => 'progress' === $t);
+        self::assertGreaterThanOrEqual(1, \count($progress), 'a throttled progress snapshot is published; all types: ['.implode(',', $types).']');
+        self::assertLessThanOrEqual(20, \count($progress), \sprintf('progress is throttled, not per-row (got %d for %d rows)', \count($progress), $count));
     }
 
     /**

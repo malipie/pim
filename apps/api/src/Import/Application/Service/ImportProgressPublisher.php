@@ -49,15 +49,6 @@ final class ImportProgressPublisher
         ]);
     }
 
-    public function rowProcessed(ImportSession $session, int $rowNumber, ?string $sku, bool $success): void
-    {
-        $this->publish($session, 'row_processed', [
-            'row_number' => $rowNumber,
-            'sku' => $sku,
-            'success' => $success,
-        ]);
-    }
-
     public function error(ImportSession $session, int $rowNumber, ?string $sku, string $errorType, string $message): void
     {
         $this->publish($session, 'error', [

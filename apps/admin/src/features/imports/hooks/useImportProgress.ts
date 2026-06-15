@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 interface ProgressEvent {
-  type: 'progress' | 'row_processed' | 'error' | 'completed';
+  type: 'progress' | 'error' | 'completed';
   session_id: string;
   data: {
     processed_rows?: number;
@@ -10,6 +10,10 @@ interface ProgressEvent {
     error_count?: number;
     current_sku?: string | null;
     status?: string;
+    // IMP2-2.6 — `error` events carry the offending row's sku + message.
+    sku?: string | null;
+    row_number?: number;
+    message?: string;
   };
 }
 
@@ -24,7 +28,7 @@ const LOG_BUFFER_CAP = 200;
 export interface ImportProgressState {
   /** True until the first SSE event lands or the connection drops. */
   connecting: boolean;
-  /** NUI-11 — capped live-log buffer built from row_processed/error events. */
+  /** NUI-11 / IMP2-2.6 — capped live-log buffer built from `error` + throttled `progress` events. */
   log: ImportLogEntry[];
   processedRows: number;
   totalRows: number;
@@ -87,17 +91,29 @@ export function useImportProgress(sessionId: string | null): ImportProgressState
         const raw = JSON.parse(event.data) as ProgressEvent;
         setState((prev) => {
           let log = prev.log;
-          if (raw.type === 'row_processed' || raw.type === 'error') {
-            const sku = raw.data.current_sku ?? null;
-            const entry: ImportLogEntry = {
-              id: logSeq++,
-              level: raw.type === 'error' ? 'error' : 'info',
-              message:
-                raw.type === 'error'
-                  ? `✗ ${sku ?? 'row'} — error`
-                  : `✓ ${sku ?? 'row'} (${raw.data.processed_rows ?? '?'} / ${raw.data.total_rows ?? '?'})`,
-            };
-            log = [...prev.log.slice(-(LOG_BUFFER_CAP - 1)), entry];
+          // IMP2-2.6 — the per-row `row_processed` event is gone (it was 50k hub
+          // POSTs on a 50k import). The live log is built from blocking `error`
+          // events and the throttled `progress` snapshots (≤ ~100 for 50k rows).
+          if (raw.type === 'error') {
+            const label = raw.data.sku ?? `row ${raw.data.row_number ?? '?'}`;
+            log = [
+              ...prev.log.slice(-(LOG_BUFFER_CAP - 1)),
+              {
+                id: logSeq++,
+                level: 'error',
+                message: `✗ ${label} — ${raw.data.message ?? 'error'}`,
+              },
+            ];
+          } else if (raw.type === 'progress') {
+            const sku = raw.data.current_sku ? ` — ${raw.data.current_sku}` : '';
+            log = [
+              ...prev.log.slice(-(LOG_BUFFER_CAP - 1)),
+              {
+                id: logSeq++,
+                level: 'info',
+                message: `✓ ${raw.data.processed_rows ?? '?'} / ${raw.data.total_rows ?? '?'}${sku}`,
+              },
+            ];
           }
           return {
             ...prev,
