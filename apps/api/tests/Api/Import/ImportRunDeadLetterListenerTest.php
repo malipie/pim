@@ -122,7 +122,6 @@ final class ImportRunDeadLetterListenerTest extends CatalogApiTestCase
         }
 
         $listener = self::getContainer()->get(ImportRunDeadLetterListener::class);
-        \assert($listener instanceof ImportRunDeadLetterListener);
         $listener($event);
     }
 
@@ -137,9 +136,6 @@ final class ImportRunDeadLetterListenerTest extends CatalogApiTestCase
 
     private function sessions(): ImportSessionRepositoryInterface
     {
-        $repo = self::getContainer()->get(ImportSessionRepositoryInterface::class);
-        \assert($repo instanceof ImportSessionRepositoryInterface);
-
-        return $repo;
+        return self::getContainer()->get(ImportSessionRepositoryInterface::class);
     }
 }

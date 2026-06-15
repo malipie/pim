@@ -65,7 +65,6 @@ final class RebuildAttributesIndexedOptimisticRetryTest extends CatalogApiTestCa
         }
 
         $handler = self::getContainer()->get(RebuildAttributesIndexedHandler::class);
-        \assert($handler instanceof RebuildAttributesIndexedHandler);
 
         // Must NOT throw — the per-id retry absorbs the conflict.
         $handler(new ObjectValuesChangedMessage(array_map(

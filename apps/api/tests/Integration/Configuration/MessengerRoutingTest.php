@@ -127,6 +127,7 @@ final class MessengerRoutingTest extends KernelTestCase
         self::assertArrayHasKey('retry_strategy', $definition, "Transport '{$transport}' must declare a retry_strategy (bulk-lock contention rides out the import window).");
 
         $retry = $definition['retry_strategy'];
+        self::assertIsArray($retry, "Transport '{$transport}' retry_strategy must be a mapping.");
         self::assertSame(5, $retry['max_retries'] ?? null, "Transport '{$transport}' retry_strategy.max_retries must be 5.");
         self::assertSame(30000, $retry['delay'] ?? null, "Transport '{$transport}' retry_strategy.delay must be 30000ms.");
         self::assertSame(2, $retry['multiplier'] ?? null, "Transport '{$transport}' retry_strategy.multiplier must be 2.");
