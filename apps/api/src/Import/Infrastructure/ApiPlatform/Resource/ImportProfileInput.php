@@ -55,4 +55,11 @@ final class ImportProfileInput
     public ?string $imageSource = null;
 
     public ?string $imageZipNamingConvention = null;
+
+    /**
+     * IMP2-2.7 (#1483) — abort the run once blocking errors exceed this
+     * percentage of processed rows. null = no threshold (partial behaviour).
+     */
+    #[Assert\Range(min: 0, max: 100)]
+    public ?int $allowedErrorsPct = null;
 }
