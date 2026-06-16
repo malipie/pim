@@ -133,19 +133,27 @@ final class ExportJobHandler extends AbstractBatchHandler
             };
 
             $this->runner->runToFile($session, $tempPath, $onChunk);
+            // IMP2-2.6 — the streaming runner clears the EM mid-run to stay in
+            // flat memory, which detaches our $session/$tenant. Re-load them so
+            // the post-flight upload + status flush operate on managed entities.
+            $session = $this->sessions->findById($message->exportSessionId) ?? $session;
+            $tenant = $session->getTenant() ?? $tenant;
             $this->uploadToMinio($session, $tenant, $tempPath);
             $this->progress->progress($session, $session->getSuccessCount(), estimatedSecondsRemaining: 0);
             $this->progress->status($session);
         } catch (ExportCancelledException) {
             // EXR-15 — the cancel endpoint already persisted the terminal
-            // status; refresh the stale entity and notify subscribers so
-            // the card drops out of "W toku" instantly.
-            $this->entityManager->refresh($session);
+            // status; reload the (possibly EM-cleared, IMP2-2.6) entity and
+            // notify subscribers so the card drops out of "W toku" instantly.
+            $session = $this->sessions->findById($message->exportSessionId) ?? $session;
             $this->progress->status($session);
             $this->logger->info('Export job cancelled by user', [
                 'session_id' => $session->getId()->toRfc4122(),
             ]);
         } catch (Throwable $error) {
+            // The streaming runner may have cleared the EM (IMP2-2.6); reload so
+            // the terminal markError flush operates on a managed entity.
+            $session = $this->sessions->findById($message->exportSessionId) ?? $session;
             // markError throws if the session has already transitioned to
             // 'done' (e.g. runToFile completed but MinIO upload failed
             // afterwards). In that case the rows are already in the temp

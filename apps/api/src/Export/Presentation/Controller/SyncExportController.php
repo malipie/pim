@@ -160,12 +160,17 @@ final class SyncExportController
         }
 
         $tempPath = $this->prepareTempFile($format);
+        $sessionId = $session->getId();
         try {
             $this->runner->runToFile($session, $tempPath);
         } catch (Throwable $error) {
             @unlink($tempPath);
             throw new HttpException(Response::HTTP_INTERNAL_SERVER_ERROR, $error->getMessage(), $error);
         }
+
+        // IMP2-2.6 — the streaming runner clears the EM mid-run (flat memory),
+        // detaching $session; reload it before the post-flight path flush.
+        $session = $this->sessions->findById($sessionId) ?? $session;
 
         // EXR-12 — the sync session lands in history (screen 1 shows the
         // 1-second exports too), but its file is a temp deleted after send:

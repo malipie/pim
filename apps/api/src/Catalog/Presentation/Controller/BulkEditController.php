@@ -9,6 +9,7 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Shared\Application\BulkOperationLock;
 use App\Shared\Application\TenantContext;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -16,6 +17,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -49,6 +51,7 @@ final class BulkEditController
         private readonly CatalogObjectRepositoryInterface $objects,
         private readonly TenantContext $tenantContext,
         private readonly EntityManagerInterface $em,
+        private readonly BulkOperationLock $bulkLock,
     ) {
     }
 
@@ -95,44 +98,59 @@ final class BulkEditController
             throw new BadRequestHttpException('payload must be an object.');
         }
         /** @var array<string, mixed> $payload */
-        $job = new BulkEditJob(
-            operation: $operation,
-            payload: $payload,
-            total: \count($rawIds),
-        );
-        $this->em->persist($job);
-        $this->em->flush();
 
-        $job->markRunning();
-
-        $processed = 0;
-        foreach ($rawIds as $rawId) {
-            try {
-                if (!\is_string($rawId)) {
-                    throw new BadRequestHttpException('product_ids entries must be UUID strings.');
-                }
-                $uuid = Uuid::fromString($rawId);
-                $object = $this->objects->findById($uuid);
-                if (!$object instanceof CatalogObject || ObjectKind::Product !== $object->getKind()) {
-                    throw new NotFoundHttpException(\sprintf('Product %s not found.', $rawId));
-                }
-
-                $this->applyOperation($operation, $object, $payload);
-
-                ++$processed;
-            } catch (Throwable $e) {
-                $job->recordError(\is_string($rawId) ? $rawId : '<invalid>', $e->getMessage());
-            }
+        // IMP2-2.9 (#1485) — coordinate with imports / other bulk ops under the
+        // per-tenant lock. A collision is a 409 (RFC 7807); released in finally so
+        // an exception mid-batch never leaks the lock.
+        $lock = $this->bulkLock->acquire($tenant);
+        if (null === $lock) {
+            throw new ConflictHttpException(
+                'Inna operacja masowa trwa dla tego tenanta — spróbuj ponownie po jej zakończeniu.',
+            );
         }
 
-        $job->recordProgress($processed);
-        $job->markCompleted();
-        $this->em->flush();
+        try {
+            $job = new BulkEditJob(
+                operation: $operation,
+                payload: $payload,
+                total: \count($rawIds),
+            );
+            $this->em->persist($job);
+            $this->em->flush();
 
-        return new JsonResponse(
-            $this->serializeJob($job),
-            Response::HTTP_ACCEPTED,
-        );
+            $job->markRunning();
+
+            $processed = 0;
+            foreach ($rawIds as $rawId) {
+                try {
+                    if (!\is_string($rawId)) {
+                        throw new BadRequestHttpException('product_ids entries must be UUID strings.');
+                    }
+                    $uuid = Uuid::fromString($rawId);
+                    $object = $this->objects->findById($uuid);
+                    if (!$object instanceof CatalogObject || ObjectKind::Product !== $object->getKind()) {
+                        throw new NotFoundHttpException(\sprintf('Product %s not found.', $rawId));
+                    }
+
+                    $this->applyOperation($operation, $object, $payload);
+
+                    ++$processed;
+                } catch (Throwable $e) {
+                    $job->recordError(\is_string($rawId) ? $rawId : '<invalid>', $e->getMessage());
+                }
+            }
+
+            $job->recordProgress($processed);
+            $job->markCompleted();
+            $this->em->flush();
+
+            return new JsonResponse(
+                $this->serializeJob($job),
+                Response::HTTP_ACCEPTED,
+            );
+        } finally {
+            $lock->release();
+        }
     }
 
     #[Route(

@@ -72,6 +72,14 @@ class ImportProfile extends AggregateRoot implements TenantScoped
      */
     private ?array $customValidationRules = null;
 
+    /**
+     * IMP2-2.7 (#1483) — Allowed-Errors guardrail (D10). Percentage of failed
+     * rows (0-100) above which the run aborts to `partial` instead of letting a
+     * mostly-broken file dump garbage into the catalog. `null` = OFF (D10
+     * default), i.e. the run never self-aborts on the error ratio.
+     */
+    private ?int $allowedErrorsPct = null;
+
     private ?DateTimeImmutable $lastUsedAt = null;
 
     private DateTimeImmutable $createdAt;
@@ -258,6 +266,16 @@ class ImportProfile extends AggregateRoot implements TenantScoped
     public function setCustomValidationRules(?array $rules): void
     {
         $this->customValidationRules = $rules;
+    }
+
+    public function getAllowedErrorsPct(): ?int
+    {
+        return $this->allowedErrorsPct;
+    }
+
+    public function setAllowedErrorsPct(?int $allowedErrorsPct): void
+    {
+        $this->allowedErrorsPct = $allowedErrorsPct;
     }
 
     public function getLastUsedAt(): ?DateTimeImmutable

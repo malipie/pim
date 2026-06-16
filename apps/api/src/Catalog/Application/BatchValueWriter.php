@@ -83,12 +83,17 @@ final class BatchValueWriter
      *
      * @param list<array{attribute: Attribute, envelope: array<string, mixed>, locale: ?string, channelId: ?Uuid}> $writes
      *
-     * @return list<array{attributeCode: string, kind: string, message: string}>
+     * @return array{issues: list<array{attributeCode: string, kind: string, message: string}>, changed: int} `changed`
+     *                                                                                                        counts the values actually created or updated; IMP2-2.6 skips
+     *                                                                                                        a write whose value AND provenance already match (re-import of
+     *                                                                                                        an unchanged export), so a row with `changed === 0` is a no-op
+     *                                                                                                        the caller counts as `skipped` rather than `updated`
      */
     public function writeMany(CatalogObject $object, array $writes, Provenance $provenance): array
     {
         $tenant = $object->getTenant();
         $issues = [];
+        $changed = 0;
 
         foreach ($writes as $write) {
             $attribute = $write['attribute'];
@@ -136,8 +141,17 @@ final class BatchValueWriter
 
             $existing = $this->scopeIndex[$this->scopeKey($object->getId(), $attribute->getId(), $targetLocale, $targetChannel)] ?? null;
             if ($existing instanceof ObjectValue) {
+                // IMP2-2.6 — compare-values diff: an identical value AND identical
+                // provenance is a no-op, so skip the UPDATE entirely (re-importing
+                // an unchanged export must not churn object_values). An identical
+                // value under a DIFFERENT provenance is NOT a no-op — the import
+                // takes ownership, so we still write to reflect that in the audit.
+                if ($provenance === $existing->getProvenance() && $existing->getValue() === $envelope) {
+                    continue;
+                }
                 $existing->updateValue($envelope);
                 $existing->changeProvenance($provenance);
+                ++$changed;
 
                 continue;
             }
@@ -152,9 +166,10 @@ final class BatchValueWriter
             );
             $this->em->persist($value);
             $this->scopeIndex[$this->scopeKey($object->getId(), $attribute->getId(), $targetLocale, $targetChannel)] = $value;
+            ++$changed;
         }
 
-        return $issues;
+        return ['issues' => $issues, 'changed' => $changed];
     }
 
     private function scopeKey(Uuid $objectId, Uuid $attributeId, ?string $locale, ?Uuid $channelId): string

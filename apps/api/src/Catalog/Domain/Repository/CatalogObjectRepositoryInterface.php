@@ -66,6 +66,22 @@ interface CatalogObjectRepositoryInterface
      */
     public function findByObjectType(ObjectType $objectType, Tenant $tenant): array;
 
+    /**
+     * IMP2-2.6 — one keyset page of ROOT objects (no parent) of a type, ordered
+     * by id, for the bulk export path; mirrors `include_variants=off` (masters
+     * only). The caller walks pages with `id > :afterId` and `EntityManager::clear()`s
+     * between them so a 50k export stays in constant memory.
+     *
+     * @return list<CatalogObject>
+     */
+    public function findRootObjectsAfter(ObjectType $objectType, Tenant $tenant, ?Uuid $afterId, int $limit): array;
+
+    /**
+     * IMP2-2.6 — count the root objects of a type without hydrating them
+     * (COUNT(*)), so the export progress total never loads the whole set.
+     */
+    public function countRootObjectsByType(ObjectType $objectType, Tenant $tenant): int;
+
     public function save(CatalogObject $object): void;
 
     public function remove(CatalogObject $object): void;

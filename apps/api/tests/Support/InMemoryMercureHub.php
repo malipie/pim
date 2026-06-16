@@ -28,6 +28,8 @@ final class InMemoryMercureHub implements HubInterface
      */
     private array $captured = [];
 
+    private bool $retain = true;
+
     /**
      * @return list<Update>
      */
@@ -38,6 +40,18 @@ final class InMemoryMercureHub implements HubInterface
 
     public function reset(): void
     {
+        $this->captured = [];
+    }
+
+    /**
+     * Stop accumulating published updates — models the production hub, which
+     * POSTs over HTTP and discards. Memory benchmarks must call this: retaining
+     * every {@see Update} (50k+ on a bulk import) is a test-only artifact that
+     * has no counterpart in the real {@see \Symfony\Component\Mercure\Hub}.
+     */
+    public function stopRetaining(): void
+    {
+        $this->retain = false;
         $this->captured = [];
     }
 
@@ -63,7 +77,9 @@ final class InMemoryMercureHub implements HubInterface
 
     public function publish(Update $update): string
     {
-        $this->captured[] = $update;
+        if ($this->retain) {
+            $this->captured[] = $update;
+        }
 
         return 'urn:uuid:'.bin2hex(random_bytes(8));
     }

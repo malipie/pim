@@ -13,3 +13,10 @@ paths = [
     # for documentation. It is not a live secret.
     '''docs/security/tooling\.md''',
 ]
+regexes = [
+    # IMP2-2.6: the CI workflow seeds a hard-coded dummy MERCURE_JWT_SECRET so
+    # the kernel boots in the PHPUnit/benchmark jobs. It is a fixed test
+    # placeholder (never a live key); allowlist the literal so adding it to a
+    # new CI step does not trip the generic-api-key rule.
+    '''ci-mercure-key-at-least-256-bits-long''',
+]

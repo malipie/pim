@@ -67,6 +67,14 @@ pim.localhost, localhost {
 
     # API — Symfony / API Platform under FrankenPHP worker mode.
     handle /api* {
+        # IMP2-2.8 (#1484) — edge backstop on request body size. The limit chain is
+        # deliberate: Caddy 150 MB > php.ini post_max_size 110 MB > application D10
+        # 100 MB (IMP2-2.7, RFC 7807 422). A typical too-big upload is rejected by
+        # the APPLICATION with a readable error; this edge cap only trips on extreme
+        # payloads, returning 413 instead of letting them reach PHP.
+        request_body {
+            max_size 150MB
+        }
         reverse_proxy api:80
     }
 
