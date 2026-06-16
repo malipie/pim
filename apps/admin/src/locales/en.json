@@ -2455,6 +2455,10 @@
       "resume": "Resume",
       "cancel": "Cancel",
       "action_failed": "Action failed"
+    },
+    "show": {
+      "backup_done": "Backup before import: ✅ {{date}}",
+      "backup_none": "Backup before import: —"
     }
   },
   "rbac": {

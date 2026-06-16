@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Import;
 
+use App\Backup\Domain\Entity\Backup;
+use App\Backup\Domain\Enum\BackupStatus;
+use App\Backup\Domain\Enum\BackupTriggerAction;
+use App\Backup\Domain\Repository\BackupRepositoryInterface;
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -21,6 +25,7 @@ use App\Shared\Domain\Tenant;
 use App\Tests\Api\Catalog\CatalogApiTestCase;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Uid\Uuid;
 
 use const JSON_PRETTY_PRINT;
 use const JSON_THROW_ON_ERROR;
@@ -800,6 +805,219 @@ final class StartImportApiTest extends CatalogApiTestCase
         } finally {
             @unlink($xlsxPath);
         }
+    }
+
+    #[Test]
+    public function backupRequestedWithCompletedBackupLinksItToSession(): void
+    {
+        // IMP2-2.10 (#1486) — do_backup=1 + a completed backup_id → the session
+        // records the snapshot, the start response and the GET both expose it.
+        $this->seedAttributes();
+        $backupId = $this->seedBackup(BackupStatus::Completed);
+        $csvPath = $this->writeSmallCsv();
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                        'do_backup' => '1',
+                        'backup_id' => $backupId,
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'small.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertIsArray($body['backup'] ?? null, 'start response carries the linked backup');
+            self::assertSame($backupId, $body['backup']['id']);
+            self::assertSame('completed', $body['backup']['status']);
+
+            // The GET endpoint exposes the same backup.
+            self::assertIsString($body['id']);
+            $client->request('GET', '/api/import-sessions/'.$body['id']);
+            self::assertResponseIsSuccessful();
+            $show = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($show);
+            self::assertIsArray($show['backup'] ?? null);
+            self::assertSame($backupId, $show['backup']['id']);
+
+            // And the FK column is actually persisted.
+            $linked = $this->em()->getConnection()->fetchOne(
+                'SELECT backup_snapshot_id FROM import_sessions WHERE id = :id',
+                ['id' => $body['id']],
+            );
+            self::assertSame($backupId, \is_scalar($linked) ? (string) $linked : null);
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function backupRequestedWithoutBackupIdIs422(): void
+    {
+        $this->seedAttributes();
+        $csvPath = $this->writeSmallCsv();
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                        'do_backup' => '1',
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'small.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(422);
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function backupRequestedWithIncompleteBackupIs422(): void
+    {
+        // A still-running snapshot must not be accepted as the pre-import backup.
+        $this->seedAttributes();
+        $backupId = $this->seedBackup(BackupStatus::Running);
+        $csvPath = $this->writeSmallCsv();
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                        'do_backup' => '1',
+                        'backup_id' => $backupId,
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'small.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(422);
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function unknownBackupIdIs404(): void
+    {
+        $this->seedAttributes();
+        $csvPath = $this->writeSmallCsv();
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                        'do_backup' => '1',
+                        'backup_id' => Uuid::v7()->toRfc4122(),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'small.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(404);
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function backupFromAnotherTenantIs404(): void
+    {
+        // Tenant isolation — a completed backup owned by a different tenant must
+        // not be linkable; 404 (no existence leak), never 200.
+        $this->seedAttributes();
+        $backupId = $this->seedForeignTenantBackup();
+        $csvPath = $this->writeSmallCsv();
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                        'do_backup' => '1',
+                        'backup_id' => $backupId,
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'small.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(404);
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function noBackupRequestedLeavesBackupNull(): void
+    {
+        // Regression — do_backup absent → session starts as before, backup null.
+        $this->seedAttributes();
+        $csvPath = $this->writeSmallCsv();
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'small.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertNull($body['backup'], 'no backup requested → backup is null');
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    private function seedBackup(BackupStatus $status): string
+    {
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+
+        $backup = new Backup(Uuid::v7(), BackupTriggerAction::PreImport);
+        $backup->assignTenant($tenant);
+        if (BackupStatus::Running === $status || BackupStatus::Completed === $status) {
+            $backup->markRunning();
+        }
+        if (BackupStatus::Completed === $status) {
+            $backup->markCompleted(1024, 'test-label');
+        }
+        self::getContainer()->get(BackupRepositoryInterface::class)->save($backup);
+
+        return $backup->getId()->toRfc4122();
+    }
+
+    private function seedForeignTenantBackup(): string
+    {
+        $em = $this->em();
+        $other = new Tenant('other-'.bin2hex(random_bytes(4)), 'Other Tenant');
+        $em->persist($other);
+        $em->flush();
+        self::getContainer()->get(TenantContext::class)->set($other);
+
+        $backup = new Backup(Uuid::v7(), BackupTriggerAction::PreImport);
+        $backup->assignTenant($other);
+        $backup->markRunning();
+        $backup->markCompleted(1024, 'foreign');
+        self::getContainer()->get(BackupRepositoryInterface::class)->save($backup);
+
+        return $backup->getId()->toRfc4122();
     }
 
     private function writeCsv(string $contents, string $prefix): string
