@@ -907,6 +907,60 @@ final class StartImportApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function backupRequestedWithPendingBackupIs422(): void
+    {
+        // IMP2-2.10 (#1559) — a queued snapshot that has not started yet is not
+        // a valid pre-import backup; the wizard must wait for `completed`.
+        $this->seedAttributes();
+        $backupId = $this->seedBackup(BackupStatus::Pending);
+        $csvPath = $this->writeSmallCsv();
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                        'do_backup' => '1',
+                        'backup_id' => $backupId,
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'small.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(422);
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function backupRequestedWithFailedBackupIs422(): void
+    {
+        // IMP2-2.10 (#1559) — a failed snapshot must not be accepted; the import
+        // would otherwise run unprotected.
+        $this->seedAttributes();
+        $backupId = $this->seedBackup(BackupStatus::Failed);
+        $csvPath = $this->writeSmallCsv();
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                        'do_backup' => '1',
+                        'backup_id' => $backupId,
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'small.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(422);
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
     public function unknownBackupIdIs404(): void
     {
         $this->seedAttributes();
