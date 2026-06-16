@@ -246,6 +246,164 @@ final class StartImportApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function appendModeAddsNewCategoriesWithoutDuplicatingExisting(): void
+    {
+        // IMP2-1.7 (#1470, D2 append policy) — `__category_append__` ADDS the
+        // cell's categories to the product's existing assignments instead of
+        // replacing them, and never duplicates a code already assigned. A
+        // product seeded in `cat_a` re-imported with `cat_a|cat_b` ends up with
+        // [cat_a, cat_b]: cat_a stays put (primary, position 0), cat_b is
+        // appended at the next position. Logic: ImportRunHandler::appendCategories.
+        $this->seedAttributes();
+        $this->seedCategories(['cat_a', 'cat_b']);
+
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $catalogObjects = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+        $productOt = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($productOt instanceof ObjectType);
+
+        // Seed an existing product already assigned to cat_a (primary).
+        $product = new CatalogObject($productOt, 'APP-1');
+        $em->persist($product);
+        $catA = $catalogObjects->findByCode('cat_a', ObjectKind::Category, $tenant);
+        \assert(null !== $catA);
+        $em->persist(new \App\Catalog\Domain\Entity\ObjectCategory($product, $catA, true, 0));
+        $em->flush();
+
+        $csvPath = $this->writeCsv("sku;name;kategoria\nAPP-1;Nazwa;cat_a|cat_b\n", 'pim-catappend-');
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode([
+                            'sku' => 'sku',
+                            'name' => 'name',
+                            'kategoria' => '__category_append__',
+                        ], JSON_THROW_ON_ERROR),
+                        'mode' => 'UPSERT',
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'append.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame(0, $body['error_count']);
+
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $catalogObjects = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+            $categories = self::getContainer()->get(ObjectCategoryRepositoryInterface::class);
+
+            $reloaded = $catalogObjects->findByCode('APP-1', ObjectKind::Product, $tenant);
+            \assert(null !== $reloaded);
+            $assignments = $categories->findByProduct($reloaded);
+
+            // cat_a is NOT duplicated — exactly [cat_a, cat_b], in append order.
+            self::assertCount(2, $assignments, 'append adds cat_b without re-adding cat_a');
+            self::assertSame(
+                ['cat_a', 'cat_b'],
+                array_map(static fn ($a): string => $a->getCategory()->getCode(), $assignments),
+            );
+            // cat_a keeps its original primary slot; cat_b is appended non-primary.
+            self::assertTrue($assignments[0]->isPrimary());
+            self::assertFalse($assignments[1]->isPrimary());
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function updateWithEmptyCategoryCellLeavesAssignmentsUntouched(): void
+    {
+        // IMP2-1.7 (#1470) / ADR-0019 D2 — an EMPTY category cell on an update
+        // means "do not touch": the product's existing category assignments are
+        // left exactly as they were, never wiped. A product seeded in two
+        // categories re-imported with a blank `kategoria` cell keeps both.
+        // Logic: ImportRunHandler::extractCategoryCodes drops empty cells, so no
+        // pending category op is collected for the row.
+        $this->seedAttributes();
+        $this->seedCategories(['cat_a', 'cat_b']);
+
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $catalogObjects = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+        $productOt = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($productOt instanceof ObjectType);
+
+        // Seed an existing product with TWO category assignments.
+        $product = new CatalogObject($productOt, 'KEEP-1');
+        $em->persist($product);
+        $catA = $catalogObjects->findByCode('cat_a', ObjectKind::Category, $tenant);
+        $catB = $catalogObjects->findByCode('cat_b', ObjectKind::Category, $tenant);
+        \assert(null !== $catA);
+        \assert(null !== $catB);
+        $em->persist(new \App\Catalog\Domain\Entity\ObjectCategory($product, $catA, true, 0));
+        $em->persist(new \App\Catalog\Domain\Entity\ObjectCategory($product, $catB, false, 1));
+        $em->flush();
+
+        // The category column is mapped but the cell is blank for this row.
+        $csvPath = $this->writeCsv("sku;name;kategoria\nKEEP-1;Nowa nazwa;\n", 'pim-catkeep-');
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode([
+                            'sku' => 'sku',
+                            'name' => 'name',
+                            'kategoria' => '__category__',
+                        ], JSON_THROW_ON_ERROR),
+                        'mode' => 'UPSERT',
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'keep.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame(0, $body['error_count']);
+
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $catalogObjects = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+            $categories = self::getContainer()->get(ObjectCategoryRepositoryInterface::class);
+
+            $reloaded = $catalogObjects->findByCode('KEEP-1', ObjectKind::Product, $tenant);
+            \assert(null !== $reloaded);
+            $assignments = $categories->findByProduct($reloaded);
+
+            // The empty cell touched nothing — both original assignments survive.
+            self::assertCount(2, $assignments, 'empty category cell must not wipe existing assignments');
+            self::assertSame(
+                ['cat_a', 'cat_b'],
+                array_map(static fn ($a): string => $a->getCategory()->getCode(), $assignments),
+            );
+            $primary = $categories->findPrimary($reloaded);
+            self::assertNotNull($primary, 'the original primary is still intact');
+            self::assertSame('cat_a', $primary->getCategory()->getCode());
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
     public function importSetsStatusAndEnabledFromColumnsAndBlocksBadStatus(): void
     {
         // IMP2-1.7 (AC 4,5) — status/enabled columns set the object fields;
