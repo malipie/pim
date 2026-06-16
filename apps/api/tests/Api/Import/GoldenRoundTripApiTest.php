@@ -525,6 +525,44 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function selectStoredCanonicallyExportsAsNonEmptyOptionCode(): void
+    {
+        // IMP2-1.2 (#1464, ADR-0019) — a select value stored in the CANONICAL
+        // shape `{option_code: "<code>"}` must export to a NON-EMPTY cell equal
+        // to the option code. This guards the ValueSerializer Select branch
+        // (`pickKey('option_code')`) against the legacy `{value}` regression the
+        // migration eliminates: a legacy envelope would serialise to "".
+        $this->authenticatedClient();
+        $tenant = $this->tenant();
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $em = $this->em();
+
+        $productType = $em->getRepository(ObjectType::class)
+            ->find(Uuid::fromString($this->objectTypeIdFor(ObjectKind::Product)));
+        \assert($productType instanceof ObjectType);
+
+        $color = new Attribute('canon_color', ['en' => 'Color'], AttributeType::Select);
+        $em->persist($color);
+        $em->persist(new ObjectTypeAttribute($productType, $color));
+        $em->persist(new AttributeOption($color, 'red', ['en' => 'Red'], 1));
+
+        $product = new CatalogObject($productType, 'CANON-EXP-1');
+        $em->persist($product);
+        // Canonical envelope — exactly what the migration produces from {value:"red"}.
+        $em->persist(new ObjectValue($product, $color, ['option_code' => 'red'], Provenance::Manual));
+        $em->flush();
+        $productId = $product->getId();
+
+        $csv = $this->runProductExport($tenant, ['sku', 'canon_color'], [$productId]);
+
+        // The select cell carries the option code verbatim — not blank.
+        self::assertStringContainsString('CANON-EXP-1', $csv);
+        $cell = $this->cellFor($csv, 'canon_color', 'CANON-EXP-1');
+        self::assertNotSame('', $cell, 'canonical select must export a non-empty cell');
+        self::assertSame('red', $cell, 'select cell equals the stored option_code');
+    }
+
+    #[Test]
     public function everyAttributeTypeHasGoldenCoverage(): void
     {
         // IMP2-1.10 (AC item 4) — every AttributeType is exercised by the
@@ -957,6 +995,38 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         $body = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
 
         return $body;
+    }
+
+    /**
+     * Resolve a single exported cell by column header + the SKU of its row.
+     * Parses the real CSV the exporter wrote so the assertion reads the actual
+     * serialised cell, not a substring match.
+     */
+    private function cellFor(string $csv, string $column, string $sku): string
+    {
+        // CsvStreamWriter writes a UTF-8 BOM prefix and a `;` separator
+        // (Excel PL friendliness) — strip/parse accordingly.
+        $csv = ltrim($csv, "\xEF\xBB\xBF");
+        $lines = array_values(array_filter(
+            explode("\n", trim($csv)),
+            static fn (string $line): bool => '' !== trim($line),
+        ));
+        self::assertNotEmpty($lines, 'export produced no rows');
+
+        $header = str_getcsv($lines[0], ';', '"', '\\');
+        $columnIndex = array_search($column, $header, true);
+        $skuIndex = array_search('sku', $header, true);
+        self::assertIsInt($columnIndex, \sprintf('column "%s" missing from export header', $column));
+        self::assertIsInt($skuIndex, 'sku column missing from export header');
+
+        foreach (\array_slice($lines, 1) as $line) {
+            $row = str_getcsv($line, ';', '"', '\\');
+            if (($row[$skuIndex] ?? null) === $sku) {
+                return $row[$columnIndex] ?? '';
+            }
+        }
+
+        self::fail(\sprintf('no exported row for sku "%s"', $sku));
     }
 
     /** @return list<string> */
