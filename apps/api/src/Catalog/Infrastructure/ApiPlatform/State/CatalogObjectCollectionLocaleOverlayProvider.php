@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\Pagination\PaginatorInterface;
 use ApiPlatform\State\Pagination\TraversablePaginator;
 use ApiPlatform\State\ProviderInterface;
+use App\Catalog\Application\AttributeReadRestrictionOverlay;
 use App\Catalog\Application\ObjectValueLocaleOverlay;
 use App\Catalog\Application\SystemAttributeReadOverlay;
 use App\Catalog\Domain\Entity\CatalogObject;
@@ -46,6 +47,7 @@ final readonly class CatalogObjectCollectionLocaleOverlayProvider implements Pro
         private ObjectValueRepositoryInterface $objectValues,
         private RequestStack $requestStack,
         private ChannelPublicationResolverInterface $publicationResolver,
+        private AttributeReadRestrictionOverlay $restrictionOverlay,
     ) {
     }
 
@@ -86,13 +88,19 @@ final readonly class CatalogObjectCollectionLocaleOverlayProvider implements Pro
         }
 
         // Always apply system overlay so created_at/updated_at render.
-        // When no locale/channel scope and no publication filter, skip overlay.
+        // When no locale/channel scope and no publication filter, skip the
+        // value/publication overlays but still run system + restriction on
+        // clones (AUD-008 #1578: restricted attributes must not leak through
+        // the list path either).
         if (null === $locale && null === $channel && null === $publication) {
-            foreach ($objects as $object) {
-                $this->systemOverlay->apply($object);
-            }
+            $overlaid = $this->restrictionOverlay->applyBatch(
+                array_map(
+                    fn (CatalogObject $o): CatalogObject => $this->systemOverlay->apply($o),
+                    $objects,
+                ),
+            );
 
-            return $result; // @phpstan-ignore-line (inner provider return type is wider)
+            return $this->rebuildResult($result, $overlaid);
         }
 
         // Batch-load all ObjectValue rows for the current page in one query.
@@ -113,20 +121,31 @@ final readonly class CatalogObjectCollectionLocaleOverlayProvider implements Pro
             $overlaid = $this->applyPublicationFilter($overlaid, $publication);
         }
 
-        // Apply system overlay on the (already cloned) overlaid objects.
-        $overlaid = array_map(
-            fn (CatalogObject $o): CatalogObject => $this->systemOverlay->apply($o),
-            $overlaid,
+        // Apply system overlay then strip restricted attributes (AUD-008
+        // #1578) on the (already cloned) overlaid objects. Restriction runs
+        // as one batch so the tenant attribute catalogue + per-attribute
+        // view decisions are resolved once for the page, not per item (#1620).
+        $overlaid = $this->restrictionOverlay->applyBatch(
+            array_map(
+                fn (CatalogObject $o): CatalogObject => $this->systemOverlay->apply($o),
+                $overlaid,
+            ),
         );
 
-        // Re-build the result preserving the paginator wrapper when present.
-        if (\is_array($result)) {
-            return $overlaid;
-        }
+        return $this->rebuildResult($result, $overlaid);
+    }
 
-        // For AP4 paginator results, wrap the overlaid items in a
-        // TraversablePaginator so the serializer still gets correct
-        // total-count / current-page metadata from the original paginator.
+    /**
+     * Re-build the collection result preserving the paginator wrapper when
+     * present, so the serializer still gets the correct total-count /
+     * current-page metadata from the original paginator.
+     *
+     * @param list<CatalogObject> $overlaid
+     *
+     * @return iterable<CatalogObject>
+     */
+    private function rebuildResult(mixed $result, array $overlaid): iterable
+    {
         if ($result instanceof PaginatorInterface) {
             return new TraversablePaginator(
                 new ArrayIterator($overlaid),

@@ -52,6 +52,7 @@ final class ExportBuilder
         private readonly ChannelResolverInterface $channels,
         private readonly \App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface $relations,
         private readonly \App\Catalog\Domain\Repository\AttributeRepositoryInterface $attributes,
+        private readonly \App\Identity\Contracts\Policy\AttributePermissionReader $attributePermissions,
     ) {
     }
 
@@ -197,10 +198,32 @@ final class ExportBuilder
             return $this->builtIn($object, $column->code);
         }
 
+        $attribute = $attributeMap[$column->code] ?? null;
+
+        // AUD-008 (#1578): never export an attribute the caller may not view
+        // (3-state per-attribute permission, PRD §3.5). Emit a blank cell —
+        // same shape as a stale/missing column — so the row stays well-formed
+        // without leaking the value. Built-in columns above are not
+        // attribute-permission subjects. Unknown codes (no resolved
+        // Attribute) fall through to the existing blank-cell handling.
+        //
+        // Only enforced when a domain user is present. The sync runner
+        // (EXP-05) and async handler (EXP-06) reach this from system contexts
+        // that carry no security token — the same way the write path
+        // ({@see \App\Catalog\Application\ObjectAttributesUpserter}) gates on
+        // isAttributePermissionEnforced(). Without that guard the
+        // anonymous-→-restricted default of canViewAttribute() would blank
+        // every attribute cell of a legitimate export (CustomModuleExport,
+        // GoldenRoundTrip).
+        if ($attribute instanceof Attribute
+            && $this->attributePermissions->isAttributePermissionEnforced()
+            && !$this->attributePermissions->canViewAttribute($attribute->getId())) {
+            return '';
+        }
+
         // IMP2-1.8 (D5): Relation/Reference columns emit pipe-joined target
         // CODES read from object_relations (symmetry with the import, which
         // writes relations there — not as ObjectValue).
-        $attribute = $attributeMap[$column->code] ?? null;
         if ($attribute instanceof Attribute
             && (AttributeType::Relation === $attribute->getType() || AttributeType::Reference === $attribute->getType())) {
             $codes = [];

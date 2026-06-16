@@ -8,9 +8,6 @@ use App\Identity\Application\PermissionResolverInterface;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\AttributePermission;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Exception\DatabaseObjectNotFoundException;
-use Doctrine\DBAL\Exception\InvalidFieldNameException;
-use Doctrine\DBAL\Exception\TableNotFoundException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -61,11 +58,25 @@ use Symfony\Component\Uid\Uuid;
  * 3-state values — the serializer composes them with the integration
  * flag for the final response shape.
  */
-readonly class AttributePermissionPolicy
+class AttributePermissionPolicy
 {
+    /**
+     * Memoised schema-existence probes (#1620). The `information_schema`
+     * introspection in {@see tableExists()} / {@see columnExists()} is the
+     * same for every attribute and role in a request — and the schema is
+     * stable for a worker's whole lifetime — yet it ran once per role per
+     * attribute, which on a 200-item collection page (resolved one attribute
+     * id at a time by the read overlay) dominated the GET latency. Caching
+     * the boolean result removes that cost without changing any permission
+     * decision; the SELECTs that read actual grant rows are NOT cached.
+     *
+     * @var array<string, bool>
+     */
+    private array $schemaProbeCache = [];
+
     public function __construct(
-        private Connection $connection,
-        private PermissionResolverInterface $resolver,
+        private readonly Connection $connection,
+        private readonly PermissionResolverInterface $resolver,
     ) {
     }
 
@@ -155,7 +166,15 @@ readonly class AttributePermissionPolicy
         //    via `doctrine:schema:create` from entities never get the
         //    table (no entity exists for it). Treat a missing table as
         //    "no per-group override" — same outcome as an empty row set.
-        try {
+        //
+        //    AUD-008 (#1578): probe the schema with the SchemaManager
+        //    (reads information_schema) BEFORE issuing the SELECT. A failing
+        //    SELECT inside an open transaction aborts the whole transaction
+        //    in PostgreSQL (SQLSTATE 25P02) even when the PHP exception is
+        //    caught — and this resolver now runs inside the write path's
+        //    transaction (ObjectAttributesUpserter). Probing first never
+        //    dirties the transaction.
+        if ($this->tableExists('role_attribute_group_permissions')) {
             $perGroup = $this->connection->fetchOne(
                 <<<'SQL'
                     SELECT rgp.permission_level
@@ -175,8 +194,6 @@ readonly class AttributePermissionPolicy
             if (false !== $perGroup && \is_string($perGroup)) {
                 return AttributePermission::from($perGroup);
             }
-        } catch (TableNotFoundException|InvalidFieldNameException|DatabaseObjectNotFoundException) {
-            // schema not migrated yet — drop through to role default
         }
 
         // 3. Role default — column defaults to 'edit' for tenant-level
@@ -184,8 +201,9 @@ readonly class AttributePermissionPolicy
         //    Same compatibility note: `roles.default_attribute_permission`
         //    only exists when the original migration ran; otherwise we
         //    infer from `roles.code` to preserve the migration's intent
-        //    (viewer → View, everyone else → Edit).
-        try {
+        //    (viewer → View, everyone else → Edit). Probe the column the
+        //    same transaction-safe way as the group table above.
+        if ($this->columnExists('roles', 'default_attribute_permission')) {
             $default = $this->connection->fetchOne(
                 'SELECT default_attribute_permission FROM roles WHERE id = :role_id',
                 ['role_id' => $roleId],
@@ -193,8 +211,6 @@ readonly class AttributePermissionPolicy
             if (false !== $default && \is_string($default)) {
                 return AttributePermission::from($default);
             }
-        } catch (InvalidFieldNameException|DatabaseObjectNotFoundException) {
-            return $this->inferDefaultFromRoleCode($roleId);
         }
 
         return $this->inferDefaultFromRoleCode($roleId);
@@ -217,5 +233,41 @@ readonly class AttributePermissionPolicy
         }
 
         return 'viewer' === $code ? AttributePermission::View : AttributePermission::Edit;
+    }
+
+    /**
+     * Transaction-safe existence probe. Reads `information_schema` via the
+     * SchemaManager instead of issuing a SELECT that would abort an open
+     * transaction (SQLSTATE 25P02) when the table is absent on a DB built
+     * from ORM metadata rather than migrations.
+     *
+     * @param non-empty-string $table
+     */
+    private function tableExists(string $table): bool
+    {
+        return $this->schemaProbeCache['table:'.$table] ??= $this->connection
+            ->createSchemaManager()
+            ->tablesExist([$table]);
+    }
+
+    /**
+     * @param non-empty-string $table
+     */
+    private function columnExists(string $table, string $column): bool
+    {
+        return $this->schemaProbeCache['column:'.$table.'.'.$column] ??= $this->probeColumn($table, $column);
+    }
+
+    /**
+     * @param non-empty-string $table
+     */
+    private function probeColumn(string $table, string $column): bool
+    {
+        $schemaManager = $this->connection->createSchemaManager();
+        if (!$schemaManager->tablesExist([$table])) {
+            return false;
+        }
+
+        return $schemaManager->introspectTableByUnquotedName($table)->hasColumn($column);
     }
 }
