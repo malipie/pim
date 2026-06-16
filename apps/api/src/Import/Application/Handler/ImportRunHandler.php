@@ -507,12 +507,21 @@ final class ImportRunHandler extends AbstractBatchHandler
         }
 
         $this->rowPhasePeakBytes = \memory_get_peak_usage(true);
-        $this->dispatchAttributesRebuild($tenant);
+        // Read the counters off the still-managed session BEFORE the rebuild
+        // dispatch: on a sync transport the inline RebuildAttributesIndexedHandler
+        // (an AbstractBatchHandler) flush+clears the EM, detaching $session and
+        // its tenant/profile/targetObjectType proxies.
         $threshold = $session->getProfile()?->getAllowedErrorsPct() ?? 0;
+        $errorCount = $session->getErrorCount();
+        $this->dispatchAttributesRebuild($tenant);
+        // EM was cleared by the inline rebuild: reload the session so the status
+        // mutation + save flush against a MANAGED entity (mirrors
+        // ImportRollbackService finalize), never re-persisting detached proxies.
+        $session = $this->refreshSession($session);
         $session->markFailed(\sprintf(
             'Przerwano import: odsetek błędnych wierszy przekroczył próg %d%% (%d błędów / %d wierszy).',
             $threshold,
-            $session->getErrorCount(),
+            $errorCount,
             $processed,
         ));
         $this->sessions->save($session);
