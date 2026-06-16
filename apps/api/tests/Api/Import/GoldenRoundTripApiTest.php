@@ -552,6 +552,212 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         }
     }
 
+    #[Test]
+    public function legacyEnvelopesAreNormalisedToTheCanonByTheWriteSide(): void
+    {
+        // IMP2-1.5 (#1467, AC) — a pre-canon DB row (raw-INSERT legacy shape:
+        // select `{value:"red"}` instead of `{option_code:"red"}`, price
+        // `{value:99.99}` without currency) is rewritten to the per-type canon
+        // (ADR-0019 D-1.2 / ValueWriteCore::canonicalise) when the real engine
+        // re-imports the exported file. Proves the WRITE side normalises legacy,
+        // not just that fresh writes start canonical.
+        $client = $this->authenticatedClient();
+        $tenant = $this->tenant();
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $em = $this->em();
+
+        $objectType = $em->getRepository(ObjectType::class)
+            ->find(Uuid::fromString($this->objectTypeIdFor(ObjectKind::Product)));
+        \assert($objectType instanceof ObjectType);
+
+        $select = new Attribute('lg_select', ['en' => 'Legacy select'], AttributeType::Select);
+        $price = new Attribute('lg_price', ['en' => 'Legacy price'], AttributeType::Price);
+        $em->persist($select);
+        $em->persist($price);
+        $em->persist(new ObjectTypeAttribute($objectType, $select));
+        $em->persist(new ObjectTypeAttribute($objectType, $price));
+        $em->persist(new AttributeOption($select, 'red', ['en' => 'Red'], 1));
+
+        $product = new CatalogObject($objectType, 'LG-001');
+        $em->persist($product);
+        $em->flush();
+        $productId = $product->getId();
+
+        // Raw-INSERT the LEGACY envelopes the canon would never produce — the
+        // ObjectValue hydration / writers emit `option_code` / `amount`, so the
+        // pre-canon shape can only be planted directly on the connection.
+        $conn = $em->getConnection();
+        $tenantId = $tenant->getId()->toRfc4122();
+        $insertLegacy = static function (string $attributeId, string $json) use ($conn, $tenantId, $productId): void {
+            $conn->insert('object_values', [
+                'id' => Uuid::v7()->toRfc4122(),
+                'tenant_id' => $tenantId,
+                'object_id' => $productId->toRfc4122(),
+                'attribute_id' => $attributeId,
+                'value' => $json,
+                'provenance' => 'import',
+                'provenance_meta' => '{}',
+            ]);
+        };
+        $insertLegacy($select->getId()->toRfc4122(), '{"value": "red"}');
+        $insertLegacy($price->getId()->toRfc4122(), '{"value": 99.99}');
+
+        // Sanity: the seeded rows really are legacy, not canon. Read straight
+        // off the connection so the managed Tenant the exporter needs stays
+        // attached (no $em->clear() before runToFile, which re-persists it).
+        $before = $this->legacyEnvelopesOf($productId);
+        self::assertSame(['value' => 'red'], $before['lg_select'], 'select seeded as legacy {value}');
+        self::assertSame(['value' => 99.99], $before['lg_price'], 'price seeded as legacy {value}');
+
+        // ── Round-trip through the REAL export → import engine ──
+        $columns = ['sku', 'lg_select', 'lg_price'];
+        $file = $this->exportToFile($tenant, $columns, [$productId], ExportFormat::Csv);
+        $csv = (string) file_get_contents($file);
+        @unlink($file);
+        // The Select serialiser reads `option_code` ONLY — a legacy select cell
+        // exports empty (it never had the canonical key). Inject the option code
+        // so the re-import has a cell to canonicalise; price exports fine because
+        // its serialiser falls back to `value` (#1271), so it rides as-is.
+        // The exporter writes `;`-delimited cells behind a UTF-8 BOM (#1484).
+        self::assertStringContainsString('99.99', $csv, 'legacy price exports via the value fallback');
+        $clean = ltrim($csv, "\xEF\xBB\xBF");
+        $lines = explode("\n", trim($clean));
+        self::assertCount(2, $lines, 'header + one data row');
+        // str_getcsv yields a list<string|null>; normalise nulls to '' for the
+        // splice (a legacy-select empty cell parses as the empty string anyway).
+        $cells = array_map(static fn (?string $cell): string => $cell ?? '', str_getcsv($lines[1], ';', '"', '\\'));
+        // Header order = $columns: sku, lg_select, lg_price.
+        self::assertSame('', $cells[1] ?? '', 'legacy select exports empty (no option_code key)');
+        $cells[1] = 'red';
+        $edited = $lines[0]."\n".$this->joinCsvRow($cells)."\n";
+
+        $body = $this->postImport($client, $edited, $objectType->getId()->toRfc4122(), [
+            'sku' => 'sku',
+            'lg_select' => 'lg_select',
+            'lg_price' => 'lg_price',
+        ]);
+        self::assertSame('success', $body['status']);
+
+        // ── Assert: the legacy rows are now CANON ──
+        $em->clear();
+        $after = $this->legacyEnvelopesOf($productId);
+        self::assertSame(['option_code' => 'red'], $after['lg_select'], 'select normalised {value}→{option_code}');
+        self::assertSame(['amount' => 99.99], $after['lg_price'], 'price normalised {value}→{amount}');
+        self::assertArrayNotHasKey('value', $after['lg_select'], 'no legacy key survives on select');
+        self::assertArrayNotHasKey('value', $after['lg_price'], 'no legacy key survives on price');
+    }
+
+    #[Test]
+    public function reImportingAFileWithANewRowCreatesTheNewObject(): void
+    {
+        // IMP2-1.5 (#1467, AC — the "edit" scenario, create branch) — appending
+        // a brand-new SKU to the exported file and re-importing in UPSERT both
+        // updates the original row AND creates the new object. The import domain
+        // has no created_count column, so the create is read as
+        // (successCount − updatedCount) plus the new row's existence in the DB.
+        $client = $this->authenticatedClient();
+        $tenant = $this->tenant();
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $em = $this->em();
+
+        $objectType = $em->getRepository(ObjectType::class)
+            ->find(Uuid::fromString($this->objectTypeIdFor(ObjectKind::Product)));
+        \assert($objectType instanceof ObjectType);
+
+        $title = new Attribute('gr_title', ['en' => 'Title'], AttributeType::Text);
+        $em->persist($title);
+        $em->persist(new ObjectTypeAttribute($objectType, $title));
+        $product = new CatalogObject($objectType, 'GR-EXIST');
+        $em->persist($product);
+        $em->persist(new ObjectValue($product, $title, ['value' => 'Original'], Provenance::Manual));
+        $em->flush();
+        $productId = $product->getId();
+
+        // ── Export the single existing object ──
+        $file = $this->exportToFile($tenant, ['sku', 'gr_title'], [$productId], ExportFormat::Csv);
+        $csv = (string) file_get_contents($file);
+        @unlink($file);
+        self::assertStringContainsString('GR-EXIST', $csv);
+
+        // ── Edit: update the existing row + append a brand-new SKU ──
+        // The exporter writes `;`-delimited cells (CsvStreamWriter) — the new row
+        // MUST match or the detector parses it as a single column.
+        $edited = str_replace('Original', 'Zaktualizowany', rtrim($csv, "\n"))."\nGR-NEW;Nowy produkt\n";
+        $mapping = ['sku' => 'sku', 'gr_title' => 'gr_title'];
+
+        $body = $this->postImport($client, $edited, $objectType->getId()->toRfc4122(), $mapping);
+        self::assertSame('success', $body['status']);
+        // 1 update (GR-EXIST changed) + 1 create (GR-NEW) = 2 successes.
+        self::assertSame(2, $body['success_count'], 'one update + one create');
+        self::assertSame(1, $body['updated_count'], 'only the pre-existing row counts as updated');
+        self::assertSame(0, $body['error_count']);
+        // created = successCount − updatedCount (no created_count in the domain).
+        self::assertSame(1, $body['success_count'] - $body['updated_count'], 'exactly one new object created');
+
+        // ── Assert: the new object exists and carries its imported value ──
+        $em->clear();
+        $newCount = $em->getConnection()->fetchOne("SELECT count(*) FROM objects WHERE code = 'GR-NEW'");
+        self::assertSame(1, (int) (\is_scalar($newCount) ? $newCount : 0), 'GR-NEW object created');
+        $newTitle = $em->getConnection()->fetchOne(
+            "SELECT ov.value->>'value' FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='gr_title' AND o.code='GR-NEW'",
+        );
+        self::assertSame('Nowy produkt', \is_scalar($newTitle) ? (string) $newTitle : null);
+
+        // ── Assert: the original row was updated, not duplicated ──
+        $existCount = $em->getConnection()->fetchOne("SELECT count(*) FROM objects WHERE code = 'GR-EXIST'");
+        self::assertSame(1, (int) (\is_scalar($existCount) ? $existCount : 0), 'no duplicate of the existing object');
+        $updatedTitle = $em->getConnection()->fetchOne(
+            "SELECT ov.value->>'value' FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='gr_title' AND o.code='GR-EXIST'",
+        );
+        self::assertSame('Zaktualizowany', \is_scalar($updatedTitle) ? (string) $updatedTitle : null);
+    }
+
+    /**
+     * @return array<string, array<string, mixed>> attribute code => envelope
+     */
+    private function legacyEnvelopesOf(Uuid $productId): array
+    {
+        $rows = $this->em()->getConnection()->fetchAllAssociative(
+            <<<'SQL'
+                SELECT a.code, ov.value
+                FROM object_values ov
+                JOIN attributes a ON a.id = ov.attribute_id
+                WHERE ov.object_id = :id AND a.code LIKE 'lg_%'
+                SQL,
+            ['id' => $productId->toRfc4122()],
+        );
+
+        $map = [];
+        foreach ($rows as $row) {
+            $raw = $row['value'];
+            $code = $row['code'];
+            \assert(\is_string($raw) && \is_string($code));
+            /** @var array<string, mixed> $envelope */
+            $envelope = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+            $map[$code] = $envelope;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Re-emit a parsed CSV row with the exporter's `;` delimiter (CsvStreamWriter)
+     * and RFC-4180 quoting (quote a field iff it holds the delimiter, a quote or
+     * a newline; double inner quotes). Splices an edited cell back into a line.
+     *
+     * @param list<string> $cells
+     */
+    private function joinCsvRow(array $cells): string
+    {
+        return implode(';', array_map(static function (string $cell): string {
+            if (false === strpbrk($cell, ";\"\n\r")) {
+                return $cell;
+            }
+
+            return '"'.str_replace('"', '""', $cell).'"';
+        }, $cells));
+    }
+
     /**
      * @param array<string, mixed> $expected
      * @param array<string, mixed> $actual
