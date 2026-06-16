@@ -61,6 +61,17 @@ status/enabled, variants (`parent_sku`, two-pass), relations (as
 categories) stay one-way. Cross-environment relation/select resolution is by
 `code`; assets resolve by id (URL/path resolution arrives with media tickets).
 
+### D6 — Unknown select / multiselect option codes
+
+An import row whose select/multiselect cell references an option code that does
+not exist on the attribute is **rejected with a row error** by default. A
+per-profile opt-in (`auto_create_options`) instead **auto-creates** the missing
+option and records it in the run report ("created N options"). Auto-created
+options are **not removed by rollback** — other rows may already reference them;
+this is surfaced in both the dry-run preview and the rollback preview. Realised
+across the modes engine (#1465), the rollback preview's non-removable-options
+bucket (#1480), and dry-run v2 (#1492).
+
 ### D7 — JSONB value canon (object_values.value per AttributeType)
 
 | Types | Canonical shape |
