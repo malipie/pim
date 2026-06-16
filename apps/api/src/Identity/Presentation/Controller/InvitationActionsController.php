@@ -33,11 +33,14 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class InvitationActionsController
 {
+    use DevTokenExposure;
+
     public function __construct(
         private Security $security,
         private InvitationRepositoryInterface $invitations,
         private RoleRepositoryInterface $roles,
         private InvitationService $service,
+        private string $devTokenEnvironment,
     ) {
     }
 
@@ -145,7 +148,9 @@ final readonly class InvitationActionsController
             'invitation_id' => $newInvitation->getId()->toRfc4122(),
             'email' => $newInvitation->getEmail(),
             'expires_at' => $newInvitation->getExpiresAt()->format(DateTimeInterface::ATOM),
-            'token_dev_only' => $result['token'],
+            // Dev/test only — production omits the plaintext token entirely
+            // (AUD-007 / #1577); the resend re-triggers the mailer instead.
+            ...$this->devTokenPayload($result['token']),
         ], Response::HTTP_CREATED);
     }
 
