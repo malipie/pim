@@ -110,6 +110,39 @@ final class ImportRollbackV2ApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function rollbackRebuildsIndexedCachesForRestoredObjects(): void
+    {
+        // IMP2-2.4 — after the value undo-log is replayed, the rollback rebuilds
+        // attributes_indexed + completeness for every restored object (so list
+        // views / Meili / completeness badges reflect the pre-import state, not
+        // the stale post-import cache). `name` is a required code, so the
+        // completeness reading is meaningful.
+        $this->seedSkuName();
+        $this->requireNameForCompleteness();
+
+        // Import #1 seeds IDX-1 with the "old" name; #2 overwrites it.
+        $this->import("sku;name\nIDX-1;Old1\n");
+        $sessionId = $this->import("sku;name\nIDX-1;New1\n");
+
+        // Precondition: the denormalised cache + completeness reflect import #2.
+        self::assertSame('New1', $this->indexedNameOf('IDX-1'), 'precondition: cache reflects the overwrite');
+        self::assertSame(100, $this->completenessGlobalOf('IDX-1'), 'precondition: required name present → 100%');
+
+        $client = $this->authenticatedClient();
+        $client->request('POST', \sprintf('/api/import-sessions/%s/rollback', $sessionId));
+        self::assertResponseIsSuccessful();
+        $body = $this->decode($client);
+        self::assertSame('rolled_back', $body['status']);
+
+        // The canonical ObjectValue is back to Old1 AND the rebuilt cache mirrors
+        // it — proof the rebuilder ran for the restored object, not just the
+        // ObjectValue replay.
+        self::assertSame('Old1', $this->nameOf('IDX-1'), 'canonical value restored');
+        self::assertSame('Old1', $this->indexedNameOf('IDX-1'), 'attributes_indexed rebuilt from restored value');
+        self::assertSame(100, $this->completenessGlobalOf('IDX-1'), 'completeness recomputed after rollback');
+    }
+
+    #[Test]
     public function previewReportsBucketsWithoutMutating(): void
     {
         $this->seedSkuName();
@@ -172,6 +205,38 @@ final class ImportRollbackV2ApiTest extends CatalogApiTestCase
         );
 
         return \is_scalar($value) && false !== $value ? (string) $value : null;
+    }
+
+    private function indexedNameOf(string $code): ?string
+    {
+        $value = $this->em()->getConnection()->fetchOne(
+            "SELECT attributes_indexed->'name'->>'value' FROM objects WHERE code = :code LIMIT 1",
+            ['code' => $code],
+        );
+
+        return \is_scalar($value) && false !== $value ? (string) $value : null;
+    }
+
+    private function completenessGlobalOf(string $code): ?int
+    {
+        $value = $this->em()->getConnection()->fetchOne(
+            "SELECT completeness->>'global' FROM objects WHERE code = :code LIMIT 1",
+            ['code' => $code],
+        );
+
+        return \is_scalar($value) && false !== $value && '' !== $value ? (int) $value : null;
+    }
+
+    private function requireNameForCompleteness(): void
+    {
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        $product = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($product instanceof ObjectType);
+        $product->updateCompletenessRules(['required' => ['name']]);
+        $em->flush();
     }
 
     private function countObjects(string $like): int
