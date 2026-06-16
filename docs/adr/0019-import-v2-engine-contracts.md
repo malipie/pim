@@ -152,6 +152,16 @@ Extending this list requires bumping the rule version here and in the test.
   enter the baseline (`skip_violations`) and are burned down by #1466.
 - The wizard "karta prawdy" (`Project Plan/UI/imports-v2-karta-prawdy.md`)
   tracks which UI affordances are real at any point of the rebuild.
+- The IMP2-1.4 (#1466) shared writer core ships as the **concrete**
+  `App\Catalog\Application\ValueWriteCore`, not the `ValueWriteCoreInterface` +
+  `ValueWriteResult` / `ValueWriteIssue` DTOs sketched in that ticket's
+  acceptance criteria. Deliberate (YAGNI, #1558): one implementation is shared
+  by all three write paths (`ObjectAttributesUpserter`, `BatchValueWriter`,
+  `ImportUndoLogger`) and per-rule violations travel as plain message
+  strings / arrays that each consumer maps to its own context (HTTP exceptions
+  vs import result issues). An interface + result DTO would add indirection
+  with no second implementation to justify it. Revisit if a second validator
+  core (e.g. a remote/agent one) appears.
 
 ## Links
 
