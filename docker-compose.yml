@@ -344,6 +344,11 @@ services:
       - "443"
 
   # Initialise required buckets the first time the stack comes up.
+  # AUD-028 (#1576): pim-assets is explicitly set to `none` — never a public
+  # `download` policy. Asset bytes are served only through the signature-gated
+  # `/api/assets/{id}/preview` endpoint (AUD-006); the bucket must not be
+  # anonymously readable even if MinIO is ever published. `set none` also
+  # remediates a stack initialised before this change.
   minio-init:
     image: minio/mc:latest
     depends_on:
@@ -356,7 +361,7 @@ services:
       mc mb -p local/pim-backups || true;
       mc mb -p local/pim-imports || true;
       mc mb -p local/pim-exports || true;
-      mc anonymous set download local/pim-assets || true;
+      mc anonymous set none local/pim-assets || true;
       mc ilm rule add --expire-days 7 local/pim-imports || true;
       "
     restart: "no"

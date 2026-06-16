@@ -97,11 +97,16 @@ security:
         - { path: ^/api$, roles: PUBLIC_ACCESS }
         # /api/assets/{uuid}/preview streams thumbnail/medium/original
         # bytes for `<img>` tags in the admin grid. `<img>` cannot send
-        # the Bearer header, so the endpoint must be reachable without a
-        # JWT. Path-knowledge gates access — UUID v7 ids are 128-bit and
-        # not enumerable. Tenant isolation is enforced by Doctrine
-        # finder logic inside the controller. Signed-URL hardening
-        # ships with Faza 1 (#438 follow-up).
+        # the Bearer header, so the firewall must let the request through
+        # without a JWT — but authority is NOT path-knowledge. AUD-006
+        # (#1576): the request must carry a short-lived HMAC signature
+        # minted by AssetPreviewUrlSigner (the catalog read API hands out
+        # signed `previewUrl`s only to authenticated callers). The
+        # controller verifies the signature before loading any row and
+        # 403s an unsigned/expired/tampered request — same "the token IS
+        # the auth factor" model as the magic-link / SSO-callback routes
+        # above. PUBLIC_ACCESS here means "no session required", not
+        # "no credential required".
         - { path: '^/api/assets/[0-9a-f-]+/preview$', roles: PUBLIC_ACCESS }
         # `IS_AUTHENTICATED_FULLY` covers BOTH a logged-in user (ROLE_USER
         # + tenant context) and an API key principal (ROLE_API_KEY). The

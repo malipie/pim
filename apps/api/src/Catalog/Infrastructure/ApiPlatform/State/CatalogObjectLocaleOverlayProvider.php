@@ -6,6 +6,7 @@ namespace App\Catalog\Infrastructure\ApiPlatform\State;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
+use App\Catalog\Application\AssetPreviewUrlReadOverlay;
 use App\Catalog\Application\AttributeReadRestrictionOverlay;
 use App\Catalog\Application\ObjectValueLocaleOverlay;
 use App\Catalog\Application\SystemAttributeReadOverlay;
@@ -39,6 +40,7 @@ final readonly class CatalogObjectLocaleOverlayProvider implements ProviderInter
         private ProviderInterface $itemProvider,
         private ObjectValueLocaleOverlay $overlay,
         private SystemAttributeReadOverlay $systemOverlay,
+        private AssetPreviewUrlReadOverlay $previewUrlOverlay,
         private RequestStack $requestStack,
         private ChannelPublicationResolverInterface $publicationResolver,
         private AttributeReadRestrictionOverlay $restrictionOverlay,
@@ -76,11 +78,12 @@ final readonly class CatalogObjectLocaleOverlayProvider implements ProviderInter
         // created_by/updated_by) so they render real values instead of "—".
         $object = $this->systemOverlay->apply($object);
 
-        // AUD-008 (#1578) — strip attributes the caller may not view
-        // (3-state per-attribute permission, PRD §3.5). Runs last so the
-        // system attributes injected above are present (and preserved —
-        // they are not attribute-permission subjects).
-        return $this->restrictionOverlay->apply($object);
+        // AUD-006 (#1576) sign the `previewUrl` per-request, then AUD-008
+        // (#1578) strip attributes the caller may not view (3-state
+        // per-attribute permission, PRD §3.5). Restriction runs last so the
+        // system attributes injected above are preserved (not permission
+        // subjects) and only the short-lived signed previewUrl is handed out.
+        return $this->restrictionOverlay->apply($this->previewUrlOverlay->apply($object));
     }
 
     private function applyPublicationFilter(CatalogObject $object, string $channelCode): CatalogObject

@@ -4,22 +4,25 @@ declare(strict_types=1);
 
 namespace App\Asset\Presentation\Controller;
 
+use App\Asset\Contracts\Service\AssetPreviewSigner;
 use App\Asset\Domain\Entity\AssetVariant;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
 use App\Asset\Domain\ThumbnailsStatus;
 use App\Identity\Contracts\Attribute\NoPermissionRequired;
-use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * `GET /api/assets/{id}/preview[?variant=thumb|medium|original]` (#438).
+ * `GET /api/assets/{id}/preview[?variant=thumb|medium|original]` (#438,
+ * hardened in AUD-006 / #1576).
  *
- * Single-origin preview surface — `<img src="/api/assets/{id}/preview"
+ * Single-origin preview surface — `<img src="/api/assets/{id}/preview?…"
  * />` works from the admin without exposing MinIO directly to the
  * browser (CSP allows only `'self'` and `data:` for img-src). Defaults
  * to the `thumb` variant when ready, falls back to `medium` →
@@ -30,43 +33,43 @@ use Symfony\Component\Uid\Uuid;
  * max-age=...` lets the browser cache previews across navigations
  * inside the same session.
  *
- * Auth model: the endpoint is registered under `PUBLIC_ACCESS` in
- * `security.yaml` because `<img>` tags cannot send the Bearer token
- * in their request. Path-knowledge gates access — UUID v7 ids are
- * 128-bit and not enumerable, so cross-tenant leakage requires
- * guessing the exact id (effectively impossible without DB access).
- * Doctrine `tenant_filter` is disabled for the lookup so the
- * un-authenticated request reaches the row at all; tenant isolation
- * is therefore by-id rather than by-context here. Faza 1 swaps this
- * for short-lived signed URLs minted by the catalog read API.
+ * Auth model (AUD-006): the request must carry a valid, unexpired
+ * HMAC signature minted by {@see AssetPreviewSigner}. An `<img>` tag
+ * cannot send a Bearer header, so the signature — embedded in the query
+ * string of the `previewUrl` the catalog read API hands out to an
+ * authenticated caller — IS the auth factor (same model as the
+ * magic-link / SSO-callback routes). Without a valid signature the
+ * request is rejected with 403 before any row is loaded, closing the
+ * pre-fix hole where id-knowledge alone streamed any tenant's bytes.
+ *
+ * The Doctrine `tenant` filter is left ENABLED: for an anonymous signed
+ * request it contributes no constraint (no tenant context is set, so the
+ * filter is a no-op), while an authenticated caller's tenant scopes the
+ * lookup as defence in depth.
  */
 final readonly class PreviewAssetController
 {
     public function __construct(
         private AssetRepositoryInterface $assets,
         private FilesystemOperator $assetsStorage,
-        private EntityManagerInterface $em,
+        private AssetPreviewSigner $urlSigner,
+        private RequestStack $requestStack,
     ) {
     }
 
     #[Route(path: '/api/assets/{id}/preview', name: 'pim_assets_preview', methods: ['GET'])]
-    #[NoPermissionRequired(reason: 'Registered under PUBLIC_ACCESS in security.yaml — <img> tags cannot send the Bearer token. Path-knowledge (UUID v7, 128-bit, non-enumerable) gates access; tenant isolation is by-id inside the handler. A RequiresPermission gate here would 403 every <img> request (anonymous principal) and break all thumbnails.')]
+    #[NoPermissionRequired(reason: 'Authorised by a short-lived HMAC signature (AssetPreviewUrlSigner), not by RBAC: <img> tags cannot send a Bearer token, so the signed query string IS the auth factor. The signature is verified in the handler before any row loads; an unsigned/expired/tampered request gets 403. A RequiresPermission gate here would 403 every legitimate <img> request (anonymous principal) and break all thumbnails.')]
     public function __invoke(string $id, ?string $variant = null): StreamedResponse
     {
-        $assetId = Uuid::fromString($id);
+        $request = $this->requestStack->getCurrentRequest();
+        if (null === $request || !$this->urlSigner->verify($request)) {
+            // No valid signature → reject before touching the database, so
+            // id-knowledge alone never reaches (let alone streams) a row.
+            throw new AccessDeniedHttpException('A valid, unexpired preview signature is required.');
+        }
 
-        $filters = $this->em->getFilters();
-        $tenantFilterWasEnabled = $filters->isEnabled('tenant');
-        if ($tenantFilterWasEnabled) {
-            $filters->disable('tenant');
-        }
-        try {
-            $asset = $this->assets->findById($assetId) ?? $this->assets->findByObjectId($assetId);
-        } finally {
-            if ($tenantFilterWasEnabled) {
-                $filters->enable('tenant');
-            }
-        }
+        $assetId = Uuid::fromString($id);
+        $asset = $this->assets->findById($assetId) ?? $this->assets->findByObjectId($assetId);
 
         if (null === $asset) {
             throw new NotFoundHttpException(\sprintf('Asset "%s" was not found.', $id));
