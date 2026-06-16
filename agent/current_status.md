@@ -39,14 +39,27 @@
 ### 🏁 ETAP 2 IMP2 KOMPLETNY (10/10) — #1477–#1486 wszystkie merged + zamknięte z proof
 Streaming readers (2.1) · staged upload (2.2) · pauza/wznów/checkpoint (2.3) · undo-log+rollback v2 (2.4) · import_logs RLS+GUC (2.5) · perf bulk-path+diagnoza pamięci (2.6) · limity/guardraile (2.7) · security plików (2.8) · równoległość/locki (2.9) · pre-import backup (2.10).
 
+## Audyt końcowy IMP2 + follow-upy (2026-06-16)
+- **Audyt epiku IMP2** (workflow multi-agentowy, 27 ticketów 0.1–2.10): raport `Project Plan/audyt/audyt-imp2-2026-06-16.md` (14 ✅ / 12 ⚠️ / 1 ❌), karta prawdy odświeżona. Flagowy bug 2.8 (XLSX formula injection) potwierdzony empirycznie (`<f>HYPERLINK(...)</f>`).
+- **9 follow-up issues (#1552–#1560) → 10 PR, wszystkie MERGED + issues CLOSED:**
+  - #1552 P0 XLSX formula injection — `neutraliseFormula` w `XlsxStreamWriter` (PR #1561)
+  - #1553 P1 KPI „pominięte" → `skipped_count` w UI (PR #1562)
+  - #1554 P1 `allowedErrorsPct` konfigurowalny przez API + v0.json (PR #1564)
+  - #1555 P1 pola `zip_file_name`/`zip_file_size_bytes` w kontrakcie sesji (PR #1563)
+  - #1556 P2 testy kanonu JSONB — unit normalise (PR #1566) + D7 migracja + export selecta (PR #1569)
+  - #1557 P2 ADR-0019 D6 + linki karty prawdy w #1429/#1430 (PR #1565)
+  - #1558 P3 decyzja: `ValueWriteCore` konkretna klasa, nie interface/DTO — YAGNI (PR #1567)
+  - #1559 luki testowe 7/7 (2.10/1.3/1.7/1.5/2.3/2.4/2.9, ~18 testów) (PR #1568)
+  - #1560 deadlock 40P01 = EM-corruption w abort path; reload session po `em->clear()` (PR #1570)
+- **Re-audyt #1559** (workflow fan-out) potwierdził, że luki są realne (audyt trafny — inaczej niż 2.10, które miało 6 przeoczonych testów). **#1560**: deadlock to skutek uboczny `ORMInvalidArgumentException` (save sesji po `em->clear()` z rebuild dispatch), NIE osobny lock-order bug; fix naprawił też pre-existing fail `ImportRunHandlerAsyncTest`.
+
 ## Ostatnie akcje
-1. **IMP2-2.10 (#1486)** — pre-import backup spięty z sesją. Implementacja backend+FE + 6 testów (20/20) + bramki zielone + adversarial review (Workflow, 1/19 confirmed → authz gap naprawiony) + live smoke 422/404/200. PR #1551, CI w toku. **Uwaga środowiskowa**: ręczne schema-ops zepsuły pim_test → naprawa DROP+CREATE DATABASE (lekcja [[feedback_pim_test_schema_recovery]]).
-2. **IMP2-2.9 (#1485) KOMPLETNY** — PR #1550 (`6ae23bfb`) merged + zamknięte z live-proof 409. Odkrycie: `OptimisticLockException` zamyka EM → retry wymaga `ManagerRegistry::resetManager()`, nie `clear()`.
-3. **IMP2-2.8 (#1484) KOMPLETNY** — PR #1549, security plików (zip-bomb/folder/Caddy).
-4. **IMP2-2.7 (#1483) KOMPLETNY** — #1548, limity/guardraile + streaming raport.
+1. **Audyt IMP2 + 10 follow-up PR** (2026-06-16) — wszystkie merged, 9 issues #1552–#1560 closed. Metoda: subagenty per ticket (zbadaj→napisz→uruchom→napraw→gates), pathspec commity, sekwencyjnie (wspólne `pim_test`).
+2. **#1560 deadlock** — root cause = EM-corruption w `abortIfErrorRateExceeded` (`save()` sesji po `em->clear()` przez rebuild dispatch → detached proxy → `ORMInvalidArgumentException` → uszkodzony UoW → kaskada 40P01). Fix: reload sesji po clear (wzorzec [[feedback_pim_test_schema_recovery]] / ImportRollbackService).
+3. **IMP2-2.10 (#1486)** — pre-import backup spięty z sesją, PR #1551 merged.
 
 ## Następny krok — etap 3 IMP2 (lub decyzja operatora)
-ETAP-2 zamknięty (10/10, #1477–#1486). Kolejny zakres: pozostałe tickety epiku IMP2 (etap 3+: harmonogramy IMP2-4.1, e-mail po imporcie 4.4, integracje) — backlog `Project Plan/UI/feature-imports-v2-tickets.md`. **Czeka na sygnał operatora** które tickety/etap dalej. Operator: ultracode ON, komunikacja+rozumowanie po polsku.
+ETAP 0–2 zamknięty (#1460–#1486) + audyt końcowy + 9 follow-upów (#1552–#1560) domknięte. Kolejny zakres: etap 3+ (kreator/operacjonalizacja, #1487–#1498) — backlog `Project Plan/UI/feature-imports-v2-tickets.md`. **Czeka na sygnał operatora** które tickety/etap dalej. Operator: ultracode ON, komunikacja+rozumowanie po polsku.
 
 ### Świadome odejścia etapu-2 (marsz #1483→#1486)
 - **2.10 pozytyw smoke**: dev pgBackRest zwraca `failed` natychmiast (cron stale) → completed backup zaseedowany w DB dla live-proof; pełny e2e snapshot zależy od działającego pgBackRest.
