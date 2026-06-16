@@ -20,6 +20,7 @@ use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Shared\Application\BulkOperationLock;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
 use DateTimeInterface;
@@ -28,6 +29,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -64,6 +66,7 @@ final class BulkActionsController
         private readonly BulkPublishChannelsHandler $publishChannelsHandler,
         private readonly BulkDeleteHandler $deleteHandler,
         private readonly BulkDuplicateHandler $duplicateHandler,
+        private readonly BulkOperationLock $bulkLock,
     ) {
     }
 
@@ -281,82 +284,96 @@ final class BulkActionsController
             throw new BadRequestHttpException('target_ids exceeds 10000 hard cap.');
         }
 
-        $session = new BulkSession(
-            actionType: $actionType,
-            targetObjectIds: $targetIds,
-            actionPayload: $payload,
-            userId: $userId,
-        );
-        $this->em->persist($session);
-        $this->em->flush();
+        // IMP2-2.9 (#1485) — every bulk write path shares the per-tenant lock with
+        // imports / bulk-edit. A collision is a 409 (RFC 7807); released in finally
+        // so an exception mid-batch never leaks the lock.
+        $lock = $this->bulkLock->acquire($tenant);
+        if (null === $lock) {
+            throw new ConflictHttpException(
+                'Inna operacja masowa trwa dla tego tenanta — spróbuj ponownie po jej zakończeniu.',
+            );
+        }
 
-        $result = match ($actionType) {
-            'set_attribute' => $this->setAttributeHandler->handle(
-                $session,
-                $this->requirePayloadAttr($payload),
-                $payload['value'] ?? null,
-            ),
-            'clear_attribute' => $this->clearAttributeHandler->handle(
-                $session,
-                $this->requirePayloadAttr($payload),
-            ),
-            'append_value' => $this->appendValueHandler->handle(
-                $session,
-                $this->requirePayloadAttr($payload),
-                $payload['value'] ?? null,
-            ),
-            'remove_value' => $this->removeValueHandler->handle(
-                $session,
-                $this->requirePayloadAttr($payload),
-                $payload['value'] ?? null,
-            ),
-            'increment_numeric' => $this->incrementNumericHandler->handle(
-                $session,
-                $this->requirePayloadAttr($payload),
-                \is_string($payload['operator'] ?? null) ? $payload['operator'] : '+',
-                is_numeric($payload['operand'] ?? null) ? (float) $payload['operand'] : 0.0,
-            ),
-            'multi_attribute_edit' => $this->multiAttributeEditHandler->handle(
-                $session,
-                $this->normaliseEdits($payload['edits'] ?? null),
-            ),
-            'add_category' => $this->addCategoryHandler->handle(
-                $session,
-                $this->extractCategoryIds($payload),
-            ),
-            'remove_category' => $this->removeCategoryHandler->handle(
-                $session,
-                $this->extractCategoryIds($payload),
-            ),
-            'move_category' => $this->moveCategoryHandler->handle(
-                $session,
-                $this->extractCategoryIds($payload),
-            ),
-            'publish_channels' => $this->publishChannelsHandler->handle(
-                $session,
-                $this->extractChannelCodes($payload),
-                true,
-            ),
-            'unpublish_channels' => $this->publishChannelsHandler->handle(
-                $session,
-                $this->extractChannelCodes($payload),
-                false,
-            ),
-            'delete' => $this->dispatchDelete($session, $body, $targetIds),
-            'duplicate' => $this->duplicateHandler->handle($session),
-            default => throw new NotFoundHttpException(\sprintf('Bulk action "%s" not implemented.', $actionType)),
-        };
+        try {
+            $session = new BulkSession(
+                actionType: $actionType,
+                targetObjectIds: $targetIds,
+                actionPayload: $payload,
+                userId: $userId,
+            );
+            $this->em->persist($session);
+            $this->em->flush();
 
-        return new JsonResponse([
-            'session_id' => $session->getId()->toRfc4122(),
-            'action' => $actionType,
-            'target_count' => $session->getTargetCount(),
-            'success_count' => $result['success'],
-            'skipped_count' => $result['skipped'],
-            'error_count' => $result['error'],
-            'rollback_available_until' => $session->getRollbackAvailableUntil()?->format(DateTimeInterface::ATOM),
-            'completed_at' => $session->getCompletedAt()?->format(DateTimeInterface::ATOM),
-        ]);
+            $result = match ($actionType) {
+                'set_attribute' => $this->setAttributeHandler->handle(
+                    $session,
+                    $this->requirePayloadAttr($payload),
+                    $payload['value'] ?? null,
+                ),
+                'clear_attribute' => $this->clearAttributeHandler->handle(
+                    $session,
+                    $this->requirePayloadAttr($payload),
+                ),
+                'append_value' => $this->appendValueHandler->handle(
+                    $session,
+                    $this->requirePayloadAttr($payload),
+                    $payload['value'] ?? null,
+                ),
+                'remove_value' => $this->removeValueHandler->handle(
+                    $session,
+                    $this->requirePayloadAttr($payload),
+                    $payload['value'] ?? null,
+                ),
+                'increment_numeric' => $this->incrementNumericHandler->handle(
+                    $session,
+                    $this->requirePayloadAttr($payload),
+                    \is_string($payload['operator'] ?? null) ? $payload['operator'] : '+',
+                    is_numeric($payload['operand'] ?? null) ? (float) $payload['operand'] : 0.0,
+                ),
+                'multi_attribute_edit' => $this->multiAttributeEditHandler->handle(
+                    $session,
+                    $this->normaliseEdits($payload['edits'] ?? null),
+                ),
+                'add_category' => $this->addCategoryHandler->handle(
+                    $session,
+                    $this->extractCategoryIds($payload),
+                ),
+                'remove_category' => $this->removeCategoryHandler->handle(
+                    $session,
+                    $this->extractCategoryIds($payload),
+                ),
+                'move_category' => $this->moveCategoryHandler->handle(
+                    $session,
+                    $this->extractCategoryIds($payload),
+                ),
+                'publish_channels' => $this->publishChannelsHandler->handle(
+                    $session,
+                    $this->extractChannelCodes($payload),
+                    true,
+                ),
+                'unpublish_channels' => $this->publishChannelsHandler->handle(
+                    $session,
+                    $this->extractChannelCodes($payload),
+                    false,
+                ),
+                'delete' => $this->dispatchDelete($session, $body, $targetIds),
+                'duplicate' => $this->duplicateHandler->handle($session),
+                default => throw new NotFoundHttpException(\sprintf('Bulk action "%s" not implemented.', $actionType)),
+            };
+
+            return new JsonResponse([
+                'session_id' => $session->getId()->toRfc4122(),
+                'action' => $actionType,
+                'target_count' => $session->getTargetCount(),
+                'success_count' => $result['success'],
+                'skipped_count' => $result['skipped'],
+                'error_count' => $result['error'],
+                'rollback_available_until' => $session->getRollbackAvailableUntil()?->format(DateTimeInterface::ATOM),
+                'completed_at' => $session->getCompletedAt()?->format(DateTimeInterface::ATOM),
+            ]);
+        } finally {
+            $lock->release();
+        }
     }
 
     /**

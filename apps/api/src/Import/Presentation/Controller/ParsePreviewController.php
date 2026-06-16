@@ -6,6 +6,8 @@ namespace App\Import\Presentation\Controller;
 
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
+use App\Import\Application\Service\Archive\ArchiveSecurityException;
+use App\Import\Application\Service\Archive\XlsxArchiveGuard;
 use App\Import\Application\Service\FileParserService;
 use App\Import\Application\Service\StagedFileService;
 use App\Import\Domain\Enum\FileEncoding;
@@ -17,6 +19,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -33,10 +36,15 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class ParsePreviewController
 {
+    /** IMP2-2.7 (#1483) — D10 application defaults when a tenant sets no override. */
+    private const int DEFAULT_MAX_ROWS = 200_000;
+    private const int DEFAULT_MAX_FILE_BYTES = 100 * 1024 * 1024;
+
     public function __construct(
         private readonly FileParserService $parser,
         private readonly StagedFileService $stagedFiles,
         private readonly Security $security,
+        private readonly XlsxArchiveGuard $xlsxArchiveGuard,
     ) {
     }
 
@@ -56,6 +64,18 @@ final class ParsePreviewController
         $file = $request->files->get('file');
         if (!$file instanceof UploadedFile) {
             throw new BadRequestHttpException('"file" multipart field is required.');
+        }
+
+        // IMP2-2.7 (#1483) — file-size guardrail before we copy/parse anything,
+        // so an oversized upload gets a clear 422 in the wizard preview.
+        $tenant = $user->getTenant();
+        $maxFileBytes = $tenant->getImportMaxFileSize() ?? self::DEFAULT_MAX_FILE_BYTES;
+        if ((int) $file->getSize() > $maxFileBytes) {
+            throw new UnprocessableEntityHttpException(\sprintf(
+                'Plik (%d B) przekracza limit %d MB.',
+                (int) $file->getSize(),
+                intdiv($maxFileBytes, 1024 * 1024),
+            ));
         }
 
         $encodingOverride = $this->parseEncoding($request->request->get('encoding'));
@@ -83,12 +103,35 @@ final class ParsePreviewController
             throw new BadRequestHttpException('Failed to copy uploaded file for parsing.');
         }
 
+        // IMP2-2.8 (#1484) — zip-bomb guard before parsing any XLSX (a crafted
+        // archive can OOM the worker during parse). Reject as RFC 7807 422.
+        if ('xlsx' === $extension) {
+            try {
+                $this->xlsxArchiveGuard->validate($finalPath);
+            } catch (ArchiveSecurityException $exception) {
+                @unlink($finalPath);
+                throw new UnprocessableEntityHttpException($exception->getMessage(), $exception);
+            }
+        }
+
         try {
             $parsed = $this->parser->parse($finalPath, $encodingOverride, $delimiterOverride);
         } catch (InvalidImportFileException $exception) {
             throw new BadRequestHttpException($exception->getMessage(), $exception);
         } finally {
             @unlink($finalPath);
+        }
+
+        // IMP2-2.7 (#1483) — row-count guardrail. The parser already streamed the
+        // file to produce totalRows (CSV + XLSX), so this catches both formats
+        // here, before the user proceeds to mapping/start.
+        $maxRows = $tenant->getImportMaxRows() ?? self::DEFAULT_MAX_ROWS;
+        if ($parsed->totalRows > $maxRows) {
+            throw new UnprocessableEntityHttpException(\sprintf(
+                'Plik ma %d wierszy — przekracza limit %d.',
+                $parsed->totalRows,
+                $maxRows,
+            ));
         }
 
         // Stage the (valid) upload once so the dry-run + start steps reuse it

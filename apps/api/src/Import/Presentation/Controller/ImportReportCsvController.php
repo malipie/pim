@@ -13,6 +13,7 @@ use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
 use InvalidArgumentException;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -46,34 +47,32 @@ final class ImportReportCsvController
     {
         $session = $this->loadOwned($id);
 
-        $buffer = fopen('php://temp', 'w+');
-        \assert(false !== $buffer);
+        // IMP2-2.7 (#1483) — true streaming: write each row straight to the
+        // output buffer via a memory-flat iterator (the repo detaches every 500
+        // rows), instead of building the whole CSV in php://temp first. Keeps the
+        // worker footprint flat for a 200k-row report.
+        $response = new StreamedResponse(function () use ($session): void {
+            $output = fopen('php://output', 'w');
+            \assert(false !== $output);
 
-        fputcsv($buffer, ['row_number', 'sku', 'error_type', 'error_message', 'column', 'value'], escape: '\\');
+            fputcsv($output, ['row_number', 'sku', 'error_type', 'error_message', 'column', 'value'], escape: '\\');
 
-        // SAMPLE_LIMIT (100) on the dry-run capped what the wizard
-        // shows inline; the persisted log carries the full set, so
-        // the report streams everything for the session.
-        foreach ($this->logs->findBySession(
-            session: $session,
-            levels: [ImportLogLevel::Error, ImportLogLevel::Warning],
-            limit: 100_000,
-        ) as $log) {
-            fputcsv($buffer, [
-                (string) $log->getRowNumber(),
-                $log->getSku() ?? '',
-                $log->getErrorType() ?? '',
-                $log->getMessage(),
-                $log->getColumnName() ?? '',
-                $log->getColumnValue() ?? '',
-            ], escape: '\\');
-        }
+            foreach ($this->logs->iterateBySession(
+                session: $session,
+                levels: [ImportLogLevel::Error, ImportLogLevel::Warning],
+            ) as $log) {
+                fputcsv($output, [
+                    (string) $log->getRowNumber(),
+                    $log->getSku() ?? '',
+                    $log->getErrorType() ?? '',
+                    $log->getMessage(),
+                    $log->getColumnName() ?? '',
+                    $log->getColumnValue() ?? '',
+                ], escape: '\\');
+            }
 
-        rewind($buffer);
-        $body = stream_get_contents($buffer);
-        fclose($buffer);
-
-        $response = new Response($body, Response::HTTP_OK);
+            fclose($output);
+        });
         $response->headers->set('Content-Type', 'text/csv; charset=utf-8');
         $response->headers->set(
             'Content-Disposition',

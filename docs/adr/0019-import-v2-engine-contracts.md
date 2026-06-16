@@ -61,6 +61,17 @@ status/enabled, variants (`parent_sku`, two-pass), relations (as
 categories) stay one-way. Cross-environment relation/select resolution is by
 `code`; assets resolve by id (URL/path resolution arrives with media tickets).
 
+### D6 — Unknown select / multiselect option codes
+
+An import row whose select/multiselect cell references an option code that does
+not exist on the attribute is **rejected with a row error** by default. A
+per-profile opt-in (`auto_create_options`) instead **auto-creates** the missing
+option and records it in the run report ("created N options"). Auto-created
+options are **not removed by rollback** — other rows may already reference them;
+this is surfaced in both the dry-run preview and the rollback preview. Realised
+across the modes engine (#1465), the rollback preview's non-removable-options
+bucket (#1480), and dry-run v2 (#1492).
+
 ### D7 — JSONB value canon (object_values.value per AttributeType)
 
 | Types | Canonical shape |
@@ -141,11 +152,24 @@ Extending this list requires bumping the rule version here and in the test.
   enter the baseline (`skip_violations`) and are burned down by #1466.
 - The wizard "karta prawdy" (`Project Plan/UI/imports-v2-karta-prawdy.md`)
   tracks which UI affordances are real at any point of the rebuild.
+- The IMP2-1.4 (#1466) shared writer core ships as the **concrete**
+  `App\Catalog\Application\ValueWriteCore`, not the `ValueWriteCoreInterface` +
+  `ValueWriteResult` / `ValueWriteIssue` DTOs sketched in that ticket's
+  acceptance criteria. Deliberate (YAGNI, #1558): one implementation is shared
+  by all three write paths (`ObjectAttributesUpserter`, `BatchValueWriter`,
+  `ImportUndoLogger`) and per-rule violations travel as plain message
+  strings / arrays that each consumer maps to its own context (HTTP exceptions
+  vs import result issues). An interface + result DTO would add indirection
+  with no second implementation to justify it. Revisit if a second validator
+  core (e.g. a remote/agent one) appears.
 
 ## Links
 
 - Plan + decisions: `Project Plan/UI/feature-imports-v2.md` (§4.4 D1–D14, §9)
 - Tickets: #1463 (this ADR), #1464 (D7 migration), #1465 (modes), #1466
-  (shared writer core), #1467/#1473 (golden tests), #1480 (undo-log)
+  (shared writer core), #1467/#1473 (golden tests), #1480 (undo-log),
+  #1485 (D11 concurrency)
+- D11 concurrency matrix (per-tenant bulk lock + collision surfaces):
+  `docs/architecture/concurrency-matrix.md`
 - Related ADRs: 0014 (ObjectRelation), 0015 (category trees), 0018
   (publication profiles)

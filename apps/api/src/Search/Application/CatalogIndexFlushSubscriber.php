@@ -30,8 +30,7 @@ use Symfony\Component\HttpKernel\KernelEvents;
 final readonly class CatalogIndexFlushSubscriber implements EventSubscriberInterface
 {
     public function __construct(
-        private CatalogIndexCollector $collector,
-        private CatalogObjectIndexer $indexer,
+        private CatalogIndexFlusher $flusher,
     ) {
     }
 
@@ -52,28 +51,11 @@ final readonly class CatalogIndexFlushSubscriber implements EventSubscriberInter
         if (!$event->isMainRequest()) {
             return;
         }
-        $this->flush();
+        $this->flusher->flush();
     }
 
     public function onConsoleTerminate(ConsoleTerminateEvent $event): void
     {
-        $this->flush();
-    }
-
-    private function flush(): void
-    {
-        if ($this->collector->isEmpty()) {
-            return;
-        }
-
-        $upsertIds = $this->collector->drainUpsertIds();
-        if ([] !== $upsertIds) {
-            $this->indexer->indexBatch($upsertIds);
-        }
-
-        $deletes = $this->collector->drainDeletes();
-        if ([] !== $deletes) {
-            $this->indexer->removeBatch($deletes);
-        }
+        $this->flusher->flush();
     }
 }

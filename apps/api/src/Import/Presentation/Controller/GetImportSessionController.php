@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
+use App\Backup\Domain\Entity\Backup;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Domain\Entity\ImportSession;
@@ -53,12 +54,34 @@ final class GetImportSessionController
             'mode' => $session->getMode()->value,
             'images_downloaded' => $session->getImagesDownloaded(),
             'images_failed' => $session->getImagesFailed(),
+            // IMP2-1.13 (#1476) follow-up — ZIP source metadata in the contract,
+            // null for non-ZIP imports.
+            'zip_file_name' => $session->getZipFileName(),
+            'zip_file_size_bytes' => $session->getZipFileSizeBytes(),
             'started_at' => $session->getStartedAt()?->format(DateTimeInterface::RFC3339_EXTENDED),
             'completed_at' => $session->getCompletedAt()?->format(DateTimeInterface::RFC3339_EXTENDED),
             'rollback_until' => $session->getRollbackUntil()?->format(DateTimeInterface::RFC3339_EXTENDED),
             'rolled_back_at' => $session->getRolledBackAt()?->format(DateTimeInterface::RFC3339_EXTENDED),
             'error_message' => $session->getErrorMessage(),
+            // IMP2-2.10 (#1486) — the pre-import backup linked at start, or null.
+            'backup' => self::serializeBackup($session->getBackupSnapshot()),
         ], Response::HTTP_OK);
+    }
+
+    /**
+     * @return array{id: string, status: string, started_at: string}|null
+     */
+    private static function serializeBackup(?Backup $backup): ?array
+    {
+        if (!$backup instanceof Backup) {
+            return null;
+        }
+
+        return [
+            'id' => $backup->getId()->toRfc4122(),
+            'status' => $backup->getStatus()->value,
+            'started_at' => $backup->getStartedAt()->format(DateTimeInterface::RFC3339_EXTENDED),
+        ];
     }
 
     private function loadSession(string $rawId): ImportSession

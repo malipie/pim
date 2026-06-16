@@ -168,6 +168,87 @@ final class StagedUploadApiTest extends CatalogApiTestCase
         );
     }
 
+    #[Test]
+    public function purgeCommandDeletesUndoLogForClosedRollbackWindows(): void
+    {
+        // IMP2-2.4 (#1480, spec §6) — the same TTL sweep that drops abandoned
+        // staged uploads also purges import_undo_log of sessions whose rollback
+        // window has fully closed (rollback_until in the past): the before-state
+        // is dead weight once the import can no longer be rolled back. Rows for a
+        // session still inside its window must survive.
+        $tenant = $this->demoTenant();
+        $em = $this->em();
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+
+        $type = self::getContainer()->get(\App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($type instanceof \App\Catalog\Domain\Entity\ObjectType);
+
+        // Two completed sessions: one whose window is still open, one expired.
+        $openSession = $this->completedSession($type, 'open.csv');
+        $closedSession = $this->completedSession($type, 'closed.csv');
+
+        // Force the second session's window into the past — there is no setter,
+        // so write rollback_until directly (the purge query keys on it).
+        $em->getConnection()->executeStatement(
+            'UPDATE import_sessions SET rollback_until = :past WHERE id = :id',
+            ['past' => new DateTimeImmutable('-1 hour')->format('Y-m-d H:i:s'), 'id' => $closedSession->getId()->toRfc4122()],
+        );
+
+        $undoLog = self::getContainer()->get(\App\Import\Domain\Repository\ImportUndoLogRepositoryInterface::class);
+        $openUndo = $this->undoRowFor($openSession, $tenant);
+        $closedUndo = $this->undoRowFor($closedSession, $tenant);
+        $undoLog->add($openUndo);
+        $undoLog->add($closedUndo);
+        $em->flush();
+        $em->clear();
+
+        $command = self::getContainer()->get(PurgeStagedFilesCommand::class);
+        $tester = new CommandTester($command);
+        $tester->execute([]);
+        $tester->assertCommandIsSuccessful();
+
+        $undoRepo = $em->getRepository(\App\Import\Domain\Entity\ImportUndoLog::class);
+        self::assertNull(
+            $undoRepo->find($closedUndo->getId()->toRfc4122()),
+            'undo-log of a session whose rollback window closed must be purged',
+        );
+        self::assertNotNull(
+            $undoRepo->find($openUndo->getId()->toRfc4122()),
+            'undo-log of a session still inside its rollback window must survive',
+        );
+    }
+
+    private function completedSession(\App\Catalog\Domain\Entity\ObjectType $type, string $fileName): \App\Import\Domain\Entity\ImportSession
+    {
+        $session = new \App\Import\Domain\Entity\ImportSession(
+            userId: Uuid::v7(),
+            targetObjectType: $type,
+            fileName: $fileName,
+            fileSizeBytes: 10,
+        );
+        $session->assignTenant($this->demoTenant());
+        $session->markRunning();
+        $session->markCompleted();
+        self::getContainer()->get(\App\Import\Domain\Repository\ImportSessionRepositoryInterface::class)->save($session);
+
+        return $session;
+    }
+
+    private function undoRowFor(\App\Import\Domain\Entity\ImportSession $session, Tenant $tenant): \App\Import\Domain\Entity\ImportUndoLog
+    {
+        $row = new \App\Import\Domain\Entity\ImportUndoLog(
+            $session,
+            Uuid::v7(),
+            \App\Import\Domain\Enum\ImportUndoOperation::ValueOverwritten,
+            ['value' => ['value' => 'before'], 'provenance' => 'manual'],
+            'name',
+        );
+        $row->assignTenant($tenant);
+
+        return $row;
+    }
+
     private function demoTenant(): Tenant
     {
         $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);

@@ -8943,6 +8943,13 @@
                             "null"
                         ]
                     },
+                    "allowedErrorsPct": {
+                        "description": "IMP2-2.7 (#1483) \u2014 Allowed-Errors guardrail (D10). Percentage of failed\nrows (0-100) above which the run aborts to `partial` instead of letting a\nmostly-broken file dump garbage into the catalog. `null` = OFF (D10\ndefault), i.e. the run never self-aborts on the error ratio.",
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
                     "lastUsedAt": {
                         "readOnly": true,
                         "type": [
@@ -9040,6 +9047,15 @@
                             "string",
                             "null"
                         ]
+                    },
+                    "allowedErrorsPct": {
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "IMP2-2.7 (#1483) \u2014 abort the run once blocking errors exceed this\npercentage of processed rows. null = no threshold (partial behaviour).",
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
                     }
                 }
             },
@@ -9109,6 +9125,15 @@
                     "imageZipNamingConvention": {
                         "type": [
                             "string",
+                            "null"
+                        ]
+                    },
+                    "allowedErrorsPct": {
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "IMP2-2.7 (#1483) \u2014 error-rate abort threshold (percent of processed\nrows). null in a merge-patch means \"leave unchanged\".",
+                        "type": [
+                            "integer",
                             "null"
                         ]
                     }
@@ -9192,6 +9217,13 @@
                             "imageZipNamingConvention": {
                                 "type": [
                                     "string",
+                                    "null"
+                                ]
+                            },
+                            "allowedErrorsPct": {
+                                "description": "IMP2-2.7 (#1483) \u2014 Allowed-Errors guardrail (D10). Percentage of failed\nrows (0-100) above which the run aborts to `partial` instead of letting a\nmostly-broken file dump garbage into the catalog. `null` = OFF (D10\ndefault), i.e. the run never self-aborts on the error ratio.",
+                                "type": [
+                                    "integer",
                                     "null"
                                 ]
                             },

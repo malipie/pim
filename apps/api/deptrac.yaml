@@ -429,6 +429,11 @@ parameters:
         # status/enabled write — per-chunk category resolve + replace/append.
         App\Import\Application\Handler\ImportRunHandler:
             - App\Catalog\Application\BatchValueWriter
+            # IMP2-2.6 (#1482) bulk path — suppress the per-flush sync rebuild
+            # via BulkContext and dispatch the async attributes_indexed rebuild;
+            # part of the #1466 Import → Catalog_Internals burndown.
+            - App\Catalog\Application\BulkContext
+            - App\Catalog\Application\Message\ObjectValuesChangedMessage
             - App\Catalog\Domain\AttributeType
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Entity\CatalogObject

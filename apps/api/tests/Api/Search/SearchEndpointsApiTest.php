@@ -18,6 +18,8 @@ use App\Tests\Api\Catalog\CatalogApiTestCase;
 use PHPUnit\Framework\Attributes\Test;
 use Throwable;
 
+use const JSON_THROW_ON_ERROR;
+
 /**
  * Coverage for #52 (0.5.4) — `/api/{kind}/search` endpoints.
  *
@@ -137,6 +139,94 @@ final class SearchEndpointsApiTest extends CatalogApiTestCase
         $client = $this->authenticatedClient();
         $client->request('GET', '/api/search/objects?objectTypeId=01923456-0000-7000-8000-000000000000');
         self::assertResponseStatusCodeSame(404);
+    }
+
+    #[Test]
+    public function rollbackDropsCreatedDocsFromSearch(): void
+    {
+        // IMP2-2.4 — rollback v2 fixes the v1 ghost-documents bug: objects the
+        // import CREATED must be dropped from Meilisearch on rollback (v1 deleted
+        // the rows but left the search docs, so a stale hit lingered). Import two
+        // objects, confirm they are searchable, roll the session back, then assert
+        // they no longer appear in search results.
+        $this->seedSkuName();
+
+        $sessionId = $this->importProducts("sku;name\nGHOST-AAA;Ghostbrand Alpha\nGHOST-BBB;Ghostbrand Beta\n");
+
+        $this->forceReindex(ObjectKind::Product);
+        // The import + bulk reindex back-to-back leaves Meili briefly indexing;
+        // give it a little extra slack before the precondition query so this
+        // does not flake on a busy CI box (forceReindex's own wait covers the
+        // lighter seedProduct path).
+        usleep(900_000);
+
+        $client = $this->authenticatedClient();
+        $before = $client->request('GET', '/api/search/products?q=Ghostbrand')->toArray();
+        self::assertGreaterThanOrEqual(2, $before['totalHits'] ?? 0, 'precondition: created docs are searchable');
+
+        // Rollback over the API so kernel.terminate drains the reindex collector
+        // (queueAllDeleted) into Meilisearch, dropping the created docs.
+        $client->request('POST', \sprintf('/api/import-sessions/%s/rollback', $sessionId));
+        self::assertResponseIsSuccessful();
+
+        // Meilisearch is asynchronous — give the delete task time to settle.
+        usleep(700_000);
+
+        $after = $this->authenticatedClient()->request('GET', '/api/search/products?q=Ghostbrand')->toArray();
+        self::assertSame(0, $after['totalHits'] ?? -1, 'rolled-back created objects must leave no ghost docs in search');
+    }
+
+    private function seedSkuName(): void
+    {
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $product = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($product instanceof \App\Catalog\Domain\Entity\ObjectType);
+
+        $em = $this->em();
+        $sku = new \App\Catalog\Domain\Entity\Attribute('sku', ['en' => 'SKU'], \App\Catalog\Domain\AttributeType::Text);
+        $name = new \App\Catalog\Domain\Entity\Attribute('name', ['en' => 'Name'], \App\Catalog\Domain\AttributeType::Text);
+        $em->persist($sku);
+        $em->persist($name);
+        $em->persist(new \App\Catalog\Domain\Entity\ObjectTypeAttribute($product, $sku, false, 1));
+        $em->persist(new \App\Catalog\Domain\Entity\ObjectTypeAttribute($product, $name, false, 2));
+        $em->flush();
+    }
+
+    private function importProducts(string $csv): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'pim-search-rbk-').'.csv';
+        file_put_contents($path, $csv);
+
+        try {
+            $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            $type = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+                ->findBuiltInByKind(ObjectKind::Product, $tenant);
+            \assert(null !== $type);
+
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $type->getId()->toRfc4122(),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                        'mode' => 'UPSERT',
+                    ],
+                    'files' => ['file' => new \Symfony\Component\HttpFoundation\File\UploadedFile($path, 'search-rbk.csv', 'text/csv', null, true)],
+                ],
+            ]);
+            self::assertResponseIsSuccessful();
+            $decoded = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            \assert(\is_array($decoded));
+            $id = $decoded['id'] ?? null;
+
+            return \is_scalar($id) ? (string) $id : '';
+        } finally {
+            @unlink($path);
+        }
     }
 
     /**
