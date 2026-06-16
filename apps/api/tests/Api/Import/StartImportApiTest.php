@@ -673,6 +673,262 @@ final class StartImportApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function createModeSkipsRowsWhoseSkuAlreadyExists(): void
+    {
+        // IMP2-1.3 (#1465, AC) — mode CREATE only inserts new objects. A row
+        // whose match key (SKU) already lives in the catalog is skipped with a
+        // DuplicateSkuInDb Warning, never updated; the fresh SKU still imports.
+        // Logic: ObjectResolver::decide (SkipExists) + ImportRunHandler:1481.
+        $this->seedAttributes();
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $productOt = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($productOt instanceof ObjectType);
+        $em->persist(new CatalogObject($productOt, 'EXIST-1'));
+        $em->flush();
+
+        $csvPath = $this->writeCsv("sku;name\nEXIST-1;X\nNEW-1;Y\n", 'pim-create-');
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                        'mode' => 'CREATE',
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'create.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame('CREATE', $body['mode']);
+            self::assertSame('success', $body['status'], 'a pure skip leaves no errors → success');
+            self::assertSame(1, $body['success_count'], 'only the fresh SKU is created');
+            self::assertSame(1, $body['skipped_count'], 'the pre-existing SKU is skipped');
+            self::assertSame(0, $body['updated_count'], 'CREATE never updates an existing object');
+
+            // The skip is logged as a DuplicateSkuInDb Warning for EXIST-1.
+            $warnings = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM import_logs WHERE level='warning' AND error_type='duplicate_sku_in_db' AND sku='EXIST-1' AND import_session_id = :id",
+                ['id' => $body['id']],
+            );
+            self::assertSame(1, (int) (\is_scalar($warnings) ? $warnings : 0));
+
+            // EXIST-1 is untouched; NEW-1 now exists.
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $repo = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+            self::assertNotNull($repo->findByCode('NEW-1', ObjectKind::Product, $tenant));
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function updateModeSkipsRowsWithoutAnExistingMatch(): void
+    {
+        // IMP2-1.3 (#1465, AC) — mode UPDATE only touches objects already in the
+        // catalog. A row whose SKU matches nothing is skipped with a NoMatchInDb
+        // Warning — never created, never counted as updated. Logic:
+        // ObjectResolver::decide (SkipNoMatch) + ImportRunHandler:1489.
+        $this->seedAttributes();
+        $em = $this->em();
+
+        $csvPath = $this->writeCsv("sku;name\nGHOST-1;X\n", 'pim-update-');
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name'], JSON_THROW_ON_ERROR),
+                        'mode' => 'UPDATE',
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'update.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame('UPDATE', $body['mode']);
+            self::assertSame(1, $body['skipped_count'], 'the unmatched row is skipped');
+            self::assertSame(0, $body['success_count'], 'UPDATE creates nothing');
+            self::assertSame(0, $body['updated_count'], 'no match → nothing updated');
+
+            $warnings = $em->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM import_logs WHERE level='warning' AND error_type='no_match_in_db' AND sku='GHOST-1' AND import_session_id = :id",
+                ['id' => $body['id']],
+            );
+            self::assertSame(1, (int) (\is_scalar($warnings) ? $warnings : 0));
+
+            // No GHOST-1 object was created.
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $repo = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+            self::assertNull($repo->findByCode('GHOST-1', ObjectKind::Product, $tenant));
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function matchByIdentifierAttributeUpdatesTheRowWithADifferentCode(): void
+    {
+        // IMP2-1.3 (#1465, AC) — with match_attribute_code='ean' the row is
+        // matched by its identifier value, not by SKU. A CSV whose `sku` column
+        // differs from the existing object's code still updates that object (the
+        // Bosch EAN benchmark): no new object, the code stays put, only the
+        // mapped value changes. Logic: ObjectResolver::resolve identifier branch.
+        $this->seedAttributes();
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $productOt = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($productOt instanceof ObjectType);
+
+        // EAN is an identifier attribute (the controller rejects a non-identifier
+        // match_attribute_code with a 400).
+        $ean = new Attribute('ean', ['en' => 'EAN'], AttributeType::Identifier);
+        $em->persist($ean);
+        $em->persist(new ObjectTypeAttribute($productOt, $ean, false, 3));
+        $existing = new CatalogObject($productOt, 'OLD-SKU');
+        $em->persist($existing);
+        $em->flush();
+        $em->persist(new \App\Catalog\Domain\Entity\ObjectValue(
+            $existing,
+            $ean,
+            ['value' => '5901234123457'],
+            \App\Catalog\Domain\Provenance::Import,
+        ));
+        $em->flush();
+
+        $csvPath = $this->writeCsv(
+            "sku;name;ean\nDIFFERENT-SKU;Nowa nazwa;5901234123457\n",
+            'pim-eanmatch-',
+        );
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name', 'ean' => 'ean'], JSON_THROW_ON_ERROR),
+                        'mode' => 'UPDATE',
+                        'match_attribute_code' => 'ean',
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'eanmatch.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame(1, $body['updated_count'], 'the EAN match updates the existing object');
+            self::assertSame(0, $body['skipped_count'], 'the row matched, so it is not skipped');
+
+            $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+            \assert($tenant instanceof Tenant);
+            self::getContainer()->get(TenantContext::class)->set($tenant);
+            $repo = self::getContainer()->get(CatalogObjectRepositoryInterface::class);
+
+            // No new object was created from the differing SKU column.
+            self::assertNull($repo->findByCode('DIFFERENT-SKU', ObjectKind::Product, $tenant), 'the differing SKU must not create a second object');
+            $matched = $repo->findByCode('OLD-SKU', ObjectKind::Product, $tenant);
+            self::assertNotNull($matched, 'the existing object keeps its original code');
+
+            // Exactly one product exists (the matched one), and its name changed.
+            $objectCount = $em->getConnection()->fetchOne(
+                'SELECT COUNT(*) FROM objects o WHERE o.object_type_id = :type',
+                ['type' => $productOt->getId()->toRfc4122()],
+            );
+            self::assertSame(1, (int) (\is_scalar($objectCount) ? $objectCount : 0), 'only the matched object exists, no duplicate');
+
+            $newName = $em->getConnection()->fetchOne(
+                "SELECT ov.value->>'value' FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='name' AND o.code='OLD-SKU'",
+            );
+            self::assertSame('Nowa nazwa', \is_scalar($newName) ? (string) $newName : null);
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
+    public function emptyCellOnUpdateDoesNotClearTheExistingValue(): void
+    {
+        // IMP2-1.3 (#1465, AC) / ADR-0019 D2 — an empty cell on an UPDATE/UPSERT
+        // means "do not touch", it never clears the stored value. Re-importing
+        // SKU-1 with a blank `desc` keeps the old description while still writing
+        // the new name. Logic: ImportObjectCreator::buildWrites:190.
+        $this->seedAttributes();
+        $em = $this->em();
+        $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $productOt = self::getContainer()->get(ObjectTypeRepositoryInterface::class)
+            ->findBuiltInByKind(ObjectKind::Product, $tenant);
+        \assert($productOt instanceof ObjectType);
+
+        $name = self::getContainer()->get(AttributeRepositoryInterface::class)->findByCode('name', $tenant);
+        \assert(null !== $name);
+        $desc = new Attribute('desc', ['en' => 'Description'], AttributeType::Text);
+        $em->persist($desc);
+        $em->persist(new ObjectTypeAttribute($productOt, $desc, false, 3));
+        $existing = new CatalogObject($productOt, 'SKU-1');
+        $em->persist($existing);
+        $em->flush();
+        $em->persist(new \App\Catalog\Domain\Entity\ObjectValue($existing, $name, ['value' => 'Stara'], \App\Catalog\Domain\Provenance::Import));
+        $em->persist(new \App\Catalog\Domain\Entity\ObjectValue($existing, $desc, ['value' => 'Opis'], \App\Catalog\Domain\Provenance::Import));
+        $em->flush();
+
+        $csvPath = $this->writeCsv("sku;name;desc\nSKU-1;Nowa;\n", 'pim-emptycell-');
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'name' => 'name', 'desc' => 'desc'], JSON_THROW_ON_ERROR),
+                        'mode' => 'UPSERT',
+                    ],
+                    'files' => ['file' => new UploadedFile($csvPath, 'emptycell.csv', 'text/csv', null, true)],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+            self::assertSame(1, $body['updated_count'], 'the name change makes it a real update');
+
+            $storedName = $em->getConnection()->fetchOne(
+                "SELECT ov.value->>'value' FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='name' AND o.code='SKU-1'",
+            );
+            self::assertSame('Nowa', \is_scalar($storedName) ? (string) $storedName : null, 'the non-empty cell overwrites');
+
+            $storedDesc = $em->getConnection()->fetchOne(
+                "SELECT ov.value->>'value' FROM object_values ov JOIN attributes a ON a.id=ov.attribute_id JOIN objects o ON o.id=ov.object_id WHERE a.code='desc' AND o.code='SKU-1'",
+            );
+            self::assertSame('Opis', \is_scalar($storedDesc) ? (string) $storedDesc : null, 'the empty cell must NOT clear the stored description');
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
     public function oversizedFileIsRejectedWith422(): void
     {
         // IMP2-2.7 (#1483) — a per-tenant file-size limit below the upload size
