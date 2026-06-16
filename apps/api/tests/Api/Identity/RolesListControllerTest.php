@@ -108,6 +108,9 @@ final class RolesListControllerTest extends ApiTestCase
         self::assertContains(RbacMatrix::ROLE_VIEWER, $codes);
         self::assertContains('custom_a', $codes);
         self::assertNotContains('custom_b', $codes);
+        // AUD-003 (#1575): the platform-level operator role is never offered
+        // as an assignable tenant role.
+        self::assertNotContains(RbacMatrix::ROLE_PLATFORM_OPERATOR, $codes);
     }
 
     #[Test]

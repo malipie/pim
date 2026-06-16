@@ -6,6 +6,7 @@ namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\InvitationService;
 use App\Identity\Application\SeedTenantPrdRolesService;
+use App\Identity\Application\SuperAdmin\PlatformOperatorGuard;
 use App\Identity\Application\SuperAdmin\SuperAdminContext;
 use App\Identity\Application\SuperAdmin\SuperAdminTenantResponseBuilder;
 use App\Identity\Contracts\Attribute\RequiresPermission;
@@ -14,7 +15,6 @@ use App\Identity\Domain\Rbac\RbacMatrix;
 use App\Shared\Domain\Repository\TenantRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use InvalidArgumentException;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -67,7 +67,7 @@ final readonly class SuperAdminTenantWriteController
     private const string DEFAULT_PLAN = Tenant::PLAN_STARTER;
 
     public function __construct(
-        private Security $security,
+        private PlatformOperatorGuard $guard,
         private SuperAdminContext $superAdminContext,
         private TenantRepositoryInterface $tenants,
         private SuperAdminTenantResponseBuilder $builder,
@@ -77,13 +77,10 @@ final readonly class SuperAdminTenantWriteController
     }
 
     #[Route(path: '/api/admin/tenants', methods: ['POST'], name: 'api_admin_tenants_create')]
-    #[RequiresPermission(module: 'user', action: 'admin')]
+    #[RequiresPermission(module: 'platform.tenants', action: 'manage')]
     public function create(Request $request): JsonResponse
     {
-        $caller = $this->requireSuperAdmin();
-        if ($caller instanceof JsonResponse) {
-            return $caller;
-        }
+        $caller = $this->guard->require(RbacMatrix::PERMISSION_PLATFORM_TENANTS_MANAGE);
 
         $payload = $this->decode($request);
         if ($payload instanceof JsonResponse) {
@@ -167,13 +164,10 @@ final readonly class SuperAdminTenantWriteController
         name: 'api_admin_tenants_update',
         requirements: ['id' => '[0-9a-f-]{36}'],
     )]
-    #[RequiresPermission(module: 'user', action: 'admin')]
+    #[RequiresPermission(module: 'platform.tenants', action: 'manage')]
     public function update(string $id, Request $request): JsonResponse
     {
-        $caller = $this->requireSuperAdmin();
-        if ($caller instanceof JsonResponse) {
-            return $caller;
-        }
+        $caller = $this->guard->require(RbacMatrix::PERMISSION_PLATFORM_TENANTS_MANAGE);
 
         $payload = $this->decode($request);
         if ($payload instanceof JsonResponse) {
@@ -221,13 +215,10 @@ final readonly class SuperAdminTenantWriteController
         name: 'api_admin_tenants_suspend',
         requirements: ['id' => '[0-9a-f-]{36}'],
     )]
-    #[RequiresPermission(module: 'user', action: 'admin')]
+    #[RequiresPermission(module: 'platform.tenants', action: 'manage')]
     public function suspend(string $id): JsonResponse
     {
-        $caller = $this->requireSuperAdmin();
-        if ($caller instanceof JsonResponse) {
-            return $caller;
-        }
+        $caller = $this->guard->require(RbacMatrix::PERMISSION_PLATFORM_TENANTS_MANAGE);
 
         return $this->mutate(
             $caller,
@@ -246,13 +237,10 @@ final readonly class SuperAdminTenantWriteController
         name: 'api_admin_tenants_reactivate',
         requirements: ['id' => '[0-9a-f-]{36}'],
     )]
-    #[RequiresPermission(module: 'user', action: 'admin')]
+    #[RequiresPermission(module: 'platform.tenants', action: 'manage')]
     public function reactivate(string $id): JsonResponse
     {
-        $caller = $this->requireSuperAdmin();
-        if ($caller instanceof JsonResponse) {
-            return $caller;
-        }
+        $caller = $this->guard->require(RbacMatrix::PERMISSION_PLATFORM_TENANTS_MANAGE);
 
         return $this->mutate(
             $caller,
@@ -271,13 +259,10 @@ final readonly class SuperAdminTenantWriteController
         name: 'api_admin_tenants_delete',
         requirements: ['id' => '[0-9a-f-]{36}'],
     )]
-    #[RequiresPermission(module: 'user', action: 'admin')]
+    #[RequiresPermission(module: 'platform.tenants', action: 'manage')]
     public function delete(string $id): JsonResponse
     {
-        $caller = $this->requireSuperAdmin();
-        if ($caller instanceof JsonResponse) {
-            return $caller;
-        }
+        $caller = $this->guard->require(RbacMatrix::PERMISSION_PLATFORM_TENANTS_MANAGE);
 
         return $this->mutate(
             $caller,
@@ -327,26 +312,6 @@ final readonly class SuperAdminTenantWriteController
         }
 
         return new JsonResponse($this->builder->buildOne($result));
-    }
-
-    private function requireSuperAdmin(): User|JsonResponse
-    {
-        $user = $this->security->getUser();
-        if (!$user instanceof User) {
-            return $this->problem(Response::HTTP_UNAUTHORIZED, 'Unauthorized', 'No authenticated user.');
-        }
-        foreach ($user->getAssignedRoles() as $role) {
-            if (RbacMatrix::ROLE_SUPER_ADMIN === $role->getCode()) {
-                return $user;
-            }
-        }
-
-        return $this->problem(
-            Response::HTTP_FORBIDDEN,
-            'Forbidden',
-            'Super Admin role required.',
-            ['code' => 'super_admin_required'],
-        );
     }
 
     /**
