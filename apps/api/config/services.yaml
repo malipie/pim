@@ -81,6 +81,25 @@ services:
         arguments:
             $inner: '@lexik_jwt_authentication.handler.authentication_success'
 
+    # AUD-007 (#1577) — bind the kernel environment into the controllers
+    # that ship the dev-only magic-link / password-reset plaintext token.
+    # The DevTokenExposure trait omits `token_dev_only` from the JSON body
+    # when env === 'prod' (PUBLIC_ACCESS endpoints → leaking it = account
+    # takeover). Bound explicitly because a scalar string argument is not
+    # autowired. Drop these once the mailer fully replaces the in-response
+    # token and the field is removed outright.
+    App\Identity\Presentation\Controller\PasswordResetController:
+        arguments:
+            $devTokenEnvironment: '%kernel.environment%'
+
+    App\Identity\Presentation\Controller\InvitationController:
+        arguments:
+            $devTokenEnvironment: '%kernel.environment%'
+
+    App\Identity\Presentation\Controller\InvitationActionsController:
+        arguments:
+            $devTokenEnvironment: '%kernel.environment%'
+
     App\Catalog\Application\ObjectTypeService:
         arguments:
             $enableCustomObjectTypes: '%pim.catalog.enable_custom_object_types%'

@@ -27,8 +27,11 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class PasswordResetController extends AbstractController
 {
+    use DevTokenExposure;
+
     public function __construct(
         private readonly PasswordResetService $service,
+        private readonly string $devTokenEnvironment,
     ) {
     }
 
@@ -46,11 +49,13 @@ final class PasswordResetController extends AbstractController
         $plaintext = $this->service->request($email);
 
         // ALWAYS return success — account-enumeration prevention. The
-        // plaintext is exposed in dev-mode response only because the
-        // mailer infra is not yet shipped; production drops this field.
+        // plaintext is exposed in dev/test response only because the
+        // mailer infra is not yet shipped; production omits the field
+        // entirely (AUD-007 / #1577 — the token IS the auth factor on a
+        // PUBLIC_ACCESS endpoint, so leaking it = account takeover).
         return new JsonResponse([
             'status' => 'sent',
-            'token_dev_only' => $plaintext, // null when email not found
+            ...$this->devTokenPayload($plaintext), // null when email not found
         ]);
     }
 

@@ -32,9 +32,12 @@ use const DATE_ATOM;
  */
 final class InvitationController extends AbstractController
 {
+    use DevTokenExposure;
+
     public function __construct(
         private readonly InvitationService $invitations,
         private readonly TenantContext $tenantContext,
+        private readonly string $devTokenEnvironment,
     ) {
     }
 
@@ -72,10 +75,10 @@ final class InvitationController extends AbstractController
             'invitation_id' => $result['invitation']->getId()->toRfc4122(),
             'email' => $result['invitation']->getEmail(),
             'expires_at' => $result['invitation']->getExpiresAt()->format(DATE_ATOM),
-            // Dev-mode: token shipped in response so operator can test
-            // accept flow before mailer infra ships. Production removes
-            // this field and emails it via the Mailer follow-up.
-            'token_dev_only' => $result['token'],
+            // Dev/test: token shipped in response so operator can test the
+            // accept flow before mailer infra ships. Production omits this
+            // field entirely (AUD-007 / #1577) and relies on the Mailer.
+            ...$this->devTokenPayload($result['token']),
         ], 201);
     }
 
