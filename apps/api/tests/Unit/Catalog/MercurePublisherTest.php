@@ -17,13 +17,21 @@ use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Unit coverage for MercurePublisher topic + payload contract (#47 / 0.4.7).
+ * Unit coverage for MercurePublisher topic + payload contract (#47 / 0.4.7;
+ * tenant-scoped + private after AUD-001 / #1573).
  *
- * Publisher emits domain events on two topics:
- *   - row-specific `<base>/objects/<id>` so an admin editing a single
- *     row subscribes once and gets every change to that row;
- *   - broadcast `<base>/objects` so a list view picks up creations /
- *     deletions across the whole catalog with one connection.
+ * Publisher emits domain events on two **tenant-scoped, private** topics:
+ *   - row-specific `<base>/tenant/<tid>/objects/<id>` so an admin editing
+ *     a single row subscribes once and gets every change to that row;
+ *   - broadcast `<base>/tenant/<tid>/objects` so a list view picks up
+ *     creations / deletions across the tenant's catalog with one
+ *     connection.
+ *
+ * The `tenant/<tid>` prefix + `private: true` together close the
+ * cross-tenant SSE leak (AUD-001): the hub only delivers a private
+ * update to subscribers whose JWT `mercure.subscribe` claim authorises
+ * the exact topic, and the mint endpoint scopes that claim to the
+ * caller's tenant alone.
  *
  * Payload shape: `{type, occurredOn, data}` — `type` is the per-event
  * dot-cased name (kind-aware for create), `data` is a small dict the
@@ -31,6 +39,8 @@ use Symfony\Component\Uid\Uuid;
  */
 final class MercurePublisherTest extends TestCase
 {
+    private const string TENANT_ID = '019ddb19-1111-7000-8000-aaaaaaaaaaaa';
+
     /**
      * @var list<Update>
      */
@@ -44,7 +54,7 @@ final class MercurePublisherTest extends TestCase
             objectId: Uuid::fromString('019ddb19-a0f7-750a-a9cb-a6a6447ccb26'),
             kind: ObjectKind::Product,
             code: 'SKU-1',
-            tenantId: Uuid::v7(),
+            tenantId: Uuid::fromString(self::TENANT_ID),
         );
 
         $publisher->onObjectCreated($event);
@@ -52,9 +62,10 @@ final class MercurePublisherTest extends TestCase
         self::assertCount(1, $this->captured);
         $update = $this->captured[0];
         self::assertSame([
-            'https://pim.localhost/objects/019ddb19-a0f7-750a-a9cb-a6a6447ccb26',
-            'https://pim.localhost/objects',
+            'https://pim.localhost/tenant/'.self::TENANT_ID.'/objects/019ddb19-a0f7-750a-a9cb-a6a6447ccb26',
+            'https://pim.localhost/tenant/'.self::TENANT_ID.'/objects',
         ], $update->getTopics());
+        self::assertTrue($update->isPrivate(), 'Catalog updates must be private so the hub enforces the subscribe claim.');
 
         $payload = json_decode($update->getData(), true);
         \assert(\is_array($payload));
@@ -79,6 +90,7 @@ final class MercurePublisherTest extends TestCase
         $publisher->onObjectAttributesChanged($event);
 
         self::assertCount(1, $this->captured);
+        self::assertTrue($this->captured[0]->isPrivate());
         $payload = json_decode($this->captured[0]->getData(), true);
         \assert(\is_array($payload));
         self::assertSame('object.attributes_changed', $payload['type'] ?? null);
@@ -109,15 +121,16 @@ final class MercurePublisherTest extends TestCase
     }
 
     #[Test]
-    public function topicForKindHelperBuildsKindFilteredTopic(): void
+    public function topicForKindHelperBuildsTenantScopedKindFilteredTopic(): void
     {
+        $tenant = Uuid::fromString(self::TENANT_ID);
         self::assertSame(
-            'https://pim.localhost/objects/kind/product',
-            MercurePublisher::topicForKind(ObjectKind::Product),
+            'https://pim.localhost/tenant/'.self::TENANT_ID.'/objects/kind/product',
+            MercurePublisher::topicForKind(ObjectKind::Product, $tenant),
         );
         self::assertSame(
-            'https://pim.example.com/objects/kind/category',
-            MercurePublisher::topicForKind(ObjectKind::Category, 'https://pim.example.com'),
+            'https://pim.example.com/tenant/'.self::TENANT_ID.'/objects/kind/category',
+            MercurePublisher::topicForKind(ObjectKind::Category, $tenant, 'https://pim.example.com'),
         );
     }
 

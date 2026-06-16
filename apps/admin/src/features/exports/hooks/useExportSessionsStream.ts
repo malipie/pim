@@ -1,5 +1,8 @@
 import * as React from 'react';
 
+import { useIdentity } from '@/lib/identity';
+import { ensureMercureAuthorization, mercureSubscribeUrl, mercureTenantTopic } from '@/lib/mercure';
+
 interface ExportEvent {
   event: 'progress' | 'status';
   session_id: string;
@@ -38,9 +41,11 @@ export interface UseExportSessionsStreamState {
 export function useExportSessionsStream(userId: string | null): UseExportSessionsStreamState {
   const [connected, setConnected] = React.useState(false);
   const [lastEvent, setLastEvent] = React.useState<ExportEvent | null>(null);
+  const { identity } = useIdentity();
+  const tenantId = identity?.tenant?.id ?? null;
 
   React.useEffect(() => {
-    if (userId === null) {
+    if (userId === null || tenantId === null) {
       setConnected(false);
       setLastEvent(null);
       return;
@@ -49,33 +54,49 @@ export function useExportSessionsStream(userId: string | null): UseExportSession
       return;
     }
 
-    // Topic base = SPA origin (Caddy single-origin); BE publishers use the
-    // matching MERCURE_TOPIC_BASE env (IMP2-0.2 / #1461) — no hardcoded host.
-    const topic = `${window.location.origin}/exports/${userId}`;
-    const url = `${window.location.origin}/.well-known/mercure?topic=${encodeURIComponent(topic)}`;
-    const source = new EventSource(url, { withCredentials: true });
+    // AUD-001 (#1573) — tenant-scoped, private topic; mint the
+    // mercureAuthorization cookie before opening the EventSource (the hub
+    // rejects an unauthorised subscription). Mirrors
+    // MercureSubscribeTopics::exportUser().
+    const topic = mercureTenantTopic(tenantId, 'exports', userId);
+    const url = mercureSubscribeUrl(topic);
 
-    source.addEventListener('open', () => {
-      setConnected(true);
-    });
+    let source: EventSource | null = null;
+    let cancelled = false;
 
-    source.addEventListener('message', (event) => {
-      try {
-        const parsed = JSON.parse(event.data) as ExportEvent;
-        setLastEvent(parsed);
-      } catch {
-        // Malformed payload — Mercure is enrichment, not source of truth.
-      }
-    });
-
-    source.addEventListener('error', () => {
-      setConnected(false);
-    });
+    ensureMercureAuthorization()
+      .then(() => {
+        if (cancelled) {
+          return;
+        }
+        source = new EventSource(url, { withCredentials: true });
+        source.addEventListener('open', () => {
+          setConnected(true);
+        });
+        source.addEventListener('message', (event) => {
+          try {
+            const parsed = JSON.parse(event.data) as ExportEvent;
+            setLastEvent(parsed);
+          } catch {
+            // Malformed payload — Mercure is enrichment, not source of truth.
+          }
+        });
+        source.addEventListener('error', () => {
+          setConnected(false);
+        });
+      })
+      .catch(() => {
+        // Mint failed — caller's polling fallback keeps the grid fresh.
+        if (!cancelled) {
+          setConnected(false);
+        }
+      });
 
     return () => {
-      source.close();
+      cancelled = true;
+      source?.close();
     };
-  }, [userId]);
+  }, [userId, tenantId]);
 
   return { connected, lastEvent };
 }

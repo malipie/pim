@@ -43,11 +43,26 @@ final class MercureBroadcastApiTest extends CatalogApiTestCase
         self::assertNotEmpty($updates, 'POST /api/products must publish at least one Mercure update.');
 
         // First update is the ObjectCreated event — topic shape should
-        // include the per-row IRI + the broadcast IRI.
+        // include the per-row IRI + the broadcast IRI, both tenant-scoped
+        // and private after AUD-001 (#1573).
         $first = $updates[0];
         $topics = $first->getTopics();
-        self::assertContains('https://pim.localhost/objects/'.$newId, $topics);
-        self::assertContains('https://pim.localhost/objects', $topics);
+        self::assertTrue($first->isPrivate(), 'Catalog Mercure updates must be private (AUD-001).');
+        self::assertCount(2, $topics);
+        // Row topic: …/tenant/<uuid>/objects/<newId>; broadcast: …/objects.
+        [$rowTopic, $broadcastTopic] = $topics;
+        self::assertIsString($rowTopic);
+        self::assertIsString($broadcastTopic);
+        self::assertMatchesRegularExpression(
+            '#^https://pim\.localhost/tenant/[0-9a-f-]{36}/objects/'.preg_quote($newId, '#').'$#',
+            $rowTopic,
+        );
+        self::assertMatchesRegularExpression(
+            '#^https://pim\.localhost/tenant/[0-9a-f-]{36}/objects$#',
+            $broadcastTopic,
+        );
+        // The pre-fix global topic must be gone.
+        self::assertNotContains('https://pim.localhost/objects', $topics);
 
         $payload = json_decode($first->getData(), true);
         \assert(\is_array($payload));
