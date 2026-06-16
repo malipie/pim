@@ -54,6 +54,10 @@ final class GetImportSessionController
             'mode' => $session->getMode()->value,
             'images_downloaded' => $session->getImagesDownloaded(),
             'images_failed' => $session->getImagesFailed(),
+            // IMP2-1.13 (#1476) follow-up — ZIP source metadata in the contract,
+            // null for non-ZIP imports.
+            'zip_file_name' => $session->getZipFileName(),
+            'zip_file_size_bytes' => $session->getZipFileSizeBytes(),
             'started_at' => $session->getStartedAt()?->format(DateTimeInterface::RFC3339_EXTENDED),
             'completed_at' => $session->getCompletedAt()?->format(DateTimeInterface::RFC3339_EXTENDED),
             'rollback_until' => $session->getRollbackUntil()?->format(DateTimeInterface::RFC3339_EXTENDED),
