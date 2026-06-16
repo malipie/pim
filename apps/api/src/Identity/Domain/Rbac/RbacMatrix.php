@@ -25,6 +25,27 @@ final class RbacMatrix
     public const string ROLE_INTEGRATION_MANAGER = 'integration_manager';
     public const string ROLE_VIEWER = 'viewer';
 
+    /**
+     * AUD-003 (#1575) — platform-level operator role. Global (tenant_id
+     * NULL) but, unlike `super_admin`, it is NEVER assigned to a tenant
+     * Owner. It is the only role holding the cross-tenant `platform.*`
+     * permissions, so the `/api/admin/tenants/*` operator panel and the
+     * break-glass endpoints gate on a grant a regular Owner cannot reach.
+     */
+    public const string ROLE_PLATFORM_OPERATOR = 'platform_operator';
+
+    /**
+     * Cross-tenant platform permission codes (PRD-PIM-rbac §3.2 "Super
+     * Admin only" block). These are intentionally NOT part of the legacy
+     * resource×action grid — they are held exclusively by
+     * `platform_operator`, never by `super_admin`, so a tenant Owner who
+     * carries `super_admin` cannot manage / recon other tenants.
+     */
+    public const string PERMISSION_PLATFORM_TENANTS_LIST = 'platform.tenants.list';
+    public const string PERMISSION_PLATFORM_TENANTS_MANAGE = 'platform.tenants.manage';
+    public const string PERMISSION_PLATFORM_AUDIT_VIEW_ALL = 'platform.audit.view_all';
+    public const string PERMISSION_PLATFORM_BREAK_GLASS = 'platform.break_glass_recovery';
+
     public const string ACTION_READ = 'read';
     public const string ACTION_WRITE = 'write';
     public const string ACTION_DELETE = 'delete';
@@ -68,6 +89,20 @@ final class RbacMatrix
     ];
 
     /**
+     * Cross-tenant permission codes split as (resource, action) on the
+     * last segment so they slot into the same `permissions` table as the
+     * legacy grid. `platform.tenants.manage` → (platform.tenants, manage).
+     *
+     * @var list<array{0: string, 1: string}>
+     */
+    private const array PLATFORM_PERMISSIONS = [
+        ['platform.tenants', 'list'],
+        ['platform.tenants', 'manage'],
+        ['platform.audit', 'view_all'],
+        ['platform', 'break_glass_recovery'],
+    ];
+
+    /**
      * @return list<PermissionDefinition>
      */
     public static function permissions(): array
@@ -77,6 +112,14 @@ final class RbacMatrix
             foreach (self::ACTIONS as $action) {
                 $permissions[] = new PermissionDefinition($resource, $action);
             }
+        }
+
+        // AUD-003 (#1575): platform-scope permissions live in the same
+        // pool so `pim:rbac:seed` provisions them in production (not only
+        // dev fixtures), but they are granted exclusively to
+        // `platform_operator` — see roles() below.
+        foreach (self::PLATFORM_PERMISSIONS as [$resource, $action]) {
+            $permissions[] = new PermissionDefinition($resource, $action);
         }
 
         return $permissions;
@@ -140,15 +183,47 @@ final class RbacMatrix
                     actions: [self::ACTION_READ],
                 ),
             ),
+            // AUD-003 (#1575) — platform operator: the ONLY role with the
+            // cross-tenant `platform.*` grants. Never assigned to a tenant
+            // Owner, so the operator panel + break-glass stay platform-only.
+            new RoleDefinition(
+                code: self::ROLE_PLATFORM_OPERATOR,
+                name: 'Platform Operator',
+                permissionCodes: self::platformPermissionCodes(),
+            ),
         ];
+    }
+
+    /**
+     * Every legacy resource×action code. Excludes the `platform.*` block
+     * by construction (it is not part of the grid) so `super_admin` —
+     * which a tenant Owner holds — never gains cross-tenant authority.
+     *
+     * @return list<string>
+     */
+    private static function allPermissionCodes(): array
+    {
+        $codes = [];
+        foreach (self::RESOURCES as $resource) {
+            foreach (self::ACTIONS as $action) {
+                $codes[] = \sprintf('%s.%s', $resource, $action);
+            }
+        }
+
+        return $codes;
     }
 
     /**
      * @return list<string>
      */
-    private static function allPermissionCodes(): array
+    private static function platformPermissionCodes(): array
     {
-        return array_map(static fn (PermissionDefinition $p): string => $p->code(), self::permissions());
+        return [
+            self::PERMISSION_PLATFORM_TENANTS_LIST,
+            self::PERMISSION_PLATFORM_TENANTS_MANAGE,
+            self::PERMISSION_PLATFORM_AUDIT_VIEW_ALL,
+            self::PERMISSION_PLATFORM_BREAK_GLASS,
+        ];
     }
 
     /**

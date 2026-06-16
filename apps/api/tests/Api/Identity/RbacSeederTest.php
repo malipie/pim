@@ -40,15 +40,33 @@ final class RbacSeederTest extends ApiTestCase
         $catalogManager = $roles->findGlobalByCode(RbacMatrix::ROLE_CATALOG_MANAGER);
         $integrationManager = $roles->findGlobalByCode(RbacMatrix::ROLE_INTEGRATION_MANAGER);
         $viewer = $roles->findGlobalByCode(RbacMatrix::ROLE_VIEWER);
+        $platformOperator = $roles->findGlobalByCode(RbacMatrix::ROLE_PLATFORM_OPERATOR);
 
         self::assertNotNull($superAdmin, 'super_admin must exist after seeding.');
         self::assertNotNull($catalogManager);
         self::assertNotNull($integrationManager);
         self::assertNotNull($viewer);
+        self::assertNotNull($platformOperator, 'platform_operator must exist after seeding.');
 
-        // Super admin gets every (resource, action) — the matrix lists 13
-        // resources times 4 actions = 52 permissions today.
-        self::assertCount(\count(RbacMatrix::permissions()), $superAdmin->getPermissions());
+        // AUD-003 (#1575): super_admin gets every legacy (resource, action)
+        // pair but NONE of the cross-tenant `platform.*` codes — those are
+        // exclusive to platform_operator so a tenant Owner (who holds
+        // super_admin) cannot manage other tenants.
+        $superAdminCodes = array_map(static fn (Permission $p): string => $p->getCode(), $superAdmin->getPermissions()->toArray());
+        foreach ($superAdminCodes as $code) {
+            self::assertStringStartsNotWith('platform.', $code, 'super_admin must not hold any platform.* permission.');
+        }
+        self::assertContains('tenant.admin', $superAdminCodes);
+
+        // platform_operator holds exactly the four cross-tenant grants.
+        $platformCodes = array_map(static fn (Permission $p): string => $p->getCode(), $platformOperator->getPermissions()->toArray());
+        sort($platformCodes);
+        self::assertSame([
+            'platform.audit.view_all',
+            'platform.break_glass_recovery',
+            'platform.tenants.list',
+            'platform.tenants.manage',
+        ], $platformCodes);
 
         // Viewer is read-only: no write/delete/admin pairs in its set.
         foreach ($viewer->getPermissions() as $permission) {

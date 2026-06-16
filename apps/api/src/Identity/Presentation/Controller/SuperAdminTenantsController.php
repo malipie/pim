@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Controller;
 
+use App\Identity\Application\SuperAdmin\PlatformOperatorGuard;
 use App\Identity\Application\SuperAdmin\SuperAdminContext;
 use App\Identity\Application\SuperAdmin\SuperAdminTenantResponseBuilder;
 use App\Identity\Contracts\Attribute\RequiresPermission;
-use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
 use App\Shared\Domain\Repository\TenantRepositoryInterface;
 use InvalidArgumentException;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -34,11 +33,13 @@ use Symfony\Component\Uid\Uuid;
  * audit subsystem stamps `cross_tenant_access=true` on every entry
  * produced by this controller via {@see SuperAdminContext}.
  *
- * Auth gate: the route requires the global `super_admin` role.
- * `RequiresPermission(module: 'user', action: 'admin')` keeps the same
- * legacy attribute the rest of Phase 5 uses + we add an explicit
- * super-admin role check on top (Phase 6 retrofit migrates onto PRD
- * `platform.tenants.list` / `platform.tenants.manage`).
+ * Auth gate (AUD-003 #1575): the routes require the cross-tenant
+ * `platform.tenants.manage` permission, held ONLY by the dedicated
+ * `platform_operator` role — never by a tenant Owner's `super_admin`.
+ * Both the `#[RequiresPermission]` attribute (enforced by the
+ * EndpointGuardListener) and the in-controller {@see PlatformOperatorGuard}
+ * check that permission, so neither a forgotten attribute nor a future
+ * listener change can re-open the panel to ordinary Owners.
  *
  * **Deployment topology note:** per #709 the long-term home for these
  * endpoints is the dedicated `admin.cortex.pl` subdomain with a
@@ -51,7 +52,7 @@ use Symfony\Component\Uid\Uuid;
 final readonly class SuperAdminTenantsController
 {
     public function __construct(
-        private Security $security,
+        private PlatformOperatorGuard $guard,
         private SuperAdminContext $superAdminContext,
         private TenantRepositoryInterface $tenants,
         private SuperAdminTenantResponseBuilder $builder,
@@ -59,13 +60,10 @@ final readonly class SuperAdminTenantsController
     }
 
     #[Route(path: '/api/admin/tenants', methods: ['GET'], name: 'api_admin_tenants_list')]
-    #[RequiresPermission(module: 'user', action: 'admin')]
+    #[RequiresPermission(module: 'platform.tenants', action: 'manage')]
     public function list(): JsonResponse
     {
-        $superAdminId = $this->requireSuperAdmin();
-        if ($superAdminId instanceof JsonResponse) {
-            return $superAdminId;
-        }
+        $superAdminId = $this->guard->require(RbacMatrix::PERMISSION_PLATFORM_TENANTS_MANAGE)->getId();
 
         $rows = $this->superAdminContext->runCrossTenant(
             $superAdminId,
@@ -90,13 +88,10 @@ final readonly class SuperAdminTenantsController
         name: 'api_admin_tenants_detail',
         requirements: ['id' => '[0-9a-f-]{36}'],
     )]
-    #[RequiresPermission(module: 'user', action: 'admin')]
+    #[RequiresPermission(module: 'platform.tenants', action: 'manage')]
     public function detail(string $id): JsonResponse
     {
-        $superAdminId = $this->requireSuperAdmin();
-        if ($superAdminId instanceof JsonResponse) {
-            return $superAdminId;
-        }
+        $superAdminId = $this->guard->require(RbacMatrix::PERMISSION_PLATFORM_TENANTS_MANAGE)->getId();
 
         try {
             $uuid = Uuid::fromString($id);
@@ -113,37 +108,6 @@ final readonly class SuperAdminTenantsController
         }
 
         return new JsonResponse($this->builder->buildOne($tenant));
-    }
-
-    /**
-     * Returns the active Super Admin's Uuid on success, or a 403 problem
-     * response if the caller does not hold the `super_admin` role.
-     */
-    private function requireSuperAdmin(): Uuid|JsonResponse
-    {
-        $user = $this->security->getUser();
-        if (!$user instanceof User) {
-            return $this->problem(Response::HTTP_UNAUTHORIZED, 'Unauthorized', 'No authenticated user.');
-        }
-
-        $hasSuperAdmin = false;
-        foreach ($user->getAssignedRoles() as $role) {
-            if (RbacMatrix::ROLE_SUPER_ADMIN === $role->getCode()) {
-                $hasSuperAdmin = true;
-                break;
-            }
-        }
-
-        if (!$hasSuperAdmin) {
-            return $this->problem(
-                Response::HTTP_FORBIDDEN,
-                'Forbidden',
-                'Super Admin role required to access the operator panel.',
-                ['code' => 'super_admin_required'],
-            );
-        }
-
-        return $user->getId();
     }
 
     /**

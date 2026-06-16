@@ -115,14 +115,15 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
 
         $superAdmin = $this->roleRepository->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);
         \assert(null !== $superAdmin, 'RbacSeeder must create the super_admin role.');
+        $platformOperator = $this->roleRepository->findGlobalByCode(RbacMatrix::ROLE_PLATFORM_OPERATOR);
+        \assert(null !== $platformOperator, 'RbacSeeder must create the platform_operator role.');
 
-        // Grant super_admin every PRD §3.2 permission so platform-level
-        // admins can drive the Settings UI without a Phase 6 retrofit
-        // gap (the retrofit consolidates Voters onto PRD codes but the
-        // grant matrix should be permissive on the platform tier from
-        // day one — Super Admin is by definition the most privileged
-        // role).
+        // Grant super_admin every tenant-scoped PRD §3.2 permission so a
+        // tenant Owner can drive the Settings UI without a Phase 6 retrofit
+        // gap. AUD-003 (#1575): the cross-tenant `platform.*` block is
+        // deliberately withheld here and granted only to platform_operator.
         $this->grantAllPermissionsToSuperAdmin($superAdmin);
+        $this->grantPlatformPermissionsToOperator($platformOperator);
 
         // Per-tenant: built-in ObjectTypes (#33) → admin user → demo
         // catalog rows. The seeder is idempotent — `pim:db:reset` re-runs
@@ -196,6 +197,25 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
             $admin->addRole($tenantOwner);
             $manager->persist($admin);
         }
+
+        // AUD-003 (#1575): the platform operator (operator panel + break-glass)
+        // is a SEPARATE principal from any tenant Owner. It holds ONLY the
+        // global `platform_operator` role (the `platform.*` grants) and no
+        // tenant-scoped role, so the cross-tenant `/api/admin/tenants/*` panel
+        // is reachable for break-glass / onboarding but NOT by an Owner.
+        // Every User needs tenant_id NOT NULL; it is parked in the demo tenant
+        // but carries no tenant-scoped authority there.
+        $operatorEmail = 'platform-operator@cortex.localhost';
+        $operatorStub = new User($tenants[0], $operatorEmail, '', []);
+        $operator = new User(
+            $tenants[0],
+            $operatorEmail,
+            $this->passwordHasher->hashPassword($operatorStub, self::DEFAULT_ADMIN_PASSWORD),
+            [],
+        );
+        $operator->addRole($platformOperator);
+        $manager->persist($operator);
+
         $manager->flush();
 
         // #1259 — seed one real demo channel (Allegro) for the demo tenant so
@@ -245,7 +265,14 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
     /**
      * Attach every permission row (legacy RbacMatrix + PRD §3.2 codes
      * loaded by PrdPermissionFixtures) to the global super_admin role so
-     * the demo admin user holds the union of both permission graphs.
+     * the demo admin user holds the union of both permission graphs —
+     * EXCEPT the cross-tenant `platform.*` block.
+     *
+     * AUD-003 (#1575): `super_admin` is the role every tenant Owner holds.
+     * Granting it `platform.tenants.manage` / `platform.break_glass_recovery`
+     * lets an Owner recon + suspend + delete competitor tenants. Those
+     * grants belong exclusively to the dedicated `platform_operator` role
+     * ({@see grantPlatformPermissionsToOperator}), never to a tenant Owner.
      *
      * Idempotent: only the permissions not yet on the role are added,
      * so re-running fixtures (or extending PRD codes later) keeps the
@@ -259,10 +286,38 @@ class AppFixtures extends Fixture implements DependentFixtureInterface
         }
 
         foreach ($this->permissionRepository->findAllOrdered() as $permission) {
+            if (str_starts_with($permission->getCode(), 'platform.')) {
+                continue; // platform-scope grants are operator-only (AUD-003)
+            }
             if (\in_array($permission->getCode(), $existingCodes, true)) {
                 continue;
             }
             $superAdmin->getPermissions()->add($permission);
+        }
+    }
+
+    /**
+     * AUD-003 (#1575): grant the four cross-tenant `platform.*` permissions
+     * to the global `platform_operator` role. RbacSeeder already wires this
+     * via RbacMatrix, but PrdPermissionFixtures may have created the
+     * `platform.*` rows with their own UUIDs first; re-attach idempotently
+     * so the role holds the canonical rows regardless of seed order.
+     */
+    private function grantPlatformPermissionsToOperator(\App\Identity\Domain\Entity\Role $operator): void
+    {
+        $existingCodes = [];
+        foreach ($operator->getPermissions() as $existing) {
+            $existingCodes[] = $existing->getCode();
+        }
+
+        foreach ($this->permissionRepository->findAllOrdered() as $permission) {
+            if (!str_starts_with($permission->getCode(), 'platform.')) {
+                continue;
+            }
+            if (\in_array($permission->getCode(), $existingCodes, true)) {
+                continue;
+            }
+            $operator->getPermissions()->add($permission);
         }
     }
 

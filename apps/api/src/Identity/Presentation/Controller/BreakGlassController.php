@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Controller;
 
+use App\Identity\Application\SuperAdmin\PlatformOperatorGuard;
 use App\Identity\Application\SuperAdmin\SuperAdminContext;
 use App\Identity\Application\TotpEnrolmentService;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\AuditLog;
-use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
 use App\Identity\Domain\Repository\AuditLogRepositoryInterface;
 use App\Identity\Domain\Repository\RoleRepositoryInterface;
@@ -17,7 +17,6 @@ use App\Shared\Domain\Repository\TenantRepositoryInterface;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -66,7 +65,7 @@ final readonly class BreakGlassController
     private const string OWNER_ROLE_CODE = 'tenant_owner';
 
     public function __construct(
-        private Security $security,
+        private PlatformOperatorGuard $guard,
         private TotpEnrolmentService $totp,
         private SuperAdminContext $superAdminContext,
         private UserRepositoryInterface $users,
@@ -79,13 +78,10 @@ final readonly class BreakGlassController
     }
 
     #[Route(path: '/api/admin/break-glass/usage', methods: ['GET'], name: 'api_admin_break_glass_usage')]
-    #[RequiresPermission(module: 'user', action: 'admin')]
+    #[RequiresPermission(module: 'platform', action: 'break_glass_recovery')]
     public function usage(): JsonResponse
     {
-        $caller = $this->requireSuperAdmin();
-        if ($caller instanceof JsonResponse) {
-            return $caller;
-        }
+        $caller = $this->guard->require(RbacMatrix::PERMISSION_PLATFORM_BREAK_GLASS);
 
         $used = $this->countRecentInvocations($caller->getId());
         $recent = $this->listRecentInvocations($caller->getId());
@@ -100,13 +96,10 @@ final readonly class BreakGlassController
     }
 
     #[Route(path: '/api/admin/break-glass', methods: ['POST'], name: 'api_admin_break_glass_invoke')]
-    #[RequiresPermission(module: 'user', action: 'admin')]
+    #[RequiresPermission(module: 'platform', action: 'break_glass_recovery')]
     public function invoke(Request $request): JsonResponse
     {
-        $caller = $this->requireSuperAdmin();
-        if ($caller instanceof JsonResponse) {
-            return $caller;
-        }
+        $caller = $this->guard->require(RbacMatrix::PERMISSION_PLATFORM_BREAK_GLASS);
 
         $payload = $this->decode($request);
         if ($payload instanceof JsonResponse) {
@@ -249,31 +242,6 @@ final readonly class BreakGlassController
         );
 
         return $result;
-    }
-
-    /**
-     * Returns the caller's User aggregate on success, or a 403 problem
-     * response when they do not hold the `super_admin` role.
-     */
-    private function requireSuperAdmin(): User|JsonResponse
-    {
-        $user = $this->security->getUser();
-        if (!$user instanceof User) {
-            return $this->problem(Response::HTTP_UNAUTHORIZED, 'Unauthorized', 'No authenticated user.');
-        }
-
-        foreach ($user->getAssignedRoles() as $role) {
-            if (RbacMatrix::ROLE_SUPER_ADMIN === $role->getCode()) {
-                return $user;
-            }
-        }
-
-        return $this->problem(
-            Response::HTTP_FORBIDDEN,
-            'Forbidden',
-            'Super Admin role required.',
-            ['code' => 'super_admin_required'],
-        );
     }
 
     private function countRecentInvocations(Uuid $superAdminId): int

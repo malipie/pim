@@ -6,6 +6,7 @@ namespace App\Identity\Infrastructure\Doctrine\Repository;
 
 use App\Identity\Domain\Entity\Role;
 use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Rbac\RbacMatrix;
 use App\Identity\Domain\Repository\RoleRepositoryInterface;
 use App\Shared\Domain\Tenant;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -57,10 +58,17 @@ class DoctrineRoleRepository extends ServiceEntityRepository implements RoleRepo
         // custom roles. The Settings → Roles list orders them with system
         // (global) roles first (PRD §3.2 macierz prescribes that on-screen
         // grouping), then name ASC.
+        //
+        // AUD-003 (#1575): the platform-level `platform_operator` role is
+        // excluded — it is never assignable inside a tenant (assignment is
+        // already rejected by the tenant-scoped findByCode lookup) and must
+        // not be surfaced as an option in Settings → Roles.
         /** @var list<Role> $roles */
         $roles = $this->createQueryBuilder('r')
             ->where('r.tenant IS NULL OR r.tenant = :tenant')
+            ->andWhere('r.code != :platformOperator')
             ->setParameter('tenant', $tenant->getId())
+            ->setParameter('platformOperator', RbacMatrix::ROLE_PLATFORM_OPERATOR)
             ->orderBy('CASE WHEN r.tenant IS NULL THEN 0 ELSE 1 END', 'ASC')
             ->addOrderBy('r.name', 'ASC')
             ->getQuery()
