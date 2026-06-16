@@ -70,7 +70,7 @@ final class XlsxStreamWriter implements RowWriter
         }
 
         $style = new Style()->withFontBold(true);
-        $this->writer->addRow(Row::fromValuesWithStyle($headers, $style));
+        $this->writer->addRow(Row::fromValuesWithStyle(array_map([$this, 'neutraliseFormula'], $headers), $style));
         $this->headersWritten = true;
     }
 
@@ -83,7 +83,14 @@ final class XlsxStreamWriter implements RowWriter
     public function writeRow(array $values): void
     {
         $this->guardOpen();
-        $this->writer->addRow(Row::fromValues($values));
+
+        // IMP2-2.8 (#1484) follow-up — CSV/Formula-injection defence for XLSX.
+        // OpenSpout Cell::fromValue() turns a string with a leading '=' into an
+        // active FormulaCell, so a cell like '=HYPERLINK(...)' would execute when
+        // the file is opened in Excel/Numbers (RCE/exfiltration vector). Prefix a
+        // TAB to formula-trigger cells so they render as text. Mirrors
+        // CsvStreamWriter::neutraliseFormula — export only, never mutates import.
+        $this->writer->addRow(Row::fromValues(array_map([$this, 'neutraliseFormula'], $values)));
     }
 
     /**
@@ -103,5 +110,21 @@ final class XlsxStreamWriter implements RowWriter
         if (!$this->opened) {
             throw new LogicException('Open the writer before writing rows.');
         }
+    }
+
+    /**
+     * Prefix a TAB to cells whose first character is a spreadsheet formula
+     * trigger so the value is rendered as text instead of being evaluated.
+     * Identical contract to {@see CsvStreamWriter::neutraliseFormula()}.
+     */
+    private function neutraliseFormula(string $value): string
+    {
+        if ('' === $value) {
+            return '';
+        }
+
+        return \in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)
+            ? "\t".$value
+            : $value;
     }
 }

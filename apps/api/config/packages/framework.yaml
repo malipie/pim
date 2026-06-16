@@ -60,9 +60,24 @@ framework:
         # cannot saturate the disk. Sliding window so back-to-back
         # legitimate retries (network blip, second attempt the next
         # minute) wait the full hour, not just the next tick.
+        # IMP2-2.10 (#1486) — the pre-import backup checkbox reuses THIS limiter
+        # (the wizard POSTs /api/backups with triggered_by_action=pre_import).
+        # 1/h/tenant is fine for manual wizard imports, but it collides with
+        # scheduled imports (IMP2-4.1): a cron that also snapshots would exhaust
+        # the budget. DECISION: pre-import backup stays a MANUAL-wizard-only
+        # feature; IMP2-4.1 must NOT auto-trigger backups through this limiter.
+        # See docs/architecture/concurrency-matrix.md (§ backup_trigger).
         backup_trigger:
             policy: 'sliding_window'
             limit: 1
+            interval: '1 hour'
+
+        # IMP2-2.7 (#1483) — import session start. A bulk import is heavy (parse +
+        # N×write + async rebuild); 20/h/tenant absorbs honest wizard re-runs and
+        # retries while clamping a script firing import-after-import.
+        import_trigger:
+            policy: 'sliding_window'
+            limit: 20
             interval: '1 hour'
 
         # Refresh-token rotation (#28). The cookie-driven path is

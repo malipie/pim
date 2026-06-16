@@ -36,4 +36,11 @@ final class ImportProfilePatchInput
     public ?string $imageSource = null;
 
     public ?string $imageZipNamingConvention = null;
+
+    /**
+     * IMP2-2.7 (#1483) — error-rate abort threshold (percent of processed
+     * rows). null in a merge-patch means "leave unchanged".
+     */
+    #[Assert\Range(min: 0, max: 100)]
+    public ?int $allowedErrorsPct = null;
 }

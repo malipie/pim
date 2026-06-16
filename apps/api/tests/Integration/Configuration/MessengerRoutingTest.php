@@ -10,6 +10,7 @@ use ReflectionClass;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\Sender\SendersLocatorInterface;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Locks in the explicit Messenger transport routing posture for
@@ -90,5 +91,46 @@ final class MessengerRoutingTest extends KernelTestCase
                 implode('|', $senderAliases),
             ),
         );
+    }
+
+    /**
+     * IMP2-2.9 (#1485, ADR-0019 D11) — both worker transports that can hit
+     * per-tenant bulk-lock contention (`async` reindex/agent jobs, `import`
+     * runs) must use the long-backoff retry policy: 5 retries, 30s → 60 →
+     * 120 → 240 → capped 300s ≈ 16 min, so a contended job rides out a
+     * realistic import window before dead-lettering. A short/default policy
+     * would burn the retries in ~7s and dead-letter a still-running import.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function lockAwareTransportProvider(): iterable
+    {
+        yield 'async (reindex / agent jobs)' => ['async'];
+        yield 'import (dedicated import queue)' => ['import'];
+    }
+
+    #[Test]
+    #[DataProvider('lockAwareTransportProvider')]
+    public function lockAwareTransportUsesLongBackoffRetryStrategy(string $transport): void
+    {
+        self::bootKernel();
+        $projectDir = self::getContainer()->getParameter('kernel.project_dir');
+        self::assertIsString($projectDir);
+
+        /** @var array{framework?: array{messenger?: array{transports?: array<string, mixed>}}} $config */
+        $config = Yaml::parseFile($projectDir.'/config/packages/messenger.yaml');
+        $transports = $config['framework']['messenger']['transports'] ?? [];
+        self::assertArrayHasKey($transport, $transports, "messenger.yaml must define the '{$transport}' transport.");
+
+        $definition = $transports[$transport];
+        self::assertIsArray($definition, "Transport '{$transport}' must be the verbose {dsn, retry_strategy} form, not a flat DSN string.");
+        self::assertArrayHasKey('retry_strategy', $definition, "Transport '{$transport}' must declare a retry_strategy (bulk-lock contention rides out the import window).");
+
+        $retry = $definition['retry_strategy'];
+        self::assertIsArray($retry, "Transport '{$transport}' retry_strategy must be a mapping.");
+        self::assertSame(5, $retry['max_retries'] ?? null, "Transport '{$transport}' retry_strategy.max_retries must be 5.");
+        self::assertSame(30000, $retry['delay'] ?? null, "Transport '{$transport}' retry_strategy.delay must be 30000ms.");
+        self::assertSame(2, $retry['multiplier'] ?? null, "Transport '{$transport}' retry_strategy.multiplier must be 2.");
+        self::assertSame(300000, $retry['max_delay'] ?? null, "Transport '{$transport}' retry_strategy.max_delay must be 300000ms.");
     }
 }

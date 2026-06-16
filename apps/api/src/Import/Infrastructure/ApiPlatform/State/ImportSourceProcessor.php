@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\State\ProcessorInterface;
 use App\Identity\Domain\Entity\User;
+use App\Import\Application\Service\HealthCheck\FolderPathGuard;
 use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Entity\ImportSource;
 use App\Import\Domain\Enum\ImportSourceType;
@@ -24,6 +25,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -36,6 +38,7 @@ final readonly class ImportSourceProcessor implements ProcessorInterface
         private ImportProfileRepositoryInterface $profiles,
         private Security $security,
         private TenantContext $tenantContext,
+        private FolderPathGuard $folderPathGuard,
     ) {
     }
 
@@ -73,6 +76,7 @@ final readonly class ImportSourceProcessor implements ProcessorInterface
         }
 
         $type = ImportSourceType::from($data->type);
+        $this->assertPathAllowed($type, $data->path);
         $source = new ImportSource(
             userId: $user->getId(),
             name: $data->name,
@@ -123,6 +127,8 @@ final readonly class ImportSourceProcessor implements ProcessorInterface
             $source->setHost($data->host);
         }
         if (null !== $data->path) {
+            $effectiveType = null !== $data->type ? ImportSourceType::from($data->type) : $source->getType();
+            $this->assertPathAllowed($effectiveType, $data->path);
             $source->setPath($data->path);
         }
         if (null !== $data->filePattern) {
@@ -199,6 +205,21 @@ final readonly class ImportSourceProcessor implements ProcessorInterface
         }
 
         return $profile;
+    }
+
+    /**
+     * IMP2-2.8 (#1484) — a folder source's path must resolve inside the allowed
+     * base directory; otherwise saving it would arm directory enumeration via the
+     * health-check probe. Single undifferentiated 422.
+     */
+    private function assertPathAllowed(ImportSourceType $type, ?string $path): void
+    {
+        if (ImportSourceType::Folder === $type
+            && null !== $path && '' !== $path
+            && !$this->folderPathGuard->isWithinBase($path)
+        ) {
+            throw new UnprocessableEntityHttpException('Path is outside the allowed import sources directory.');
+        }
     }
 
     private function currentUser(): User

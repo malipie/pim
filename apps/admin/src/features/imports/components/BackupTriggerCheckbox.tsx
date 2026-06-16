@@ -14,6 +14,12 @@ interface BackupTriggerCheckboxProps {
    * CTA while the backup is still running.
    */
   onStatusChange?: (status: 'idle' | 'pending' | 'running' | 'completed' | 'failed') => void;
+  /**
+   * IMP2-2.10 (#1486) — the created backup's id, surfaced so Step 4 can
+   * forward `backup_id` to `POST /api/import-sessions`. `null` when the box
+   * is unchecked or the trigger failed.
+   */
+  onBackupCreated?: (backupId: string | null) => void;
 }
 
 interface BackupStatusResponse {
@@ -33,6 +39,7 @@ export function BackupTriggerCheckbox({
   checked,
   onChange,
   onStatusChange,
+  onBackupCreated,
 }: BackupTriggerCheckboxProps): React.ReactElement {
   const { t } = useTranslation();
   const apiUrl = useApiUrl();
@@ -52,6 +59,12 @@ export function BackupTriggerCheckbox({
   React.useEffect(() => {
     onStatusChange?.(status);
   }, [status, onStatusChange]);
+
+  // IMP2-2.10 (#1486) — surface the backup id to the parent. The CTA is gated
+  // on `completed`, so the id is only acted on once the snapshot is ready.
+  React.useEffect(() => {
+    onBackupCreated?.(backupId);
+  }, [backupId, onBackupCreated]);
 
   const handleToggle = (next: boolean): void => {
     onChange(next);

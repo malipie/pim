@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import\Presentation\Controller;
 
+use App\Backup\Domain\Entity\Backup;
 use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Identity\Domain\Entity\User;
 use App\Import\Domain\Entity\ImportSession;
@@ -69,9 +70,12 @@ final class ListImportSessionsController
         $query = trim($request->query->get('q', ''));
 
         $qb = $this->entityManager->createQueryBuilder()
-            ->select('s', 'p')
+            ->select('s', 'p', 'b')
             ->from(ImportSession::class, 's')
             ->leftJoin('s.profile', 'p')
+            // IMP2-2.10 (#1486) — eager-join the pre-import backup so the hub
+            // badge does not trigger an N+1 across the page of sessions.
+            ->leftJoin('s.backupSnapshot', 'b')
             ->where('s.tenant = :tenant')
             ->andWhere('s.userId = :userId')
             ->orderBy('s.createdAt', 'DESC')
@@ -142,6 +146,23 @@ final class ListImportSessionsController
             'profile_id' => $profile?->getId()->toRfc4122(),
             'target_object_type_code' => $session->getTargetObjectType()->getCode(),
             'mode' => $session->getMode()->value,
+            'backup' => self::serializeBackup($session->getBackupSnapshot()),
+        ];
+    }
+
+    /**
+     * @return array{id: string, status: string, started_at: string}|null
+     */
+    private static function serializeBackup(?Backup $backup): ?array
+    {
+        if (!$backup instanceof Backup) {
+            return null;
+        }
+
+        return [
+            'id' => $backup->getId()->toRfc4122(),
+            'status' => $backup->getStatus()->value,
+            'started_at' => $backup->getStartedAt()->format(DateTimeInterface::RFC3339_EXTENDED),
         ];
     }
 }

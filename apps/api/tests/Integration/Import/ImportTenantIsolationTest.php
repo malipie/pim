@@ -17,7 +17,9 @@ use App\Import\Application\Service\RelationImportStep;
 use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportProfile;
 use App\Import\Domain\Entity\ImportSession;
+use App\Import\Domain\Entity\ImportUndoLog;
 use App\Import\Domain\Enum\ImportLogLevel;
+use App\Import\Domain\Enum\ImportUndoOperation;
 use App\Import\Domain\Repository\ImportProfileRepositoryInterface;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
 use App\Shared\Application\TenantContext;
@@ -175,6 +177,73 @@ final class ImportTenantIsolationTest extends KernelTestCase
         $betaLogs = $repo->findAll();
         self::assertCount(1, $betaLogs, 'TenantFilter must not leak alpha logs into beta context');
         self::assertSame('beta row warned', $betaLogs[0]->getMessage());
+    }
+
+    #[Test]
+    public function undoLogIsIsolatedByTenant(): void
+    {
+        // IMP2-2.4 (#1480) — import_undo_log carries its own tenant_id (stamped
+        // by TenantAssignmentListener) and is RLS-protected, so the TenantFilter
+        // scopes its queries directly: an alpha context must never see beta's
+        // before-state rows (cross-read = 0).
+        $alpha = $this->createTenant('alpha');
+        $beta = $this->createTenant('beta');
+        $em = $this->em();
+
+        $this->tenantContext()->set($alpha);
+        $type = $this->productObjectType($em);
+
+        $alphaSession = new ImportSession(
+            userId: Uuid::v7(),
+            targetObjectType: $type,
+            fileName: 'alpha.csv',
+            fileSizeBytes: 10,
+        );
+        $alphaSession->assignTenant($alpha);
+        $em->persist($alphaSession);
+        $alphaUndo = new ImportUndoLog(
+            $alphaSession,
+            Uuid::v7(),
+            ImportUndoOperation::ValueOverwritten,
+            ['value' => ['value' => 'alpha-before'], 'provenance' => 'manual'],
+            'name',
+        );
+        $alphaUndo->assignTenant($alpha);
+        $em->persist($alphaUndo);
+
+        $betaSession = new ImportSession(
+            userId: Uuid::v7(),
+            targetObjectType: $type,
+            fileName: 'beta.csv',
+            fileSizeBytes: 10,
+        );
+        $betaSession->assignTenant($beta);
+        $em->persist($betaSession);
+        $betaUndo = new ImportUndoLog(
+            $betaSession,
+            Uuid::v7(),
+            ImportUndoOperation::ValueOverwritten,
+            ['value' => ['value' => 'beta-before'], 'provenance' => 'manual'],
+            'name',
+        );
+        $betaUndo->assignTenant($beta);
+        $em->persist($betaUndo);
+
+        $em->flush();
+        $em->clear();
+
+        $repo = $em->getRepository(ImportUndoLog::class);
+
+        $this->activateTenantFilter($alpha);
+        $alphaRows = $repo->findAll();
+        self::assertCount(1, $alphaRows, 'alpha context sees only its own undo-log row');
+        self::assertSame(['value' => 'alpha-before'], $alphaRows[0]->getPayload()['value']);
+
+        $em->clear();
+        $this->activateTenantFilter($beta);
+        $betaRows = $repo->findAll();
+        self::assertCount(1, $betaRows, 'TenantFilter must not leak alpha undo-log rows into beta context');
+        self::assertSame(['value' => 'beta-before'], $betaRows[0]->getPayload()['value']);
     }
 
     #[Test]

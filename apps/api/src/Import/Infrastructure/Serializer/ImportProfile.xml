@@ -50,6 +50,10 @@
             <group>import_profile:read</group>
             <group>import_profile:write</group>
         </attribute>
+        <attribute name="allowedErrorsPct">
+            <group>import_profile:read</group>
+            <group>import_profile:write</group>
+        </attribute>
         <attribute name="lastUsedAt">
             <group>import_profile:read</group>
         </attribute>

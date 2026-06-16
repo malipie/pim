@@ -2505,6 +2505,10 @@
       "resume": "Wznów",
       "cancel": "Anuluj",
       "action_failed": "Akcja nie powiodła się"
+    },
+    "show": {
+      "backup_done": "Backup przed importem: ✅ {{date}}",
+      "backup_none": "Backup przed importem: —"
     }
   },
   "rbac": {

@@ -92,6 +92,54 @@ class DoctrineCatalogObjectRepository extends ServiceEntityRepository implements
         return $rows;
     }
 
+    /**
+     * IMP2-2.6 — one keyset page of ROOT objects (no parent) of a type, ordered
+     * by id, for the bulk export path. Roots-only mirrors `include_variants=off`
+     * (masters only). The caller walks pages and `EntityManager::clear()`s
+     * between them so a 50k export stays in constant memory; keyset (`id >
+     * :afterId`) avoids the O(n²) cost of OFFSET on a large table.
+     *
+     * @return list<CatalogObject>
+     */
+    public function findRootObjectsAfter(ObjectType $objectType, Tenant $tenant, ?\Symfony\Component\Uid\Uuid $afterId, int $limit): array
+    {
+        $qb = $this->createQueryBuilder('o')
+            ->where('o.objectType = :ot')
+            ->andWhere('o.tenant = :tenant')
+            ->andWhere('o.parent IS NULL')
+            ->setParameter('ot', $objectType)
+            ->setParameter('tenant', $tenant)
+            ->orderBy('o.id', 'ASC')
+            ->setMaxResults(max(1, $limit));
+
+        if (null !== $afterId) {
+            $qb->andWhere('o.id > :afterId')->setParameter('afterId', $afterId->toRfc4122());
+        }
+
+        /** @var list<CatalogObject> $rows */
+        $rows = $qb->getQuery()->getResult();
+
+        return $rows;
+    }
+
+    /**
+     * IMP2-2.6 — count root objects of a type via COUNT(*) without hydrating
+     * entities (the export progress total needs the count, not the object
+     * graph). Roots-only matches {@see self::iterateRootObjectsByType()}.
+     */
+    public function countRootObjectsByType(ObjectType $objectType, Tenant $tenant): int
+    {
+        return (int) $this->createQueryBuilder('o')
+            ->select('COUNT(o.id)')
+            ->where('o.objectType = :ot')
+            ->andWhere('o.tenant = :tenant')
+            ->andWhere('o.parent IS NULL')
+            ->setParameter('ot', $objectType)
+            ->setParameter('tenant', $tenant)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     public function findById(\Symfony\Component\Uid\Uuid $id): ?CatalogObject
     {
         return parent::find($id->toRfc4122());

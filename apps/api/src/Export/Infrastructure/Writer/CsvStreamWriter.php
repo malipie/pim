@@ -66,6 +66,13 @@ final class CsvStreamWriter implements RowWriter
             throw new LogicException('Open the writer before writing rows.');
         }
 
+        // IMP2-2.8 (#1484) — CSV-injection defence (OWASP / GHSA-2xhg-w2g5-w95x):
+        // a cell starting with a formula trigger gets a leading TAB so Excel /
+        // Numbers render it as text instead of evaluating it. EXPORT ONLY — import
+        // never mutates values. Applied before encoding conversion so the check
+        // runs on the canonical UTF-8 string.
+        $values = array_map([$this, 'neutraliseFormula'], $values);
+
         if (ExportEncoding::Windows1250 === $this->encoding) {
             $values = array_map([$this, 'toCp1250'], $values);
         }
@@ -86,6 +93,17 @@ final class CsvStreamWriter implements RowWriter
         fflush($this->handle);
         fclose($this->handle);
         $this->handle = null;
+    }
+
+    private function neutraliseFormula(string $value): string
+    {
+        if ('' === $value) {
+            return '';
+        }
+
+        return \in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)
+            ? "\t".$value
+            : $value;
     }
 
     private function toCp1250(string $value): string

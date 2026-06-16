@@ -26,6 +26,7 @@ interface ImportSession {
   total_rows: number | null;
   success_count: number;
   error_count: number;
+  skipped_count: number;
   images_downloaded: number;
   images_failed: number;
   started_at: string | null;
@@ -33,6 +34,8 @@ interface ImportSession {
   rollback_until: string | null;
   rolled_back_at: string | null;
   error_message: string | null;
+  // IMP2-2.10 (#1486) — pre-import pgBackRest snapshot linked at start, or null.
+  backup: { id: string; status: string; started_at: string } | null;
 }
 
 /**
@@ -147,6 +150,16 @@ export function ImportShowPage(): React.ReactElement {
               })}
             </span>
             {!isTerminal && <span className="num font-mono text-[12px]">{pct}%</span>}
+            <span className="num font-mono text-[12px]" data-testid="import-backup-info">
+              {session.backup !== null
+                ? t('imports.show.backup_done', {
+                    defaultValue: 'Backup przed importem: ✅ {{date}}',
+                    date: formatDateTime(session.backup.started_at),
+                  })
+                : t('imports.show.backup_none', {
+                    defaultValue: 'Backup przed importem: —',
+                  })}
+            </span>
           </div>
         </div>
         <Button asChild variant="ghost">
@@ -261,7 +274,7 @@ export function ImportShowPage(): React.ReactElement {
             />
             <Kpi
               label={t('imports.results.skipped', {
-                count: session.error_count,
+                count: session.skipped_count,
                 defaultValue: '{{count}} pominiętych',
               })}
               tone="warn"
@@ -278,7 +291,7 @@ export function ImportShowPage(): React.ReactElement {
           {session.total_rows !== null && session.total_rows > 0 && (
             <ResultBar
               ok={session.success_count}
-              warn={0}
+              warn={session.skipped_count}
               err={session.error_count}
               total={session.total_rows}
             />
@@ -335,6 +348,17 @@ function Kpi({
       {label}
     </div>
   );
+}
+
+function formatDateTime(value: string | null): string {
+  if (value === null) {
+    return '—';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+  return date.toLocaleString();
 }
 
 function formatDuration(start: string | null, end: string | null): string {

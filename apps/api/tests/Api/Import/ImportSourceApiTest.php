@@ -117,28 +117,22 @@ final class ImportSourceApiTest extends CatalogApiTestCase
     }
 
     #[Test]
-    public function testConnectionFolderProbeReportsErrorForMissingPath(): void
+    public function postFolderSourceWithPathOutsideBaseIsRejectedWith422(): void
     {
+        // IMP2-2.8 (#1484) — a folder source whose path resolves outside
+        // IMPORT_SOURCE_BASE_PATH (here /tmp) is rejected on save with a single
+        // undifferentiated 422, so it cannot arm directory enumeration via probe.
         $client = $this->authenticatedClient();
         $client->request('POST', '/api/import-sources', [
             'headers' => ['content-type' => 'application/ld+json'],
             'body' => json_encode([
-                'name' => 'Missing folder',
-                'code' => 'missing-folder',
+                'name' => 'Outside folder',
+                'code' => 'outside-folder',
                 'type' => 'folder',
-                'path' => '/this-path-definitely-does-not-exist',
+                'path' => '/etc',
             ], JSON_THROW_ON_ERROR),
         ]);
-        $created = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertIsArray($created);
-        $sourceId = $created['id'];
-        self::assertIsString($sourceId);
-
-        $client->request('POST', \sprintf('/api/import-sources/%s/test-connection', $sourceId));
-        self::assertResponseIsSuccessful();
-        $body = json_decode((string) $client->getResponse()?->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertIsArray($body);
-        self::assertSame('error', $body['health']);
+        self::assertResponseStatusCodeSame(422);
     }
 
     #[Test]

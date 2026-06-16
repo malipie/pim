@@ -76,6 +76,49 @@ final class ImportRunHandler extends AbstractBatchHandler
     /** IMP2-1.12 — image-download jobs per dispatched media batch. */
     private const int MEDIA_BATCH_SIZE = 50;
 
+    /** IMP2-2.6 — id batch size for the async attributes_indexed rebuild dispatch. */
+    private const int REBUILD_DISPATCH_BATCH = 500;
+
+    /**
+     * IMP2-2.7 (#1483) — minimum processed rows before the Allowed-Errors ratio is
+     * evaluated, so a single bad row in the first chunk (1/1 = 100%) cannot abort
+     * a run whose profile set a low threshold.
+     */
+    private const int ALLOWED_ERRORS_MIN_ROWS = 20;
+
+    /**
+     * IMP2-2.6 — RFC4122 ids of objects this run created or actually changed,
+     * collected for the end-of-run async rebuild + reindex. Strings (not
+     * entities) so they survive the per-chunk EntityManager::clear().
+     *
+     * @var list<string>
+     */
+    private array $bulkTouchedIds = [];
+
+    /**
+     * IMP2-2.6 — peak `memory_get_peak_usage(true)` reached by the end of the
+     * row phase, i.e. the figure the production import worker actually pays:
+     * read → write → flush/clear, BEFORE the attributes_indexed rebuild +
+     * Meili reindex (those run in a separate worker in prod, the `async`/`import`
+     * transport). Recorded here so the memory benchmark can assert on the import
+     * worker in isolation rather than on the dev/test artifact where the sync
+     * transport runs the rebuild inline in the same process. Null until a run
+     * reaches the dispatch point.
+     */
+    private ?int $rowPhasePeakBytes = null;
+
+    /**
+     * IMP2-2.6 — Mercure progress throttle. The batch path no longer publishes a
+     * `row_processed` event per row (50k rows = 50k HTTP POSTs to the hub);
+     * instead {@see publishProgress()} emits a `progress` snapshot no more often
+     * than every ~1% of the file. `$lastProgressAt` is the row count at the last
+     * emitted snapshot; `$lastProcessedSku` rides along as the snapshot's
+     * `current_sku`. Both reset per run.
+     */
+    private int $lastProgressAt = 0;
+
+    private ?string $lastProcessedSku = null;
+
     public function __construct(
         EntityManagerInterface $entityManager,
         private readonly ImportSessionRepositoryInterface $sessions,
@@ -97,6 +140,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ManagerRegistry $managerRegistry,
         private readonly AssetUrlResolver $assetUrlResolver,
         private readonly MessageBusInterface $messageBus,
+        private readonly \App\Catalog\Application\BulkContext $bulkContext,
         int $batchSize = 200,
     ) {
         parent::__construct($entityManager, $batchSize);
@@ -189,6 +233,16 @@ final class ImportRunHandler extends AbstractBatchHandler
         // of THIS run; reset so a long-lived worker never carries stale tuples.
         $this->relationStep->reset();
         $this->undoLogger->reset();
+        // IMP2-2.6 — run the whole import under BulkContext so the per-flush
+        // sync AttributesIndexedSyncListener + CatalogIndexSubscriber stay out
+        // of the way (no rebuild/Meili work on every chunk flush). The touched
+        // objects are rebuilt + reindexed once, async, after the row phase.
+        // Reset in finally — a long-lived worker must not leak the flag.
+        $this->bulkContext->setBulk(true, $session->getId());
+        $this->bulkTouchedIds = [];
+        $this->rowPhasePeakBytes = null;
+        $this->lastProgressAt = 0;
+        $this->lastProcessedSku = null;
 
         // IMP2-2.3 — resume point: a prior (paused/crashed) run left a checkpoint.
         // Rows at/below it are already written, so we skip their writes (still
@@ -259,13 +313,19 @@ final class ImportRunHandler extends AbstractBatchHandler
                 // (the refreshed session carries the just-written status).
                 $lock->refresh();
                 if ($this->haltRequested($session)) {
-                    $this->progressPublisher->progress($session, $processed, null);
+                    $this->publishProgress($session, $processed, true);
 
                     return;
                 }
 
                 $attributesByCode = $this->validator->loadAttributesByCode($tenant, $columnMapping);
-                $this->progressPublisher->progress($session, $processed, null);
+                // Throttled: at most one snapshot per ~1% of the file (force=false).
+                $this->publishProgress($session, $processed);
+
+                // IMP2-2.7 (#1483) — Allowed-Errors guardrail (per full chunk).
+                if ($this->abortIfErrorRateExceeded($session, $processed, $tenant)) {
+                    return;
+                }
             }
 
             if ([] !== $buffer) {
@@ -276,8 +336,13 @@ final class ImportRunHandler extends AbstractBatchHandler
                 $session = $this->refreshSession($session);
                 $lock->refresh();
                 if ($this->haltRequested($session)) {
-                    $this->progressPublisher->progress($session, $processed, null);
+                    $this->publishProgress($session, $processed, true);
 
+                    return;
+                }
+                // IMP2-2.7 (#1483) — also evaluate after the tail chunk so a file
+                // smaller than one batch (< chunk size) still aborts on errors.
+                if ($this->abortIfErrorRateExceeded($session, $processed, $tenant)) {
                     return;
                 }
             }
@@ -317,7 +382,7 @@ final class ImportRunHandler extends AbstractBatchHandler
             // the checkpoint (relations) lets a resume re-run the idempotent
             // link pass without touching already-written rows.
             if ($this->haltRequested($session)) {
-                $this->progressPublisher->progress($session, $processed, null);
+                $this->publishProgress($session, $processed, true);
 
                 return;
             }
@@ -337,7 +402,7 @@ final class ImportRunHandler extends AbstractBatchHandler
             // (no media jobs), so read the COMMITTED status straight from the DB
             // and never force a paused/cancelled session into a terminal state.
             if ($this->persistedStatusHalts($session)) {
-                $this->progressPublisher->progress($session, $processed, null);
+                $this->publishProgress($session, $processed, true);
 
                 return;
             }
@@ -352,8 +417,17 @@ final class ImportRunHandler extends AbstractBatchHandler
                 $this->progressPublisher->completed($session);
             } else {
                 $this->sessions->save($session);
-                $this->progressPublisher->progress($session, $processed, null);
+                $this->publishProgress($session, $processed, true);
             }
+
+            // IMP2-2.6 — the row phase ran under BulkContext (no per-flush
+            // rebuild/index). Rebuild attributes_indexed + reindex Meili for the
+            // touched objects asynchronously now (eventual consistency, per the
+            // >1000-objects async rule). Dispatched at end-of-run, never per
+            // chunk: in dev/test the async transport is sync, so a mid-loop
+            // inline rebuild would clear the EM under the row loop.
+            $this->rowPhasePeakBytes = \memory_get_peak_usage(true);
+            $this->dispatchAttributesRebuild($tenant);
         } catch (Throwable $exception) {
             // IMP2-1.9 — a throw from flush() leaves the EM CLOSED, so the old
             // path (findById + save on the same manager) threw again and left
@@ -369,8 +443,114 @@ final class ImportRunHandler extends AbstractBatchHandler
             if (null !== $sourcePath && file_exists($sourcePath)) {
                 @unlink($sourcePath);
             }
+            // IMP2-2.6 — clear the bulk flag for the next message on this worker.
+            $this->bulkContext->reset();
             $lock->release();
         }
+    }
+
+    /**
+     * IMP2-2.6 — peak bytes the import worker reached by the end of the row
+     * phase (before the offloaded rebuild). Null until a run reaches dispatch.
+     * Used by the memory benchmark to measure the prod import worker in
+     * isolation from the dev/test sync-transport inline rebuild.
+     */
+    public function rowPhasePeakBytes(): ?int
+    {
+        return $this->rowPhasePeakBytes;
+    }
+
+    /**
+     * IMP2-2.6 — publish a Mercure `progress` snapshot, throttled. The batch path
+     * dropped the per-row `row_processed` event (50k rows = 50k hub POSTs); this
+     * emits a `progress` snapshot at most once per ~1% of the file, so a 50k
+     * import lands ~100 hub messages instead of 50k. `$force` always emits — used
+     * for the terminal / halt snapshots so the UI never misses the final state.
+     * `current_sku` carries the last processed row's SKU for the live view.
+     */
+    private function publishProgress(ImportSession $session, int $processed, bool $force = false): void
+    {
+        $total = $session->getTotalRows() ?? 0;
+        $every = max($this->batchSize, (int) ceil($total / 100));
+        if (!$force && ($processed - $this->lastProgressAt) < $every) {
+            return;
+        }
+        $this->lastProgressAt = $processed;
+        $this->progressPublisher->progress($session, $processed, $this->lastProcessedSku);
+    }
+
+    /**
+     * IMP2-2.7 (#1483) — true when the profile set an Allowed-Errors threshold and
+     * the run's error ratio has crossed it (after a minimum sample). Integer math:
+     * `errorCount/processed*100 > threshold` ⟺ `errorCount*100 > threshold*processed`.
+     */
+    private function errorRateExceeded(ImportSession $session, int $processed): bool
+    {
+        $threshold = $session->getProfile()?->getAllowedErrorsPct();
+        if (null === $threshold || $processed < self::ALLOWED_ERRORS_MIN_ROWS) {
+            return false;
+        }
+
+        return $session->getErrorCount() * 100 > $threshold * $processed;
+    }
+
+    /**
+     * IMP2-2.7 (#1483) — if the Allowed-Errors ratio is crossed, index the rows
+     * already written, mark the session Failed (rows stay for rollback via
+     * IMP2-2.4), publish the terminal snapshot, and return true so the caller
+     * bails. Returns false to continue the run.
+     */
+    private function abortIfErrorRateExceeded(ImportSession $session, int $processed, Tenant $tenant): bool
+    {
+        if (!$this->errorRateExceeded($session, $processed)) {
+            return false;
+        }
+
+        $this->rowPhasePeakBytes = \memory_get_peak_usage(true);
+        // Read the counters off the still-managed session BEFORE the rebuild
+        // dispatch: on a sync transport the inline RebuildAttributesIndexedHandler
+        // (an AbstractBatchHandler) flush+clears the EM, detaching $session and
+        // its tenant/profile/targetObjectType proxies.
+        $threshold = $session->getProfile()?->getAllowedErrorsPct() ?? 0;
+        $errorCount = $session->getErrorCount();
+        $this->dispatchAttributesRebuild($tenant);
+        // EM was cleared by the inline rebuild: reload the session so the status
+        // mutation + save flush against a MANAGED entity (mirrors
+        // ImportRollbackService finalize), never re-persisting detached proxies.
+        $session = $this->refreshSession($session);
+        $session->markFailed(\sprintf(
+            'Przerwano import: odsetek błędnych wierszy przekroczył próg %d%% (%d błędów / %d wierszy).',
+            $threshold,
+            $errorCount,
+            $processed,
+        ));
+        $this->sessions->save($session);
+        $this->publishProgress($session, $processed, true);
+
+        return true;
+    }
+
+    /**
+     * IMP2-2.6 — dispatch the async attributes_indexed rebuild + Meilisearch
+     * reindex for every object the row phase created or actually changed, in id
+     * batches so a 50k import never ships one giant message. The TenantStamp
+     * lets the worker rebind the tenant before {@see RebuildAttributesIndexedHandler}
+     * runs. Cleared after dispatch so a re-run starts empty.
+     */
+    private function dispatchAttributesRebuild(Tenant $tenant): void
+    {
+        if ([] === $this->bulkTouchedIds) {
+            return;
+        }
+
+        foreach (array_chunk($this->bulkTouchedIds, self::REBUILD_DISPATCH_BATCH) as $batch) {
+            $this->messageBus->dispatch(
+                new \App\Catalog\Application\Message\ObjectValuesChangedMessage($batch),
+                [new TenantStamp($tenant->getId())],
+            );
+        }
+
+        $this->bulkTouchedIds = [];
     }
 
     /**
@@ -1217,6 +1397,15 @@ final class ImportRunHandler extends AbstractBatchHandler
                     // the same scope cannot append a duplicate undo entry.
                     if (null !== $existing) {
                         $this->undoLogger->markScopesCaptured($existing, $row['resolvedValues'], $attributesByCode, $tenant);
+                        // IMP2-2.6 — this row was written by the prior (paused)
+                        // run under BulkContext, but that run paused before the
+                        // rebuild dispatch fired. On resume we skip the re-write,
+                        // yet must still re-collect the object so the end-of-run
+                        // dispatch rebuilds its attributes_indexed + reindexes it
+                        // — otherwise a paused→resumed import leaves the first
+                        // run's objects unindexed (re-collecting an unchanged
+                        // object is an idempotent no-op rebuild).
+                        $this->bulkTouchedIds[] = $existing->getId()->toRfc4122();
                     }
                 }
 
@@ -1245,6 +1434,10 @@ final class ImportRunHandler extends AbstractBatchHandler
                     );
                     $issues = $created->issues;
                     $session->incrementSuccess();
+                    // IMP2-2.6 — a created object needs its attributes_indexed
+                    // built + Meili doc indexed; the sync path is off under
+                    // BulkContext, so collect it for the end-of-run async rebuild.
+                    $this->bulkTouchedIds[] = $created->object->getId()->toRfc4122();
                     // IMP2-1.8: buffer parent + relation links; resolved in
                     // pass 2 once every object exists (target row may precede).
                     $createdSku = $this->skuFrom($row['resolvedValues'], $row['rowNumber']);
@@ -1256,7 +1449,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                     // is about to overwrite/add on the pre-existing object, so
                     // rollback v2 can restore it.
                     $this->undoLogger->captureValueWrites($session, $existing, $row['resolvedValues'], $attributesByCode, $tenant);
-                    $issues = $this->creator->update(
+                    $updateResult = $this->creator->update(
                         $existing,
                         $row['resolvedValues'],
                         $attributesByCode,
@@ -1265,8 +1458,19 @@ final class ImportRunHandler extends AbstractBatchHandler
                         $this->extractVariantAxes($row['cells'], $columnMapping),
                         $existingAssetIds,
                     );
-                    $session->incrementSuccess();
-                    $session->incrementUpdated();
+                    $issues = $updateResult['issues'];
+                    // IMP2-2.6 — a row whose values all already matched is a no-op
+                    // re-import (zero object_values UPDATE): count it as `skipped`,
+                    // not `updated`, so a re-imported unchanged export reports 100%
+                    // skipped. Any actual value change makes it a real update.
+                    if ($updateResult['changed'] > 0) {
+                        $session->incrementSuccess();
+                        $session->incrementUpdated();
+                        // IMP2-2.6 — values changed → async rebuild + reindex.
+                        $this->bulkTouchedIds[] = $existing->getId()->toRfc4122();
+                    } else {
+                        $session->incrementSkipped();
+                    }
                     $this->recordParentLink($existing->getCode(), $row['cells'], $columnMapping, $row['rowNumber']);
                     $this->recordRelationLinks($existing->getCode(), $row['resolvedValues'], $attributesByCode, $row['rowNumber']);
                     $this->collectMediaJobs($mediaJobs, $session, $existing->getId(), $row, $attributesByCode);
@@ -1331,9 +1535,20 @@ final class ImportRunHandler extends AbstractBatchHandler
                     columnName: $error->columnName,
                     columnValue: $error->columnValue,
                 ));
+                // IMP2-2.6 — only ROW-BLOCKING errors go per-row on Mercure for the
+                // live log; blocking errors are rare. Warnings (e.g. per-row
+                // duplicate findings on a self-reimport) stay in the persisted
+                // ImportLog only — emitting them would re-introduce O(N) hub POSTs.
+                // The per-row `row_processed` ticker is gone (replaced by the
+                // throttled `progress` snapshots in run()).
+                if ($error->isRowBlocking()) {
+                    $this->progressPublisher->error($session, $error->rowNumber, $error->sku, $error->errorType->value, $error->message);
+                }
             }
 
-            $this->progressPublisher->rowProcessed($session, $row['rowNumber'], $row['sku'], $row['rowOk']);
+            // IMP2-2.6 — feed the throttled `progress` snapshot's current_sku
+            // instead of emitting a Mercure event per row.
+            $this->lastProcessedSku = $row['sku'];
         }
 
         // IMP2-1.7: category replace/append for UPDATE rows, after the value

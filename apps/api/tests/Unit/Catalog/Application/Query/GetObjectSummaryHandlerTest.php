@@ -126,6 +126,16 @@ final class InMemoryCatalogObjectRepo implements CatalogObjectRepositoryInterfac
         throw new LogicException('not used in this test');
     }
 
+    public function findRootObjectsAfter(ObjectType $objectType, Tenant $tenant, ?Uuid $afterId, int $limit): array
+    {
+        throw new LogicException('not used in this test');
+    }
+
+    public function countRootObjectsByType(ObjectType $objectType, Tenant $tenant): int
+    {
+        throw new LogicException('not used in this test');
+    }
+
     public function save(CatalogObject $object): void
     {
         throw new LogicException('not used in this test');

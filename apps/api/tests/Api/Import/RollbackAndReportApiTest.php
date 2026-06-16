@@ -93,6 +93,8 @@ final class RollbackAndReportApiTest extends CatalogApiTestCase
         $client->request('GET', \sprintf('/api/import-sessions/%s/report.csv', $sessionId));
 
         self::assertResponseIsSuccessful();
+        // IMP2-2.7 (#1483) — report is now a StreamedResponse; HttpKernelBrowser
+        // captures its streamed body, so getContent() still returns the CSV.
         $body = $client->getResponse()?->getContent() ?? '';
 
         self::assertStringContainsString('row_number,sku,error_type,error_message,column,value', $body);
