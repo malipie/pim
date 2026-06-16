@@ -76,3 +76,44 @@ test('IMP2-2.10 — session view shows the linked pre-import backup', async ({ p
     /(Backup przed importem|Backup before import).*✅/,
   );
 });
+
+/**
+ * #1553 follow-up (IMP2-2.6) — the "pominiętych" KPI must read skipped_count,
+ * not error_count. Mocked with distinct values (skipped=2, error=1) so a
+ * regression that reads error_count would render "1 pominiętych" instead of "2".
+ */
+test('#1553 — KPI "pominiętych" reads skipped_count, not error_count', async ({ page }) => {
+  await loginAsAdmin(page);
+
+  const sessionId = '01900000-0000-7000-8000-0000000000cc';
+  await page.route(`**/api/import-sessions/${sessionId}`, (route) =>
+    route.fulfill({
+      json: {
+        id: sessionId,
+        status: 'success',
+        file_name: 'skipped-demo.csv',
+        total_rows: 6,
+        success_count: 3,
+        error_count: 1,
+        updated_count: 0,
+        skipped_count: 2,
+        mode: 'upsert',
+        images_downloaded: 0,
+        images_failed: 0,
+        started_at: '2026-06-15T10:00:00.000+00:00',
+        completed_at: '2026-06-15T10:01:00.000+00:00',
+        rollback_until: null,
+        rolled_back_at: null,
+        error_message: null,
+        backup: null,
+      },
+    }),
+  );
+
+  await page.goto(`/integrations/imports/${sessionId}`);
+
+  // The "skipped" KPI reflects skipped_count (2), never error_count (1).
+  // Locale-agnostic: the suite runs in EN ("2 skipped") or PL ("2 pominiętych").
+  await expect(page.getByText(/2 (skipped|pominiętych)/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/1 (skipped|pominiętych)/)).toHaveCount(0);
+});

@@ -26,6 +26,7 @@ interface ImportSession {
   total_rows: number | null;
   success_count: number;
   error_count: number;
+  skipped_count: number;
   images_downloaded: number;
   images_failed: number;
   started_at: string | null;
@@ -273,7 +274,7 @@ export function ImportShowPage(): React.ReactElement {
             />
             <Kpi
               label={t('imports.results.skipped', {
-                count: session.error_count,
+                count: session.skipped_count,
                 defaultValue: '{{count}} pominiętych',
               })}
               tone="warn"
@@ -290,7 +291,7 @@ export function ImportShowPage(): React.ReactElement {
           {session.total_rows !== null && session.total_rows > 0 && (
             <ResultBar
               ok={session.success_count}
-              warn={0}
+              warn={session.skipped_count}
               err={session.error_count}
               total={session.total_rows}
             />
