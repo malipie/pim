@@ -104,6 +104,7 @@ final readonly class ImportProfileProcessor implements ProcessorInterface
         $profile->setEncoding($data->encoding);
         $profile->setDelimiter($data->delimiter);
         $profile->setImageZipNamingConvention($data->imageZipNamingConvention);
+        $profile->setAllowedErrorsPct($data->allowedErrorsPct);
         if (null !== $data->imageSource) {
             $source = ImportImageSource::tryFrom($data->imageSource);
             if (null !== $source) {
@@ -162,6 +163,9 @@ final readonly class ImportProfileProcessor implements ProcessorInterface
             if (null !== $source) {
                 $profile->setImageSource($source);
             }
+        }
+        if (null !== $data->allowedErrorsPct) {
+            $profile->setAllowedErrorsPct($data->allowedErrorsPct);
         }
 
         $this->profiles->save($profile);
