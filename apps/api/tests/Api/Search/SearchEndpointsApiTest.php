@@ -98,6 +98,69 @@ final class SearchEndpointsApiTest extends CatalogApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    /**
+     * AUD-004 (#1574) — Meilisearch filter-key injection → cross-tenant read.
+     *
+     * The flat `?filter[<KEY>]=<value>` map fed `<KEY>` straight into the
+     * Meili filter expression via `sprintf('%s = "%s"', $key, ...)` with no
+     * whitelist on the key (only facets were checked). A key carrying a
+     * Meili operator — `parentId IS NULL OR tenantId` — closes the AND-scoped
+     * tenant clause with a low-precedence `OR`, so the hub answers across
+     * tenants. The key must be validated against `filterableAttributes`;
+     * anything else is a 400, never a silent injection.
+     */
+    #[Test]
+    public function searchRejectsFilterKeyWithMeiliOperatorInjection(): void
+    {
+        $this->seedProduct('INJ-1', enabled: true);
+        $this->forceReindex(ObjectKind::Product);
+
+        $client = $this->authenticatedClient();
+        // Key = "parentId IS NULL OR tenantId" — not a filterable attribute.
+        // urlencode the bracketed key so the operator/spaces survive routing.
+        $key = rawurlencode('parentId IS NULL OR tenantId');
+        $client->request('GET', \sprintf('/api/search/products?filter%%5B%s%%5D=%s', $key, '00000000-0000-7000-8000-000000000000'));
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    /**
+     * AUD-004 (#1574) — a plain key that is not a known filterable attribute
+     * (no operator, just an unknown field) is also rejected. Guards against a
+     * whitelist that only blocks keys containing spaces/operators while still
+     * letting arbitrary field names leak through the filter expression.
+     */
+    #[Test]
+    public function searchRejectsUnknownFilterKey(): void
+    {
+        $this->seedProduct('INJ-2', enabled: true);
+        $this->forceReindex(ObjectKind::Product);
+
+        $client = $this->authenticatedClient();
+        $client->request('GET', '/api/search/products?filter%5Btotally_unknown_field%5D=x');
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    /**
+     * AUD-004 (#1574) — regression guard: legitimate filters on whitelisted
+     * attributes (`enabled` is a RESERVED_FILTERABLE) must keep working after
+     * the key whitelist lands. The fix must reject injected keys without
+     * breaking the documented flat-filter surface.
+     */
+    #[Test]
+    public function searchKeepsWhitelistedFilterWorking(): void
+    {
+        $this->seedProduct('OK-1', enabled: true);
+        $this->seedProduct('OK-2', enabled: true);
+        $this->forceReindex(ObjectKind::Product);
+
+        $client = $this->authenticatedClient();
+        $body = $client->request('GET', '/api/search/products?filter%5Benabled%5D=true')->toArray();
+
+        self::assertGreaterThanOrEqual(2, $body['totalHits'] ?? 0);
+    }
+
     #[Test]
     public function searchObjectsScopedToObjectTypeId(): void
     {

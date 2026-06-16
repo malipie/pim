@@ -10,6 +10,7 @@ use App\Search\Infrastructure\MeilisearchClientFactory;
 use App\Shared\Domain\Tenant;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Throwable;
 
 /**
@@ -71,6 +72,17 @@ final readonly class CatalogSearchService
             // multi-tenant isolation contract.
             return $this->emptyResult();
         }
+
+        // AUD-004 (#1574) — every user-supplied filter/range key is
+        // interpolated into the Meili filter expression below. Without a
+        // whitelist a key carrying a Meili operator (e.g.
+        // `parentId IS NULL OR tenantId`) injects a low-precedence `OR` that
+        // closes the AND-scoped tenant clause → cross-tenant read. Validate
+        // every key against the index's `filterableAttributes` (the same
+        // source already trusted for facets) and 400 on anything else.
+        $allowedKeys = $this->filterableAttributesFor($kind);
+        $this->assertFilterKeys(array_keys($filters), $allowedKeys);
+        $this->assertFilterKeys(array_keys($rangeFilters), $allowedKeys);
 
         $tenantFilter = \sprintf('tenantId = "%s"', $tenant->getId()->toRfc4122());
         $extraFilters = [];
@@ -188,6 +200,35 @@ final readonly class CatalogSearchService
             'facetDistribution' => [],
             'processingTimeMs' => 0,
         ];
+    }
+
+    /**
+     * AUD-004 (#1574) — validate user-supplied filter keys against the
+     * index's filterable attributes before any value is interpolated into
+     * the Meili expression.
+     *
+     * Two rules:
+     *   1. `tenantId` is a reserved, non-mixable scope — it is always
+     *      AND-merged separately ({@see $tenantFilter}) and must never be
+     *      driven by a user filter, otherwise the scope can be widened.
+     *   2. Every other key must be a known filterable attribute. Anything
+     *      else (unknown field, or a string smuggling a Meili operator such
+     *      as `parentId IS NULL OR tenantId`) is rejected with a 400.
+     *
+     * @param list<int|string> $keys
+     * @param list<string>     $allowed
+     */
+    private function assertFilterKeys(array $keys, array $allowed): void
+    {
+        foreach ($keys as $key) {
+            $key = (string) $key;
+            if ('tenantId' === $key) {
+                throw new BadRequestHttpException('Filter key "tenantId" is reserved and cannot be set explicitly.');
+            }
+            if (!\in_array($key, $allowed, true)) {
+                throw new BadRequestHttpException(\sprintf('Unknown filter attribute "%s".', $key));
+            }
+        }
     }
 
     /**
