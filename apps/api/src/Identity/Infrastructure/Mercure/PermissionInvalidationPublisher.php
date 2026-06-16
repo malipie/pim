@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Infrastructure\Mercure;
 
 use App\Identity\Domain\Entity\User;
+use App\Shared\Infrastructure\Mercure\MercureSubscribeTopics;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
@@ -26,12 +27,13 @@ use const JSON_THROW_ON_ERROR;
  * acting under stale permissions until they reload manually.
  *
  * Topic naming follows the existing Export / Import publishers'
- * convention so the frontend EventSource subscribes to one shape:
+ * convention so the frontend EventSource subscribes to one shape.
+ * Tenant-scoped + private after AUD-001 (#1573):
  *
- *   https://{public}/identity/user/{userId}   — per-user
- *   https://{public}/identity/tenant/{tenantId} — tenant-wide (every
- *                                                 user inside, used for
- *                                                 macierz-wide changes)
+ *   https://{public}/tenant/{tenantId}/identity/user/{userId}   — per-user
+ *   https://{public}/tenant/{tenantId}/identity/tenant/{tenantId} —
+ *                                                 tenant-wide (every user
+ *                                                 inside, macierz changes)
  *
  * The matching frontend listener — `usePermissionInvalidationSse()` —
  * invalidates the `['rbac','identity']` query key so React Query
@@ -61,20 +63,21 @@ final readonly class PermissionInvalidationPublisher
 
     public function publishForUser(User $user, string $reason = 'permission_changed'): void
     {
-        $topic = \sprintf('%s/identity/user/%s', $this->topicBase, $user->getId()->toRfc4122());
+        $tenantId = $user->getTenant()->getId();
+        $topic = MercureSubscribeTopics::identityUser($tenantId, $this->topicBase, $user->getId()->toRfc4122());
 
         $this->emit($topic, [
             'type' => self::EVENT_TYPE,
             'scope' => 'user',
             'user_id' => $user->getId()->toRfc4122(),
-            'tenant_id' => $user->getTenant()->getId()->toRfc4122(),
+            'tenant_id' => $tenantId->toRfc4122(),
             'reason' => $reason,
         ]);
     }
 
     public function publishForTenant(Uuid $tenantId, string $reason = 'role_macierz_changed'): void
     {
-        $topic = \sprintf('%s/identity/tenant/%s', $this->topicBase, $tenantId->toRfc4122());
+        $topic = MercureSubscribeTopics::identityTenant($tenantId, $this->topicBase);
 
         $this->emit($topic, [
             'type' => self::EVENT_TYPE,
@@ -90,7 +93,7 @@ final readonly class PermissionInvalidationPublisher
     private function emit(string $topic, array $payload): void
     {
         try {
-            $this->hub->publish(new Update($topic, json_encode($payload, JSON_THROW_ON_ERROR)));
+            $this->hub->publish(new Update($topic, json_encode($payload, JSON_THROW_ON_ERROR), private: true));
         } catch (Throwable $exception) {
             $this->logger->warning(
                 'Permission Mercure invalidation publish failed; SPA will refetch on next /api/auth/me TTL expiry.',

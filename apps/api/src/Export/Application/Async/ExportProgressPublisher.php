@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Export\Application\Async;
 
 use App\Export\Domain\Entity\ExportSession;
+use App\Shared\Infrastructure\Mercure\MercureSubscribeTopics;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
@@ -16,14 +17,18 @@ use const JSON_THROW_ON_ERROR;
 /**
  * EXP-06 (#585) — Mercure SSE publisher for async exports.
  *
- * Publishes lifecycle events to two topics (PRD §11.5):
- *   - `exports/{user_id}` — list-view broadcast so the user's "Recent
- *     exports" grid (EXP-13) refreshes when ANY of their exports
- *     changes status.
- *   - `exports/{session_id}` — detail topic carrying per-chunk progress
- *     (rows_done, rows_total, progress_pct, estimated_seconds_remaining).
- *     Subscribed only when the user opens a session detail / a toast
- *     is mid-flight.
+ * Publishes lifecycle events to two tenant-scoped, private topics
+ * (PRD §11.5; AUD-001 #1573):
+ *   - `tenant/{tid}/exports/{user_id}` — list-view broadcast so the
+ *     user's "Recent exports" grid (EXP-13) refreshes when ANY of their
+ *     exports changes status.
+ *   - `tenant/{tid}/exports/{session_id}` — detail topic carrying
+ *     per-chunk progress (rows_done, rows_total, progress_pct,
+ *     estimated_seconds_remaining).
+ *
+ * The `tenant/{tid}` prefix + `private: true` close the AUD-001
+ * cross-tenant leak: the hub only delivers a private update to a
+ * subscriber whose JWT authorises that exact tenant topic.
  *
  * Hub failures are logged but never abort the underlying export — the
  * MinIO file write is the source of truth; Mercure is a notification
@@ -31,8 +36,6 @@ use const JSON_THROW_ON_ERROR;
  */
 final class ExportProgressPublisher
 {
-    private const string TOPIC_PREFIX = 'exports';
-
     private readonly LoggerInterface $logger;
 
     public function __construct(
@@ -85,12 +88,25 @@ final class ExportProgressPublisher
 
         $encoded = json_encode($message, JSON_THROW_ON_ERROR);
 
-        $userTopic = sprintf('%s/%s/%s', $this->topicBase, self::TOPIC_PREFIX, $session->getUserId()->toRfc4122());
-        $sessionTopic = sprintf('%s/%s/%s', $this->topicBase, self::TOPIC_PREFIX, $session->getId()->toRfc4122());
+        $tenant = $session->getTenant();
+        if (null === $tenant) {
+            // Sessions are tenant-stamped before processing; a null here is
+            // a misconfiguration. Skip rather than emit an un-scoped topic.
+            $this->logger->warning('Export progress publish skipped: session has no tenant', [
+                'session_id' => $session->getId()->toRfc4122(),
+                'event' => $eventType,
+            ]);
+
+            return;
+        }
+        $tenantId = $tenant->getId();
+
+        $userTopic = MercureSubscribeTopics::exportUser($tenantId, $this->topicBase, $session->getUserId()->toRfc4122());
+        $sessionTopic = MercureSubscribeTopics::exportSession($tenantId, $this->topicBase, $session->getId()->toRfc4122());
 
         try {
-            $this->hub->publish(new Update($userTopic, $encoded));
-            $this->hub->publish(new Update($sessionTopic, $encoded));
+            $this->hub->publish(new Update($userTopic, $encoded, private: true));
+            $this->hub->publish(new Update($sessionTopic, $encoded, private: true));
         } catch (Throwable $error) {
             $this->logger->warning('Export progress publish failed', [
                 'session_id' => $session->getId()->toRfc4122(),

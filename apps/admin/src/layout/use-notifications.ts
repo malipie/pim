@@ -1,13 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+
+import { useIdentity } from '@/lib/identity';
+import { ensureMercureAuthorization, mercureSubscribeUrl, mercureTenantTopic } from '@/lib/mercure';
 
 /**
  * Mercure notifications feed for the top bar bell (#54 / 0.6.1).
  *
- * Subscribes to the broadcast topic published by the Mercure publisher
- * from #47 (`<base>/objects`). Each `EventSource` message becomes a
- * notification entry with a stable id, the parsed payload type
+ * Subscribes to the tenant-scoped catalog broadcast topic published by
+ * the Mercure publisher from #47 — `<base>/tenant/<tid>/objects` after
+ * AUD-001 (#1573). Each `EventSource` message becomes a notification
+ * entry with a stable id, the parsed payload type
  * (`object.created.product`, `object.attributes_changed.category`, …),
  * and the raw data so the UI can later route the user to the row.
+ *
+ * Before AUD-001 this hook listened on the un-prefixed global `/objects`
+ * topic against an anonymous hub, so the bell surfaced every tenant's
+ * catalog changes. The tenant prefix + the mercureAuthorization cookie
+ * (minted below) confine it to the caller's tenant.
  *
  * The hook keeps the last 25 events in memory only — the bell is a
  * "is something happening right now" surface, not an audit log. Reload
@@ -33,23 +42,25 @@ export interface UseNotificationsState {
 }
 
 const MAX_ENTRIES = 25;
-const BROADCAST_TOPIC = '/objects';
 
 export function useNotifications(): UseNotificationsState {
   const [entries, setEntries] = useState<NotificationEntry[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const hubUrl = useRef<string | null>(null);
+  const { identity } = useIdentity();
+  const tenantId = identity?.tenant?.id ?? null;
 
   useEffect(() => {
     // EventSource is window-only; SSR / unit envs (jsdom-less) skip this.
     if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;
+    if (tenantId === null) return;
 
-    if (hubUrl.current === null) {
-      hubUrl.current = `${window.location.origin}/.well-known/mercure?topic=${encodeURIComponent(BROADCAST_TOPIC)}`;
-    }
+    const broadcastTopic = mercureTenantTopic(tenantId, 'objects');
+    const url = mercureSubscribeUrl(broadcastTopic);
 
-    const source = new EventSource(hubUrl.current, { withCredentials: true });
-    source.addEventListener('message', (event) => {
+    let source: EventSource | null = null;
+    let cancelled = false;
+
+    const onMessage = (event: MessageEvent): void => {
       try {
         const raw: unknown = JSON.parse(event.data);
         if (typeof raw !== 'object' || raw === null) return;
@@ -64,7 +75,7 @@ export function useNotifications(): UseNotificationsState {
         const entry: NotificationEntry = {
           id: `${event.lastEventId || crypto.randomUUID()}`,
           type,
-          topic: BROADCAST_TOPIC,
+          topic: broadcastTopic,
           occurredOn,
           data,
           receivedAt: Date.now(),
@@ -74,12 +85,25 @@ export function useNotifications(): UseNotificationsState {
       } catch {
         // Malformed payload is non-fatal — Mercure is enrichment, not source of truth.
       }
-    });
+    };
+
+    // AUD-001 (#1573) — mint the tenant-scoped subscribe cookie before
+    // opening the EventSource; the hub rejects an unauthorised subscription.
+    ensureMercureAuthorization()
+      .then(() => {
+        if (cancelled) return;
+        source = new EventSource(url, { withCredentials: true });
+        source.addEventListener('message', onMessage);
+      })
+      .catch(() => {
+        // Mint failed — the bell is enrichment; silently degrade.
+      });
 
     return () => {
-      source.close();
+      cancelled = true;
+      source?.close();
     };
-  }, []);
+  }, [tenantId]);
 
   const markAllRead = (): void => {
     setUnreadCount(0);

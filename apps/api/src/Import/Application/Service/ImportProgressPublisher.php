@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Import\Application\Service;
 
 use App\Import\Domain\Entity\ImportSession;
+use App\Shared\Infrastructure\Mercure\MercureSubscribeTopics;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
@@ -14,10 +15,14 @@ use Throwable;
 use const JSON_THROW_ON_ERROR;
 
 /**
- * Publishes import lifecycle / progress updates to two Mercure topics
- * (spec §8.5):
- *   - `imports/{user_id}` — broadcast list view (status changes)
- *   - `imports/{session_id}` — detail (progress %, current SKU, errors)
+ * Publishes import lifecycle / progress updates to two tenant-scoped,
+ * private Mercure topics (spec §8.5; AUD-001 #1573):
+ *   - `tenant/{tid}/imports/user/{user_id}` — broadcast list view
+ *   - `tenant/{tid}/imports/{session_id}` — detail (progress %, SKU, errors)
+ *
+ * The `tenant/{tid}` prefix + `private: true` close the AUD-001
+ * cross-tenant leak: the hub only delivers a private update to a
+ * subscriber whose JWT authorises that exact tenant topic.
  *
  * Hub failures are logged but never abort the underlying write — Mercure
  * is a notification channel, not the source of truth (mirrors the
@@ -25,8 +30,6 @@ use const JSON_THROW_ON_ERROR;
  */
 final class ImportProgressPublisher
 {
-    private const string TOPIC_PREFIX = 'imports';
-
     private readonly LoggerInterface $logger;
 
     public function __construct(
@@ -74,8 +77,22 @@ final class ImportProgressPublisher
      */
     private function publish(ImportSession $session, string $type, array $payload): void
     {
-        $sessionTopic = \sprintf('%s/%s/%s', $this->topicBase, self::TOPIC_PREFIX, $session->getId()->toRfc4122());
-        $userTopic = \sprintf('%s/%s/user/%s', $this->topicBase, self::TOPIC_PREFIX, $session->getUserId()->toRfc4122());
+        $tenant = $session->getTenant();
+        if (null === $tenant) {
+            // A session is always tenant-stamped before processing; a null
+            // here means a misconfigured caller. Skipping the publish is
+            // safer than emitting an un-scoped (cross-tenant) topic.
+            $this->logger->warning('Mercure import progress publish skipped: session has no tenant', [
+                'session_id' => $session->getId()->toRfc4122(),
+                'type' => $type,
+            ]);
+
+            return;
+        }
+        $tenantId = $tenant->getId();
+
+        $sessionTopic = MercureSubscribeTopics::importSession($tenantId, $this->topicBase, $session->getId()->toRfc4122());
+        $userTopic = MercureSubscribeTopics::importUser($tenantId, $this->topicBase, $session->getUserId()->toRfc4122());
 
         $update = new Update(
             topics: [$sessionTopic, $userTopic],
@@ -84,6 +101,7 @@ final class ImportProgressPublisher
                 'session_id' => $session->getId()->toRfc4122(),
                 'data' => $payload,
             ], JSON_THROW_ON_ERROR),
+            private: true,
         );
 
         try {

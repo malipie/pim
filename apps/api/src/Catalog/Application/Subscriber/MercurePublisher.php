@@ -10,13 +10,16 @@ use App\Catalog\Contracts\Event\ObjectCreated;
 use App\Catalog\Contracts\Event\ObjectEnabledChanged;
 use App\Catalog\Contracts\Event\ObjectPublished;
 use App\Catalog\Domain\ObjectKind;
+use App\Shared\Application\TenantAwareMessage;
 use App\Shared\Domain\DomainEvent;
+use App\Shared\Infrastructure\Mercure\MercureSubscribeTopics;
 use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Uid\Uuid;
 use Throwable;
 
 use const JSON_THROW_ON_ERROR;
@@ -28,10 +31,13 @@ use const JSON_THROW_ON_ERROR;
  * Each handler maps a domain event to:
  *   - **Type**: `object.<verb>.<kind>` (e.g. `object.created.product`)
  *     so subscribers can filter by both the operation and the kind.
- *   - **Topic**: `https://pim.localhost/objects/<id>` (per row) plus
- *     `https://pim.localhost/objects` (broadcast) so the admin can
- *     listen on a single topic for "any catalog change" or a row-
- *     specific topic for live editing.
+ *   - **Topic**: `https://pim.localhost/tenant/<tid>/objects/<id>` (per
+ *     row) plus `https://pim.localhost/tenant/<tid>/objects` (broadcast)
+ *     so the admin can listen on a single topic for "any catalog change"
+ *     or a row-specific topic for live editing. The `tenant/<tid>`
+ *     prefix + `private: true` close the AUD-001 (#1573) cross-tenant
+ *     leak — the hub only delivers a private update to a subscriber
+ *     whose JWT authorises that exact tenant topic.
  *
  * The Mercure hub URL is the public origin from `MERCURE_PUBLIC_URL` —
  * subscribers connect there, the publisher pushes through
@@ -121,10 +127,11 @@ final readonly class MercurePublisher
     /**
      * @param array<string, mixed> $payload
      */
-    private function publish(string $type, DomainEvent $event, array $payload): void
+    private function publish(string $type, DomainEvent&TenantAwareMessage $event, array $payload): void
     {
-        $rowTopic = \sprintf('%s/%s/%s', $this->topicBase, self::TOPIC_PREFIX_OBJECT, $event->aggregateId());
-        $broadcastTopic = \sprintf('%s/%s', $this->topicBase, self::TOPIC_PREFIX_OBJECT);
+        $tenantId = $event->tenantId();
+        $rowTopic = MercureSubscribeTopics::objectRow($tenantId, $this->topicBase, $event->aggregateId());
+        $broadcastTopic = MercureSubscribeTopics::objectsBroadcast($tenantId, $this->topicBase);
 
         $update = new Update(
             topics: [$rowTopic, $broadcastTopic],
@@ -133,6 +140,7 @@ final readonly class MercurePublisher
                 'occurredOn' => $event->occurredOn()->format(DateTimeInterface::RFC3339_EXTENDED),
                 'data' => $payload,
             ], JSON_THROW_ON_ERROR),
+            private: true,
         );
 
         // Hub failures (network, hub down, JWT mismatch) must not abort
@@ -154,10 +162,11 @@ final readonly class MercurePublisher
     /**
      * Helper used by ObjectKind switches outside this class. Kept here to
      * keep topic naming colocated with the publisher (one place to bump
-     * `objects` → `catalog.objects` if the contract evolves).
+     * the topic contract). Tenant-scoped (AUD-001 #1573) so a kind-filtered
+     * subscription can never cross tenant boundaries.
      */
-    public static function topicForKind(ObjectKind $kind, string $base = 'https://pim.localhost'): string
+    public static function topicForKind(ObjectKind $kind, Uuid $tenantId, string $base = 'https://pim.localhost'): string
     {
-        return \sprintf('%s/%s/kind/%s', $base, self::TOPIC_PREFIX_OBJECT, $kind->value);
+        return MercureSubscribeTopics::tenantPrefix($tenantId, $base).'/'.self::TOPIC_PREFIX_OBJECT.'/kind/'.$kind->value;
     }
 }

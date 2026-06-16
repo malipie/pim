@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
+import { ensureMercureAuthorization, mercureSubscribeUrl, mercureTenantTopic } from '../mercure';
 import { IDENTITY_QUERY_KEY } from './use-identity';
 
 /**
@@ -30,39 +31,48 @@ import { IDENTITY_QUERY_KEY } from './use-identity';
  * (userId becomes null). Reconnection is the browser's job — the
  * native EventSource handles exponential back-off automatically.
  */
-export function usePermissionInvalidationSse(userId: string | null): void {
+export function usePermissionInvalidationSse(userId: string | null, tenantId: string | null): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !tenantId) {
       return;
     }
 
-    const baseUrl =
-      // Vite env access intentionally guarded — fall back to same-origin
-      // path when the env var is missing so dev works out of the box.
-      (typeof import.meta !== 'undefined' &&
-        (import.meta as { env?: { VITE_MERCURE_PUBLIC_URL?: string } }).env
-          ?.VITE_MERCURE_PUBLIC_URL) ||
-      `${window.location.origin}/.well-known/mercure`;
+    // AUD-001 (#1573) — tenant-scoped, private topic; mint the
+    // mercureAuthorization cookie before opening the EventSource (the hub
+    // rejects an unauthorised subscription). Mirrors
+    // MercureSubscribeTopics::identityUser().
+    const topic = mercureTenantTopic(tenantId, 'identity', 'user', userId);
+    const url = mercureSubscribeUrl(topic);
 
-    const topic = `${window.location.origin}/identity/user/${userId}`;
-    const url = new URL(baseUrl);
-    url.searchParams.append('topic', topic);
+    let source: EventSource | null = null;
+    let cancelled = false;
 
-    const source = new EventSource(url.toString(), { withCredentials: true });
-    source.onmessage = () => {
-      queryClient.invalidateQueries({ queryKey: IDENTITY_QUERY_KEY });
-    };
-    source.onerror = () => {
-      // Native EventSource auto-reconnects; we keep the source live and
-      // let the browser back off. If the hub is permanently down, the
-      // 5-min query staleTime keeps a fresh /api/auth/me on the
-      // next refocus.
-    };
+    ensureMercureAuthorization()
+      .then(() => {
+        if (cancelled) {
+          return;
+        }
+        source = new EventSource(url, { withCredentials: true });
+        source.onmessage = () => {
+          queryClient.invalidateQueries({ queryKey: IDENTITY_QUERY_KEY });
+        };
+        source.onerror = () => {
+          // Native EventSource auto-reconnects; we keep the source live and
+          // let the browser back off. If the hub is permanently down, the
+          // 5-min query staleTime keeps a fresh /api/auth/me on the
+          // next refocus.
+        };
+      })
+      .catch(() => {
+        // Mint failed — the 5-min staleTime keeps /api/auth/me fresh on
+        // the next refocus, so we degrade gracefully without the live push.
+      });
 
     return () => {
-      source.close();
+      cancelled = true;
+      source?.close();
     };
-  }, [userId, queryClient]);
+  }, [userId, tenantId, queryClient]);
 }

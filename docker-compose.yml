@@ -369,9 +369,13 @@ services:
       SERVER_NAME: ":80"
       MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
       MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
+      # AUD-001 (#1573) — NO `anonymous` directive: every subscription must
+      # present a `mercureAuthorization` cookie (minted by
+      # POST /api/mercure/authorization, scoped to the caller's tenant
+      # topics). Without it the hub answers 401. Re-adding `anonymous`
+      # re-opens the cross-tenant SSE leak.
       MERCURE_EXTRA_DIRECTIVES: |
         cors_origins https://pim.localhost https://localhost
-        anonymous
     expose:
       - "80"
     volumes:
