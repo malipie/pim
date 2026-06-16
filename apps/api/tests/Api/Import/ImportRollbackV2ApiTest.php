@@ -124,9 +124,13 @@ final class ImportRollbackV2ApiTest extends CatalogApiTestCase
         $this->import("sku;name\nIDX-1;Old1\n");
         $sessionId = $this->import("sku;name\nIDX-1;New1\n");
 
-        // Precondition: the denormalised cache + completeness reflect import #2.
-        self::assertSame('New1', $this->indexedNameOf('IDX-1'), 'precondition: cache reflects the overwrite');
-        self::assertSame(100, $this->completenessGlobalOf('IDX-1'), 'precondition: required name present → 100%');
+        // Precondition on the canonical value only (synchronous on the write
+        // path). The denormalised attributes_indexed / completeness caches are
+        // rebuilt via an async-dispatched message on the import path, so their
+        // post-import state is not guaranteed inline — we assert them only after
+        // the rollback's SYNCHRONOUS rebuild below, which is exactly what this
+        // test pins.
+        self::assertSame('New1', $this->nameOf('IDX-1'), 'precondition: canonical value reflects the overwrite');
 
         $client = $this->authenticatedClient();
         $client->request('POST', \sprintf('/api/import-sessions/%s/rollback', $sessionId));
