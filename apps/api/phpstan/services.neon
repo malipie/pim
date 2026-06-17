@@ -16,3 +16,11 @@ services:
         class: App\PHPStan\Rules\HardcodedRoleCheckRule
         tags:
             - phpstan.rules.rule
+    # AUD-011 (W1-8) — FrankenPHP worker-mode guard-rail (architektura §3.10
+    # pkt 5): a Messenger handler that flush()es inside a batch loop without a
+    # clear() accumulates the Doctrine identity map and OOMs the worker on 50k
+    # SKU. Exempts AbstractBatchHandler subclasses (they flush via flushAndClear).
+    -
+        class: App\PHPStan\Rules\FlushWithoutClearInLoopRule
+        tags:
+            - phpstan.rules.rule

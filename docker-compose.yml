@@ -14,19 +14,24 @@ name: pim
 x-default-restart: &default_restart
   restart: unless-stopped
 
-# HARD-02 — dev-machine resource limits.
+# HARD-02 / AUD-012 (W1-8) — dev-machine resource limits.
 #
 # CLAUDE.md §3.10 calls out FrankenPHP worker mode as the highest memory-leak
 # risk in the stack: Doctrine Identity Map accumulates between requests and a
 # missing EntityManager::clear() inside a long-running handler can OOM the
 # whole worker pool. Without `deploy.resources.limits` the worker can swallow
-# the entire host memory before the leak surfaces in metrics.
+# the entire host memory before the leak surfaces in metrics. The flush-without-
+# clear pattern is now also blocked statically by App\PHPStan\Rules\
+# FlushWithoutClearInLoopRule (CI gate); these container limits are the runtime
+# backstop for leaks the static rule cannot see (e.g. raw DBAL/SQL bulk loads).
 #
-# Limits below are tuned for a 16 GB dev workstation (sum ≈ 6 GB across all
-# services; leaves headroom for editor + browser). Production overrides land
-# in docker-compose.prod.yml (separate ticket — Faza 1 deploy hardening) and
-# should pair with a Prometheus alert on `frankenphp_worker_memory_bytes >
-# 256MB` per CLAUDE.md §3.10.
+# Limits below are tuned for a 16 GB dev workstation (sum ≈ 6.5 GB across all
+# services; leaves headroom for editor + browser). The `worker` service gets its
+# own 512M ceiling (x-resource-limits-worker) since it is the real long-lived
+# consumer. Production overrides live in docker-compose.prod.yml (worker pool at
+# 512M each) and pair with the Prometheus alert on
+# `frankenphp_worker_memory_bytes > 256MB` in docker/prometheus/alerts.yml,
+# per CLAUDE.md §3.10.
 #
 # Compose Spec (v3+) supports `deploy.resources.limits` outside Swarm since
 # 2022 — Docker Desktop 4.x and `docker compose` v2 both honour it.
@@ -64,6 +69,21 @@ x-resource-limits-cache: &resource_limits_cache
       limits:
         memory: 256M
         cpus: "0.5"
+
+# AUD-012 (W1-8) — the Messenger worker is the actual long-lived Doctrine
+# consumer (the `api` container serves HTTP and recycles per worker pick). Its
+# `--memory-limit=256M` flag is a SOFT recycle checked BETWEEN messages: a
+# single message that leaks mid-handle (e.g. a flush without clear in a 50k-row
+# import) grows past 256M and OOM-kills the host before Messenger recycles. The
+# 512M container limit is the HARD ceiling that bounds one in-flight message to
+# ~2× the soft limit and protects the dev workstation. Mirrors the prod worker
+# limit in docker-compose.prod.yml.
+x-resource-limits-worker: &resource_limits_worker
+  deploy:
+    resources:
+      limits:
+        memory: 512M
+        cpus: "1.0"
 
 x-resource-limits-storage: &resource_limits_storage
   deploy:
@@ -186,7 +206,7 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
-    <<: *default_restart
+    <<: [*default_restart, *resource_limits_worker]
     depends_on:
       database:
         condition: service_healthy
