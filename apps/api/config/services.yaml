@@ -119,6 +119,14 @@ services:
     App\Asset\Application\Thumbnail\ImageProcessorInterface:
         alias: App\Asset\Infrastructure\Thumbnail\ImagickImageProcessor
 
+    # AUD-006 (#1576) — public port for the preview-URL signer. The Catalog
+    # read overlay signs `previewUrl` per request through this interface
+    # (deptrac: Catalog → Asset_Contracts), so the implementation must be
+    # aliased to the contract explicitly (autowiring does not map an
+    # interface to its single implementation on its own).
+    App\Asset\Contracts\Service\AssetPreviewSigner:
+        alias: App\Asset\Application\AssetPreviewUrlSigner
+
     # Per-AttributeType validator dispatcher (#39). The factory wires up
     # one validator per AttributeType so the rest of the app can ask
     # "is this {value: ...} payload valid against this Attribute?" without

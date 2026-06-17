@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Asset\Presentation\Controller;
 
+use App\Asset\Contracts\Service\AssetPreviewSigner;
 use App\Asset\Domain\Entity\Asset;
 use App\Asset\Domain\Repository\AssetRepositoryInterface;
 use App\Catalog\Contracts\Service\ProductAssetLinker;
@@ -38,6 +39,7 @@ final readonly class ProductAssetsController
     public function __construct(
         private AssetRepositoryInterface $assets,
         private ProductAssetLinker $linker,
+        private AssetPreviewSigner $previewUrlSigner,
     ) {
     }
 
@@ -153,7 +155,9 @@ final readonly class ProductAssetsController
             'tags' => $asset->getTags(),
             'thumbnailsStatus' => $asset->getThumbnailsStatus()->value,
             'folderCode' => $asset->getFolderCode(),
-            'previewUrl' => \sprintf('/api/assets/%s/preview', $asset->getId()->toRfc4122()),
+            // AUD-006 / #1576 — hand out a short-lived signed URL, never the
+            // bare path, so the preview endpoint stays signature-gated.
+            'previewUrl' => $this->previewUrlSigner->sign($asset->getId()->toRfc4122()),
         ];
     }
 }

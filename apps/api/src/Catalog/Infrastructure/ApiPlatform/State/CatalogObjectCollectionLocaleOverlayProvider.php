@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\Pagination\PaginatorInterface;
 use ApiPlatform\State\Pagination\TraversablePaginator;
 use ApiPlatform\State\ProviderInterface;
+use App\Catalog\Application\AssetPreviewUrlReadOverlay;
 use App\Catalog\Application\AttributeReadRestrictionOverlay;
 use App\Catalog\Application\ObjectValueLocaleOverlay;
 use App\Catalog\Application\SystemAttributeReadOverlay;
@@ -44,6 +45,7 @@ final readonly class CatalogObjectCollectionLocaleOverlayProvider implements Pro
         private ProviderInterface $collectionProvider,
         private ObjectValueLocaleOverlay $overlay,
         private SystemAttributeReadOverlay $systemOverlay,
+        private AssetPreviewUrlReadOverlay $previewUrlOverlay,
         private ObjectValueRepositoryInterface $objectValues,
         private RequestStack $requestStack,
         private ChannelPublicationResolverInterface $publicationResolver,
@@ -87,33 +89,21 @@ final readonly class CatalogObjectCollectionLocaleOverlayProvider implements Pro
             return $result; // @phpstan-ignore-line (inner provider return type is wider)
         }
 
-        // Always apply system overlay so created_at/updated_at render.
-        // When no locale/channel scope and no publication filter, skip the
-        // value/publication overlays but still run system + restriction on
-        // clones (AUD-008 #1578: restricted attributes must not leak through
-        // the list path either).
-        if (null === $locale && null === $channel && null === $publication) {
-            $overlaid = $this->restrictionOverlay->applyBatch(
-                array_map(
-                    fn (CatalogObject $o): CatalogObject => $this->systemOverlay->apply($o),
-                    $objects,
-                ),
-            );
-
-            return $this->rebuildResult($result, $overlaid);
-        }
-
-        // Batch-load all ObjectValue rows for the current page in one query.
-        $objectIds = array_map(
-            static fn (CatalogObject $o): Uuid => $o->getId(),
-            $objects,
-        );
-        $valuesByObjectId = $this->objectValues->findByObjectIds($objectIds);
-
         // Apply locale/channel overlay on clones (no identity map mutation).
-        $overlaid = (null !== $locale || null !== $channel)
-            ? $this->overlay->applyBatch($objects, $valuesByObjectId, $locale, $channel)
-            : array_map(static fn (CatalogObject $o): CatalogObject => clone $o, $objects);
+        // With no locale/channel scope this is a plain clone — the system +
+        // preview overlays below still run so created_at/updated_at render and
+        // `previewUrl` is signed per-request (AUD-006 / #1576).
+        if (null !== $locale || null !== $channel) {
+            // Batch-load all ObjectValue rows for the current page in one query.
+            $objectIds = array_map(
+                static fn (CatalogObject $o): Uuid => $o->getId(),
+                $objects,
+            );
+            $valuesByObjectId = $this->objectValues->findByObjectIds($objectIds);
+            $overlaid = $this->overlay->applyBatch($objects, $valuesByObjectId, $locale, $channel);
+        } else {
+            $overlaid = array_map(static fn (CatalogObject $o): CatalogObject => clone $o, $objects);
+        }
 
         // #1234 — ?publication=<channelCode> filters attributes_indexed per
         // publication profile. Applied after value overlay.
@@ -121,13 +111,14 @@ final readonly class CatalogObjectCollectionLocaleOverlayProvider implements Pro
             $overlaid = $this->applyPublicationFilter($overlaid, $publication);
         }
 
-        // Apply system overlay then strip restricted attributes (AUD-008
-        // #1578) on the (already cloned) overlaid objects. Restriction runs
-        // as one batch so the tenant attribute catalogue + per-attribute
-        // view decisions are resolved once for the page, not per item (#1620).
+        // Apply system overlay + sign previewUrl per item (AUD-006 #1576),
+        // then strip restricted attributes as one batch (AUD-008 #1578/#1620)
+        // on the (already cloned) overlaid objects. Restriction runs as one
+        // batch so the tenant attribute catalogue + per-attribute view
+        // decisions are resolved once for the page, not per item.
         $overlaid = $this->restrictionOverlay->applyBatch(
             array_map(
-                fn (CatalogObject $o): CatalogObject => $this->systemOverlay->apply($o),
+                fn (CatalogObject $o): CatalogObject => $this->previewUrlOverlay->apply($this->systemOverlay->apply($o)),
                 $overlaid,
             ),
         );
