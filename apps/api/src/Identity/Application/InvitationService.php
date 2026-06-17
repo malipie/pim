@@ -149,6 +149,17 @@ final class InvitationService
             throw new RuntimeException('Invitation tenant not found.');
         }
 
+        // AUD-024 / W1-12: validate + consume the invitation state BEFORE any
+        // write. Previously the User was inserted first and `accept()` ran
+        // last, so a second use of an already-accepted token hit the
+        // users_email_uniq constraint (500 instead of 400) and an EXPIRED
+        // invitation still created a usable account before the expiry guard
+        // threw. Marking the invitation consumed up-front makes a stale token
+        // (already-accepted / revoked / expired) surface as a 400 with no
+        // user/role side effect.
+        $invitation->accept();
+        $this->invitations->save($invitation);
+
         // Create User + hash password.
         $user = new User(
             tenant: $tenant,
@@ -175,10 +186,6 @@ final class InvitationService
             roleId: $invitation->getRoleId(),
         );
         $this->userRoles->save($userRole);
-
-        // Mark invitation accepted (throws if already accepted/revoked/expired).
-        $invitation->accept();
-        $this->invitations->save($invitation);
 
         return $user;
     }
