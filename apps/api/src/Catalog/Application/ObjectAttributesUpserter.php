@@ -10,7 +10,9 @@ use App\Catalog\Domain\Entity\ObjectValue;
 use App\Catalog\Domain\Provenance;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
+use App\Identity\Contracts\Policy\AttributePermissionReader;
 use App\Shared\Domain\Tenant;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -36,6 +38,7 @@ final readonly class ObjectAttributesUpserter
         private AttributeRepositoryInterface $attributes,
         private ObjectValueRepositoryInterface $values,
         private ValueWriteCore $core,
+        private AttributePermissionReader $attributePermissions,
     ) {
     }
 
@@ -70,6 +73,19 @@ final readonly class ObjectAttributesUpserter
             $attribute = $this->attributes->findByCode($code, $tenant);
             if (!$attribute instanceof Attribute) {
                 continue;
+            }
+
+            // AUD-008 (#1578) — enforce the 3-state per-attribute permission
+            // on the write path (PRD §3.5). A caller with `view`/`restricted`
+            // on this attribute must not be able to mutate it. Only enforced
+            // when a domain user is present — CLI backfills / system jobs
+            // carry no token and write under their own authority.
+            if ($this->attributePermissions->isAttributePermissionEnforced()
+                && !$this->attributePermissions->canEditAttribute($attribute->getId())) {
+                throw new AccessDeniedHttpException(\sprintf(
+                    'You do not have permission to edit attribute "%s".',
+                    $code,
+                ));
             }
 
             [$targetLocale, $targetChannel] = $this->core->routeScope($attribute, $tenant, $locale, $channelId);

@@ -46,6 +46,11 @@ final readonly class SecurityAttributePermissionReader implements AttributePermi
         return $this->policy->canEditAttribute($user, $attributeId);
     }
 
+    public function isAttributePermissionEnforced(): bool
+    {
+        return null !== $this->currentUser();
+    }
+
     private function currentUser(): ?User
     {
         $user = $this->security->getUser();

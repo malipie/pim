@@ -191,6 +191,11 @@ final class GetObjectTypeListSchemaHandlerTest extends TestCase
             {
                 return true;
             }
+
+            public function isAttributePermissionEnforced(): bool
+            {
+                return true;
+            }
         };
     }
 
@@ -211,6 +216,11 @@ final class GetObjectTypeListSchemaHandlerTest extends TestCase
             public function canEditAttribute(Uuid $attributeId): bool
             {
                 return $this->code !== $attributeId->toRfc4122();
+            }
+
+            public function isAttributePermissionEnforced(): bool
+            {
+                return true;
             }
         };
     }

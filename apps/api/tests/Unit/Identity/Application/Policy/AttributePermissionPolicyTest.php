@@ -11,7 +11,10 @@ use App\Identity\Domain\Rbac\AttributePermission;
 use App\Identity\Domain\Rbac\PermissionSet;
 use App\Shared\Domain\Tenant;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Schema\AbstractSchemaManager;
+use Doctrine\DBAL\Schema\Table;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -126,6 +129,7 @@ final class AttributePermissionPolicyTest extends TestCase
 
                 return false;
             });
+        $this->withSchema($connection);
 
         $policy = new AttributePermissionPolicy($connection, $resolver);
 
@@ -251,7 +255,27 @@ final class AttributePermissionPolicyTest extends TestCase
 
                 return false;
             });
+        $this->withSchema($connection);
 
         return $connection;
+    }
+
+    /**
+     * Stub the SchemaManager existence probes added in AUD-008 (#1578) so
+     * the policy reaches its per-group / role-default SELECTs. Mirrors a
+     * migrated DB where both the group table and the default column exist.
+     *
+     * @param Connection&MockObject $connection
+     */
+    private function withSchema(Connection $connection): void
+    {
+        $table = $this->createStub(Table::class);
+        $table->method('hasColumn')->willReturn(true);
+
+        $schemaManager = $this->createMock(AbstractSchemaManager::class);
+        $schemaManager->method('tablesExist')->willReturn(true);
+        $schemaManager->method('introspectTableByUnquotedName')->willReturn($table);
+
+        $connection->method('createSchemaManager')->willReturn($schemaManager);
     }
 }

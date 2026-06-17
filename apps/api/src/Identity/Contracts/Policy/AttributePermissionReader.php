@@ -30,4 +30,18 @@ interface AttributePermissionReader
     public function canViewAttribute(Uuid $attributeId): bool;
 
     public function canEditAttribute(Uuid $attributeId): bool;
+
+    /**
+     * AUD-008 (#1578) — whether per-attribute permissions apply to the
+     * current principal at all.
+     *
+     * Write paths ({@see \App\Catalog\Application\ObjectAttributesUpserter})
+     * are also reachable from system contexts with no security token — CLI
+     * backfills, fixtures, async system jobs. Those carry no domain user, so
+     * there is no per-attribute grant to enforce and they must NOT be blocked
+     * by the anonymous-→-restricted default that {@see canEditAttribute()}
+     * returns. This predicate is `true` only when the current principal is a
+     * domain {@see \App\Identity\Domain\Entity\User} the policy can resolve.
+     */
+    public function isAttributePermissionEnforced(): bool;
 }

@@ -292,14 +292,83 @@ final class ExportBuilderTest extends TestCase
         self::assertSame(['sku' => 'SKU-R', 'related' => 'REL-A|REL-B'], $rows[0]);
     }
 
+    #[Test]
+    public function exportsRestrictedAttributeUnderSystemContextWithoutEnforcement(): void
+    {
+        // AUD-008 (#1578) regression: the sync runner (EXP-05) / async handler
+        // (EXP-06) reach the builder from a system context with no security
+        // token — isAttributePermissionEnforced() is false. The
+        // anonymous-→-restricted default of canViewAttribute() must NOT blank
+        // cells there, or a legitimate export comes out empty (CI #1620).
+        $product = $this->newProduct('SKU-SYS');
+        $restrictedId = Uuid::v7();
+        $priceAttr = $this->newAttribute('purchase_price', AttributeType::Number, $restrictedId);
+
+        $valuesByObject = [
+            spl_object_id($product) => [
+                new ObjectValue($product, $priceAttr, ['value' => 19.99]),
+            ],
+        ];
+
+        $builder = $this->newBuilder(
+            valuesByObject: $valuesByObject,
+            categoriesByObject: [],
+            attributesByCode: ['purchase_price' => $priceAttr],
+            // canViewAttribute() would return false for this id, but
+            // enforcement is off → the value still exports.
+            restrictedAttrIds: [$restrictedId->toRfc4122()],
+            permissionsEnforced: false,
+        );
+        $session = $this->newSessionWithTenant(['sku', 'purchase_price']);
+        $rows = iterator_to_array($builder->build([$product], $session));
+
+        self::assertSame(['sku' => 'SKU-SYS', 'purchase_price' => '19.99'], $rows[0]);
+    }
+
+    #[Test]
+    public function blanksAttributeColumnTheCallerMayNotView(): void
+    {
+        // AUD-008 (#1578) — a column whose attribute the caller cannot view
+        // (3-state per-attribute permission, PRD §3.5) must export as a blank
+        // cell, never the real value. A visible attribute on the same row is
+        // untouched.
+        $product = $this->newProduct('SKU-SEC');
+        $restrictedId = Uuid::v7();
+        $priceAttr = $this->newAttribute('purchase_price', AttributeType::Number, $restrictedId);
+        $descAttr = $this->newAttribute('description', AttributeType::Text);
+
+        $valuesByObject = [
+            spl_object_id($product) => [
+                new ObjectValue($product, $priceAttr, ['value' => 19.99]),
+                new ObjectValue($product, $descAttr, ['value' => 'Visible copy']),
+            ],
+        ];
+
+        $builder = $this->newBuilder(
+            valuesByObject: $valuesByObject,
+            categoriesByObject: [],
+            attributesByCode: ['purchase_price' => $priceAttr, 'description' => $descAttr],
+            restrictedAttrIds: [$restrictedId->toRfc4122()],
+        );
+        $session = $this->newSessionWithTenant(['sku', 'purchase_price', 'description']);
+        $rows = iterator_to_array($builder->build([$product], $session));
+
+        self::assertSame(
+            ['sku' => 'SKU-SEC', 'purchase_price' => '', 'description' => 'Visible copy'],
+            $rows[0],
+        );
+    }
+
     // ----- helpers -----
 
     /**
-     * @param array<int, list<ObjectValue>>    $valuesByObject     keyed by spl_object_id($product)
-     * @param array<int, list<ObjectCategory>> $categoriesByObject same
-     * @param array<string, Uuid>              $channelIds         channel code => id (#1229)
-     * @param array<int, list<ObjectRelation>> $relationsBySource  keyed by spl_object_id($source) (#1471)
-     * @param array<string, Attribute>         $attributesByCode   attribute column code => Attribute (#1471)
+     * @param array<int, list<ObjectValue>>    $valuesByObject      keyed by spl_object_id($product)
+     * @param array<int, list<ObjectCategory>> $categoriesByObject  same
+     * @param array<string, Uuid>              $channelIds          channel code => id (#1229)
+     * @param array<int, list<ObjectRelation>> $relationsBySource   keyed by spl_object_id($source) (#1471)
+     * @param array<string, Attribute>         $attributesByCode    attribute column code => Attribute (#1471)
+     * @param list<string>                     $restrictedAttrIds   attribute UUIDs the caller may NOT view (AUD-008 #1578)
+     * @param bool                             $permissionsEnforced whether a domain user is present so per-attribute grants apply (AUD-008 #1578)
      */
     private function newBuilder(
         array $valuesByObject,
@@ -307,6 +376,8 @@ final class ExportBuilderTest extends TestCase
         array $channelIds = [],
         array $relationsBySource = [],
         array $attributesByCode = [],
+        array $restrictedAttrIds = [],
+        bool $permissionsEnforced = true,
     ): ExportBuilder {
         $values = $this->createStub(ObjectValueRepositoryInterface::class);
         $values->method('findByObject')->willReturnCallback(
@@ -333,6 +404,13 @@ final class ExportBuilderTest extends TestCase
             static fn (string $code): ?Attribute => $attributesByCode[$code] ?? null
         );
 
+        $permissions = $this->createStub(\App\Identity\Contracts\Policy\AttributePermissionReader::class);
+        $permissions->method('canViewAttribute')->willReturnCallback(
+            static fn (Uuid $id): bool => !\in_array($id->toRfc4122(), $restrictedAttrIds, true)
+        );
+        $permissions->method('canEditAttribute')->willReturn(true);
+        $permissions->method('isAttributePermissionEnforced')->willReturn($permissionsEnforced);
+
         return new ExportBuilder(
             values: $values,
             categories: $categories,
@@ -341,6 +419,7 @@ final class ExportBuilderTest extends TestCase
             channels: $channels,
             relations: $relations,
             attributes: $attributes,
+            attributePermissions: $permissions,
         );
     }
 
@@ -360,11 +439,12 @@ final class ExportBuilderTest extends TestCase
         return $object;
     }
 
-    private function newAttribute(string $code, AttributeType $type): Attribute
+    private function newAttribute(string $code, AttributeType $type, ?Uuid $id = null): Attribute
     {
         $attribute = $this->createStub(Attribute::class);
         $attribute->method('getCode')->willReturn($code);
         $attribute->method('getType')->willReturn($type);
+        $attribute->method('getId')->willReturn($id ?? Uuid::v7());
 
         return $attribute;
     }
