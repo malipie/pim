@@ -43,14 +43,25 @@ Zrodla/
 /apps/api/psalm.cache
 /apps/api/config/jwt/*.pem
 
-# Symfony / Node envs (root + per-app) — only .env.example is committed
+# Symfony / Node envs (root + per-app) — only .env.example, apps/api/.env
+# and apps/api/.env.test (placeholder-only templates) are committed.
+#
+# AUD-010 — `.env` alone matches the file *named* `.env` but NOT
+# environment-specific files like `.env.dev` / `.env.prod`, which carry real
+# secrets. `.env.dev` slipped into git that way (AUD-005). `.env.*` below
+# closes the gap by ignoring every `.env.<suffix>`; the `!` allowlist lines
+# re-include the deliberate templates (order matters — negations come last).
+# Real per-environment secrets belong in untracked `.env.dev` / `.env.local`.
 .env
+.env.*
 .env.local
 .env.local.php
 .env.*.local
 !.env.example
 !apps/api/.env
 !apps/api/.env.test
+!*.dist
+!*.example
 
 # Node / Frontend / Turborepo
 node_modules/

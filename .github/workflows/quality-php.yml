@@ -9,6 +9,8 @@ on:
       - "apps/api/**"
       - "docs/api-spec/**"
       - "scripts/lint-raw-sql.sh"
+      - "scripts/lint-tracked-secrets.sh"
+      - ".gitignore"
       - ".github/workflows/quality-php.yml"
       - ".semgrep/**"
   push:
@@ -17,6 +19,8 @@ on:
       - "apps/api/**"
       - "docs/api-spec/**"
       - "scripts/lint-raw-sql.sh"
+      - "scripts/lint-tracked-secrets.sh"
+      - ".gitignore"
       - ".github/workflows/quality-php.yml"
       - ".semgrep/**"
 
@@ -122,6 +126,26 @@ jobs:
 
       - name: Lint raw SQL escape hatches
         run: bash scripts/lint-raw-sql.sh
+
+  tracked-secrets-lint:
+    # AUD-005 / AUD-010 — guard-rail against real secrets committed to VCS.
+    # Fails if a non-template `.env.<env>` file is tracked, or if any tracked
+    # `.env*` file carries a real (high-entropy / credential-bearing) value.
+    # Cheap shell job; complements gitleaks/trufflehog (security-secrets.yml)
+    # with a deterministic repo-hygiene assertion. Needs full history so
+    # `git ls-files` sees the real tree on push-to-main, not a shallow clone.
+    name: Tracked secrets lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Lint tracked env files for real secrets
+        run: bash scripts/lint-tracked-secrets.sh
 
   semgrep-cortex:
     # RBAC-P6-008 / #720 — Cortex-specific Semgrep rules (the static-
