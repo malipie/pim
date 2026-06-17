@@ -59,16 +59,23 @@ Streaming readers (2.1) · staged upload (2.2) · pauza/wznów/checkpoint (2.3) 
 - **Liczby:** 81 findings — **5 CRITICAL** / 20 HIGH / 38 MEDIUM / 18 LOW.
 - **5 CRITICAL:** AUD-001 Mercure anonimowy cross-tenant SSE leak (potwierdzony empirycznie), AUD-007 token_dev_only → account takeover (potwierdzony), AUD-004 Meili filter-key cross-tenant read (potwierdzony), AUD-002 RLS martwy (app=superuser+bypassrls, 0 FORCE — zero defence-in-depth), AUD-005 sekrety w trackowanym `.env` (BYOK master key/JWT).
 - **Pozytyw empiryczny:** matryca 2-tenant obaliła podejrzenie wycieku przez Doctrine TenantFilter — izolacja danych domenowych przez REST DZIAŁA nawet dla super-admina (cross-read po ID = 404). NO-GO wynika z wektorów POZA filtrem + braków operacyjnych SaaS (backup martwy 49 dni, offboarding/RODO niewykonalny, indeksy skali usunięte regresją migracji, auth/E2E testy martwe w CI).
-- **Status:** audyt to artefakty + PR (bez merge). Naprawy NIE wykonane (read-only). Wave 0 (`03-fix-plan.md`) = blocker przed jakimkolwiek demo z realnymi danymi. lessons.md uzupełnić PO naprawach.
+- **Status:** artefakty zmergowane (PR #1572, `docs/audit/2026-06/`). Naprawy w toku falami (epik-AUD, milestones `audit-wave-0..3`, issues #1573+).
+
+## Audyt fix-plan — fale napraw (epik-AUD)
+- **Wave 0 — KOMPLETNA (7/7, 2026-06-17):** 9 findingów (4 z 5 CRITICAL) naprawione + merged + zamknięte z dowodem **CLOSED MEANS CLOSED** (before/after probe w komentarzu zamknięcia). Wzorzec: failing test → fix → zielona regresja.
+  - W0-1 Mercure private+tenant-topics (PR #1619→#1573) · W0-2 Meili filter whitelist (#1618→#1574) · W0-3 platform-operator vs tenant super_admin (#1621→#1575) · W0-4 signed asset preview HMAC/TTL (#1622→#1576) · W0-5 token_dev_only env-gate (#1617→#1577) · W0-6 attr-permission read overlay (#1620→#1578) · W0-7 untrack env secrets + `lint-tracked-secrets` guard (#1623→#1579).
+  - Status table + linki: `docs/audit/2026-06/01-findings.md` (sekcja „Status napraw — Wave 0").
+- **Wave 1 — następna:** 5. CRITICAL **AUD-002 (RLS martwy — app=superuser+bypassrls)** + 12 ticketów (#1580–#1592) per `03-fix-plan.md`.
 
 ## Ostatnie akcje
-1. **Audyt połówkowy przed-SaaS** (2026-06-16) — `docs/audit/2026-06/`, branch `audit/2026-06-midpoint`, 81 findings (5 CRITICAL), werdykt NO-GO dla SaaS + dev-risk 4/10. Read-only, PR bez merge.
-2. **Audyt IMP2 + 10 follow-up PR** (2026-06-16) — wszystkie merged, 9 issues #1552–#1560 closed. Metoda: subagenty per ticket (zbadaj→napisz→uruchom→napraw→gates), pathspec commity, sekwencyjnie (wspólne `pim_test`).
-2. **#1560 deadlock** — root cause = EM-corruption w `abortIfErrorRateExceeded` (`save()` sesji po `em->clear()` przez rebuild dispatch → detached proxy → `ORMInvalidArgumentException` → uszkodzony UoW → kaskada 40P01). Fix: reload sesji po clear (wzorzec [[feedback_pim_test_schema_recovery]] / ImportRollbackService).
-3. **IMP2-2.10 (#1486)** — pre-import backup spięty z sesją, PR #1551 merged.
+1. **Audyt fix-plan Wave 0 — KOMPLETNA** (2026-06-17) — 7 ticketów / 9 findingów (4 z 5 CRITICAL) merged + zamknięte z dowodem CLOSED-MEANS-CLOSED (before/after probe). Artefakty audytu zmergowane (#1572, raw/ usunięte + sekrety w raportach zredagowane). Metoda: subagent per ticket (failing-test→fix→gates→smoke), ja commit/PR/merge sekwencyjnie + rebase konfliktów W0-4↔W0-6.
+2. **Audyt połówkowy przed-SaaS** (2026-06-16) — `docs/audit/2026-06/`, 81 findings (5 CRITICAL), NO-GO dla SaaS + dev-risk 4/10.
+3. **Audyt IMP2 + 10 follow-up PR** (2026-06-16) — wszystkie merged, #1552–#1560 closed.
 
-## Następny krok — etap 3 IMP2 (lub decyzja operatora)
-ETAP 0–2 zamknięty (#1460–#1486) + audyt końcowy + 9 follow-upów (#1552–#1560) domknięte. Kolejny zakres: etap 3+ (kreator/operacjonalizacja, #1487–#1498) — backlog `Project Plan/UI/feature-imports-v2-tickets.md`. **Czeka na sygnał operatora** które tickety/etap dalej. Operator: ultracode ON, komunikacja+rozumowanie po polsku.
+## Następny krok — Wave 1 audytu (epik-AUD)
+Wave 0 domknięta (7/7). Dalej **Wave 1** bez przystanku (EPIK MARATHON): **AUD-002 RLS** (#1580 — `pim_app` NOSUPERUSER/NOBYPASSRLS + FORCE RLS na wszystkich tenantowanych tabelach + test izolacji pod non-superuserem) + 12 kolejnych ticketów #1581–#1592 per `docs/audit/2026-06/03-fix-plan.md`. Każdy: own branch+PR+CI+merge, security→failing-test-first, close→before/after probe. Potem Wave 2/3. Operator: ultracode ON, komunikacja+rozumowanie po polsku.
+
+> Kontekst IMP2 (zamknięty): ETAP 0–2 (#1460–#1486) + audyt IMP2 + 9 follow-upów (#1552–#1560). Etap 3+ IMP2 (#1487–#1498) odłożony — priorytet to fix-plan przed-SaaS.
 
 ### Świadome odejścia etapu-2 (marsz #1483→#1486)
 - **2.10 pozytyw smoke**: dev pgBackRest zwraca `failed` natychmiast (cron stale) → completed backup zaseedowany w DB dla live-proof; pełny e2e snapshot zależy od działającego pgBackRest.

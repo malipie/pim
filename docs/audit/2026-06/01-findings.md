@@ -14,6 +14,22 @@
 | LOW | 18 |
 | **Razem** | **81** |
 
+## Status napraw — Wave 0 (zamknięte 2026-06-17)
+
+Wszystkie 7 ticketów Wave 0 (9 findingów, w tym 4 z 5 CRITICAL) naprawione, zmergowane do `main`, z dowodem **CLOSED MEANS CLOSED** (powtórzony oryginalny probe przed/po) w komentarzu zamknięcia każdego issue. Wzorzec naprawy: failing test odtwarzający podatność → fix → zielony test jako regresja.
+
+| Ticket | Findingi | PR | Issue | Status | Dowód „po" (żywy stack 2026-06-17) |
+|---|---|---|---|---|---|
+| W0-1 | AUD-001 | #1619 | #1573 | ✅ FIXED | anon Mercure subscribe → **401**, 0 eventów (topiki `tenant/{id}/…` + `private:true`, hub bez `anonymous`) |
+| W0-2 | AUD-004 | #1618 | #1574 | ✅ FIXED | injection filter-key → **400** (`CatalogSearchService::assertFilterKeys()` whitelist vs filterableAttributes) |
+| W0-3 | AUD-003 | #1621 | #1575 | ✅ FIXED | demo Owner `/api/admin/tenants` → **403**; platform-operator → 200 (`PlatformOperatorGuard` + `platform.*`) |
+| W0-4 | AUD-006, AUD-028 | #1622 | #1576 | ✅ FIXED | preview bez sygnatury → **403**; HMAC `UriSigner`+TTL, `disable('tenant')` usunięte, MinIO anon→none |
+| W0-5 | AUD-007 | #1617 | #1577 | ✅ FIXED | `token_dev_only` env-gated `%kernel.environment%` — prod usuwa pole (regression test 6/6) |
+| W0-6 | AUD-008 | #1620 | #1578 | ✅ FIXED | `AttributeReadRestrictionOverlay` strips restricted attrs w read-path (regression test 4/4) |
+| W0-7 | AUD-005, AUD-010 | #1623 | #1579 | ✅ FIXED | `.env.dev` odtrackowany+gitignored, `.env` placeholdery, `scripts/lint-tracked-secrets.sh` guard exit 0 |
+
+Pełne transkrypty przed/po — w komentarzach zamknięcia issues #1573–#1579. Reszta findingów (Wave 1–3) — patrz `03-fix-plan.md`.
+
 **Werdykt: NO-GO dla SaaS** (patrz `00-executive-summary.md`). Uwaga precyzyjna po przebiegu empirycznym: **rdzeń izolacji danych domenowych (Doctrine TenantFilter przez REST) DZIAŁA** — matryca 2-tenant obaliła podejrzenie wycieku (patrz „Pozytywy empiryczne" niżej). NO-GO wynika z wektorów **POZA filtrem wierszowym**: AUD-001 Mercure (confirmed), AUD-004 Meili filter-key (confirmed), AUD-007 token_dev_only (confirmed account takeover), AUD-002 zerowy defence-in-depth (RLS martwy), AUD-003 model uprawnień platform-vs-tenant.
 
 **Rewizja po przebiegu empirycznym (2026-06-16, matryca 2-tenant demo↔acme):**
