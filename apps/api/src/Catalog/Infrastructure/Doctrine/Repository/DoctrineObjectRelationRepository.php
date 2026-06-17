@@ -9,6 +9,7 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectRelation;
 use App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
 
@@ -58,6 +59,31 @@ final class DoctrineObjectRelationRepository extends ServiceEntityRepository imp
             ->getResult();
 
         return $rows;
+    }
+
+    public function findBySourceIdsAndAttribute(array $sourceIds, Attribute $attribute): array
+    {
+        if ([] === $sourceIds) {
+            return [];
+        }
+
+        /** @var list<ObjectRelation> $rows */
+        $rows = $this->createQueryBuilder('r')
+            ->join('r.source', 's', Join::WITH, 's.id IN (:sources)')
+            ->andWhere('r.attribute = :attribute')
+            ->setParameter('sources', $sourceIds)
+            ->setParameter('attribute', $attribute)
+            ->orderBy('r.position', 'ASC')
+            ->addOrderBy('r.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $bySource = [];
+        foreach ($rows as $row) {
+            $bySource[$row->getSource()->getId()->toRfc4122()][] = $row;
+        }
+
+        return $bySource;
     }
 
     public function findByTarget(CatalogObject $target): array

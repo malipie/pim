@@ -82,6 +82,41 @@ interface CatalogObjectRepositoryInterface
      */
     public function countRootObjectsByType(ObjectType $objectType, Tenant $tenant): int;
 
+    /**
+     * AUD-015 (#1632) — root object ids (no parent) of a type, ascending, as
+     * RFC4122 strings WITHOUT hydrating entities. Backs the scope-All export
+     * "id plan": the runner pages the hydration over these ids
+     * ({@see self::findByIds()}) so the full object graph never lives in memory
+     * at once, regardless of include_variants. Tenant filter still applies.
+     *
+     * @return list<string>
+     */
+    public function findRootObjectIds(ObjectType $objectType, Tenant $tenant): array;
+
+    /**
+     * AUD-015 (#1632) — the subset of `$idsRfc4122` that are ROOT objects (no
+     * parent), as RFC4122 strings, WITHOUT hydration. Lets the export size /
+     * fan out Selected & Filter scopes from an id set without loading the
+     * objects. Tenant filter still applies.
+     *
+     * @param list<string> $idsRfc4122
+     *
+     * @return list<string>
+     */
+    public function filterRootObjectIds(array $idsRfc4122, Tenant $tenant): array;
+
+    /**
+     * AUD-015 (#1632) — id-only sibling of {@see self::findChildrenByParentIds()}
+     * for the export "id plan": child (variant) ids grouped by parent, ordered
+     * by `code` ASC for the deterministic master-then-variants fan-out the
+     * golden round-trip relies on. No entity hydration. Tenant filter applies.
+     *
+     * @param list<string> $parentIdsRfc4122
+     *
+     * @return array<string, list<string>> parent id => ordered child ids (RFC 4122)
+     */
+    public function findChildIdsByParentIds(array $parentIdsRfc4122, Tenant $tenant): array;
+
     public function save(CatalogObject $object): void;
 
     public function remove(CatalogObject $object): void;

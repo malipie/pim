@@ -33,29 +33,32 @@ use Symfony\Component\Uid\Uuid;
 use Throwable;
 
 /**
- * Runs the sync (<100 row) export path end-to-end.
+ * Runs the catalog-object + structural export paths end-to-end.
  *
- * Resolves the target object list per {@see ExportTargetScope}, walks
- * them through {@see ExportBuilder}, and streams the resulting rows
- * into the chosen writer. Wraps the file write in a try/finally so the
- * temp file is cleaned up even on partial failure.
+ * AUD-015 (#1632): catalog-object exports resolve an ordered emit-id PLAN per
+ * {@see ExportTargetScope} ({@see buildEmitIdPlan()}, id-only — no entity
+ * hydration) and stream it through {@see ExportBuilder} in CLEAR_INTERVAL-sized
+ * keyset pages, clearing the EntityManager between pages so a 50k export stays
+ * in constant memory for EVERY scope (Selected / Filter / All) and both
+ * include_variants states — not just the old All-masters fast path. Wraps the
+ * file write in a try/finally so the temp file is cleaned up on partial failure.
  *
  * Filter scope (EXP-20 #632) compiles the session's `filter_snapshot`
  * via {@see FilterDslResolver::toCountSql()} into a tenant-scoped
- * SQL WHERE clause, fetches the matching `catalog_objects` IDs, and
- * loads the full entities through the repository — mirrors the
+ * SQL WHERE clause and fetches the matching `objects` IDs — mirrors the
  * SmartFilterPresetController::resolveCounts pattern so we get the
  * same operator coverage (PRD §5.5) without re-implementing the DSL.
  *
  * Sync writes ALWAYS complete in a single request — no Mercure, no
  * status transitions beyond `done` or `error`. The async handler
- * (EXP-06) takes over from 100 rows up.
+ * (EXP-06) takes over from 100 rows up; both reuse this runner so the
+ * streaming + memory contract is identical.
  */
 final class SyncExportRunner
 {
     public const int PROGRESS_CHUNK = 500;
 
-    /** IMP2-2.6 — detach hydrated objects every N rows so streaming stays flat. */
+    /** IMP2-2.6 / AUD-015 — hydrate + detach this many objects per keyset page so streaming stays flat. */
     private const int CLEAR_INTERVAL = 200;
 
     public function __construct(
@@ -76,7 +79,9 @@ final class SyncExportRunner
     /**
      * Count the rows an export will produce, used by the controller to route
      * sync vs async. Structural types count via their builder; catalog-object
-     * types count the resolved target set.
+     * types count the resolved id PLAN — never hydrating the object graph
+     * (AUD-015 #1632: the pre-1632 path materialised the whole target set just
+     * to size it, an OOM vector mirroring the run path).
      */
     public function resolveTargetCount(ExportSession $session): int
     {
@@ -84,109 +89,161 @@ final class SyncExportRunner
             return $this->structuralBuilderFor($session->getEntityType())->count($this->requireTenant($session));
         }
 
-        // IMP2-2.6 — the streamable scope (All, masters only) counts via
-        // COUNT(*) instead of hydrating the whole result set just to size it.
-        if ($this->canStream($session)) {
-            $tenant = $this->requireTenant($session);
-
-            return $this->objects->countRootObjectsByType($this->resolveObjectType($session, $tenant), $tenant);
-        }
-
-        return \count($this->resolveTargets($session));
-    }
-
-    /**
-     * IMP2-2.6 — a catalog-object export is streamable (root-by-root with
-     * EntityManager::clear() per chunk) when its scope is All and variant
-     * fan-out is off. Selected/Filter are already bounded id sets; variant
-     * fan-out interleaves children and needs the materialised pass.
-     */
-    private function canStream(ExportSession $session): bool
-    {
-        return !$session->getEntityType()->isStructural()
-            && ExportTargetScope::All === $session->getTargetScope()
-            && !$session->includesVariants();
-    }
-
-    /**
-     * Resolve target objects to export based on session scope.
-     *
-     * @return list<CatalogObject>
-     */
-    public function resolveTargets(ExportSession $session): array
-    {
-        $tenant = $session->getTenant();
-        if (null === $tenant) {
-            throw new LogicException('Export session must carry a tenant before resolveTargets().');
-        }
-
-        // EXR-05: the target set is scoped to the session's ObjectType
-        // (product → built-in Product type, custom_module → its own type)
-        // rather than the hardcoded Product kind.
+        $tenant = $this->requireTenant($session);
         $objectType = $this->resolveObjectType($session, $tenant);
 
-        $base = match ($session->getTargetScope()) {
-            ExportTargetScope::Selected => $this->resolveSelected($session),
-            ExportTargetScope::All => $this->objects->findByObjectType($objectType, $tenant),
-            ExportTargetScope::Filter => $this->resolveFilter($session, $tenant, $objectType),
-        };
-
-        return $this->applyVariantFanout($base, $session, $tenant);
+        return \count($this->buildEmitIdPlan($session, $tenant, $objectType));
     }
 
     /**
-     * IMP2-1.8 (#1471) — `include_variants` fan-out. With the flag OFF the
-     * export carries masters only; with it ON each master is immediately
-     * followed by its variants (tenant-scoped child query), giving the export
-     * the deterministic `master, then its variants` order the variants golden
-     * relies on. A directly-selected variant whose master is absent is still
-     * emitted.
+     * AUD-015 (#1632) — the ordered list of object ids a catalog-object export
+     * will emit, resolved WITHOUT hydrating any entity. This is the single
+     * source of truth for both the row count (sync/async routing) and the
+     * streaming run: {@see runCatalogObjectToFile()} pages the hydration over
+     * this list (CLEAR_INTERVAL ids at a time, EntityManager::clear() between
+     * pages) so the full object graph never lives in memory at once — for ALL
+     * scopes (Selected / Filter / All) with or without include_variants, not
+     * just the old All-masters fast path.
      *
-     * @param list<CatalogObject> $base
+     * Order contract (preserves the pre-1632 applyVariantFanout semantics the
+     * variants golden relies on):
+     *   - base ids ascending (UUID v7 → chronological, deterministic);
+     *   - masters-only: base ids minus any non-root;
+     *   - include_variants: each base id, then (if it is a root) its child ids
+     *     ordered by code; a directly-selected orphan variant (master absent)
+     *     is still emitted; every id appears once (cross-page dedup via a
+     *     string set — RFC4122 strings survive clear() and stay bounded,
+     *     ~80 B/id, the same touched-id pattern the import uses).
      *
-     * @return list<CatalogObject>
+     * @return list<string>
      */
-    private function applyVariantFanout(array $base, ExportSession $session, Tenant $tenant): array
+    private function buildEmitIdPlan(ExportSession $session, Tenant $tenant, ObjectType $objectType): array
     {
+        $baseIds = $this->resolveBaseIds($session, $tenant, $objectType);
+        if ([] === $baseIds) {
+            return [];
+        }
+
+        // The roots among the base set drive variant fan-out. For scope All the
+        // base IS the root id set already; Selected/Filter need the partition.
+        $rootIds = ExportTargetScope::All === $session->getTargetScope()
+            ? $baseIds
+            : $this->objects->filterRootObjectIds($baseIds, $tenant);
+
         if (!$session->includesVariants()) {
-            return array_values(array_filter($base, static fn (CatalogObject $o): bool => null === $o->getParent()));
+            // Masters only — emit the roots in base order.
+            $rootSet = array_fill_keys($rootIds, true);
+
+            return array_values(array_filter($baseIds, static fn (string $id): bool => isset($rootSet[$id])));
         }
 
-        $masterIds = [];
-        foreach ($base as $object) {
-            if (null === $object->getParent()) {
-                $masterIds[] = $object->getId()->toRfc4122();
-            }
-        }
+        $childIdsByParent = $this->objects->findChildIdsByParentIds($rootIds, $tenant);
 
-        $childrenByParent = [];
-        foreach ($this->objects->findChildrenByParentIds($masterIds, $tenant) as $child) {
-            $parentId = $child->getParent()?->getId()->toRfc4122();
-            if (null !== $parentId) {
-                $childrenByParent[$parentId][] = $child;
-            }
-        }
-
-        $result = [];
+        $plan = [];
         $seen = [];
-        foreach ($base as $object) {
-            $id = $object->getId()->toRfc4122();
+        foreach ($baseIds as $id) {
             if (isset($seen[$id])) {
                 continue;
             }
-            $result[] = $object;
+            $plan[] = $id;
             $seen[$id] = true;
 
-            foreach ($childrenByParent[$id] ?? [] as $child) {
-                $childId = $child->getId()->toRfc4122();
+            foreach ($childIdsByParent[$id] ?? [] as $childId) {
                 if (!isset($seen[$childId])) {
-                    $result[] = $child;
+                    $plan[] = $childId;
                     $seen[$childId] = true;
                 }
             }
         }
 
-        return $result;
+        return $plan;
+    }
+
+    /**
+     * Resolve the bounded set of base object ids for a catalog-object scope
+     * WITHOUT hydrating entities. All → root ids of the type; Selected → the
+     * requested ids; Filter → the DSL-matched ids. UUID v7 strings, ascending,
+     * so the keyset walk in {@see runCatalogObjectToFile()} is deterministic.
+     *
+     * @return list<string>
+     */
+    private function resolveBaseIds(ExportSession $session, Tenant $tenant, ObjectType $objectType): array
+    {
+        $ids = match ($session->getTargetScope()) {
+            ExportTargetScope::Selected => $this->selectedBaseIds($session),
+            ExportTargetScope::All => $this->objects->findRootObjectIds($objectType, $tenant),
+            ExportTargetScope::Filter => $this->resolveFilterIds($session, $tenant, $objectType),
+        };
+
+        sort($ids);
+
+        return $ids;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function selectedBaseIds(ExportSession $session): array
+    {
+        $ids = $session->getSelectedObjectIds();
+        if (null === $ids || [] === $ids) {
+            return [];
+        }
+
+        // Normalise to canonical RFC4122 (the session stores raw input) and
+        // dedupe before the keyset walk.
+        $normalised = [];
+        foreach ($ids as $id) {
+            $normalised[Uuid::fromString($id)->toRfc4122()] = true;
+        }
+
+        return array_keys($normalised);
+    }
+
+    /**
+     * Compile the session's filter DSL into tenant-scoped SQL and return the
+     * matching object ids (no hydration). Mirrors the pre-1632 resolveFilter()
+     * SQL exactly, only stopping at ids instead of loading the entities.
+     *
+     * @return list<string>
+     */
+    private function resolveFilterIds(ExportSession $session, Tenant $tenant, ObjectType $objectType): array
+    {
+        $dsl = $session->getFilterSnapshot();
+        if (null === $dsl || [] === $dsl) {
+            return [];
+        }
+
+        $whereClause = $this->filterDsl->toCountSql($dsl);
+        if (null === $whereClause) {
+            throw new RuntimeException('Invalid filter DSL in export session snapshot.');
+        }
+
+        $tenantId = $tenant->getId()->toRfc4122();
+        // EXR-05: scope by object_type_id (any ObjectType) instead of the
+        // hardcoded Product kind. The DSL itself stays ObjectType-agnostic.
+        // EXR-07: alias the table as `co` — FilterDslResolver emits
+        // `co.`-prefixed column references, so the FROM clause must define it.
+        $sql = 'SELECT co.id FROM objects co '
+            .'WHERE co.tenant_id = :tenant AND co.object_type_id = :otid AND ('.$whereClause.')';
+
+        try {
+            $rows = $this->connection->fetchFirstColumn(
+                $sql,
+                ['tenant' => $tenantId, 'otid' => $objectType->getId()->toRfc4122()],
+            );
+        } catch (Throwable $error) {
+            throw new RuntimeException('Filter scope SQL execution failed: '.$error->getMessage(), previous: $error);
+        }
+
+        $ids = [];
+        foreach ($rows as $id) {
+            if (\is_string($id)) {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
     }
 
     /**
@@ -242,81 +299,42 @@ final class SyncExportRunner
             return $this->runStructuralToFile($session, $targetPath, $onChunk);
         }
 
-        // IMP2-2.6 — stream the All scope so a 50k export never materialises
-        // the full object graph (constant memory, enforced by the benchmark).
-        if ($this->canStream($session)) {
-            return $this->runStreamingToFile($session, $targetPath, $onChunk);
-        }
-
-        $targets = $this->resolveTargets($session);
-        $session->setTargetCount(\count($targets));
-
-        $columns = $session->getSelectedColumns();
-        if ([] === $columns) {
-            // #1235 — when no manual columns, try to derive from publication profile.
-            $objectTypeIds = $this->collectObjectTypeIds($targets);
-            $planned = $objectTypeIds !== []
-                ? $this->columnPlanner->plan($session, $objectTypeIds)
-                : null;
-            if (null === $planned) {
-                throw new InvalidArgumentException('Export session must list at least one column.');
-            }
-            $columns = $planned;
-        }
-
-        $writer = $this->openWriter($session->getFormat(), $session, $targetPath);
-        $writer->writeHeaders($columns);
-
-        $rows = 0;
-        try {
-            foreach ($this->builder->build($targets, $session) as $row) {
-                $values = [];
-                foreach ($columns as $key) {
-                    $values[] = $row[$key] ?? '';
-                }
-                $writer->writeRow($values);
-                ++$rows;
-                if (null !== $onChunk && 0 === $rows % self::PROGRESS_CHUNK) {
-                    $onChunk($rows);
-                }
-            }
-        } finally {
-            $writer->close();
-        }
-
-        $size = file_exists($targetPath) ? (int) filesize($targetPath) : 0;
-        $session->markDone($rows, $targetPath, $size);
-        $this->sessions->save($session);
-
-        return $rows;
+        return $this->runCatalogObjectToFile($session, $targetPath, $onChunk);
     }
 
     /**
-     * IMP2-2.6 — streaming export of scope All (masters only). Walks the root
-     * objects in keyset pages and clears the EntityManager between pages, so the
-     * builder's per-object value/relation hydration never accumulates. Each page
-     * gets a FRESH {@see ExportBuilder::build()} call: its attribute/channel map
-     * is resolved from a clean EM, so the inter-page clear cannot leave it
-     * holding detached entities. The clear also detaches the session, so it is
-     * re-loaded each page (build() reads its tenant/channels) and before the
-     * final markDone.
+     * AUD-015 (#1632) — streaming export for EVERY catalog-object scope
+     * (Selected / Filter / All, with or without include_variants). Resolves
+     * the ordered emit-id plan once ({@see buildEmitIdPlan()}, id-only — no
+     * hydration), then walks it in CLEAR_INTERVAL-sized keyset pages, hydrating
+     * one page of objects at a time and clearing the EntityManager between
+     * pages so the builder's per-object value/relation/category load never
+     * accumulates. Replaces the pre-1632 split where only All-masters streamed
+     * and Selected/Filter/All+variants materialised the whole object graph
+     * (the OOM vector). Each page gets a FRESH {@see ExportBuilder::build()}
+     * call against a clean EM; the inter-page clear detaches the session too,
+     * so it is re-loaded each page (build() reads its tenant/channels) and
+     * before the final markDone.
      *
      * @param (callable(int): void)|null $onChunk invoked every PROGRESS_CHUNK rows
      */
-    private function runStreamingToFile(ExportSession $session, string $targetPath, ?callable $onChunk): int
+    private function runCatalogObjectToFile(ExportSession $session, string $targetPath, ?callable $onChunk): int
     {
         $sessionId = $session->getId();
         $tenant = $this->requireTenant($session);
+        $tenantId = $tenant->getId();
         $objectType = $this->resolveObjectType($session, $tenant);
 
-        $total = $this->objects->countRootObjectsByType($objectType, $tenant);
-        $session->setTargetCount($total);
-        $this->sessions->save($session);
+        $emitIds = $this->buildEmitIdPlan($session, $tenant, $objectType);
+        // Size the run up-front (the async progress closure reads the in-memory
+        // target count). Persisted at markDone, on a re-attached managed graph.
+        $session->setTargetCount(\count($emitIds));
 
         $columns = $session->getSelectedColumns();
         if ([] === $columns) {
-            // #1235 — derive columns from the publication profile of the single
-            // scope-All ObjectType (no need to scan the whole target set).
+            // #1235 — derive columns from the publication profile of the
+            // session's ObjectType (all scopes resolve a single type via
+            // resolveObjectType; no need to scan the whole target set).
             $planned = $this->columnPlanner->plan($session, [$objectType->getId()->toRfc4122()]);
             if (null === $planned) {
                 throw new InvalidArgumentException('Export session must list at least one column.');
@@ -328,16 +346,15 @@ final class SyncExportRunner
         $writer->writeHeaders($columns);
 
         $rows = 0;
-        $afterId = null;
         try {
-            while (true) {
-                // $objectType/$tenant may be detached after a prior page's clear;
-                // Doctrine resolves them to ids for the WHERE params, so the query
-                // stays correct without re-hydrating them.
-                $page = $this->objects->findRootObjectsAfter($objectType, $tenant, $afterId, self::CLEAR_INTERVAL);
-                if ([] === $page) {
-                    break;
-                }
+            foreach (array_chunk($emitIds, self::CLEAR_INTERVAL) as $idPage) {
+                // build() needs a managed session each round (it reads the
+                // session tenant/channels); re-attach a managed tenant after the
+                // prior page's clear() detached it.
+                $session = $this->reattachSession($session, $sessionId, $tenantId);
+                // Hydrate just this page, restored to the plan's order
+                // (findByIds returns DB order; the plan owns the contract).
+                $page = $this->hydratePageInOrder($idPage);
                 foreach ($this->builder->build($page, $session) as $row) {
                     $values = [];
                     foreach ($columns as $key) {
@@ -349,19 +366,15 @@ final class SyncExportRunner
                         $onChunk($rows);
                     }
                 }
-                $afterId = $page[array_key_last($page)]->getId();
                 // Detach the page (objects + their hydrated values) before the next.
                 $this->em->clear();
-                // build() needs a managed session next round (tenant/channels).
-                $session = $this->sessions->findById($sessionId) ?? $session;
-                $tenant = $this->requireTenant($session);
             }
         } finally {
             $writer->close();
         }
 
         $size = file_exists($targetPath) ? (int) filesize($targetPath) : 0;
-        $session = $this->sessions->findById($sessionId) ?? $session;
+        $session = $this->reattachSession($session, $sessionId, $tenantId);
         $session->markDone($rows, $targetPath, $size);
         $this->sessions->save($session);
 
@@ -369,85 +382,52 @@ final class SyncExportRunner
     }
 
     /**
-     * Compile the session's filter DSL into tenant-scoped SQL, fetch the
-     * matching catalog_objects IDs, and load the full entities through
-     * the repository.
+     * Return a session whose tenant association is a MANAGED entity, so the
+     * builder query path and the markDone save operate on a managed graph after
+     * EntityManager::clear() detached everything. Prefers the persisted row
+     * (async path saved it); for the not-yet-persisted sync path it re-attaches
+     * a freshly-fetched managed tenant onto the in-memory session.
+     */
+    private function reattachSession(ExportSession $session, Uuid $sessionId, Uuid $tenantId): ExportSession
+    {
+        $reloaded = $this->sessions->findById($sessionId);
+        if (null !== $reloaded) {
+            return $reloaded;
+        }
+
+        $tenant = $this->em->find(Tenant::class, $tenantId->toRfc4122());
+        if ($tenant instanceof Tenant) {
+            $session->rebindTenant($tenant);
+        }
+
+        return $session;
+    }
+
+    /**
+     * Hydrate one page of objects from their ids, preserving the order of
+     * `$idPage` (the emit-id plan owns the master-then-variants contract;
+     * findByIds returns arbitrary DB order). Ids with no surviving row (a
+     * concurrent delete) are simply skipped.
+     *
+     * @param list<string> $idPage
      *
      * @return list<CatalogObject>
      */
-    private function resolveFilter(ExportSession $session, Tenant $tenant, ObjectType $objectType): array
+    private function hydratePageInOrder(array $idPage): array
     {
-        $dsl = $session->getFilterSnapshot();
-        if (null === $dsl || [] === $dsl) {
-            return [];
+        $byId = [];
+        foreach ($this->objects->findByIds($idPage) as $object) {
+            $byId[$object->getId()->toRfc4122()] = $object;
         }
 
-        $whereClause = $this->filterDsl->toCountSql($dsl);
-        if (null === $whereClause) {
-            throw new RuntimeException('Invalid filter DSL in export session snapshot.');
-        }
-
-        $tenantId = $tenant->getId()->toRfc4122();
-        // EXR-05: scope by object_type_id (any ObjectType) instead of the
-        // hardcoded Product kind. The DSL itself stays ObjectType-agnostic.
-        // EXR-07: alias the table as `co` — FilterDslResolver emits
-        // `co.`-prefixed column references, so the FROM clause must define it.
-        $sql = 'SELECT co.id FROM objects co '
-            .'WHERE co.tenant_id = :tenant AND co.object_type_id = :otid AND ('.$whereClause.')';
-
-        try {
-            $rows = $this->connection->fetchAllAssociative(
-                $sql,
-                ['tenant' => $tenantId, 'otid' => $objectType->getId()->toRfc4122()],
-            );
-        } catch (Throwable $error) {
-            throw new RuntimeException('Filter scope SQL execution failed: '.$error->getMessage(), previous: $error);
-        }
-
-        $ids = [];
-        foreach ($rows as $row) {
-            if (isset($row['id']) && \is_string($row['id'])) {
-                $ids[] = $row['id'];
+        $ordered = [];
+        foreach ($idPage as $id) {
+            if (isset($byId[$id])) {
+                $ordered[] = $byId[$id];
             }
         }
-        if ([] === $ids) {
-            return [];
-        }
 
-        return $this->objects->findByIds($ids);
-    }
-
-    /**
-     * @return list<CatalogObject>
-     */
-    private function resolveSelected(ExportSession $session): array
-    {
-        $ids = $session->getSelectedObjectIds();
-        if (null === $ids || [] === $ids) {
-            return [];
-        }
-
-        $uuids = array_map(static fn (string $id): Uuid => Uuid::fromString($id), $ids);
-
-        return $this->objects->findByIds(array_map(static fn (Uuid $u): string => $u->toRfc4122(), $uuids));
-    }
-
-    /**
-     * Collects unique ObjectType IDs (as UUID RFC strings) from a set of objects.
-     *
-     * @param list<CatalogObject> $objects
-     *
-     * @return list<string>
-     */
-    private function collectObjectTypeIds(array $objects): array
-    {
-        $ids = [];
-        foreach ($objects as $object) {
-            $id = $object->getObjectType()->getId()->toRfc4122();
-            $ids[$id] = $id;
-        }
-
-        return array_values($ids);
+        return $ordered;
     }
 
     /**

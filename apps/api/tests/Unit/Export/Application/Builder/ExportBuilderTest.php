@@ -41,6 +41,16 @@ use Symfony\Component\Uid\Uuid;
  */
 final class ExportBuilderTest extends TestCase
 {
+    /**
+     * #1632 — the builder now batch-loads per page keyed by object UUID, but the
+     * fixtures below are keyed by spl_object_id($product). This registry bridges
+     * the two: id (RFC4122) => product, so the batch stubs can resolve a
+     * requested id back to the object and read its spl_object_id-keyed fixture.
+     *
+     * @var array<string, CatalogObject>
+     */
+    private array $objectsById = [];
+
     #[Test]
     public function buildThrowsWhenSessionHasNoTenant(): void
     {
@@ -359,6 +369,95 @@ final class ExportBuilderTest extends TestCase
         );
     }
 
+    #[Test]
+    public function batchPrefetchesValuesRelationsAndCategoriesOncePerPageNotPerObject(): void
+    {
+        // AUD-016 (#1632) — the builder must batch-load a PAGE of objects in a
+        // fixed number of queries (one values batch, one relations batch per
+        // relation column, one categories batch), NOT one query per object.
+        // We spy on the batch repo methods and assert the call counts do not
+        // scale with the page size (3 objects → still 1 + 1 + 1).
+        $related = $this->newAttribute('related', AttributeType::Relation);
+        $products = [$this->newProduct('SKU-1'), $this->newProduct('SKU-2'), $this->newProduct('SKU-3')];
+
+        $valuesCalls = 0;
+        $relationsCalls = 0;
+        $categoriesCalls = 0;
+        $perObjectValueCalls = 0;
+        $perObjectRelationCalls = 0;
+        $perObjectCategoryCalls = 0;
+
+        $values = $this->createMock(ObjectValueRepositoryInterface::class);
+        $values->method('findByObjectIds')->willReturnCallback(static function (array $ids) use (&$valuesCalls): array {
+            ++$valuesCalls;
+            self::assertCount(3, $ids, 'the whole page is batched in one call');
+
+            return [];
+        });
+        $values->method('findByObject')->willReturnCallback(static function () use (&$perObjectValueCalls): array {
+            ++$perObjectValueCalls;
+
+            return [];
+        });
+
+        $relations = $this->createMock(ObjectRelationRepositoryInterface::class);
+        $relations->method('findBySourceIdsAndAttribute')->willReturnCallback(static function (array $ids) use (&$relationsCalls): array {
+            ++$relationsCalls;
+            self::assertCount(3, $ids, 'relations are batched for the whole page');
+
+            return [];
+        });
+        $relations->method('findBySourceAndAttribute')->willReturnCallback(static function () use (&$perObjectRelationCalls): array {
+            ++$perObjectRelationCalls;
+
+            return [];
+        });
+
+        $categories = $this->createMock(ObjectCategoryRepositoryInterface::class);
+        $categories->method('findByProductIds')->willReturnCallback(static function (array $ids) use (&$categoriesCalls): array {
+            ++$categoriesCalls;
+            self::assertCount(3, $ids, 'categories are batched for the whole page');
+
+            return [];
+        });
+        $categories->method('findByProduct')->willReturnCallback(static function () use (&$perObjectCategoryCalls): array {
+            ++$perObjectCategoryCalls;
+
+            return [];
+        });
+
+        $channels = $this->createStub(ChannelResolverInterface::class);
+        $attributes = $this->createStub(AttributeRepositoryInterface::class);
+        $attributes->method('findByCode')->willReturnCallback(
+            static fn (string $code): ?Attribute => 'related' === $code ? $related : null
+        );
+        $permissions = $this->createStub(\App\Identity\Contracts\Policy\AttributePermissionReader::class);
+        $permissions->method('isAttributePermissionEnforced')->willReturn(false);
+        $permissions->method('canViewAttribute')->willReturn(true);
+
+        $builder = new ExportBuilder(
+            values: $values,
+            categories: $categories,
+            columnResolver: new ColumnResolver(),
+            serializer: new ValueSerializer(),
+            channels: $channels,
+            relations: $relations,
+            attributes: $attributes,
+            attributePermissions: $permissions,
+        );
+        $session = $this->newSessionWithTenant(['sku', 'related', 'category']);
+
+        iterator_to_array($builder->build($products, $session));
+
+        self::assertSame(1, $valuesCalls, 'object_values prefetched ONCE for the 3-object page');
+        self::assertSame(1, $relationsCalls, 'relations prefetched ONCE per relation column for the page');
+        self::assertSame(1, $categoriesCalls, 'categories prefetched ONCE for the page');
+        // The pre-1632 per-object path must be gone entirely.
+        self::assertSame(0, $perObjectValueCalls, 'no per-object findByObject (N+1 removed)');
+        self::assertSame(0, $perObjectRelationCalls, 'no per-object findBySourceAndAttribute (N+1 removed)');
+        self::assertSame(0, $perObjectCategoryCalls, 'no per-object findByProduct (N+1 removed)');
+    }
+
     // ----- helpers -----
 
     /**
@@ -379,14 +478,42 @@ final class ExportBuilderTest extends TestCase
         array $restrictedAttrIds = [],
         bool $permissionsEnforced = true,
     ): ExportBuilder {
+        $resolve = fn (string $id): ?CatalogObject => $this->objectsById[$id] ?? null;
+
+        // #1632 — the builder batches per page: findByObjectIds(list<Uuid>) →
+        // map keyed by object UUID. Translate the spl_object_id-keyed fixtures
+        // through the id registry.
         $values = $this->createStub(ObjectValueRepositoryInterface::class);
-        $values->method('findByObject')->willReturnCallback(
-            static fn (CatalogObject $object): array => $valuesByObject[spl_object_id($object)] ?? []
+        $values->method('findByObjectIds')->willReturnCallback(
+            /** @param list<Uuid> $ids */
+            static function (array $ids) use ($valuesByObject, $resolve): array {
+                $map = [];
+                foreach ($ids as $uuid) {
+                    \assert($uuid instanceof Uuid);
+                    $rfc = $uuid->toRfc4122();
+                    $object = $resolve($rfc);
+                    $map[$rfc] = null !== $object ? ($valuesByObject[spl_object_id($object)] ?? []) : [];
+                }
+
+                return $map;
+            }
         );
 
         $categories = $this->createStub(ObjectCategoryRepositoryInterface::class);
-        $categories->method('findByProduct')->willReturnCallback(
-            static fn (CatalogObject $object): array => $categoriesByObject[spl_object_id($object)] ?? []
+        $categories->method('findByProductIds')->willReturnCallback(
+            /** @param list<string> $ids */
+            static function (array $ids) use ($categoriesByObject, $resolve): array {
+                $map = [];
+                foreach ($ids as $rfc) {
+                    \assert(\is_string($rfc));
+                    $object = $resolve($rfc);
+                    if (null !== $object && [] !== ($categoriesByObject[spl_object_id($object)] ?? [])) {
+                        $map[$rfc] = $categoriesByObject[spl_object_id($object)];
+                    }
+                }
+
+                return $map;
+            }
         );
 
         $channels = $this->createStub(ChannelResolverInterface::class);
@@ -395,8 +522,20 @@ final class ExportBuilderTest extends TestCase
         );
 
         $relations = $this->createStub(ObjectRelationRepositoryInterface::class);
-        $relations->method('findBySourceAndAttribute')->willReturnCallback(
-            static fn (CatalogObject $source): array => $relationsBySource[spl_object_id($source)] ?? []
+        $relations->method('findBySourceIdsAndAttribute')->willReturnCallback(
+            /** @param list<string> $ids */
+            static function (array $ids) use ($relationsBySource, $resolve): array {
+                $map = [];
+                foreach ($ids as $rfc) {
+                    \assert(\is_string($rfc));
+                    $object = $resolve($rfc);
+                    if (null !== $object && [] !== ($relationsBySource[spl_object_id($object)] ?? [])) {
+                        $map[$rfc] = $relationsBySource[spl_object_id($object)];
+                    }
+                }
+
+                return $map;
+            }
         );
 
         $attributes = $this->createStub(AttributeRepositoryInterface::class);
@@ -435,6 +574,7 @@ final class ExportBuilderTest extends TestCase
         if (null !== $parent) {
             $object->assignParent($parent);
         }
+        $this->objectsById[$object->getId()->toRfc4122()] = $object;
 
         return $object;
     }

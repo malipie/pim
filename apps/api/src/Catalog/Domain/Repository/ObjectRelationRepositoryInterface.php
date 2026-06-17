@@ -32,6 +32,19 @@ interface ObjectRelationRepositoryInterface
     public function findBySourceAndAttribute(CatalogObject $source, Attribute $attribute): array;
 
     /**
+     * AUD-016 (#1632) — batch sibling of {@see self::findBySourceAndAttribute()}
+     * for the export builder: all links carried by `$attribute` whose source is
+     * one of `$sourceIds`, in ONE query instead of one per object. Same
+     * position-then-created order so the per-source pipe-join stays
+     * deterministic and round-trip-stable. Tenant filter still applies.
+     *
+     * @param list<string> $sourceIds source object UUIDs (RFC 4122)
+     *
+     * @return array<string, list<ObjectRelation>> keyed by source object UUID (RFC 4122)
+     */
+    public function findBySourceIdsAndAttribute(array $sourceIds, Attribute $attribute): array;
+
+    /**
      * All links pointing at `$target` regardless of attribute — drives the
      * read-only reverse-relations panel from MOD-07.
      *

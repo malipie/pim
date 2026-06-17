@@ -277,6 +277,21 @@ final class InMemoryCatalogObjectRepository implements CatalogObjectRepositoryIn
         return 0;
     }
 
+    public function findRootObjectIds(ObjectType $objectType, Tenant $tenant): array
+    {
+        return [];
+    }
+
+    public function filterRootObjectIds(array $idsRfc4122, Tenant $tenant): array
+    {
+        return [];
+    }
+
+    public function findChildIdsByParentIds(array $parentIdsRfc4122, Tenant $tenant): array
+    {
+        return [];
+    }
+
     public function save(CatalogObject $object): void
     {
     }

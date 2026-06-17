@@ -38,6 +38,32 @@ final class DoctrineObjectCategoryRepository extends ServiceEntityRepository imp
         return $rows;
     }
 
+    public function findByProductIds(array $productIds): array
+    {
+        if ([] === $productIds) {
+            return [];
+        }
+
+        /** @var list<ObjectCategory> $rows */
+        $rows = $this->createQueryBuilder('a')
+            ->innerJoin('a.product', 'p')
+            ->innerJoin('a.category', 'c')
+            ->addSelect('c')
+            ->andWhere('p.id IN (:products)')
+            ->orderBy('a.position', 'ASC')
+            ->addOrderBy('a.createdAt', 'ASC')
+            ->setParameter('products', $productIds)
+            ->getQuery()
+            ->getResult();
+
+        $byProduct = [];
+        foreach ($rows as $row) {
+            $byProduct[$row->getProduct()->getId()->toRfc4122()][] = $row;
+        }
+
+        return $byProduct;
+    }
+
     public function findByCategory(CatalogObject $category): array
     {
         /** @var list<ObjectCategory> $rows */

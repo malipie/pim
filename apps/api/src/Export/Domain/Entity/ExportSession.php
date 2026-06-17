@@ -153,6 +153,21 @@ class ExportSession extends AggregateRoot implements TenantScoped
         $this->tenant = $tenant;
     }
 
+    /**
+     * AUD-015 (#1632) — re-attach the SAME tenant as a managed instance after an
+     * EntityManager::clear() detached the original (the streaming export clears
+     * the EM between keyset pages). Unlike {@see assignTenant()} this is a
+     * managed-state refresh, not a reassignment: it refuses a DIFFERENT tenant
+     * so the isolation invariant still holds.
+     */
+    public function rebindTenant(Tenant $tenant): void
+    {
+        if (null !== $this->tenant && !$this->tenant->getId()->equals($tenant->getId())) {
+            throw new LogicException('rebindTenant() cannot switch the session to a different tenant.');
+        }
+        $this->tenant = $tenant;
+    }
+
     public function getUserId(): Uuid
     {
         return $this->userId;
