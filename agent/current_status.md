@@ -53,8 +53,17 @@ Streaming readers (2.1) · staged upload (2.2) · pauza/wznów/checkpoint (2.3) 
   - #1560 deadlock 40P01 = EM-corruption w abort path; reload session po `em->clear()` (PR #1570)
 - **Re-audyt #1559** (workflow fan-out) potwierdził, że luki są realne (audyt trafny — inaczej niż 2.10, które miało 6 przeoczonych testów). **#1560**: deadlock to skutek uboczny `ORMInvalidArgumentException` (save sesji po `em->clear()` z rebuild dispatch), NIE osobny lock-order bug; fix naprawił też pre-existing fail `ImportRunHandlerAsyncTest`.
 
+## Audyt połówkowy przed-SaaS (2026-06-16) — READ-ONLY, branch `audit/2026-06-midpoint`
+- **Zakres:** cały projekt, 13 domen (A izolacja multi-tenant → M developer experience) + onboarding, metoda: tool-agenci (PHPStan/Deptrac/semgrep/gitleaks pełna historia/cloc/jscpd/psql) → fan-out subagentów per domena → empiryczna matryca 2-tenant na żywym stacku. Deliverable: **`docs/audit/2026-06/`** (00-executive-summary, 01-findings, 02-domain-reports/A–M, 03-fix-plan, raw/, probes/).
+- **Werdykt (a) ścieżka do SaaS: NO-GO.** (b) developer adoption risk: **4/10**.
+- **Liczby:** 81 findings — **5 CRITICAL** / 20 HIGH / 38 MEDIUM / 18 LOW.
+- **5 CRITICAL:** AUD-001 Mercure anonimowy cross-tenant SSE leak (potwierdzony empirycznie), AUD-007 token_dev_only → account takeover (potwierdzony), AUD-004 Meili filter-key cross-tenant read (potwierdzony), AUD-002 RLS martwy (app=superuser+bypassrls, 0 FORCE — zero defence-in-depth), AUD-005 sekrety w trackowanym `.env` (BYOK master key/JWT).
+- **Pozytyw empiryczny:** matryca 2-tenant obaliła podejrzenie wycieku przez Doctrine TenantFilter — izolacja danych domenowych przez REST DZIAŁA nawet dla super-admina (cross-read po ID = 404). NO-GO wynika z wektorów POZA filtrem + braków operacyjnych SaaS (backup martwy 49 dni, offboarding/RODO niewykonalny, indeksy skali usunięte regresją migracji, auth/E2E testy martwe w CI).
+- **Status:** audyt to artefakty + PR (bez merge). Naprawy NIE wykonane (read-only). Wave 0 (`03-fix-plan.md`) = blocker przed jakimkolwiek demo z realnymi danymi. lessons.md uzupełnić PO naprawach.
+
 ## Ostatnie akcje
-1. **Audyt IMP2 + 10 follow-up PR** (2026-06-16) — wszystkie merged, 9 issues #1552–#1560 closed. Metoda: subagenty per ticket (zbadaj→napisz→uruchom→napraw→gates), pathspec commity, sekwencyjnie (wspólne `pim_test`).
+1. **Audyt połówkowy przed-SaaS** (2026-06-16) — `docs/audit/2026-06/`, branch `audit/2026-06-midpoint`, 81 findings (5 CRITICAL), werdykt NO-GO dla SaaS + dev-risk 4/10. Read-only, PR bez merge.
+2. **Audyt IMP2 + 10 follow-up PR** (2026-06-16) — wszystkie merged, 9 issues #1552–#1560 closed. Metoda: subagenty per ticket (zbadaj→napisz→uruchom→napraw→gates), pathspec commity, sekwencyjnie (wspólne `pim_test`).
 2. **#1560 deadlock** — root cause = EM-corruption w `abortIfErrorRateExceeded` (`save()` sesji po `em->clear()` przez rebuild dispatch → detached proxy → `ORMInvalidArgumentException` → uszkodzony UoW → kaskada 40P01). Fix: reload sesji po clear (wzorzec [[feedback_pim_test_schema_recovery]] / ImportRollbackService).
 3. **IMP2-2.10 (#1486)** — pre-import backup spięty z sesją, PR #1551 merged.
 

@@ -87,3 +87,6 @@ docker-compose.override.yml
 secrets/
 .anthropic_api_key
 .shopify_token
+
+# Audyt 2026-06 — surowe outputy skanerów (regenerowalne, entropia myli secret-scan)
+docs/audit/2026-06/raw/
