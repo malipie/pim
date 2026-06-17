@@ -38,7 +38,15 @@ fi
 if [ "${CI:-}" != "true" ] && { [ "${APP_ENV:-dev}" = "dev" ] || [ "${APP_ENV:-dev}" = "test" ]; }; then
     if [ -x /app/bin/console ]; then
         echo "[entrypoint] Running pim:dev:ensure-seeded (env=${APP_ENV:-dev})"
-        php /app/bin/console pim:dev:ensure-seeded --quiet-when-noop --no-interaction \
+        # AUD-002 (W1-1): the seed writes tenants/users/roles/objects under FORCE
+        # ROW LEVEL SECURITY, but a CLI command never hits RlsContextListener so
+        # the per-request tenant GUC is unset — as the runtime role `pim_app`
+        # (NOBYPASSRLS) every insert would be denied. Run the seed on the owner
+        # DSN (role `pim`, the table owner / BYPASSRLS) just like migrations.
+        # DATABASE_URL_OWNER is injected by docker-compose; fall back to
+        # DATABASE_URL so a single-role sandbox still seeds.
+        DATABASE_URL="${DATABASE_URL_OWNER:-$DATABASE_URL}" \
+            php /app/bin/console pim:dev:ensure-seeded --quiet-when-noop --no-interaction \
             || echo "[entrypoint] WARN: ensure-seeded failed; api will still start. Run 'docker compose exec api bin/console pim:dev:ensure-seeded' manually to diagnose."
     fi
 fi

@@ -130,7 +130,12 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-dev}
       APP_SECRET: ${APP_SECRET:-ChangeMeBeforeDeploy}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      # AUD-002 (W1-1) — runtime connects as the NON-owner, NOBYPASSRLS role
+      # `pim_app` so FORCE ROW LEVEL SECURITY is enforced on every query.
+      # DATABASE_URL_OWNER (the `pim` table owner) is consumed ONLY by
+      # doctrine_migrations for DDL (ENABLE/FORCE RLS, CREATE POLICY).
+      DATABASE_URL: postgresql://${APP_DB_USER:-pim_app}:${APP_DB_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      DATABASE_URL_OWNER: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
       # Synchronous Messenger transport for local development — no worker
       # pool runs inside this stack, so async-routed messages execute
       # in-band when dispatched. Production deployments override to
@@ -191,7 +196,11 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-dev}
       APP_SECRET: ${APP_SECRET:-ChangeMeBeforeDeploy}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      # AUD-002 (W1-1) — same NON-owner, NOBYPASSRLS runtime role as the api.
+      # The worker sets app.current_tenant at session scope via
+      # TenantRlsGucMiddleware, so FORCE RLS is enforced on async writes too.
+      DATABASE_URL: postgresql://${APP_DB_USER:-pim_app}:${APP_DB_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      DATABASE_URL_OWNER: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
       MESSENGER_TRANSPORT_DSN: sync://
       MESSENGER_IMPORT_TRANSPORT_DSN: doctrine://default?auto_setup=1
       MERCURE_URL: http://mercure/.well-known/mercure
@@ -245,6 +254,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-app}
       POSTGRES_USER: ${POSTGRES_USER:-app}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      # AUD-002 (W1-1) — the database image's pim-init-app-role.sh reads these
+      # to idempotently CREATE/ALTER the runtime role `pim_app` (LOGIN,
+      # NOSUPERUSER, NOBYPASSRLS) and keep its password in sync on every start,
+      # so the role + password exist before the api connects — on a fresh volume
+      # AND on a pre-existing one (initdb scripts only run on first init).
+      APP_DB_USER: ${APP_DB_USER:-pim_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-!ChangeMe!}
       PGBACKREST_STANZA: pim
       PGBACKREST_REPO1_S3_KEY: ${MINIO_ROOT_USER:-minioadmin}
       PGBACKREST_REPO1_S3_KEY_SECRET: ${MINIO_ROOT_PASSWORD:-minioadmin}

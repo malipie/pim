@@ -1,44 +1,75 @@
 doctrine:
     dbal:
+        # AUD-002 (W1-1) — two named connections for the application/migration
+        # privilege split:
+        #   - `default`   the runtime connection (DATABASE_URL → role `pim_app`,
+        #                 NOSUPERUSER + NOBYPASSRLS + non-owner). FORCE ROW LEVEL
+        #                 SECURITY is therefore actually enforced on every query
+        #                 the app issues. Used by the ORM, every repository, and
+        #                 the Messenger worker.
+        #   - `owner`     the schema/migration connection (DATABASE_URL_OWNER →
+        #                 role `pim` = table owner). DDL (ALTER TABLE … ENABLE/
+        #                 FORCE RLS, CREATE POLICY) requires ownership, which the
+        #                 non-owner `pim_app` deliberately lacks. doctrine_migrations
+        #                 below pins migrations to this connection so `pim_app`
+        #                 never needs (and never gets) DDL or BYPASSRLS rights.
+        # DATABASE_URL_OWNER falls back to DATABASE_URL so a single-role setup
+        # (e.g. a throwaway sandbox that never split the roles) still boots.
+
         # Custom DBAL types live next to the bounded context that owns them.
         # `ltree` is a Postgres-only type used by `objects.path` for the
-        # category tree (#33 / 0.3.3). Doctrine ORM 3 ships no native
-        # mapping; the adapter is a thin pass-through over text.
+        # category tree (#33 / 0.3.3). Doctrine ORM 3 ships no native mapping;
+        # the adapter is a thin pass-through over text. `types` is a DBAL-level
+        # key (shared by every connection), not a per-connection one.
         types:
             ltree: App\Catalog\Infrastructure\Doctrine\Type\LtreeType
 
-        # Tell Doctrine's schema introspector that the Postgres `ltree`
-        # column type maps back to our `ltree` Doctrine type. Without
-        # this, `doctrine:schema:drop --full-database` (Foundry's
-        # ResetDatabase trait) trips with "Unknown database type ltree".
-        mapping_types:
-            ltree: ltree
+        default_connection: default
+        connections:
+            default:
+                url: '%env(resolve:DATABASE_URL)%'
 
-        url: '%env(resolve:DATABASE_URL)%'
+                # IMPORTANT: You MUST configure your server version,
+                # either here or in the DATABASE_URL env var (see .env file)
+                #server_version: '16'
 
-        # IMPORTANT: You MUST configure your server version,
-        # either here or in the DATABASE_URL env var (see .env file)
-        #server_version: '16'
+                # Tell Doctrine's schema introspector that the Postgres `ltree`
+                # column type maps back to our `ltree` Doctrine type. Without
+                # this, `doctrine:schema:drop --full-database` (Foundry's
+                # ResetDatabase trait) trips with "Unknown database type ltree".
+                mapping_types:
+                    ltree: ltree
 
-        # Backtrace collection is the dev default but is incompatible with
-        # FrankenPHP worker mode + long-running handlers: every executed
-        # query holds a full stack trace in BacktraceDebugDataHolder for
-        # the lifetime of the worker. A 60-row XLSX import dispatched
-        # through the in-band sync transport fires ~10 queries per row
-        # (ObjectType / Category / attribute lookups, object + value
-        # inserts, audit log writes) and pushes a single worker past the
-        # 256 MiB ceiling. Symfony's web profiler still records query
-        # counts and SQL strings through the regular data collector — we
-        # only drop the per-query backtrace.
-        profiling_collect_backtrace: false
-        use_savepoints: true
+                # Backtrace collection is the dev default but is incompatible with
+                # FrankenPHP worker mode + long-running handlers: every executed
+                # query holds a full stack trace in BacktraceDebugDataHolder for
+                # the lifetime of the worker. A 60-row XLSX import dispatched
+                # through the in-band sync transport fires ~10 queries per row
+                # (ObjectType / Category / attribute lookups, object + value
+                # inserts, audit log writes) and pushes a single worker past the
+                # 256 MiB ceiling. Symfony's web profiler still records query
+                # counts and SQL strings through the regular data collector — we
+                # only drop the per-query backtrace.
+                profiling_collect_backtrace: false
+                use_savepoints: true
 
-        # Disable query logging globally — sekcja 3.10 architektury and ticket
-        # 0.0.13 call this out as a memory-leak source under FrankenPHP worker
-        # mode: the logger keeps every executed query in memory for the lifetime
-        # of the worker. Symfony's debug profiler still captures queries through
-        # a separate collector, so dev/test debugging is unaffected.
-        logging: false
+                # Disable query logging globally — sekcja 3.10 architektury and
+                # ticket 0.0.13 call this out as a memory-leak source under
+                # FrankenPHP worker mode: the logger keeps every executed query in
+                # memory for the lifetime of the worker. Symfony's debug profiler
+                # still captures queries through a separate collector, so dev/test
+                # debugging is unaffected.
+                logging: false
+
+            owner:
+                url: '%env(resolve:DATABASE_URL_OWNER)%'
+                # Same Postgres-specific mapping so migration introspection of
+                # `ltree` columns does not trip "Unknown database type ltree".
+                mapping_types:
+                    ltree: ltree
+                profiling_collect_backtrace: false
+                use_savepoints: true
+                logging: false
 
     orm:
         auto_generate_proxy_classes: true
@@ -133,8 +164,23 @@ doctrine:
 when@test:
     doctrine:
         dbal:
-            # "TEST_TOKEN" is typically set by ParaTest
-            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+            connections:
+                default:
+                    # The test DB schema is built from ORM metadata by Foundry's
+                    # ResetDatabase (schema:update / schema:drop), which is DDL and
+                    # therefore needs the owner role — the runtime `pim_app` cannot
+                    # create or drop tables it does not own. Point the test runtime
+                    # connection at the owner DSN so the kernel boots against `pim`.
+                    # The isolation tests that need a NOBYPASSRLS reader create a
+                    # throwaway probe role and `SET ROLE` to it on the same
+                    # connection (see RefreshTokenRlsGucDriftTest / the W1-1
+                    # isolation test), so FORCE RLS is still exercised under test.
+                    url: '%env(resolve:DATABASE_URL_OWNER)%'
+                    # "TEST_TOKEN" is typically set by ParaTest
+                    dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+                owner:
+                    url: '%env(resolve:DATABASE_URL_OWNER)%'
+                    dbname_suffix: '_test%env(default::TEST_TOKEN)%'
 
         # Enable query logging in tests — visibility into the SQL the filter
         # produces is worth the small allocation overhead.

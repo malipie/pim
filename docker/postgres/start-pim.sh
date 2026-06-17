@@ -20,4 +20,10 @@ crond -b -L /dev/stderr
 # the repo populated immediately so the restore test can run any time.
 /usr/local/bin/pim-init-backup.sh &
 
+# AUD-002 (W1-1): wait + idempotently create/sync the NOSUPERUSER NOBYPASSRLS
+# runtime role `pim_app` so it exists (with the right password) before the api
+# connects — on a fresh volume AND a pre-existing one. Backgrounded so it never
+# blocks postgres start-up; the operations inside are idempotent.
+/usr/local/bin/pim-init-app-role.sh &
+
 exec docker-entrypoint.sh "$@"
