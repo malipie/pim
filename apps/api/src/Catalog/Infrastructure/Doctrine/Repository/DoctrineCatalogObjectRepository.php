@@ -140,6 +140,81 @@ class DoctrineCatalogObjectRepository extends ServiceEntityRepository implements
             ->getSingleScalarResult();
     }
 
+    /**
+     * @return list<string>
+     */
+    public function findRootObjectIds(ObjectType $objectType, Tenant $tenant): array
+    {
+        /** @var list<array{id: string}> $rows */
+        $rows = $this->createQueryBuilder('o')
+            ->select('o.id')
+            ->where('o.objectType = :ot')
+            ->andWhere('o.tenant = :tenant')
+            ->andWhere('o.parent IS NULL')
+            ->setParameter('ot', $objectType)
+            ->setParameter('tenant', $tenant)
+            ->orderBy('o.id', 'ASC')
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): string => $row['id'], $rows);
+    }
+
+    /**
+     * @param list<string> $idsRfc4122
+     *
+     * @return list<string>
+     */
+    public function filterRootObjectIds(array $idsRfc4122, Tenant $tenant): array
+    {
+        if ([] === $idsRfc4122) {
+            return [];
+        }
+
+        /** @var list<array{id: string}> $rows */
+        $rows = $this->createQueryBuilder('o')
+            ->select('o.id')
+            ->where('o.id IN (:ids)')
+            ->andWhere('o.tenant = :tenant')
+            ->andWhere('o.parent IS NULL')
+            ->setParameter('ids', $idsRfc4122)
+            ->setParameter('tenant', $tenant)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): string => $row['id'], $rows);
+    }
+
+    /**
+     * @param list<string> $parentIdsRfc4122
+     *
+     * @return array<string, list<string>>
+     */
+    public function findChildIdsByParentIds(array $parentIdsRfc4122, Tenant $tenant): array
+    {
+        if ([] === $parentIdsRfc4122) {
+            return [];
+        }
+
+        /** @var list<array{id: string, pid: string}> $rows */
+        $rows = $this->createQueryBuilder('o')
+            ->select('o.id AS id', 'IDENTITY(o.parent) AS pid')
+            ->where('o.parent IN (:parents)')
+            ->andWhere('o.tenant = :tenant')
+            ->setParameter('parents', $parentIdsRfc4122)
+            ->setParameter('tenant', $tenant)
+            ->orderBy('o.code', 'ASC')
+            ->getQuery()
+            ->getScalarResult();
+
+        $byParent = [];
+        foreach ($rows as $row) {
+            $byParent[$row['pid']][] = $row['id'];
+        }
+
+        return $byParent;
+    }
+
     public function findById(\Symfony\Component\Uid\Uuid $id): ?CatalogObject
     {
         return parent::find($id->toRfc4122());

@@ -27,6 +27,19 @@ interface ObjectCategoryRepositoryInterface
     public function findByProduct(CatalogObject $product): array;
 
     /**
+     * AUD-016 (#1632) — batch sibling of {@see self::findByProduct()} for the
+     * export builder: all assignments for any product in `$productIds`, in ONE
+     * query instead of one per object. Same position-then-created order so the
+     * per-product category pipe-join stays deterministic and round-trip-stable.
+     * Tenant filter still applies.
+     *
+     * @param list<string> $productIds product object UUIDs (RFC 4122)
+     *
+     * @return array<string, list<ObjectCategory>> keyed by product object UUID (RFC 4122)
+     */
+    public function findByProductIds(array $productIds): array;
+
+    /**
      * All assignments referencing a single category, ordered the same way.
      * Used by the reverse-listing endpoint (PCAT-06) and by the cache
      * invalidator when a category-level change should burst per-product

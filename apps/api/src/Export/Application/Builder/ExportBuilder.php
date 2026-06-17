@@ -8,13 +8,18 @@ use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectValue;
+use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface;
+use App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Channel\Contracts\ChannelResolverInterface;
 use App\Export\Domain\Entity\ExportSession;
+use App\Identity\Contracts\Policy\AttributePermissionReader;
 use App\Shared\Domain\Tenant;
 use Generator;
 use LogicException;
+use Symfony\Component\Uid\Uuid;
+use Traversable;
 
 /**
  * Core export engine — turns a stream of CatalogObjects into XLSX / CSV
@@ -50,9 +55,9 @@ final class ExportBuilder
         private readonly ColumnResolver $columnResolver,
         private readonly ValueSerializer $serializer,
         private readonly ChannelResolverInterface $channels,
-        private readonly \App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface $relations,
-        private readonly \App\Catalog\Domain\Repository\AttributeRepositoryInterface $attributes,
-        private readonly \App\Identity\Contracts\Policy\AttributePermissionReader $attributePermissions,
+        private readonly ObjectRelationRepositoryInterface $relations,
+        private readonly AttributeRepositoryInterface $attributes,
+        private readonly AttributePermissionReader $attributePermissions,
     ) {
     }
 
@@ -94,10 +99,103 @@ final class ExportBuilder
         // cellFor can route Relation/Reference columns to object_relations.
         $attributeMap = $this->resolveColumnAttributes($columns, $tenant);
 
-        $primaryLocale = $tenant->getPrimaryLocale();
-        foreach ($objects as $object) {
-            yield $this->renderRow($object, $columns, $channelIdByCode, $primaryLocale, $attributeMap);
+        // AUD-016 (#1632): the caller hands us a bounded keyset PAGE (the sync
+        // runner streams scope-All/Selected/Filter in CLEAR_INTERVAL-sized
+        // pages, EntityManager::clear() between them). Materialise the page
+        // once and batch-load its object_values / relations / categories in a
+        // fixed number of queries per page instead of one-per-object — the
+        // pre-1632 lazy `findByObject`/`findBySourceAndAttribute`/`findByProduct`
+        // path issued 100k-150k round-trips for a 50k export (PRD §11.2).
+        $page = $objects instanceof Traversable ? iterator_to_array($objects, false) : array_values($objects);
+        if ([] === $page) {
+            return;
         }
+
+        $pageIds = array_map(static fn (CatalogObject $o): string => $o->getId()->toRfc4122(), $page);
+        $valuesByObjectId = $this->values->findByObjectIds(
+            array_map(static fn (CatalogObject $o): Uuid => $o->getId(), $page),
+        );
+        $relationCodesByColumn = $this->prefetchRelationCodes($pageIds, $attributeMap);
+        $categoryCodesByObjectId = $this->needsCategoryColumn($columns)
+            ? $this->prefetchCategoryCodes($pageIds)
+            : [];
+
+        $primaryLocale = $tenant->getPrimaryLocale();
+        foreach ($page as $object) {
+            $objectId = $object->getId()->toRfc4122();
+            yield $this->renderRow(
+                $object,
+                $columns,
+                $channelIdByCode,
+                $primaryLocale,
+                $attributeMap,
+                $valuesByObjectId[$objectId] ?? [],
+                $relationCodesByColumn,
+                $categoryCodesByObjectId[$objectId] ?? [],
+            );
+        }
+    }
+
+    /**
+     * AUD-016 (#1632) — one `findBySourceIdsAndAttribute()` per relation/reference
+     * column for the whole page, reduced to the pipe-join inputs: target CODES
+     * keyed by `attributeCode => [sourceId => codes]`. Non-relation columns and
+     * pages with no relation columns issue no query. The ObjectRelation graph is
+     * consumed here so the row pipeline only ever handles strings.
+     *
+     * @param list<string>             $pageIds
+     * @param array<string, Attribute> $attributeMap
+     *
+     * @return array<string, array<string, list<string>>>
+     */
+    private function prefetchRelationCodes(array $pageIds, array $attributeMap): array
+    {
+        $byColumn = [];
+        foreach ($attributeMap as $code => $attribute) {
+            if (AttributeType::Relation !== $attribute->getType() && AttributeType::Reference !== $attribute->getType()) {
+                continue;
+            }
+            $bySource = [];
+            foreach ($this->relations->findBySourceIdsAndAttribute($pageIds, $attribute) as $sourceId => $links) {
+                $bySource[$sourceId] = array_map(static fn ($link): string => $link->getTarget()->getCode(), $links);
+            }
+            $byColumn[$code] = $bySource;
+        }
+
+        return $byColumn;
+    }
+
+    /**
+     * AUD-016 (#1632) — one `findByProductIds()` for the whole page, reduced to
+     * category CODES keyed by object id. The ObjectCategory graph is consumed
+     * here so the row pipeline only ever handles strings.
+     *
+     * @param list<string> $pageIds
+     *
+     * @return array<string, list<string>>
+     */
+    private function prefetchCategoryCodes(array $pageIds): array
+    {
+        $byObject = [];
+        foreach ($this->categories->findByProductIds($pageIds) as $objectId => $assignments) {
+            $byObject[$objectId] = array_map(static fn ($assignment): string => $assignment->getCategory()->getCode(), $assignments);
+        }
+
+        return $byObject;
+    }
+
+    /**
+     * @param array<int, ColumnDefinition> $columns
+     */
+    private function needsCategoryColumn(array $columns): bool
+    {
+        foreach ($columns as $column) {
+            if ($column->isBuiltIn() && 'category' === $column->code) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -140,31 +238,44 @@ final class ExportBuilder
     }
 
     /**
-     * @param array<int, ColumnDefinition> $columns
-     * @param array<string, string>        $channelIdByCode channel code => UUID RFC 4122 (#1229)
-     * @param array<string, Attribute>     $attributeMap    attribute column code => Attribute (#1471)
+     * @param array<int, ColumnDefinition>               $columns
+     * @param array<string, string>                      $channelIdByCode       channel code => UUID RFC 4122 (#1229)
+     * @param array<string, Attribute>                   $attributeMap          attribute column code => Attribute (#1471)
+     * @param list<ObjectValue>                          $objectValues          this object's prefetched values (#1632)
+     * @param array<string, array<string, list<string>>> $relationCodesByColumn attributeCode => [sourceId => target codes] (#1632)
+     * @param list<string>                               $categoryCodes         this object's prefetched category codes (#1632)
      *
      * @return array<string, string>
      */
-    private function renderRow(CatalogObject $object, array $columns, array $channelIdByCode, string $primaryLocale, array $attributeMap): array
-    {
-        $valueIndex = $this->indexValuesByObject($object);
+    private function renderRow(
+        CatalogObject $object,
+        array $columns,
+        array $channelIdByCode,
+        string $primaryLocale,
+        array $attributeMap,
+        array $objectValues,
+        array $relationCodesByColumn,
+        array $categoryCodes,
+    ): array {
+        $valueIndex = $this->indexValuesByObject($objectValues);
         $row = [];
 
         foreach ($columns as $column) {
-            $row[$column->key] = $this->cellFor($object, $column, $valueIndex, $channelIdByCode, $primaryLocale, $attributeMap);
+            $row[$column->key] = $this->cellFor($object, $column, $valueIndex, $channelIdByCode, $primaryLocale, $attributeMap, $relationCodesByColumn, $categoryCodes);
         }
 
         return $row;
     }
 
     /**
+     * @param list<ObjectValue> $objectValues
+     *
      * @return array<string, ObjectValue>
      */
-    private function indexValuesByObject(CatalogObject $object): array
+    private function indexValuesByObject(array $objectValues): array
     {
         $index = [];
-        foreach ($this->values->findByObject($object) as $value) {
+        foreach ($objectValues as $value) {
             $key = $this->indexKey(
                 $value->getAttribute()->getCode(),
                 $value->getLocale(),
@@ -182,9 +293,11 @@ final class ExportBuilder
     }
 
     /**
-     * @param array<string, ObjectValue> $valueIndex
-     * @param array<string, string>      $channelIdByCode channel code => UUID RFC 4122 (#1229)
-     * @param array<string, Attribute>   $attributeMap    attribute column code => Attribute (#1471)
+     * @param array<string, ObjectValue>                 $valueIndex
+     * @param array<string, string>                      $channelIdByCode       channel code => UUID RFC 4122 (#1229)
+     * @param array<string, Attribute>                   $attributeMap          attribute column code => Attribute (#1471)
+     * @param array<string, array<string, list<string>>> $relationCodesByColumn attributeCode => [sourceId => target codes] (#1632)
+     * @param list<string>                               $categoryCodes         this object's prefetched category codes (#1632)
      */
     private function cellFor(
         CatalogObject $object,
@@ -193,9 +306,11 @@ final class ExportBuilder
         array $channelIdByCode,
         string $primaryLocale,
         array $attributeMap,
+        array $relationCodesByColumn,
+        array $categoryCodes,
     ): string {
         if ($column->isBuiltIn()) {
-            return $this->builtIn($object, $column->code);
+            return $this->builtIn($object, $column->code, $categoryCodes);
         }
 
         $attribute = $attributeMap[$column->code] ?? null;
@@ -223,13 +338,12 @@ final class ExportBuilder
 
         // IMP2-1.8 (D5): Relation/Reference columns emit pipe-joined target
         // CODES read from object_relations (symmetry with the import, which
-        // writes relations there — not as ObjectValue).
+        // writes relations there — not as ObjectValue). AUD-016 (#1632): the
+        // target codes are batch-prefetched per page, so this is a map lookup
+        // rather than a per-object query.
         if ($attribute instanceof Attribute
             && (AttributeType::Relation === $attribute->getType() || AttributeType::Reference === $attribute->getType())) {
-            $codes = [];
-            foreach ($this->relations->findBySourceAndAttribute($object, $attribute) as $relation) {
-                $codes[] = $relation->getTarget()->getCode();
-            }
+            $codes = $relationCodesByColumn[$column->code][$object->getId()->toRfc4122()] ?? [];
 
             return implode(ValueSerializer::MULTI_VALUE_GLUE, $codes);
         }
@@ -259,7 +373,10 @@ final class ExportBuilder
         return $this->serializer->serialize($value);
     }
 
-    private function builtIn(CatalogObject $object, string $code): string
+    /**
+     * @param list<string> $categoryCodes prefetched per page (#1632)
+     */
+    private function builtIn(CatalogObject $object, string $code, array $categoryCodes): string
     {
         return match ($code) {
             'sku' => $this->serializer->serializeScalar($object->getCode()),
@@ -269,7 +386,7 @@ final class ExportBuilder
             'completeness_pct' => $this->serializer->serializeScalar($object->getCompletenessPct()),
             'created_at' => $this->serializer->serializeScalar($object->getCreatedAt()),
             'updated_at' => $this->serializer->serializeScalar($object->getUpdatedAt()),
-            'category' => $this->resolveCategories($object),
+            'category' => implode(ValueSerializer::MULTI_VALUE_GLUE, $categoryCodes),
             'variant_axes' => $this->serializeVariantAxes($object),
             default => '',
         };
@@ -301,20 +418,5 @@ final class ExportBuilder
         }
 
         return implode(ValueSerializer::MULTI_VALUE_GLUE, $parts);
-    }
-
-    private function resolveCategories(CatalogObject $object): string
-    {
-        $assignments = $this->categories->findByProduct($object);
-        if ([] === $assignments) {
-            return '';
-        }
-
-        $codes = [];
-        foreach ($assignments as $assignment) {
-            $codes[] = $assignment->getCategory()->getCode();
-        }
-
-        return implode(ValueSerializer::MULTI_VALUE_GLUE, $codes);
     }
 }
