@@ -4,3 +4,12 @@ doctrine_migrations:
         # as migrations classes should NOT be autoloaded
         'DoctrineMigrations': '%kernel.project_dir%/migrations'
     enable_profiler: false
+
+    # AUD-002 (W1-1) — run migrations on the `owner` connection (role `pim`,
+    # the table owner) rather than the runtime `default` connection (role
+    # `pim_app`, NOSUPERUSER + NOBYPASSRLS + non-owner). ALTER TABLE … ENABLE/
+    # FORCE ROW LEVEL SECURITY and CREATE POLICY require table ownership, which
+    # `pim_app` deliberately does not have. The migration metadata table
+    # (doctrine_migration_versions) therefore also lives on the owner
+    # connection. See config/packages/doctrine.yaml dbal.connections.
+    connection: owner
