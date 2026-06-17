@@ -10,6 +10,8 @@ on:
       - "docs/api-spec/**"
       - "scripts/lint-raw-sql.sh"
       - "scripts/lint-tracked-secrets.sh"
+      - "scripts/lint-backup-cron.sh"
+      - "docker/postgres/**"
       - ".gitignore"
       - ".github/workflows/quality-php.yml"
       - ".semgrep/**"
@@ -20,6 +22,8 @@ on:
       - "docs/api-spec/**"
       - "scripts/lint-raw-sql.sh"
       - "scripts/lint-tracked-secrets.sh"
+      - "scripts/lint-backup-cron.sh"
+      - "docker/postgres/**"
       - ".gitignore"
       - ".github/workflows/quality-php.yml"
       - ".semgrep/**"
@@ -126,6 +130,23 @@ jobs:
 
       - name: Lint raw SQL escape hatches
         run: bash scripts/lint-raw-sql.sh
+
+  backup-cron-lint:
+    # AUD-017 / AUD-021 — guard-rail keeping the pgBackRest backup cron alive.
+    # Fails if start-pim.sh stops registering the postgres crontab via
+    # `crontab -u` (dcron silently ignores an unregistered per-user file —
+    # the bug that killed the cron for ~49 days) or if the Dockerfile schedule
+    # drops the full / diff / weekly restore-test entries. Cheap shell job.
+    name: Backup cron wiring lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Lint backup cron wiring
+        run: bash scripts/lint-backup-cron.sh
 
   tracked-secrets-lint:
     # AUD-005 / AUD-010 — guard-rail against real secrets committed to VCS.
