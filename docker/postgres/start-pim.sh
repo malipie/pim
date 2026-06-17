@@ -2,8 +2,9 @@
 # Custom entrypoint wrapper for the PIM database image.
 #
 # Responsibilities (in order):
-#   1. Launch busybox dcron in the background so the hourly /etc/crontabs/postgres
-#      schedule can run pgBackRest backups under the postgres user.
+#   1. Register the postgres crontab via `crontab -u` and launch dcron in the
+#      background so the production schedule (full/diff + weekly restore-test)
+#      runs pgBackRest under the postgres user.
 #   2. Launch pim-init-backup.sh in the background. It waits until postgres is
 #      accepting connections, then idempotently creates the stanza and triggers
 #      an initial full backup. Backgrounded so it never blocks postgres start-up.
@@ -11,6 +12,18 @@
 #      which performs initdb on first run and then exec's postgres.
 
 set -euo pipefail
+
+# AUD-017: dcron (dillon's cron 4.5) only loads a per-user crontab once it has
+# been (re)registered through `crontab -u` — a file dropped straight into
+# /etc/crontabs by the Dockerfile is synchronised for `root` but silently
+# ignored for every other user, so the postgres schedule never fired and the
+# backup cron was dead for ~49 days (the repo kept only the 2026-04-28 full).
+# Re-install it from the baked-in source on every boot so dcron picks it up on
+# a fresh volume AND a pre-existing one. Idempotent: same content each time.
+CRONTAB_SRC=/etc/crontabs/postgres
+if [ -f "${CRONTAB_SRC}" ]; then
+    crontab -u postgres "${CRONTAB_SRC}"
+fi
 
 # dcron logs to stderr; -L /dev/stderr keeps everything visible in `docker logs`.
 crond -b -L /dev/stderr
