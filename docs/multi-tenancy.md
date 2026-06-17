@@ -49,30 +49,30 @@ Co filter NIE łapie:
 - `COPY` i raw `INSERT … SELECT` (patrz "Bulk operations" niżej);
 - query po encjach NIE-`TenantScoped` (User, Role, Permission, RefreshToken).
 
-## RLS — gotowe, nieaktywne
+## RLS — kontrakt GUC i stan aktywacji
 
-Migracja [`Version20260428195217`](../apps/api/migrations/Version20260428195217.php) tworzy 4 polityki (SELECT/INSERT/UPDATE/DELETE) na każdej tabeli `TenantScoped`:
+**Kanon nazwy GUC: `app.current_tenant`** (plus `app.is_super_admin` dla break-glass bypass). To jedyna zmienna sesyjna jaką ustawia aplikacja — patrz [`RlsContextListener`](../apps/api/src/Identity/Infrastructure/Doctrine/RlsContextListener.php) (HTTP, `kernel.request`) i [`TenantRlsGucMiddleware`](../apps/api/src/Shared/Infrastructure/Messenger/TenantRlsGucMiddleware.php) (worker async). Każda polityka RLS w bazie MUSI czytać tę nazwę. Przykład polityki:
 
 ```sql
-CREATE POLICY tenant_isolation_select ON products FOR SELECT
-    USING (tenant_id = current_setting('pim.current_tenant_id', true)::uuid);
+CREATE POLICY tenant_isolation_select ON refresh_tokens FOR SELECT
+    USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
 ```
 
-Postgres traktuje `CREATE POLICY` na tabeli **bez aktywnego RLS** jako **inertne** — polityki istnieją w katalogu, ale każde query działa jakby ich nie było. Aktywacja w fazie 2 to jeden `ALTER TABLE … ENABLE ROW LEVEL SECURITY`.
+> **Historia driftu (AUD-027 / W1-2, naprawione [`Version20260617000000`](../apps/api/migrations/Version20260617000000.php)):** pierwsza fala RLS ([`Version20260428195217`](../apps/api/migrations/Version20260428195217.php)) seedowała `products` + `refresh_tokens` ze starą nazwą `pim.current_tenant_id`, której kod nigdy nie ustawia. Polityki `products` zniknęły przy migracji `products → objects` ([`Version20260428222056`](../apps/api/migrations/Version20260428222056.php)); `refresh_tokens` pozostał osamotniony na starym GUC. Era IMP2-2.x (api_tokens, audit_logs, import_logs, import_staged_files, import_undo_log, invitations, user_tenant_memberships) używa już `app.current_tenant`. Migracja W1-2 ujednoliciła `refresh_tokens` na `app.current_tenant` — **warunek wstępny** FORCE RLS (W1-1): pod FORCE niedopasowany GUC dawałby `tenant_id = NULL` (three-valued logic) → deny-all → zepsuty refresh-login. Migracja W1-2 sama **nie** włącza ani nie wymusza RLS — zmienia tylko nazwę GUC w politykach.
 
-`current_setting('pim.current_tenant_id', true)` — `true` (`missing_ok`) zwraca `NULL` gdy GUC nie ustawiony, `tenant_id = NULL` jest false (three-valued logic) → bez `SET LOCAL` wszystkie wiersze są deny. Chroni przed przypadkowym wyciekiem gdy ktoś włączy RLS przed wpięciem ustawienia GUC w request lifecycle.
+`current_setting('app.current_tenant', true)` — `true` (`missing_ok`) zwraca `NULL` gdy GUC nie ustawiony, `tenant_id = NULL` jest false (three-valued logic) → pod aktywnym RLS bez `SET LOCAL`/`set_config` wszystkie wiersze są deny (fail-safe).
 
-Tabele objęte politykami: `products`, `refresh_tokens`. **Wykluczone:**
-- `users` — login szuka usera globalnie po email zanim tenant jest znany; aktywacja RLS wymagałaby SECURITY DEFINER bypass dla flow autoryzacji (zaprojektowanie w fazie 2);
+Stan dziś: RLS **ENABLED** (ale nie FORCED) na 7 tabelach RBAC/import (api_tokens, audit_logs, import_logs, import_staged_files, import_undo_log, invitations, user_tenant_memberships); `refresh_tokens` ma polityki ale RLS jest disabled (polityki inertne). Connection user `pim` jest superuser+BYPASSRLS → RLS martwy w runtime aż do W1-1 (osobna rola `pim_app` + `FORCE`). **Wykluczone z polityk:**
+- `users` — login szuka usera globalnie po email zanim tenant jest znany; aktywacja RLS wymagałaby SECURITY DEFINER bypass dla flow autoryzacji;
 - `roles` — nullable `tenant_id` (built-iny mają NULL), naiwna polityka `tenant_id = X` ukryłaby je;
 - infra (`tenants`, `permissions`, junction tables, `messenger_messages`, `doctrine_migration_versions`) — bez `tenant_id`.
 
-### Aktywacja w fazie 2 (16-24h, sekcja 11.1a architektury)
+### Aktywacja FORCE RLS (W1-1 / AUD-002, sekcja 11.1a architektury)
 
-1. `ALTER TABLE products       ENABLE ROW LEVEL SECURITY; ALTER TABLE products       FORCE ROW LEVEL SECURITY;`
-2. `ALTER TABLE refresh_tokens ENABLE ROW LEVEL SECURITY; ALTER TABLE refresh_tokens FORCE ROW LEVEL SECURITY;` — **chyba że** decyzja "refresh_tokens to infra, nie domain" → `DROP POLICY` zamiast `ENABLE`.
-3. Ustawianie `SET LOCAL pim.current_tenant_id = :id` na każdej transakcji w `TenantFilterConfigurator` (rozszerzenie ponad istniejące ustawianie Doctrine filter param).
-4. Comprehensive test suite — pełen pen-test izolacji.
+1. Osobna rola `pim_app` (NOSUPERUSER, NOBYPASSRLS, nie-owner) z GRANT-ami; `DATABASE_URL` na nią; owner/migracje pod `pim_owner`.
+2. `ENABLE` + `FORCE ROW LEVEL SECURITY` na wszystkich ~46 tenantowanych tabelach (nie tylko 7).
+3. GUC `app.current_tenant` ustawiany per request/worker — **już wpięty** (`RlsContextListener` + `TenantRlsGucMiddleware`); W1-2 zsynchronizowało wszystkie polityki na tę nazwę, więc krok ten nie wymaga zmian w kodzie.
+4. Comprehensive test suite — pełen pen-test izolacji pod non-superuserem (cross-read = 0).
 5. Pen-test izolacji przez zewnętrznego audytora.
 
 ## Bulk operations — runbook
