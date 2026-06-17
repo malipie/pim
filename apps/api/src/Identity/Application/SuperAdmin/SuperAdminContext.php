@@ -7,6 +7,7 @@ namespace App\Identity\Application\SuperAdmin;
 use Closure;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * RBAC-P3-014 (#677) — switches the request into the platform-level
@@ -24,12 +25,23 @@ use Symfony\Component\Uid\Uuid;
  * requests within the same FrankenPHP worker. The class returns the
  * previous filter state so nested activations compose correctly.
  *
- * Postgres RLS context is handled separately by the existing
- * `RlsContextListener` (RBAC-P2-005 #654) — when activated here, the
- * caller is also responsible for setting `app.bypass_rls = true` via
- * `SET LOCAL` if the caller intends to read tenant-scoped tables. The
- * helper {@see runCrossTenant()} wraps both concerns into one closure
- * for the typical break-glass path.
+ * Disabling the Doctrine filter is an application-layer concern only.
+ * After AUD-002/W1-1 the runtime connects as `pim_app` (NOBYPASSRLS)
+ * with FORCE ROW LEVEL SECURITY on every tenant-scoped table, so a
+ * disabled `TenantFilter` does NOT by itself grant cross-tenant reads of
+ * domain data — Postgres RLS still filters by the `app.current_tenant`
+ * GUC. Crossing the RLS wall additionally requires the
+ * `super_admin_bypass_<table>` policy, which is keyed on
+ * `app.is_super_admin = 'true'` (set via {@see \App\Identity\Infrastructure\Doctrine\RlsContextListener}).
+ * Setting that GUC is intentionally out of scope here (AUD-026 only
+ * realigns the filter-name invariant); the RLS layer staying active for
+ * `pim_app` is defence-in-depth, not a bug.
+ *
+ * Note that the break-glass entry points in MVP operate on `users` /
+ * `roles` (auth tables) — `User` is {@see \App\Shared\Application\TenantAware},
+ * not {@see \App\Shared\Application\TenantScoped}, so the Doctrine filter
+ * never constrained those lookups; the filter toggle matters for any
+ * `TenantScoped` read performed inside the cross-tenant closure.
  *
  * `superAdminId` is tracked on every cross-tenant write through the
  * audit log (`audit_logs.super_admin_id`, `cross_tenant_access=true`)
@@ -39,9 +51,17 @@ use Symfony\Component\Uid\Uuid;
  * a request attribute so the listener does not need to reach into
  * this service.
  */
-final class SuperAdminContext
+final class SuperAdminContext implements ResetInterface
 {
-    public const string FILTER_NAME = 'tenant_filter';
+    /**
+     * Must match the filter name registered in
+     * `config/packages/doctrine.yaml` (`doctrine.orm.filters.tenant`) and
+     * toggled by {@see \App\Shared\Infrastructure\Doctrine\Filter\TenantFilterConfigurator}.
+     * AUD-026: this was `tenant_filter`, which silently no-op'd every
+     * `enable()`/`disable()` here because that name is not registered —
+     * the cross-tenant invariant was a lie.
+     */
+    public const string FILTER_NAME = 'tenant';
 
     private ?Uuid $activeSuperAdminId = null;
 
@@ -112,5 +132,20 @@ final class SuperAdminContext
                 $filters->enable(self::FILTER_NAME);
             }
         }
+    }
+
+    /**
+     * Symfony `kernel.reset` hook — fires at the end of every request in
+     * FrankenPHP worker mode. Clears any cross-tenant mode that survived
+     * the request (e.g. an exception that bypassed the `finally`, or a
+     * long-running command that died mid-flight) so the privileged
+     * super-admin context can never leak into the next request served by
+     * the reused worker. The Doctrine filter itself is re-armed per request
+     * by {@see \App\Shared\Infrastructure\Doctrine\Filter\TenantFilterConfigurator},
+     * so here we only have to drop the in-memory super-admin marker.
+     */
+    public function reset(): void
+    {
+        $this->activeSuperAdminId = null;
     }
 }
