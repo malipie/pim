@@ -95,9 +95,23 @@ docker-compose.override.yml
 
 # Local secrets / API keys
 *.local
-secrets/
 .anthropic_api_key
 .shopify_token
+
+# AUD-047 — Symfony Secrets Vault (apps/api/config/secrets/<env>/).
+# The vault is SAFE to commit by design EXCEPT the private decryption key:
+#   - <env>.encrypt.public.php  → committed (anyone can ADD a secret)
+#   - <env>.list.php            → committed (names of stored secrets)
+#   - <NAME>.<HASH>.php          → committed (AES-encrypted ciphertext)
+#   - <env>.decrypt.private.php → NEVER committed (decrypts everything)
+# The decryption key is injected at deploy time via the SYMFONY_DECRYPTION_SECRET
+# env var (base64 of the key file), so prod does not need the file on disk at all.
+# A repo-wide `secrets/` ignore previously swallowed the whole vault — scope the
+# ignore to the private key only so the rest of the vault can be tracked.
+**/config/secrets/**/*.decrypt.private.php
+# Any other top-level `secrets/` dir (legacy local-secret dumps) stays ignored,
+# but NOT the Symfony vault under config/secrets/.
+/secrets/
 
 # Audyt 2026-06 — surowe outputy skanerów (regenerowalne, entropia myli secret-scan)
 docs/audit/2026-06/raw/

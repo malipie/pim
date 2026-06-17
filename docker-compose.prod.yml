@@ -56,18 +56,33 @@ services:
     environment:
       APP_ENV: prod
       APP_DEBUG: "0"
+      # AUD-009 (W1-4) — fail-loud in prod. The base compose carries dev-only
+      # `${VAR:-default}` fallbacks so the stack boots out-of-the-box locally.
+      # In production a missing secret MUST abort `docker compose config|up`
+      # (the alertmanager service already uses this pattern) rather than
+      # silently booting with a well-known default. `${VAR:?message}` makes
+      # Compose exit non-zero with the message when VAR is unset/empty.
+      APP_SECRET: ${APP_SECRET:?APP_SECRET is required in prod — generate with `php -r 'echo bin2hex(random_bytes(16));'` and set it (no default). See .env.prod.example.}
       # Async transport via Doctrine — handlers routed `async` enqueue here
       # and the `worker` service below drains them. Keeps HTTP request
       # threads free of long-running work.
       MESSENGER_TRANSPORT_DSN: doctrine://default?queue_name=async&auto_setup=0
       # PROD-02: re-route the web tier through PgBouncer (port 6432) so the
       # process pool multiplexes onto a small backend connection pool.
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@pgbouncer:6432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8&application_name=pim_api
+      # AUD-009 — POSTGRES_PASSWORD fail-loud (DSN embeds the credential).
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in prod (no default).}@pgbouncer:6432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8&application_name=pim_api
       # PROD-05: shared lock store across the api + worker pools. The base
       # file uses 'flock', which only works inside a single container — a
       # Messenger worker container would never see a lock acquired by the
       # api container. Redis is already part of the base stack.
       LOCK_DSN: redis://redis:6379
+      # AUD-009 — the base `api` block also sets DATABASE_URL_OWNER (migrations
+      # DDL connection, role `pim`), MERCURE_JWT_SECRET and MEILI_KEY with
+      # dev `:-default` fallbacks. The prod overlay does not otherwise touch
+      # them, so they would inherit the dev defaults. Re-declare fail-loud.
+      DATABASE_URL_OWNER: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in prod (no default).}@pgbouncer:6432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8&application_name=pim_migrations
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:?MERCURE_JWT_SECRET is required in prod — min 256 bits, e.g. `openssl rand -hex 32` (no default).}
+      MEILI_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY is required in prod — `openssl rand -base64 32` (no default).}
 
   # ─── Symfony Messenger worker pool ────────────────────────────────────────
   #
@@ -99,23 +114,25 @@ services:
     environment:
       APP_ENV: prod
       APP_DEBUG: "0"
-      APP_SECRET: ${APP_SECRET:-ChangeMeBeforeDeploy}
+      # AUD-009 (W1-4) — fail-loud: same secrets as the api container, no
+      # dev `:-default` fallbacks in prod.
+      APP_SECRET: ${APP_SECRET:?APP_SECRET is required in prod — generate with `php -r 'echo bin2hex(random_bytes(16));'` and set it (no default). See .env.prod.example.}
       # PROD-02: route all PHP traffic through PgBouncer (transaction pool
       # at port 6432). serverVersion=16 keeps DBAL 4 from issuing a
       # `SHOW server_version` query at boot — that query inside PgBouncer
       # transaction mode would land on a fresh backend each time.
       # application_name shows up in pg_stat_activity for triage.
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@pgbouncer:6432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8&application_name=pim_api
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in prod (no default).}@pgbouncer:6432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8&application_name=pim_api
       MESSENGER_TRANSPORT_DSN: doctrine://default?queue_name=async&auto_setup=0
       # PROD-05: same shared lock store as the api container so the
       # worker sees locks acquired by inline imports and vice-versa.
       LOCK_DSN: redis://redis:6379
       MERCURE_URL: http://mercure/.well-known/mercure
       MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:-https://pim.localhost/.well-known/mercure}
-      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeMercureKeyAtLeast256BitsLong!}
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:?MERCURE_JWT_SECRET is required in prod — min 256 bits, e.g. `openssl rand -hex 32` (no default).}
       MERCURE_TOPIC_BASE: ${MERCURE_TOPIC_BASE:-https://pim.localhost}
       MEILI_URL: http://meilisearch:7700
-      MEILI_KEY: ${MEILI_MASTER_KEY:-masterKeyPleaseChangeMe}
+      MEILI_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY is required in prod — `openssl rand -base64 32` (no default).}
     # Worker entrypoint: drain `async` then exit cleanly. Docker restarts the
     # container, the loop continues. Two distinct exit triggers:
     #   --memory-limit 256M : PHP self-checks RSS after each handle, exits 0
@@ -154,12 +171,70 @@ services:
   admin:
     profiles: ["dev-only"]
 
+  # AUD-046 (S) — Mailpit is a dev mail catcher (SMTP sink + web UI). It must
+  # never run in production, where MAILER_DSN points at a real SMTP relay.
+  # Same mechanism as `admin`: parked under the `dev-only` profile here in the
+  # prod overlay so a default prod `up` (no `--profile dev-only`) skips it,
+  # while the base compose keeps Mailpit profile-free so `pnpm stack:up` (dev)
+  # starts it out-of-the-box. Verified: `docker compose config` (no overlay)
+  # lists mailpit; the prod overlay config does not.
+  mailpit:
+    profiles: ["dev-only"]
+
   caddy:
     depends_on: !override
       api:
         condition: service_healthy
       mercure:
         condition: service_started
+
+  # ─── Data-layer secret hardening (AUD-009 / W1-4) ─────────────────────────
+  #
+  # These services live in the base compose with dev-only `${VAR:-default}`
+  # fallbacks so `pnpm stack:up` boots out-of-the-box. The base file is left
+  # untouched (dev must keep working). The blocks below re-declare ONLY the
+  # secret-bearing environment keys as `${VAR:?message}` so a prod
+  # `docker compose config|up` with an unset secret aborts non-zero instead of
+  # silently booting on a well-known credential. Compose deep-merges these
+  # `environment` maps over the base service, so non-secret keys (commands,
+  # volumes, healthchecks, archive GUCs) are inherited unchanged.
+  database:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in prod (no default).}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD is required in prod — runtime role password (no default).}
+      # pgBackRest pushes WAL to MinIO using the MinIO root credentials.
+      PGBACKREST_REPO1_S3_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required in prod (no default).}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required in prod (no default).}
+
+  meilisearch:
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY is required in prod — `openssl rand -base64 32` (no default).}
+      MEILI_NO_ANALYTICS: "true"
+      # AUD-046 (S) — the base compose runs Meilisearch with MEILI_ENV
+      # `development`, which disables the master-key requirement, serves the
+      # bundled search preview UI and verbose logs. Production MUST run
+      # `MEILI_ENV: production` so the master key is enforced and the dev UI
+      # is disabled.
+      MEILI_ENV: production
+
+  minio:
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required in prod (no default).}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required in prod (no default).}
+
+  # minio-init re-runs `mc alias set` with the root credentials; same fail-loud.
+  # The entrypoint references ${MINIO_ROOT_USER}/${MINIO_ROOT_PASSWORD} inline,
+  # so the override is on the *service environment* the entrypoint reads.
+  minio-init:
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required in prod (no default).}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required in prod (no default).}
+
+  mercure:
+    environment:
+      SERVER_NAME: ":80"
+      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:?MERCURE_JWT_SECRET is required in prod — min 256 bits, e.g. `openssl rand -hex 32` (no default).}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:?MERCURE_JWT_SECRET is required in prod — min 256 bits, e.g. `openssl rand -hex 32` (no default).}
 
   # ─── PgBouncer (transaction-mode connection pooler) ───────────────────────
   #
@@ -198,7 +273,9 @@ services:
         condition: service_healthy
     environment:
       DB_USER: ${POSTGRES_USER:-app}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      # AUD-009 (W1-4) — fail-loud: PgBouncer authenticates to the Postgres
+      # backend with the real password; no dev default in prod.
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in prod (no default).}
       DB_HOST: database
       DB_PORT: "5432"
       DB_NAME: ${POSTGRES_DB:-app}
