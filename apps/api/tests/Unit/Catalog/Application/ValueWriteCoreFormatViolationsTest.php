@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Catalog\Application;
 
+use App\Catalog\Application\HtmlSanitizer;
 use App\Catalog\Application\Validation\AttributeValueValidator;
 use App\Catalog\Application\ValueWriteCore;
 use App\Catalog\Domain\AttributeType;
@@ -32,11 +33,14 @@ final class ValueWriteCoreFormatViolationsTest extends TestCase
 {
     private function core(): ValueWriteCore
     {
-        $core = new ReflectionClass(ValueWriteCore::class)->newInstanceWithoutConstructor();
-        $property = new ReflectionClass(ValueWriteCore::class)->getProperty('valueValidator');
+        $reflection = new ReflectionClass(ValueWriteCore::class);
+        $core = $reflection->newInstanceWithoutConstructor();
         // Bare default() — no option repository, so select/multiselect check
         // shape only (option membership needs the DB and is covered in Api tests).
-        $property->setValue($core, AttributeValueValidator::default());
+        $reflection->getProperty('valueValidator')->setValue($core, AttributeValueValidator::default());
+        // AUD-033 — normalise() sanitises wysiwyg HTML, so the collaborator
+        // must be present for the wysiwyg cases below.
+        $reflection->getProperty('htmlSanitizer')->setValue($core, new HtmlSanitizer());
 
         return $core;
     }

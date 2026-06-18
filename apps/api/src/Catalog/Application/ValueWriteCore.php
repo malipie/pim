@@ -58,6 +58,7 @@ final readonly class ValueWriteCore
     public function __construct(
         private AttributeValueValidator $valueValidator,
         private IdentifierUniquenessValidator $identifierUniqueness,
+        private HtmlSanitizer $htmlSanitizer,
     ) {
     }
 
@@ -272,6 +273,13 @@ final readonly class ValueWriteCore
             AttributeType::Multiselect => \is_array($value) ? ['option_codes' => array_values($value)] + $rest : $envelope,
             AttributeType::Price => \is_int($value) || \is_float($value) || (\is_string($value) && is_numeric($value))
                 ? ['amount' => \is_string($value) ? (float) $value : $value] + $rest
+                : $envelope,
+            // AUD-033 / W2-2 (C-4) — neutralise stored-XSS in wysiwyg HTML on
+            // the write path (defense-in-depth, independent of frontend
+            // DOMPurify). A non-string value is left for WysiwygValidator to
+            // reject; only an actual HTML string is sanitised + re-stored.
+            AttributeType::Wysiwyg => \is_string($value)
+                ? ['value' => $this->htmlSanitizer->sanitize($value)] + $rest
                 : $envelope,
             default => $envelope,
         };
