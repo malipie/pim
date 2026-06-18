@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Api\Catalog;
 
 use App\Catalog\Application\AttributesIndexedRebuilder;
+use App\Catalog\Application\Handler\AttributesIndexedRebuildFailedException;
 use App\Catalog\Application\Handler\RebuildAttributesIndexedHandler;
 use App\Catalog\Application\Message\ObjectValuesChangedMessage;
 use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
@@ -92,11 +93,14 @@ final class RebuildAttributesIndexedOptimisticRetryTest extends CatalogApiTestCa
     }
 
     /**
-     * IMP2-2.9 (#1485) — when the conflict NEVER clears (a hot object edited on
-     * every retry), the handler must not retry forever or dead-letter the batch:
+     * AUD-039 / G-01 — when the conflict NEVER clears (a hot object edited on
+     * every retry), the handler must NOT swallow it with a "successful" return:
      * after {@see RebuildAttributesIndexedHandler::MAX_REBUILD_RETRIES} attempts
-     * it logs a Warning and skips that id, returning normally. The skipped
-     * object's next ObjectValuesChanged event re-queues it.
+     * on that id it logs an ERROR and throws
+     * {@see AttributesIndexedRebuildFailedException}. The async retry policy then
+     * re-delivers the batch and, once exhausted, dead-letters it to `failed`
+     * (handled by {@see AttributesIndexedRebuildDeadLetterListener}) — drift
+     * becomes loud instead of being hidden behind a Warning + success.
      *
      * Deterministic perpetual conflict: a `preFlush` listener bumps
      * `objects.version` on the EM's own connection right before EVERY flush, so
@@ -106,7 +110,7 @@ final class RebuildAttributesIndexedOptimisticRetryTest extends CatalogApiTestCa
      * the guard fails once more.
      */
     #[Test]
-    public function versionConflictExhaustedRetriesIsSkippedWithWarning(): void
+    public function versionConflictExhaustedRetriesThrowsAndLogsError(): void
     {
         $em = $this->em();
         $tenant = $em->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
@@ -146,12 +150,12 @@ final class RebuildAttributesIndexedOptimisticRetryTest extends CatalogApiTestCa
 
         $logger = new class extends AbstractLogger {
             /** @var list<array{level: mixed, message: string, context: array<mixed>}> */
-            public array $warnings = [];
+            public array $errors = [];
 
             public function log(mixed $level, string|Stringable $message, array $context = []): void
             {
-                if ('warning' === $level) {
-                    $this->warnings[] = ['level' => $level, 'message' => (string) $message, 'context' => $context];
+                if ('error' === $level) {
+                    $this->errors[] = ['level' => $level, 'message' => (string) $message, 'context' => $context];
                 }
             }
         };
@@ -166,21 +170,30 @@ final class RebuildAttributesIndexedOptimisticRetryTest extends CatalogApiTestCa
             $logger,
         );
 
+        $caught = null;
         try {
-            // Must NOT throw — exhausting retries logs + skips, it never propagates.
+            // AUD-039 — exhausting retries must NOT return "successfully": it
+            // throws so the async transport re-delivers + eventually dead-letters.
             $handler(new ObjectValuesChangedMessage([$idString]));
+        } catch (AttributesIndexedRebuildFailedException $e) {
+            $caught = $e;
         } finally {
             // Detach the listener via a fresh manager so it cannot leak into the
             // teardown flush or sibling tests sharing this kernel boot.
             $registry->resetManager();
         }
 
-        self::assertCount(1, $logger->warnings, 'exactly one skip-warning after exhausting retries');
-        $warning = $logger->warnings[0];
-        self::assertStringContainsString('rebuild skipped', $warning['message']);
-        self::assertSame($idString, $warning['context']['object_id'] ?? null);
-        // RebuildAttributesIndexedHandler::MAX_REBUILD_RETRIES (private const) — the
-        // handler gives up after the 3rd failed attempt.
-        self::assertSame(3, $warning['context']['attempts'] ?? null, 'the warning reports it gave up after the max attempts');
+        self::assertInstanceOf(
+            AttributesIndexedRebuildFailedException::class,
+            $caught,
+            'exhausting retries must throw, not silently skip',
+        );
+        self::assertSame([$idString], $caught->objectIds, 'the exception carries the failed id');
+
+        self::assertCount(1, $logger->errors, 'exactly one error log after exhausting retries');
+        $error = $logger->errors[0];
+        self::assertStringContainsString('rebuild failed', $error['message']);
+        self::assertSame([$idString], $error['context']['object_ids'] ?? null);
+        self::assertSame(1, $error['context']['count'] ?? null);
     }
 }

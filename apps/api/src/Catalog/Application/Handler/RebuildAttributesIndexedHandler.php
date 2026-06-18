@@ -59,20 +59,46 @@ final class RebuildAttributesIndexedHandler extends AbstractBatchHandler
     {
         // IMP2-2.9 (#1485) — rebuild + flush PER ID so a concurrent edit (UI bump
         // of objects.version between find and flush) only affects the conflicting
-        // object: it is retried with a fresh read, and after exhausting retries it
-        // is logged + skipped — instead of an OptimisticLockException dead-lettering
-        // the whole batch (including the objects already rebuilt). The skipped
-        // object's next ObjectValuesChanged event re-queues it.
+        // object: it is retried with a fresh read, instead of an
+        // OptimisticLockException dead-lettering the whole batch (including the
+        // objects already rebuilt).
+        //
+        // AUD-039 / G-01 — an object that exhausts its retries is NO LONGER
+        // silently skipped: it is collected, the rest of the batch is finished
+        // (the rebuild is idempotent, so a re-delivery re-runs the survivors as
+        // cheap no-ops), and the handler throws at the end. The async retry
+        // policy re-delivers the batch and, once exhausted, dead-letters it to
+        // the `failed` transport — making drift loud instead of hiding it behind
+        // a "successful" message.
+        $reindexable = [];
+        $failedIds = [];
         foreach ($message->objectIds as $idString) {
-            $this->rebuildOneWithRetry(Uuid::fromString($idString), $idString);
+            if ($this->rebuildOneWithRetry(Uuid::fromString($idString), $idString)) {
+                $reindexable[] = $idString;
+            } else {
+                $failedIds[] = $idString;
+            }
         }
 
-        // IMP2-2.6 — attributes_indexed is rebuilt + committed; reindex the batch
-        // in Meilisearch (reads the fresh attributes_indexed).
-        $this->reindexQueue->queueAll($message->objectIds);
+        // IMP2-2.6 — attributes_indexed is rebuilt + committed for the survivors;
+        // reindex them in Meilisearch (reads the fresh attributes_indexed). Skip
+        // the failed ids — their cache is stale and the re-delivery will reindex
+        // them once rebuilt.
+        if ([] !== $reindexable) {
+            $this->reindexQueue->queueAll($reindexable);
+        }
+
+        if ([] !== $failedIds) {
+            $this->logger->error(
+                'attributes_indexed rebuild failed for {count} object(s) after exhausting version conflicts',
+                ['object_ids' => $failedIds, 'count' => \count($failedIds)],
+            );
+
+            throw new AttributesIndexedRebuildFailedException($failedIds);
+        }
     }
 
-    private function rebuildOneWithRetry(Uuid $id, string $idString): void
+    private function rebuildOneWithRetry(Uuid $id, string $idString): bool
     {
         for ($attempt = 1; $attempt <= self::MAX_REBUILD_RETRIES; ++$attempt) {
             // Pull the manager fresh each attempt: a prior conflict reset it
@@ -82,7 +108,9 @@ final class RebuildAttributesIndexedHandler extends AbstractBatchHandler
 
             $object = $em->find(CatalogObject::class, $id);
             if (!$object instanceof CatalogObject) {
-                return;
+                // Object was deleted between the change event and this rebuild —
+                // nothing to rebuild, nothing drifted; treat as a clean success.
+                return true;
             }
 
             try {
@@ -90,7 +118,7 @@ final class RebuildAttributesIndexedHandler extends AbstractBatchHandler
                 $em->flush();
                 $em->clear();
 
-                return;
+                return true;
             } catch (OptimisticLockException) {
                 // A concurrent edit bumped objects.version between find and
                 // flush. Doctrine's UnitOfWork::commit closes the EM on a failed
@@ -102,14 +130,13 @@ final class RebuildAttributesIndexedHandler extends AbstractBatchHandler
                 $this->managerRegistry->resetManager();
 
                 if ($attempt >= self::MAX_REBUILD_RETRIES) {
-                    $this->logger->warning(
-                        'attributes_indexed rebuild skipped after {attempts} version conflicts',
-                        ['object_id' => $idString, 'attempts' => $attempt],
-                    );
-
-                    return;
+                    // AUD-039 — exhausted: report failure to the caller so the
+                    // batch can be dead-lettered. No more silent return.
+                    return false;
                 }
             }
         }
+
+        return false;
     }
 }
