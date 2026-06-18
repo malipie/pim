@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Identity\Presentation\Command;
 
 use App\Identity\Application\SuperAdmin\SuperAdminContext;
-use App\Shared\Domain\Repository\TenantRepositoryInterface;
+use App\Shared\Infrastructure\Maintenance\TenantPurger;
+use App\Shared\Infrastructure\Maintenance\TenantStoragePurgeException;
 use Doctrine\DBAL\Connection;
 use InvalidArgumentException;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -27,11 +28,15 @@ use Symfony\Component\Uid\Uuid;
  *     by the Super Admin operator via the API.
  *   - Recovery window is `--retention-days` (default 30).
  *   - After the window expires, this command hard-deletes the tenant
- *     row. CASCADE on FKs takes care of dependent rows (users,
- *     api_tokens, audit_logs, etc.).
+ *     and EVERY dependent row + object-storage prefix via
+ *     {@see TenantPurger}
+ *     (GDPR art. 17). NB: most FKs to `tenants` are ON DELETE RESTRICT,
+ *     so a bare `DELETE FROM tenants` would fail — the purger deletes
+ *     dependents in child→parent order inside a transaction (AUD-019),
+ *     then `deleteDirectory(<tenant-uuid>)` per bucket (AUD-020).
  *
- * The hard delete runs inside `SuperAdminContext::runCrossTenant()` so
- * the `tenant_filter` doesn't hide deleted rows from the lookup query.
+ * The lookup runs inside `SuperAdminContext::runCrossTenant()` so the
+ * tenant filter doesn't hide soft-deleted rows from the candidate query.
  * `--dry-run` lists the candidate rows without touching them — safer
  * default for the first deployment cycle. Operators flip the flag off
  * once they've validated the candidates are correct.
@@ -51,7 +56,7 @@ final class PurgeDeletedTenantsCommand extends Command
     public function __construct(
         private readonly Connection $connection,
         private readonly SuperAdminContext $superAdminContext,
-        private readonly TenantRepositoryInterface $tenants,
+        private readonly TenantPurger $tenantPurger,
     ) {
         parent::__construct();
     }
@@ -121,6 +126,7 @@ final class PurgeDeletedTenantsCommand extends Command
         }
 
         $deleted = 0;
+        $storageFailures = 0;
         foreach ($rows as $row) {
             try {
                 $uuid = Uuid::fromString($row['id']);
@@ -128,20 +134,39 @@ final class PurgeDeletedTenantsCommand extends Command
                 $io->warning(\sprintf('Skipping malformed tenant id `%s`.', $row['id']));
                 continue;
             }
-            $tenant = $this->superAdminContext->runCrossTenant(
-                $callerId,
-                fn () => $this->tenants->findById($uuid),
-            );
-            if (null === $tenant) {
-                continue;
+
+            // The purger sets the RLS GUC to this exact tenant for its
+            // deletes; running inside cross-tenant mode additionally drops
+            // the Doctrine TenantFilter for any ORM read it may trigger.
+            try {
+                $this->superAdminContext->runCrossTenant(
+                    $callerId,
+                    fn (): int => $this->tenantPurger->purge($uuid),
+                );
+                ++$deleted;
+            } catch (TenantStoragePurgeException $e) {
+                // DB rows are gone (GDPR-compliant for the database), but
+                // object-storage blobs may linger — surface it loudly so the
+                // operator triggers a manual / GC sweep. Counts as deleted
+                // for the DB, separately reported for storage.
+                ++$deleted;
+                ++$storageFailures;
+                $io->warning(\sprintf(
+                    'Tenant %s: DB purged but storage cleanup failed for bucket(s) %s. Blobs may linger.',
+                    $row['code'],
+                    implode(', ', $e->failedBuckets),
+                ));
             }
-            $this->superAdminContext->runCrossTenant(
-                $callerId,
-                function () use ($tenant): void {
-                    $this->tenants->remove($tenant);
-                },
-            );
-            ++$deleted;
+        }
+
+        if ($storageFailures > 0) {
+            $io->warning(\sprintf(
+                'Hard-deleted %d tenant(s); %d had storage-purge failures (see warnings above).',
+                $deleted,
+                $storageFailures,
+            ));
+
+            return Command::FAILURE;
         }
 
         $io->success(\sprintf('Hard-deleted %d tenant(s).', $deleted));
