@@ -18,7 +18,7 @@ import { loginAsAdmin } from './helpers/auth';
  * suite migrates to Playwright `storageState` (one login per worker).
  */
 const E2E_BLOCKED_BY_RATE_LIMITER =
-  'Pending storageState rollout: spec lands after the 5/15min auth rate limiter is exhausted';
+  'E2E selector drift after UI-03 on the attribute delete-from-detail flow. Refs #1638';
 
 test.describe('fix(catalog) #1108 — Attributes · delete from detail page', () => {
   test('happy path: create → detail → delete → gone from list', async ({ page }) => {

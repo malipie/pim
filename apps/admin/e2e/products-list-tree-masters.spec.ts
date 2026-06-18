@@ -21,10 +21,8 @@ import { loginAsAdmin, uniqueSku } from './helpers/auth';
  * Marked `fixme` in CI for the same `storageState` reason the other
  * UI-seeded specs use.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('products list tree mode hides variants until expand', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(180_000);
 
   await loginAsAdmin(page);

@@ -9,10 +9,8 @@ import { loginAsAdmin } from './helpers/auth';
  *
  * Marked `fixme` in CI for the shared `storageState` rate-limiter reason.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('new product form has no Marka input and no ad-hoc group adder', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(120_000);
 
   await loginAsAdmin(page);

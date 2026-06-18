@@ -9,10 +9,8 @@ import { loginAsAdmin } from './helpers/auth';
  * `fixme` in CI for the same auth rate-limiter reason as the other product
  * detail UI specs (#1209) — runs locally against `pnpm stack:up`.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('assign a product to a channel navigation node from the Kategorie tab', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(120_000);
 
   await loginAsAdmin(page);

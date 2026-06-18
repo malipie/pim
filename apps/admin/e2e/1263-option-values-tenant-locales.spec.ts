@@ -6,13 +6,9 @@ import { loginAsAdmin } from './helpers/auth';
  * #1263 — the option-label editor at /modeling/attributes/{id}/values shows
  * the tenant's enabled locales (pl + en for the demo tenant), not a
  * hardcoded pl/en/de list. The empty 'de' column is gone.
- *
- * `test.fixme` in CI for the shared auth-rate-limiter storageState gap.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('option-label editor lists tenant locales, not a hardcoded pl/en/de', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(120_000);
 
   await loginAsAdmin(page);

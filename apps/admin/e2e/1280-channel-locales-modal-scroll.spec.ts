@@ -9,15 +9,10 @@ import { loginAsAdmin } from './helpers/auth';
  *
  * (The original channel-form locale-picker check was dropped in #1318 when
  * per-channel locales were removed — channels no longer carry a locale set.)
- *
- * `test.fixme` in CI for the shared auth-rate-limiter storageState gap (same
- * pattern as #1263 / settings-channels-crud).
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test.describe('#1280 — add-locale modal scroll', () => {
   test('add-locale modal catalog scrolls past the popular section', async ({ page }) => {
-    test.fixme(!!process.env.CI, CI_BLOCKED);
     test.setTimeout(120_000);
 
     await loginAsAdmin(page);

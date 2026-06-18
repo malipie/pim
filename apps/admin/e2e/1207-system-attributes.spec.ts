@@ -15,10 +15,8 @@ import { loginAsAdmin } from './helpers/auth';
  *
  * `fixme` in CI for the same auth rate-limiter reason as the other UI specs.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('system attributes have no lock badge in the attributes library', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(60_000);
 
   await loginAsAdmin(page);

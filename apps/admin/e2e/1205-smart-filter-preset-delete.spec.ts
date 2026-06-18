@@ -16,10 +16,8 @@ import { loginAsAdmin, uniqueSku } from './helpers/auth';
  * `fixme` in CI for the same auth rate-limiter reason as the other
  * UI-seeded specs.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('a user Smart Filter preset can be deleted from the list view', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(120_000);
 
   await loginAsAdmin(page);

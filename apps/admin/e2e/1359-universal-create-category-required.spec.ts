@@ -11,10 +11,8 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, apiLogin } from './helpers/auth';
  *
  * Marked `fixme` in CI for the shared `storageState` rate-limiter reason.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('categorizable custom object create requires a category', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(150_000);
 
   const loginResponse = await page.request.post('/api/auth/login', {

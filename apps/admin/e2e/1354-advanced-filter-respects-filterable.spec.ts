@@ -19,10 +19,8 @@ import { loginAsAdmin } from './helpers/auth';
  * Marked `fixme` in CI for the shared `storageState` auth-quota reason
  * the other UI-seeded specs use.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec reuses the shared auth rate-limiter quota.';
 
 test('advanced filter picker lists only filterable attributes', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(90_000);
 
   await loginAsAdmin(page);

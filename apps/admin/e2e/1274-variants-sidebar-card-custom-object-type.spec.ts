@@ -7,14 +7,9 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, apiLogin, uniqueSku } from './helpers/auth
  * on the universal custom-ObjectType detail page, mirroring the product card.
  * Depends on the #1273 basePath parametrization; here the card reads the
  * master's children through the poly-kind `/api/objects?parent_id=` route.
- *
- * `test.fixme` in CI for the shared auth-rate-limiter storageState gap (same
- * rationale as 1273-variants-custom-object-type.spec.ts); runs locally.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('#1274 — custom ObjectType sidebar lists variants + quick-nav', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(180_000);
 
   const loginResponse = await page.request.post('/api/auth/login', {

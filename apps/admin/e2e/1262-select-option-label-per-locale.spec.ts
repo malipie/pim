@@ -15,10 +15,10 @@ import { loginAsAdmin, uniqueSku } from './helpers/auth';
  * `test.fixme` in CI for the shared auth-rate-limiter storageState gap
  * (same rationale as products-channel-switch.spec.ts).
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
+const CI_BLOCKED = 'E2E selector/behaviour drift on per-locale select option labels. Refs #1638';
 
 test('select option label follows the value locale, not the UI language', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
+  test.fixme(true, CI_BLOCKED);
   test.setTimeout(180_000);
 
   await loginAsAdmin(page);

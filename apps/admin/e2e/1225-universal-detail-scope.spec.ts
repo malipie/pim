@@ -22,7 +22,7 @@ import { loginAsAdmin } from './helpers/auth';
  * (see object-name-edit.spec.ts / settings-channels-crud.spec.ts).
  */
 const E2E_BLOCKED_BY_RATE_LIMITER =
-  'Pending storageState rollout: spec lands after the 5/15min auth rate limiter is exhausted';
+  'E2E selector drift: locale/channel switcher button label changed. Refs #1638';
 
 // Seed-dependent path (custom ObjectType `samochody`); same hardcoded-seed
 // convention as object-name-edit.spec.ts. Adjust if the demo seed changes.

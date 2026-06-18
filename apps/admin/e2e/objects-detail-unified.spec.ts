@@ -16,10 +16,8 @@ import { loginAsAdmin, uniqueSku } from './helpers/auth';
  *
  * `fixme` in CI for the shared auth rate-limiter reason.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('custom-kind detail is edit-first with both save actions (#1351)', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(150_000);
 
   await loginAsAdmin(page);
@@ -96,7 +94,6 @@ test('custom-kind detail is edit-first with both save actions (#1351)', async ({
 });
 
 test('custom-kind with no attributes hides the Atrybuty tab (#1348)', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(120_000);
 
   await loginAsAdmin(page);
