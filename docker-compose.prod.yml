@@ -202,9 +202,23 @@ services:
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in prod (no default).}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD is required in prod — runtime role password (no default).}
-      # pgBackRest pushes WAL to MinIO using the MinIO root credentials.
-      PGBACKREST_REPO1_S3_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required in prod (no default).}
-      PGBACKREST_REPO1_S3_KEY_SECRET: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required in prod (no default).}
+      # AUD-018 (W1-6) — anti-SPOF: in prod the pgBackRest repo MUST live on a
+      # MinIO/S3 endpoint SEPARATE from the one serving DAM assets, so an
+      # assets-storage failure can never take the database backups with it.
+      # pgBackRest reads these PGBACKREST_* env vars at runtime and they win over
+      # the baked-in pgbackrest.conf, so the repo can be redirected to a separate
+      # instance / region / S3 account WITHOUT rebuilding the database image:
+      #   PGBACKREST_REPO1_S3_ENDPOINT — host of the dedicated backup MinIO/S3
+      #   PGBACKREST_REPO1_S3_BUCKET   — dedicated repo bucket on that endpoint
+      #   PGBACKREST_REPO1_S3_KEY / _KEY_SECRET — credentials for THAT account
+      # Defaults below keep the dev topology (bucket-level separation on the same
+      # MinIO) working if the operator has not yet provisioned a second store;
+      # production deploys SHOULD set the dedicated endpoint. The fail-loud
+      # secrets stay required.
+      PGBACKREST_REPO1_S3_ENDPOINT: ${PGBACKREST_REPO1_S3_ENDPOINT:-minio-tls}
+      PGBACKREST_REPO1_S3_BUCKET: ${PGBACKREST_REPO1_S3_BUCKET:-pim-pgbackrest}
+      PGBACKREST_REPO1_S3_KEY: ${PGBACKREST_REPO1_S3_KEY:?PGBACKREST_REPO1_S3_KEY is required in prod — credentials for the dedicated backup store (no default).}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${PGBACKREST_REPO1_S3_KEY_SECRET:?PGBACKREST_REPO1_S3_KEY_SECRET is required in prod — credentials for the dedicated backup store (no default).}
 
   meilisearch:
     environment:
@@ -225,10 +239,56 @@ services:
   # minio-init re-runs `mc alias set` with the root credentials; same fail-loud.
   # The entrypoint references ${MINIO_ROOT_USER}/${MINIO_ROOT_PASSWORD} inline,
   # so the override is on the *service environment* the entrypoint reads.
+  #
+  # AUD-018 (W1-6) — the base minio-init enables bucket versioning on the durable
+  # buckets (pim-assets, pim-pgbackrest, pim-exports). That survives an
+  # accidental object delete/overwrite but NOT loss of the whole MinIO instance.
+  # Two production-only follow-ups give true off-site durability; both are
+  # documented in docs/runbook/disaster-recovery.md → "MinIO disaster recovery":
+  #   1. Dedicated backup store — point the database service's
+  #      PGBACKREST_REPO1_S3_ENDPOINT/_BUCKET at a SEPARATE MinIO/S3 region so the
+  #      pgBackRest repo and the DAM assets cannot fail together.
+  #   2. Asset replication — run scripts/minio-mirror-assets.sh on a cron / a
+  #      MinIO bucket-replication rule to copy pim-assets to that second region.
+  #      A `mirror-assets` sidecar (commented below) is the wiring template.
   minio-init:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required in prod (no default).}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required in prod (no default).}
+
+  # ─── Asset off-site replication (AUD-018 / W1-6) ──────────────────────────
+  # Periodically mirrors the DAM assets bucket to a SEPARATE MinIO/S3 region so
+  # assets survive loss of the primary `minio_data` volume (versioning alone
+  # only protects against object-level delete/overwrite, not volume loss).
+  #
+  # Disabled by default (profile `dr`) because it needs a real second store:
+  #   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+  #     --profile dr up -d mirror-assets
+  # Provide the replica endpoint + credentials in the deployment env. Prefer a
+  # bucket-scoped service account on the replica, NOT its root credentials.
+  # For a fully managed alternative, configure a native MinIO bucket-replication
+  # rule (`mc replicate add`) instead of this poll-based sidecar.
+  mirror-assets:
+    image: minio/mc:latest
+    profiles: ["dr"]
+    restart: unless-stopped
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MIRROR_SOURCE_URL: http://minio:9000
+      MIRROR_SOURCE_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required in prod (no default).}
+      MIRROR_SOURCE_SECRET: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required in prod (no default).}
+      MIRROR_SOURCE_BUCKET: pim-assets
+      MIRROR_TARGET_URL: ${MIRROR_TARGET_URL:?MIRROR_TARGET_URL is required for asset replication — endpoint of the SECOND MinIO/S3 region (no default).}
+      MIRROR_TARGET_KEY: ${MIRROR_TARGET_KEY:?MIRROR_TARGET_KEY is required for asset replication (no default).}
+      MIRROR_TARGET_SECRET: ${MIRROR_TARGET_SECRET:?MIRROR_TARGET_SECRET is required for asset replication (no default).}
+      MIRROR_TARGET_BUCKET: ${MIRROR_TARGET_BUCKET:-pim-assets-replica}
+      # --watch keeps the mirror live (event-driven) instead of one-shot.
+      MIRROR_WATCH: "1"
+    volumes:
+      - ./scripts:/scripts:ro
+    entrypoint: ["/bin/sh", "/scripts/minio-mirror-assets.sh"]
 
   mercure:
     environment:

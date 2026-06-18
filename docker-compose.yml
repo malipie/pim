@@ -385,6 +385,23 @@ services:
   # `/api/assets/{id}/preview` endpoint (AUD-006); the bucket must not be
   # anonymously readable even if MinIO is ever published. `set none` also
   # remediates a stack initialised before this change.
+  #
+  # AUD-018 (W1-6): bucket versioning + repo separation against the backup SPOF.
+  #   - `mc version enable` on the durable buckets (assets, the pgBackRest repo
+  #     bucket, exports) so an accidental/malicious `mc rm` or overwrite leaves
+  #     the previous object version recoverable (`mc cp --version-id`). This is
+  #     the only line of defence for assets, which — unlike Postgres — have no
+  #     other backup. Idempotent: `version enable` on an already-versioned
+  #     bucket is a no-op, so it also upgrades a stack created before this change.
+  #   - `pim-pgbackrest` is a DEDICATED bucket for the database backup repo,
+  #     separate from `pim-assets`. In dev this is bucket-level separation on the
+  #     same MinIO; true anti-SPOF (separate instance / region) is configured in
+  #     the prod overlay — see docker-compose.prod.yml minio-init + the MinIO DR
+  #     section of docs/runbook/disaster-recovery.md. The legacy `pim-backups`
+  #     bucket is left in place (existing 2026-04-28 repo objects are NOT
+  #     destroyed); the stanza re-creates in the new isolated bucket.
+  #   - pim-imports stays un-versioned on purpose: transient ingest payloads with
+  #     a 7-day expiry — versioning would only pile up delete-markers.
   minio-init:
     image: minio/mc:latest
     depends_on:
@@ -395,9 +412,13 @@ services:
       mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
       mc mb -p local/pim-assets || true;
       mc mb -p local/pim-backups || true;
+      mc mb -p local/pim-pgbackrest || true;
       mc mb -p local/pim-imports || true;
       mc mb -p local/pim-exports || true;
       mc anonymous set none local/pim-assets || true;
+      mc version enable local/pim-assets || true;
+      mc version enable local/pim-pgbackrest || true;
+      mc version enable local/pim-exports || true;
       mc ilm rule add --expire-days 7 local/pim-imports || true;
       "
     restart: "no"

@@ -23,6 +23,7 @@ This runbook complements:
 7. [Audit log — retention + manual prune](#7-audit-log--retention--manual-prune)
 8. [Async worker stuck — tenant context drift](#8-async-worker-stuck--tenant-context-drift)
 9. [Rate limiter — operator unblock](#9-rate-limiter--operator-unblock)
+10. [MinIO — object storage disaster recovery](#10-minio--object-storage-disaster-recovery)
 
 ---
 
@@ -189,7 +190,9 @@ flag on egress traffic.
 **Triage** (in this order)
 1. **Contain** — disable suspect API keys + JWT signing key (sections 2 + 5).
 2. **Snapshot** — `pgbackrest backup --type=full` (out-of-cycle full
-   for forensic analysis) + freeze MinIO bucket `pim-backups`.
+   for forensic analysis) + freeze the MinIO buckets `pim-pgbackrest`
+   (backup repo) and `pim-assets` (DAM). Versioning is enabled on both, so
+   prior object versions are preserved for forensics even if data is altered.
 3. **Inventory** — what tenants are affected? Audit logs answer:
 
 ```bash
@@ -281,6 +284,114 @@ The command resets BOTH `auth_login` and `auth_refresh` buckets for
 the supplied IP. API-key budgets aren't covered by this command —
 those are per-key, not per-IP; use the rotate-secret endpoint
 instead.
+
+---
+
+## 10. MinIO — object storage disaster recovery
+
+> **AUD-018 / W1-6.** MinIO holds two distinct classes of data with very
+> different recovery stories:
+>
+> - **DAM assets** (`pim-assets`) — the ONLY copy of product imagery/files.
+>   Unlike Postgres there is no WAL/PITR; durability comes from bucket
+>   versioning + off-site replication.
+> - **pgBackRest repo** (`pim-pgbackrest`) — the database backup. It now lives
+>   in its OWN bucket, separate from the assets, so an assets-storage failure
+>   cannot take the database backups with it.
+
+### Defence layers (what protects what)
+
+| Layer | Protects against | Where configured |
+|---|---|---|
+| **Bucket versioning** (`pim-assets`, `pim-pgbackrest`, `pim-exports`) | Accidental / malicious object delete or overwrite | `minio-init` (`mc version enable`) — base `docker-compose.yml` |
+| **Repo bucket separation** (`pim-pgbackrest` ≠ `pim-assets`) | Losing both assets and DB backups in one failure | `docker/postgres/pgbackrest.conf` (`repo1-s3-bucket`) |
+| **Separate backup store** (prod: dedicated MinIO/S3 region) | Loss of the whole primary MinIO instance taking the DB repo too | prod overlay `database.PGBACKREST_REPO1_S3_ENDPOINT/_BUCKET` |
+| **Asset replication** (prod: `mc mirror` / bucket-replication rule) | Loss of the primary `minio_data` volume losing all assets | `scripts/minio-mirror-assets.sh` + prod overlay `mirror-assets` (profile `dr`) |
+
+### Symptom A — accidental object delete / overwrite (versioning recovery)
+
+A user or a buggy job deleted or clobbered an asset/export object. The bucket is
+versioned, so the previous version is still there behind a delete-marker.
+
+**Action**
+
+```bash
+# Helper: run mc against the live MinIO (replace creds in prod).
+MC() { docker compose run --rm --no-deps --entrypoint /bin/sh minio/mc:latest -c \
+  "mc alias set local http://minio:9000 \"$MINIO_ROOT_USER\" \"$MINIO_ROOT_PASSWORD\" >/dev/null; $*"; }
+
+# 1. List every version of the object (delete-markers + prior PUTs).
+MC 'mc ls --versions local/pim-assets/<tenant-uuid>/<asset-uuid>/original.bin'
+
+# 2. Read the prior (non-delete-marker) version by its version-id to confirm.
+MC 'mc cat --version-id <VERSION_ID> local/pim-assets/<...>/original.bin'
+
+# 3. Restore it as the current version (copy the old version onto the key).
+MC 'mc cp --version-id <VERSION_ID> local/pim-assets/<...>/original.bin \
+                                    local/pim-assets/<...>/original.bin'
+```
+
+> Validated 2026-06-18 on the live dev stack: put → `mc rm` (delete-marker) →
+> the prior `PUT` version survives → `mc cp --version-id` restores the bytes.
+
+### Symptom B — total loss of the primary MinIO volume / instance
+
+`minio_data` is gone (volume corruption, host loss, ransomware). Assets and — on
+dev, where the repo shares the instance — the DB backup repo are unreachable.
+
+**Triage**
+1. Stand up a fresh MinIO (new `minio_data` volume). `minio-init` recreates the
+   buckets and re-enables versioning idempotently on first boot.
+2. Decide the source of truth for assets: the off-site replica (prod) or, on dev
+   where no replica exists, accept asset loss (assets are non-authoritative dev
+   fixtures; product DATA is authoritative and restored from Postgres).
+
+**Action — restore assets from the replica (prod)**
+
+```bash
+# Pull the replica back into the rebuilt primary (reverse of the normal mirror).
+MIRROR_SOURCE_URL=<replica-endpoint> MIRROR_SOURCE_KEY=… MIRROR_SOURCE_SECRET=… \
+MIRROR_SOURCE_BUCKET=pim-assets-replica \
+MIRROR_TARGET_URL=http://minio:9000 MIRROR_TARGET_KEY="$MINIO_ROOT_USER" \
+MIRROR_TARGET_SECRET="$MINIO_ROOT_PASSWORD" MIRROR_TARGET_BUCKET=pim-assets \
+  docker compose run --rm --no-deps -v "$PWD/scripts:/scripts:ro" \
+  --entrypoint /bin/sh minio/mc:latest /scripts/minio-mirror-assets.sh
+```
+
+**Action — restore the database (repo on a separate store survives)**
+
+Because `pim-pgbackrest` is a separate bucket (prod: separate instance), the
+pgBackRest repo is unaffected by an assets-only failure. Follow
+[§1 PITR](#1-postgresql--point-in-time-recovery-pitr) / `restore.md` as usual.
+On dev (shared instance) the repo is lost with the volume; rebuild from the
+newest `backups/*.dump` + migrations per the dev DB recovery policy.
+
+### Restore-from-zero drill (assets + database)
+
+The end-to-end "rebuild from nothing" target for W1-6. Do NOT run by wiping
+`minio_data` on a machine you care about — exercise it on a throwaway stack:
+
+1. Fresh stack, empty volumes → `minio-init` recreates + versions buckets.
+2. `mc mirror` the off-site asset replica back into `pim-assets` (Symptom B).
+3. pgBackRest `stanza-create` + restore the latest backup from `pim-pgbackrest`
+   (separate store) → PITR to target time.
+4. Smoke: login `200`, a product read returns a signed `previewUrl`, the signed
+   URL serves bytes (`200`, correct `content-type`).
+
+### Enabling replication in production
+
+```bash
+# Provision a SECOND MinIO/S3 region with a bucket-scoped service account
+# (NOT root). Then run the mirror sidecar (profile `dr`):
+MIRROR_TARGET_URL=https://minio-dr.example.com \
+MIRROR_TARGET_KEY=<replica-key> MIRROR_TARGET_SECRET=<replica-secret> \
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+  --profile dr up -d mirror-assets
+```
+
+Prefer a native MinIO bucket-replication rule (`mc replicate add`) for managed,
+event-driven replication where available; the `mc mirror` sidecar is the
+portable fallback.
 
 ---
 
