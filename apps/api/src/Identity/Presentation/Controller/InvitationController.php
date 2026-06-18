@@ -41,8 +41,15 @@ final class InvitationController extends AbstractController
     ) {
     }
 
+    // AUD-024 / W1-12: align the gate with the implemented permission
+    // catalogue. `settings.users.manage` is a PRD §3.2 label that is never
+    // seeded (RbacSeeder seeds the RbacMatrix `{resource}.{action}` cross
+    // product), so the original gate denied EVERY principal — including a
+    // full Super Admin / Tenant Owner — making invitation creation dead.
+    // `user.admin` is the code the sibling user-management endpoints use
+    // (UserCreateController, InvitationActionsController::revoke/resend).
     #[Route(path: '/api/invitations', methods: ['POST'], name: 'api_invitations_create')]
-    #[RequiresPermission(module: 'settings', action: 'users.manage')]
+    #[RequiresPermission(module: 'user', action: 'admin')]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function create(Request $request): JsonResponse
     {
