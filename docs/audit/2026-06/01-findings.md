@@ -30,6 +30,28 @@ Wszystkie 7 ticketów Wave 0 (9 findingów, w tym 4 z 5 CRITICAL) naprawione, zm
 
 Pełne transkrypty przed/po — w komentarzach zamknięcia issues #1573–#1579. Reszta findingów (Wave 1–3) — patrz `03-fix-plan.md`.
 
+## Status napraw — Wave 1 (zamknięte 2026-06-18)
+
+Wszystkie 13 ticketów Wave 1 (5. CRITICAL AUD-002 + 22 findingi HIGH/MEDIUM) naprawione, zmergowane do `main`, zamknięte z dowodem **CLOSED MEANS CLOSED** (probe przed/po w komentarzu). **5/5 CRITICAL audytu domknięte** (4 w Wave 0 + AUD-002 RLS w W1-1). Bonus: testy W1-12 odsłoniły i naprawiły 2 realne bugi HIGH (martwy invite-create + invitation accept check-after-write).
+
+| Ticket | Findingi | PR | Issue | Dowód „po" |
+|---|---|---|---|---|
+| W1-1 | AUD-002 | #1626 | #1580 | `pim_app` NOSUPERUSER/NOBYPASSRLS + 43 tabele FORCE RLS; cross-tenant odczyt = 0 |
+| W1-2 | AUD-027 | #1625 | #1581 | polityki `refresh_tokens` → `app.current_tenant`; 0 polityk na legacy GUC |
+| W1-3 | AUD-026 | #1627 | #1582 | `FILTER_NAME='tenant'` + ResetInterface; break-glass faktycznie wyłącza filtr |
+| W1-4 | AUD-009, 046, 047 | #1628 | #1583 | prod compose `${VAR:?}` fail-loud; Mailpit dev-only; MEILI prod; Secrets Vault |
+| W1-5 | AUD-017, 021 | #1630 | #1584 | dcron rejestruje crontab; nowy backup powstał; restore-test PASS |
+| W1-6 | AUD-018 | #1637 | #1585 | versioning Enabled; pgBackRest repo osobny bucket (anti-SPOF); mc mirror |
+| W1-7 | AUD-019, 020 | #1636 | #1586 | offboarding hard-delete 42 tabel + MinIO cascade; RODO art.17; demo nietknięte |
+| W1-8 | AUD-011, 012 | #1633 | #1587 | `FlushWithoutClearInLoopRule` (8/8) + worker mem-limit 512M |
+| W1-9 | AUD-013, 014 | #1631 | #1588 | GIN + GiST odtworzone; filtr atrybutowy Bitmap Index Scan (~37×) |
+| W1-10 | AUD-015, 016 | #1632 | #1589 | keyset-paging all-scopes + batch-prefetch; All+variants 150k <256 MiB |
+| W1-11 | AUD-022, 023 | #1639 | #1590 | auth.spec 8/8 (token-not-in-localStorage); 32 E2E odblokowane, 24 → #1638 |
+| W1-12 | AUD-024 | #1634 | #1591 | testy eskalacji ról + token lifecycle (28/62) + 2 bugfixy HIGH |
+| W1-13 | AUD-025, 060 | #1635 | #1592 | onboarding creds/seed/audit-schema; shared-types `https .jsonopenapi` |
+
+Dodatkowo: **CVE-2026-54133** (jmespath.php <2.9.1) bump #1629 (composer-audit blocker). Otwarte follow-upy: **#1638** (24 E2E specy do triażu UI-drift/behavior/env). Reszta findingów → Wave 2/3 (`03-fix-plan.md`).
+
 **Werdykt: NO-GO dla SaaS** (patrz `00-executive-summary.md`). Uwaga precyzyjna po przebiegu empirycznym: **rdzeń izolacji danych domenowych (Doctrine TenantFilter przez REST) DZIAŁA** — matryca 2-tenant obaliła podejrzenie wycieku (patrz „Pozytywy empiryczne" niżej). NO-GO wynika z wektorów **POZA filtrem wierszowym**: AUD-001 Mercure (confirmed), AUD-004 Meili filter-key (confirmed), AUD-007 token_dev_only (confirmed account takeover), AUD-002 zerowy defence-in-depth (RLS martwy), AUD-003 model uprawnień platform-vs-tenant.
 
 **Rewizja po przebiegu empirycznym (2026-06-16, matryca 2-tenant demo↔acme):**
