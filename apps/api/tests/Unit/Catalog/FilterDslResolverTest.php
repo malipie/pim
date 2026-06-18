@@ -164,6 +164,20 @@ final class FilterDslResolverTest extends TestCase
         self::assertStringNotContainsString("'O'Reilly'", $sql); // not bare single-quote
     }
 
+    public function testToCountSqlNeutralisesOrInjectionPayloadAsSingleLiteral(): void
+    {
+        // AUD-031 / W2-3 (C-2) — the canonical SQLi probe must compile to ONE
+        // escaped string literal (every inner quote doubled), so Postgres
+        // (standard_conforming_strings=on, enforced by the connection-init
+        // middleware) reads it as a single value, never a closed string + OR.
+        $sql = $this->resolver->toCountSql(['attr' => 'brand', 'op' => '=', 'value' => "x' OR '1'='1"]);
+
+        self::assertNotNull($sql);
+        self::assertStringContainsString("= 'x'' OR ''1''=''1'", $sql);
+        // No un-doubled quote that could terminate the literal early.
+        self::assertStringNotContainsString("'x' OR", $sql);
+    }
+
     public function testToCountSqlReturnsNullForCompilationFailure(): void
     {
         // Suppress validation: pass directly to compile via toCountSql.

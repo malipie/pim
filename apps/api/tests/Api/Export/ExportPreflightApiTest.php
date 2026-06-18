@@ -92,6 +92,104 @@ final class ExportPreflightApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function rejectsFilterWithInvalidOperatorBeforeRunningSql(): void
+    {
+        // AUD-031 / W2-3 (C-2) — countFilter previously compiled the DSL
+        // straight to SQL without validate(). An operator that is not in the
+        // known set must be rejected at validation (400) before the literal
+        // ever reaches the COUNT query.
+        $tenant = $this->tenant();
+        $services = $this->customObjectType($tenant, 'invalid-op-services');
+        $this->object($tenant, $services, 'IO-1', ['brand' => 'Festo']);
+        $this->em()->flush();
+
+        $response = $this->preflightRaw([
+            'entity_type' => 'custom_module',
+            'object_type_id' => $services->getId()->toRfc4122(),
+            'target_scope' => 'filter',
+            'filter' => ['attr' => 'brand', 'op' => 'REGEX MATCH', 'value' => '^F.*$'],
+        ]);
+
+        self::assertSame(400, $response);
+    }
+
+    #[Test]
+    public function rejectsOversizedFilterGroupBeforeRunningSql(): void
+    {
+        // AUD-031 / W2-3 (C-2) — the genuine behavioural gap closed by calling
+        // validate() in countFilter. A group with >20 conditions COMPILES to
+        // valid SQL (the compiler caps only nesting depth, not condition
+        // count), so before the fix this reached the DB and returned HTTP 200
+        // with a real count. validate() rejects it up front (400), matching
+        // every other DSL entry point (SmartFilterPresetController).
+        $tenant = $this->tenant();
+        $services = $this->customObjectType($tenant, 'oversized-group-services');
+        $this->object($tenant, $services, 'OG-1', ['brand' => 'Festo']);
+        $this->em()->flush();
+
+        $conditions = [];
+        for ($i = 0; $i < 21; ++$i) {
+            $conditions[] = ['attr' => 'brand', 'op' => '=', 'value' => 'Festo'];
+        }
+
+        $response = $this->preflightRaw([
+            'entity_type' => 'custom_module',
+            'object_type_id' => $services->getId()->toRfc4122(),
+            'target_scope' => 'filter',
+            'filter' => ['operator' => 'AND', 'conditions' => $conditions],
+        ]);
+
+        self::assertSame(400, $response);
+    }
+
+    #[Test]
+    public function rejectsFilterWithUnsafeAttributeIdentifierBeforeRunningSql(): void
+    {
+        // An attribute identifier carrying SQL metacharacters must be
+        // rejected by validate() (safeIdent regex) with a 400, not silently
+        // dropped (toCountSql -> null path) after bypassing validation.
+        $tenant = $this->tenant();
+        $services = $this->customObjectType($tenant, 'unsafe-ident-services');
+        $this->object($tenant, $services, 'UI-1', ['brand' => 'Festo']);
+        $this->em()->flush();
+
+        $response = $this->preflightRaw([
+            'entity_type' => 'custom_module',
+            'object_type_id' => $services->getId()->toRfc4122(),
+            'target_scope' => 'filter',
+            'filter' => ['attr' => "brand'; DROP TABLE objects; --", 'op' => '=', 'value' => 'x'],
+        ]);
+
+        self::assertSame(400, $response);
+    }
+
+    #[Test]
+    public function adversarialOrInjectionValueDoesNotMatchEveryRow(): void
+    {
+        // AUD-031 (C-2) adversarial: a classic `x' OR '1'='1` payload as the
+        // filter VALUE must be treated as a single escaped string literal,
+        // matching only rows whose brand literally equals that string (none),
+        // never every row in the ObjectType.
+        $tenant = $this->tenant();
+        $services = $this->customObjectType($tenant, 'adversarial-services');
+        $this->object($tenant, $services, 'A-1', ['brand' => 'Festo']);
+        $this->object($tenant, $services, 'A-2', ['brand' => 'Bosch']);
+        $this->object($tenant, $services, 'A-3', ['brand' => 'Siemens']);
+        $this->em()->flush();
+
+        $body = $this->preflight([
+            'entity_type' => 'custom_module',
+            'object_type_id' => $services->getId()->toRfc4122(),
+            'target_scope' => 'filter',
+            'filter' => ['attr' => 'brand', 'op' => '=', 'value' => "x' OR '1'='1"],
+        ]);
+
+        // Escaping holds: no brand equals the literal payload, so 0 rows —
+        // categorically NOT the 3 rows an `OR '1'='1' would have leaked.
+        self::assertSame(0, $body['count']);
+    }
+
+    #[Test]
     public function countsUniqueSelectedIds(): void
     {
         $id = '019eae00-0000-7000-8000-000000000001';

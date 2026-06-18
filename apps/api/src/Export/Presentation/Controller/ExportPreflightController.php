@@ -210,6 +210,14 @@ final class ExportPreflightController
         if (null === $dsl || [] === $dsl) {
             return 0;
         }
+        // AUD-031 / W2-3 (C-2): validate the DSL BEFORE compiling it to SQL,
+        // exactly like every other filter entry point (SmartFilterPresetController).
+        // FilterDslResolver builds parameter-free SQL by inlining escaped
+        // literals; until VIEW-10 moves it to PDO-bound parameters, validate()
+        // is the gate that rejects structurally-malicious or out-of-contract
+        // DSL (unknown operators, unsafe identifiers, oversized groups) up
+        // front (400) instead of letting it reach the COUNT query.
+        $this->filterDsl->validate($dsl);
         $whereClause = $this->filterDsl->toCountSql($dsl);
         if (null === $whereClause) {
             throw new BadRequestHttpException('Invalid filter DSL.');
