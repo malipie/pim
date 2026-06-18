@@ -18,7 +18,7 @@ import { loginAsAdmin } from './helpers/auth';
  * the local browser smoke documented in the PR.
  */
 const E2E_BLOCKED_BY_RATE_LIMITER =
-  'Pending storageState rollout: spec lands after the 5/15min auth rate limiter is exhausted';
+  'E2E selector/behaviour drift on per-ObjectType category tree selector. Refs #1638';
 
 test.describe('ADR-015 — per-ObjectType category trees', () => {
   test('selector switches trees; create lands in the selected tree', async ({ page }) => {

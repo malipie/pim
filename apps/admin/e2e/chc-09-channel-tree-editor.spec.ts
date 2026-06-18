@@ -12,10 +12,8 @@ import { loginAsAdmin } from './helpers/auth';
  * Actions target the root via `.first()` (the root row renders first, so its
  * action buttons are first in DOM order); "move" targets the first non-root.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('build, edit, move and delete a channel navigation tree from the UI', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(120_000);
 
   await loginAsAdmin(page);

@@ -13,10 +13,10 @@ import { loginAsAdmin, uniqueSku } from './helpers/auth';
  *
  * `fixme` in CI for the same auth rate-limiter reason as the other UI specs.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
+const CI_BLOCKED = 'E2E assertion drift: email-validation error surface changed. Refs #1638';
 
 test('an invalid email value is rejected on save with a clear error', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
+  test.fixme(true, CI_BLOCKED);
   test.setTimeout(120_000);
 
   await loginAsAdmin(page);

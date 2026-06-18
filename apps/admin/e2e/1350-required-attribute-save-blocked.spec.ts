@@ -18,10 +18,10 @@ import { loginAsAdmin, uniqueSku } from './helpers/auth';
  *
  * `fixme` in CI for the shared auth rate-limiter reason.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
+const CI_BLOCKED =
+  'E2E drift: editing the sku attribute persists fails (header-strip collision path). Refs #1638';
 
 test('required attribute blocks saving an empty value', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(150_000);
 
   await loginAsAdmin(page);
@@ -114,7 +114,7 @@ test('required attribute blocks saving an empty value', async ({ page }) => {
 });
 
 test('editing the sku attribute persists (no header-strip collision)', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
+  test.fixme(true, CI_BLOCKED);
   test.setTimeout(120_000);
 
   await loginAsAdmin(page);

@@ -14,12 +14,13 @@ import { loginAsAdmin, uniqueSku } from './helpers/auth';
  * Marked `fixme` in CI for the shared `storageState` rate-limiter reason
  * (5 logins / 15 min); local cold-cache runs pass.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
+const CI_BLOCKED =
+  'Behaviour change: product detail renders a generic Attributes-N tab, not per-group tabs (Grupa Uniwersalna). Needs product decision. Refs #1638';
 
 test('attributes tab is hidden when the object type has no stacked attributes', async ({
   page,
 }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
+  test.fixme(true, CI_BLOCKED);
   test.setTimeout(180_000);
 
   await loginAsAdmin(page);

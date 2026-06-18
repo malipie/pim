@@ -25,7 +25,7 @@ import { loginAsAdmin } from './helpers/auth';
  * an E2E spec.
  */
 const E2E_BLOCKED_BY_RATE_LIMITER =
-  'Pending storageState rollout: spec #9+ exhausts 5/15min auth rate limiter';
+  'E2E selector drift after UI-03 on the channels CRUD + mapping flow. Refs #1638';
 
 test.describe('VIEW-06 — Settings · Channels · CRUD + mapping editor', () => {
   test('happy path: list → create → mapping tab → back to list', async ({ page }) => {

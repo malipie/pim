@@ -18,10 +18,8 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, apiLogin } from './helpers/auth';
  * sensitive on the shared runner. Local cold-cache runs pass; the BE
  * persistence is covered by ObjectTypeAttributeGroupDisplayModePatchApiTest.
  */
-const CI_BLOCKED = 'Pending storageState rollout: seeded UI spec + dnd timing on shared runner';
 
 test('reordering attribute groups persists position via PATCH', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(180_000);
 
   const loginResponse = await page.request.post('/api/auth/login', {

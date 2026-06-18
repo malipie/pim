@@ -15,10 +15,8 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, apiLogin } from './helpers/auth';
  *
  * `fixme` in CI for the shared auth rate-limiter reason.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('deactivating a tenant locale removes its tab from i18n forms', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(120_000);
 
   const loginResponse = await page.request.post('/api/auth/login', {

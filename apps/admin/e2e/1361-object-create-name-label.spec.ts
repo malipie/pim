@@ -13,10 +13,8 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, apiLogin } from './helpers/auth';
  * it also needs a custom (kind!=product/category/asset) ObjectType, which
  * only exists in operator dev data — skipped when none is present.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('custom object create form labels the identifier field "Nazwa"', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(120_000);
 
   const loginResponse = await page.request.post('/api/auth/login', {

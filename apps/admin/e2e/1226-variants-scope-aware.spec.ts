@@ -17,10 +17,8 @@ import { loginAsAdmin, uniqueSku } from './helpers/auth';
  * Conditional `fixme` in CI for the shared-suite auth rate limiter (same
  * as view-07-3-products-variants.spec.ts); runs locally.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('fix(admin) #1226 — variant list + PATCH carry the active locale scope', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(180_000);
 
   await loginAsAdmin(page);

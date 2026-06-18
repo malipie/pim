@@ -8,17 +8,14 @@ import { loginAsAdmin, uniqueSku } from './helpers/auth';
  * default-collapsed cards with expand/collapse all, generator above
  * the list.
  *
- * Like VIEW-07, this is a single test running the full happy path so
- * we don't trip the dev-mode 5/15min auth rate limiter. Marked
- * `fixme` in CI for the same reason — see view-07-products-edit-create
- * spec doc.
+ * Single test running the full happy path. Re-enabled in AUD-022 (the
+ * historical "rate-limiter" gating was a false root cause — dev/CI override
+ * is 200/15min); passes against a healthy stack.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('VIEW-07.3 variants tab — generate inherits attributes + inline edit + copy-to-others', async ({
   page,
 }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(180_000);
 
   await loginAsAdmin(page);

@@ -10,14 +10,9 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, apiLogin, uniqueSku } from './helpers/auth
  * proves the FE wiring: on a custom OT with `hasVariants=true` the "Warianty"
  * tab renders `VariantsTabHost` (read-only `ObjectVariantsPanel` removed) and
  * generation hits `/api/objects/...` (not `/api/products/...`).
- *
- * `test.fixme` in CI for the shared auth-rate-limiter storageState gap (same
- * rationale as 1226-variants-scope-aware.spec.ts); runs locally.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('#1273 — custom ObjectType variants tab generates via /api/objects', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(180_000);
 
   const loginResponse = await page.request.post('/api/auth/login', {

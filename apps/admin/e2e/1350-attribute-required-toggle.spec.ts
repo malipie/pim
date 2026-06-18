@@ -13,10 +13,8 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, apiLogin } from './helpers/auth';
  * (5 logins / 15 min). BE persistence is covered by
  * AttributesCrudApiTest::patchTogglesRequired.
  */
-const CI_BLOCKED = 'Pending storageState rollout: spec exhausts 5/15min auth rate limiter';
 
 test('attribute edit form can toggle Required and persist it', async ({ page }) => {
-  test.fixme(!!process.env.CI, CI_BLOCKED);
   test.setTimeout(120_000);
 
   const loginResponse = await page.request.post('/api/auth/login', {

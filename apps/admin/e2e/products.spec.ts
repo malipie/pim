@@ -2,12 +2,15 @@ import { expect, test } from '@playwright/test';
 
 import { loginAsAdmin, uniqueSku } from './helpers/auth';
 
-// After #33 (ADR-009 data migration) the legacy `Product` ApiResource is
-// gone — `/api/products` 404s in the dataProvider, the products list errors
-// out, and CRUD flows have nothing to talk to. Sugar path
-// `/api/products` on CatalogObject lands in #41 (epic 0.4); until then
-// every flow under this describe is fixme'd in bulk.
-const BLOCKED_BY_41 = 'Pending #41: /api/products sugar path on CatalogObject';
+// This suite drove the legacy ProductListPage / ProductCreatePage CRUD
+// (`/products/new` form with SKU/Nazwa/Marka inputs, `/products/:id/edit`).
+// NUI-05 (#1424) retired those pages — `/products` is now the UniversalListPage
+// and `/products/:id/edit` only redirects, so the labelled-input + add-product
+// flows here no longer exist. The equivalent coverage moved to
+// `view-07-products-edit-create.spec.ts` (universal create/edit, now enabled).
+// Kept fixme until this legacy suite is rewritten or removed.
+const BLOCKED_BY_41 =
+  'Legacy product CRUD UI retired (NUI-05 #1424); coverage moved to view-07-products-edit-create. Refs #1638';
 
 test.describe('Products CRUD', () => {
   test.beforeEach(async ({ page }) => {

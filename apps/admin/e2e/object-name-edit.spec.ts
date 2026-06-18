@@ -15,7 +15,7 @@ import { loginAsAdmin } from './helpers/auth';
  * manual + local browser smoke documented in the PR.
  */
 const E2E_BLOCKED_BY_RATE_LIMITER =
-  'Pending storageState rollout: spec lands after the 5/15min auth rate limiter is exhausted';
+  'E2E selector drift after UI-03 on the editable object-name flow. Refs #1638';
 
 test.describe('feat(admin) #1116 — editable object name', () => {
   test('edit title → save → persists, then restore', async ({ page }) => {
