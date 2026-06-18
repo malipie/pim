@@ -11,11 +11,18 @@ git clone https://github.com/malipie/PIM.git
 cd PIM
 pnpm install
 pnpm stack:up                 # docker compose up -d (api + admin + caddy + postgres + redis + meilisearch + minio + mercure)
-docker compose exec -T api bin/console doctrine:migrations:migrate --no-interaction
-docker compose exec -T api bin/console doctrine:fixtures:load --no-interaction
+docker compose exec -T api bin/console pim:db:reset --with-fixtures   # canonical one-shot: drop+create+migrate+audit:schema:update+fixtures
 ```
 
-Open `https://pim.localhost` (Caddy will produce a self-signed cert — accept it once). Login with `admin@demo.local` / `demo`. Navigate to **Products** — the demo dataset seeded by `App\DataFixtures\AppFixtures` should be visible.
+> The manual equivalent is **three** steps, not two — `audit:schema:update` is required: audit tables live outside the Doctrine migration pipeline, so without it any INSERT into an audited entity 500s with `relation "*_audit" does not exist`:
+>
+> ```bash
+> docker compose exec -T api bin/console doctrine:migrations:migrate --no-interaction
+> docker compose exec -T api bin/console audit:schema:update --force
+> docker compose exec -T api bin/console doctrine:fixtures:load --no-interaction
+> ```
+
+Open `https://pim.localhost` (Caddy will produce a self-signed cert — accept it once). Login with `admin@demo.localhost` / `changeme`. Navigate to **Products** — the demo dataset seeded by `App\DataFixtures\AppFixtures` should be visible.
 
 Verify your environment with the same gates CI runs:
 
