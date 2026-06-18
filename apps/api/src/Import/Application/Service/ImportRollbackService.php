@@ -82,69 +82,110 @@ final readonly class ImportRollbackService
         try {
             $kind = $session->getTargetObjectType()->getKind();
 
-            // --- 1. Replay the value undo-log on pre-existing objects ---
-            $report = $this->replayUndoLog($session);
+            // AUD-040 (W2-5) — the four DB steps (replay overwrites, rebuild the
+            // restored caches, delete the created objects/values, flip the
+            // session status) run as ONE transaction. The v2 shape committed
+            // each step independently, so a worker crash (FrankenPHP restart,
+            // OOM, deploy) between any two left the catalog half-rolled-back:
+            // orphan objects, or data deleted while the session still read
+            // `success` → a second rollback replaying a spent undo-log. Wrapping
+            // them makes the rollback ALL-OR-NOTHING — a crash reverts every
+            // mutation AND leaves the status untouched, so the retry runs on an
+            // intact undo-log (no double-apply). The lock holds for the whole
+            // run, so concurrency never widens this to a long-lived lock.
+            //
+            // wrapInTransaction() and $this->connection share the one DBAL
+            // connection Symfony autowires, so the raw DELETEs below join the
+            // same transaction as the ORM flushes (same pattern as
+            // GenerateVariantsController / ObjectRelationService).
+            /** @var array{deletedObjects: int, deletedValues: int, createdIds: list<string>, affectedIds: list<string>, report: array{restoredValues: int, removedValues: int, skippedManualEdits: int, skippedSuperseded: int, affectedIds: list<string>}} $outcome */
+            $outcome = $this->em->wrapInTransaction(function () use ($session, $now): array {
+                // --- 1. Replay the value undo-log on pre-existing objects ---
+                $report = $this->replayUndoLog($session);
 
-            // --- 2. Rebuild attributes_indexed + completeness for restored objects ---
-            $affectedIds = $report['affectedIds'];
-            foreach ($affectedIds as $idRfc) {
-                $object = $this->em->find(CatalogObject::class, $idRfc);
-                if ($object instanceof CatalogObject) {
-                    $this->rebuilder->rebuild($object);
+                // --- 2. Rebuild attributes_indexed + completeness for restored objects ---
+                $affectedIds = $report['affectedIds'];
+                foreach ($affectedIds as $idRfc) {
+                    $object = $this->em->find(CatalogObject::class, $idRfc);
+                    if ($object instanceof CatalogObject) {
+                        $this->rebuilder->rebuild($object);
+                    }
                 }
-            }
-            if ([] !== $affectedIds) {
-                $this->em->flush();
-            }
-            // Re-index the restored objects in Meilisearch.
-            $this->reindexQueue->queueAll($affectedIds);
+                if ([] !== $affectedIds) {
+                    $this->em->flush();
+                }
 
-            // --- 3. Delete the objects the import created (D11), capture for Meili ---
-            // tenant-safe: every raw DELETE/SELECT below is keyed by
-            // import_session_id (a tenant-scoped session, loaded owner-scoped),
-            // and objects/object_values enforce RLS on app.current_tenant set
-            // via $tenantContext above — no cross-tenant reach.
-            $createdIds = $this->createdObjectIds($session);
-            $deletedValues = 0;
-            $deletedObjects = 0;
-            if ([] !== $createdIds) {
-                $deletedValues = (int) $this->connection->executeStatement(
-                    'DELETE FROM object_values WHERE object_id IN (SELECT id FROM objects WHERE import_session_id = :sid)',
-                    ['sid' => $session->getId()->toRfc4122()],
-                );
-                $deletedObjects = (int) $this->connection->executeStatement(
-                    'DELETE FROM objects WHERE import_session_id = :sid',
-                    ['sid' => $session->getId()->toRfc4122()],
-                );
-                // Fix the v1 ghost-documents bug: drop the created docs from search.
-                $this->reindexQueue->queueAllDeleted($createdIds, $kind);
-            }
+                // --- 3. Delete the objects the import created (D11), capture for Meili ---
+                // tenant-safe: every raw DELETE/SELECT below is keyed by
+                // import_session_id (a tenant-scoped session, loaded owner-scoped),
+                // and objects/object_values enforce RLS on app.current_tenant set
+                // via $tenantContext above — no cross-tenant reach.
+                $createdIds = $this->createdObjectIds($session);
+                $deletedValues = 0;
+                $deletedObjects = 0;
+                if ([] !== $createdIds) {
+                    $deletedValues = (int) $this->connection->executeStatement(
+                        'DELETE FROM object_values WHERE object_id IN (SELECT id FROM objects WHERE import_session_id = :sid)',
+                        ['sid' => $session->getId()->toRfc4122()],
+                    );
+                    $deletedObjects = (int) $this->connection->executeStatement(
+                        'DELETE FROM objects WHERE import_session_id = :sid',
+                        ['sid' => $session->getId()->toRfc4122()],
+                    );
+                }
 
-            // --- 4. Finalize: flip status + persist the report ---
-            // The raw DELETEs ran outside the ORM; clear + reload so the session
-            // mutation flushes cleanly (mirrors v1).
-            $this->em->clear();
-            $reload = $this->sessions->findById($session->getId());
-            if ($reload instanceof ImportSession) {
-                $reload->markRolledBack($now);
-                $reload->recordRollbackReport([
-                    'deleted_objects' => $deletedObjects,
-                    'deleted_values' => $deletedValues,
-                    'restored_values' => $report['restoredValues'],
-                    'removed_values' => $report['removedValues'],
-                    'skipped_manual_edits' => $report['skippedManualEdits'],
-                    'skipped_superseded' => $report['skippedSuperseded'],
-                ]);
-                $this->sessions->save($reload);
+                // --- 4. Finalize: flip status + persist the report ---
+                // The raw DELETEs ran outside the ORM unit of work; clear +
+                // reload so the session mutation flushes against a clean
+                // Identity Map (clear() detaches in-memory entities only — it
+                // does not touch the open transaction). markRolledBack() is the
+                // LAST write to flush, so the status flip commits atomically
+                // with the deletes above.
+                $this->em->clear();
+                $reload = $this->sessions->findById($session->getId());
+                if ($reload instanceof ImportSession) {
+                    $reload->markRolledBack($now);
+                    $reload->recordRollbackReport([
+                        'deleted_objects' => $deletedObjects,
+                        'deleted_values' => $deletedValues,
+                        'restored_values' => $report['restoredValues'],
+                        'removed_values' => $report['removedValues'],
+                        'skipped_manual_edits' => $report['skippedManualEdits'],
+                        'skipped_superseded' => $report['skippedSuperseded'],
+                    ]);
+                    $this->sessions->save($reload);
+                }
+
+                return [
+                    'deletedObjects' => $deletedObjects,
+                    'deletedValues' => $deletedValues,
+                    'createdIds' => $createdIds,
+                    'affectedIds' => $affectedIds,
+                    'report' => $report,
+                ];
+            });
+
+            // --- 5. Meilisearch AFTER the DB transaction commits ---
+            // DB is the source of truth; the search index is a derived,
+            // idempotent projection (W1-7 ordering: external work runs only once
+            // the DB erasure is durable). Queueing inside the transaction would
+            // schedule ghost re-index/delete ops for a rollback that then rolled
+            // back. The queue is a request-scoped collector flushed in one
+            // batched call on kernel.terminate, so this stays a single Meili
+            // round-trip. The v1 ghost-documents fix (drop the created docs)
+            // rides along here, post-commit.
+            $this->reindexQueue->queueAll($outcome['affectedIds']);
+            if ([] !== $outcome['createdIds']) {
+                $this->reindexQueue->queueAllDeleted($outcome['createdIds'], $kind);
             }
 
             return [
-                'deletedObjects' => $deletedObjects,
-                'deletedValues' => $deletedValues,
-                'restoredValues' => $report['restoredValues'],
-                'removedValues' => $report['removedValues'],
-                'skippedManualEdits' => $report['skippedManualEdits'],
-                'skippedSuperseded' => $report['skippedSuperseded'],
+                'deletedObjects' => $outcome['deletedObjects'],
+                'deletedValues' => $outcome['deletedValues'],
+                'restoredValues' => $outcome['report']['restoredValues'],
+                'removedValues' => $outcome['report']['removedValues'],
+                'skippedManualEdits' => $outcome['report']['skippedManualEdits'],
+                'skippedSuperseded' => $outcome['report']['skippedSuperseded'],
             ];
         } finally {
             $lock->release();
