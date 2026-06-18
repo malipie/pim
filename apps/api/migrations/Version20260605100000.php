@@ -17,8 +17,9 @@ use Doctrine\Migrations\AbstractMigration;
  * the channel currency UI removed there are no remaining consumers, so the
  * junction and the global catalog table are dropped entirely.
  *
- * Destructive: existing channel↔currency links are lost. `down()` recreates
- * the schema and reseeds the three default currencies (without channel links).
+ * Destructive: existing channel↔currency links are lost. The reverse is
+ * therefore irreversible — recreating the schema cannot recover the dropped
+ * channel↔currency rows (AUD-041).
  */
 final class Version20260605100000 extends AbstractMigration
 {
@@ -36,41 +37,16 @@ final class Version20260605100000 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        $this->addSql(<<<'SQL'
-            CREATE TABLE currencies (
-              id UUID NOT NULL,
-              code VARCHAR(8) NOT NULL,
-              symbol VARCHAR(8) NOT NULL,
-              label VARCHAR(64) NOT NULL,
-              PRIMARY KEY (id)
-            )
-        SQL);
-        $this->addSql('CREATE UNIQUE INDEX currencies_code_uniq ON currencies (code)');
-
-        $this->addSql(<<<'SQL'
-            CREATE TABLE channel_currencies (
-              channel_id UUID NOT NULL,
-              currency_id UUID NOT NULL,
-              PRIMARY KEY (channel_id, currency_id)
-            )
-        SQL);
-        $this->addSql('CREATE INDEX channel_currencies_channel_idx ON channel_currencies (channel_id)');
-        $this->addSql('CREATE INDEX channel_currencies_currency_idx ON channel_currencies (currency_id)');
-        $this->addSql('ALTER TABLE channel_currencies ADD CONSTRAINT channel_currencies_channel_fk FOREIGN KEY (channel_id) REFERENCES channels (id) ON DELETE CASCADE NOT DEFERRABLE');
-        $this->addSql('ALTER TABLE channel_currencies ADD CONSTRAINT channel_currencies_currency_fk FOREIGN KEY (currency_id) REFERENCES currencies (id) ON DELETE RESTRICT NOT DEFERRABLE');
-
-        foreach ([
-            ['PLN', 'zł', 'Polish złoty'],
-            ['EUR', '€', 'Euro'],
-            ['USD', '$', 'United States dollar'],
-        ] as [$code, $symbol, $label]) {
-            $this->addSql(\sprintf(
-                "INSERT INTO currencies (id, code, symbol, label) SELECT gen_random_uuid(), '%s', '%s', '%s' WHERE NOT EXISTS (SELECT 1 FROM currencies WHERE code = '%s')",
-                $code,
-                addslashes($symbol),
-                addslashes($label),
-                $code,
-            ));
-        }
+        // AUD-041: `up()` dropped both `currencies` and the `channel_currencies`
+        // junction. Recreating the schema + reseeding the three default
+        // currencies could NOT restore the per-channel currency links (every
+        // channel_currencies row is gone). A schema-only rewind that reports
+        // success while the link data stays lost is a false round-trip; fail
+        // loud and require a restore from the pre-dump instead.
+        $this->throwIrreversibleMigrationException(
+            'channel↔currency links (channel_currencies rows) were dropped and cannot be reconstructed from schema; '
+            .'reseeding default currencies does not restore them. Take a pre-dump BEFORE this migration and restore '
+            .'from it instead — see docs/runbook/destructive-migrations.md.',
+        );
     }
 }

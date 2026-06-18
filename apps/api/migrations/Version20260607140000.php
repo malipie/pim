@@ -32,16 +32,15 @@ final class Version20260607140000 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        $this->addSql(<<<'SQL'
-            CREATE TABLE channel_locales (
-              channel_id UUID NOT NULL,
-              locale_id UUID NOT NULL,
-              PRIMARY KEY (channel_id, locale_id)
-            )
-        SQL);
-        $this->addSql('CREATE INDEX channel_locales_channel_idx ON channel_locales (channel_id)');
-        $this->addSql('CREATE INDEX channel_locales_locale_idx ON channel_locales (locale_id)');
-        $this->addSql('ALTER TABLE channel_locales ADD CONSTRAINT channel_locales_channel_fk FOREIGN KEY (channel_id) REFERENCES channels (id) ON DELETE CASCADE NOT DEFERRABLE');
-        $this->addSql('ALTER TABLE channel_locales ADD CONSTRAINT channel_locales_locale_fk FOREIGN KEY (locale_id) REFERENCES locales (id) ON DELETE RESTRICT NOT DEFERRABLE');
+        // AUD-041: `up()` dropped `channel_locales` with all its rows.
+        // Recreating an EMPTY table would report a successful rollback while
+        // every channel↔locale binding stays lost — a false round-trip. The
+        // bindings are config with no other source, so the reverse is lossy:
+        // fail loud and require a restore from the pre-dump instead.
+        $this->throwIrreversibleMigrationException(
+            'channel↔locale bindings (channel_locales rows) were dropped; recreating an empty table does not '
+            .'restore them. Take a pre-dump BEFORE this migration and restore from it instead — '
+            .'see docs/runbook/destructive-migrations.md.',
+        );
     }
 }

@@ -36,10 +36,15 @@ final class Version20260607130000 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        $this->addSql("ALTER TABLE channels ADD label JSONB DEFAULT '{}' NOT NULL");
-        // tenant-safe: one-time reverse backfill; rebuilds the pl-keyed label
-        // envelope from each row's own name.
-        $this->addSql("UPDATE channels SET label = jsonb_build_object('pl', name)");
-        $this->addSql('ALTER TABLE channels DROP name');
+        // AUD-041: the reverse is LOSSY, not reversible. `up()` collapsed the
+        // bilingual `{pl, en}` (or any other) envelope into a single scalar
+        // `name`. Rebuilding `label` as `{"pl": name}` would silently discard
+        // every non-`pl` key (`en`, …) while reporting success — a false
+        // round-trip. Fail loud instead and force a restore from the pre-dump.
+        $this->throwIrreversibleMigrationException(
+            'channels.label envelope (en + any non-pl key) was discarded when collapsing to channels.name; '
+            .'a rebuilt {"pl": name} would silently lose it. Take a pre-dump BEFORE this migration and restore '
+            .'from it instead — see docs/runbook/destructive-migrations.md.',
+        );
     }
 }
