@@ -102,7 +102,7 @@ final class TenantOffboardingPurgeTest extends KernelTestCase
         // ── Throwaway: tenant row + EVERY dependent row gone ───────────
         self::assertSame(
             0,
-            (int) $connection->fetchOne('SELECT COUNT(*) FROM tenants WHERE id = :id', ['id' => $throwaway->toRfc4122()]),
+            $this->countOne($connection, 'SELECT COUNT(*) FROM tenants WHERE id = :id', ['id' => $throwaway->toRfc4122()]),
             'Throwaway tenant row must be hard-deleted.',
         );
         foreach (self::TENANT_TABLES as $table) {
@@ -116,7 +116,7 @@ final class TenantOffboardingPurgeTest extends KernelTestCase
         // attributes RESTRICT) was the original blocker.
         self::assertSame(
             0,
-            (int) $connection->fetchOne('SELECT COUNT(*) FROM object_values WHERE id = :id', ['id' => $throwawayObjectValues]),
+            $this->countOne($connection, 'SELECT COUNT(*) FROM object_values WHERE id = :id', ['id' => $throwawayObjectValues]),
         );
 
         // ── Throwaway storage prefix swept across all three buckets ────
@@ -127,7 +127,7 @@ final class TenantOffboardingPurgeTest extends KernelTestCase
         // ── KEEPER tenant fully intact (proxy for demo/acme) ───────────
         self::assertSame(
             1,
-            (int) $connection->fetchOne('SELECT COUNT(*) FROM tenants WHERE id = :id', ['id' => $keeper->toRfc4122()]),
+            $this->countOne($connection, 'SELECT COUNT(*) FROM tenants WHERE id = :id', ['id' => $keeper->toRfc4122()]),
             'Keeper tenant must be untouched.',
         );
         self::assertSame(1, $this->rowCount($connection, 'object_values', $keeper), 'Keeper object_values intact.');
@@ -136,7 +136,7 @@ final class TenantOffboardingPurgeTest extends KernelTestCase
         self::assertSame(1, $this->rowCount($connection, 'users', $keeper), 'Keeper users intact.');
         self::assertSame(
             1,
-            (int) $connection->fetchOne('SELECT COUNT(*) FROM object_values WHERE id = :id', ['id' => $keeperObjectValues]),
+            $this->countOne($connection, 'SELECT COUNT(*) FROM object_values WHERE id = :id', ['id' => $keeperObjectValues]),
         );
         self::assertTrue($assets->directoryExists($keeper->toRfc4122()), 'Keeper assets prefix intact.');
         self::assertTrue($exports->directoryExists($keeper->toRfc4122()), 'Keeper exports prefix intact.');
@@ -159,7 +159,7 @@ final class TenantOffboardingPurgeTest extends KernelTestCase
         self::assertSame(Command::SUCCESS, $exit, $tester->getDisplay());
         self::assertSame(
             1,
-            (int) $connection->fetchOne('SELECT COUNT(*) FROM tenants WHERE id = :id', ['id' => $throwaway->toRfc4122()]),
+            $this->countOne($connection, 'SELECT COUNT(*) FROM tenants WHERE id = :id', ['id' => $throwaway->toRfc4122()]),
             'Dry-run must not delete the tenant row.',
         );
         self::assertSame(1, $this->rowCount($connection, 'object_values', $throwaway), 'Dry-run must keep dependents.');
@@ -183,7 +183,7 @@ final class TenantOffboardingPurgeTest extends KernelTestCase
         self::assertSame(Command::SUCCESS, $exit, $tester->getDisplay());
         self::assertSame(
             1,
-            (int) $connection->fetchOne('SELECT COUNT(*) FROM tenants WHERE id = :id', ['id' => $recent->toRfc4122()]),
+            $this->countOne($connection, 'SELECT COUNT(*) FROM tenants WHERE id = :id', ['id' => $recent->toRfc4122()]),
             'A tenant soft-deleted inside the retention window must survive.',
         );
     }
@@ -362,10 +362,23 @@ final class TenantOffboardingPurgeTest extends KernelTestCase
     {
         // $table comes only from the class constant TENANT_TABLES (no
         // external input) — safe to inline.
-        return (int) $connection->fetchOne(
+        return $this->countOne(
+            $connection,
             \sprintf('SELECT COUNT(*) FROM %s WHERE tenant_id = :t', $table),
             ['t' => $tenant->toRfc4122()],
         );
+    }
+
+    /**
+     * COUNT(*) helper — DBAL fetchOne() returns mixed; narrow to int safely.
+     *
+     * @param array<string, scalar> $params
+     */
+    private function countOne(Connection $connection, string $sql, array $params): int
+    {
+        $value = $connection->fetchOne($sql, $params);
+
+        return \is_numeric($value) ? (int) $value : 0;
     }
 
     private function commandTester(object $kernel): CommandTester
@@ -379,7 +392,6 @@ final class TenantOffboardingPurgeTest extends KernelTestCase
     private function connection(object $kernel): Connection
     {
         $connection = self::getContainer()->get('doctrine.dbal.default_connection');
-        \assert($connection instanceof Connection);
 
         return $connection;
     }

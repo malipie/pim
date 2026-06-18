@@ -638,14 +638,21 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
             ]);
         };
         $insertLegacy($select->getId()->toRfc4122(), '{"value": "red"}');
-        $insertLegacy($price->getId()->toRfc4122(), '{"value": 99.99}');
+        // AUD-032: the legacy price wrap carries its currency sibling. The
+        // write side rewrites the `value` KEY to `amount` (the normalisation
+        // under test); the price validator — now enforced for every type —
+        // requires the currency, so a currency-less legacy wrap would be
+        // (correctly) rejected on re-import and never reach the canon. The
+        // canon migration (Version20260612210000) documents the same: a
+        // currency-less migrated price stays incomplete until the next edit.
+        $insertLegacy($price->getId()->toRfc4122(), '{"value": 99.99, "currency": "PLN"}');
 
         // Sanity: the seeded rows really are legacy, not canon. Read straight
         // off the connection so the managed Tenant the exporter needs stays
         // attached (no $em->clear() before runToFile, which re-persists it).
         $before = $this->legacyEnvelopesOf($productId);
         self::assertSame(['value' => 'red'], $before['lg_select'], 'select seeded as legacy {value}');
-        self::assertSame(['value' => 99.99], $before['lg_price'], 'price seeded as legacy {value}');
+        self::assertSame(['value' => 99.99, 'currency' => 'PLN'], $before['lg_price'], 'price seeded as legacy {value} + currency');
 
         // ── Round-trip through the REAL export → import engine ──
         $columns = ['sku', 'lg_select', 'lg_price'];
@@ -655,9 +662,10 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         // The Select serialiser reads `option_code` ONLY — a legacy select cell
         // exports empty (it never had the canonical key). Inject the option code
         // so the re-import has a cell to canonicalise; price exports fine because
-        // its serialiser falls back to `value` (#1271), so it rides as-is.
+        // its serialiser falls back to `value` (#1271) and appends the currency
+        // sibling, so it rides as "99.99 PLN".
         // The exporter writes `;`-delimited cells behind a UTF-8 BOM (#1484).
-        self::assertStringContainsString('99.99', $csv, 'legacy price exports via the value fallback');
+        self::assertStringContainsString('99.99 PLN', $csv, 'legacy price exports amount + currency via the value fallback');
         $clean = ltrim($csv, "\xEF\xBB\xBF");
         $lines = explode("\n", trim($clean));
         self::assertCount(2, $lines, 'header + one data row');
@@ -680,7 +688,7 @@ final class GoldenRoundTripApiTest extends CatalogApiTestCase
         $em->clear();
         $after = $this->legacyEnvelopesOf($productId);
         self::assertSame(['option_code' => 'red'], $after['lg_select'], 'select normalised {value}→{option_code}');
-        self::assertSame(['amount' => 99.99], $after['lg_price'], 'price normalised {value}→{amount}');
+        self::assertSame(['amount' => 99.99, 'currency' => 'PLN'], $after['lg_price'], 'price normalised {value}→{amount}, currency preserved');
         self::assertArrayNotHasKey('value', $after['lg_select'], 'no legacy key survives on select');
         self::assertArrayNotHasKey('value', $after['lg_price'], 'no legacy key survives on price');
     }

@@ -25,18 +25,34 @@ use Symfony\Component\Uid\Uuid;
 final readonly class ValueWriteCore
 {
     /**
-     * #1216 — types whose value validator reads the canonical envelope and
-     * carries a real format rule. See the original Upserter docblock for why
-     * lenient scalar types stay out until backfilled.
+     * AUD-032 / W2-1 — the `additionalProperties: false` contract from
+     * `docs/api/jsonb-schemas.md` §6: the exact set of keys the canonical
+     * envelope of each AttributeType may carry inside `object_values.value`.
+     * locale / channel / provenance / provenance_meta are NOT envelope keys —
+     * they are dedicated columns on the row — so they never appear here. Any
+     * key outside an entry's set is rejected (proto-pollution, stored-XSS via
+     * smuggled fields, integration garbage).
      *
-     * @var list<AttributeType>
+     * @var array<string, list<string>>
      */
-    private const array VALUE_VALIDATED_TYPES = [
-        AttributeType::Email,
-        AttributeType::Color,
-        AttributeType::Identifier,
-        AttributeType::Select,
-        AttributeType::Multiselect,
+    private const array ALLOWED_KEYS = [
+        AttributeType::Text->value => ['value'],
+        AttributeType::Textarea->value => ['value'],
+        AttributeType::Wysiwyg->value => ['value'],
+        AttributeType::Number->value => ['value'],
+        AttributeType::Date->value => ['value'],
+        AttributeType::Datetime->value => ['value'],
+        AttributeType::Boolean->value => ['value'],
+        AttributeType::Color->value => ['value'],
+        AttributeType::Email->value => ['value'],
+        AttributeType::Identifier->value => ['value'],
+        AttributeType::Select->value => ['option_code'],
+        AttributeType::Multiselect->value => ['option_codes'],
+        AttributeType::Price->value => ['amount', 'currency'],
+        AttributeType::Metric->value => ['value', 'unit'],
+        AttributeType::Asset->value => ['asset_id'],
+        AttributeType::Relation->value => ['object_id'],
+        AttributeType::Reference->value => ['object_id'],
     ];
 
     public function __construct(
@@ -81,8 +97,18 @@ final readonly class ValueWriteCore
     }
 
     /**
-     * #1216 / #1261 — per-type format + option-membership validation.
-     * Empty values are skipped (clearing is always allowed).
+     * #1216 / #1261 / AUD-032 — per-type format + option-membership validation,
+     * enforced for EVERY AttributeType (the contract in jsonb-schemas.md §6,
+     * not just the five legacy `VALUE_VALIDATED_TYPES`). Two layers:
+     *
+     *   1. `additionalProperties: false` — reject any envelope key the type's
+     *      canon does not allow. Runs even for a non-content payload like
+     *      `{__proto__: ...}` so smuggled fields never reach JSONB.
+     *   2. The per-type value validator (numeric for number, ISO currency for
+     *      price, strict bool for boolean, …). Skipped only when the envelope
+     *      is an empty clear (clearing a value is always allowed) or the type
+     *      has no validator registered (`reference`, a system/listener-written
+     *      type whose shape is covered by layer 1).
      *
      * @param array<string, mixed> $envelope
      *
@@ -90,8 +116,14 @@ final readonly class ValueWriteCore
      */
     public function formatViolations(Attribute $attribute, array $envelope): array
     {
-        if (!\in_array($attribute->getType(), self::VALUE_VALIDATED_TYPES, true)
-            || !self::hasValidatableContent($attribute->getType(), $envelope)) {
+        $type = $attribute->getType();
+
+        $unknownKey = $this->unknownKeyViolation($type, $envelope);
+        if (null !== $unknownKey) {
+            return [$unknownKey];
+        }
+
+        if (!self::hasValidatableContent($type, $envelope) || !$this->hasValidator($type)) {
             return [];
         }
 
@@ -101,6 +133,42 @@ final readonly class ValueWriteCore
         }
 
         return $messages;
+    }
+
+    /**
+     * AUD-032 — `additionalProperties: false`: the first envelope key outside
+     * the type's canonical set, as a violation message, or null when the
+     * envelope only carries allowed keys. ALLOWED_KEYS covers every
+     * AttributeType, so a new enum case added without a canon entry trips a
+     * PHPStan error here rather than silently skipping the check.
+     *
+     * @param array<string, mixed> $envelope
+     */
+    private function unknownKeyViolation(AttributeType $type, array $envelope): ?string
+    {
+        $allowed = self::ALLOWED_KEYS[$type->value];
+
+        foreach (array_keys($envelope) as $key) {
+            if (!\in_array($key, $allowed, true)) {
+                return \sprintf(
+                    'Unexpected key "%s" for attribute type "%s"; allowed: %s.',
+                    $key,
+                    $type->value,
+                    implode(', ', $allowed),
+                );
+            }
+        }
+
+        return null;
+    }
+
+    private function hasValidator(AttributeType $type): bool
+    {
+        // `reference` is system-only (created_by / updated_by, stamped by
+        // Doctrine listeners) and carries no AttributeValueValidator — running
+        // the dispatcher would yield a spurious "unsupported_type". Its shape
+        // ({object_id}) is already guarded by the additionalProperties check.
+        return AttributeType::Reference !== $type;
     }
 
     /**
@@ -140,25 +208,18 @@ final readonly class ValueWriteCore
     }
 
     /**
+     * True when the envelope carries something to validate — i.e. it is not an
+     * empty clear. Clearing a value (`{}`, `{value: ''}`, `{value: null}`) is
+     * always allowed, so the per-type validator is skipped for those; every
+     * other shape (including object-shaped asset / relation / price / metric
+     * payloads, not just `{value}`) is validated. AUD-032 widened this from the
+     * old select/multiselect/`value`-only special-casing.
+     *
      * @param array<string, mixed> $envelope
      */
     public static function hasValidatableContent(AttributeType $type, array $envelope): bool
     {
-        if (AttributeType::Select === $type) {
-            $optionCode = $envelope['option_code'] ?? null;
-
-            return \is_string($optionCode) && '' !== $optionCode;
-        }
-
-        if (AttributeType::Multiselect === $type) {
-            $optionCodes = $envelope['option_codes'] ?? null;
-
-            return \is_array($optionCodes) && [] !== $optionCodes;
-        }
-
-        $scalar = $envelope['value'] ?? null;
-
-        return null !== $scalar && '' !== $scalar;
+        return !self::isEmptyEnvelope($envelope);
     }
 
     /**
