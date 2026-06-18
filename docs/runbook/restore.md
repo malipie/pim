@@ -10,9 +10,12 @@
   (`docker/postgres/Dockerfile`).
 - WAL archiving: `archive_mode=on`, `archive_command='pgbackrest --stanza=pim
   archive-push %p'`. Continuous, async via `archive-async=y`.
-- Repository: MinIO bucket `pim-backups`, path `/pim`. Credentials reuse
+- Repository: MinIO bucket `pim-pgbackrest` (dedicated repo bucket, separate
+  from the DAM assets bucket — AUD-018/W1-6), path `/pim`. Dev credentials reuse
   `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` via `PGBACKREST_REPO1_S3_KEY*` env
-  vars in `docker-compose.yml`.
+  vars in `docker-compose.yml`; prod takes a dedicated, fail-loud
+  `PGBACKREST_REPO1_S3_KEY`/`_KEY_SECRET` and can target a separate MinIO/S3
+  region (see "Backup storage layout" below).
 - **Schedule** (cron inside the database container, see Dockerfile):
   - Sundays 02:00 UTC — `pgbackrest --type=full backup`.
   - Mon-Sat 02:00 UTC — `pgbackrest --type=diff backup`.
@@ -144,20 +147,45 @@ produkty po restore = produkty przed dropem").
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `stanza-create` fails with `unable to load info file` | MinIO bucket missing | `docker compose up -d minio-init` (check `pim-backups` exists in MinIO) |
+| `stanza-create` fails with `unable to load info file` | MinIO bucket missing | `docker compose up -d minio-init` (check `pim-pgbackrest` exists in MinIO) |
 | `archive-push` warnings in postgres log | Stanza not initialised yet | Wait for `pim-init-backup.sh` to finish, or run `pgbackrest --stanza=pim stanza-create` manually |
 | `pgbackrest backup` complains about WAL not archived | `archive-async` queue full | Check `/var/spool/pgbackrest`, ensure MinIO is reachable from the database container |
 | Restore fails with `unable to remove path` | API still holds connections | The orchestrator stops `api` first; if running pgbackrest manually, `docker compose stop api` before wiping `$PGDATA` |
 | Healthcheck never goes green after restore | WAL replay still in progress | `docker compose logs -f database` and wait — large WAL ranges take longer |
 
+## Backup storage layout (AUD-018 / W1-6)
+
+The pgBackRest repo lives in its OWN MinIO bucket, **`pim-pgbackrest`**, separate
+from the DAM assets bucket `pim-assets`. Co-locating them was a single point of
+failure: losing the asset bucket also lost every database backup. The durable
+buckets (`pim-assets`, `pim-pgbackrest`, `pim-exports`) have **versioning
+enabled** so an accidental delete/overwrite is recoverable
+(`mc cp --version-id`). The legacy `pim-backups` bucket is retained (its
+2026-04-28 objects are untouched) but no longer the active repo target; the
+stanza re-creates in `pim-pgbackrest`. See the MinIO DR section of
+[`disaster-recovery.md`](disaster-recovery.md) for recovery procedures.
+
+In **production**, the repo should point at a SEPARATE MinIO/S3 instance/region
+(true anti-SPOF) via the prod overlay's
+`database.PGBACKREST_REPO1_S3_ENDPOINT`/`_BUCKET` env (no rebuild needed —
+pgBackRest reads `PGBACKREST_*` env over the baked-in config).
+
 ## Production gaps (post-0.11.11 follow-ups)
 
-- **Off-site repo replication** — second MinIO region or AWS S3 cross-region.
+- **Off-site asset replication** — wired as `scripts/minio-mirror-assets.sh` +
+  the `mirror-assets` sidecar (prod overlay, profile `dr`). Needs a real second
+  MinIO region/account provisioned; consider a native `mc replicate` rule for
+  managed replication.
+- **Off-site repo replication** — point `PGBACKREST_REPO1_S3_ENDPOINT` at a
+  dedicated backup region (prod overlay). Provisioning of that region is the
+  remaining deploy-time step.
 - **Encryption at rest** for the repo (`repo1-cipher-type=aes-256-cbc` +
   `repo1-cipher-pass` from Vault). Today the repo lives on TLS-terminated
   MinIO; at-rest encryption is opt-in.
-- **Hardened credentials** — dedicated S3 user with bucket-scoped IAM,
-  not the MinIO root.
+- **Hardened credentials** — the prod overlay now takes a dedicated
+  `PGBACKREST_REPO1_S3_KEY`/`_KEY_SECRET` (fail-loud, no default) so the repo
+  can authenticate with a bucket-scoped service account instead of MinIO root.
+  Creating that scoped account on the backup store is the deploy-time step.
 - **Slack/Sentry alert** when `pim-restore-test.sh` fails or when no
   successful backup landed in the last 24h. The 0.11.10 dashboard
   widget surfaces it; alerting needs a dedicated webhook in 0.11.10
