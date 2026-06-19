@@ -4,29 +4,41 @@ name: Quality (PHP)
 # See ticket #11 (0.0.11) for the full quality gates rationale.
 
 on:
+  # AUD-061 — blacklist (paths-ignore), not whitelist (paths). The old `paths:`
+  # whitelist (apps/api + a few scripts) silently skipped every backend gate
+  # (PHPStan / PHPUnit / Deptrac / cs-fixer) on any PR that did not touch
+  # apps/api/** — e.g. a PR touching only packages/shared-types/** (which feeds
+  # the OpenAPI/TS contract), root composer files, or this workflow itself.
+  # That meta-gap let latent PHPStan errors land on main (W1-7 TenantOffboarding-
+  # PurgeTest, fixed in W2-1). A whitelist also re-opens the same hole for every
+  # *future* backend-relevant directory nobody remembers to add. paths-ignore is
+  # fail-safe: the gates run ALWAYS unless a PR touches ONLY pure docs/markdown.
+  #
+  # docs/api-spec/** is NOT ignored (it is re-included via `!`): the openapi-spec
+  # job diffs docs/api-spec/v0.json, so a spec change must still re-trigger.
   pull_request:
-    paths:
-      - "apps/api/**"
-      - "docs/api-spec/**"
-      - "scripts/lint-raw-sql.sh"
-      - "scripts/lint-tracked-secrets.sh"
-      - "scripts/lint-backup-cron.sh"
-      - "docker/postgres/**"
-      - ".gitignore"
-      - ".github/workflows/quality-php.yml"
-      - ".semgrep/**"
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "!docs/api-spec/**"
+      - "Project Plan/**"
+      - "Testy/**"
+      - "Zrodla/**"
+      - "agent/**"
+      - "agent_sample/**"
+      - "backups/**"
   push:
     branches: [main]
-    paths:
-      - "apps/api/**"
-      - "docs/api-spec/**"
-      - "scripts/lint-raw-sql.sh"
-      - "scripts/lint-tracked-secrets.sh"
-      - "scripts/lint-backup-cron.sh"
-      - "docker/postgres/**"
-      - ".gitignore"
-      - ".github/workflows/quality-php.yml"
-      - ".semgrep/**"
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "!docs/api-spec/**"
+      - "Project Plan/**"
+      - "Testy/**"
+      - "Zrodla/**"
+      - "agent/**"
+      - "agent_sample/**"
+      - "backups/**"
 
 concurrency:
   group: quality-php-${{ github.ref }}
@@ -296,6 +308,31 @@ jobs:
           # Foundry's ResetDatabase rebuilds the schema from entity metadata into the
           # dbname_suffix-derived "pim_test" database — Postgres service is enough,
           # no migrations step required for the Sprint-0 entity surface.
+          DATABASE_URL: postgresql://pim:ChangeMeInDev@127.0.0.1:5432/pim?serverVersion=16&charset=utf8
+          MESSENGER_TRANSPORT_DSN: in-memory://
+          MERCURE_URL: http://localhost/.well-known/mercure
+          MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
+          MERCURE_JWT_SECRET: ci-mercure-key-at-least-256-bits-long
+          JWT_PASSPHRASE: ci
+          APP_DEFAULT_TENANT_CODE: demo
+
+      # AUD-063 — meta-assertion guarding the memory gate below. An empty
+      # `--group import-benchmark` selection runs 0 tests and exits 0, so if
+      # the benchmark tests are ever deleted/renamed out of the group the
+      # 256 MiB ceiling would silently stop being enforced while CI stays
+      # green. This step fails the (required) phpunit job when the group is
+      # empty. `^ - ` matches PHPUnit 12's per-test `--list-tests` prefix.
+      - name: Assert import-benchmark group is non-empty
+        run: |
+          COUNT=$(php bin/phpunit --group import-benchmark --list-tests 2>/dev/null | grep -cE '^ - ' || true)
+          if [ "$COUNT" -lt 1 ]; then
+            echo "::error::import-benchmark group is empty — the 256 MiB memory gate would silently pass. Re-tag the benchmark tests with @group import-benchmark."
+            exit 1
+          fi
+          echo "import-benchmark tests: $COUNT"
+        env:
+          APP_ENV: test
+          APP_DEBUG: "0"
           DATABASE_URL: postgresql://pim:ChangeMeInDev@127.0.0.1:5432/pim?serverVersion=16&charset=utf8
           MESSENGER_TRANSPORT_DSN: in-memory://
           MERCURE_URL: http://localhost/.well-known/mercure
