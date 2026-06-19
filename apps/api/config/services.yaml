@@ -63,6 +63,15 @@ services:
     App\:
         resource: '../src/'
 
+    # W2-7 / AUD-042 — single RFC 7807 contract for custom controllers.
+    # `$debug` is bound to the kernel flag so the listener can keep the
+    # real exception message in `detail` for 5xx locally while collapsing
+    # it to the generic status text in prod. `class`/`trace` are never
+    # emitted regardless of env (the FQCN is the information leak).
+    App\Shared\Infrastructure\Http\Rfc7807ExceptionListener:
+        arguments:
+            $debug: '%kernel.debug%'
+
     App\Identity\Application\CurrentTenantProvider:
         arguments:
             $defaultTenantCode: '%app.default_tenant_code%'
