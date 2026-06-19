@@ -52,8 +52,15 @@
         # need cross-origin window handles.
         Cross-Origin-Opener-Policy "same-origin"
         Cross-Origin-Resource-Policy "same-origin"
-        # Remove fingerprinting hint.
+        # Remove fingerprinting hints. -Server drops Caddy's banner;
+        # -X-Powered-By strips the `PHP/8.4.x` version leak FrankenPHP adds
+        # to every /api response (AUD-067). This global header block is
+        # imported into both site blocks, so it applies to the reverse-proxied
+        # /api responses too — defence-in-depth alongside `expose_php = Off`
+        # in frankenphp/php.ini (the edge strip is the primary control because
+        # php.ini is not always re-read by a running worker).
         -Server
+        -X-Powered-By
     }
 }
 

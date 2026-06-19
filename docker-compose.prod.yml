@@ -91,6 +91,15 @@ services:
       DATABASE_URL_OWNER: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in prod (no default).}@pgbouncer:6432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8&application_name=pim_migrations
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:?MERCURE_JWT_SECRET is required in prod — min 256 bits, e.g. `openssl rand -hex 32` (no default).}
       MEILI_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY is required in prod — `openssl rand -base64 32` (no default).}
+      # AUD-068 (W3-5.3) — fail-loud TRUSTED_HOSTS in prod. The base compose
+      # pins `^pim\.localhost$|^localhost$|^api$` so the dev stack boots out-of-
+      # the-box; without this override the prod api INHERITS that dev regex and
+      # Symfony's HostRegexConfigurator rejects every request to the real domain
+      # with a 400 (host not in trusted list). Same W1-4 prod-secrets pattern as
+      # APP_SECRET above: `${VAR:?message}` aborts `docker compose config|up`
+      # non-zero when unset, forcing the operator to set the deploy host regex
+      # (e.g. TRUSTED_HOSTS='^pim\.example\.com$') at deploy time.
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:?TRUSTED_HOSTS is required in prod — anchored regex of the public host(s), e.g. `^pim\.example\.com$` (no default; the dev fallback only trusts pim.localhost).}
 
   # ─── Symfony Messenger worker pool ────────────────────────────────────────
   #
