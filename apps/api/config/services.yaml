@@ -72,6 +72,13 @@ services:
         arguments:
             $debug: '%kernel.debug%'
 
+    # W2-9 / AUD-045 — application-level JSON request body cap. Autoconfigure
+    # tags the EventSubscriberInterface; only the byte limit needs binding.
+    # 10 MB default (env-overridable); .env.test lowers it to 1 KB.
+    App\Shared\Infrastructure\Http\RequestBodySizeLimitListener:
+        arguments:
+            $maxBytes: '%env(int:API_MAX_JSON_BODY_BYTES)%'
+
     App\Identity\Application\CurrentTenantProvider:
         arguments:
             $defaultTenantCode: '%app.default_tenant_code%'
