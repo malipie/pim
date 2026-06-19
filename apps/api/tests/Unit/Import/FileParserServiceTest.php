@@ -9,6 +9,8 @@ use App\Import\Application\Service\EncodingDetector;
 use App\Import\Application\Service\FileParserService;
 use App\Import\Domain\Enum\FileEncoding;
 use App\Import\Domain\Exception\InvalidImportFileException;
+use OpenSpout\Common\Entity\Row;
+use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -92,9 +94,95 @@ final class FileParserServiceTest extends TestCase
         }
     }
 
+    #[Test]
+    public function rejectsXlsxExtensionCarryingCsvContent(): void
+    {
+        // AUD-066 (W3-5.2) — extension-only dispatch is spoofable: a CSV body
+        // renamed to .xlsx must be rejected by the magic-byte guard before the
+        // XLSX reader sees it (a real XLSX always opens with the ZIP signature
+        // "PK\x03\x04"; CSV text does not).
+        $service = $this->parser();
+        $path = $this->writeTempFile("sku;name\nABC-1;Sensor\n", '.xlsx');
+
+        try {
+            $this->expectException(InvalidImportFileException::class);
+            $this->expectExceptionMessageMatches('/signature|sygnatur|magic|does not match|nie odpowiada/i');
+            $service->parse($path);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    #[Test]
+    public function acceptsGenuineXlsxWithZipSignature(): void
+    {
+        // AUD-066 — the positive control: a real XLSX (PK\x03\x04 header)
+        // written by openspout passes the magic-byte guard and parses.
+        $service = $this->parser();
+        $path = $this->writeGenuineXlsx();
+
+        try {
+            $parsed = $service->parse($path);
+            self::assertSame(['sku', 'name'], $parsed->headers);
+            self::assertSame(1, $parsed->totalRows);
+            self::assertSame('ABC-1', $parsed->sampleRows[0][0]);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    #[Test]
+    public function acceptsGenuineCsvWithoutZipSignature(): void
+    {
+        // AUD-066 — the symmetric positive control: a plain CSV (no binary
+        // signature) keeps parsing unchanged.
+        $service = $this->parser();
+        $path = $this->writeTempFile("sku;name\nABC-1;Sensor\n", '.csv');
+
+        try {
+            $parsed = $service->parse($path);
+            self::assertSame(['sku', 'name'], $parsed->headers);
+            self::assertSame(1, $parsed->totalRows);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    #[Test]
+    public function rejectsCsvExtensionCarryingZipContent(): void
+    {
+        // AUD-066 — the inverse spoof: a ZIP/XLSX body renamed to .csv. A CSV
+        // is text and must never start with the ZIP local-file-header
+        // signature; reject before the CSV reader mangles the binary stream.
+        $service = $this->parser();
+        $xlsxPath = $this->writeGenuineXlsx();
+        $csvNamed = $this->writeTempFile((string) file_get_contents($xlsxPath), '.csv');
+        @unlink($xlsxPath);
+
+        try {
+            $this->expectException(InvalidImportFileException::class);
+            $this->expectExceptionMessageMatches('/signature|sygnatur|magic|does not match|nie odpowiada/i');
+            $service->parse($csvNamed);
+        } finally {
+            @unlink($csvNamed);
+        }
+    }
+
     private function parser(): FileParserService
     {
         return new FileParserService(new EncodingDetector(), new DelimiterDetector());
+    }
+
+    private function writeGenuineXlsx(): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'imp-test-').'.xlsx';
+        $writer = new XlsxWriter();
+        $writer->openToFile($path);
+        $writer->addRow(Row::fromValues(['sku', 'name']));
+        $writer->addRow(Row::fromValues(['ABC-1', 'Sensor']));
+        $writer->close();
+
+        return $path;
     }
 
     private function writeTempFile(string $contents, string $suffix): string

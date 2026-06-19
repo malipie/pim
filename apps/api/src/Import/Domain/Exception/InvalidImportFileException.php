@@ -41,4 +41,17 @@ final class InvalidImportFileException extends RuntimeException
     {
         return new self('Import file is missing the header row.');
     }
+
+    /**
+     * AUD-066 (W3-5.2) — the file's binary signature does not match its
+     * extension (e.g. a CSV body renamed to .xlsx, or a ZIP/XLSX renamed to
+     * .csv). Reject before any parser touches the bytes.
+     */
+    public static function signatureMismatch(string $extension): self
+    {
+        return new self(\sprintf(
+            'Import file content does not match its ".%s" extension (binary signature mismatch).',
+            $extension,
+        ));
+    }
 }
