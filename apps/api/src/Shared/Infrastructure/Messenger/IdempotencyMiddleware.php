@@ -6,6 +6,7 @@ namespace App\Shared\Infrastructure\Messenger;
 
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\TableNotFoundException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
@@ -30,11 +31,28 @@ use Symfony\Component\Uid\Uuid;
  * Synchronous dispatches (no ConsumedByWorkerStamp) skip the middleware
  * entirely — sync handlers run inside the originating transaction and
  * are idempotent by construction (a single commit cannot replay).
+ *
+ * AUD-035 (W2-10) — `processed_messages` is provisioned by a raw-SQL
+ * migration, but a worker with `auto_setup=1` only creates
+ * `messenger_messages`. On a fresh deploy where the worker boots before
+ * `doctrine:migrations:migrate`, the INSERT below would raise Postgres
+ * `42P01` (undefined table) and dead-letter the whole queue. The middleware
+ * self-heals: on the first `TableNotFoundException` it creates the table on
+ * demand (idempotent `CREATE TABLE IF NOT EXISTS`, matching the migration
+ * DDL) and retries — so delivery never depends on migrate-before-worker
+ * ordering. The create is attempted once per worker process (a static flag
+ * keeps the steady-state path a single INSERT).
  */
-final readonly class IdempotencyMiddleware implements MiddlewareInterface
+final class IdempotencyMiddleware implements MiddlewareInterface
 {
+    /**
+     * Set once the table has been ensured in this PHP process (worker boot),
+     * so the steady-state path stays a single INSERT with no extra round-trip.
+     */
+    private static bool $tableEnsured = false;
+
     public function __construct(
-        private Connection $connection,
+        private readonly Connection $connection,
     ) {
     }
 
@@ -67,16 +85,60 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
         }
 
         try {
-            $this->connection->insert('processed_messages', [
-                'message_id' => $messageId,
-                'handler_class' => $envelope->getMessage()::class,
-                'processed_at' => new DateTimeImmutable()->format('Y-m-d H:i:s'),
-            ]);
+            $this->recordProcessed($messageId, $envelope->getMessage()::class);
         } catch (UniqueConstraintViolationException) {
             // Already processed — short-circuit, return envelope as-is.
             return $envelope;
         }
 
         return $stack->next()->handle($envelope, $stack);
+    }
+
+    /**
+     * INSERT the envelope id, self-healing a missing `processed_messages` on a
+     * worker-booted-before-migrate deploy (AUD-035). A {@see TableNotFoundException}
+     * is recovered exactly once: create the table (idempotent) and retry; a
+     * second miss is a real fault and propagates.
+     */
+    private function recordProcessed(string $messageId, string $handlerClass): void
+    {
+        $row = [
+            'message_id' => $messageId,
+            'handler_class' => $handlerClass,
+            'processed_at' => new DateTimeImmutable()->format('Y-m-d H:i:s'),
+        ];
+
+        try {
+            $this->connection->insert('processed_messages', $row);
+        } catch (TableNotFoundException) {
+            $this->ensureProcessedMessagesTable();
+            $this->connection->insert('processed_messages', $row);
+        }
+    }
+
+    /**
+     * Create `processed_messages` on demand. DDL is kept 1:1 with migration
+     * Version20260429170000 (the authoritative schema); `IF NOT EXISTS` keeps
+     * it safe under concurrent workers racing the same self-heal.
+     */
+    private function ensureProcessedMessagesTable(): void
+    {
+        if (self::$tableEnsured) {
+            return;
+        }
+
+        // tenant-safe: infrastructure DDL — processed_messages is a global
+        // messenger bookkeeping table with no tenant_id (cross-tenant by design).
+        $this->connection->executeStatement(<<<'SQL'
+                CREATE TABLE IF NOT EXISTS processed_messages (
+                    message_id UUID PRIMARY KEY,
+                    handler_class VARCHAR(255) NOT NULL,
+                    processed_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL
+                )
+            SQL);
+        $this->connection->executeStatement('CREATE INDEX IF NOT EXISTS processed_messages_handler_idx ON processed_messages (handler_class)');
+        $this->connection->executeStatement('CREATE INDEX IF NOT EXISTS processed_messages_processed_at_idx ON processed_messages (processed_at)');
+
+        self::$tableEnsured = true;
     }
 }
