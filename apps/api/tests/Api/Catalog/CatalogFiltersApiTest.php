@@ -223,9 +223,11 @@ final class CatalogFiltersApiTest extends CatalogApiTestCase
     #[Test]
     public function completenessFilterRangeQuery(): void
     {
-        $this->seedProducts(['LOW'], completeness: ['pct' => 30]);
-        $this->seedProducts(['MID'], completeness: ['pct' => 70]);
-        $this->seedProducts(['HIGH'], completeness: ['pct' => 95]);
+        // AUD-037: the filter now reads the `completeness_pct` column, which
+        // `recordCompleteness()` mirrors from the `global` key (not `pct`).
+        $this->seedProducts(['LOW'], completeness: ['global' => 30]);
+        $this->seedProducts(['MID'], completeness: ['global' => 70]);
+        $this->seedProducts(['HIGH'], completeness: ['global' => 95]);
 
         $client = $this->authenticatedClient();
         $body = $client->request('GET', '/api/products?completeness[gte]=80')->toArray();

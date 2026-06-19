@@ -110,6 +110,24 @@ final class PermissionResolver implements PermissionResolverInterface
         // equality operator for type json`). Cast to text — dedup happens
         // on string form, which is fine because mergeScope() re-decodes
         // the JSON below before producing the final list.
+        //
+        // AUD-029 (#1611): the legacy `user_roles` branch projects a literal
+        // `'[]'` scope. That `'[]'` is NOT an intentional "no restriction"
+        // grant — `user_roles` has no scope columns at all — yet mergeScope()
+        // reads any empty array as most-permissive and short-circuits the
+        // union to `[]`. UserCreateService writes EVERY (user, role) pair to
+        // BOTH tables (addRole + UserRole entity), so a user given a
+        // locale-scoped role saw that restriction silently widened to "all
+        // locales" by its own legacy duplicate row. Fix (INTERIM — full
+        // consolidation is #644): exclude a legacy `user_roles` row from the
+        // union whenever a `user_role_assignments` row already covers the same
+        // (user, role); the scoped assignment then owns the scope projection.
+        // A legacy-ONLY role (no matching assignment — e.g. the fixture
+        // super_admin / tenant_owner attached via addRole only) still
+        // contributes its broad `'[]'`, so genuinely unrestricted roles keep
+        // full access. Permission CODES still come from both tables, so a
+        // legacy-only role's grants are never dropped — only its redundant
+        // scope row is.
         $sql = <<<'SQL'
                 SELECT DISTINCT p.code, ura.locale_scope::text AS locale_scope, ura.channel_scope::text AS channel_scope, ura.attribute_group_scope::text AS attribute_group_scope
                 FROM user_role_assignments ura
@@ -122,6 +140,11 @@ final class PermissionResolver implements PermissionResolverInterface
                 INNER JOIN role_permissions rp ON rp.role_id = ur.role_id
                 INNER JOIN permissions p ON p.id = rp.permission_id
                 WHERE ur.user_id = :user_id
+                  AND NOT EXISTS (
+                      SELECT 1 FROM user_role_assignments ura2
+                      WHERE ura2.user_id = ur.user_id
+                        AND ura2.role_id = ur.role_id
+                  )
             SQL;
 
         /** @var list<array{code: string, locale_scope: string, channel_scope: string, attribute_group_scope: string}> $rows */
