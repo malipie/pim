@@ -15,6 +15,7 @@ use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -193,6 +194,15 @@ final class SearchController
             customFilterExpression: $customFilterExpression,
         );
 
+        // AUD-070 (#1614) — the search backend is down. Answering an empty
+        // `200` here would read as "no products match", silently misleading
+        // the operator. Signal the outage with a 503 problem+json so the FE
+        // can render a "search temporarily unavailable" state distinct from
+        // an empty result set.
+        if ($result['degraded']) {
+            return $this->searchDegradedResponse();
+        }
+
         if ($countOnly) {
             return new JsonResponse([
                 'totalHits' => $result['totalHits'],
@@ -208,6 +218,26 @@ final class SearchController
             'page' => $page,
             'perPage' => $perPage,
         ]);
+    }
+
+    /**
+     * AUD-070 (#1614) — RFC 7807 problem+json for a search-backend outage.
+     * 503 (not 500) because the condition is transient and retryable; the
+     * dedicated `type` URN lets the FE branch on "search down" vs. a generic
+     * server error and render the right empty/error state.
+     */
+    private function searchDegradedResponse(): JsonResponse
+    {
+        return new JsonResponse(
+            [
+                'type' => 'urn:pim:errors:search-degraded',
+                'title' => 'Search Temporarily Unavailable',
+                'status' => Response::HTTP_SERVICE_UNAVAILABLE,
+                'detail' => 'The search backend is currently unavailable. This is not an empty result — please retry shortly.',
+            ],
+            Response::HTTP_SERVICE_UNAVAILABLE,
+            ['Content-Type' => 'application/problem+json; charset=utf-8'],
+        );
     }
 
     /**

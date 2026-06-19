@@ -1,6 +1,6 @@
 import { Copy, CornerDownRight, Link2, Lock } from 'lucide-react';
+import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { WysiwygEditor } from '@/components/catalog/wysiwyg-editor';
 import { RelationCreateField } from '@/components/objects/relation-create-field';
 import { type Provenance, ProvenanceBadge } from '@/components/provenance-badge';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -12,6 +12,26 @@ import { cn } from '@/lib/utils';
 import { AssetField } from './asset-field';
 import { RelationInlineEditor } from './relation-inline-editor';
 import type { AttributeMeta, AttributeOptionMeta, ProductLocale } from './types';
+
+// AUD-071 (#1614) — the WYSIWYG editor drags in the entire @udecode/plate
+// (Slate) stack + dompurify, which dominated the product-detail-page chunk
+// even though it only renders for `wysiwyg`-typed attributes. Code-split it
+// so the editor stack downloads on demand the first time a rich-text field
+// appears, instead of on every product detail load.
+const WysiwygEditor = lazy(() =>
+  import('@/components/catalog/wysiwyg-editor').then((m) => ({ default: m.WysiwygEditor })),
+);
+
+// Minimal placeholder while the editor chunk loads — sized to the editor's
+// idle height so the form doesn't jump.
+function WysiwygFallback() {
+  return (
+    <div
+      className="min-h-[7.5rem] w-full animate-pulse rounded-xl border border-zinc-200 bg-zinc-50"
+      aria-hidden
+    />
+  );
+}
 
 export interface AttrRowProps {
   attribute: AttributeMeta;
@@ -236,11 +256,13 @@ export function AttrRow({
           <RelationCreateField attribute={attribute} value={value} onChange={onChange} />
         ) : editable ? (
           attribute.type === 'wysiwyg' ? (
-            <WysiwygEditor
-              value={stringValue}
-              onChange={(next) => onChange(next)}
-              ariaLabel={label}
-            />
+            <Suspense fallback={<WysiwygFallback />}>
+              <WysiwygEditor
+                value={stringValue}
+                onChange={(next) => onChange(next)}
+                ariaLabel={label}
+              />
+            </Suspense>
           ) : attribute.type === 'richtext' || attribute.type === 'textarea' ? (
             <Textarea
               id={`attr-${attribute.code}`}
@@ -366,7 +388,9 @@ export function AttrRow({
             />
           )
         ) : attribute.type === 'wysiwyg' ? (
-          <WysiwygEditor value={stringValue} onChange={() => undefined} readOnly />
+          <Suspense fallback={<WysiwygFallback />}>
+            <WysiwygEditor value={stringValue} onChange={() => undefined} readOnly />
+          </Suspense>
         ) : attribute.type === 'color' && isHexColor(stringValue) ? (
           <div className="flex items-center gap-2 px-3 py-2 text-[13.5px]">
             <span

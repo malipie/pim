@@ -48,7 +48,15 @@ final readonly class CatalogSearchService
      * @param array<string, array{gte?: float, lte?: float}> $rangeFilters           numeric range filters (UI-02.24); mapped to Meili `key >= N AND key <= N`
      * @param ?string                                        $customFilterExpression VIEW-10 — pre-built Meilisearch filter expression from FilterDslResolver::toMeilisearchFilter() AND-merged with tenant + flat filters
      *
-     * @return array{hits: list<array<string, mixed>>, totalHits: int, facetDistribution: array<string, mixed>, processingTimeMs: int}
+     * AUD-070 (#1614) — the result carries a `degraded` flag. It is `false`
+     * for every normal answer (including a legitimately empty hit list) and
+     * `true` only when the Meilisearch backend itself failed (connection /
+     * timeout / protocol error). Callers MUST distinguish the two: a degraded
+     * search is a backend outage, NOT "zero results", and surfacing it as an
+     * empty list silently misleads the operator. The presentation layer maps
+     * `degraded:true` to a 503 problem+json instead of an empty `200`.
+     *
+     * @return array{hits: list<array<string, mixed>>, totalHits: int, facetDistribution: array<string, mixed>, processingTimeMs: int, degraded: bool}
      */
     public function search(
         ObjectKind $kind,
@@ -148,13 +156,21 @@ final readonly class CatalogSearchService
             $result = $client->index(IndexSettingsTemplate::indexName())->search($query, $options);
             $raw = $result->toArray();
         } catch (Throwable $e) {
+            // AUD-070 (#1614) — the Meili backend is unreachable / errored.
+            // Do NOT collapse this to an empty result: an empty list is
+            // indistinguishable from "no matches" and silently misleads the
+            // operator into thinking the catalog is empty. Flag the result as
+            // `degraded` so the controller can answer 503 problem+json. The
+            // products *list* path keeps its Postgres fallback; search has no
+            // equivalent fallback in MVP, so signalling the outage is the
+            // correct behaviour here.
             $this->logger->warning('Meilisearch query failed: {message}', [
                 'message' => $e->getMessage(),
                 'kind' => $kind->value,
                 'query' => $query,
             ]);
 
-            return $this->emptyResult();
+            return $this->degradedResult();
         }
 
         $rawHits = $raw['hits'] ?? [];
@@ -186,11 +202,15 @@ final readonly class CatalogSearchService
             'totalHits' => \is_numeric($rawTotal) ? (int) $rawTotal : 0,
             'facetDistribution' => $facets,
             'processingTimeMs' => \is_numeric($rawProcessing) ? (int) $rawProcessing : 0,
+            'degraded' => false,
         ];
     }
 
     /**
-     * @return array{hits: list<array<string, mixed>>, totalHits: int, facetDistribution: array<string, mixed>, processingTimeMs: int}
+     * A legitimately empty answer (e.g. no tenant context). `degraded` stays
+     * `false` — there is no backend outage, the query simply has no results.
+     *
+     * @return array{hits: list<array<string, mixed>>, totalHits: int, facetDistribution: array<string, mixed>, processingTimeMs: int, degraded: bool}
      */
     private function emptyResult(): array
     {
@@ -199,6 +219,25 @@ final readonly class CatalogSearchService
             'totalHits' => 0,
             'facetDistribution' => [],
             'processingTimeMs' => 0,
+            'degraded' => false,
+        ];
+    }
+
+    /**
+     * AUD-070 (#1614) — the search backend failed. Shaped identically to an
+     * empty result but flagged `degraded:true` so the controller answers 503
+     * instead of a misleading empty `200`.
+     *
+     * @return array{hits: list<array<string, mixed>>, totalHits: int, facetDistribution: array<string, mixed>, processingTimeMs: int, degraded: bool}
+     */
+    private function degradedResult(): array
+    {
+        return [
+            'hits' => [],
+            'totalHits' => 0,
+            'facetDistribution' => [],
+            'processingTimeMs' => 0,
+            'degraded' => true,
         ];
     }
 
