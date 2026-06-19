@@ -100,6 +100,13 @@ services:
       # non-zero when unset, forcing the operator to set the deploy host regex
       # (e.g. TRUSTED_HOSTS='^pim\.example\.com$') at deploy time.
       TRUSTED_HOSTS: ${TRUSTED_HOSTS:?TRUSTED_HOSTS is required in prod — anchored regex of the public host(s), e.g. `^pim\.example\.com$` (no default; the dev fallback only trusts pim.localhost).}
+      # AUD-064 (W3-5.2) — defence in depth. The base `.env` ships
+      # APP_DEFAULT_TENANT_CODE=demo so the single-tenant dev stack resolves a
+      # tenant for anonymous requests. In prod that fallback is an anti-pattern
+      # (anonymous → silent `demo` tenant). CurrentTenantProvider already gates
+      # the fallback to non-prod, but clearing the value here removes it at the
+      # source too, so even a misconfigured APP_ENV cannot resurrect it.
+      APP_DEFAULT_TENANT_CODE: ""
 
   # ─── Symfony Messenger worker pool ────────────────────────────────────────
   #

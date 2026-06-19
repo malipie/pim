@@ -87,6 +87,12 @@ services:
     App\Identity\Application\CurrentTenantProvider:
         arguments:
             $defaultTenantCode: '%app.default_tenant_code%'
+            # AUD-064 (W3-5.2): the unauthenticated env-default fallback is a
+            # dev/test convenience only. The provider gates it to non-prod so
+            # an anonymous request in prod denies (null) instead of silently
+            # inheriting the `demo` tenant. The prod overlay also clears
+            # APP_DEFAULT_TENANT_CODE as defence in depth.
+            $environment: '%kernel.environment%'
 
     App\Identity\Application\RefreshTokenService:
         arguments:

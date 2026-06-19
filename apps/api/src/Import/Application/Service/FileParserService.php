@@ -32,6 +32,15 @@ final class FileParserService
     private const array XLSX_EXTENSIONS = ['xlsx'];
     private const array CSV_EXTENSIONS = ['csv'];
 
+    /**
+     * AUD-066 (W3-5.2) — ZIP local-file-header magic bytes. An XLSX is a ZIP
+     * archive and always opens with this signature. The two alternative ZIP
+     * end-of-central-directory ("PK\x05\x06", empty archive) and spanned
+     * ("PK\x07\x08") markers also start with "PK", but a freshly written
+     * single-file XLSX always leads with the local-file-header below.
+     */
+    private const string ZIP_SIGNATURE = "PK\x03\x04";
+
     public function __construct(
         private readonly EncodingDetector $encodingDetector,
         private readonly DelimiterDetector $delimiterDetector,
@@ -46,6 +55,15 @@ final class FileParserService
 
         $extension = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
 
+        // AUD-066: extension-based dispatch is spoofable. Before picking a
+        // parser, verify the file's leading bytes are consistent with its
+        // extension — an XLSX must carry the ZIP signature, a CSV must not.
+        // The XlsxArchiveGuard (zip-bomb) and OpenSpout's own "not a zip"
+        // failure already backstop the XLSX path; this is a cheap, explicit
+        // first line of defence that also protects the CSV path (a binary
+        // stream renamed to .csv would otherwise be silently mis-parsed).
+        $this->assertSignatureMatchesExtension($absolutePath, $extension);
+
         if (\in_array($extension, self::XLSX_EXTENSIONS, true)) {
             return $this->parseXlsx($absolutePath);
         }
@@ -54,6 +72,42 @@ final class FileParserService
         }
 
         throw InvalidImportFileException::unsupportedExtension($extension);
+    }
+
+    /**
+     * AUD-066 — lightweight magic-byte check. Only known extensions are
+     * inspected; the `unsupportedExtension` guard above handles the rest.
+     *
+     *   - .xlsx → MUST start with the ZIP local-file-header "PK\x03\x04".
+     *   - .csv  → MUST NOT start with that ZIP signature (a renamed archive).
+     */
+    private function assertSignatureMatchesExtension(string $absolutePath, string $extension): void
+    {
+        if (!\in_array($extension, self::XLSX_EXTENSIONS, true)
+            && !\in_array($extension, self::CSV_EXTENSIONS, true)
+        ) {
+            return;
+        }
+
+        $handle = fopen($absolutePath, 'r');
+        if (false === $handle) {
+            throw InvalidImportFileException::unreadable($absolutePath);
+        }
+        try {
+            $signature = fread($handle, \strlen(self::ZIP_SIGNATURE));
+        } finally {
+            fclose($handle);
+        }
+        $signature = false === $signature ? '' : $signature;
+
+        $looksLikeZip = str_starts_with($signature, self::ZIP_SIGNATURE);
+
+        if (\in_array($extension, self::XLSX_EXTENSIONS, true) && !$looksLikeZip) {
+            throw InvalidImportFileException::signatureMismatch($extension);
+        }
+        if (\in_array($extension, self::CSV_EXTENSIONS, true) && $looksLikeZip) {
+            throw InvalidImportFileException::signatureMismatch($extension);
+        }
     }
 
     private function parseXlsx(string $absolutePath): ParsedFile
