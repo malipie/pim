@@ -52,6 +52,36 @@ Wszystkie 13 ticketów Wave 1 (5. CRITICAL AUD-002 + 22 findingi HIGH/MEDIUM) na
 
 Dodatkowo: **CVE-2026-54133** (jmespath.php <2.9.1) bump #1629 (composer-audit blocker). Otwarte follow-upy: **#1638** (24 E2E specy do triażu UI-drift/behavior/env). Reszta findingów → Wave 2/3 (`03-fix-plan.md`).
 
+## Status napraw — Wave 2 (zamknięte 2026-06-19)
+
+Wszystkie 14 ticketów Wave 2 (W2-1..W2-14, 24 findingi HIGH/MEDIUM/LOW przed publicznym SaaS) naprawione, zmergowane do `main`, zamknięte z dowodem **CLOSED MEANS CLOSED** (probe/test przed/po w komentarzu). Wzorzec: security → failing test odtwarzający podatność → fix → zielona regresja; config/perf → before/after.
+
+| Ticket | Findingi | PR | Issue | Dowód „po" |
+|---|---|---|---|---|
+| W2-1 | AUD-032 | #1641 | #1593 | `ValueWriteCore` ALLOWED_KEYS + `additionalProperties:false` dla 17 typów JSONB |
+| W2-2 | AUD-033 | #1645 | #1594 | HTMLPurifier allow-list + `URI.AllowedSchemes={http,https,mailto}` na wysiwyg |
+| W2-3 | AUD-031 | #1642 | #1595 | `StandardConformingStringsMiddleware` SET+SHOW fail-loud per connection |
+| W2-4 | AUD-039 | #1646 | #1596 | `pim:catalog:detect-attributes-drift` (+`--reconcile`, RLS-aware GUC) |
+| W2-5 | AUD-040 | #1647 | #1597 | rollback w `em->wrapInTransaction()`, Meili queued post-commit |
+| W2-6 | AUD-041 | #1648 | #1598 | 6 lossy migracji `down()` → `throwIrreversibleMigrationException()` |
+| W2-7 | AUD-042 | #1649 | #1599 | `Rfc7807ExceptionListener` — custom-API → problem+json, strip class/trace |
+| W2-8 | AUD-043, 054 | #1650 | #1600 | `CustomRouteOpenApiFactory`: OpenAPI 31→218 ścieżek; ADR-0020 (hybryda) |
+| W2-9 | AUD-045, 044 | #1651 | #1601 | `RequestBodySizeLimitListener` 413 (10MB); Dockerfile prod-stage |
+| W2-10 | AUD-034, 035 | #1652 | #1602 | `ImageDownloadDeadLetterListener` finalizuje stuck-session; `processed_messages` self-heal |
+| W2-11 | AUD-050, 051, 052 | #1653 | #1603 | `exports:cleanup` retencja + `MaintenanceSchedule` + `data_export` audit |
+| W2-12 | AUD-030, 036, 049 | #1655 | #1604 | rate-limit reset/invite 429; worker `pgrep` healthcheck; admin `ErrorBoundary` |
+| W2-13 | AUD-048, 073 | #1656 | #1605 | qs 6.15.2 + dompurify 3.4.11; +guzzle/undici repo-wide audit-gate unblock |
+| W2-14 | AUD-061, 063 | #1657 | #1606 | `quality-php.yml` paths→paths-ignore (gates zawsze poza docs); benchmark group meta-asercja |
+
+**Świadome odejścia / deferrale Wave 2:**
+- **AUD-052** (dh_auditor product-value diff dla `CatalogObject`/`ObjectValue`) — deferowany z W2-11 do dedykowanego ticketu **#1654** (wymaga write-throughput benchmarku bulk-import 50k SKU przed włączeniem — ryzyko rozsadzenia `audit_logs`). W2-11 dostarczyło dedykowany `data_export` event (eksport PII zostawia ślad). „Jawna decyzja scope" dopuszczona treścią ticketu.
+- **AUD-054** (API Platform vs custom) — rozstrzygnięty przez **ADR-0020** (świadoma hybryda: AP dla zasobów, custom `#[Route]` dla operacji proceduralnych/CQRS), nie retrofit 117 kontrolerów.
+- **AUD-062** (Playwright `retries:2` maskuje flaky) — deferowany do **AUD-022** (root cause = współdzielony storageState; naprawiany razem).
+
+**Środowiskowy unblock w trakcie Wave 2** (świeże CVE 2026-06-19, blokowały repo-wide audit-gate; naprawione w #1656): guzzle 7.10.4→7.12.1 + psr7 2.11.0→2.12.1 (CVE-2026-55767/55568/55766); undici dev-only ×2 (GHSA-vxpw-j846-p89q, GHSA-hm92-r4w5-c3mj via jsdom) → `ignoreGhsas` (ref #1644).
+
+Pełne transkrypty przed/po — w komentarzach zamknięcia issues #1593–#1606. Reszta findingów (Wave 3 — bieżąca higiena/LOW) — patrz `03-fix-plan.md`.
+
 **Werdykt: NO-GO dla SaaS** (patrz `00-executive-summary.md`). Uwaga precyzyjna po przebiegu empirycznym: **rdzeń izolacji danych domenowych (Doctrine TenantFilter przez REST) DZIAŁA** — matryca 2-tenant obaliła podejrzenie wycieku (patrz „Pozytywy empiryczne" niżej). NO-GO wynika z wektorów **POZA filtrem wierszowym**: AUD-001 Mercure (confirmed), AUD-004 Meili filter-key (confirmed), AUD-007 token_dev_only (confirmed account takeover), AUD-002 zerowy defence-in-depth (RLS martwy), AUD-003 model uprawnień platform-vs-tenant.
 
 **Rewizja po przebiegu empirycznym (2026-06-16, matryca 2-tenant demo↔acme):**
