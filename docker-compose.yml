@@ -141,6 +141,11 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+      # AUD-044 (W2-9) — the Dockerfile now has a trailing `prod` stage; without
+      # an explicit target a dev `docker compose build` would build it and ship
+      # APP_ENV=prod locally. Pin dev to the `base` stage. The prod overlay
+      # re-targets `prod`.
+      target: base
     <<: [*default_restart, *resource_limits_api]
     depends_on:
       database:
@@ -206,6 +211,8 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+      # AUD-044 (W2-9) — same dev `base` target as the api service.
+      target: base
     <<: [*default_restart, *resource_limits_worker]
     depends_on:
       database:

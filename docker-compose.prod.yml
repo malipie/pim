@@ -48,6 +48,14 @@ name: pim
 
 services:
   api:
+    # AUD-044 (W2-9) — build the prod-posture image stage (APP_ENV=prod,
+    # APP_DEBUG=0, composer --no-dev, prod cache warmed) baked into the
+    # artifact. The base compose pins `target: base` for dev; this re-targets
+    # `prod` so a prod `docker compose build` produces the hardened image.
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: prod
     depends_on:
       pgbouncer:
         condition: service_healthy
@@ -105,6 +113,8 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+      # AUD-044 (W2-9) — same prod-posture stage as the api service.
+      target: prod
     restart: unless-stopped
     depends_on:
       pgbouncer:
