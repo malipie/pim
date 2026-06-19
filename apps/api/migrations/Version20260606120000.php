@@ -43,6 +43,17 @@ final class Version20260606120000 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        $this->addSql('DROP TABLE channel_category_nodes');
+        // AUD-041: dropping `channel_category_nodes` is itself reversible, but
+        // `up()` ALSO ran `UPDATE channels SET category_tree_root_object_id =
+        // NULL` (re-pointing the soft FK from master objects to the new nav
+        // tree). The pre-migration root ids are gone — `down()` cannot restore
+        // them. Dropping the table alone would report a successful rollback
+        // while the nulled roots stay lost (a false round-trip), so the reverse
+        // is lossy: fail loud and require a restore from the pre-dump.
+        $this->throwIrreversibleMigrationException(
+            'up() nulled channels.category_tree_root_object_id for every channel and the prior values are not '
+            .'recoverable; dropping channel_category_nodes alone does not restore them. Take a pre-dump BEFORE '
+            .'this migration and restore from it instead — see docs/runbook/destructive-migrations.md.',
+        );
     }
 }

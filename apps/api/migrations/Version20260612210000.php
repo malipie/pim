@@ -22,6 +22,10 @@ use Doctrine\Migrations\AbstractMigration;
  * cache (which copies envelopes verbatim) are rewritten. Run
  * `pim:search:reindex` afterwards — Meilisearch documents flatten the same
  * envelopes (deploy note in PR #1505).
+ *
+ * DESTRUCTIVE / IRREVERSIBLE: the rewrite happens in place; `down()` cannot
+ * reconstruct the legacy shapes. A pre-dump MUST be taken before running this
+ * migration — see docs/runbook/destructive-migrations.md (AUD-041).
  */
 final class Version20260612210000 extends AbstractMigration
 {
@@ -164,8 +168,17 @@ final class Version20260612210000 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
+        // AUD-041: do NOT assume a backup exists. The original message named a
+        // specific dump file (backups/pre-imp2-1.2-*.dump) as if guaranteed —
+        // it is not (the pgBackRest cron was stale; see the runbook). The
+        // canonicalisation overwrites the legacy `{value}` envelope in place, so
+        // recovery REQUIRES a dump that must be taken BEFORE running this
+        // migration. Point the operator at the runbook rather than a phantom file.
         $this->throwIrreversibleMigrationException(
-            'ADR-0019 canonicalisation is one-way; restore from the pre-migration dump (backups/pre-imp2-1.2-*.dump) instead.',
+            'ADR-0019 canonicalisation overwrites legacy {value} envelopes in place and is one-way. '
+            .'Recovery requires a database dump taken BEFORE this migration ran (pg_dump or a pgBackRest '
+            .'snapshot) — there is no automatic backup to assume. See docs/runbook/destructive-migrations.md '
+            .'for the pre-dump requirement and the restore procedure.',
         );
     }
 }

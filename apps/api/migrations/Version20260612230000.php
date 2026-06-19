@@ -37,11 +37,19 @@ final class Version20260612230000 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE import_sessions DROP COLUMN skipped_count');
-        $this->addSql('ALTER TABLE import_sessions DROP COLUMN updated_count');
-        $this->addSql('ALTER TABLE import_sessions DROP COLUMN match_attribute_code');
-        $this->addSql('ALTER TABLE import_sessions DROP COLUMN mode');
-        $this->addSql('ALTER TABLE import_profiles DROP COLUMN match_attribute_code');
-        $this->addSql("ALTER TABLE import_profiles ALTER COLUMN mode SET DEFAULT 'UPDATE'");
+        // AUD-041: dropping the added columns is reversible, but `up()` ALSO
+        // remapped per-row `import_profiles.mode` (ADD → CREATE, and
+        // MERGE/INCREMENT/DELETE → UPSERT). The original per-row values are
+        // gone — restoring the DEFAULT would NOT bring them back, and every
+        // collapsed profile would silently stay UPSERT. A column-only rewind
+        // that reports success while the original modes stay lost is a false
+        // round-trip, so the reverse is lossy: fail loud and require a restore
+        // from the pre-dump instead.
+        $this->throwIrreversibleMigrationException(
+            'import_profiles.mode was collapsed per-row (MERGE/INCREMENT/DELETE → UPSERT, ADD → CREATE); '
+            .'the original values are not recoverable and restoring the column DEFAULT does not bring them back. '
+            .'Take a pre-dump BEFORE this migration and restore from it instead — '
+            .'see docs/runbook/destructive-migrations.md.',
+        );
     }
 }
