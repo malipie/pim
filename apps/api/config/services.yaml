@@ -33,6 +33,11 @@ parameters:
     # ADR-013.
     pim.catalog.enable_custom_object_types: '%env(bool:CATALOG_ENABLE_CUSTOM_OBJECT_TYPES)%'
 
+    # AUD-050 (W2-11) — free-tier export retention window in days (GDPR / RODO).
+    # `pim:exports:cleanup` erases free-tier exports older than this; paid tiers
+    # keep exports forever (PRD §11.7). Default 7 lives in .env; tune per deploy.
+    pim.export.free_retention_days: '%env(int:EXPORT_FREE_RETENTION_DAYS)%'
+
     # Asset upload limits (#438 — DAM MVP). Per-MIME caps decoupled
     # because PDFs are realistically larger than product imagery yet
     # still bounded; raster images stop at 25 MB so a power-user dump
@@ -338,6 +343,18 @@ services:
     App\Import\Application\Service\HealthCheck\FolderPathGuard:
         arguments:
             $basePath: '%env(IMPORT_SOURCE_BASE_PATH)%'
+
+    # AUD-050 (W2-11) — retention window injected from the bound parameter; the
+    # `$exportsStorage` operator is the flysystem named alias (exports.storage).
+    App\Export\Presentation\Command\CleanupExportsCommand:
+        arguments:
+            $freeRetentionDays: '%pim.export.free_retention_days%'
+
+    # AUD-052 (W2-11) — `data_export` audit port. The Export controller writes
+    # the audit entry through this Identity_Contracts interface (deptrac:
+    # Export → Identity_Contracts); autowiring needs the explicit alias.
+    App\Identity\Contracts\Audit\DataExportAuditor:
+        alias: App\Identity\Infrastructure\Audit\DataExportAuditor
 
     App\Import\Application\Service\HealthCheck\FolderHealthCheckDriver:
         tags: ['app.import.health_check_driver']

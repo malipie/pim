@@ -6,6 +6,7 @@ namespace App\Export\Domain\Repository;
 
 use App\Export\Domain\Entity\ExportSession;
 use App\Shared\Domain\Tenant;
+use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
 interface ExportSessionRepositoryInterface
@@ -34,4 +35,15 @@ interface ExportSessionRepositoryInterface
      * responsibility (EXP-08 download path).
      */
     public function remove(ExportSession $session): void;
+
+    /**
+     * AUD-050 (W2-11) — retention sweep: sessions for $tenant whose
+     * `started_at` is older than $olderThan, oldest first, capped at $limit so
+     * a tenant with a huge export backlog is drained across several command
+     * runs (FrankenPHP worker-mode memory: bounded batch + the caller clears
+     * the EntityManager between tenants).
+     *
+     * @return list<ExportSession>
+     */
+    public function findOlderThan(Tenant $tenant, DateTimeImmutable $olderThan, int $limit = 500): array;
 }

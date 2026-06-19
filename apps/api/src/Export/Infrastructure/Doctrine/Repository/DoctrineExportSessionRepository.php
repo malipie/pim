@@ -8,6 +8,7 @@ use App\Export\Domain\Entity\ExportSession;
 use App\Export\Domain\Enum\ExportStatus;
 use App\Export\Domain\Repository\ExportSessionRepositoryInterface;
 use App\Shared\Domain\Tenant;
+use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -53,6 +54,25 @@ class DoctrineExportSessionRepository extends ServiceEntityRepository implements
             ->setMaxResults($limit)
             ->setParameter('tenant', $tenant)
             ->setParameter('userId', $userId);
+
+        /** @var list<ExportSession> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
+    }
+
+    /**
+     * @return list<ExportSession>
+     */
+    public function findOlderThan(Tenant $tenant, DateTimeImmutable $olderThan, int $limit = 500): array
+    {
+        $qb = $this->createQueryBuilder('s')
+            ->where('s.tenant = :tenant')
+            ->andWhere('s.startedAt < :cutoff')
+            ->orderBy('s.startedAt', 'ASC')
+            ->setMaxResults($limit)
+            ->setParameter('tenant', $tenant)
+            ->setParameter('cutoff', $olderThan);
 
         /** @var list<ExportSession> $result */
         $result = $qb->getQuery()->getResult();

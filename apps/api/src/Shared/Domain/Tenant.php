@@ -146,6 +146,18 @@ class Tenant
         $this->plan = $plan;
     }
 
+    /**
+     * AUD-050 (W2-11) — "free tier" for retention purposes is the lowest plan
+     * (`starter`). Free-tier exports carry full data / PII and are erased past
+     * the retention window (GDPR / RODO); paid tiers (`pro` / `enterprise`)
+     * keep exports forever (PRD §11.7). New paid plans are retained-forever by
+     * default — only `starter` opts into the cleanup sweep.
+     */
+    public function isFreeTier(): bool
+    {
+        return self::PLAN_STARTER === $this->plan;
+    }
+
     public function getStatus(): string
     {
         return $this->status;
