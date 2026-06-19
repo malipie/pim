@@ -10,6 +10,11 @@
     "brand_subtitle_fallback": "Workspace",
     "delete_error": "Failed to delete"
   },
+  "error_boundary": {
+    "title": "Something went wrong",
+    "description": "The page hit an unexpected error and could not be displayed. Reloading usually fixes it. If the problem persists, contact your administrator.",
+    "reload": "Reload"
+  },
   "attribute_type": {
     "text": "Text",
     "textarea": "Text area",

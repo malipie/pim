@@ -31,6 +31,9 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
+use Symfony\Component\RateLimiter\Storage\InMemoryStorage;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Uid\Uuid;
@@ -137,7 +140,12 @@ final class DevTokenExposureTest extends TestCase
             logger: new NullLogger(),
         );
 
-        return new PasswordResetController($service, $environment);
+        return new PasswordResetController(
+            $service,
+            $environment,
+            $this->unlimitedLimiter(),
+            $this->unlimitedLimiter(),
+        );
     }
 
     private function invitationCreateController(string $environment): InvitationController
@@ -152,7 +160,7 @@ final class DevTokenExposureTest extends TestCase
         $tenantContext = new TenantContext();
         $tenantContext->set($tenant);
 
-        $controller = new InvitationController($service, $tenantContext, $environment);
+        $controller = new InvitationController($service, $tenantContext, $environment, $this->unlimitedLimiter());
         // AbstractController::getUser() reads from the security token storage
         // via the controller container; wire a minimal authenticated principal.
         $controller->setContainer($this->containerWithUser($this->user($tenant)));
@@ -208,6 +216,21 @@ final class DevTokenExposureTest extends TestCase
             passwordHasher: $this->createStub(UserPasswordHasherInterface::class),
             mailer: $this->createStub(MailerInterface::class),
             logger: new NullLogger(),
+        );
+    }
+
+    /**
+     * AUD-030 (W2-12) — the reset/invitation controllers now consume a rate
+     * limiter before their side-effects. This leak-regression test exercises
+     * the happy path, so it needs limiters that always accept. A real factory
+     * over a fresh InMemoryStorage with a generous budget does exactly that
+     * without mocking the (final) Reservation/RateLimit value objects.
+     */
+    private function unlimitedLimiter(): RateLimiterFactoryInterface
+    {
+        return new RateLimiterFactory(
+            ['id' => 'test_unlimited', 'policy' => 'fixed_window', 'limit' => 1000, 'interval' => '1 hour'],
+            new InMemoryStorage(),
         );
     }
 

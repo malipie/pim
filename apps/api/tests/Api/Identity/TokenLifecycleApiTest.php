@@ -71,6 +71,12 @@ final class TokenLifecycleApiTest extends ApiTestCase
         parent::setUp();
 
         self::getContainer()->get('limiter.auth_login')->create('127.0.0.1')->reset();
+        // W2-12 (AUD-030) added per-IP limiters on password-reset/request and
+        // invitation accept. This class drives both flows many times from the
+        // BrowserKit default IP, so the shared buckets would otherwise spill
+        // over into 429s. Reset them per test, mirroring auth_login above.
+        self::getContainer()->get('limiter.invitation_accept')->create('127.0.0.1')->reset();
+        self::getContainer()->get('limiter.password_reset_ip')->create('127.0.0.1')->reset();
 
         $em = $this->em();
         self::getContainer()->get(RbacSeeder::class)->seed();
@@ -309,6 +315,13 @@ final class TokenLifecycleApiTest extends ApiTestCase
      */
     private function requestPasswordResetToken(string $email): string
     {
+        // The per-email reset limiter (5/15min) is keyed by address, so the
+        // per-test setUp (which only clears the per-IP bucket) cannot reach it;
+        // clear this email's bucket so every /request returns the always-200
+        // anti-enum response rather than spilling into a 429 across the many
+        // password-reset flow tests in this class.
+        self::getContainer()->get('limiter.password_reset_email')->create($email)->reset();
+
         $client = static::createClient();
         $client->request('POST', '/api/auth/password-reset/request', [
             'json' => ['email' => $email],

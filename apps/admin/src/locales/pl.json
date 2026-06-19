@@ -10,6 +10,11 @@
     "brand_subtitle_fallback": "Workspace",
     "delete_error": "Nie udało się usunąć"
   },
+  "error_boundary": {
+    "title": "Coś poszło nie tak",
+    "description": "Strona napotkała nieoczekiwany błąd i nie mogła zostać wyświetlona. Przeładowanie zwykle rozwiązuje problem. Jeśli błąd się powtarza, skontaktuj się z administratorem.",
+    "reload": "Przeładuj"
+  },
   "attribute_type": {
     "text": "Tekst",
     "textarea": "Pole tekstowe",
