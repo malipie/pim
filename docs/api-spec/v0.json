@@ -1946,7 +1946,7 @@
                     {
                         "name": "completeness[eq|gt|gte|lt|lte]",
                         "in": "query",
-                        "description": "Filter by per-row completeness percentage (`completeness.pct` JSONB key).",
+                        "description": "Filter by per-row completeness percentage (indexed `completeness_pct` column).",
                         "required": false,
                         "deprecated": false,
                         "schema": {
@@ -2299,7 +2299,7 @@
                     {
                         "name": "completeness[eq|gt|gte|lt|lte]",
                         "in": "query",
-                        "description": "Filter by per-row completeness percentage (`completeness.pct` JSONB key).",
+                        "description": "Filter by per-row completeness percentage (indexed `completeness_pct` column).",
                         "required": false,
                         "deprecated": false,
                         "schema": {
@@ -2989,7 +2989,7 @@
                     {
                         "name": "completeness[eq|gt|gte|lt|lte]",
                         "in": "query",
-                        "description": "Filter by per-row completeness percentage (`completeness.pct` JSONB key).",
+                        "description": "Filter by per-row completeness percentage (indexed `completeness_pct` column).",
                         "required": false,
                         "deprecated": false,
                         "schema": {
@@ -3679,7 +3679,7 @@
                     {
                         "name": "completeness[eq|gt|gte|lt|lte]",
                         "in": "query",
-                        "description": "Filter by per-row completeness percentage (`completeness.pct` JSONB key).",
+                        "description": "Filter by per-row completeness percentage (indexed `completeness_pct` column).",
                         "required": false,
                         "deprecated": false,
                         "schema": {

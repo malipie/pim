@@ -11,9 +11,19 @@ use Doctrine\ORM\QueryBuilder;
 
 /**
  * `?completeness[gt]=80` / `?completeness[gte]=50&completeness[lt]=100`
- * — numeric range query against the per-row `completeness.pct` JSONB
- * key (admin-side completeness percentage stamped by
- * `CompletenessRecalculator` from #38).
+ * — numeric range query against the per-row completeness percentage
+ * stamped by `AttributesIndexedRebuilder` (#38).
+ *
+ * AUD-037 (#1611): filters on the denormalised `completenessPct` smallint
+ * column (`completeness_pct`), NOT the `completeness` JSONB blob. The
+ * column is the flat mirror of `completeness['global']` maintained by
+ * `CatalogObject::recordCompleteness()` and is covered by
+ * `objects_tenant_kind_compl_idx`, so the predicate is sargable. The
+ * previous `JSONB_GET_NUMERIC(o.completeness, 'pct')` form could not use
+ * that index (function over a JSONB column) and also read the wrong key —
+ * the payload writes `global`, never `pct`, so it silently matched
+ * nothing. The same column is what `FilterDslResolver` (Smart Filters /
+ * Meilisearch) already targets, so both paths now agree.
  *
  * Channel-aware completeness (`?completeness[gt]=80&channel=ecommerce_pl`)
  * is parked until ChannelObjectTypeMapping reads land in epic 0.6 — the
@@ -70,12 +80,12 @@ final class CompletenessFilter implements FilterInterface
             $parameter = $queryNameGenerator->generateParameterName('completeness_'.$op);
             $queryBuilder
                 ->andWhere(\sprintf(
-                    "JSONB_GET_NUMERIC(%s.completeness, 'pct') %s :%s",
+                    '%s.completenessPct %s :%s',
                     $alias,
                     $sqlOperator,
                     $parameter,
                 ))
-                ->setParameter($parameter, (float) $threshold);
+                ->setParameter($parameter, (int) $threshold);
         }
     }
 
@@ -91,7 +101,7 @@ final class CompletenessFilter implements FilterInterface
                 'property' => 'completeness',
                 'type' => 'number',
                 'required' => false,
-                'description' => 'Filter by per-row completeness percentage (`completeness.pct` JSONB key).',
+                'description' => 'Filter by per-row completeness percentage (indexed `completeness_pct` column).',
                 'strategy' => 'numeric_range',
                 'is_collection' => true,
             ],
