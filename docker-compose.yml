@@ -212,7 +212,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: php bin/console messenger:consume import --time-limit=3600 --memory-limit=256M
+    # AUD-051 (W2-11) — also consume `scheduler_maintenance` so the
+    # MaintenanceSchedule (export/audit/tenant/staged-file retention) actually
+    # fires its daily cron; without a consumer the schedule is inert.
+    command: php bin/console messenger:consume import scheduler_maintenance --time-limit=3600 --memory-limit=256M
     environment:
       APP_ENV: ${APP_ENV:-dev}
       APP_SECRET: ${APP_SECRET:-ChangeMeBeforeDeploy}

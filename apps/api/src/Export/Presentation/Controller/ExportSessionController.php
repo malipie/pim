@@ -15,6 +15,7 @@ use App\Export\Domain\Repository\ExportLogRepositoryInterface;
 use App\Export\Domain\Repository\ExportProfileRepositoryInterface;
 use App\Export\Domain\Repository\ExportSessionRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Identity\Contracts\Audit\DataExportAuditor;
 use App\Shared\Application\TenantContext;
 use App\Shared\Application\UserIdentityAware;
 use DateTimeInterface;
@@ -65,6 +66,7 @@ final class ExportSessionController
         private readonly MessageBusInterface $bus,
         private readonly FilesystemOperator $exportsStorage,
         private readonly ExportProgressPublisher $progress,
+        private readonly DataExportAuditor $dataExportAuditor,
     ) {
     }
 
@@ -153,6 +155,21 @@ final class ExportSessionController
         } catch (FilesystemException $error) {
             throw new NotFoundHttpException(sprintf('Export file for %s is missing from storage.', $id), $error);
         }
+
+        // AUD-052 — dedicated `data_export` audit event: full product data + PII
+        // is leaving the system. Recorded once the file stream is open (the
+        // download will proceed) so the compliance trail captures who exported
+        // what, when. Written before the streamed body so it persists even if
+        // the client aborts mid-stream.
+        $this->dataExportAuditor->recordExport($session->getId()->toRfc4122(), [
+            'entity_type' => $session->getEntityType()->value,
+            'object_type_id' => $session->getObjectTypeId()?->toRfc4122(),
+            'format' => $session->getFormat()->value,
+            'target_scope' => $session->getTargetScope()->value,
+            'row_count' => $session->getSuccessCount(),
+            'locales' => $session->getLocales(),
+            'channels' => $session->getChannels(),
+        ]);
 
         $filename = sprintf('pim-export-%s.%s', $session->getStartedAt()->format('Ymd-His'), $session->getFormat()->value);
 
