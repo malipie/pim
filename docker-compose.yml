@@ -243,6 +243,20 @@ services:
       - ./apps/api:/app
       - api_var:/app/var
       - api_vendor:/app/vendor
+    # AUD-036 (W2-12) — the worker is a CLI Messenger consumer, NOT an HTTP
+    # service, so the api image's inherited `curl http://127.0.0.1/api` probe
+    # could never succeed (nothing listens on :80 here) and the container sat
+    # permanently `unhealthy` (FailingStreak ever-growing) — masking a real
+    # crash and leaving any `depends_on: service_healthy` on the worker unmet.
+    # Probe the consumer process instead: `pgrep` ships in the base image
+    # (/usr/bin/pgrep); a non-zero exit (no matching process) marks unhealthy
+    # so a genuinely dead consumer surfaces honestly.
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'messenger:consume' > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   # ─── Frontend admin (Vite dev server) ─────────────────────────────────────
   admin:

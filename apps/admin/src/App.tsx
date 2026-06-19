@@ -3,6 +3,7 @@ import { type ComponentType, type LazyExoticComponent, lazy, Suspense } from 're
 import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router';
 
 import { AuthedRoute } from '@/components/AuthedRoute';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/components/ui/toast';
 import { FirstLoginChangePasswordPage } from '@/features/auth/FirstLoginChangePasswordPage';
 // HARD-08 — only the login + dashboard pages and the always-mounted
@@ -374,217 +375,226 @@ function App() {
             disableTelemetry: true,
           }}
         >
-          <Suspense fallback={<RouteFallback />}>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
-              {/* Manual user creation (#867) — force-password-change gate.
+          {/* AUD-049 (W2-12) — top-level boundary so an uncaught render
+              error in any route renders a recoverable fallback instead of
+              blanking #root (white-screen incident 2026-05-13). Sits inside
+              Refine + ToastProvider so the fallback keeps i18n context. */}
+          <ErrorBoundary>
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+                {/* Manual user creation (#867) — force-password-change gate.
                   Sits inside <AuthedRoute> (JWT required to call
                   /api/me/change-password) but outside <AppLayout> so the
                   page renders as a standalone centred card, no sidebar.
                   AuthedRoute's redirect skips this path so the loop is
                   broken (see `FIRST_LOGIN_PATH` constant there). */}
-              <Route
-                path="/first-login-password"
-                element={
-                  <AuthedRoute>
-                    <FirstLoginChangePasswordPage />
-                  </AuthedRoute>
-                }
-              />
-              <Route
-                element={
-                  <AuthedRoute>
-                    <AppLayout />
-                  </AuthedRoute>
-                }
-              >
-                <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                {/* UP-10 (#1026) — `/products` default is the
+                <Route
+                  path="/first-login-password"
+                  element={
+                    <AuthedRoute>
+                      <FirstLoginChangePasswordPage />
+                    </AuthedRoute>
+                  }
+                />
+                <Route
+                  element={
+                    <AuthedRoute>
+                      <AppLayout />
+                    </AuthedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  {/* UP-10 (#1026) — `/products` default is the
                     UniversalListPage parametrized for the built-in
                     product ObjectType (ADR-009 pixel-perfect parity
                     with /objects/:slug). NUI-05 (#1424) retired the
                     legacy ProductListPage after the dual-maintenance
                     window — `/products/legacy` only redirects now. */}
-                <Route path="/products" element={<ProductsUniversalListPage />} />
-                <Route path="/products/legacy" element={<Navigate to="/products" replace />} />
-                <Route path="/products/new" element={<ProductCreatePage />} />
-                {/* ULV-08 (#990) — universal /objects/{slug} route renders
+                  <Route path="/products" element={<ProductsUniversalListPage />} />
+                  <Route path="/products/legacy" element={<Navigate to="/products" replace />} />
+                  <Route path="/products/new" element={<ProductCreatePage />} />
+                  {/* ULV-08 (#990) — universal /objects/{slug} route renders
                     the ObjectListView for any ObjectType by code. The
                     legacy /products / /categories / /assets routes keep
                     pointing at their own pages until ULV-11 cuts over. */}
-                <Route path="/objects/:slug" element={<UniversalObjectListPage />} />
-                {/* UP-08 (#1029) — universal /objects/:slug/new create route.
+                  <Route path="/objects/:slug" element={<UniversalObjectListPage />} />
+                  {/* UP-08 (#1029) — universal /objects/:slug/new create route.
                     Built-in product/category/asset slugs redirect to their
                     legacy create routes inside ObjectCreatePage; custom kinds
                     render the unified create form (#1415). */}
-                <Route path="/objects/:slug/new" element={<UniversalObjectCreatePage />} />
-                {/* UP-07 (#1023) — universal /objects/:slug/:id detail route.
+                  <Route path="/objects/:slug/new" element={<UniversalObjectCreatePage />} />
+                  {/* UP-07 (#1023) — universal /objects/:slug/:id detail route.
                     Built-in product/category/asset slugs redirect to their
                     legacy detail routes inside ObjectShowPage; custom kinds
                     render the unified ProductDetailPage (#1348/#1351). */}
-                <Route path="/objects/:slug/:id" element={<UniversalObjectShowPage />} />
-                {/* VIEW-07 (#420): edit page is now inline-edit on /products/:id.
+                  <Route path="/objects/:slug/:id" element={<UniversalObjectShowPage />} />
+                  {/* VIEW-07 (#420): edit page is now inline-edit on /products/:id.
                     Keep the legacy path as a back-compat redirect for bookmarks
                     and Refine resource lookups that still ask for `edit`. */}
-                <Route path="/products/:id/edit" element={<RedirectToShow />} />
-                <Route path="/products/:id" element={<ProductShowPage />} />
-                {/* UI-08.9 (#264) — Modeling shell wraps the 4 sub-tabs under
+                  <Route path="/products/:id/edit" element={<RedirectToShow />} />
+                  <Route path="/products/:id" element={<ProductShowPage />} />
+                  {/* UI-08.9 (#264) — Modeling shell wraps the 4 sub-tabs under
                   a shared `/modeling/*` route tree. Old top-level paths
                   redirect below for back-compat with bookmarks + the
                   Refine resource registry pointing at the new URLs. */}
-                <Route path="/modeling" element={<ModelingLayout />}>
-                  <Route index element={<Navigate to="/modeling/object-types" replace />} />
-                  <Route path="object-types" element={<ObjectTypesListPage />} />
-                  <Route path="object-types/new" element={<ObjectTypeWizardPage />} />
-                  <Route path="object-types/:id" element={<ObjectTypeShowPage />} />
-                  <Route path="attributes" element={<AttributesListPage />} />
-                  <Route path="attributes/new" element={<AttributeCreatePage />} />
-                  <Route path="attributes/:id" element={<AttributeShowPage />} />
+                  <Route path="/modeling" element={<ModelingLayout />}>
+                    <Route index element={<Navigate to="/modeling/object-types" replace />} />
+                    <Route path="object-types" element={<ObjectTypesListPage />} />
+                    <Route path="object-types/new" element={<ObjectTypeWizardPage />} />
+                    <Route path="object-types/:id" element={<ObjectTypeShowPage />} />
+                    <Route path="attributes" element={<AttributesListPage />} />
+                    <Route path="attributes/new" element={<AttributeCreatePage />} />
+                    <Route path="attributes/:id" element={<AttributeShowPage />} />
+                    <Route
+                      path="attributes/:id/migrate-type"
+                      element={<MigrateAttributeTypePage />}
+                    />
+                    <Route path="attributes/:id/values" element={<AttributeValuesPage />} />
+                    <Route path="attribute-groups" element={<AttributeGroupsListPage />} />
+                    <Route path="attribute-groups/new" element={<AttributeGroupCreatePage />} />
+                    <Route path="attribute-groups/:id" element={<AttributeGroupShowPage />} />
+                    <Route path="categories" element={<CategoriesTreePage />} />
+                    <Route path="categories/new" element={<CategoryCreatePage />} />
+                    <Route path="categories/:id" element={<CategoryShowPage />} />
+                  </Route>
                   <Route
-                    path="attributes/:id/migrate-type"
-                    element={<MigrateAttributeTypePage />}
+                    path="/attributes"
+                    element={<Navigate to="/modeling/attributes" replace />}
                   />
-                  <Route path="attributes/:id/values" element={<AttributeValuesPage />} />
-                  <Route path="attribute-groups" element={<AttributeGroupsListPage />} />
-                  <Route path="attribute-groups/new" element={<AttributeGroupCreatePage />} />
-                  <Route path="attribute-groups/:id" element={<AttributeGroupShowPage />} />
-                  <Route path="categories" element={<CategoriesTreePage />} />
-                  <Route path="categories/new" element={<CategoryCreatePage />} />
-                  <Route path="categories/:id" element={<CategoryShowPage />} />
-                </Route>
-                <Route
-                  path="/attributes"
-                  element={<Navigate to="/modeling/attributes" replace />}
-                />
-                <Route
-                  path="/attributes/:id"
-                  element={<Navigate to="/modeling/attributes" replace />}
-                />
-                <Route
-                  path="/attribute-groups"
-                  element={<Navigate to="/modeling/attribute-groups" replace />}
-                />
-                <Route
-                  path="/object-types"
-                  element={<Navigate to="/modeling/object-types" replace />}
-                />
-                <Route
-                  path="/object-types/:id"
-                  element={<Navigate to="/modeling/object-types" replace />}
-                />
-                <Route
-                  path="/categories"
-                  element={<Navigate to="/modeling/categories" replace />}
-                />
-                <Route
-                  path="/categories/:id"
-                  element={<Navigate to="/modeling/categories" replace />}
-                />
-                <Route path="/assets" element={<AssetsListPage />} />
-                <Route path="/assets/:id" element={<AssetShowPage />} />
-                <Route path="/catalogs-pdf" element={<CatalogsPdfPage />} />
-                <Route path="/settings" element={<SettingsLayout />}>
-                  <Route index element={<SettingsIndex />} />
-                  <Route path="menu" element={<MenuSettingsPage />} />
-                  <Route path="locales" element={<LocalesSettingsPage />} />
-                  <Route path="channels" element={<ChannelsListPage />} />
-                  <Route path="channels/new" element={<ChannelCreatePage />} />
-                  <Route path="channels/:id" element={<ChannelShowPage />} />
-                  <Route path="channels/:id/edit" element={<ChannelEditPage />} />
-                  <Route path="users" element={<UsersSettingsPage />} />
-                  <Route path="users/:id" element={<UserDetailRoute />} />
-                  <Route path="roles" element={<RolesSettingsPage />} />
-                  <Route path="roles/new" element={<RolesEditorRoute />} />
-                  <Route path="roles/:id/edit" element={<RolesEditorRoute />} />
-                  <Route path="api-tokens" element={<ApiTokensSettingsPage />} />
-                  <Route path="security" element={<SecuritySettingsPage />} />
-                  <Route path="billing" element={<BillingSettingsPage />} />
-                  <Route path="tenant" element={<TenantSettingsPage />} />
-                  <Route path="ai" element={<AiSettingsPage />} />
-                  <Route path="sso" element={<SsoSettingsPage />} />
-                </Route>
-                {/* RBAC-P5-019 (#709) — Super Admin operator panel.
+                  <Route
+                    path="/attributes/:id"
+                    element={<Navigate to="/modeling/attributes" replace />}
+                  />
+                  <Route
+                    path="/attribute-groups"
+                    element={<Navigate to="/modeling/attribute-groups" replace />}
+                  />
+                  <Route
+                    path="/object-types"
+                    element={<Navigate to="/modeling/object-types" replace />}
+                  />
+                  <Route
+                    path="/object-types/:id"
+                    element={<Navigate to="/modeling/object-types" replace />}
+                  />
+                  <Route
+                    path="/categories"
+                    element={<Navigate to="/modeling/categories" replace />}
+                  />
+                  <Route
+                    path="/categories/:id"
+                    element={<Navigate to="/modeling/categories" replace />}
+                  />
+                  <Route path="/assets" element={<AssetsListPage />} />
+                  <Route path="/assets/:id" element={<AssetShowPage />} />
+                  <Route path="/catalogs-pdf" element={<CatalogsPdfPage />} />
+                  <Route path="/settings" element={<SettingsLayout />}>
+                    <Route index element={<SettingsIndex />} />
+                    <Route path="menu" element={<MenuSettingsPage />} />
+                    <Route path="locales" element={<LocalesSettingsPage />} />
+                    <Route path="channels" element={<ChannelsListPage />} />
+                    <Route path="channels/new" element={<ChannelCreatePage />} />
+                    <Route path="channels/:id" element={<ChannelShowPage />} />
+                    <Route path="channels/:id/edit" element={<ChannelEditPage />} />
+                    <Route path="users" element={<UsersSettingsPage />} />
+                    <Route path="users/:id" element={<UserDetailRoute />} />
+                    <Route path="roles" element={<RolesSettingsPage />} />
+                    <Route path="roles/new" element={<RolesEditorRoute />} />
+                    <Route path="roles/:id/edit" element={<RolesEditorRoute />} />
+                    <Route path="api-tokens" element={<ApiTokensSettingsPage />} />
+                    <Route path="security" element={<SecuritySettingsPage />} />
+                    <Route path="billing" element={<BillingSettingsPage />} />
+                    <Route path="tenant" element={<TenantSettingsPage />} />
+                    <Route path="ai" element={<AiSettingsPage />} />
+                    <Route path="sso" element={<SsoSettingsPage />} />
+                  </Route>
+                  {/* RBAC-P5-019 (#709) — Super Admin operator panel.
                     Lives under /admin/* inside the existing app until
                     the admin.cortex.pl subdomain split (operator infra
                     task). Backend already enforces super_admin role +
                     cross-tenant bypass via SuperAdminContext. */}
-                <Route path="/admin/tenants" element={<AdminTenantsListPage />} />
-                <Route path="/admin/tenants/:id" element={<AdminTenantShowPage />} />
-                <Route path="/admin/break-glass" element={<AdminBreakGlassPage />} />
-                {/* Integracje — every hub (exports EXR-08, imports NUI-09,
+                  <Route path="/admin/tenants" element={<AdminTenantsListPage />} />
+                  <Route path="/admin/tenants/:id" element={<AdminTenantShowPage />} />
+                  <Route path="/admin/break-glass" element={<AdminBreakGlassPage />} />
+                  {/* Integracje — every hub (exports EXR-08, imports NUI-09,
                     api-configurator) renders directly under the v2 shell;
                     sidebar second-level + topbar breadcrumb replaced the old
                     in-page Integrations header/tabs. Old /publications/* and
                     /api-profiles/* paths redirect below. */}
-                <Route path="/integrations/exports" element={<ExportsLayout />}>
-                  <Route index element={<Navigate to="sessions" replace />} />
-                  <Route path="sessions" element={<ExportSessionsView />} />
-                  <Route path="profiles" element={<ExportProfilesView />} />
-                </Route>
-                <Route
-                  path="/integrations/exports/sessions/:id"
-                  element={<ExportSessionShowPage />}
-                />
-                <Route path="/integrations/exports/new" element={<ExportWizardPage />} />
-                {/* NUI-09 (#1428) — Imports join Exports directly under the
+                  <Route path="/integrations/exports" element={<ExportsLayout />}>
+                    <Route index element={<Navigate to="sessions" replace />} />
+                    <Route path="sessions" element={<ExportSessionsView />} />
+                    <Route path="profiles" element={<ExportProfilesView />} />
+                  </Route>
+                  <Route
+                    path="/integrations/exports/sessions/:id"
+                    element={<ExportSessionShowPage />}
+                  />
+                  <Route path="/integrations/exports/new" element={<ExportWizardPage />} />
+                  {/* NUI-09 (#1428) — Imports join Exports directly under the
                     v2 shell; the legacy IntegrationsLayout wrapper is retired.
                     Wizard + show pages live at the same depth so deep-links
                     from emails/reports survive (VIEW-IMP-00 #493). */}
-                <Route path="/integrations/imports" element={<ImportsLayout />}>
-                  <Route index element={<Navigate to="sessions" replace />} />
-                  <Route path="sessions" element={<ImportSessionsView />} />
-                  <Route path="profiles" element={<ImportProfilesView />} />
-                  <Route path="sources" element={<ImportSourcesView />} />
-                  <Route path="schedule" element={<ImportScheduleView />} />
-                </Route>
-                <Route path="/integrations/imports/new" element={<ImportWizardPage />} />
-                <Route path="/integrations/imports/:id" element={<ImportShowPage />} />
-                <Route path="/integrations/api-configurator" element={<ApiProfilesListPage />} />
-                <Route
-                  path="/integrations/api-configurator/create"
-                  element={<ApiProfileCreatePage />}
-                />
-                <Route
-                  path="/integrations/api-configurator/:id/edit"
-                  element={<ApiProfileEditPage />}
-                />
-                <Route path="/integrations/api-configurator/:id" element={<ApiProfileShowPage />} />
-                <Route
-                  path="/integrations"
-                  element={<Navigate to="/integrations/imports/sessions" replace />}
-                />
-                {/* Back-compat redirects for bookmarks + Refine resource lookups
+                  <Route path="/integrations/imports" element={<ImportsLayout />}>
+                    <Route index element={<Navigate to="sessions" replace />} />
+                    <Route path="sessions" element={<ImportSessionsView />} />
+                    <Route path="profiles" element={<ImportProfilesView />} />
+                    <Route path="sources" element={<ImportSourcesView />} />
+                    <Route path="schedule" element={<ImportScheduleView />} />
+                  </Route>
+                  <Route path="/integrations/imports/new" element={<ImportWizardPage />} />
+                  <Route path="/integrations/imports/:id" element={<ImportShowPage />} />
+                  <Route path="/integrations/api-configurator" element={<ApiProfilesListPage />} />
+                  <Route
+                    path="/integrations/api-configurator/create"
+                    element={<ApiProfileCreatePage />}
+                  />
+                  <Route
+                    path="/integrations/api-configurator/:id/edit"
+                    element={<ApiProfileEditPage />}
+                  />
+                  <Route
+                    path="/integrations/api-configurator/:id"
+                    element={<ApiProfileShowPage />}
+                  />
+                  <Route
+                    path="/integrations"
+                    element={<Navigate to="/integrations/imports/sessions" replace />}
+                  />
+                  {/* Back-compat redirects for bookmarks + Refine resource lookups
                     before the consolidation landed. Drop in next epik gdy
                     telemetria pokaże 0 trafień. */}
-                <Route
-                  path="/publications"
-                  element={<Navigate to="/integrations/imports/sessions" replace />}
-                />
-                <Route
-                  path="/publications/imports"
-                  element={<Navigate to="/integrations/imports/sessions" replace />}
-                />
-                <Route
-                  path="/publications/imports/new"
-                  element={<Navigate to="/integrations/imports/new" replace />}
-                />
-                <Route path="/publications/imports/:id" element={<RedirectImportShow />} />
-                <Route
-                  path="/api-profiles"
-                  element={<Navigate to="/integrations/api-configurator" replace />}
-                />
-                <Route
-                  path="/api-profiles/create"
-                  element={<Navigate to="/integrations/api-configurator/create" replace />}
-                />
-                <Route path="/api-profiles/:id" element={<RedirectApiProfileShow />} />
-                <Route path="/api-profiles/:id/edit" element={<RedirectApiProfileEdit />} />
-              </Route>
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </Suspense>
+                  <Route
+                    path="/publications"
+                    element={<Navigate to="/integrations/imports/sessions" replace />}
+                  />
+                  <Route
+                    path="/publications/imports"
+                    element={<Navigate to="/integrations/imports/sessions" replace />}
+                  />
+                  <Route
+                    path="/publications/imports/new"
+                    element={<Navigate to="/integrations/imports/new" replace />}
+                  />
+                  <Route path="/publications/imports/:id" element={<RedirectImportShow />} />
+                  <Route
+                    path="/api-profiles"
+                    element={<Navigate to="/integrations/api-configurator" replace />}
+                  />
+                  <Route
+                    path="/api-profiles/create"
+                    element={<Navigate to="/integrations/api-configurator/create" replace />}
+                  />
+                  <Route path="/api-profiles/:id" element={<RedirectApiProfileShow />} />
+                  <Route path="/api-profiles/:id/edit" element={<RedirectApiProfileEdit />} />
+                </Route>
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
         </Refine>
       </ToastProvider>
     </BrowserRouter>

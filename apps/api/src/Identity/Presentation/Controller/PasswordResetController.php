@@ -13,6 +13,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -32,6 +34,8 @@ final class PasswordResetController extends AbstractController
     public function __construct(
         private readonly PasswordResetService $service,
         private readonly string $devTokenEnvironment,
+        private readonly RateLimiterFactoryInterface $passwordResetEmailLimiter,
+        private readonly RateLimiterFactoryInterface $passwordResetIpLimiter,
     ) {
     }
 
@@ -44,6 +48,33 @@ final class PasswordResetController extends AbstractController
         $email = $payload['email'] ?? '';
         if ('' === $email) {
             throw new BadRequestHttpException('email is required.');
+        }
+
+        // AUD-030 (W2-12) — anti-spam / anti-enumeration. Consume BOTH the
+        // per-email and per-IP budgets (each ticks independently) before any
+        // side-effect runs. A 429 here is a deliberate rate-limit signal, not
+        // an enumeration leak — real and unknown emails share the same
+        // per-email bucket, so the status never reveals account existence.
+        // Email lower-cased so casing variants map to one bucket.
+        $emailConsumed = $this->passwordResetEmailLimiter
+            ->create(mb_strtolower($email))
+            ->consume();
+        $ipConsumed = $this->passwordResetIpLimiter
+            ->create($request->getClientIp() ?? 'unknown')
+            ->consume();
+        if (!$emailConsumed->isAccepted() || !$ipConsumed->isAccepted()) {
+            $retryAfter = $emailConsumed->isAccepted()
+                ? $ipConsumed->getRetryAfter()
+                : $emailConsumed->getRetryAfter();
+            $secondsUntilReset = max(1, $retryAfter->getTimestamp() - time());
+
+            throw new TooManyRequestsHttpException(
+                $secondsUntilReset,
+                'Too many password-reset requests. Try again later.',
+                null,
+                0,
+                ['Retry-After' => (string) $secondsUntilReset],
+            );
         }
 
         $plaintext = $this->service->request($email);

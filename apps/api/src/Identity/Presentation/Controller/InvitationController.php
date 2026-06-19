@@ -14,6 +14,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -38,6 +40,7 @@ final class InvitationController extends AbstractController
         private readonly InvitationService $invitations,
         private readonly TenantContext $tenantContext,
         private readonly string $devTokenEnvironment,
+        private readonly RateLimiterFactoryInterface $invitationAcceptLimiter,
     ) {
     }
 
@@ -93,6 +96,27 @@ final class InvitationController extends AbstractController
     #[\App\Identity\Contracts\Attribute\NoPermissionRequired(reason: 'Magic-link accept is open by design — token IS the auth factor; account does not exist yet.')]
     public function accept(string $token, Request $request): JsonResponse
     {
+        // AUD-030 (W2-12) — per-IP anti-bruteforce on a PUBLIC_ACCESS endpoint
+        // where the 64-hex token IS the auth factor. Consume before validating
+        // the token / hashing the password so the limiter clamps a token-space
+        // brute or a hashing-DoS loop. Keyed by IP only — no pre-auth
+        // identifier exists (the account is created by this very call) and an
+        // honest invitee accepts exactly once.
+        $consumed = $this->invitationAcceptLimiter
+            ->create($request->getClientIp() ?? 'unknown')
+            ->consume();
+        if (!$consumed->isAccepted()) {
+            $secondsUntilReset = max(1, $consumed->getRetryAfter()->getTimestamp() - time());
+
+            throw new TooManyRequestsHttpException(
+                $secondsUntilReset,
+                'Too many invitation-accept attempts. Try again later.',
+                null,
+                0,
+                ['Retry-After' => (string) $secondsUntilReset],
+            );
+        }
+
         /** @var array{password?: string} $payload */
         $payload = (array) json_decode($request->getContent(), true);
         $password = $payload['password'] ?? '';

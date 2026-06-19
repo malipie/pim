@@ -101,6 +101,39 @@ framework:
             limit: 1000
             interval: '1 hour'
 
+        # AUD-030 (W2-12) — password-reset request anti-spam / anti-enumeration.
+        # The endpoint is PUBLIC_ACCESS and always-200 (account-enumeration
+        # prevention), which made it a free spam + timing-oracle target with no
+        # `consume()`. Two layered limiters keyed differently:
+        #   - per-email (5/15min): primary control — a single address cannot be
+        #     used to hammer the mailer side-effect or probe for existence.
+        #   - per-IP (10/15min): catches one host spraying many addresses.
+        # Crossing EITHER → 429 problem+json. The 429 is a deliberate rate-limit
+        # signal, NOT an enumeration leak: real + unknown emails share the same
+        # per-email bucket, so the status never reveals whether the account
+        # exists. Fixed window mirrors auth_login (the sibling anti-bruteforce
+        # control); same `cache.app` filesystem-dev / Redis-prod backing.
+        password_reset_email:
+            policy: 'fixed_window'
+            limit: 5
+            interval: '15 minutes'
+        password_reset_ip:
+            policy: 'fixed_window'
+            limit: 10
+            interval: '15 minutes'
+
+        # AUD-030 (W2-12) — magic-link invitation accept anti-bruteforce.
+        # The accept endpoint is PUBLIC_ACCESS (the 64-hex token IS the auth
+        # factor) and was unbounded — an attacker could brute the token space
+        # or hammer the password-hashing side-effect. Per-IP 10/15min clamps
+        # the attempt rate before the controller validates the token. Keyed by
+        # IP only: there is no pre-auth identifier on accept (the account does
+        # not exist yet), and an honest invitee accepts exactly once.
+        invitation_accept:
+            policy: 'fixed_window'
+            limit: 10
+            interval: '15 minutes'
+
 when@test:
     framework:
         test: true
