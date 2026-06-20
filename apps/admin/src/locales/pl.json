@@ -2301,11 +2301,25 @@
       },
       "empty": "Brak importów. Utwórz pierwszy import."
     },
+    "entity": {
+      "product": "Produkty",
+      "custom_module": "Moduły własne",
+      "module_schema": "Schemat modułów",
+      "attributes_groups": "Atrybuty i grupy",
+      "categories": "Kategorie"
+    },
     "wizard": {
-      "eyebrow": "Kreator importu — self-service, 6 kroków",
+      "eyebrow": "Kreator importu — self-service, 7 kroków",
       "title": "Nowy import",
-      "subtitle": "Każdy plik przechodzi przez 6 kroków: źródło, wykrywanie formatu, mapowanie kolumn, reguły, dry-run i commit do bazy. Po commicie sesja trafia do zakładki „Sesje\", gdzie możesz ją wycofać w oknie 24h.",
+      "subtitle": "Każdy plik przechodzi przez 7 kroków: wybór danych, źródło, wykrywanie formatu, mapowanie kolumn, reguły, dry-run i commit do bazy. Po commicie sesja trafia do zakładki „Sesje\", gdzie możesz ją wycofać w oknie 24h.",
+      "step1_title": "Krok 1: Wybierz dane do importu",
+      "step1_subtitle": "Wybierz główny typ encji, do którego trafią wiersze pliku.",
+      "entity_group_aria": "Wybór typu danych do importu",
+      "custom_object_type_label": "Wybierz moduł własny",
+      "custom_object_type_placeholder": "— wybierz —",
+      "custom_object_type_required": "Wybierz moduł własny, aby kontynuować",
       "descriptions": {
+        "entity": "co importujesz",
         "upload": "CSV / XLSX + opcjonalny ZIP ze zdjęciami",
         "mapping": "kolumny → atrybuty + kategorie",
         "validation": "dry-run, błędy walidacji",
@@ -2315,6 +2329,7 @@
         "rules": "tryb · walidacja"
       },
       "steps": {
+        "entity": "Dane",
         "upload": "Upload",
         "mapping": "Mapowanie",
         "validation": "Podgląd",
@@ -2322,6 +2337,13 @@
         "source": "Źródło",
         "detect": "Wykrywanie",
         "rules": "Reguły"
+      },
+      "entity_desc": {
+        "product": "Importuj główny katalog produktów, warianty, ceny i powiązane multimedia.",
+        "custom_module": "Importuj dane do zdefiniowanych przez użytkownika modułów niestandardowych (np. Producenci, Kolekcje).",
+        "module_schema": "Wgranie struktury definicji i relacji modułów — wkrótce.",
+        "attributes_groups": "Import słownika atrybutów, ich wartości i podziału na grupy — wkrótce.",
+        "categories": "Importuj strukturę drzewa kategorii oraz tłumaczenia nazw."
       },
       "next": "Dalej",
       "back": "Wstecz",
@@ -2455,14 +2477,7 @@
       "profiles_title": "Sugerowane profile",
       "profiles_subtitle": "Zapisane profile mapowań",
       "new_profile": "Nowy profil (skonfiguruj w kreatorze)",
-      "settings_title": "Ustawienia pliku",
-      "object_type": {
-        "title": "Co importujesz?",
-        "subtitle": "Wybierz typ obiektu, do którego trafią wiersze pliku",
-        "placeholder": "Wybierz typ…",
-        "search": "Szukaj typu…",
-        "hierarchy_hint": "Import utworzy obiekty i wartości atrybutów. Hierarchia kategorii i pliki zasobów są poza zakresem importu."
-      }
+      "settings_title": "Ustawienia pliku"
     },
     "detect": {
       "title": "Wyniki auto-detekcji",

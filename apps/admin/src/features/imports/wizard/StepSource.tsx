@@ -4,7 +4,6 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { MockBadge } from '@/components/ui/mock-badge';
 import { toast } from '@/components/ui/toast';
 import { FileDropzone } from '@/features/imports/components/FileDropzone';
@@ -16,13 +15,6 @@ import { cn } from '@/lib/utils';
 
 const MAX_CSV_BYTES = 50 * 1024 * 1024;
 const MAX_ZIP_BYTES = 500 * 1024 * 1024;
-
-interface ObjectTypeOption {
-  id: string;
-  code: string;
-  kind: string;
-  label?: Record<string, string>;
-}
 
 interface ImportProfileOption {
   id: string;
@@ -50,17 +42,10 @@ interface StepSourceProps {
  * over from the 4-step wizard unchanged — payload contract is identical.
  */
 export function StepSource({ wizard }: StepSourceProps): React.ReactElement {
-  const { t, i18n } = useTranslation();
-  const lang = i18n.language === 'pl' ? 'pl' : 'en';
+  const { t } = useTranslation();
   const { state, setField, next } = wizard;
   const [testingId, setTestingId] = React.useState<string | null>(null);
 
-  const { result: typesResult } = useList<ObjectTypeOption>({
-    resource: 'object_types',
-    // #1675 — operators may run dozens of custom ObjectTypes; 50 would clip the
-    // picker. 100 covers current usage without a full pagination sweep.
-    pagination: { pageSize: 100 },
-  });
   const { result: profilesResult } = useList<ImportProfileOption>({
     resource: 'import-profiles',
     pagination: { pageSize: 100 },
@@ -70,38 +55,11 @@ export function StepSource({ wizard }: StepSourceProps): React.ReactElement {
     pagination: { pageSize: 50 },
   });
 
-  const objectTypes = typesResult.data ?? [];
   const profiles = profilesResult.data ?? [];
   const sources = sourcesResult.data ?? [];
 
-  const productType = objectTypes.find((option) => option.kind === 'product') ?? objectTypes[0];
-  if (state.targetObjectTypeId === null && productType !== undefined) {
-    setField('targetObjectTypeId', productType.id);
-  }
-
-  // #1675 — let operators choose WHAT they import (product / category / asset /
-  // custom). The import pipeline is generic per ObjectType; product + custom are
-  // fully covered, while category hierarchy + asset binaries stay out of scope.
-  const objectTypeOptions: ComboboxOption[] = objectTypes.map((option) => ({
-    value: option.id,
-    label: option.label?.[lang] ?? option.label?.en ?? option.code,
-    description: option.code,
-  }));
-  const selectedType = objectTypes.find((option) => option.id === state.targetObjectTypeId);
-  const showHierarchyHint = selectedType?.kind === 'category' || selectedType?.kind === 'asset';
-
-  const handleObjectTypeChange = (nextId: string | null): void => {
-    if (nextId === null || nextId === state.targetObjectTypeId) {
-      return;
-    }
-    setField('targetObjectTypeId', nextId);
-    // Column mapping + auto-suggestions target the previous type's attributes,
-    // so they are stale once the target type changes — reset both. The parsed
-    // file snapshot depends on the FILE, not the type, so it is preserved.
-    setField('mapping', {});
-    setField('suggestions', []);
-  };
-
+  // #1678 — the data kind (and its targetObjectTypeId) is chosen on the new
+  // first wizard step (StepEntityType tiles); this step only handles the file.
   const canProceed = state.file !== null && state.targetObjectTypeId !== null;
 
   const testConnection = async (source: ImportSourceRow): Promise<void> => {
@@ -130,42 +88,6 @@ export function StepSource({ wizard }: StepSourceProps): React.ReactElement {
 
   return (
     <div className="space-y-4">
-      {/* #1675 — choose WHAT to import (was hardcoded to product). First, most
-          prominent control on the step. */}
-      <div className="rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">
-        <div className="text-[13.5px] font-semibold">
-          {t('imports.source.object_type.title', { defaultValue: 'Co importujesz?' })}
-        </div>
-        <div className="mt-0.5 text-[12px] text-zinc-500">
-          {t('imports.source.object_type.subtitle', {
-            defaultValue: 'Wybierz typ obiektu, do którego trafią wiersze pliku',
-          })}
-        </div>
-        <div className="mt-3 max-w-md">
-          <Combobox
-            options={objectTypeOptions}
-            value={state.targetObjectTypeId}
-            onChange={handleObjectTypeChange}
-            allowClear={false}
-            placeholder={t('imports.source.object_type.placeholder', {
-              defaultValue: 'Wybierz typ…',
-            })}
-            searchPlaceholder={t('imports.source.object_type.search', {
-              defaultValue: 'Szukaj typu…',
-            })}
-            className="rounded-xl text-[13.5px]"
-          />
-        </div>
-        {showHierarchyHint ? (
-          <p className="mt-2 text-[12px] text-amber-600">
-            {t('imports.source.object_type.hierarchy_hint', {
-              defaultValue:
-                'Import utworzy obiekty i wartości atrybutów. Hierarchia kategorii i pliki zasobów są poza zakresem importu.',
-            })}
-          </p>
-        ) : null}
-      </div>
-
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
         {/* Left — upload + saved sources */}
         <div className="space-y-5 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">

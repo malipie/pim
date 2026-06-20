@@ -1,6 +1,9 @@
 import * as React from 'react';
 
-export type WizardStepIndex = 0 | 1 | 2 | 3 | 4 | 5;
+export type WizardStepIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** #1678 — data kind chosen on the first wizard step (tiles). */
+export type ImportEntityType = 'product' | 'custom_module' | 'categories';
 
 /** Authoritative parse-preview snapshot captured on the Detect step (NUI-10). */
 export interface ParsedFilePreview {
@@ -33,6 +36,8 @@ export interface ValidationFinding {
 
 export interface WizardState {
   step: WizardStepIndex;
+  /** #1678 — data kind picked on step 1 (tiles); null until a tile is chosen. */
+  entityType: ImportEntityType | null;
   file: File | null;
   zipFile: File | null;
   locale: string | null;
@@ -67,6 +72,7 @@ export interface WizardState {
 
 const INITIAL_STATE: WizardState = {
   step: 0,
+  entityType: null,
   file: null,
   zipFile: null,
   locale: null,
@@ -130,7 +136,7 @@ export function useImportWizard(): WizardController {
   const next = React.useCallback(() => {
     setState((prev) => ({
       ...prev,
-      step: Math.min(prev.step + 1, 5) as WizardStepIndex,
+      step: Math.min(prev.step + 1, 6) as WizardStepIndex,
     }));
   }, []);
 
@@ -154,6 +160,7 @@ export function useImportWizard(): WizardController {
     }
     const persisted = {
       step: state.step,
+      entityType: state.entityType,
       locale: state.locale,
       encoding: state.encoding,
       delimiter: state.delimiter,

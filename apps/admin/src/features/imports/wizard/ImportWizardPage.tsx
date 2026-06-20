@@ -5,6 +5,7 @@ import { useImportWizard } from '@/features/imports/hooks/useImportWizard';
 
 import { StepConfirmPlaceholder } from './StepConfirm';
 import { StepDetect } from './StepDetect';
+import { StepEntityType } from './StepEntityType';
 import { StepMapping } from './StepMapping';
 import { StepRules } from './StepRules';
 import { StepSource } from './StepSource';
@@ -32,6 +33,13 @@ export function ImportWizardPage(): React.ReactElement {
   }, []);
 
   const steps: ReadonlyArray<WizardStep> = [
+    {
+      id: 'entity',
+      label: t('imports.wizard.steps.entity', { defaultValue: 'Dane' }),
+      description: t('imports.wizard.descriptions.entity', {
+        defaultValue: 'co importujesz',
+      }),
+    },
     {
       id: 'source',
       label: t('imports.wizard.steps.source', { defaultValue: 'Źródło' }),
@@ -88,7 +96,7 @@ export function ImportWizardPage(): React.ReactElement {
         <p className="text-[13.5px] text-zinc-500 leading-relaxed max-w-3xl">
           {t('imports.wizard.subtitle', {
             defaultValue:
-              'Każdy plik przechodzi przez 6 kroków: źródło, wykrywanie formatu, mapowanie kolumn, reguły, dry-run i commit do bazy. Po commicie sesja trafia do zakładki „Sesje" gdzie możesz ją wycofać w oknie 24h.',
+              'Każdy plik przechodzi przez 7 kroków: wybór danych, źródło, wykrywanie formatu, mapowanie kolumn, reguły, dry-run i commit do bazy. Po commicie sesja trafia do zakładki „Sesje" gdzie możesz ją wycofać w oknie 24h.',
           })}
         </p>
       </header>
@@ -100,12 +108,13 @@ export function ImportWizardPage(): React.ReactElement {
         id={`wizard-step-${steps[wizard.state.step]?.id ?? 'unknown'}`}
         aria-labelledby={`wizard-step-${steps[wizard.state.step]?.id ?? 'unknown'}-label`}
       >
-        {wizard.state.step === 0 && <StepSource wizard={wizard} />}
-        {wizard.state.step === 1 && <StepDetect wizard={wizard} />}
-        {wizard.state.step === 2 && <StepMapping wizard={wizard} />}
-        {wizard.state.step === 3 && <StepRules wizard={wizard} />}
-        {wizard.state.step === 4 && <StepValidationPlaceholder wizard={wizard} />}
-        {wizard.state.step === 5 && <StepConfirmPlaceholder wizard={wizard} />}
+        {wizard.state.step === 0 && <StepEntityType wizard={wizard} />}
+        {wizard.state.step === 1 && <StepSource wizard={wizard} />}
+        {wizard.state.step === 2 && <StepDetect wizard={wizard} />}
+        {wizard.state.step === 3 && <StepMapping wizard={wizard} />}
+        {wizard.state.step === 4 && <StepRules wizard={wizard} />}
+        {wizard.state.step === 5 && <StepValidationPlaceholder wizard={wizard} />}
+        {wizard.state.step === 6 && <StepConfirmPlaceholder wizard={wizard} />}
       </section>
     </div>
   );
