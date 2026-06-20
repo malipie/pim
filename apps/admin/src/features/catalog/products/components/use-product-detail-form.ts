@@ -7,6 +7,7 @@ import { toast } from '@/components/ui/toast';
 import { httpErrorDetail, jsonFetch } from '@/lib/http';
 import {
   collectRelationCodes,
+  isAttributeRequired,
   isEmptyAttributeValue,
   splitDirtyAttributes,
   stripAttributes,
@@ -105,18 +106,21 @@ export function useProductDetailForm({
 
   const resetDirty = (): void => setDirtyFields({});
 
-  // #1350 — full-state required check at save time: every `is_required`
-  // attribute across the effective groups must carry a non-empty CURRENT
-  // value (dirty edits included). Legacy dirty records are therefore
-  // enforced on their next save, exactly as the ticket specifies.
+  // #1350 / #1673 — full-state required check at save time. EDIT enforces every
+  // required attribute (global `is_required` OR group-level
+  // `is_required_in_group`), so a dirty imported entry cannot be saved while a
+  // group-required field is empty — the reported bug. CREATE keeps the lighter
+  // global-only gate: a brand-new draft must not be blocked on every
+  // completeness field at once, so group-required fields are enforced on the
+  // follow-up edit (where the asterisk + this guard apply). Booleans are never
+  // "missing" — an unchecked box IS the value `false`.
   const collectRequiredViolations = (): string[] => {
     const violations: string[] = [];
     for (const group of groups) {
       for (const attr of group.attributes) {
-        if (attr.is_required !== true) continue;
-        // #1350 (reopen #2) — requiredness is meaningless for booleans:
-        // an unchecked box IS the value `false`, not a missing value.
         if (attr.type === 'boolean') continue;
+        const required = mode === 'edit' ? isAttributeRequired(attr) : attr.is_required === true;
+        if (!required) continue;
         const current = fieldValue(attr.code);
         if (isEmptyAttributeValue(current)) violations.push(attr.code);
       }

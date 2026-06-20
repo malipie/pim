@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 import { AssetField } from './asset-field';
+import { isAttributeRequired } from './product-detail-helpers';
 import { RelationInlineEditor } from './relation-inline-editor';
 import type { AttributeMeta, AttributeOptionMeta, ProductLocale } from './types';
 
@@ -205,10 +206,10 @@ export function AttrRow({
         {isLocked && !attribute.is_system ? (
           <Lock className="size-3 text-zinc-300" aria-hidden />
         ) : null}
-        {/* #1350 reopen #2 — no asterisk for booleans: requiredness is
-            meaningless when "unchecked" is itself a value. */}
-        {(attribute.is_required === true && attribute.type !== 'boolean') ||
-        attribute.is_required_in_group ? (
+        {/* #1350 reopen #2 / #1673 — asterisk + save-guard share one rule
+            (isAttributeRequired): global OR group-level required, never for
+            booleans (unchecked = the value `false`). */}
+        {isAttributeRequired(attribute) ? (
           <span
             className="text-rose-500"
             title={t('app.required', { defaultValue: 'wymagane' })}

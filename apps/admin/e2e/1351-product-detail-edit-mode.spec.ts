@@ -50,6 +50,46 @@ test('product detail opens in edit mode with save + save-and-return actions', as
   expect(created.status()).toBe(201);
   const product = (await created.json()) as { id: string };
 
+  // #1673 — group-required attributes (e.g. demo product's description/price)
+  // now block edit-mode saves too, not just globally-required ones. Fill every
+  // required field (global OR group-level) up front so the save-and-return
+  // assertion exercises the navigation, not the new completeness gate.
+  const groupsResp = await page.request.get(
+    `/api/objects/${product.id}/effective-attribute-groups`,
+    { headers: { ...bearer, accept: 'application/json' } },
+  );
+  const groupsBody = (await groupsResp.json()) as {
+    groups: Array<{
+      attributes: Array<{
+        code: string;
+        type: string;
+        is_required?: boolean;
+        is_required_in_group?: boolean;
+      }>;
+    }>;
+  };
+  const gapFill: Record<string, unknown> = {};
+  for (const group of groupsBody.groups) {
+    for (const attr of group.attributes) {
+      const required = attr.is_required === true || attr.is_required_in_group === true;
+      if (!required || attr.type === 'boolean') continue;
+      if (attr.code === 'sku' || attr.code === 'name') continue; // filled at create
+      gapFill[attr.code] =
+        attr.type === 'price'
+          ? { amount: 1, currency: 'PLN' }
+          : attr.type === 'number' || attr.type === 'metric'
+            ? 1
+            : '1';
+    }
+  }
+  if (Object.keys(gapFill).length > 0) {
+    const fillResp = await page.request.patch(`/api/objects/${product.id}`, {
+      headers: { ...bearer, 'content-type': 'application/merge-patch+json' },
+      data: { attributes: gapFill },
+    });
+    expect(fillResp.status(), await fillResp.text()).toBe(200);
+  }
+
   await page.goto(`/products/${product.id}`);
 
   // Edit mode by default — "Zapisz zmiany" visible, no "Edytuj".
