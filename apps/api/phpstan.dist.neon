@@ -93,13 +93,23 @@ parameters:
         # by the listener tests and at INSERT time by the database. New
         # TenantScoped entities should be added here as they land.
         - identifier: doctrine.associationType
-          # `reportUnmatched: false` — local Docker PHPStan sometimes
-          # short-circuits before evaluating the @var doc-block on a
-          # TenantScoped property (cache state); CI on a fresh checkout
-          # consistently does. The ignore is needed for the union write
-          # window (new entity → TenantAssignmentListener) on every
-          # entity below; tolerating an unmatched ignore lets local
-          # iteration stay green even when the cache is hot.
+          # The ignore covers the union write window (new entity →
+          # TenantAssignmentListener::prePersist sets the NOT NULL `tenant`
+          # association) on every entity below: the PHP property is
+          # `?Tenant` for the brief gap between `new` and prePersist, while
+          # the join-column is `nullable=false`.
+          #
+          # AUD-080: `reportUnmatched: false` is RETAINED here — deliberately,
+          # not "just in case". Whether phpstan-doctrine emits this error for
+          # the `src/Import/Domain/*` entities (which extend AggregateRoot)
+          # is non-deterministic across run modes: a single-threaded
+          # `--debug` run reports all 9, but a parallel run (CI default)
+          # intermittently resolves their metadata before the @var doc-block
+          # and emits nothing for them, leaving the ignore unmatched. With
+          # the global `reportUnmatchedIgnoredErrors: true`, an unmatched
+          # entry would flip CI red on those flaky runs. Tolerating the
+          # unmatched ignore for this one group is the lesser evil; the
+          # non-AggregateRoot entities below always match.
           reportUnmatched: false
           paths:
               - src/Catalog/Domain/Entity/Attribute.php
@@ -121,6 +131,9 @@ parameters:
               - src/ApiConfigurator/Domain/Entity/ApiKey.php
               - src/Identity/Domain/Entity/TenantAgentConfig.php
               - src/Catalog/Domain/Entity/MenuConfiguration.php
+              # Import/Domain entities extend AggregateRoot — their
+              # doctrine.associationType emission is the flaky one the
+              # `reportUnmatched: false` above guards against (see comment).
               - src/Import/Domain/Entity/ImportSession.php
               - src/Import/Domain/Entity/StagedFile.php
               - src/Import/Domain/Entity/ImportUndoLog.php
@@ -141,11 +154,11 @@ parameters:
         # itself still mutates them through `enableLocale()` /
         # `disableLocale()` / `changePrimaryLocale()` to keep
         # `WorkspaceController` and `TenantConfigController` functional —
-        # treat in-class access as the supported migration path.
-        # `reportUnmatched: false` tolerates the local Docker PHPStan cache
-        # that sometimes fails to see the @deprecated annotation; CI is
-        # canonical (always emits the errors against a fresh checkout).
+        # treat in-class access as the supported migration path. With the
+        # warmed dev container in place before analysis, PHPStan
+        # consistently sees the @deprecated annotation and emits the
+        # errors, so the pattern always matches — no `reportUnmatched: false`
+        # suppression needed (AUD-080).
         - identifier: property.deprecated
           paths:
               - src/Shared/Domain/Tenant.php
-          reportUnmatched: false

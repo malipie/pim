@@ -91,11 +91,11 @@ final class AuthLoginRateLimitTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(429);
-        self::assertSame(
+        // The 429 from the limiter MUST advertise when the budget refills.
+        self::assertNotNull(
             $response->getHeaders(throw: false)['retry-after'][0] ?? null,
-            $response->getHeaders(throw: false)['retry-after'][0] ?? null,
+            'The throttled response must carry a Retry-After header.',
         );
-        self::assertNotNull($response->getHeaders(throw: false)['retry-after'][0] ?? null);
     }
 
     #[Test]

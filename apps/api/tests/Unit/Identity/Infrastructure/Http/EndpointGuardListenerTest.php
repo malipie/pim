@@ -53,12 +53,13 @@ final class EndpointGuardListenerTest extends TestCase
         // ~130 baselined unannotated controllers do not break tests.
         $listener = $this->listener(environment: 'dev', strictMode: false);
 
+        // Contract: the listener logs and returns; the absence of a thrown
+        // exception IS the assertion.
+        $this->expectNotToPerformAssertions();
         $listener->onControllerArguments($this->buildEvent(
             controller: [new EndpointGuardFixture(), 'unguardedAction'],
             path: '/api/some/route',
         ));
-
-        self::assertTrue(true); // listener logged + returned without throw
     }
 
     #[Test]
@@ -66,12 +67,13 @@ final class EndpointGuardListenerTest extends TestCase
     {
         $listener = $this->listener(environment: 'dev');
 
+        // Non-API path: the guard short-circuits before any permission
+        // check; returning without a throw IS the assertion.
+        $this->expectNotToPerformAssertions();
         $listener->onControllerArguments($this->buildEvent(
             controller: [new EndpointGuardFixture(), 'unguardedAction'],
             path: '/_profiler',
         ));
-
-        self::assertTrue(true); // guard listener returned without throw
     }
 
     #[Test]
@@ -79,12 +81,13 @@ final class EndpointGuardListenerTest extends TestCase
     {
         $listener = $this->listener(environment: 'prod');
 
+        // In prod a missing attribute logs-and-allows (never the dev
+        // LogicException); no throw IS the assertion.
+        $this->expectNotToPerformAssertions();
         $listener->onControllerArguments($this->buildEvent(
             controller: [new EndpointGuardFixture(), 'unguardedAction'],
             path: '/api/some/route',
         ));
-
-        self::assertTrue(true); // guard listener returned without throw
     }
 
     #[Test]
@@ -95,12 +98,13 @@ final class EndpointGuardListenerTest extends TestCase
             environment: 'dev',
         );
 
+        // #[NoPermissionRequired] short-circuits the guard even with no
+        // authenticated user; no throw IS the assertion.
+        $this->expectNotToPerformAssertions();
         $listener->onControllerArguments($this->buildEvent(
             controller: [new EndpointGuardFixture(), 'publicAction'],
             path: '/api/auth/login',
         ));
-
-        self::assertTrue(true); // guard listener returned without throw
     }
 
     #[Test]
@@ -150,12 +154,16 @@ final class EndpointGuardListenerTest extends TestCase
             environment: 'dev',
         );
 
+        // The user holds products.edit (the code guardedAction requires), so
+        // the guard must let the request through. The resolver mock is set up
+        // with ->with($user): PHPUnit verifies that interaction at teardown,
+        // which both proves the guard consulted the right principal AND counts
+        // as the assertion. A PermissionDeniedException here would fail the
+        // test before that verification ever runs.
         $listener->onControllerArguments($this->buildEvent(
             controller: [new EndpointGuardFixture(), 'guardedAction'],
             path: '/api/products/123',
         ));
-
-        self::assertTrue(true); // guard listener returned without throw
     }
 
     #[Test]
@@ -163,12 +171,13 @@ final class EndpointGuardListenerTest extends TestCase
     {
         $listener = $this->listener(environment: 'dev');
 
+        // A closure controller has no class to introspect for attributes;
+        // the guard skips it without throwing — that IS the assertion.
+        $this->expectNotToPerformAssertions();
         $listener->onControllerArguments($this->buildEvent(
             controller: static fn (): string => 'noop',
             path: '/api/products/123',
         ));
-
-        self::assertTrue(true); // guard listener returned without throw
     }
 
     #[Test]
@@ -205,9 +214,10 @@ final class EndpointGuardListenerTest extends TestCase
             HttpKernelInterface::SUB_REQUEST,
         );
 
+        // Sub-requests are skipped (the main request was already guarded);
+        // returning without a throw IS the assertion.
+        $this->expectNotToPerformAssertions();
         $listener->onControllerArguments($event);
-
-        self::assertTrue(true); // guard listener returned without throw
     }
 
     private function listener(
