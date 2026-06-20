@@ -7,6 +7,10 @@
 - **Epik:** IMP2 — Import/Export v2 engine ([#1499](https://github.com/malipie/PIM/issues/1499), ADR-0019). Kontrakty silnika + warstwy Deptrac Import/Export.
 - **Backlog ticketów (source of truth speców):** `Project Plan/UI/feature-imports-v2-tickets.md` (Issues #1460–#1499).
 
+## Najnowsze bug-fixy (2026-06-20, post-Wave 3)
+- **#1673** `fix(catalog)` — walidacja zapisu egzekwuje atrybuty wymagane-w-grupie (PR #1674, merged `d0260c34`). Gwiazdka „wymagane" pokazywała `is_required||is_required_in_group`, save-guard sprawdzał tylko `is_required` → pole z gwiazdką zapisywało się puste. Wspólny helper `isAttributeRequired`; blokada **w edit** (create global-only, by nie blokować szkicu). Live proof: spec `1673` + unit 6/6 + produkt `019ee1a6` `description.is_required_in_group=true`.
+- **#1678** `fix(import)` — kafelkowy krok „Wybierz dane do importu" w kreatorze (PR #1679, merged `37b8f902`). Analogiczny do eksportu, reużywa generyczne `SelectableCard`/`SelectableCardGroup`: Produkty / Moduły własne (dropdown custom OT) / Kategorie aktywne; Schemat modułów + Atrybuty i grupy „wkrótce". Kreator 6→7 kroków; wybór mapuje na `targetObjectTypeId`. **Rework błędnego #1675/#1676** (operator chciał kafelków jak eksport, nie Combobox „Co importujesz?"). Live proof: spec `1675`+`1429`+a11y zielone, import do custom typu success 2/2. Schemat/Atrybuty = osobne tickety (import per ObjectType, nie metadane).
+
 ## Postęp epiku IMP2
 - **Fala A — KOMPLETNA (8/8):** #1460–62 quick-winy, #1463 ADR-0019, #1464 kanon JSONB, #1465 tryby CREATE/UPDATE/UPSERT, #1466 ValueWriteCore+BatchValueWriter, #1467 golden round-trip v0, #1468/#1509 transport Messenger `import`+worker.
 - **Fala B — w toku:**
