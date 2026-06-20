@@ -101,6 +101,19 @@ export function isEmptyAttributeValue(value: unknown): boolean {
 }
 
 /**
+ * #1673 — single source of truth for "is this attribute required". Mirrors
+ * the asterisk condition in attr-row.tsx so the required-field save guard
+ * (collectRequiredViolations) and the visual `*` never drift apart. A field
+ * is required when it is globally required (`is_required`) OR required within
+ * its group (`is_required_in_group`); booleans are exempt — an unchecked box
+ * IS the value `false`, never a missing value.
+ */
+export function isAttributeRequired(attr: AttributeMeta): boolean {
+  if (attr.type === 'boolean') return false;
+  return attr.is_required === true || attr.is_required_in_group === true;
+}
+
+/**
  * #1102/#1415 — relation attribute codes across the effective groups;
  * their create-mode values go through PUT /relations, not the POST body.
  */
