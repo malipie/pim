@@ -223,7 +223,7 @@ final class ExportSessionController
         );
         $clone->assignTenant($tenant);
         $this->sessions->save($clone);
-        $this->bus->dispatch(new RunExportMessage($clone->getId()));
+        $this->bus->dispatch(new RunExportMessage($clone->getId(), $tenant->getId()));
 
         return new JsonResponse(
             data: $this->serializeSummary($clone),
@@ -290,7 +290,7 @@ final class ExportSessionController
 
         $session = $this->sessionFromProfile($profile, $tenant);
         $this->sessions->save($session);
-        $this->bus->dispatch(new RunExportMessage($session->getId()));
+        $this->bus->dispatch(new RunExportMessage($session->getId(), $tenant->getId()));
         $profile->recordRun();
         $this->profiles->save($profile);
 
