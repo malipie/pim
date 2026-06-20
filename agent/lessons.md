@@ -2,6 +2,21 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z #1673 + #1675 (2026-06-20, bug-fixy: walidacja group-required + wybór typu importu)
+
+### Patterns to Follow
+- **Gwiazdka „wymagane" i save-guard MUSZĄ dzielić jeden predykat.** #1673: `attr-row` rysował gwiazdkę dla `is_required || is_required_in_group`, ale `collectRequiredViolations` blokował tylko `is_required` — pole z gwiazdką zapisywało się puste. Fix: jeden helper `isAttributeRequired(attr)` (global LUB group-level, boolean wykluczony) użyty w OBU miejscach. Każda walidacja sterująca UI-kontrolką (gwiazdka/disabled/badge) i jej faktyczne egzekwowanie powinny czytać z tego samego źródła.
+- **Completeness-required egzekwuj w EDIT, nie w CREATE.** Rozszerzenie required-guard na create zablokowało tworzenie produktu, gdy puste było JAKIEKOLWIEK completeness-pole (demo product: description+price `is_required_in_group`) → CI ubił `view-07` (create) i `1351` (edit). Wzór: `mode === 'edit' ? isAttributeRequired(attr) : attr.is_required === true` — edycja niekompletnego wpisu wymusza komplet, świeży szkic nie jest blokowany na wszystkich polach naraz.
+- **Pickery FE testuj na seedowanych bytach, nie świeżo-utworzonych.** E2E wyboru typu importu padał, bo nowo-POST-owany ObjectType nie był w `useList` (Refine prefetchuje listę przy logowaniu, PRZED utworzeniem typu → cache hit bez niego; `page.reload()` resetuje cache, ale gubi JWT z module-memory → ekran logowania). Deterministycznie: wybierz built-in typ (Kategoria), który jest w prefetchu. Pełny import do custom typu zweryfikuj live-stack smoke (curl), nie E2E.
+
+### Package Quirks / Toolchain
+- **`bulk-attach` i PATCH attribute-group-attribute zwracają 204, nie 200.** Asercje E2E: `expect([200, 204]).toContain(status)`, nie `.toBe(200)` (kosztowało 2 nieudane przebiegi).
+- **Rzadko używany endpoint → 500 „require(...ControllerService.php): Failed to open stream" = stały dev cache workera.** Pierwsze E2E uderzyło w mało używany `AttributeGroupMembershipController` i dostało 500 z brakującego skompilowanego serwisu; `docker compose restart api` odbudowuje (potwierdza [[feedback_frankenphp_worker_cache_restart]]).
+
+### Decyzje świadome
+- **Walidacja group-required FE-only (decyzja operatora).** Backend (`ValueWriteCore::requiredViolation`) egzekwuje tylko globalny `is_required` i tylko dla pól w payloadzie; pełen completeness-at-save w API (422) deferred — łamałby importy/integracje wgrywające celowo niekompletne dane.
+- **Import do custom/category/asset = tylko obiekty + wartości atrybutów.** Pipeline (`StartImportController`/`ImportObjectCreator`) jest generyczny per ObjectType. Hierarchia kategorii (ltree parent; reserved `__category__` tylko dla product w `AutoMapController`) i binaria zasobów — poza zakresem #1675, osobne tickety.
+
 ## Lessons z #1314 + #1316 (2026-06-07, channel placement reconcile + label→name refactor)
 
 ### Patterns to Follow

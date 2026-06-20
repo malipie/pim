@@ -7,6 +7,10 @@
 - **Epik:** IMP2 — Import/Export v2 engine ([#1499](https://github.com/malipie/PIM/issues/1499), ADR-0019). Kontrakty silnika + warstwy Deptrac Import/Export.
 - **Backlog ticketów (source of truth speców):** `Project Plan/UI/feature-imports-v2-tickets.md` (Issues #1460–#1499).
 
+## Najnowsze bug-fixy (2026-06-20, post-Wave 3)
+- **#1673** `fix(catalog)` — walidacja zapisu egzekwuje atrybuty wymagane-w-grupie (PR [#1674](https://github.com/malipie/PIM/pull/1674), merged `d0260c34`). Niespójność gwiazdka↔walidacja: gwiazdka rysowała `is_required||is_required_in_group`, guard sprawdzał tylko `is_required`. Wspólny helper `isAttributeRequired`; blokada **tylko w edit** (create global-only, by nie blokować szkicu). Live proof: spec `1673` + unit 6/6 + produkt operatora `019ee1a6` ma `description.is_required_in_group=true`.
+- **#1675** `feat(import)` — wybór typu obiektu w kreatorze importu (PR [#1676](https://github.com/malipie/PIM/pull/1676), merged `e4d1c51b`). `StepSource` Combobox „Co importujesz?" (product/category/asset/custom×28) + reset mapping przy zmianie typu; backend już generyczny. Live proof: import do custom typu success 2/2. Hierarchia kategorii / binaria zasobów = osobne tickety.
+
 ## Postęp epiku IMP2
 - **Fala A — KOMPLETNA (8/8):** #1460–62 quick-winy, #1463 ADR-0019, #1464 kanon JSONB, #1465 tryby CREATE/UPDATE/UPSERT, #1466 ValueWriteCore+BatchValueWriter, #1467 golden round-trip v0, #1468/#1509 transport Messenger `import`+worker.
 - **Fala B — w toku:**
