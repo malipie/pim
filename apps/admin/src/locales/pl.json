@@ -2455,7 +2455,14 @@
       "profiles_title": "Sugerowane profile",
       "profiles_subtitle": "Zapisane profile mapowań",
       "new_profile": "Nowy profil (skonfiguruj w kreatorze)",
-      "settings_title": "Ustawienia pliku"
+      "settings_title": "Ustawienia pliku",
+      "object_type": {
+        "title": "Co importujesz?",
+        "subtitle": "Wybierz typ obiektu, do którego trafią wiersze pliku",
+        "placeholder": "Wybierz typ…",
+        "search": "Szukaj typu…",
+        "hierarchy_hint": "Import utworzy obiekty i wartości atrybutów. Hierarchia kategorii i pliki zasobów są poza zakresem importu."
+      }
     },
     "detect": {
       "title": "Wyniki auto-detekcji",
