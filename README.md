@@ -12,6 +12,8 @@ PHP 8.4 + Symfony 7.4 LTS + API Platform 4 + FrankenPHP 2.x worker mode · Postg
 
 - **`CLAUDE.md`** — konstytucja projektu (system prompt dla Claude Code)
 - **`CONTRIBUTING.md`** + **`ONBOARDING.md`** — onboarding nowego developera
+- **`docs/development/adding-a-field-or-endpoint.md`** — jak dodać pole/endpoint (vertical slice backend↔front)
+- **`apps/admin/README.md`** — panel admina (Refine + shadcn): komendy, shared-types
 - **`CHANGELOG.md`** — release history per epic
 - **`Project Plan/01-architektura-pim.md`** — pełna architektura, ADR, model danych
 - **`Project Plan/02-plan-projektu-pim.md`** — fazy, milestones, backlog, ryzyka
@@ -30,7 +32,7 @@ PHP 8.4 + Symfony 7.4 LTS + API Platform 4 + FrankenPHP 2.x worker mode · Postg
 │   ├── api/        Symfony 7.4 + API Platform 4 + FrankenPHP (PHP 8.4)
 │   └── admin/      Vite + React 19 + TypeScript (Refine + shadcn dochodzą w 0.1.4)
 ├── packages/
-│   └── shared-types/   TypeScript types generowane z OpenAPI spec (build step)
+│   └── shared-types/   TypeScript types generowane z OpenAPI spec (codegen, nie build)
 ├── docker/
 │   └── caddy/      Edge Caddyfile — single-origin proxy
 ├── docker-compose.yml  Cały stack dev: Caddy + FrankenPHP + Postgres + Redis +
@@ -50,7 +52,9 @@ PHP 8.4 + Symfony 7.4 LTS + API Platform 4 + FrankenPHP 2.x worker mode · Postg
 # 1. Sklonuj i zainstaluj zależności node (root + apps/admin + packages/*)
 pnpm install
 
-# 2. Skopiuj .env.example → .env (override hasła Postgres / Mercure / Meilisearch / MinIO)
+# 2. Skopiuj .env.example → .env i podmień hasła (Postgres / Mercure / Meilisearch / MinIO).
+#    Tylko .env.example jest w gitcie. .env (oraz .env.dev / .env.local) są
+#    ignorowane i trzymają REALNE sekrety — patrz "Pliki .env" niżej.
 cp .env.example .env
 
 # 3. Wystartuj cały stack (build kontenerów przy pierwszym uruchomieniu trwa kilka minut)
@@ -59,19 +63,86 @@ pnpm dev          # foreground, Ctrl+C zatrzymuje
 pnpm stack:up     # detached, działa w tle
 pnpm stack:logs   # tail logów
 
-# 4. Sprawdź single-origin
+# 4. Zainicjalizuj bazę: drop + create + migrate + audit:schema:update + fixtures.
+#    Jeden skrót (zalecane — patrz "pim:db:reset" niżej):
+docker compose exec -T api php bin/console pim:db:reset --with-fixtures --force
+#    Manualny odpowiednik to TRZY kroki (audit:schema:update jest wymagany —
+#    tabele *_audit są poza pipeline'em migracji; bez tego INSERT do audytowanej
+#    encji wywala 500 "relation '*_audit' does not exist"):
+#      docker compose exec -T api php bin/console doctrine:migrations:migrate --no-interaction
+#      docker compose exec -T api php bin/console audit:schema:update --force
+#      docker compose exec -T api php bin/console doctrine:fixtures:load --no-interaction
+
+# 5. Sprawdź single-origin i zaloguj się (admin@demo.localhost / changeme)
 curl -sk https://pim.localhost/api/docs.jsonld | head  # Hydra/JSON-LD API documentation
-open https://pim.localhost/                            # Vite admin (HMR przez Caddy)
+open https://pim.localhost/                            # admin (login: admin@demo.localhost / changeme)
 open https://pim.localhost/api/docs                    # Swagger UI (HTML)
 open https://pim.localhost/api                         # API Platform entrypoint
 
-# 5. Restart / reset
+# 6. Restart / reset
 pnpm stack:down               # stop, zachowaj dane
-pnpm stack:reset              # stop + wipe volumes
+pnpm stack:reset              # stop + wipe volumes (USUWA dane bazy — patrz ostrzeżenie niżej)
 pnpm stack:rebuild            # rebuild obrazów (po zmianie Dockerfile / composer.json)
 ```
 
 Caddy ma własny lokalny CA — przy pierwszym `pnpm dev` przeglądarka wymaga zaakceptowania certyfikatu. Można też zaufać CA na hoście: skopiuj `caddy_data` volume → `~/.local/share/caddy/pki/authorities/local/root.crt` i dodaj do System Keychain (macOS).
+
+### Pliki `.env`
+
+- **`.env.example`** (w gitcie) — szablon z placeholderami. Skopiuj do `.env`.
+- **`.env`** (ignorowany) — Twoje lokalne sekrety; nadpisuje `.env.example`.
+- **`.env.dev` / `.env.local`** (ignorowane) — realne sekrety per środowisko.
+  `.gitignore` celowo łapie `.env` oraz każde `.env.*` (poza allowlistą
+  `.env.example`, `apps/api/.env`, `apps/api/.env.test`). Nigdy nie commituj
+  pliku z realnym hasłem.
+
+> **Uwaga (operator):** `.env.dev` jest *trackowany* na starszych branchach
+> (sprzed W0-7), a *nietrackowany* na `main`. Przełączenie/`pull` może skasować
+> Twój realny `.env.dev` — zrób backup do `/tmp` przed checkoutem, potem przywróć
+> i zrestartuj stack.
+
+### `pim:db:reset` — reset bazy w jednym kroku
+
+```bash
+docker compose exec -T api php bin/console pim:db:reset --with-fixtures --force
+```
+
+Robi po kolei: `doctrine:database:drop` → `create` → `migrations:migrate` →
+`audit:schema:update --force` → (z `--with-fixtures`) `fixtures:load` +
+`pim:search:reindex --purge`. Flagi: `--with-fixtures` (załaduj fixtures),
+`--force` (pomiń pytanie potwierdzające), `--force-prod` (dopuść `APP_ENV=prod` —
+domyślnie odmawia). Używaj **tylko na bazie deweloperskiej**.
+
+> **OSTRZEŻENIE — wipe stanu manualnego.** `pim:db:reset` (i `pnpm stack:reset`)
+> kasują bazę i ładują od nowa tylko fixtures. **Nie odtwarzają** custom
+> ObjectType / grup atrybutów / danych utworzonych ręcznie przez UI — ten stan
+> przepada. Zrób smoke-test/eksport zanim zresetujesz, albo uprzedź operatora.
+> (Jeśli worker api działa, najpierw `docker compose stop api`, żeby FrankenPHP
+> zwolnił połączenie.)
+
+### `exec` vs `exec -T`
+
+Komendy w kontenerze odpalasz przez `docker compose exec api …`. Flaga **`-T`
+wyłącza alokację pseudo-TTY** — używaj jej w **skryptach, CI i potokach** (gdy
+nie ma interaktywnego terminala), inaczej `docker compose exec` może się wywalić
+na braku TTY. Interaktywnie (ręcznie w terminalu) `-T` jest opcjonalne. W tym
+README komendy dokumentowane są z `-T` dla powtarzalności (kopiuj-wklej działa
+też w skrypcie); ręcznie możesz pominąć `-T`.
+
+## shared-types (kontrakt TS z OpenAPI)
+
+`packages/shared-types` to **codegen**, nie klasyczny build: typy TypeScript są
+generowane z żywego dokumentu OpenAPI API Platform do
+`packages/shared-types/src/api.d.ts`. Stack musi działać:
+
+```bash
+pnpm --filter @pim/shared-types generate
+# = openapi-typescript https://pim.localhost/api/docs.jsonopenapi -o src/api.d.ts
+```
+
+Regeneruj po każdej zmianie kształtu API (nowy zasób, nowe pole, zmiana grup
+serializacji). Pełny przepływ „jak dodać pole/endpoint" (z regeneracją włącznie):
+[`docs/development/adding-a-field-or-endpoint.md`](docs/development/adding-a-field-or-endpoint.md).
 
 ## Quality gates
 
