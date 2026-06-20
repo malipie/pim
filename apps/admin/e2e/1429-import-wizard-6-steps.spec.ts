@@ -17,6 +17,7 @@ test('NUI-10 — wizard walks six steps and commits an import session', async ({
   // Stepper renders all six steps.
   const stepper = page.getByLabel('Wizard steps');
   for (const label of [
+    /dane|data/i,
     /źródło|source/i,
     /wykrywanie|detect/i,
     /mapowanie|mapping/i,
@@ -27,7 +28,13 @@ test('NUI-10 — wizard walks six steps and commits an import session', async ({
     await expect(stepper.getByText(label).first()).toBeVisible();
   }
 
-  // Step 1 — Źródło: upload a tiny CSV.
+  // Step 1 — Dane: pick the Products tile, then advance to Źródło (#1678).
+  await page.getByRole('radio', { name: /produkty|products/i }).click();
+  const dataNext = page.getByRole('button', { name: /dalej|next/i });
+  await expect(dataNext).toBeEnabled({ timeout: 10_000 });
+  await dataNext.click();
+
+  // Step 2 — Źródło: upload a tiny CSV.
   const sku = `NUI10-${Date.now()}`;
   const csv = `sku;name\n${sku};Wizard smoke product\n`;
   await page
@@ -36,13 +43,13 @@ test('NUI-10 — wizard walks six steps and commits an import session', async ({
     .setInputFiles({ name: 'nui10.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf-8') });
   await page.getByRole('button', { name: /dalej|next/i }).click();
 
-  // Step 2 — Wykrywanie: detection table + preview from parse-preview.
+  // Step 3 — Wykrywanie: detection table + preview from parse-preview.
   await expect(page.getByText(/kodowanie|encoding/i).first()).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/kolumn wykrytych|columns detected/i)).toBeVisible();
   await expect(page.getByText(sku)).toBeVisible();
   await page.getByRole('button', { name: /dalej|next/i }).click();
 
-  // Step 3 — Mapowanie: auto-map produces rows; computed-column modal is a mock.
+  // Step 4 — Mapowanie: auto-map produces rows; computed-column modal is a mock.
   await expect(page.getByRole('button', { name: /kolumna obliczona|computed/i })).toBeVisible({
     timeout: 20_000,
   });
@@ -57,16 +64,16 @@ test('NUI-10 — wizard walks six steps and commits an import session', async ({
   await expect(nextOnMapping).toBeEnabled({ timeout: 20_000 });
   await nextOnMapping.click();
 
-  // Step 4 — Reguły: truth card + disabled mode tiles.
+  // Step 5 — Reguły: truth card + disabled mode tiles.
   await expect(page.getByText(/upsert (po identyfikatorze|by identifier)/i)).toBeVisible();
   await expect(page.getByText('UPSERT', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /dalej|next/i }).click();
 
-  // Step 5 — Podgląd: dry-run resolves with KPIs.
+  // Step 6 — Podgląd: dry-run resolves with KPIs.
   await expect(page.getByText(/ok/i).first()).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: /dalej|next/i }).click();
 
-  // Step 6 — Start: summary + run. Capture the POST so a PROD-05 bulk
+  // Step 7 — Start: summary + run. Capture the POST so a PROD-05 bulk
   // lock collision (409 from a concurrent CI worker) skips instead of
   // flaking — the live-stack smoke covers the full commit path.
   await expect(page.getByText(/podsumowanie|summary/i)).toBeVisible();

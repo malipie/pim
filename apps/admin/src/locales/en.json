@@ -2251,11 +2251,25 @@
       },
       "empty": "No imports yet. Start your first import."
     },
+    "entity": {
+      "product": "Products",
+      "custom_module": "Custom modules",
+      "module_schema": "Module schema",
+      "attributes_groups": "Attributes & groups",
+      "categories": "Categories"
+    },
     "wizard": {
-      "eyebrow": "Import wizard — self-service, 6 steps",
+      "eyebrow": "Import wizard — self-service, 7 steps",
       "title": "New import",
-      "subtitle": "Every file goes through 6 steps: source, format detection, column mapping, rules, dry-run and commit. After commit the session shows up under \"Sessions\" — you can roll it back within 24h.",
+      "subtitle": "Every file goes through 7 steps: data, source, format detection, column mapping, rules, dry-run and commit. After commit the session shows up under \"Sessions\" — you can roll it back within 24h.",
+      "step1_title": "Step 1: Choose the data to import",
+      "step1_subtitle": "Pick the main entity type the file rows will land in.",
+      "entity_group_aria": "Import data type selection",
+      "custom_object_type_label": "Choose a custom module",
+      "custom_object_type_placeholder": "— choose —",
+      "custom_object_type_required": "Choose a custom module to continue",
       "descriptions": {
+        "entity": "what you import",
         "upload": "CSV / XLSX + optional ZIP with images",
         "mapping": "columns → attributes + categories",
         "validation": "dry-run, validation errors",
@@ -2265,6 +2279,7 @@
         "rules": "mode · validation"
       },
       "steps": {
+        "entity": "Data",
         "upload": "Upload",
         "mapping": "Mapping",
         "validation": "Preview",
@@ -2272,6 +2287,13 @@
         "source": "Source",
         "detect": "Detection",
         "rules": "Rules"
+      },
+      "entity_desc": {
+        "product": "Import the main product catalog, variants, prices and linked media.",
+        "custom_module": "Import data into user-defined custom modules (e.g. Manufacturers, Collections).",
+        "module_schema": "Upload module definition and relation structure — coming soon.",
+        "attributes_groups": "Import the attribute dictionary, values and group split — coming soon.",
+        "categories": "Import the category tree structure and name translations."
       },
       "next": "Next",
       "back": "Back",
@@ -2405,14 +2427,7 @@
       "profiles_title": "Suggested profiles",
       "profiles_subtitle": "Saved mapping profiles",
       "new_profile": "New profile (configure in the wizard)",
-      "settings_title": "File settings",
-      "object_type": {
-        "title": "What are you importing?",
-        "subtitle": "Pick the object type the file rows will land in",
-        "placeholder": "Pick a type…",
-        "search": "Search types…",
-        "hierarchy_hint": "Import creates objects and attribute values. Category hierarchy and asset binaries are out of scope for import."
-      }
+      "settings_title": "File settings"
     },
     "detect": {
       "title": "Auto-detection results",
