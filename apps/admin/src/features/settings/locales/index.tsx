@@ -1,5 +1,6 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Languages, MoreHorizontal, Plus, Star } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,17 @@ import { AddLocaleModal } from './AddLocaleModal';
 import type { TenantLocaleListItem, TenantLocaleListResponse } from './types';
 
 /**
+ * AUD-055 (ADR-0021) — single query-key family for the tenant-locale
+ * list. Every reader + every invalidation goes through it so the list
+ * refreshes whenever any mutation (here or a future external screen)
+ * busts the key — the stale-data class the migration off jsonFetch +
+ * useEffect was meant to kill.
+ */
+export const tenantLocaleKeys = {
+  list: () => ['tenant-locales'] as const,
+};
+
+/**
  * LOC-07 (#875) — Settings → Languages / `/settings/locales`.
  *
  * Lists the tenant's active + inactive locales backed by
@@ -40,28 +52,29 @@ import type { TenantLocaleListItem, TenantLocaleListResponse } from './types';
  */
 export function LocalesSettingsPage() {
   const { t } = useTranslation();
-  const [rows, setRows] = useState<TenantLocaleListItem[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const refetch = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await jsonFetch<TenantLocaleListResponse>('/api/tenant-locales', {
+  // AUD-055 / ADR-0021 — was useState + useEffect + manual refetch (a
+  // read invisible to TanStack Query's cache). Now useQuery so the list
+  // re-renders whenever any mutation invalidates the key, instead of
+  // relying on every call site remembering to refetch.
+  const localesQuery = useQuery({
+    queryKey: tenantLocaleKeys.list(),
+    queryFn: () =>
+      jsonFetch<TenantLocaleListResponse>('/api/tenant-locales', {
         accept: 'application/json',
-      });
-      setRows(response.items);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load locales.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      }),
+  });
+  const rows = localesQuery.data?.items ?? null;
+  const isLoading = localesQuery.isLoading;
+  const error = localesQuery.isError
+    ? localesQuery.error instanceof Error
+      ? localesQuery.error.message
+      : 'Failed to load locales.'
+    : null;
 
-  useEffect(() => {
-    void refetch();
-  }, [refetch]);
+  const invalidate = (): Promise<void> =>
+    queryClient.invalidateQueries({ queryKey: tenantLocaleKeys.list() });
 
   const activeCodes = useMemo(
     () => rows?.filter((r) => r.isActive).map((r) => r.code) ?? [],
@@ -83,7 +96,7 @@ export function LocalesSettingsPage() {
         contentType: 'application/json',
       });
       toast.success(t('settings.locales.toast.default_changed', { code }));
-      void refetch();
+      void invalidate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Default switch failed.');
     }
@@ -97,7 +110,7 @@ export function LocalesSettingsPage() {
         body: { isMandatory: !row.isMandatory },
         contentType: 'application/json',
       });
-      void refetch();
+      void invalidate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Update failed.');
     }
@@ -110,7 +123,7 @@ export function LocalesSettingsPage() {
         body: { fallbackCode },
         contentType: 'application/json',
       });
-      void refetch();
+      void invalidate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Fallback update failed.');
     }
@@ -122,7 +135,7 @@ export function LocalesSettingsPage() {
         method: 'DELETE',
       });
       toast.success(t('settings.locales.toast.deactivated', { code: row.code }));
-      void refetch();
+      void invalidate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Deactivation failed.');
     }
@@ -135,7 +148,7 @@ export function LocalesSettingsPage() {
         body: {},
         contentType: 'application/json',
       });
-      void refetch();
+      void invalidate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Reactivation failed.');
     }
@@ -209,7 +222,7 @@ export function LocalesSettingsPage() {
         activatedCodes={activatedCodes}
         nextSortOrder={nextSortOrder}
         onSuccess={() => {
-          void refetch();
+          void invalidate();
         }}
       />
     </div>

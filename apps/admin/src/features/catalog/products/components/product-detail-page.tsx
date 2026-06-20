@@ -1,101 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Clock, Link2, MoreHorizontal, Save, Sparkles, Trash2 } from 'lucide-react';
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 
 import { DetailLoadingState } from '@/components/catalog/detail-loading-state';
 import { DetailNotFoundState } from '@/components/catalog/detail-not-found-state';
-import type { Provenance } from '@/components/provenance-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { MockBadge } from '@/components/ui/mock-badge';
-import { toast } from '@/components/ui/toast';
-import { useListSchema } from '@/hooks/use-list-schema';
-import { unwrapAttributesIndexed } from '@/lib/attributes-indexed';
-import { HttpError, httpErrorDetail, jsonFetch } from '@/lib/http';
-import { isLegacyOptionalSystemGroupCode } from '@/lib/legacy-attribute-groups';
-import { objectKeys } from '@/lib/object-query-keys';
-import { cn } from '@/lib/utils';
-import { useDefaultObjectType } from '../use-default-object-type';
-import { AgentSuggestionsCard } from './agent-suggestions-card';
-import { AttrGroupCard } from './attr-group-card';
-import { AttrRow } from './attr-row';
-import { CategorySelectorCard } from './category-selector-card';
-import { CompletenessRing } from './completeness-ring';
-import { DuplicateButton } from './duplicate-button';
-import { EffectiveModelCard } from './effective-model-card';
-
-import { LocaleChannelToolbar } from './locale-channel-toolbar';
-import { PreviewButton } from './preview-button';
-import { scopedCompleteness, scopeQuery } from './scope';
-import { SyncStatusCard } from './sync-status-card';
-import type {
-  AttributeMeta,
-  CatalogObjectDto,
-  ChannelOption,
-  GroupMeta,
-  LocaleOption,
-  ProductChannel,
-  ProductDetailMode,
-  ProductLocale,
-  ScopeStatus,
-} from './types';
-import { VariantsListCard } from './variants-list-card';
-
-// AUD-071 (#1614) — the four bespoke tab views below are rendered ONLY
-// after the operator clicks their tab (multimedia / categories / variants /
-// relations). Statically importing them pinned ~1.7k lines of grids +
-// editors (incl. the heavy VariantsTab) into the main detail chunk, pushing
-// product-detail-page over the 700 KB warning threshold. Code-split each
-// behind React.lazy so the initial detail render only ships the attributes
-// view; the tab chunk loads on demand behind the <Suspense> boundary in the
-// content dispatcher.
-const CategoriesTab = lazy(() =>
-  import('./categories-tab').then((m) => ({ default: m.CategoriesTab })),
-);
-const ProductMultimediaTab = lazy(() =>
-  import('./product-multimedia-tab').then((m) => ({ default: m.ProductMultimediaTab })),
-);
-const RelationsTab = lazy(() =>
-  import('./relations-tab').then((m) => ({ default: m.RelationsTab })),
-);
-const VariantsTabHost = lazy(() =>
-  import('./variants-tab-host').then((m) => ({ default: m.VariantsTabHost })),
-);
-
-/**
- * MODR-03 (#925) — special-purpose tabs that are NOT driven by
- * `effectiveGroups`. `attributes` hosts every `display_mode='stacked'`
- * group as inline sections; the rest are bespoke views (categories
- * picker, audit log, variants tree). Tab-mode groups become tabs
- * dynamically — see `useDynamicTabs`.
- */
-const SPECIAL_TABS = ['attributes', 'multimedia', 'categories', 'history', 'variants'] as const;
-type SpecialTabKey = (typeof SPECIAL_TABS)[number];
-type TabKey = SpecialTabKey | string;
-
-const GROUP_ICONS: Record<string, string> = {
-  identification: '🔑',
-  identyfikacja: '🔑',
-  marketing: '✨',
-  technical: '⚙',
-  technicals: '⚙',
-  specyfikacje: '⚙',
-  logistics: '📦',
-  logistyka: '📦',
-  pricing: '💰',
-  cennik: '💰',
-  audit: '🛡',
-  audyt: '🛡',
-};
+import { ProductDetailContent } from './product-detail-content';
+import { ProductDetailHeader } from './product-detail-header';
+import type { TabKey } from './product-detail-helpers';
+import { TabLoadingFallback } from './product-detail-other-tabs';
+import { ProductDetailSidebar } from './product-detail-sidebar';
+import { scopedCompleteness } from './scope';
+import type { ProductChannel, ProductDetailMode, ProductLocale } from './types';
+import { useProductDetailData } from './use-product-detail-data';
+import { useProductDetailForm } from './use-product-detail-form';
 
 export interface ProductDetailPageProps {
   mode: ProductDetailMode;
@@ -176,57 +95,12 @@ export function ProductDetailPage({
   const [locale, setLocale] = useState<ProductLocale>('pl');
   const [channel, setChannel] = useState<ProductChannel | null>(null);
 
-  // #1150 / #1155 — load the product in the active locale + channel so
-  // localizable / channel-scoped values reflect the picker. Replaces
-  // Refine's useOne (its getOne drops the query string); locale + channel
-  // are part of the query key, so switching either refetches the
-  // scope-resolved reading.
-  const productQuery = useQuery<CatalogObjectDto>({
-    queryKey: objectKeys.scoped(id, locale, channel),
-    queryFn: () =>
-      jsonFetch<CatalogObjectDto>(`/api/objects/${id}${scopeQuery(locale, channel)}`, {
-        accept: 'application/ld+json',
-      }),
-    enabled: isEditMode && id !== '',
-    // A 404 is conclusive — retrying it three times keeps the operator on
-    // "Ładowanie…" for ~8s before the not-found state appears (#1043).
-    retry: (failureCount, error) =>
-      !(error instanceof HttpError && error.status === 404) && failureCount < 3,
-  });
-
-  const { objectTypeId: defaultProductTypeId } = useDefaultObjectType('product');
-  const loadedProduct = isEditMode ? (productQuery.data ?? null) : null;
-  // Edit mode reads capabilities from the object's OWN ObjectType (any
-  // kind); create mode takes the route-resolved ObjectType (#1415) and
-  // falls back to the built-in product for /products/new.
-  const objectTypeId = isEditMode
-    ? (loadedProduct?.objectType?.id ?? null)
-    : (createObjectTypeId ?? defaultProductTypeId);
-  // UX bug fix #2 — UX-02 removed the legacy 'media' AttributeGroup
-  // (operator decision: Multimedia is a capability, not an attribute
-  // group). Capability flags follow list-schema so the tab set matches
-  // what modeling advertises — for every kind, not just products.
-  const schemaQuery = useListSchema(objectTypeId ?? undefined);
-  const schemaObjectType = schemaQuery.data?.objectType;
-  const kind = isEditMode
-    ? (loadedProduct?.kind ?? null)
-    : (schemaObjectType?.kind ?? (createObjectTypeId === undefined ? 'product' : null));
-  const hasMultimediaCapability = schemaObjectType?.has_multimedia ?? false;
-  const hasVariantsCapability = schemaObjectType?.has_variants ?? kind === 'product';
-  const isCategorizable = schemaObjectType?.is_categorizable ?? kind === 'product';
-
   const [activeTab, setActiveTab] = useState<TabKey>('attributes');
   // #1351 — the detail page opens directly in edit mode; there is no
   // read-only state anymore. "Zapisz zmiany" is always visible and a
   // "Zapisz i wróć do listy" action saves + returns to the list.
   const isEditing = true;
-  const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
-  // #1350 — codes of required attributes that blocked the last save.
-  const [requiredErrors, setRequiredErrors] = useState<Set<string>>(new Set());
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // #891 create-mode category selection. POST `/api/products` carries
   // this so the product + assignments land atomically — the previous
@@ -238,107 +112,76 @@ export function ProductDetailPage({
     () => prePopulatedPrimaryId,
   );
 
-  // Resolve the category codes for chip rendering in create mode. Same
-  // query key as `CategoryPickerDialog` so opening the picker hits the
-  // shared cache — and so the sidebar updates the moment the picker
-  // commits a new selection.
-  const categoriesListQuery = useQuery({
-    queryKey: ['categories', 'picker'],
-    queryFn: () =>
-      jsonFetch<{
-        'hydra:member'?: Array<{ id: string; code: string }>;
-        member?: Array<{ id: string; code: string }>;
-      }>('/api/categories?itemsPerPage=200'),
-    enabled: mode === 'create' && createCategoryIds.length > 0,
-    staleTime: 60_000,
+  // AUD-057 (#1608) — every server read + the values derived purely from
+  // it live in this hook (see use-product-detail-data.ts). The page keeps
+  // the UI state (locale/channel/tabs/dirty fields) and the write path.
+  const {
+    productQuery,
+    product,
+    objectTypeId,
+    kind,
+    hasMultimediaCapability,
+    hasVariantsCapability,
+    isCategorizable,
+    attrs,
+    groupsQuery,
+    groups,
+    locales,
+    channels,
+    scopeStatus,
+    tabModeGroups,
+    stackedGroups,
+    hasReverseRelations,
+    createCategoriesSummaries,
+  } = useProductDetailData({
+    mode,
+    id,
+    isEditMode,
+    createObjectTypeId,
+    locale,
+    channel,
+    createCategoryIds,
+    createPrimaryId,
   });
 
-  const createCategoriesSummaries = useMemo(() => {
-    if (mode !== 'create') return [] as { categoryId: string; code: string; isPrimary: boolean }[];
-    const rows =
-      categoriesListQuery.data?.['hydra:member'] ?? categoriesListQuery.data?.member ?? [];
-    const codeById = new Map<string, string>();
-    for (const row of rows) codeById.set(row.id, row.code);
-    return createCategoryIds.map((cid) => ({
-      categoryId: cid,
-      code: codeById.get(cid) ?? cid.slice(0, 8),
-      isPrimary: cid === createPrimaryId,
-    }));
-  }, [mode, createCategoryIds, createPrimaryId, categoriesListQuery.data]);
-
-  const product = loadedProduct;
-  const attrs = useMemo(
-    () =>
-      unwrapAttributesIndexed(product?.attributesIndexed as Record<string, unknown> | undefined),
-    [product?.attributesIndexed],
-  );
-
-  // #891 — fetch effective groups via useQuery so CategoriesTab cache
-  // invalidation actually triggers refetch (the previous useEffect was
-  // immune to invalidation). In create mode the query keys flip between
-  // the preview endpoint (when categories are selected) and the bare
-  // ObjectType endpoint (when none are selected yet).
-  const groupsQuery = useQuery<{ groups: GroupMeta[]; locales?: LocaleOption[] }>({
-    queryKey:
-      isEditMode && id !== ''
-        ? objectKeys.effectiveGroups(id)
-        : [
-            'object-types',
-            objectTypeId,
-            'effective-attribute-groups',
-            createCategoryIds.length > 0 ? [...createCategoryIds].sort() : 'base',
-          ],
-    queryFn: async () => {
-      if (isEditMode && id !== '') {
-        return jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
-          `/api/objects/${id}/effective-attribute-groups`,
-        );
-      }
-      if (objectTypeId === null) {
-        return { groups: [] };
-      }
-      // #1415 — there is no GET for OT-level effective groups; the
-      // preview POST serves both the bare schema (empty categoryIds)
-      // and the category-driven overlay.
-      return jsonFetch<{ groups: GroupMeta[]; locales?: LocaleOption[] }>(
-        `/api/object_types/${objectTypeId}/effective-attribute-groups/preview`,
-        {
-          method: 'POST',
-          contentType: 'application/json',
-          accept: 'application/json',
-          body: { categoryIds: createCategoryIds },
-        },
-      );
-    },
-    enabled: isEditMode ? id !== '' : objectTypeId !== null,
-    staleTime: 5_000,
-    placeholderData: (prev) => prev,
+  // AUD-057 (#1608) — dirty buffer + required-field validation + the
+  // create/edit save, cancel and delete mutations live in this hook.
+  const {
+    dirtyFields,
+    requiredErrors,
+    expandedGroups,
+    isSaving,
+    isDeleting,
+    setFieldValue,
+    fieldValue,
+    toggleGroup,
+    setExpandedAll,
+    resetDirty,
+    handleSave,
+    cancelEdit,
+    handleDelete,
+  } = useProductDetailForm({
+    mode,
+    id,
+    isEditMode,
+    kind,
+    objectTypeId,
+    isCategorizable,
+    locale,
+    channel,
+    groups,
+    attrs,
+    product,
+    productQuery,
+    createCategoryIds,
+    createPrimaryId,
+    backHref,
+    detailPathFor,
   });
 
-  // Empty groups (no attributes after field-level filtering) render as
-  // bare headers with zero rows — drop them, consistent with #1348's
-  // "no empty Atrybuty tab" rule.
-  // #1415 — the header already carries a dedicated input for the `name`
-  // attribute; the duplicated group row confused operators (two inputs,
-  // one storage), so it is hidden from every group.
-  const groups = useMemo(
-    () =>
-      (groupsQuery.data?.groups ?? [])
-        .map((g) => ({
-          ...g,
-          attributes: g.attributes.filter((attr) => attr.code !== 'name'),
-        }))
-        .filter((g) => g.attributes.length > 0),
-    [groupsQuery.data],
-  );
-
-  // #1149 — the locale picker is fed from the tenant's real enabled locales
-  // (shipped by effective-attribute-groups). Default the selection to the
-  // tenant default once, then respect manual switches.
-  const locales = useMemo<LocaleOption[]>(
-    () => groupsQuery.data?.locales ?? [],
-    [groupsQuery.data],
-  );
+  // #1149 — default the locale selection to the tenant default once the
+  // enabled-locale list arrives (shipped by effective-attribute-groups),
+  // then respect manual switches.
   const [didInitLocale, setDidInitLocale] = useState(false);
   useEffect(() => {
     if (didInitLocale || locales.length === 0) return;
@@ -348,76 +191,19 @@ export function ProductDetailPage({
     setDidInitLocale(true);
   }, [locales, didInitLocale]);
 
-  // #1155 — channel picker fed from /api/channels (tenant's real channels).
-  const channelsQuery = useQuery<ChannelOption[]>({
-    queryKey: ['channels', 'picker'],
-    queryFn: async () => {
-      const response = await jsonFetch<{ member?: ChannelOption[] } | ChannelOption[]>(
-        '/api/channels',
-        { accept: 'application/ld+json' },
-      );
-      return Array.isArray(response) ? response : (response.member ?? []);
-    },
-    enabled: isEditMode,
-    staleTime: 60_000,
-  });
-  const channels = channelsQuery.data ?? [];
-
-  // #1222 — scope-status: per-attribute inherited indicator.
-  // Only fetched in edit mode (detail page), not in create mode.
-  // Enabled only when a non-primary locale is active (primary locale
-  // values are global — nothing can be "inherited from another locale").
-  const scopeStatusQuery = useQuery<ScopeStatus>({
-    queryKey: objectKeys.scopeStatus(id, locale, channel),
-    queryFn: () =>
-      jsonFetch<ScopeStatus>(`/api/objects/${id}/scope-status${scopeQuery(locale, channel)}`),
-    enabled: isEditMode && id !== '' && locale !== null,
-    staleTime: 30_000,
-  });
-  const scopeStatus = scopeStatusQuery.data ?? {};
-
   // #1150 / #1155 — switching locale or channel discards unsaved edits so an
   // edit is never written to the wrong scope; the operator saves first.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on scope change
   useEffect(() => {
-    setDirtyFields({});
+    resetDirty();
   }, [locale, channel]);
 
-  // MODR-03 (#925) — tab list derived dynamically from `groups`:
-  // every group with `display_mode='tab'` becomes its own tab; groups
-  // with `display_mode='stacked'` (and the synthetic "default" bucket)
-  // collect into the single `attributes` tab. Hooks must live above
-  // the loading early-return below to obey rules-of-hooks.
-  const tabModeGroups = useMemo(
-    () => groups.filter((g) => (g.display_mode ?? 'tab') === 'tab'),
-    [groups],
-  );
-  const stackedGroups = useMemo(
-    () => groups.filter((g) => (g.display_mode ?? 'tab') === 'stacked'),
-    [groups],
-  );
-
-  // MODR-06 (#928) — lightweight probe for incoming links so the
-  // "Powiązania" tab can surface even when the object has no forward
-  // relation attributes (e.g. a Category referenced from products).
-  const reverseRelationsQuery = useQuery<{ hasReverse: boolean; count: number }>({
-    queryKey: ['objects', id, 'relations', 'reverse', 'count'],
-    queryFn: () =>
-      jsonFetch<{ hasReverse: boolean; count: number }>(
-        `/api/objects/${id}/relations/reverse/count`,
-      ),
-    enabled: isEditMode && id !== '',
-    staleTime: 30_000,
-  });
-  const hasReverseRelations = reverseRelationsQuery.data?.hasReverse ?? false;
-  // Issue #1092 — forward relation attributes are normal attributes
-  // now: they render inline through their natural group placement
-  // (stacked-mode group → inline in the `attributes` tab; tab-mode
-  // group → its own dedicated tab via `tabModeGroups`). The synthetic
-  // `relations` tab only survives for the reverse-only case (object is
-  // pointed at from elsewhere but has no forward relation attribute of
-  // its own) — that path still needs the bespoke `RelationsTab` because
-  // `effective-attribute-groups` has no concept of "incoming links".
+  // Issue #1092 — forward relation attributes render inline via their
+  // natural group placement; the synthetic `relations` tab survives only
+  // for the reverse-only case (object pointed at from elsewhere but with
+  // no forward relation attribute of its own), which still needs the
+  // bespoke `RelationsTab` (effective-attribute-groups has no concept of
+  // "incoming links").
   const shouldSurfaceRelationsTab = hasReverseRelations;
 
   const visibleTabs: readonly TabKey[] = useMemo(() => {
@@ -488,230 +274,9 @@ export function ProductDetailPage({
   useEffect(() => {
     if (didExpandInitial) return;
     if (groups.length === 0) return;
-    setExpandedGroups(new Set(groups.map((g) => g.id)));
+    setExpandedAll(groups.map((g) => g.id));
     setDidExpandInitial(true);
-  }, [didExpandInitial, groups]);
-
-  const toggleGroup = (groupId: string): void => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      return next;
-    });
-  };
-
-  const setFieldValue = (code: string, value: unknown): void => {
-    setDirtyFields((prev) => ({ ...prev, [code]: value }));
-    setRequiredErrors((prev) => {
-      if (!prev.has(code)) return prev;
-      const next = new Set(prev);
-      next.delete(code);
-      return next;
-    });
-  };
-
-  const fieldValue = (code: string): unknown => {
-    if (Object.hasOwn(dirtyFields, code)) {
-      return dirtyFields[code];
-    }
-    return attrs[code];
-  };
-
-  // #1350 — full-state required check at save time: every `is_required`
-  // attribute across the effective groups must carry a non-empty CURRENT
-  // value (dirty edits included). Legacy dirty records are therefore
-  // enforced on their next save, exactly as the ticket specifies.
-  const collectRequiredViolations = (): string[] => {
-    const violations: string[] = [];
-    for (const group of groups) {
-      for (const attr of group.attributes) {
-        if (attr.is_required !== true) continue;
-        // #1350 (reopen #2) — requiredness is meaningless for booleans:
-        // an unchecked box IS the value `false`, not a missing value.
-        // Operator decision: a required boolean always passes.
-        if (attr.type === 'boolean') continue;
-        const current = fieldValue(attr.code);
-        if (isEmptyAttributeValue(current)) violations.push(attr.code);
-      }
-    }
-    return violations;
-  };
-
-  const handleSave = async (returnToList = false): Promise<void> => {
-    if (isSaving) return;
-    const violations = collectRequiredViolations();
-    if (violations.length > 0) {
-      setRequiredErrors(new Set(violations));
-      toast.error(
-        t('products.detail.validation.required_fields', {
-          defaultValue: 'Uzupełnij wymagane pola: {{fields}}',
-          fields: violations.join(', '),
-        }),
-      );
-      return;
-    }
-    setRequiredErrors(new Set());
-    setIsSaving(true);
-    try {
-      if (mode === 'create') {
-        const skuRaw = dirtyFields.sku ?? dirtyFields.code ?? '';
-        const sku = typeof skuRaw === 'string' ? skuRaw.trim() : '';
-        if (sku === '') {
-          // #1415 — the system identifier is labelled "ID" for every
-          // ObjectType (operator decision); custom identifiers live as
-          // ordinary attributes.
-          toast.error(t('object_create.id_required', { defaultValue: 'ID jest wymagane' }));
-          setIsSaving(false);
-          return;
-        }
-        if (objectTypeId === null) {
-          toast.error(
-            t('products.detail.validation.object_type_missing', {
-              defaultValue: 'Brak built-in ObjectType — uruchom seeder katalogu',
-            }),
-          );
-          setIsSaving(false);
-          return;
-        }
-        // #891 / #1359 — categorizable kinds require a category at create.
-        if (isCategorizable && createCategoryIds.length === 0) {
-          toast.error(
-            t('products.detail.validation.categories_required', {
-              defaultValue: 'Przypisz przynajmniej jedną kategorię',
-            }),
-          );
-          setIsSaving(false);
-          return;
-        }
-        // #1102 — relation values cannot ride the create POST (they live
-        // in the relations link table, not object_values); split them out
-        // and PUT after the object exists, like UniversalCreatePage did.
-        const relationCodes = collectRelationCodes(groups);
-        const { normal: attributes, relations } = splitDirtyAttributes(
-          stripAttributes(dirtyFields),
-          relationCodes,
-        );
-        const body: Record<string, unknown> = {
-          code: sku,
-          objectTypeId,
-        };
-        if (createCategoryIds.length > 0) {
-          const primary =
-            createPrimaryId !== null && createCategoryIds.includes(createPrimaryId)
-              ? createPrimaryId
-              : createCategoryIds[0];
-          body.categoryIds = createCategoryIds;
-          body.primaryCategoryId = primary;
-        }
-        if (Object.keys(attributes).length > 0) body.attributes = attributes;
-        // #1415 — poly-kind create: same processor as the /api/products
-        // sugar path, kind comes from objectTypeId.
-        const created = await jsonFetch<{ id: string }>('/api/objects', {
-          method: 'POST',
-          contentType: 'application/ld+json',
-          body,
-        });
-
-        const relationFailures: string[] = [];
-        for (const [attrCode, targets] of Object.entries(relations)) {
-          if (targets.length === 0) continue;
-          try {
-            await jsonFetch(`/api/objects/${created.id}/relations/${attrCode}`, {
-              method: 'PUT',
-              contentType: 'application/json',
-              body: { targets: targets.map((targetId) => ({ id: targetId })) },
-            });
-          } catch {
-            relationFailures.push(attrCode);
-          }
-        }
-        if (relationFailures.length > 0) {
-          toast.error(
-            t('object_create.relations_partial_error', {
-              defaultValue: 'Obiekt utworzony, ale relacje nie zapisane: {{codes}}',
-              codes: relationFailures.join(', '),
-            }),
-          );
-        } else {
-          toast.success(
-            kind === 'product'
-              ? t('products.detail.create.success', {
-                  defaultValue: 'Utworzono produkt {{code}}',
-                  code: sku,
-                })
-              : t('object_create.success', { defaultValue: 'Utworzono {{code}}', code: sku }),
-          );
-        }
-        navigate(detailPathFor(created.id));
-      } else {
-        if (Object.keys(dirtyFields).length === 0) {
-          // Nothing to persist — "Zapisz i wróć do listy" still returns.
-          if (returnToList) navigate(backHref);
-          setIsSaving(false);
-          return;
-        }
-        // #1350 (reopen #2) — in edit mode every dirty key IS an attribute
-        // code; stripping 'sku'/'code' here silently dropped edits to a
-        // real `sku` attribute (field emptied after save). The strip only
-        // belongs to create mode, where the header SKU input doubles as
-        // the object code.
-        const attributes = { ...dirtyFields };
-        // #1150 / #1155 — write in the active locale + channel: localizable
-        // / scopable attributes land on that scope's row, others stay
-        // global (BE decides per flag).
-        await jsonFetch(`/api/objects/${id}${scopeQuery(locale, channel)}`, {
-          method: 'PATCH',
-          contentType: 'application/merge-patch+json',
-          body: { attributes },
-        });
-        await productQuery.refetch();
-        setDirtyFields({});
-        toast.success(t('products.detail.save.success', { defaultValue: 'Zapisano zmiany' }));
-        // #1351 — "Zapisz zmiany" keeps the row in edit mode; only
-        // "Zapisz i wróć do listy" navigates back to the list.
-        if (returnToList) navigate(backHref);
-      }
-    } catch (error) {
-      // #1179 — surface the server's Problem Details `detail` (e.g. duplicate
-      // identifier 409) instead of the generic copy, so the operator knows
-      // what to fix.
-      toast.error(
-        httpErrorDetail(error) ??
-          t('products.detail.save.failed', { defaultValue: 'Nie udało się zapisać' }),
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const cancelEdit = (): void => {
-    // #1351 — no read-only mode anymore; "Anuluj" just discards unsaved
-    // edits and restores the persisted values.
-    setDirtyFields({});
-    void productQuery.refetch();
-  };
-
-  const handleDelete = async (): Promise<void> => {
-    if (mode !== 'edit' || id === '' || isDeleting) return;
-    setIsDeleting(true);
-    try {
-      await jsonFetch(`/api/objects/${id}`, { method: 'DELETE' });
-      toast.success(
-        t('products.detail.delete.success', {
-          defaultValue: 'Usunięto produkt {{code}}',
-          code: product?.code ?? id,
-        }),
-      );
-      navigate(backHref);
-    } catch {
-      toast.error(
-        t('products.detail.delete.failed', { defaultValue: 'Nie udało się usunąć produktu' }),
-      );
-      setIsDeleting(false);
-      setShowDeleteConfirm(false);
-    }
-  };
+  }, [didExpandInitial, groups, setExpandedAll]);
 
   // Issue #1043 — split the original mixed guard into loading + not-found.
   // The previous condition treated `product === undefined` (post-404) as
@@ -787,277 +352,40 @@ export function ProductDetailPage({
 
   return (
     <div className="bg-zinc-50 -mx-6 -mt-6 min-h-[calc(100vh-3rem)]">
-      {/* Header */}
-      <header className="sticky top-0 z-20 glass-strong border-b border-zinc-100">
-        <div className="px-7 pb-3 pt-5">
-          <div className="flex items-center gap-3">
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="size-9 rounded-xl bg-white soft-shadow"
-            >
-              <Link
-                to={backHref}
-                aria-label={t('products.back', { defaultValue: 'Powrót do listy' })}
-              >
-                <ArrowLeft className="size-4" />
-              </Link>
-            </Button>
-            <div className="text-[12px] text-zinc-500">
-              <span>{objectTypeLabel ?? t('products.title', { defaultValue: 'Produkty' })}</span>
-              <span className="mx-1.5 text-zinc-300">/</span>
-              <span>{breadcrumbCategory}</span>
-              {skuValue !== '' ? (
-                <>
-                  <span className="mx-1.5 text-zinc-300">/</span>
-                  <span className="font-medium text-zinc-900">{skuValue}</span>
-                </>
-              ) : null}
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              {/* Preview / duplicate hit product-only endpoints. */}
-              {kind === 'product' ? <PreviewButton disabled={mode === 'create'} /> : null}
-              {kind === 'product' && mode === 'edit' && id !== '' ? (
-                <DuplicateButton productId={id} />
-              ) : null}
-              {mode === 'edit' && id !== '' ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-9 rounded-xl bg-white soft-shadow"
-                      aria-label={t('products.detail.actions.more', { defaultValue: 'Więcej' })}
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem
-                      onSelect={() => setShowDeleteConfirm(true)}
-                      className="text-rose-600 focus:bg-rose-50 focus:text-rose-700"
-                    >
-                      <Trash2 className="mr-2 size-4" />
-                      {t('products.detail.actions.delete', { defaultValue: 'Usuń produkt' })}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-9 rounded-xl bg-white soft-shadow"
-                  aria-label={t('products.detail.actions.more', { defaultValue: 'Więcej' })}
-                  disabled
-                >
-                  <MoreHorizontal className="size-4" />
-                </Button>
-              )}
-              <span className="mx-1 h-6 w-px bg-zinc-200" />
-              {mode === 'edit' ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={cancelEdit}
-                  disabled={isSaving}
-                  className="h-9 rounded-xl px-3 text-[12.5px] text-zinc-600"
-                >
-                  {t('products.detail.actions.cancel', { defaultValue: 'Anuluj' })}
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                onClick={() => void handleSave()}
-                disabled={isSaving || (mode === 'create' && objectTypeId === null)}
-                className="h-9 rounded-xl bg-zinc-900 px-4 text-[12.5px] font-medium text-white hover:bg-zinc-800"
-              >
-                <Save className="size-4" />
-                {mode === 'create'
-                  ? kind === 'product'
-                    ? t('products.detail.actions.create', { defaultValue: 'Utwórz produkt' })
-                    : t('object_create.submit', { defaultValue: 'Utwórz' })
-                  : t('products.detail.actions.save', { defaultValue: 'Zapisz zmiany' })}
-              </Button>
-              {/* #1351 — save and return to the list (edit mode only). */}
-              {mode === 'edit' ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void handleSave(true)}
-                  disabled={isSaving}
-                  className="h-9 rounded-xl px-4 text-[12.5px] font-medium"
-                >
-                  <Save className="size-4" />
-                  {t('products.detail.actions.save_and_return', {
-                    defaultValue: 'Zapisz i wróć do listy',
-                  })}
-                </Button>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-start gap-5">
-            <div
-              className="grid size-[72px] shrink-0 place-items-center rounded-2xl bg-white text-[34px] soft-shadow"
-              aria-hidden
-            >
-              ▣
-            </div>
-            <div className="min-w-0 flex-1">
-              {mode === 'create' ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2.5 text-[12px] text-zinc-500">
-                    <Input
-                      autoFocus
-                      placeholder={t('object_create.id_placeholder', { defaultValue: 'ID' })}
-                      value={skuValue}
-                      onChange={(event) => setFieldValue('sku', event.target.value)}
-                      className="h-7 w-32 rounded-lg border-zinc-200 bg-white px-2 font-mono text-[12px]"
-                    />
-                  </div>
-                  <Input
-                    placeholder={
-                      kind === 'product'
-                        ? t('products.detail.create.placeholder.name', {
-                            defaultValue: 'Nazwa produktu',
-                          })
-                        : t('object_create.name_placeholder', { defaultValue: 'Nazwa' })
-                    }
-                    value={nameValue}
-                    onChange={(event) => setFieldValue('name', event.target.value)}
-                    className="font-display h-10 rounded-lg border-zinc-200 bg-white text-[20px] font-semibold tracking-tight"
-                  />
-                  {/* #1357 — "Marka" removed from the new-entry form. */}
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2.5 text-[12px] text-zinc-500">
-                    <span className="font-mono">{product?.code}</span>
-                    {brandValue !== '' ? (
-                      <>
-                        <span className="text-zinc-300">·</span>
-                        <span>{brandValue}</span>
-                      </>
-                    ) : null}
-                    <span className="text-zinc-300">·</span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        className={cn(
-                          'size-1.5 rounded-full',
-                          product?.enabled ? 'bg-emerald-500' : 'bg-zinc-300',
-                        )}
-                        aria-hidden
-                      />
-                      {product?.enabled
-                        ? t('products.detail.status.active', { defaultValue: 'Aktywny' })
-                        : t('products.detail.status.inactive', { defaultValue: 'Nieaktywny' })}
-                    </span>
-                  </div>
-                  {isEditing ? (
-                    <Input
-                      aria-label={t('products.detail.create.placeholder.name', {
-                        defaultValue: 'Nazwa produktu',
-                      })}
-                      placeholder={t('products.detail.create.placeholder.name', {
-                        defaultValue: 'Nazwa produktu',
-                      })}
-                      value={nameValue}
-                      onChange={(event) => setFieldValue('name', event.target.value)}
-                      className="font-display mt-1 h-11 rounded-lg border-zinc-200 bg-white text-[26px] font-semibold tracking-tight"
-                    />
-                  ) : (
-                    <h1 className="font-display mt-1 text-[26px] font-semibold leading-tight tracking-tight">
-                      {nameValue}
-                    </h1>
-                  )}
-                  {objectTypeName !== null ? (
-                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-zinc-700 soft-shadow">
-                        {objectTypeName}
-                      </span>
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </div>
-            {mode === 'edit' ? (
-              <div className="flex flex-col items-center gap-1">
-                <CompletenessRing pct={scopedCompletenessPct} size={72} stroke={6} />
-                {completenessScope !== null ? (
-                  <span
-                    className="num rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-zinc-500"
-                    title={t('products.completeness.scope_tooltip', {
-                      scope: completenessScope.toUpperCase(),
-                      defaultValue: 'Kompletność dla zakresu {{scope}}',
-                    })}
-                  >
-                    {completenessScope}
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        {/* Tabs + locale/channel toolbar */}
-        <div className="flex items-center gap-1 border-t border-zinc-100 px-7">
-          <div
-            className="flex flex-1 items-center gap-1"
-            role="tablist"
-            aria-label={t('products.detail.tabs.aria', { defaultValue: 'Zakładki produktu' })}
-          >
-            {visibleTabs.map((tab) => {
-              const isActive = activeTab === tab;
-              const badge = tabBadge(tab, groups, stackedGroups, product);
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => setActiveTab(tab)}
-                  className={cn(
-                    'relative inline-flex h-[44px] items-center gap-2 px-3.5 text-[13px] font-medium tracking-tight',
-                    isActive ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-800',
-                  )}
-                >
-                  {tabLabel(tab, groups, lang, t)}
-                  {badge !== null ? (
-                    <span
-                      className={cn(
-                        'num rounded px-1.5 py-0.5 text-[10.5px]',
-                        isActive ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-500',
-                      )}
-                    >
-                      {badge}
-                    </span>
-                  ) : null}
-                  {isActive ? (
-                    <span
-                      className="absolute -bottom-px left-0 right-0 h-[2px] rounded-t bg-zinc-900"
-                      aria-hidden
-                    />
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-          {mode === 'edit' ? (
-            <LocaleChannelToolbar
-              locale={locale}
-              channel={channel}
-              onLocaleChange={setLocale}
-              onChannelChange={setChannel}
-              locales={locales}
-              channels={channels}
-            />
-          ) : null}
-        </div>
-      </header>
+      <ProductDetailHeader
+        mode={mode}
+        kind={kind}
+        id={id}
+        backHref={backHref}
+        objectTypeLabel={objectTypeLabel}
+        breadcrumbCategory={breadcrumbCategory}
+        skuValue={skuValue}
+        nameValue={nameValue}
+        brandValue={brandValue}
+        objectTypeName={objectTypeName}
+        product={product}
+        isEditing={isEditing}
+        isSaving={isSaving}
+        objectTypeId={objectTypeId}
+        scopedCompletenessPct={scopedCompletenessPct}
+        completenessScope={completenessScope}
+        lang={lang}
+        visibleTabs={visibleTabs}
+        activeTab={activeTab}
+        groups={groups}
+        stackedGroups={stackedGroups}
+        locale={locale}
+        channel={channel}
+        locales={locales}
+        channels={channels}
+        onSave={(returnToList) => void handleSave(returnToList)}
+        onCancel={cancelEdit}
+        onRequestDelete={() => setShowDeleteConfirm(true)}
+        onFieldChange={setFieldValue}
+        onSelectTab={setActiveTab}
+        onLocaleChange={setLocale}
+        onChannelChange={setChannel}
+      />
 
       {/* Body */}
       <div className="grid grid-cols-1 gap-5 px-7 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -1066,98 +394,27 @@ export function ProductDetailPage({
               relations) resolve behind this boundary; the attributes view and
               tab-mode groups render synchronously and never suspend. */}
           <Suspense fallback={<TabLoadingFallback />}>
-            {(() => {
-              // MODR-03 (#925) — content area dispatch based on active tab.
-              // 'attributes' hosts every stacked group as inline AttrGroupCard
-              // sections; a tab-mode group code renders that single group;
-              // 'categories'/'history'/'variants' delegate to bespoke components.
-              const renderStackedGroup = (group: GroupMeta) => (
-                <AttrGroupCard
-                  key={group.id}
-                  id={group.id}
-                  title={group.label[lang] ?? group.code}
-                  icon={GROUP_ICONS[group.code]}
-                  filledCount={countFilled(group, fieldValue)}
-                  totalCount={group.attributes.length}
-                  expanded={expandedGroups.has(group.id)}
-                  onToggle={() => toggleGroup(group.id)}
-                  isSystem={isLegacyOptionalSystemGroupCode(group.code)}
-                >
-                  {group.attributes.map((attr) => (
-                    <AttrRow
-                      key={attr.id}
-                      attribute={attr}
-                      value={fieldValue(attr.code)}
-                      provenance={resolveProvenance(attr, product)}
-                      locale={locale}
-                      channel={channel}
-                      isEditing={isEditing}
-                      isLocked={attr.is_system}
-                      onChange={(next) => setFieldValue(attr.code, next)}
-                      createMode={mode === 'create'}
-                      relationContextProductId={isEditMode ? id : undefined}
-                      isInherited={
-                        scopeStatus[attr.code]?.has_override === false &&
-                        scopeStatus[attr.code]?.inherited_from != null
-                      }
-                      inheritedFrom={scopeStatus[attr.code]?.inherited_from ?? null}
-                      requiredError={requiredErrors.has(attr.code)}
-                    />
-                  ))}
-                </AttrGroupCard>
-              );
-
-              if (activeTab === 'attributes') {
-                // #1357 — the non-functional "Dodaj grupę atrybutów ad-hoc"
-                // stub was removed from this view per operator request.
-                return <>{stackedGroups.map(renderStackedGroup)}</>;
-              }
-
-              // Tab-mode AttributeGroup → render only that group, with
-              // a bespoke component for relations that retains its legacy
-              // data flow (relation links endpoint). Multimedia is no
-              // longer dispatched here — UX-02 removes it from the
-              // AttributeGroup model entirely; the conditional Multimedia
-              // tab lives as a hardcoded special tab driven by
-              // `ObjectType.hasMultimedia` (UX-06+).
-              const tabGroup = tabModeGroups.find((g) => g.code === activeTab);
-              if (tabGroup) {
-                if (tabGroup.code === 'relations') {
-                  // Reverse-links UI needs a persisted object — edit only;
-                  // forward relation attrs render via RelationCreateField.
-                  return mode === 'edit' ? (
-                    <RelationsTab productId={id} />
-                  ) : (
-                    renderStackedGroup(tabGroup)
-                  );
-                }
-                return renderStackedGroup(tabGroup);
-              }
-
-              // MODR-06 (#928) — synthetic `relations` tab for the
-              // reverse-only case (object has no forward AttributeGroup
-              // but is pointed at from elsewhere). RelationsTab already
-              // gracefully renders just the reverse panel when forward
-              // groups are empty.
-              if (activeTab === 'relations' && mode === 'edit') {
-                return <RelationsTab productId={id} />;
-              }
-
-              if (mode === 'edit' && isSpecialTab(activeTab)) {
-                return (
-                  <OtherTabs
-                    activeTab={activeTab}
-                    productId={id}
-                    objectTypeId={objectTypeId}
-                    kind={kind ?? 'product'}
-                    locale={locale}
-                    channel={channel}
-                  />
-                );
-              }
-
-              return null;
-            })()}
+            <ProductDetailContent
+              mode={mode}
+              isEditMode={isEditMode}
+              id={id}
+              kind={kind}
+              objectTypeId={objectTypeId}
+              activeTab={activeTab}
+              lang={lang}
+              locale={locale}
+              channel={channel}
+              isEditing={isEditing}
+              product={product}
+              stackedGroups={stackedGroups}
+              tabModeGroups={tabModeGroups}
+              scopeStatus={scopeStatus}
+              expandedGroups={expandedGroups}
+              requiredErrors={requiredErrors}
+              fieldValue={fieldValue}
+              onFieldChange={setFieldValue}
+              onToggleGroup={toggleGroup}
+            />
           </Suspense>
 
           {mode === 'create' && isCategorizable && createCategoryIds.length === 0 ? (
@@ -1170,45 +427,25 @@ export function ProductDetailPage({
           ) : null}
         </div>
 
-        <aside
-          className="space-y-3"
-          aria-label={t('products.detail.sidebar.aria', {
-            defaultValue: 'Panel boczny produktu',
-          })}
-        >
-          {isCategorizable ? (
-            <CategorySelectorCard
-              {...(mode === 'edit' && id !== ''
-                ? { mode: 'edit', productId: id, objectTypeId }
-                : {
-                    mode: 'create',
-                    selectedCategoryIds: createCategoryIds,
-                    primaryCategoryId: createPrimaryId,
-                    selectedCategories: createCategoriesSummaries,
-                    onChange: (ids, primary) => {
-                      setCreateCategoryIds(ids);
-                      setCreatePrimaryId(primary);
-                    },
-                    objectTypeId,
-                  })}
-            />
-          ) : null}
-          {mode === 'edit' && id !== '' ? (
-            <>
-              {kind === 'product' ? <SyncStatusCard productId={id} /> : null}
-              {hasVariantsCapability ? (
-                <VariantsListCard
-                  masterProductId={id}
-                  basePath="/api/objects"
-                  onSelectVariant={(variantId) => navigate(detailPathFor(variantId))}
-                  onCreateVariant={() => setActiveTab('variants')}
-                />
-              ) : null}
-              <EffectiveModelCard groups={groups} objectTypeName={objectTypeName ?? 'Product'} />
-              {kind === 'product' ? <AgentSuggestionsCard /> : null}
-            </>
-          ) : null}
-        </aside>
+        <ProductDetailSidebar
+          mode={mode}
+          id={id}
+          kind={kind}
+          objectTypeId={objectTypeId}
+          objectTypeName={objectTypeName}
+          isCategorizable={isCategorizable}
+          hasVariantsCapability={hasVariantsCapability}
+          groups={groups}
+          createCategoryIds={createCategoryIds}
+          createPrimaryId={createPrimaryId}
+          createCategoriesSummaries={createCategoriesSummaries}
+          onCreateCategoriesChange={(ids, primary) => {
+            setCreateCategoryIds(ids);
+            setCreatePrimaryId(primary);
+          }}
+          onSelectVariant={(variantId) => navigate(detailPathFor(variantId))}
+          onCreateVariant={() => setActiveTab('variants')}
+        />
       </div>
 
       <Dialog
@@ -1238,7 +475,11 @@ export function ProductDetailPage({
             >
               {t('app.cancel', { defaultValue: 'Anuluj' })}
             </Button>
-            <Button variant="destructive" onClick={() => void handleDelete()} disabled={isDeleting}>
+            <Button
+              variant="destructive"
+              onClick={() => void handleDelete(() => setShowDeleteConfirm(false))}
+              disabled={isDeleting}
+            >
               {isDeleting
                 ? t('products.detail.delete.deleting', { defaultValue: 'Usuwanie…' })
                 : t('products.detail.delete.confirm_submit', { defaultValue: 'Usuń produkt' })}
@@ -1247,253 +488,5 @@ export function ProductDetailPage({
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-const SPECIAL_TAB_DEFAULT_LABELS: Record<SpecialTabKey, string> = {
-  attributes: 'Atrybuty',
-  multimedia: 'Multimedia',
-  categories: 'Kategorie',
-  history: 'Historia',
-  variants: 'Warianty',
-};
-
-function tabLabel(
-  tab: TabKey,
-  groups: GroupMeta[],
-  lang: 'pl' | 'en',
-  t: (key: string, options?: { defaultValue?: string }) => string,
-): string {
-  if (isSpecialTab(tab)) {
-    return t(`products.detail.tabs.${tab}`, {
-      defaultValue: SPECIAL_TAB_DEFAULT_LABELS[tab],
-    });
-  }
-  const group = groups.find((g) => g.code === tab);
-  if (!group) return tab;
-  const i18nKey = `products.detail.tabs.group_${group.code}`;
-  const fallback = group.label[lang] ?? group.code;
-  return t(i18nKey, { defaultValue: fallback });
-}
-
-function isSpecialTab(tab: TabKey): tab is SpecialTabKey {
-  return (SPECIAL_TABS as readonly string[]).includes(tab);
-}
-
-function tabBadge(
-  tab: TabKey,
-  groups: GroupMeta[],
-  stackedGroups: GroupMeta[],
-  product: CatalogObjectDto | null | undefined,
-): number | null {
-  if (tab === 'attributes') {
-    return stackedGroups.length === 0 ? null : stackedGroups.length;
-  }
-  if (tab === 'categories') return null;
-  if (tab === 'history') return null;
-  if (tab === 'variants') {
-    const count = (product?.attributesIndexed as { variantsCount?: number } | undefined)
-      ?.variantsCount;
-    return typeof count === 'number' ? count : null;
-  }
-  // Tab-mode AttributeGroup → badge shows the attribute count when > 0.
-  const group = groups.find((g) => g.code === tab);
-  if (!group) return null;
-  return group.attributes.length === 0 ? null : group.attributes.length;
-}
-
-/**
- * #1350 — mirrors the upserter's isEmptyEnvelope: null / '' (after trim) /
- * empty arrays-objects count as empty; booleans and zeros are values.
- */
-function isEmptyAttributeValue(value: unknown): boolean {
-  if (value === null || value === undefined) return true;
-  if (typeof value === 'string') return value.trim() === '';
-  if (Array.isArray(value)) return value.every(isEmptyAttributeValue);
-  if (typeof value === 'object') {
-    const leaves = Object.values(value as Record<string, unknown>);
-    return leaves.length === 0 || leaves.every(isEmptyAttributeValue);
-  }
-  return false;
-}
-
-/**
- * #1102/#1415 — relation attribute codes across the effective groups;
- * their create-mode values go through PUT /relations, not the POST body.
- */
-function collectRelationCodes(groups: GroupMeta[]): Set<string> {
-  const codes = new Set<string>();
-  for (const group of groups) {
-    for (const attr of group.attributes) {
-      if (attr.type === 'relation') codes.add(attr.code);
-    }
-  }
-  return codes;
-}
-
-function splitDirtyAttributes(
-  dirty: Record<string, unknown>,
-  relationCodes: Set<string>,
-): { normal: Record<string, unknown>; relations: Record<string, string[]> } {
-  const normal: Record<string, unknown> = {};
-  const relations: Record<string, string[]> = {};
-  for (const [key, value] of Object.entries(dirty)) {
-    if (relationCodes.has(key)) {
-      relations[key] = toRelationIdList(value);
-      continue;
-    }
-    normal[key] = value;
-  }
-  return { normal, relations };
-}
-
-function toRelationIdList(value: unknown): string[] {
-  if (typeof value === 'string' && value !== '') return [value];
-  if (Array.isArray(value)) {
-    return value.filter((entry): entry is string => typeof entry === 'string' && entry !== '');
-  }
-  return [];
-}
-
-function stripAttributes(dirty: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(dirty)) {
-    if (k === 'sku' || k === 'code') continue;
-    out[k] = v;
-  }
-  return out;
-}
-
-function countFilled(group: GroupMeta, fieldValue: (code: string) => unknown): number {
-  let filled = 0;
-  for (const attr of group.attributes) {
-    const value = fieldValue(attr.code);
-    if (value === undefined || value === null) continue;
-    if (typeof value === 'string' && value.trim() === '') continue;
-    filled += 1;
-  }
-  return filled;
-}
-
-function resolveProvenance(
-  attr: AttributeMeta,
-  product: CatalogObjectDto | null | undefined,
-): Provenance {
-  if (attr.is_system) return 'integration';
-  const indexed = product?.attributesIndexed as
-    | Record<string, { provenance?: Provenance }>
-    | undefined;
-  const meta = indexed?.[attr.code];
-  if (meta && typeof meta === 'object' && typeof meta.provenance === 'string') {
-    return meta.provenance;
-  }
-  return 'manual';
-}
-
-function OtherTabs({
-  activeTab,
-  productId,
-  objectTypeId,
-  kind,
-  locale,
-  channel,
-}: {
-  activeTab: SpecialTabKey;
-  productId: string;
-  objectTypeId: string | null;
-  kind: string;
-  locale: ProductLocale;
-  channel: ProductChannel | null;
-}) {
-  // UX bug fix #2 — Multimedia is back as a special tab gated by
-  // `ObjectType.hasMultimedia` (UX-02 removed it from the AttributeGroup
-  // dispatcher); the assets link table is poly-kind so the tab works
-  // for every ObjectType.
-  if (activeTab === 'multimedia') return <ProductMultimediaTab productId={productId} />;
-  if (activeTab === 'categories')
-    return <CategoriesTab productId={productId} objectTypeId={objectTypeId} kind={kind} />;
-  if (activeTab === 'history') return <HistoryStub />;
-  if (activeTab === 'variants')
-    return (
-      <VariantsTabHost
-        productId={productId}
-        basePath="/api/objects"
-        locale={locale}
-        channel={channel}
-      />
-    );
-  return null;
-}
-
-/**
- * AUD-071 (#1614) — discreet fallback while a lazy tab chunk loads. The
- * tab chunks are small (a few tens of KB gzip) so this flashes only on a
- * cold cache; it intentionally mirrors the muted card surface of the real
- * tabs to avoid a jarring layout shift.
- */
-function TabLoadingFallback() {
-  const { t } = useTranslation();
-  return (
-    <div
-      className="rounded-2xl border border-line bg-surface p-5 text-[12.5px] text-muted-foreground soft-shadow"
-      role="status"
-      aria-live="polite"
-    >
-      {t('products.detail.tabs.loading', { defaultValue: 'Ładowanie…' })}
-    </div>
-  );
-}
-
-function HistoryStub() {
-  const events = [
-    {
-      who: 'Marcin Lipiec',
-      when: '5 min temu',
-      what: 'Zmieniono description.pl',
-      tone: 'bg-orange-500/10 text-orange-700',
-    },
-    {
-      who: 'agent.sonnet',
-      when: '2 godz. temu',
-      what: 'Wzbogacono kod HS (taryfa UE 2026)',
-      tone: 'bg-accent-emerald/10 text-accent-emerald',
-    },
-    {
-      who: 'Anna Wiśniewska',
-      when: 'wczoraj',
-      what: 'Dodano 3 zdjęcia produktu',
-      tone: 'bg-accent-blue/10 text-accent-blue',
-    },
-  ];
-
-  return (
-    <MockBadge variant="overlay" tooltip="MOCK · Pełna timeline wymaga endpointu audit-log">
-      <div className="rounded-2xl border border-line bg-surface p-5 soft-shadow">
-        <header className="mb-4 flex items-center gap-2">
-          <Sparkles className="size-4 text-muted-foreground" />
-          <h3 className="text-[14px] font-semibold text-ink">Historia zmian</h3>
-        </header>
-        <ol className="relative space-y-4 border-l border-line pl-6">
-          {events.map((event) => (
-            <li key={`${event.who}-${event.when}`} className="relative">
-              <span
-                className={`absolute -left-[31px] flex size-5 items-center justify-center rounded-full ring-2 ring-background ${event.tone}`}
-              >
-                <Clock className="size-2.5" />
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-[13px] font-medium text-ink">{event.who}</span>
-                <span className="text-[11px] text-muted-foreground">{event.when}</span>
-              </div>
-              <p className="mt-0.5 text-[12.5px] text-ink-2">{event.what}</p>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
-          <Link2 className="size-3" />
-          Sidebar pokazuje 5 ostatnich; pełna paginowana historia czeka na endpoint.
-        </div>
-      </div>
-    </MockBadge>
   );
 }

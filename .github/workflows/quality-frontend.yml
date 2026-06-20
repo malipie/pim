@@ -37,6 +37,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  guards:
+    name: Frontend lint guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # AUD-055 — block new jsonFetch+useEffect reads (stale-data anti-pattern,
+      # ADR-0021). AUD-057 — block new admin source files growing past the
+      # max-lines threshold (ADR-0021 sibling: readability). Both are pure
+      # bash guards over apps/admin/src — no Node/pnpm needed.
+      - name: jsonFetch + useEffect guard (ADR-0021)
+        run: bash scripts/lint-jsonfetch-useeffect.sh
+
+      - name: Admin max-lines guard
+        run: bash scripts/lint-admin-max-lines.sh
+
   biome:
     name: Biome strict
     runs-on: ubuntu-latest

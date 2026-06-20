@@ -1,0 +1,317 @@
+import type { UseQueryResult } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
+
+import { toast } from '@/components/ui/toast';
+import { httpErrorDetail, jsonFetch } from '@/lib/http';
+import {
+  collectRelationCodes,
+  isEmptyAttributeValue,
+  splitDirtyAttributes,
+  stripAttributes,
+} from './product-detail-helpers';
+import { scopeQuery } from './scope';
+import type {
+  CatalogObjectDto,
+  GroupMeta,
+  ProductChannel,
+  ProductDetailMode,
+  ProductLocale,
+} from './types';
+
+interface UseProductDetailFormArgs {
+  mode: ProductDetailMode;
+  id: string;
+  isEditMode: boolean;
+  kind: string | null;
+  objectTypeId: string | null;
+  isCategorizable: boolean;
+  locale: ProductLocale;
+  channel: ProductChannel | null;
+  groups: GroupMeta[];
+  attrs: Record<string, unknown>;
+  product: CatalogObjectDto | null | undefined;
+  productQuery: Pick<UseQueryResult<CatalogObjectDto>, 'refetch'>;
+  createCategoryIds: string[];
+  createPrimaryId: string | null;
+  backHref: string;
+  detailPathFor: (id: string) => string;
+}
+
+/**
+ * AUD-057 (#1608) — the product-detail write path + form state (dirty
+ * fields, required-field validation, expand/collapse, create/edit save,
+ * cancel, delete), lifted out of product-detail-page.tsx to bring that
+ * monolith under the 500-line guard. The page keeps locale/channel + tab
+ * UI state and reads everything else from {@see useProductDetailData}; this
+ * hook owns mutations + the dirty buffer they operate on.
+ */
+export function useProductDetailForm({
+  mode,
+  id,
+  isEditMode,
+  kind,
+  objectTypeId,
+  isCategorizable,
+  locale,
+  channel,
+  groups,
+  attrs,
+  product,
+  productQuery,
+  createCategoryIds,
+  createPrimaryId,
+  backHref,
+  detailPathFor,
+}: UseProductDetailFormArgs) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+
+  const [dirtyFields, setDirtyFields] = useState<Record<string, unknown>>({});
+  // #1350 — codes of required attributes that blocked the last save.
+  const [requiredErrors, setRequiredErrors] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const setExpandedAll = (ids: string[]): void => setExpandedGroups(new Set(ids));
+
+  const toggleGroup = (groupId: string): void => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const setFieldValue = (code: string, value: unknown): void => {
+    setDirtyFields((prev) => ({ ...prev, [code]: value }));
+    setRequiredErrors((prev) => {
+      if (!prev.has(code)) return prev;
+      const next = new Set(prev);
+      next.delete(code);
+      return next;
+    });
+  };
+
+  const fieldValue = (code: string): unknown => {
+    if (Object.hasOwn(dirtyFields, code)) {
+      return dirtyFields[code];
+    }
+    return attrs[code];
+  };
+
+  const resetDirty = (): void => setDirtyFields({});
+
+  // #1350 — full-state required check at save time: every `is_required`
+  // attribute across the effective groups must carry a non-empty CURRENT
+  // value (dirty edits included). Legacy dirty records are therefore
+  // enforced on their next save, exactly as the ticket specifies.
+  const collectRequiredViolations = (): string[] => {
+    const violations: string[] = [];
+    for (const group of groups) {
+      for (const attr of group.attributes) {
+        if (attr.is_required !== true) continue;
+        // #1350 (reopen #2) — requiredness is meaningless for booleans:
+        // an unchecked box IS the value `false`, not a missing value.
+        if (attr.type === 'boolean') continue;
+        const current = fieldValue(attr.code);
+        if (isEmptyAttributeValue(current)) violations.push(attr.code);
+      }
+    }
+    return violations;
+  };
+
+  const handleSave = async (returnToList = false): Promise<void> => {
+    if (isSaving) return;
+    const violations = collectRequiredViolations();
+    if (violations.length > 0) {
+      setRequiredErrors(new Set(violations));
+      toast.error(
+        t('products.detail.validation.required_fields', {
+          defaultValue: 'Uzupełnij wymagane pola: {{fields}}',
+          fields: violations.join(', '),
+        }),
+      );
+      return;
+    }
+    setRequiredErrors(new Set());
+    setIsSaving(true);
+    try {
+      if (mode === 'create') {
+        const skuRaw = dirtyFields.sku ?? dirtyFields.code ?? '';
+        const sku = typeof skuRaw === 'string' ? skuRaw.trim() : '';
+        if (sku === '') {
+          // #1415 — the system identifier is labelled "ID" for every
+          // ObjectType (operator decision); custom identifiers live as
+          // ordinary attributes.
+          toast.error(t('object_create.id_required', { defaultValue: 'ID jest wymagane' }));
+          setIsSaving(false);
+          return;
+        }
+        if (objectTypeId === null) {
+          toast.error(
+            t('products.detail.validation.object_type_missing', {
+              defaultValue: 'Brak built-in ObjectType — uruchom seeder katalogu',
+            }),
+          );
+          setIsSaving(false);
+          return;
+        }
+        // #891 / #1359 — categorizable kinds require a category at create.
+        if (isCategorizable && createCategoryIds.length === 0) {
+          toast.error(
+            t('products.detail.validation.categories_required', {
+              defaultValue: 'Przypisz przynajmniej jedną kategorię',
+            }),
+          );
+          setIsSaving(false);
+          return;
+        }
+        // #1102 — relation values cannot ride the create POST (they live
+        // in the relations link table, not object_values); split them out
+        // and PUT after the object exists, like UniversalCreatePage did.
+        const relationCodes = collectRelationCodes(groups);
+        const { normal: attributes, relations } = splitDirtyAttributes(
+          stripAttributes(dirtyFields),
+          relationCodes,
+        );
+        const body: Record<string, unknown> = {
+          code: sku,
+          objectTypeId,
+        };
+        if (createCategoryIds.length > 0) {
+          const primary =
+            createPrimaryId !== null && createCategoryIds.includes(createPrimaryId)
+              ? createPrimaryId
+              : createCategoryIds[0];
+          body.categoryIds = createCategoryIds;
+          body.primaryCategoryId = primary;
+        }
+        if (Object.keys(attributes).length > 0) body.attributes = attributes;
+        // #1415 — poly-kind create: same processor as the /api/products
+        // sugar path, kind comes from objectTypeId.
+        const created = await jsonFetch<{ id: string }>('/api/objects', {
+          method: 'POST',
+          contentType: 'application/ld+json',
+          body,
+        });
+
+        const relationFailures: string[] = [];
+        for (const [attrCode, targets] of Object.entries(relations)) {
+          if (targets.length === 0) continue;
+          try {
+            await jsonFetch(`/api/objects/${created.id}/relations/${attrCode}`, {
+              method: 'PUT',
+              contentType: 'application/json',
+              body: { targets: targets.map((targetId) => ({ id: targetId })) },
+            });
+          } catch {
+            relationFailures.push(attrCode);
+          }
+        }
+        if (relationFailures.length > 0) {
+          toast.error(
+            t('object_create.relations_partial_error', {
+              defaultValue: 'Obiekt utworzony, ale relacje nie zapisane: {{codes}}',
+              codes: relationFailures.join(', '),
+            }),
+          );
+        } else {
+          toast.success(
+            kind === 'product'
+              ? t('products.detail.create.success', {
+                  defaultValue: 'Utworzono produkt {{code}}',
+                  code: sku,
+                })
+              : t('object_create.success', { defaultValue: 'Utworzono {{code}}', code: sku }),
+          );
+        }
+        navigate(detailPathFor(created.id));
+      } else {
+        if (Object.keys(dirtyFields).length === 0) {
+          // Nothing to persist — "Zapisz i wróć do listy" still returns.
+          if (returnToList) navigate(backHref);
+          setIsSaving(false);
+          return;
+        }
+        // #1350 (reopen #2) — in edit mode every dirty key IS an attribute
+        // code; stripping 'sku'/'code' here silently dropped edits to a
+        // real `sku` attribute. The strip only belongs to create mode.
+        const attributes = { ...dirtyFields };
+        // #1150 / #1155 — write in the active locale + channel: localizable
+        // / scopable attributes land on that scope's row, others stay
+        // global (BE decides per flag).
+        await jsonFetch(`/api/objects/${id}${scopeQuery(locale, channel)}`, {
+          method: 'PATCH',
+          contentType: 'application/merge-patch+json',
+          body: { attributes },
+        });
+        await productQuery.refetch();
+        setDirtyFields({});
+        toast.success(t('products.detail.save.success', { defaultValue: 'Zapisano zmiany' }));
+        // #1351 — "Zapisz zmiany" keeps the row in edit mode; only
+        // "Zapisz i wróć do listy" navigates back to the list.
+        if (returnToList) navigate(backHref);
+      }
+    } catch (error) {
+      // #1179 — surface the server's Problem Details `detail` (e.g. duplicate
+      // identifier 409) instead of the generic copy.
+      toast.error(
+        httpErrorDetail(error) ??
+          t('products.detail.save.failed', { defaultValue: 'Nie udało się zapisać' }),
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const cancelEdit = (): void => {
+    // #1351 — no read-only mode anymore; "Anuluj" just discards unsaved
+    // edits and restores the persisted values.
+    setDirtyFields({});
+    void productQuery.refetch();
+  };
+
+  const handleDelete = async (onDone: () => void): Promise<void> => {
+    if (mode !== 'edit' || id === '' || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await jsonFetch(`/api/objects/${id}`, { method: 'DELETE' });
+      toast.success(
+        t('products.detail.delete.success', {
+          defaultValue: 'Usunięto produkt {{code}}',
+          code: product?.code ?? id,
+        }),
+      );
+      navigate(backHref);
+    } catch {
+      toast.error(
+        t('products.detail.delete.failed', { defaultValue: 'Nie udało się usunąć produktu' }),
+      );
+      setIsDeleting(false);
+      onDone();
+    }
+  };
+
+  return {
+    dirtyFields,
+    requiredErrors,
+    expandedGroups,
+    isSaving,
+    isDeleting,
+    setFieldValue,
+    fieldValue,
+    toggleGroup,
+    setExpandedAll,
+    resetDirty,
+    handleSave,
+    cancelEdit,
+    handleDelete,
+    // Exposed so the page's "reset dirty on scope change" + isEditMode
+    // guards stay in the component where the effects live.
+    isEditMode,
+  };
+}

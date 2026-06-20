@@ -12,8 +12,6 @@ use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Uid\Uuid;
-use Throwable;
 
 /**
  * VIEW-13 (#545) — `clear_attribute` bulk action.
@@ -21,19 +19,20 @@ use Throwable;
  * Removes the attribute slot from `attributes_indexed` (unset). Used
  * for resetting a field across N products. BulkLog records `old_value`
  * for the 24h rollback path. Locked attributes (VIEW-33 / PRD §8.3)
- * skip with a warning entry.
+ * skip with a warning entry. Shared lifecycle: {@see AbstractBulkHandler}.
  */
-final class BulkClearAttributeHandler
+final class BulkClearAttributeHandler extends AbstractBulkHandler
 {
-    public const int CHUNK_SIZE = 200;
+    private string $attrCode = '';
 
     public function __construct(
-        private readonly CatalogObjectRepositoryInterface $catalogObjects,
-        private readonly EntityManagerInterface $em,
-        private readonly BulkContext $bulkContext,
+        CatalogObjectRepositoryInterface $catalogObjects,
+        EntityManagerInterface $em,
+        BulkContext $bulkContext,
         private readonly AttributeLockReader $lockReader,
-        private readonly BulkReindexQueueInterface $reindexQueue,
+        BulkReindexQueueInterface $reindexQueue,
     ) {
+        parent::__construct($catalogObjects, $em, $bulkContext, $reindexQueue);
     }
 
     /**
@@ -41,112 +40,43 @@ final class BulkClearAttributeHandler
      */
     public function handle(BulkSession $session, string $attrCode): array
     {
-        // Long bulk runs (2k+ products) routinely exceed PHP's
-        // 30s HTTP timeout — without disabling it the handler
-        // is killed mid-loop, the session stays incomplete, and
-        // the operator sees 200 + zero rows touched.
-        set_time_limit(0);
+        $this->attrCode = $attrCode;
 
-        $this->bulkContext->setBulk(true, $session->getId());
-        try {
-            $success = 0;
-            $skipped = 0;
-            $errors = 0;
-            $chunkCounter = 0;
+        return $this->runBatch($session);
+    }
 
-            foreach ($session->getTargetObjectIds() as $targetId) {
-                try {
-                    $object = $this->catalogObjects->findById(Uuid::fromString($targetId));
-                    if (!$object instanceof CatalogObject) {
-                        ++$errors;
-                        ++$chunkCounter;
-                        continue;
-                    }
+    protected function processObject(CatalogObject $object, BulkSession $session, BulkCounters $counters): void
+    {
+        if ($this->lockReader->isLocked($object, $this->attrCode)) {
+            ++$counters->skipped;
+            $this->em->persist(new BulkLog(
+                $session->getId(),
+                $object->getId(),
+                null,
+                $object->getAttributesIndexed()[$this->attrCode] ?? null,
+                $object->getAttributesIndexed()[$this->attrCode] ?? null,
+                BulkLog::LEVEL_WARNING,
+                'Attribute locked',
+            ));
 
-                    if ($this->lockReader->isLocked($object, $attrCode)) {
-                        ++$skipped;
-                        $this->em->persist(new BulkLog(
-                            $session->getId(),
-                            $object->getId(),
-                            null,
-                            $object->getAttributesIndexed()[$attrCode] ?? null,
-                            $object->getAttributesIndexed()[$attrCode] ?? null,
-                            BulkLog::LEVEL_WARNING,
-                            'Attribute locked',
-                        ));
-                        ++$chunkCounter;
-                        if ($chunkCounter >= self::CHUNK_SIZE) {
-                            $this->em->flush();
-                            $this->em->clear();
-                            $chunkCounter = 0;
-                        }
-                        continue;
-                    }
-
-                    $indexed = $object->getAttributesIndexed();
-                    $oldValue = $indexed[$attrCode] ?? null;
-                    unset($indexed[$attrCode]);
-                    $object->updateAttributeIndex($indexed);
-                    $object->markTouchedByBulkSession($session->getId());
-
-                    $this->em->persist(new BulkLog(
-                        $session->getId(),
-                        $object->getId(),
-                        null,
-                        $oldValue,
-                        null,
-                        BulkLog::LEVEL_INFO,
-                        null,
-                    ));
-                    ++$success;
-                } catch (Throwable $e) {
-                    ++$errors;
-                    $this->em->persist(new BulkLog(
-                        $session->getId(),
-                        Uuid::fromString($targetId),
-                        null,
-                        null,
-                        null,
-                        BulkLog::LEVEL_ERROR,
-                        $e->getMessage(),
-                    ));
-                }
-
-                ++$chunkCounter;
-                if ($chunkCounter >= self::CHUNK_SIZE) {
-                    $this->em->flush();
-                    $this->em->clear();
-                    $chunkCounter = 0;
-                }
-            }
-
-            if ($chunkCounter > 0) {
-                $this->em->flush();
-            }
-
-            // Reload BulkSession: per-chunk em->clear() detached the
-
-            // local instance and its Tenant proxy. The final persist
-
-            // below would otherwise raise EntityNotFoundException on
-
-            // flush trying to resolve the stale proxy.
-
-            $reloaded = $this->em->find(BulkSession::class, $session->getId());
-
-            if ($reloaded instanceof BulkSession) {
-                $session = $reloaded;
-            }
-
-            $session->complete($success, $skipped, $errors);
-            $this->em->persist($session);
-            $this->em->flush();
-
-            $this->reindexQueue->queueAll($session->getTargetObjectIds());
-
-            return ['success' => $success, 'skipped' => $skipped, 'error' => $errors];
-        } finally {
-            $this->bulkContext->setBulk(false);
+            return;
         }
+
+        $indexed = $object->getAttributesIndexed();
+        $oldValue = $indexed[$this->attrCode] ?? null;
+        unset($indexed[$this->attrCode]);
+        $object->updateAttributeIndex($indexed);
+        $object->markTouchedByBulkSession($session->getId());
+
+        $this->em->persist(new BulkLog(
+            $session->getId(),
+            $object->getId(),
+            null,
+            $oldValue,
+            null,
+            BulkLog::LEVEL_INFO,
+            null,
+        ));
+        ++$counters->success;
     }
 }

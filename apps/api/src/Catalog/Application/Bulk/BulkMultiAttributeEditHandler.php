@@ -13,8 +13,6 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Component\Uid\Uuid;
-use Throwable;
 
 /**
  * VIEW-13 (#545) — `multi_attribute_edit` bulk action.
@@ -23,22 +21,25 @@ use Throwable;
  * transaction per object. Each attribute change emits its own BulkLog
  * (so rollback can replay individually). Supported ops: `set`, `clear`.
  * Locked attributes (VIEW-33 / PRD §8.3) skip per-edit with a warning
- * entry; other edits in the same row still apply.
+ * entry; other edits in the same row still apply. Shared lifecycle:
+ * {@see AbstractBulkHandler}.
  *
  * Cmd+K killer use case (PRD §3.5): „skopiuj manufacturer do brand i
  * ustaw enabled=true dla wszystkich z manufacturer IS NOT EMPTY".
  */
-final class BulkMultiAttributeEditHandler
+final class BulkMultiAttributeEditHandler extends AbstractBulkHandler
 {
-    public const int CHUNK_SIZE = 200;
+    /** @var list<array{attr: string, op: string, value?: mixed}> */
+    private array $edits = [];
 
     public function __construct(
-        private readonly CatalogObjectRepositoryInterface $catalogObjects,
-        private readonly EntityManagerInterface $em,
-        private readonly BulkContext $bulkContext,
+        CatalogObjectRepositoryInterface $catalogObjects,
+        EntityManagerInterface $em,
+        BulkContext $bulkContext,
         private readonly AttributeLockReader $lockReader,
-        private readonly BulkReindexQueueInterface $reindexQueue,
+        BulkReindexQueueInterface $reindexQueue,
     ) {
+        parent::__construct($catalogObjects, $em, $bulkContext, $reindexQueue);
     }
 
     /**
@@ -48,137 +49,73 @@ final class BulkMultiAttributeEditHandler
      */
     public function handle(BulkSession $session, array $edits): array
     {
-        // Long bulk runs (2k+ products) routinely exceed PHP's 30s HTTP
-        // timeout — without disabling it the handler is killed mid-loop,
-        // the session stays incomplete, and the operator sees 200 + zero
-        // rows touched.
-        set_time_limit(0);
-
         if ([] === $edits) {
             throw new BadRequestHttpException('edits must be a non-empty list.');
         }
 
-        $this->bulkContext->setBulk(true, $session->getId());
-        try {
-            $success = 0;
-            $skipped = 0;
-            $errors = 0;
-            $chunkCounter = 0;
+        $this->edits = $edits;
 
-            foreach ($session->getTargetObjectIds() as $targetId) {
-                try {
-                    $object = $this->catalogObjects->findById(Uuid::fromString($targetId));
-                    if (!$object instanceof CatalogObject) {
-                        ++$errors;
-                        ++$chunkCounter;
-                        continue;
-                    }
+        return $this->runBatch($session);
+    }
 
-                    $indexed = $object->getAttributesIndexed();
-                    $rowChanged = false;
-                    foreach ($edits as $edit) {
-                        $code = $edit['attr'];
-                        $op = $edit['op'];
-                        $oldValue = $indexed[$code] ?? null;
+    protected function processObject(CatalogObject $object, BulkSession $session, BulkCounters $counters): void
+    {
+        $indexed = $object->getAttributesIndexed();
+        $rowChanged = false;
+        foreach ($this->edits as $edit) {
+            $code = $edit['attr'];
+            $op = $edit['op'];
+            $oldValue = $indexed[$code] ?? null;
 
-                        if ($this->lockReader->isLocked($object, $code)) {
-                            ++$skipped;
-                            $this->em->persist(new BulkLog(
-                                $session->getId(),
-                                $object->getId(),
-                                null,
-                                $oldValue,
-                                $oldValue,
-                                BulkLog::LEVEL_WARNING,
-                                \sprintf('Attribute locked: %s', $code),
-                            ));
-                            continue;
-                        }
-
-                        if ('set' === $op) {
-                            $newValue = $edit['value'] ?? null;
-                            $indexed[$code] = $newValue;
-                        } elseif ('clear' === $op) {
-                            $newValue = null;
-                            unset($indexed[$code]);
-                        } else {
-                            $this->em->persist(new BulkLog(
-                                $session->getId(),
-                                $object->getId(),
-                                null,
-                                $oldValue,
-                                $oldValue,
-                                BulkLog::LEVEL_ERROR,
-                                \sprintf('Unsupported edit op "%s" on attr "%s"', $op, $code),
-                            ));
-                            continue;
-                        }
-
-                        $this->em->persist(new BulkLog(
-                            $session->getId(),
-                            $object->getId(),
-                            null,
-                            $oldValue,
-                            $newValue,
-                            BulkLog::LEVEL_INFO,
-                            $code,
-                        ));
-                        $rowChanged = true;
-                    }
-
-                    if ($rowChanged) {
-                        $object->updateAttributeIndex($indexed);
-                        $object->markTouchedByBulkSession($session->getId());
-                        ++$success;
-                    }
-                } catch (Throwable $e) {
-                    ++$errors;
-                    $this->em->persist(new BulkLog(
-                        $session->getId(),
-                        Uuid::fromString($targetId),
-                        null,
-                        null,
-                        null,
-                        BulkLog::LEVEL_ERROR,
-                        $e->getMessage(),
-                    ));
-                }
-
-                ++$chunkCounter;
-                if ($chunkCounter >= self::CHUNK_SIZE) {
-                    $this->em->flush();
-                    $this->em->clear();
-                    $chunkCounter = 0;
-                }
+            if ($this->lockReader->isLocked($object, $code)) {
+                ++$counters->skipped;
+                $this->em->persist(new BulkLog(
+                    $session->getId(),
+                    $object->getId(),
+                    null,
+                    $oldValue,
+                    $oldValue,
+                    BulkLog::LEVEL_WARNING,
+                    \sprintf('Attribute locked: %s', $code),
+                ));
+                continue;
             }
 
-            if ($chunkCounter > 0) {
-                $this->em->flush();
+            if ('set' === $op) {
+                $newValue = $edit['value'] ?? null;
+                $indexed[$code] = $newValue;
+            } elseif ('clear' === $op) {
+                $newValue = null;
+                unset($indexed[$code]);
+            } else {
+                $this->em->persist(new BulkLog(
+                    $session->getId(),
+                    $object->getId(),
+                    null,
+                    $oldValue,
+                    $oldValue,
+                    BulkLog::LEVEL_ERROR,
+                    \sprintf('Unsupported edit op "%s" on attr "%s"', $op, $code),
+                ));
+                continue;
             }
 
-            // Reload BulkSession: per-chunk em->clear() detached the
+            $this->em->persist(new BulkLog(
+                $session->getId(),
+                $object->getId(),
+                null,
+                $oldValue,
+                $newValue,
+                BulkLog::LEVEL_INFO,
+                $code,
+            ));
+            $rowChanged = true;
+        }
 
-            // local instance and its Tenant proxy. The final persist
-
-            // below would otherwise raise EntityNotFoundException on
-
-            // flush trying to resolve the stale proxy.
-
-            $reloaded = $this->em->find(BulkSession::class, $session->getId());
-
-            if ($reloaded instanceof BulkSession) {
-                $session = $reloaded;
-            }
-
-            $session->complete($success, $skipped, $errors);
-            $this->em->persist($session);
-            $this->em->flush();
-
-            $this->reindexQueue->queueAll($session->getTargetObjectIds());
-
-            return ['success' => $success, 'skipped' => $skipped, 'error' => $errors];
-        } finally {
-            $this->bulkContext->setBulk(false);
+        if ($rowChanged) {
+            $object->updateAttributeIndex($indexed);
+            $object->markTouchedByBulkSession($session->getId());
+            ++$counters->success;
         }
     }
 }

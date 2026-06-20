@@ -16,8 +16,6 @@ use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Component\Uid\Uuid;
-use Throwable;
 
 /**
  * VIEW-16 (#548) — `duplicate` bulk action.
@@ -25,20 +23,23 @@ use Throwable;
  * Clones each source product into `{code}-COPY-N` (mirrors
  * DuplicateProductController). Skips collisions (conflict warning) and
  * caps the suffix counter to 9999 per source. The 24h rollback path
- * removes the cloned rows by id (recorded in BulkLog new_value).
+ * removes the cloned rows by id (recorded in BulkLog new_value). Shared
+ * lifecycle: {@see AbstractBulkHandler}; cloning N values per source is
+ * heavier, so the chunk size is halved.
  */
-final class BulkDuplicateHandler
+final class BulkDuplicateHandler extends AbstractBulkHandler
 {
-    public const int CHUNK_SIZE = 100;
+    protected const int CHUNK_SIZE = 100;
     public const int MAX_SUFFIX = 9999;
 
     public function __construct(
-        private readonly CatalogObjectRepositoryInterface $catalogObjects,
+        CatalogObjectRepositoryInterface $catalogObjects,
         private readonly ObjectValueRepositoryInterface $values,
-        private readonly EntityManagerInterface $em,
-        private readonly BulkContext $bulkContext,
-        private readonly BulkReindexQueueInterface $reindexQueue,
+        EntityManagerInterface $em,
+        BulkContext $bulkContext,
+        BulkReindexQueueInterface $reindexQueue,
     ) {
+        parent::__construct($catalogObjects, $em, $bulkContext, $reindexQueue);
     }
 
     /**
@@ -46,124 +47,63 @@ final class BulkDuplicateHandler
      */
     public function handle(BulkSession $session): array
     {
-        // Long bulk runs (2k+ products) routinely exceed PHP's
-        // 30s HTTP timeout — without disabling it the handler
-        // is killed mid-loop, the session stays incomplete, and
-        // the operator sees 200 + zero rows touched.
-        set_time_limit(0);
+        return $this->runBatch($session);
+    }
 
-        $this->bulkContext->setBulk(true, $session->getId());
-        try {
-            $success = 0;
-            $skipped = 0;
-            $errors = 0;
-            $chunkCounter = 0;
+    protected function processObject(CatalogObject $object, BulkSession $session, BulkCounters $counters): void
+    {
+        if (ObjectKind::Product !== $object->getKind()) {
+            ++$counters->error;
 
-            foreach ($session->getTargetObjectIds() as $targetId) {
-                try {
-                    $source = $this->catalogObjects->findById(Uuid::fromString($targetId));
-                    if (!$source instanceof CatalogObject || ObjectKind::Product !== $source->getKind()) {
-                        ++$errors;
-                        ++$chunkCounter;
-                        continue;
-                    }
-
-                    $tenant = $source->getTenant();
-                    if (null === $tenant) {
-                        throw new BadRequestHttpException('Source product is missing tenant context.');
-                    }
-
-                    $newCode = $this->allocateCopySku($source);
-                    if (null === $newCode) {
-                        ++$skipped;
-                        $this->em->persist(new BulkLog(
-                            $session->getId(),
-                            $source->getId(),
-                            null,
-                            ['code' => $source->getCode()],
-                            ['code' => $source->getCode()],
-                            BulkLog::LEVEL_WARNING,
-                            'Suffix exhausted',
-                        ));
-                        ++$chunkCounter;
-                        continue;
-                    }
-
-                    $copy = new CatalogObject($source->getObjectType(), $newCode);
-                    $this->catalogObjects->save($copy);
-                    $copy->markTouchedByBulkSession($session->getId());
-
-                    foreach ($this->values->findByObject($source) as $sourceValue) {
-                        $cloned = new ObjectValue(
-                            object: $copy,
-                            attribute: $sourceValue->getAttribute(),
-                            value: $sourceValue->getValue(),
-                            provenance: Provenance::Manual,
-                        );
-                        $cloned->changeChannelId($sourceValue->getChannelId());
-                        $cloned->changeLocale($sourceValue->getLocale());
-                        $this->values->save($cloned);
-                    }
-
-                    $this->em->persist(new BulkLog(
-                        $session->getId(),
-                        $source->getId(),
-                        null,
-                        ['code' => $source->getCode()],
-                        ['copy_id' => $copy->getId()->toRfc4122(), 'copy_code' => $newCode],
-                        BulkLog::LEVEL_INFO,
-                        null,
-                    ));
-                    ++$success;
-                } catch (Throwable $e) {
-                    ++$errors;
-                    $this->em->persist(new BulkLog(
-                        $session->getId(),
-                        Uuid::fromString($targetId),
-                        null,
-                        null,
-                        null,
-                        BulkLog::LEVEL_ERROR,
-                        $e->getMessage(),
-                    ));
-                }
-
-                ++$chunkCounter;
-                if ($chunkCounter >= self::CHUNK_SIZE) {
-                    $this->em->flush();
-                    $this->em->clear();
-                    $chunkCounter = 0;
-                }
-            }
-
-            if ($chunkCounter > 0) {
-                $this->em->flush();
-            }
-
-            // Reload BulkSession: per-chunk em->clear() detached the
-
-            // local instance and its Tenant proxy. The final persist
-
-            // below would otherwise raise EntityNotFoundException on
-
-            // flush trying to resolve the stale proxy.
-
-            $reloaded = $this->em->find(BulkSession::class, $session->getId());
-
-            if ($reloaded instanceof BulkSession) {
-                $session = $reloaded;
-            }
-
-            $session->complete($success, $skipped, $errors);
-            $this->em->persist($session);
-            $this->em->flush();
-
-            $this->reindexQueue->queueAll($session->getTargetObjectIds());
-
-            return ['success' => $success, 'skipped' => $skipped, 'error' => $errors];
-        } finally {
-            $this->bulkContext->setBulk(false);
+            return;
         }
+
+        if (null === $object->getTenant()) {
+            throw new BadRequestHttpException('Source product is missing tenant context.');
+        }
+
+        $newCode = $this->allocateCopySku($object);
+        if (null === $newCode) {
+            ++$counters->skipped;
+            $this->em->persist(new BulkLog(
+                $session->getId(),
+                $object->getId(),
+                null,
+                ['code' => $object->getCode()],
+                ['code' => $object->getCode()],
+                BulkLog::LEVEL_WARNING,
+                'Suffix exhausted',
+            ));
+
+            return;
+        }
+
+        $copy = new CatalogObject($object->getObjectType(), $newCode);
+        $this->catalogObjects->save($copy);
+        $copy->markTouchedByBulkSession($session->getId());
+
+        foreach ($this->values->findByObject($object) as $sourceValue) {
+            $cloned = new ObjectValue(
+                object: $copy,
+                attribute: $sourceValue->getAttribute(),
+                value: $sourceValue->getValue(),
+                provenance: Provenance::Manual,
+            );
+            $cloned->changeChannelId($sourceValue->getChannelId());
+            $cloned->changeLocale($sourceValue->getLocale());
+            $this->values->save($cloned);
+        }
+
+        $this->em->persist(new BulkLog(
+            $session->getId(),
+            $object->getId(),
+            null,
+            ['code' => $object->getCode()],
+            ['copy_id' => $copy->getId()->toRfc4122(), 'copy_code' => $newCode],
+            BulkLog::LEVEL_INFO,
+            null,
+        ));
+        ++$counters->success;
     }
 
     private function allocateCopySku(CatalogObject $source): ?string
