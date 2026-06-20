@@ -2,6 +2,19 @@
 
 > Plik startowy zasiany twardymi wytycznymi z `Project Plan/01-architektura-pim.md`. Po każdej korekcie operatora lub odkrytym wzorcu (sukces ALBO porażka) — dopisz wpis. Czytaj przed każdą sesją.
 
+## Lessons z #1673 + #1678 (2026-06-20, bug-fixy: walidacja group-required + kafelki importu)
+
+### Patterns to Follow
+- **Gwiazdka „wymagane" i save-guard MUSZĄ dzielić jeden predykat.** #1673: `attr-row` rysował gwiazdkę dla `is_required || is_required_in_group`, ale guard sprawdzał tylko `is_required` → pole z gwiazdką zapisywało się puste. Fix: wspólny helper `isAttributeRequired` w obu miejscach. Completeness-required egzekwuj w EDIT (zaimportowany niekompletny wpis), nie CREATE (świeży szkic) — inaczej blokujesz tworzenie produktu na każdym completeness-polu naraz (padły `view-07` + `1351` w CI).
+- **„Analogiczny widok jak X" = reużyj komponent X, nie buduj wariantu.** #1678: operator chciał kafelkowego wyboru danych jak eksport; pierwsza próba (#1675) dała Combobox — źle. Eksport `StepEntityType` używa generycznych `SelectableCard`/`SelectableCardGroup` — import reużywa je 1:1 (tablica `ENTITY_DEFS` + mapowanie kafelka na `targetObjectTypeId`). Zero duplikacji. Gdy operator mówi „jak przy X" — najpierw znajdź i przeczytaj komponent X, potwierdź wzorzec ([[feedback_closed_means_closed]]-style AskUserQuestion: kafelki vs select + struktura kroków) PRZED implementacją.
+
+### Patterns to Avoid
+- **Zmiana liczby kroków wizarda łamie WSZYSTKIE jego specy — uruchom je wszystkie lokalnie przed push.** 6→7 kroków importu zepsuło `imports-wizard.spec` (eyebrow „6 kroków", active pill „źródło", 6 pilli), mimo że `1675` przechodził. Trzeba było `grep -rln "imports/new\|Wizard steps\|6 kroków" e2e` → uruchomić CAŁĄ listę (1675, 1429, imports-wizard, nui-13-a11y, imports). Pojedyncze-spec runy = wiele rund CI zmarnowanych.
+- **`scripts/lint-jsonfetch-useeffect.sh` liczy pliki z `jsonFetch` + `useEffect(` (baseline 61) — guard niezależny od intencji.** Nowy komponent z `useQuery({queryFn: jsonFetch})` + `useEffect` (nawet gdy useEffect tylko synchronizuje lokalny state, nie ładuje danych) = +1 nad baseline → czerwony „Frontend lint guards". Fix: wynieś transport (`jsonFetch`+`useQuery`) do osobnego hooka; komponent zostaje z `useEffect` bez `jsonFetch`.
+
+### Package Quirks / Toolchain
+- **Force-push w trakcie trwającego CI runu bywa nie-triggerujący nowego runu.** Po `git push --force-with-lease` GitHub czasem nie startuje workflow dla nowego sha (stary run wciąż `in_progress`). Re-trigger: pusty commit (`git commit --allow-empty`) + push, albo amend realnego pliku + force-push. Sprawdź `gh run list --json headSha` czy run istnieje dla HEAD.
+
 ## Lessons z #1314 + #1316 (2026-06-07, channel placement reconcile + label→name refactor)
 
 ### Patterns to Follow
