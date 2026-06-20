@@ -362,6 +362,14 @@ services:
     App\Identity\Contracts\Audit\DataExportAuditor:
         alias: App\Identity\Infrastructure\Audit\DataExportAuditor
 
+    # AUD-053 (W3-1) — "current user" port. Lets controllers outside Identity
+    # (Backup; later the Import controllers) read the authenticated principal's
+    # id/tenant without importing Identity\Domain\Entity\User (deptrac:
+    # Backup/Import → Identity_Contracts). Impl name differs from the
+    # interface, so autowiring needs the explicit alias.
+    App\Identity\Contracts\Auth\CurrentUserProvider:
+        alias: App\Identity\Application\Auth\SecurityCurrentUserProvider
+
     App\Import\Application\Service\HealthCheck\FolderHealthCheckDriver:
         tags: ['app.import.health_check_driver']
 

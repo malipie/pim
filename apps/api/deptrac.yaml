@@ -67,12 +67,39 @@ parameters:
           collectors:
               - type: directory
                 value: 'src/Identity/Domain/.*'
-              - type: directory
-                value: 'src/Identity/Application/.*'
+              # AUD-053 (W3-1): all of Identity\Application EXCEPT the
+              # carved-out CurrentTenantProvider, which lives in its own
+              # single-class layer so Search can reach it without the whole
+              # Internals surface. A token may only live in one layer.
+              - type: bool
+                must:
+                    - type: directory
+                      value: 'src/Identity/Application/.*'
+                must_not:
+                    - type: classNameRegex
+                      value: '#^App\\Identity\\Application\\CurrentTenantProvider$#'
               - type: directory
                 value: 'src/Identity/Infrastructure/.*'
               - type: directory
                 value: 'src/Identity/Presentation/.*'
+              # AUD-053 (W3-1): the OpenApi factory was unassigned to any
+              # layer (deptrac debug:unassigned). It is an Identity-internal
+              # API Platform decorator; fold it into the Internals layer so
+              # every first-party Identity class is governed.
+              - type: directory
+                value: 'src/Identity/OpenApi/.*'
+        # AUD-053 (W3-1): a single-class sub-layer carved out of Identity so
+        # other BCs (Search) can reach the tenant resolver WITHOUT being
+        # granted the whole Identity_Internals surface. CurrentTenantProvider
+        # reads the security token (authenticated user / API-key principal /
+        # non-prod env default) — the security-backed source the cross-tenant
+        # search guard needs. The pending cleanup is moving it into
+        # Shared\Application (see the RequestTenantSubscriber baseline note);
+        # until then this is the minimum honest grant, not a broad allow.
+        - name: Identity_TenantProvider
+          collectors:
+              - type: classNameRegex
+                value: '#^App\\Identity\\Application\\CurrentTenantProvider$#'
         - name: Identity_Contracts
           collectors:
               - type: directory
@@ -90,6 +117,27 @@ parameters:
               - type: directory
                 value: 'src/Search/.*'
 
+        # ─── Backup (pgBackRest snapshots — IMP-06) ────────────────────
+        # AUD-079 (W3-1): the Backup BC shipped without any deptrac rules,
+        # so all 12 of its classes were unassigned (debug:unassigned) and
+        # every reach INTO it (ImportSession.backupSnapshot, BackupVoter)
+        # was an unreported uncovered edge. Split it like every other BC —
+        # Internals + a forward-compatible Contracts layer.
+        - name: Backup_Internals
+          collectors:
+              - type: directory
+                value: 'src/Backup/Domain/.*'
+              - type: directory
+                value: 'src/Backup/Application/.*'
+              - type: directory
+                value: 'src/Backup/Infrastructure/.*'
+              - type: directory
+                value: 'src/Backup/Presentation/.*'
+        - name: Backup_Contracts
+          collectors:
+              - type: directory
+                value: 'src/Backup/Contracts/.*'
+
         # ─── Forward-compatible BCs (empty today) ──────────────────────
         - name: Integration
           collectors:
@@ -103,6 +151,21 @@ parameters:
           collectors:
               - type: directory
                 value: 'src/ApiConfigurator/.*'
+
+        # ─── Vendor (third-party + PHP-internal classes) ───────────────
+        # AUD-053 (W3-1): every dependency from a first-party class onto a
+        # framework/library/PHP-internal class (Symfony, Doctrine, API
+        # Platform, PSR, …) was previously counted as "Uncovered" — ~5.3k
+        # silent edges that hid the handful of REAL first-party gaps among
+        # them. This catch-all assigns "anything not under App\" to a named
+        # Vendor layer that every BC is explicitly allowed to use, so the
+        # uncovered count collapses to genuine first-party blind spots only.
+        - name: Vendor
+          collectors:
+              - type: bool
+                must_not:
+                    - type: classNameRegex
+                      value: '#^App\\#'
 
         # ─── Import / Export (ADR-0019, IMP2-1.1 #1463) ────────────────
         # Target ruleset: only *_Contracts + Shared. Existing reaches into
@@ -132,14 +195,19 @@ parameters:
                 value: 'src/PHPStan/.*'
 
     ruleset:
+        # AUD-053 (W3-1): `Vendor` appears in every ruleset below so that
+        # framework / library / PHP-internal edges resolve to an allowed
+        # layer instead of inflating the Uncovered count.
         Catalog_Internals:
             - Catalog_Contracts
             - Asset_Contracts
             - Channel_Contracts
             - Identity_Contracts
             - Shared
+            - Vendor
         Catalog_Contracts:
             - Shared
+            - Vendor
 
         Channel_Internals:
             - Channel_Contracts
@@ -147,36 +215,62 @@ parameters:
             - Asset_Contracts
             - Identity_Contracts
             - Shared
+            - Vendor
         Channel_Contracts:
             - Shared
+            - Vendor
 
         Asset_Internals:
             - Asset_Contracts
             - Catalog_Contracts
             - Identity_Contracts
             - Shared
+            - Vendor
         Asset_Contracts:
             - Shared
+            - Vendor
 
         Import:
             - Catalog_Contracts
             - Channel_Contracts
             - Asset_Contracts
             - Identity_Contracts
+            # AUD-079 (W3-1): ImportSession carries a `backupSnapshot`
+            # many-to-one onto the Backup entity (IMP2-2.10 pre-import
+            # snapshot badge). A Doctrine association needs the concrete
+            # target-entity class, so this is a structural coupling that
+            # cannot be hidden behind a Contracts interface; allow it
+            # explicitly rather than baseline it as a violation.
+            - Backup_Internals
             - Shared
+            - Vendor
         Export:
             - Catalog_Contracts
             - Channel_Contracts
             - Asset_Contracts
             - Identity_Contracts
             - Shared
+            - Vendor
 
         Identity_Internals:
             - Identity_Contracts
             - Catalog_Contracts
+            # AUD-079 (W3-1): BackupVoter references the Backup entity it
+            # protects — the same "voter references its resource" pattern
+            # already accepted for ProductVoter / CategoryVoter / AssetVoter.
+            - Backup_Internals
+            # AUD-053 (W3-1): CurrentTenantProvider was carved out of this
+            # layer; the audit listeners that still consume it reach back in
+            # through its dedicated single-class layer.
+            - Identity_TenantProvider
             - Shared
+            - Vendor
+        Identity_TenantProvider:
+            - Shared
+            - Vendor
         Identity_Contracts:
             - Shared
+            - Vendor
 
         Shared:
             # Shared is normally a leaf. The exception is the RBAC attribute
@@ -186,6 +280,7 @@ parameters:
             # attribute classes (RequiresPermission + NoPermissionRequired),
             # which are pure metadata with zero runtime coupling.
             - Identity_Contracts
+            - Vendor
 
         Search:
             - Shared
@@ -193,7 +288,24 @@ parameters:
             - Catalog_Internals
             - Channel_Contracts
             - Identity_Contracts
-            - Identity_Internals
+            # AUD-079 (W3-1): narrowed from the whole Identity_Internals to
+            # the single CurrentTenantProvider class the search tenant guard
+            # actually uses (debug: it touches nothing else in Identity
+            # Internals).
+            - Identity_TenantProvider
+            - Vendor
+
+        Backup_Internals:
+            - Backup_Contracts
+            # AUD-079 (W3-1): Backup's only cross-BC reach is the current-user
+            # port (CurrentUserProvider in Identity_Contracts) plus Shared —
+            # the User-entity leak was removed via that seam in W3-1.
+            - Identity_Contracts
+            - Shared
+            - Vendor
+        Backup_Contracts:
+            - Shared
+            - Vendor
 
         Integration:
             - Shared
@@ -201,11 +313,13 @@ parameters:
             - Channel_Contracts
             - Asset_Contracts
             - Identity_Contracts
+            - Vendor
 
         Agent:
             - Shared
             - Catalog_Contracts
             - Identity_Contracts
+            - Vendor
 
         ApiConfigurator:
             - Shared
@@ -213,6 +327,7 @@ parameters:
             - Channel_Contracts
             - Asset_Contracts
             - Identity_Contracts
+            - Vendor
 
         Tooling:
             - Catalog_Internals
@@ -226,6 +341,7 @@ parameters:
             - Shared
             - Import
             - Export
+            - Vendor
 
     # Inline baseline of pre-existing cross-BC violations that the cleanup
     # tickets handle in follow-ups (see ADR-0013). Three clusters:
@@ -237,6 +353,18 @@ parameters:
     #      CurrentTenantProvider into Shared\Application.
     # Every entry below is a TODO; new violations not in this list fail the
     # build through CI.
+    #
+    # AUD-053 (W3-1) burndown — the dominant cluster here is the repeated
+    # `Identity\Domain\Entity\User` leak: ~17 controllers reached for the
+    # concrete User entity just to read the authenticated principal's id /
+    # tenant off the security token. W3-1 introduced the seam
+    # `Identity\Contracts\Auth\CurrentUserProvider` and migrated the first
+    # batch off it (Backup TriggerBackupController + 4 Import controllers:
+    # ImportReportCsv, ImportThroughput, ListScheduleRuns, UpcomingSchedules),
+    # deleting their baseline entries below. The remaining User-leak
+    # controllers + the Export/Import → Catalog\Domain reaches stay baselined
+    # and are tracked as the #1466 burndown follow-up — each migrates to the
+    # same seam (User) or a Catalog Contracts seam, one controller at a time.
     skip_violations:
         App\Catalog\Application\DemoCatalogSeeder:
             - App\Asset\Domain\Entity\Asset
@@ -394,15 +522,9 @@ parameters:
             - App\Catalog\Domain\Entity\ObjectType
             - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
             - App\Identity\Domain\Entity\User
-        App\Import\Presentation\Controller\ImportReportCsvController:
-            - App\Identity\Domain\Entity\User
         App\Import\Presentation\Controller\ImportSessionStateController:
             - App\Identity\Domain\Entity\User
-        App\Import\Presentation\Controller\ImportThroughputController:
-            - App\Identity\Domain\Entity\User
         App\Import\Presentation\Controller\ListImportSessionsController:
-            - App\Identity\Domain\Entity\User
-        App\Import\Presentation\Controller\ListScheduleRunsController:
             - App\Identity\Domain\Entity\User
         App\Import\Presentation\Controller\ParsePreviewController:
             - App\Identity\Domain\Entity\User
@@ -418,8 +540,6 @@ parameters:
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Repository\AttributeRepositoryInterface
         App\Import\Presentation\Controller\TestImportSourceConnectionController:
-            - App\Identity\Domain\Entity\User
-        App\Import\Presentation\Controller\UpcomingSchedulesController:
             - App\Identity\Domain\Entity\User
         App\Import\Presentation\Controller\ValidateDryRunController:
             - App\Catalog\Domain\Entity\ObjectType

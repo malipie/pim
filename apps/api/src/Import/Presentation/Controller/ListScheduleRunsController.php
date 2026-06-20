@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace App\Import\Presentation\Controller;
 
 use App\Identity\Contracts\Attribute\RequiresPermission;
-use App\Identity\Domain\Entity\User;
+use App\Identity\Contracts\Auth\CurrentUserProvider;
 use App\Import\Domain\Entity\ImportSchedule;
 use App\Import\Domain\Entity\ImportScheduleRun;
 use App\Import\Domain\Repository\ImportScheduleRepositoryInterface;
 use App\Import\Domain\Repository\ImportScheduleRunRepositoryInterface;
 use DateTimeInterface;
 use InvalidArgumentException;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -36,10 +35,10 @@ final class ListScheduleRunsController
         string $id,
         ImportScheduleRepositoryInterface $schedules,
         ImportScheduleRunRepositoryInterface $runs,
-        Security $security,
+        CurrentUserProvider $currentUser,
     ): JsonResponse {
-        $user = $security->getUser();
-        if (!$user instanceof User) {
+        $userId = $currentUser->userId();
+        if (null === $userId) {
             throw new UnauthorizedHttpException('JWT', 'Authenticated user required.');
         }
         try {
@@ -51,7 +50,7 @@ final class ListScheduleRunsController
         if (!$schedule instanceof ImportSchedule) {
             throw new NotFoundHttpException(\sprintf('Import schedule "%s" was not found.', $id));
         }
-        if ($schedule->getUserId()->toRfc4122() !== $user->getId()->toRfc4122()) {
+        if ($schedule->getUserId()->toRfc4122() !== $userId->toRfc4122()) {
             throw new NotFoundHttpException(\sprintf('Import schedule "%s" was not found.', $id));
         }
 
