@@ -2796,6 +2796,7 @@
         "async_started": "Eksport uruchomiony — postęp w sekcji „W toku”.",
         "error_422": "Konfiguracja odrzucona: {{detail}} — wróć do kroku Kolumny.",
         "error_403": "Brak uprawnień do uruchamiania eksportów.",
+        "error_invalid_response": "Serwer zwrócił nieprawidłową odpowiedź: {{detail}} — eksport nie został wykonany.",
         "error_network": "Błąd sieci — spróbuj ponownie."
       }
     },

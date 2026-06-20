@@ -88,6 +88,24 @@ export function useRunExport() {
         return { kind: 'async', sessionId: body.id };
       }
 
+      // Guard: a 2xx response whose body is NOT a spreadsheet/CSV/binary is an
+      // error leaking through with an ok-ish status (e.g. a PHP fatal-error
+      // dump rendered as text/html when the export OOMs). Without this check we
+      // would download that error text as `pim-export.xlsx` and the user gets a
+      // "corrupt file". Surface it as a RunError so StepSummary toasts instead.
+      const DOWNLOADABLE_CONTENT_TYPES = [
+        'spreadsheetml.sheet',
+        'text/csv',
+        'application/octet-stream',
+      ];
+      if (!DOWNLOADABLE_CONTENT_TYPES.some((type) => contentType.includes(type))) {
+        const text = await response.text();
+        throw {
+          status: response.status,
+          detail: text.slice(0, 300) || `Unexpected response content-type: ${contentType}`,
+        } satisfies RunError;
+      }
+
       const blob = await response.blob();
       const filename =
         parseFilename(response.headers.get('content-disposition')) ?? `pim-export.${state.format}`;

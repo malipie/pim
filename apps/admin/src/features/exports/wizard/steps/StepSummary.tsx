@@ -110,6 +110,15 @@ export function StepSummary() {
         toast.error(t('exports.wizard.summary.error_403'));
         return;
       }
+      // A defined status means the server responded but with something we can't
+      // download (e.g. an error body leaking through with an ok-ish status) —
+      // distinct from a real network failure where fetch rejects (no status).
+      if (typeof runError.status === 'number') {
+        toast.error(
+          t('exports.wizard.summary.error_invalid_response', { detail: runError.detail ?? '' }),
+        );
+        return;
+      }
       toast.error(t('exports.wizard.summary.error_network'));
     }
   };

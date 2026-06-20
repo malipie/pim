@@ -100,6 +100,51 @@ test('exports wizard — async 202 redirects to sessions (mocked endpoint)', asy
   await expect(page).toHaveURL(/\/integrations\/exports\/sessions$/, { timeout: 10_000 });
 });
 
+test('exports wizard — error body with ok status surfaces a toast, no junk download', async ({
+  page,
+}) => {
+  // Regression: an export that OOMs returned a PHP fatal-error dump as
+  // text/html with an ok-ish status. The wizard must NOT save it as a file —
+  // it shows an error toast and stays on the wizard.
+  await apiLogin(page);
+
+  await page.route('**/api/products/export', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html; charset=UTF-8',
+      body: 'Fatal error: Allowed memory size of 268435456 bytes exhausted',
+    });
+  });
+  await page.route('**/api/exports/preflight', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        count: 500,
+        mode: 'async',
+        threshold: 100,
+        soft_cap: 100000,
+        exceeds_cap: false,
+      }),
+    }),
+  );
+
+  await page.waitForTimeout(1200);
+  await page.goto('/integrations/exports/new');
+  for (let step = 0; step < 3; step += 1) {
+    await page.getByRole('button', { name: /Dalej|Next/ }).click();
+    await page.waitForTimeout(400);
+  }
+  await page.getByTestId('run-export').click();
+
+  await expect(page.getByText(/nieprawidłow|invalid response/i)).toBeVisible({ timeout: 10_000 });
+  await expect(page).toHaveURL(/\/integrations\/exports\/new$/);
+});
+
 test('#1244/#1278 locale fan-out — per-locale rows, no bare duplicate (v2 picker)', async ({
   page,
 }) => {

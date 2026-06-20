@@ -146,6 +146,18 @@ framework:
             # queue so media never starves UI-adjacent async jobs.
             App\Import\Domain\Message\ImageDownloadMessage: import
 
+            # Exports MVP (EXP-05/06). `POST /api/products/export` returns 202
+            # for target_count >= SYNC_THRESHOLD and dispatches this message so
+            # ExportJobHandler runs the export out-of-band. WITHOUT this entry
+            # the class is unrouted → handled synchronously in-process, so the
+            # whole export runs inside the HTTP request and exhausts the 256 MB
+            # FrankenPHP budget (dev: web profiler + SQL logger accumulate every
+            # query). Routed to the shared `import` queue (Akeneo's
+            # import_export_job split) — both the dev worker (`import
+            # scheduler_maintenance`) and prod worker (`async import`) already
+            # consume it, so no docker-compose change is needed.
+            App\Export\Domain\Message\RunExportMessage: import
+
             # Imports MVP (#447). pgBackRest snapshot can take 5-30
             # minutes — handler runs out-of-band so `POST /api/backups`
             # returns 202 immediately and the wizard polls
