@@ -144,7 +144,7 @@ final class SyncExportController
             // RunExportMessage so EXP-06 handler picks it up (sync
             // transport in dev runs it inline; doctrine queue in prod).
             $this->sessions->save($session);
-            $this->bus->dispatch(new RunExportMessage($session->getId()));
+            $this->bus->dispatch(new RunExportMessage($session->getId(), $tenant->getId()));
 
             return new JsonResponse(
                 data: [

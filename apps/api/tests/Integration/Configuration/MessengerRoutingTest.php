@@ -53,6 +53,11 @@ final class MessengerRoutingTest extends KernelTestCase
             \App\Channel\Application\Message\ReconcileChannelPlacementsForCategory::class,
             'async',
         ];
+
+        yield 'export: run export (async to import_export queue)' => [
+            \App\Export\Domain\Message\RunExportMessage::class,
+            'import',
+        ];
     }
 
     /**

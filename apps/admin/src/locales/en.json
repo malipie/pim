@@ -2742,6 +2742,7 @@
         "async_started": "Export started — progress in the “Running” section.",
         "error_422": "Configuration rejected: {{detail}} — go back to the Columns step.",
         "error_403": "You are not allowed to run exports.",
+        "error_invalid_response": "The server returned an invalid response: {{detail}} — the export did not complete.",
         "error_network": "Network error — try again."
       }
     },
