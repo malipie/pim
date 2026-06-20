@@ -4,15 +4,9 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application\Bulk;
 
-use App\Catalog\Application\BulkContext;
-use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
 use App\Catalog\Domain\Entity\BulkLog;
 use App\Catalog\Domain\Entity\BulkSession;
 use App\Catalog\Domain\Entity\CatalogObject;
-use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Uid\Uuid;
-use Throwable;
 
 /**
  * VIEW-15 (#547) — `publish_channels` bulk action.
@@ -21,19 +15,13 @@ use Throwable;
  * Real channel_publications + integration adapter calls (Shopify,
  * BaseLinker) land in epik 0.6/0.9 — this handler only writes the
  * intention, not the side effect. The 24h rollback path replays the
- * previous map per row.
+ * previous map per row. Shared lifecycle: {@see AbstractBulkHandler}.
  */
-final class BulkPublishChannelsHandler
+final class BulkPublishChannelsHandler extends AbstractBulkHandler
 {
-    public const int CHUNK_SIZE = 200;
-
-    public function __construct(
-        private readonly CatalogObjectRepositoryInterface $catalogObjects,
-        private readonly EntityManagerInterface $em,
-        private readonly BulkContext $bulkContext,
-        private readonly BulkReindexQueueInterface $reindexQueue,
-    ) {
-    }
+    /** @var list<string> */
+    private array $channelCodes = [];
+    private bool $publish = true;
 
     /**
      * @param list<string> $channelCodes
@@ -42,116 +30,55 @@ final class BulkPublishChannelsHandler
      */
     public function handle(BulkSession $session, array $channelCodes, bool $publish): array
     {
-        // Long bulk runs (2k+ products) routinely exceed PHP's
-        // 30s HTTP timeout — without disabling it the handler
-        // is killed mid-loop, the session stays incomplete, and
-        // the operator sees 200 + zero rows touched.
-        set_time_limit(0);
+        $this->channelCodes = $channelCodes;
+        $this->publish = $publish;
 
-        $this->bulkContext->setBulk(true, $session->getId());
-        try {
-            $success = 0;
-            $skipped = 0;
-            $errors = 0;
-            $chunkCounter = 0;
+        return $this->runBatch($session);
+    }
 
-            foreach ($session->getTargetObjectIds() as $targetId) {
-                try {
-                    $product = $this->catalogObjects->findById(Uuid::fromString($targetId));
-                    if (!$product instanceof CatalogObject) {
-                        ++$errors;
-                        ++$chunkCounter;
-                        continue;
-                    }
-
-                    $indexed = $product->getAttributesIndexed();
-                    /** @var array<string, mixed> $publishedRaw */
-                    $publishedRaw = \is_array($indexed['published'] ?? null) ? $indexed['published'] : [];
-                    $before = $publishedRaw;
-                    $touched = false;
-                    foreach ($channelCodes as $code) {
-                        $current = (bool) ($publishedRaw[$code] ?? false);
-                        if ($current === $publish) {
-                            continue;
-                        }
-                        $publishedRaw[$code] = $publish;
-                        $touched = true;
-                    }
-
-                    if (!$touched) {
-                        ++$skipped;
-                        $this->em->persist(new BulkLog(
-                            $session->getId(),
-                            $product->getId(),
-                            null,
-                            $before,
-                            $before,
-                            BulkLog::LEVEL_WARNING,
-                            'All channels already in the target state',
-                        ));
-                    } else {
-                        $indexed['published'] = $publishedRaw;
-                        $product->updateAttributeIndex($indexed);
-                        $product->markTouchedByBulkSession($session->getId());
-                        $this->em->persist(new BulkLog(
-                            $session->getId(),
-                            $product->getId(),
-                            null,
-                            $before,
-                            $publishedRaw,
-                            BulkLog::LEVEL_INFO,
-                            null,
-                        ));
-                        ++$success;
-                    }
-                } catch (Throwable $e) {
-                    ++$errors;
-                    $this->em->persist(new BulkLog(
-                        $session->getId(),
-                        Uuid::fromString($targetId),
-                        null,
-                        null,
-                        null,
-                        BulkLog::LEVEL_ERROR,
-                        $e->getMessage(),
-                    ));
-                }
-
-                ++$chunkCounter;
-                if ($chunkCounter >= self::CHUNK_SIZE) {
-                    $this->em->flush();
-                    $this->em->clear();
-                    $chunkCounter = 0;
-                }
+    protected function processObject(CatalogObject $object, BulkSession $session, BulkCounters $counters): void
+    {
+        $indexed = $object->getAttributesIndexed();
+        /** @var array<string, mixed> $publishedRaw */
+        $publishedRaw = \is_array($indexed['published'] ?? null) ? $indexed['published'] : [];
+        $before = $publishedRaw;
+        $touched = false;
+        foreach ($this->channelCodes as $code) {
+            $current = (bool) ($publishedRaw[$code] ?? false);
+            if ($current === $this->publish) {
+                continue;
             }
-
-            if ($chunkCounter > 0) {
-                $this->em->flush();
-            }
-
-            // Reload BulkSession: per-chunk em->clear() detached the
-
-            // local instance and its Tenant proxy. The final persist
-
-            // below would otherwise raise EntityNotFoundException on
-
-            // flush trying to resolve the stale proxy.
-
-            $reloaded = $this->em->find(BulkSession::class, $session->getId());
-
-            if ($reloaded instanceof BulkSession) {
-                $session = $reloaded;
-            }
-
-            $session->complete($success, $skipped, $errors);
-            $this->em->persist($session);
-            $this->em->flush();
-
-            $this->reindexQueue->queueAll($session->getTargetObjectIds());
-
-            return ['success' => $success, 'skipped' => $skipped, 'error' => $errors];
-        } finally {
-            $this->bulkContext->setBulk(false);
+            $publishedRaw[$code] = $this->publish;
+            $touched = true;
         }
+
+        if (!$touched) {
+            ++$counters->skipped;
+            $this->em->persist(new BulkLog(
+                $session->getId(),
+                $object->getId(),
+                null,
+                $before,
+                $before,
+                BulkLog::LEVEL_WARNING,
+                'All channels already in the target state',
+            ));
+
+            return;
+        }
+
+        $indexed['published'] = $publishedRaw;
+        $object->updateAttributeIndex($indexed);
+        $object->markTouchedByBulkSession($session->getId());
+        $this->em->persist(new BulkLog(
+            $session->getId(),
+            $object->getId(),
+            null,
+            $before,
+            $publishedRaw,
+            BulkLog::LEVEL_INFO,
+            null,
+        ));
+        ++$counters->success;
     }
 }
