@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router'
 
 import { AuthedRoute } from '@/components/AuthedRoute';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { PermissionRoute } from '@/components/identity';
 import { ToastProvider } from '@/components/ui/toast';
 import { FirstLoginChangePasswordPage } from '@/features/auth/FirstLoginChangePasswordPage';
 // HARD-08 — only the login + dashboard pages and the always-mounted
@@ -491,7 +492,28 @@ function App() {
                   <Route path="/assets" element={<AssetsListPage />} />
                   <Route path="/assets/:id" element={<AssetShowPage />} />
                   <Route path="/catalogs-pdf" element={<CatalogsPdfPage />} />
-                  <Route path="/settings" element={<SettingsLayout />}>
+                  {/* AUD-076 (W3-5.5) — gate the whole settings tree with the
+                    same permission set the sidebar uses to show the entry
+                    (MENU_PERMISSIONS.settings). A user with no settings
+                    permission who deep-links /settings/* now lands on the
+                    Forbidden403Page instead of the settings shell. Per-page
+                    write actions stay gated by their own backend checks. */}
+                  <Route
+                    path="/settings"
+                    element={
+                      <PermissionRoute
+                        anyOf={[
+                          'settings.users.manage',
+                          'settings.roles.manage',
+                          'settings.tenant.manage',
+                          'settings.integrations.manage',
+                          'settings.billing.manage',
+                        ]}
+                      >
+                        <SettingsLayout />
+                      </PermissionRoute>
+                    }
+                  >
                     <Route index element={<SettingsIndex />} />
                     <Route path="menu" element={<MenuSettingsPage />} />
                     <Route path="locales" element={<LocalesSettingsPage />} />
@@ -515,10 +537,39 @@ function App() {
                     Lives under /admin/* inside the existing app until
                     the admin.cortex.pl subdomain split (operator infra
                     task). Backend already enforces super_admin role +
-                    cross-tenant bypass via SuperAdminContext. */}
-                  <Route path="/admin/tenants" element={<AdminTenantsListPage />} />
-                  <Route path="/admin/tenants/:id" element={<AdminTenantShowPage />} />
-                  <Route path="/admin/break-glass" element={<AdminBreakGlassPage />} />
+                    cross-tenant bypass via SuperAdminContext.
+
+                    AUD-076 (W3-5.5) — wrap each page in <PermissionRoute> so
+                    an Owner/Admin who types the URL gets the Forbidden403Page
+                    instead of the panel mounting and flashing its UI before
+                    the async 403 from /api/admin/* flips it to a forbidden
+                    state. The codes mirror the backend #[RequiresPermission]
+                    on SuperAdminTenantsController (platform.tenants.manage)
+                    and BreakGlassController (platform.break_glass_recovery). */}
+                  <Route
+                    path="/admin/tenants"
+                    element={
+                      <PermissionRoute code="platform.tenants.manage">
+                        <AdminTenantsListPage />
+                      </PermissionRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/tenants/:id"
+                    element={
+                      <PermissionRoute code="platform.tenants.manage">
+                        <AdminTenantShowPage />
+                      </PermissionRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/break-glass"
+                    element={
+                      <PermissionRoute code="platform.break_glass_recovery">
+                        <AdminBreakGlassPage />
+                      </PermissionRoute>
+                    }
+                  />
                   {/* Integracje — every hub (exports EXR-08, imports NUI-09,
                     api-configurator) renders directly under the v2 shell;
                     sidebar second-level + topbar breadcrumb replaced the old
