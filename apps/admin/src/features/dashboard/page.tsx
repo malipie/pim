@@ -3,6 +3,7 @@ import { AlertCenter } from './components/AlertCenter';
 import { BackupWidget } from './components/BackupWidget';
 import { ChannelDistribution } from './components/ChannelDistribution';
 import { CompletenessMetrics } from './components/CompletenessMetrics';
+import { DashboardMockBanner } from './components/DashboardMockBanner';
 import { HeroAgentPanel } from './components/HeroAgentPanel';
 import { KpiCards } from './components/KpiCards';
 import { RecentAgentActivity } from './components/RecentAgentActivity';
@@ -15,8 +16,10 @@ import { useDashboardCounts } from './use-dashboard-counts';
  * Hero → KPI → [Activity | Sync] → [Completeness | Channels] →
  * [Alerts | Agent activity] → [Backup | Top edited].
  *
- * KPI entity totals are LIVE (useDashboardCounts); every other block stays a
- * mock with a MockBadge — backend follow-ups in
+ * KPI entity totals (useDashboardCounts) and the overall completeness ring
+ * (useDashboardCompleteness, AUD-058 #1610) are LIVE; the remaining blocks
+ * stay mock and are flagged by both a per-widget MockBadge and the explicit
+ * DashboardMockBanner — backend follow-ups in
  * Project Plan/UI/Wdrozenie_grafiki/dashboard-do-oprogramowania.md.
  */
 export function DashboardPage() {
@@ -24,6 +27,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-10">
+      <DashboardMockBanner />
       <HeroAgentPanel />
       <KpiCards counts={counts} isPending={isPending} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

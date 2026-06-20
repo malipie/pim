@@ -985,9 +985,16 @@
       "force": "Force",
       "force_disabled": "Mock — needs POST /api/integrations/{id}/sync"
     },
+    "mock_banner": {
+      "title": "Some widgets show demonstration data",
+      "body": "KPI counts and the “Completeness” (overall) tile are live from the API. The other blocks — activity, sync status, alerts, agent activity, backup, channel distribution and the edited ranking — are mock (features in progress)."
+    },
     "completeness": {
       "title": "Completeness",
-      "subtitle": "overall and per channel — publish readiness"
+      "subtitle": "overall and per channel — publish readiness",
+      "overall": "Overall",
+      "publish_ready": "{{count}} of {{total}} ≥ {{threshold}}%",
+      "channel_mock_tooltip": "MOCK — per-channel completeness needs channel↔type mapping (epic 0.6)"
     },
     "agent_activity": {
       "title": "Recent agent activity",
