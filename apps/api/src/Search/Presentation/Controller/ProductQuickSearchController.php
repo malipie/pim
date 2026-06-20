@@ -9,6 +9,7 @@ use App\Identity\Contracts\Attribute\RequiresPermission;
 use App\Search\Application\CatalogSearchService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -20,9 +21,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * caps to 50 hits, and exposes a flat `{hits, total, processingTimeMs}`
  * shape that `<ProductSearchBar>` (UI-02.9) consumes verbatim.
  *
- * The underlying service already short-circuits to an empty result when
- * Meilisearch is unreachable (try/catch + warning log) — the products
- * list `<EmptyState>` swallows that as a no-match render. A Postgres
+ * AUD-070 (#1614) — when Meilisearch is unreachable the service flags the
+ * result `degraded` instead of pretending it found zero hits. This wrapper
+ * relays that as a 503 problem+json so the quick-search dropdown can show
+ * "search unavailable" rather than a misleading "no matches". A Postgres
  * `LIKE 'q%'` fallback path is deferred until we observe a real outage
  * pattern (Faza 1+ candidate, see UI-02.2 ticket out-of-scope notes).
  *
@@ -76,6 +78,21 @@ final class ProductQuickSearchController
                 'attributesToSearchOn' => ['sku', 'name', 'code'],
             ],
         );
+
+        // AUD-070 (#1614) — relay a backend outage as 503 problem+json rather
+        // than an empty `{hits: []}` the dropdown would render as "no matches".
+        if ($result['degraded']) {
+            return new JsonResponse(
+                [
+                    'type' => 'urn:pim:errors:search-degraded',
+                    'title' => 'Search Temporarily Unavailable',
+                    'status' => Response::HTTP_SERVICE_UNAVAILABLE,
+                    'detail' => 'The search backend is currently unavailable. This is not an empty result — please retry shortly.',
+                ],
+                Response::HTTP_SERVICE_UNAVAILABLE,
+                ['Content-Type' => 'application/problem+json; charset=utf-8'],
+            );
+        }
 
         return new JsonResponse([
             'hits' => $result['hits'],

@@ -14,6 +14,7 @@ use App\Catalog\Domain\Exception\ObjectTypeHasInstancesException;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeAttributeRepositoryInterface;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use LogicException;
@@ -235,8 +236,20 @@ final readonly class ObjectTypeService
             throw new ObjectTypeHasInstancesException($objectType, $instanceCount);
         }
 
-        $this->em->remove($objectType);
-        $this->em->flush();
+        // AUD-072 (#1614) — safety-net mirroring DeleteAttributeHandler: the
+        // pre-check above can race with a concurrent insert (an object of this
+        // type, or any other FK referencing it) between the COUNT and the
+        // DELETE. Postgres then raises a FK violation that otherwise escapes as
+        // a 500. Translate it into the same 409-mapped domain exception the
+        // pre-check uses, so the API answers a consistent ConflictHttpException
+        // instead of a raw server error. Re-count for an accurate message;
+        // fall back to the FK signal (count 1) if the re-count also fails.
+        try {
+            $this->em->remove($objectType);
+            $this->em->flush();
+        } catch (ForeignKeyConstraintViolationException $e) {
+            throw new ObjectTypeHasInstancesException($objectType, max(1, $this->countInstances($objectType)), $e);
+        }
     }
 
     /**

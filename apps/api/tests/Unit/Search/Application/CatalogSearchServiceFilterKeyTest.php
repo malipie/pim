@@ -102,8 +102,8 @@ final class CatalogSearchServiceFilterKeyTest extends TestCase
         $service = $this->serviceWithTenant();
 
         // `enabled` is a RESERVED_FILTERABLE — must pass the key whitelist.
-        // Meili is unreachable (url=null) so the service returns emptyResult
-        // rather than 400; the absence of a thrown 400 is the assertion.
+        // Meili is unreachable (url=null) so the service returns a degraded
+        // result rather than 400; the absence of a thrown 400 is the assertion.
         $result = $service->search(
             kind: ObjectKind::Product,
             query: '',
@@ -112,6 +112,53 @@ final class CatalogSearchServiceFilterKeyTest extends TestCase
 
         self::assertArrayHasKey('hits', $result);
         self::assertArrayHasKey('totalHits', $result);
+    }
+
+    /**
+     * AUD-070 (#1614) — when the Meilisearch backend is unreachable the
+     * service must NOT collapse to a silent empty result (indistinguishable
+     * from "no matches"); it flags the result `degraded:true` so the
+     * controller can answer 503 instead of a misleading empty `200`.
+     *
+     * The factory is wired with `url=null`, so `create()` throws inside the
+     * service's try/catch — the same path a real connection/timeout failure
+     * takes. RED before the fix (returned `emptyResult()` → no `degraded`
+     * flag / `false`), GREEN after.
+     */
+    #[Test]
+    public function flagsResultDegradedWhenBackendUnavailable(): void
+    {
+        $service = $this->serviceWithTenant();
+
+        $result = $service->search(kind: ObjectKind::Product, query: 'anything');
+
+        self::assertTrue($result['degraded'], 'backend outage must be flagged degraded, not a silent empty');
+        self::assertSame([], $result['hits']);
+        self::assertSame(0, $result['totalHits']);
+    }
+
+    /**
+     * AUD-070 (#1614) — the degraded flag is reserved for backend outages.
+     * A request with no active tenant context is a legitimate empty result
+     * (defence-in-depth refusal to hit the hub), so it must report
+     * `degraded:false` — otherwise every unauthenticated edge would falsely
+     * read as "search down".
+     */
+    #[Test]
+    public function emptyResultWithoutTenantIsNotDegraded(): void
+    {
+        // No token set → CurrentTenantProvider yields null → emptyResult().
+        $factory = new MeilisearchClientFactory(null, null);
+        $tenantProvider = new CurrentTenantProvider(
+            new TokenStorage(),
+            $this->createStub(\App\Shared\Infrastructure\Doctrine\Repository\DoctrineTenantRepository::class),
+        );
+        $service = new CatalogSearchService($factory, $tenantProvider);
+
+        $result = $service->search(kind: ObjectKind::Product, query: 'anything');
+
+        self::assertFalse($result['degraded'], 'a no-tenant empty result is not a backend outage');
+        self::assertSame([], $result['hits']);
     }
 
     private function serviceWithTenant(): CatalogSearchService

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Clock, Link2, MoreHorizontal, Save, Sparkles, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 
@@ -28,7 +28,6 @@ import { useDefaultObjectType } from '../use-default-object-type';
 import { AgentSuggestionsCard } from './agent-suggestions-card';
 import { AttrGroupCard } from './attr-group-card';
 import { AttrRow } from './attr-row';
-import { CategoriesTab } from './categories-tab';
 import { CategorySelectorCard } from './category-selector-card';
 import { CompletenessRing } from './completeness-ring';
 import { DuplicateButton } from './duplicate-button';
@@ -36,8 +35,6 @@ import { EffectiveModelCard } from './effective-model-card';
 
 import { LocaleChannelToolbar } from './locale-channel-toolbar';
 import { PreviewButton } from './preview-button';
-import { ProductMultimediaTab } from './product-multimedia-tab';
-import { RelationsTab } from './relations-tab';
 import { scopedCompleteness, scopeQuery } from './scope';
 import { SyncStatusCard } from './sync-status-card';
 import type {
@@ -52,7 +49,27 @@ import type {
   ScopeStatus,
 } from './types';
 import { VariantsListCard } from './variants-list-card';
-import { VariantsTabHost } from './variants-tab-host';
+
+// AUD-071 (#1614) — the four bespoke tab views below are rendered ONLY
+// after the operator clicks their tab (multimedia / categories / variants /
+// relations). Statically importing them pinned ~1.7k lines of grids +
+// editors (incl. the heavy VariantsTab) into the main detail chunk, pushing
+// product-detail-page over the 700 KB warning threshold. Code-split each
+// behind React.lazy so the initial detail render only ships the attributes
+// view; the tab chunk loads on demand behind the <Suspense> boundary in the
+// content dispatcher.
+const CategoriesTab = lazy(() =>
+  import('./categories-tab').then((m) => ({ default: m.CategoriesTab })),
+);
+const ProductMultimediaTab = lazy(() =>
+  import('./product-multimedia-tab').then((m) => ({ default: m.ProductMultimediaTab })),
+);
+const RelationsTab = lazy(() =>
+  import('./relations-tab').then((m) => ({ default: m.RelationsTab })),
+);
+const VariantsTabHost = lazy(() =>
+  import('./variants-tab-host').then((m) => ({ default: m.VariantsTabHost })),
+);
 
 /**
  * MODR-03 (#925) — special-purpose tabs that are NOT driven by
@@ -1045,98 +1062,103 @@ export function ProductDetailPage({
       {/* Body */}
       <div className="grid grid-cols-1 gap-5 px-7 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-3">
-          {(() => {
-            // MODR-03 (#925) — content area dispatch based on active tab.
-            // 'attributes' hosts every stacked group as inline AttrGroupCard
-            // sections; a tab-mode group code renders that single group;
-            // 'categories'/'history'/'variants' delegate to bespoke components.
-            const renderStackedGroup = (group: GroupMeta) => (
-              <AttrGroupCard
-                key={group.id}
-                id={group.id}
-                title={group.label[lang] ?? group.code}
-                icon={GROUP_ICONS[group.code]}
-                filledCount={countFilled(group, fieldValue)}
-                totalCount={group.attributes.length}
-                expanded={expandedGroups.has(group.id)}
-                onToggle={() => toggleGroup(group.id)}
-                isSystem={isLegacyOptionalSystemGroupCode(group.code)}
-              >
-                {group.attributes.map((attr) => (
-                  <AttrRow
-                    key={attr.id}
-                    attribute={attr}
-                    value={fieldValue(attr.code)}
-                    provenance={resolveProvenance(attr, product)}
+          {/* AUD-071 (#1614) — lazy tab chunks (multimedia/categories/variants/
+              relations) resolve behind this boundary; the attributes view and
+              tab-mode groups render synchronously and never suspend. */}
+          <Suspense fallback={<TabLoadingFallback />}>
+            {(() => {
+              // MODR-03 (#925) — content area dispatch based on active tab.
+              // 'attributes' hosts every stacked group as inline AttrGroupCard
+              // sections; a tab-mode group code renders that single group;
+              // 'categories'/'history'/'variants' delegate to bespoke components.
+              const renderStackedGroup = (group: GroupMeta) => (
+                <AttrGroupCard
+                  key={group.id}
+                  id={group.id}
+                  title={group.label[lang] ?? group.code}
+                  icon={GROUP_ICONS[group.code]}
+                  filledCount={countFilled(group, fieldValue)}
+                  totalCount={group.attributes.length}
+                  expanded={expandedGroups.has(group.id)}
+                  onToggle={() => toggleGroup(group.id)}
+                  isSystem={isLegacyOptionalSystemGroupCode(group.code)}
+                >
+                  {group.attributes.map((attr) => (
+                    <AttrRow
+                      key={attr.id}
+                      attribute={attr}
+                      value={fieldValue(attr.code)}
+                      provenance={resolveProvenance(attr, product)}
+                      locale={locale}
+                      channel={channel}
+                      isEditing={isEditing}
+                      isLocked={attr.is_system}
+                      onChange={(next) => setFieldValue(attr.code, next)}
+                      createMode={mode === 'create'}
+                      relationContextProductId={isEditMode ? id : undefined}
+                      isInherited={
+                        scopeStatus[attr.code]?.has_override === false &&
+                        scopeStatus[attr.code]?.inherited_from != null
+                      }
+                      inheritedFrom={scopeStatus[attr.code]?.inherited_from ?? null}
+                      requiredError={requiredErrors.has(attr.code)}
+                    />
+                  ))}
+                </AttrGroupCard>
+              );
+
+              if (activeTab === 'attributes') {
+                // #1357 — the non-functional "Dodaj grupę atrybutów ad-hoc"
+                // stub was removed from this view per operator request.
+                return <>{stackedGroups.map(renderStackedGroup)}</>;
+              }
+
+              // Tab-mode AttributeGroup → render only that group, with
+              // a bespoke component for relations that retains its legacy
+              // data flow (relation links endpoint). Multimedia is no
+              // longer dispatched here — UX-02 removes it from the
+              // AttributeGroup model entirely; the conditional Multimedia
+              // tab lives as a hardcoded special tab driven by
+              // `ObjectType.hasMultimedia` (UX-06+).
+              const tabGroup = tabModeGroups.find((g) => g.code === activeTab);
+              if (tabGroup) {
+                if (tabGroup.code === 'relations') {
+                  // Reverse-links UI needs a persisted object — edit only;
+                  // forward relation attrs render via RelationCreateField.
+                  return mode === 'edit' ? (
+                    <RelationsTab productId={id} />
+                  ) : (
+                    renderStackedGroup(tabGroup)
+                  );
+                }
+                return renderStackedGroup(tabGroup);
+              }
+
+              // MODR-06 (#928) — synthetic `relations` tab for the
+              // reverse-only case (object has no forward AttributeGroup
+              // but is pointed at from elsewhere). RelationsTab already
+              // gracefully renders just the reverse panel when forward
+              // groups are empty.
+              if (activeTab === 'relations' && mode === 'edit') {
+                return <RelationsTab productId={id} />;
+              }
+
+              if (mode === 'edit' && isSpecialTab(activeTab)) {
+                return (
+                  <OtherTabs
+                    activeTab={activeTab}
+                    productId={id}
+                    objectTypeId={objectTypeId}
+                    kind={kind ?? 'product'}
                     locale={locale}
                     channel={channel}
-                    isEditing={isEditing}
-                    isLocked={attr.is_system}
-                    onChange={(next) => setFieldValue(attr.code, next)}
-                    createMode={mode === 'create'}
-                    relationContextProductId={isEditMode ? id : undefined}
-                    isInherited={
-                      scopeStatus[attr.code]?.has_override === false &&
-                      scopeStatus[attr.code]?.inherited_from != null
-                    }
-                    inheritedFrom={scopeStatus[attr.code]?.inherited_from ?? null}
-                    requiredError={requiredErrors.has(attr.code)}
                   />
-                ))}
-              </AttrGroupCard>
-            );
-
-            if (activeTab === 'attributes') {
-              // #1357 — the non-functional "Dodaj grupę atrybutów ad-hoc"
-              // stub was removed from this view per operator request.
-              return <>{stackedGroups.map(renderStackedGroup)}</>;
-            }
-
-            // Tab-mode AttributeGroup → render only that group, with
-            // a bespoke component for relations that retains its legacy
-            // data flow (relation links endpoint). Multimedia is no
-            // longer dispatched here — UX-02 removes it from the
-            // AttributeGroup model entirely; the conditional Multimedia
-            // tab lives as a hardcoded special tab driven by
-            // `ObjectType.hasMultimedia` (UX-06+).
-            const tabGroup = tabModeGroups.find((g) => g.code === activeTab);
-            if (tabGroup) {
-              if (tabGroup.code === 'relations') {
-                // Reverse-links UI needs a persisted object — edit only;
-                // forward relation attrs render via RelationCreateField.
-                return mode === 'edit' ? (
-                  <RelationsTab productId={id} />
-                ) : (
-                  renderStackedGroup(tabGroup)
                 );
               }
-              return renderStackedGroup(tabGroup);
-            }
 
-            // MODR-06 (#928) — synthetic `relations` tab for the
-            // reverse-only case (object has no forward AttributeGroup
-            // but is pointed at from elsewhere). RelationsTab already
-            // gracefully renders just the reverse panel when forward
-            // groups are empty.
-            if (activeTab === 'relations' && mode === 'edit') {
-              return <RelationsTab productId={id} />;
-            }
-
-            if (mode === 'edit' && isSpecialTab(activeTab)) {
-              return (
-                <OtherTabs
-                  activeTab={activeTab}
-                  productId={id}
-                  objectTypeId={objectTypeId}
-                  kind={kind ?? 'product'}
-                  locale={locale}
-                  channel={channel}
-                />
-              );
-            }
-
-            return null;
-          })()}
+              return null;
+            })()}
+          </Suspense>
 
           {mode === 'create' && isCategorizable && createCategoryIds.length === 0 ? (
             <p className="px-1 text-[12px] text-muted-foreground">
@@ -1401,6 +1423,25 @@ function OtherTabs({
       />
     );
   return null;
+}
+
+/**
+ * AUD-071 (#1614) — discreet fallback while a lazy tab chunk loads. The
+ * tab chunks are small (a few tens of KB gzip) so this flashes only on a
+ * cold cache; it intentionally mirrors the muted card surface of the real
+ * tabs to avoid a jarring layout shift.
+ */
+function TabLoadingFallback() {
+  const { t } = useTranslation();
+  return (
+    <div
+      className="rounded-2xl border border-line bg-surface p-5 text-[12.5px] text-muted-foreground soft-shadow"
+      role="status"
+      aria-live="polite"
+    >
+      {t('products.detail.tabs.loading', { defaultValue: 'Ładowanie…' })}
+    </div>
+  );
 }
 
 function HistoryStub() {

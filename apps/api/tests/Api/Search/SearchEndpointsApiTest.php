@@ -99,6 +99,37 @@ final class SearchEndpointsApiTest extends CatalogApiTestCase
     }
 
     /**
+     * AUD-070 (#1614) — a healthy search must answer a normal `200` JSON
+     * payload, NOT a 503 problem+json. This pins the other side of the
+     * degraded/empty distinction: only a backend outage yields 503; a healthy
+     * search — whatever it matches — is an ordinary `200` carrying the regular
+     * `{hits, totalHits}` shape. (The outage→503 branch is covered
+     * deterministically at the service unit level, where Meili can be forced
+     * unreachable without taking the container down. Asserting an exact empty
+     * count here would be brittle against Meili's match-all on an empty query,
+     * so we assert the response *shape* instead, which is what distinguishes
+     * "healthy" from "degraded".)
+     */
+    #[Test]
+    public function healthyEmptySearchIsOkNotDegraded(): void
+    {
+        $this->seedProduct('PRESENT-1', ['brand' => 'Nike']);
+        $this->forceReindex(ObjectKind::Product);
+
+        $client = $this->authenticatedClient();
+        $response = $client->request('GET', '/api/search/products?query=zzz-no-such-token-zzz');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertResponseHeaderSame('content-type', 'application/json');
+        $body = $response->toArray();
+        // Normal search shape — degraded would have returned a problem+json
+        // body with a `type`/`status` instead of these keys.
+        self::assertArrayHasKey('hits', $body);
+        self::assertArrayHasKey('totalHits', $body);
+        self::assertArrayNotHasKey('type', $body);
+    }
+
+    /**
      * AUD-004 (#1574) — Meilisearch filter-key injection → cross-tenant read.
      *
      * The flat `?filter[<KEY>]=<value>` map fed `<KEY>` straight into the

@@ -14,6 +14,7 @@ use App\Shared\Application\TenantContext;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -88,6 +89,21 @@ final class BulkSelectionController
                 perPage: self::PAGE_SIZE,
                 customFilterExpression: $customFilterExpression,
             );
+            // AUD-070 (#1614) — the search backend is down. Returning an empty
+            // selection here would silently run "select all matching" against
+            // zero rows; surface the outage as 503 problem+json instead.
+            if ($result['degraded']) {
+                return new JsonResponse(
+                    [
+                        'type' => 'urn:pim:errors:search-degraded',
+                        'title' => 'Search Temporarily Unavailable',
+                        'status' => Response::HTTP_SERVICE_UNAVAILABLE,
+                        'detail' => 'The search backend is currently unavailable. This is not an empty result — please retry shortly.',
+                    ],
+                    Response::HTTP_SERVICE_UNAVAILABLE,
+                    ['Content-Type' => 'application/problem+json; charset=utf-8'],
+                );
+            }
             $totalMatched = $result['totalHits'];
             foreach ($result['hits'] as $hit) {
                 if (isset($hit['id']) && \is_string($hit['id'])) {
