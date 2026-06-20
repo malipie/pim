@@ -9,7 +9,7 @@ use App\Backup\Domain\Enum\BackupTriggerAction;
 use App\Backup\Domain\Message\BackupSnapshotMessage;
 use App\Backup\Domain\Repository\BackupRepositoryInterface;
 use App\Identity\Contracts\Attribute\RequiresPermission;
-use App\Identity\Domain\Entity\User;
+use App\Identity\Contracts\Auth\CurrentUserProvider;
 use App\Shared\Application\TenantContext;
 use DateTimeInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -41,6 +41,7 @@ final class TriggerBackupController
         private readonly MessageBusInterface $bus,
         private readonly RateLimiterFactoryInterface $backupTriggerLimiter,
         private readonly Security $security,
+        private readonly CurrentUserProvider $currentUser,
         private readonly TenantContext $tenantContext,
     ) {
     }
@@ -53,14 +54,14 @@ final class TriggerBackupController
     #[RequiresPermission(module: 'backup', action: 'write')]
     public function __invoke(Request $request): JsonResponse
     {
-        $user = $this->security->getUser();
-        if (!$user instanceof User) {
+        $userId = $this->currentUser->userId();
+        $tenant = $this->currentUser->tenant();
+        if (null === $userId || null === $tenant) {
             throw new UnauthorizedHttpException('JWT', 'Authenticated user required.');
         }
         if (!$this->security->isGranted('WRITE', Backup::class)) {
             throw new AccessDeniedHttpException();
         }
-        $tenant = $user->getTenant();
         $this->tenantContext->set($tenant);
 
         $limiter = $this->backupTriggerLimiter->create($tenant->getId()->toRfc4122());
@@ -86,7 +87,7 @@ final class TriggerBackupController
         }
 
         $backup = new Backup(
-            triggeredByUserId: $user->getId(),
+            triggeredByUserId: $userId,
             triggeredByAction: $action,
         );
         $this->backups->save($backup);

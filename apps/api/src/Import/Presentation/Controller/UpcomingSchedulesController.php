@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace App\Import\Presentation\Controller;
 
 use App\Identity\Contracts\Attribute\RequiresPermission;
-use App\Identity\Domain\Entity\User;
+use App\Identity\Contracts\Auth\CurrentUserProvider;
 use App\Import\Domain\Entity\ImportSchedule;
 use App\Import\Domain\Repository\ImportScheduleRepositoryInterface;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -36,10 +35,10 @@ final class UpcomingSchedulesController
     public function __invoke(
         Request $request,
         ImportScheduleRepositoryInterface $schedules,
-        Security $security,
+        CurrentUserProvider $currentUser,
     ): JsonResponse {
-        $user = $security->getUser();
-        if (!$user instanceof User) {
+        $tenant = $currentUser->tenant();
+        if (null === $tenant) {
             throw new UnauthorizedHttpException('JWT', 'Authenticated user required.');
         }
         $hours = (int) $request->query->get('hours', '24');
@@ -55,7 +54,7 @@ final class UpcomingSchedulesController
                 'priority' => $s->getPriority()->value,
                 'next_run' => $s->getNextRun()?->format(DateTimeInterface::RFC3339_EXTENDED),
             ],
-            $schedules->findUpcoming($user->getTenant(), $until),
+            $schedules->findUpcoming($tenant, $until),
         );
 
         return new JsonResponse([

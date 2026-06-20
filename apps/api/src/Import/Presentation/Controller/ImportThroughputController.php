@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Import\Presentation\Controller;
 
 use App\Identity\Contracts\Attribute\RequiresPermission;
-use App\Identity\Domain\Entity\User;
+use App\Identity\Contracts\Auth\CurrentUserProvider;
 use App\Import\Application\Service\ImportThroughputCalculator;
 use DateTimeInterface;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,7 +27,7 @@ final class ImportThroughputController
 {
     public function __construct(
         private readonly ImportThroughputCalculator $calculator,
-        private readonly Security $security,
+        private readonly CurrentUserProvider $currentUser,
     ) {
     }
 
@@ -40,8 +39,9 @@ final class ImportThroughputController
     #[RequiresPermission(module: 'import_session', action: 'read')]
     public function __invoke(Request $request): JsonResponse
     {
-        $user = $this->security->getUser();
-        if (!$user instanceof User) {
+        $userId = $this->currentUser->userId();
+        $tenant = $this->currentUser->tenant();
+        if (null === $userId || null === $tenant) {
             throw new UnauthorizedHttpException('JWT', 'Authenticated user required.');
         }
 
@@ -51,8 +51,8 @@ final class ImportThroughputController
         }
 
         $snapshot = $this->calculator->calculate(
-            tenant: $user->getTenant(),
-            userId: $user->getId(),
+            tenant: $tenant,
+            userId: $userId,
             windowMin: $windowMin,
         );
 
