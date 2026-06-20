@@ -995,9 +995,16 @@
       "force": "Wymuś",
       "force_disabled": "Mock — wymaga POST /api/integrations/{id}/sync"
     },
+    "mock_banner": {
+      "title": "Część widżetów pokazuje dane demonstracyjne",
+      "body": "Liczby KPI oraz kafelek „Kompletność” (ogólna) są na żywo z API. Pozostałe bloki — aktywność, status synchronizacji, alerty, aktywność agenta, backup, dystrybucja kanałów i ranking edytowanych — to makieta (funkcje w przygotowaniu)."
+    },
     "completeness": {
       "title": "Kompletność",
-      "subtitle": "ogólna i per kanał — wskazuje gotowość do publikacji"
+      "subtitle": "ogólna i per kanał — wskazuje gotowość do publikacji",
+      "overall": "Ogólna",
+      "publish_ready": "{{count}} z {{total}} ≥ {{threshold}}%",
+      "channel_mock_tooltip": "MOCK — kompletność per kanał wymaga mapowania kanał↔typ (epik 0.6)"
     },
     "agent_activity": {
       "title": "Ostatnia aktywność agenta",
