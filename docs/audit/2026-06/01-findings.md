@@ -82,6 +82,33 @@ Wszystkie 14 ticketów Wave 2 (W2-1..W2-14, 24 findingi HIGH/MEDIUM/LOW przed pu
 
 Pełne transkrypty przed/po — w komentarzach zamknięcia issues #1593–#1606. Reszta findingów (Wave 3 — bieżąca higiena/LOW) — patrz `03-fix-plan.md`.
 
+## Status napraw — Wave 3 (zamknięte 2026-06-20)
+
+Wszystkie 10 ticketów Wave 3 (#1607–#1616, higiena/dług techniczny) naprawione, zmergowane do `main`, zamknięte z dowodem **CLOSED MEANS CLOSED**. Cross-cutting refaktory (Deptrac 286-burndown, FE jsonFetch migracja, monolit-split) dostarczone wzorcem **minimum-viable + enforcement + proof-slice + tracked-deferral** (mandat marathon dla cross-context): reguła/lint zatrzymuje przyrost długu, proof-slice dowodzi kierunku, bulk → tracking z uzasadnieniem.
+
+| Ticket | Findingi | PR | Issue | Dowód „po" |
+|---|---|---|---|---|
+| W3-1 | AUD-053, 079, 078 | #1669 | #1607 | Deptrac Uncovered 5283→0 (`Vendor` collector), Backup gated, Search zawężony, DROP sierot audit, `CurrentUserProvider` seam (5 kontrolerów, baseline 288→284); bulk-286→#1668 |
+| W3-2 | AUD-055, 056, 057 | #1671 | #1608 | ADR-0021 + jsonFetch-lint (baseline 61), `AbstractBulkHandler` (−627 linii), product-detail 1499→492 + max-lines-lint (21); FE-bulk→#1670 |
+| W3-3 | AUD-059, 081 | #1666 | #1609 | `docs/development/adding-a-field-or-endpoint.md` (realny Channel slice), apps/admin/README rewrite, root onboarding (db-init/exec-T/.env/shared-types) |
+| W3-4 | AUD-058 | #1665 | #1610 | CompletenessMetrics ogólny ring live (useQuery), `DashboardMockBanner` (live vs demo jawnie); deferrale udokumentowane |
+| W3-5.1 | AUD-029, 037, 038 | #1661 | #1611 | PermissionResolver legacy-scope fix (super_admin 117 perms nietknięty), CompletenessFilter→indexed column (+bonus `global`-key), grid column-virtualization |
+| W3-5.2 | AUD-064, 065, 066 | #1660 | #1612 | tenant-fallback deny w prod (gated, dev nietknięty), RBAC reconciliation meta-test (ZERO zmian grantów), magic-byte guard |
+| W3-5.3 | AUD-067, 068, 069 | #1659 | #1613 | x-powered-by strip (Caddy+php.ini), prod TRUSTED_HOSTS fail-loud, RelationImportStep buffer cap |
+| W3-5.4 | AUD-070, 071, 072 | #1663 | #1614 | Meili degraded → 503 problem+json, product-detail chunk 797→67KB, ObjectType delete FK→409 |
+| W3-5.5 | AUD-074, 076 | #1664 | #1615 | CSP prod `script-src 'self'` (env-conditional), PermissionRoute podpięty (5/5 test); AUD-075 (i18n parity)→#1667 |
+| W3-5.6 | AUD-077, 080 | #1662 | #1616 | break-glass runbook (z realnego kodu), phpstan `reportUnmatched` + 4 testy hygiene |
+
+**Świadome odejścia / deferrale Wave 3 (tracking, NIE wyciszanie):**
+- **AUD-075** (i18n pl/en parity) → **#1667**: wypełnienie en.json flipuje dwujęzyczne selektory E2E (mieszane pl-only/en-only ~30 speców) — wymaga E2E-locale determinizmu (razem z #1638).
+- **AUD-053 bulk** (Import/Export→Catalog/User ~284 skipy) → **#1668**: wielokontrolerowy refaktor (część zamkniętego #1466); kierunek udowodniony seam-em (5 kontrolerów).
+- **AUD-055/057 bulk** (~136 jsonFetch + 16 monolitów) → **#1670**: enforcement (ADR+2 CI-guardy nie-rosnące) + proof-slice'y dostarczone; migracja przyrostowa.
+- **AUD-062** (Playwright retries:2) → **AUD-022** (root cause storageState).
+
+## Fix-plan KOMPLETNY (Wave 0–3, 2026-06-20)
+
+**44 tickety** naprawione + zmergowane + zamknięte z dowodem CLOSED-MEANS-CLOSED (Wave 0: 7 · Wave 1: 13 · Wave 2: 14 · Wave 3: 10). **5/5 CRITICAL domknięte** (AUD-001/004/005/007 Wave 0 + AUD-002 RLS Wave 1). Pierwotne blokery NO-GO (poniżej) zaadresowane: AUD-001 Mercure (W0), AUD-004 Meili filter-key (W0), AUD-007 token_dev_only (W0), AUD-002 RLS defence-in-depth (W1-1 FORCE RLS), AUD-003 platform-vs-tenant (RBAC). Otwarte follow-upy (tracked, nie blokery): #1638 (E2E triage), #1644 (undici/jsdom), #1654 (dh_auditor), #1667/#1668/#1670 (Wave 3 deferrale). **Decyzja GO/re-audit** należy do Phase 7 pentest + `00-executive-summary.md` — poniższy werdykt to pierwotny stan audytu (zachowany historycznie).
+
 **Werdykt: NO-GO dla SaaS** (patrz `00-executive-summary.md`). Uwaga precyzyjna po przebiegu empirycznym: **rdzeń izolacji danych domenowych (Doctrine TenantFilter przez REST) DZIAŁA** — matryca 2-tenant obaliła podejrzenie wycieku (patrz „Pozytywy empiryczne" niżej). NO-GO wynika z wektorów **POZA filtrem wierszowym**: AUD-001 Mercure (confirmed), AUD-004 Meili filter-key (confirmed), AUD-007 token_dev_only (confirmed account takeover), AUD-002 zerowy defence-in-depth (RLS martwy), AUD-003 model uprawnień platform-vs-tenant.
 
 **Rewizja po przebiegu empirycznym (2026-06-16, matryca 2-tenant demo↔acme):**
