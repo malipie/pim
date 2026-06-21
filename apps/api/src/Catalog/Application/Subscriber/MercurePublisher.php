@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application\Subscriber;
 
+use App\Catalog\Application\BulkContext;
 use App\Catalog\Contracts\Event\ObjectArchived;
 use App\Catalog\Contracts\Event\ObjectAttributesChanged;
 use App\Catalog\Contracts\Event\ObjectCreated;
@@ -58,6 +59,7 @@ final readonly class MercurePublisher
 
     public function __construct(
         private HubInterface $hub,
+        private BulkContext $bulkContext,
         private string $topicBase = 'https://pim.localhost',
         ?LoggerInterface $logger = null,
     ) {
@@ -129,6 +131,18 @@ final readonly class MercurePublisher
      */
     private function publish(string $type, DomainEvent&TenantAwareMessage $event, array $payload): void
     {
+        // Bulk flows (import, bulk-edit/-delete) touch thousands of objects in
+        // one process and route these events through the SYNC bus — one Mercure
+        // HTTP push per object would pile up Symfony HttpClient CurlResponse
+        // objects and OOM the 256 MiB worker. Per-row live updates are a
+        // single-edit UX concern; a bulk run is not driving any open editor, so
+        // skip the push (the deferred bulk rebuild reindexes the touched set
+        // once). Mirrors {@see \App\Catalog\Infrastructure\Doctrine\EventListener\AttributesIndexedSyncListener}'s
+        // BulkContext opt-out.
+        if ($this->bulkContext->isBulk()) {
+            return;
+        }
+
         $tenantId = $event->tenantId();
         $rowTopic = MercureSubscribeTopics::objectRow($tenantId, $this->topicBase, $event->aggregateId());
         $broadcastTopic = MercureSubscribeTopics::objectsBroadcast($tenantId, $this->topicBase);
