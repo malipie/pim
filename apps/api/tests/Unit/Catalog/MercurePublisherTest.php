@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Catalog;
 
+use App\Catalog\Application\BulkContext;
 use App\Catalog\Application\Subscriber\MercurePublisher;
 use App\Catalog\Contracts\Event\ObjectAttributesChanged;
 use App\Catalog\Contracts\Event\ObjectCreated;
@@ -78,6 +79,35 @@ final class MercurePublisherTest extends TestCase
     }
 
     #[Test]
+    public function skipsPublishUnderBulkContext(): void
+    {
+        // #import-oom — one Mercure HTTP push per object during a bulk import of
+        // thousands of rows piled up Symfony HttpClient responses and OOM'd the
+        // worker. Under BulkContext the per-row push is suppressed.
+        $bulk = new BulkContext();
+        $bulk->setBulk(true);
+        $hub = new MockHub(
+            'https://example.test/.well-known/mercure',
+            new StaticTokenProvider('jwt'),
+            function (Update $update): string {
+                $this->captured[] = $update;
+
+                return 'urn:uuid:'.bin2hex(random_bytes(8));
+            },
+        );
+        $publisher = new MercurePublisher($hub, $bulk);
+
+        $publisher->onObjectCreated(new ObjectCreated(
+            objectId: Uuid::fromString('019ddb19-a0f7-750a-a9cb-a6a6447ccb26'),
+            kind: ObjectKind::Product,
+            code: 'SKU-1',
+            tenantId: Uuid::fromString(self::TENANT_ID),
+        ));
+
+        self::assertSame([], $this->captured, 'no Mercure push may fire while a bulk run owns the process');
+    }
+
+    #[Test]
     public function objectAttributesChangedCarriesChangedAttributeCodes(): void
     {
         $publisher = $this->makePublisher();
@@ -148,6 +178,6 @@ final class MercurePublisherTest extends TestCase
             },
         );
 
-        return new MercurePublisher($hub);
+        return new MercurePublisher($hub, new BulkContext());
     }
 }

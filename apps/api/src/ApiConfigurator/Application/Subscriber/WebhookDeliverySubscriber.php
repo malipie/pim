@@ -6,6 +6,7 @@ namespace App\ApiConfigurator\Application\Subscriber;
 
 use App\ApiConfigurator\Application\WebhookDeliveryClient;
 use App\ApiConfigurator\Domain\Repository\ApiProfileRepositoryInterface;
+use App\Catalog\Contracts\BulkGuard;
 use App\Catalog\Contracts\Event\ObjectArchived;
 use App\Catalog\Contracts\Event\ObjectAttributesChanged;
 use App\Catalog\Contracts\Event\ObjectCreated;
@@ -33,6 +34,7 @@ final readonly class WebhookDeliverySubscriber
     public function __construct(
         private ApiProfileRepositoryInterface $profiles,
         private WebhookDeliveryClient $client,
+        private BulkGuard $bulkContext,
     ) {
     }
 
@@ -85,6 +87,16 @@ final readonly class WebhookDeliverySubscriber
      */
     private function fanOut(string $eventType, DomainEvent $event, array $data): void
     {
+        // Bulk flows (import, bulk-edit/-delete) emit one event per object on the
+        // SYNC bus; one webhook POST each would pile up HTTP responses and starve
+        // the 256 MiB worker. Per-object webhooks during a bulk run are both
+        // impractical (thousands of inline POSTs) and rarely what an integrator
+        // wants — a batch/summary delivery is the right shape (follow-up). Skip
+        // here, mirroring MercurePublisher's BulkContext opt-out.
+        if ($this->bulkContext->isBulk()) {
+            return;
+        }
+
         $subscribers = $this->profiles->findWebhookSubscribersFor($eventType);
         if ([] === $subscribers) {
             return;
