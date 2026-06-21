@@ -158,6 +158,96 @@ final class ImportMemoryBenchmarkTest extends KernelTestCase
         );
     }
 
+    /**
+     * #import-oom — an error-dense import (a stale export whose channel-suffixed
+     * columns no longer resolve raises a row-level error on EVERY row) must not
+     * persist one ImportLog entity per error unbounded: that retained
+     * O(total errors) past the per-chunk clear and OOM'd the 256 MiB worker.
+     * The per-run cap ({@see ImportRunHandler::MAX_PERSISTED_IMPORT_LOGS}) bounds
+     * the row count and appends a single summary row.
+     */
+    #[Test]
+    public function errorDenseImportCapsImportLogVolume(): void
+    {
+        $originalLimit = \ini_get('memory_limit');
+        \ini_set('memory_limit', '-1');
+
+        // One row-blocking error per row (a channel suffix that is not a real
+        // channel), just over the 5 000 cap so the tail is suppressed.
+        $rows = ImportRunHandler::MAX_PERSISTED_IMPORT_LOGS + 100;
+        $em = $this->em();
+
+        $tenant = new Tenant('bench-err', 'Bench Err Tenant');
+        $em->persist($tenant);
+        $em->flush();
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+
+        $type = new ObjectType('product', ObjectKind::Product, ['en' => 'Product']);
+        $em->persist($type);
+        $sku = new Attribute('sku', ['en' => 'SKU'], AttributeType::Text);
+        $name = new Attribute('name', ['en' => 'Name'], AttributeType::Text);
+        $em->persist($sku);
+        $em->persist($name);
+        $em->persist(new ObjectTypeAttribute($type, $sku, false, 1));
+        $em->persist(new ObjectTypeAttribute($type, $name, false, 2));
+
+        $session = new ImportSession(
+            userId: Uuid::v7(),
+            targetObjectType: $type,
+            fileName: 'errors.csv',
+            fileSizeBytes: 1024,
+        );
+        $session->assignTenant($tenant);
+        // `name.nochannel` — the suffix is neither an active locale nor a channel,
+        // so the value resolution blocks every row with one error.
+        $session->setColumnMapping(['sku' => 'sku', 'name.nochannel' => 'name']);
+        $em->persist($session);
+        $em->flush();
+        $sessionId = $session->getId();
+
+        $csv = "sku;name.nochannel\n";
+        for ($i = 1; $i <= $rows; ++$i) {
+            $csv .= \sprintf("ERR-%d;Value %d\n", $i, $i);
+        }
+        $storage = self::getContainer()->get('imports.storage');
+        $storage->write(
+            \sprintf('%s/%s/errors.csv', $tenant->getId()->toRfc4122(), $sessionId->toRfc4122()),
+            $csv,
+        );
+
+        self::getContainer()->get(TenantFilterConfigurator::class)->apply();
+        $hub = self::getContainer()->get(InMemoryMercureHub::class);
+        \assert($hub instanceof InMemoryMercureHub);
+        $hub->stopRetaining();
+        $handler = self::getContainer()->get(ImportRunHandler::class);
+
+        \memory_reset_peak_usage();
+        $handler->run($session);
+        $peak = $handler->rowPhasePeakBytes();
+        \ini_set('memory_limit', $originalLimit);
+
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        $rawCount = $this->em()->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM import_logs WHERE import_session_id = :id',
+            ['id' => $sessionId->toRfc4122()],
+        );
+        \assert(is_numeric($rawCount));
+        $persistedLogs = (int) $rawCount;
+
+        // 5 000 capped error rows + exactly one suppressed-tail summary row.
+        self::assertSame(
+            ImportRunHandler::MAX_PERSISTED_IMPORT_LOGS + 1,
+            $persistedLogs,
+            'ImportLog rows must be capped at the per-run budget plus one summary',
+        );
+        self::assertNotNull($peak);
+        self::assertLessThan(
+            self::THRESHOLD_BYTES,
+            $peak,
+            \sprintf('error-dense import peaked at %0.1f MiB, must stay under 256 MiB', $peak / 1024 / 1024),
+        );
+    }
+
     private function em(): EntityManagerInterface
     {
         $em = self::getContainer()->get('doctrine')->getManager();
