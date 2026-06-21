@@ -75,8 +75,17 @@ final class AutoMapController
         }
 
         $availableCodes = [];
+        $labelsByCode = [];
         foreach ($this->objectTypeAttributes->findByObjectType($objectType) as $junction) {
-            $availableCodes[] = $junction->getAttribute()->getCode();
+            $attribute = $junction->getAttribute();
+            $code = $attribute->getCode();
+            $availableCodes[] = $code;
+            // Localised labels ({pl,en,…}) feed the name-based matcher so
+            // hand-built files with human-readable headers auto-map too.
+            $labelsByCode[$code] = array_values(array_filter(
+                $attribute->getLabel(),
+                static fn (string $label): bool => '' !== trim($label),
+            ));
         }
         // Category assignment is supported only for product imports —
         // expose the reserved __category__ target so the dictionary's
@@ -106,7 +115,7 @@ final class AutoMapController
             $normalisedRows[] = $cells;
         }
 
-        $suggestions = $this->autoMapper->map($availableCodes, $normalisedHeaders, $normalisedRows);
+        $suggestions = $this->autoMapper->map($availableCodes, $normalisedHeaders, $normalisedRows, $labelsByCode);
 
         return new JsonResponse(
             [

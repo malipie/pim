@@ -129,6 +129,95 @@ final class AutoMapperTest extends TestCase
     }
 
     #[Test]
+    public function snakeCaseAttributeCodeAutoMapsOnExportRoundTrip(): void
+    {
+        // #1683: an export writes raw attribute codes as headers. A custom
+        // snake_case code (`material_composition`) must auto-map even though
+        // it is NOT in the generic dictionary — normalise() strips the
+        // underscore on both sides, so the direct-code match has to compare
+        // normalised↔normalised, not normalised↔raw.
+        $mapper = $this->mapperWithDictionary([
+            'sku' => ['aliases' => ['sku']],
+        ]);
+
+        $suggestions = $mapper->map(
+            ['material_composition', 'short_description'],
+            ['material_composition', 'short_description'],
+            [],
+        );
+
+        self::assertSame('material_composition', $suggestions[0]->suggestedAttributeCode);
+        self::assertSame(MappingConfidence::Auto, $suggestions[0]->confidence);
+        self::assertSame('short_description', $suggestions[1]->suggestedAttributeCode);
+        self::assertSame(MappingConfidence::Auto, $suggestions[1]->confidence);
+    }
+
+    #[Test]
+    public function snakeCaseCodeWithLocaleSuffixAutoMaps(): void
+    {
+        // Re-exported localised column: `short_description.pl` → base
+        // `short_description` (snake_case) must still auto-map (#1683).
+        $mapper = $this->mapperWithDictionary([]);
+
+        $suggestions = $mapper->map(
+            ['short_description'],
+            ['short_description.pl'],
+            [],
+        );
+
+        self::assertSame('short_description', $suggestions[0]->suggestedAttributeCode);
+        self::assertSame(MappingConfidence::Auto, $suggestions[0]->confidence);
+    }
+
+    #[Test]
+    public function headerMatchesAttributeLabelByName(): void
+    {
+        // #1683 name-based detection: a hand-built file with a human-readable
+        // header ("Material composition") auto-maps to the attribute whose
+        // label matches, even without the code or a dictionary alias.
+        $mapper = $this->mapperWithDictionary([]);
+
+        $suggestions = $mapper->map(
+            ['material_composition'],
+            ['Material composition'],
+            [],
+            ['material_composition' => ['Material composition', 'Skład materiału']],
+        );
+
+        self::assertSame('material_composition', $suggestions[0]->suggestedAttributeCode);
+        self::assertSame(MappingConfidence::Auto, $suggestions[0]->confidence);
+    }
+
+    #[Test]
+    public function ambiguousLabelAcrossAttributesIsNotAutoGuessed(): void
+    {
+        // Two attributes sharing a normalised label → manual, never a guess.
+        $mapper = $this->mapperWithDictionary([]);
+
+        $suggestions = $mapper->map(
+            ['weight_net', 'weight_gross'],
+            ['Waga'],
+            [],
+            ['weight_net' => ['Waga'], 'weight_gross' => ['Waga']],
+        );
+
+        self::assertSame(MappingConfidence::Manual, $suggestions[0]->confidence);
+        self::assertNull($suggestions[0]->suggestedAttributeCode);
+    }
+
+    #[Test]
+    public function fuzzyMatchesTypoInAttributeCode(): void
+    {
+        // Hand-built file with a typo in the code → fuzzy "did you mean".
+        $mapper = $this->mapperWithDictionary([]);
+
+        $suggestions = $mapper->map(['material_composition'], ['materialcompositon'], []);
+
+        self::assertSame(MappingConfidence::Fuzzy, $suggestions[0]->confidence);
+        self::assertSame('material_composition', $suggestions[0]->suggestedAttributeCode);
+    }
+
+    #[Test]
     public function systemColumnsAreSuggestedAsSkip(): void
     {
         $mapper = $this->mapperWithDictionary([
