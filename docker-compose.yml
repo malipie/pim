@@ -225,6 +225,15 @@ services:
     command: php bin/console messenger:consume import scheduler_maintenance --time-limit=3600 --memory-limit=256M
     environment:
       APP_ENV: ${APP_ENV:-dev}
+      # The worker is a headless background consumer (import/export/reindex) —
+      # it never serves the web profiler. APP_DEBUG=1 (the dev default) makes
+      # Symfony's debug caches (DoctrineBundle DebugDataHolder, the profiler's
+      # ArrayAdapter pools, the SQL logger) accumulate one in-memory entry per
+      # query for the whole run, so a large bulk job (50k-SKU import / full
+      # catalog export) climbs to the 256 MiB ceiling and SIGKILLs — a dev-only
+      # artifact the prod worker (APP_DEBUG=0) never pays. Pin it off here so
+      # local bulk runs profile like prod (flat O(chunk) memory).
+      APP_DEBUG: "0"
       APP_SECRET: ${APP_SECRET:-ChangeMeBeforeDeploy}
       # AUD-002 (W1-1) — same NON-owner, NOBYPASSRLS runtime role as the api.
       # The worker sets app.current_tenant at session scope via
