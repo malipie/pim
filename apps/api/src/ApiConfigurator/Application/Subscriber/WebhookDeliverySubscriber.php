@@ -6,7 +6,7 @@ namespace App\ApiConfigurator\Application\Subscriber;
 
 use App\ApiConfigurator\Application\WebhookDeliveryClient;
 use App\ApiConfigurator\Domain\Repository\ApiProfileRepositoryInterface;
-use App\Catalog\Application\BulkContext;
+use App\Catalog\Contracts\BulkGuard;
 use App\Catalog\Contracts\Event\ObjectArchived;
 use App\Catalog\Contracts\Event\ObjectAttributesChanged;
 use App\Catalog\Contracts\Event\ObjectCreated;
@@ -34,7 +34,7 @@ final readonly class WebhookDeliverySubscriber
     public function __construct(
         private ApiProfileRepositoryInterface $profiles,
         private WebhookDeliveryClient $client,
-        private BulkContext $bulkContext,
+        private BulkGuard $bulkContext,
     ) {
     }
 
