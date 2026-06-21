@@ -87,6 +87,23 @@ final class ImportRunHandler extends AbstractBatchHandler
     private const int ALLOWED_ERRORS_MIN_ROWS = 20;
 
     /**
+     * Hard cap on per-run ImportLog rows. A pathological file (e.g. a stale
+     * export whose channel/locale-suffixed columns no longer match the catalog)
+     * raises dozens of row-level errors per row; persisting one ImportLog entity
+     * each made the row phase grow O(total errors) and OOM the 256 MiB worker
+     * (each persisted entity retains its message + raw-row snippet past the
+     * per-chunk EntityManager::clear()). Beyond the cap we count suppressed
+     * messages and emit a single summary row (Akeneo's "first N + tail count"
+     * pattern) — 5 000 logged messages already exceeds any human-actionable
+     * report, so nothing diagnostic is lost.
+     */
+    public const int MAX_PERSISTED_IMPORT_LOGS = 5_000;
+
+    /** Per-run ImportLog accounting for {@see MAX_PERSISTED_IMPORT_LOGS}. */
+    private int $importLogsPersisted = 0;
+    private int $importLogsSuppressed = 0;
+
+    /**
      * IMP2-2.6 — RFC4122 ids of objects this run created or actually changed,
      * collected for the end-of-run async rebuild + reindex. Strings (not
      * entities) so they survive the per-chunk EntityManager::clear().
@@ -240,6 +257,8 @@ final class ImportRunHandler extends AbstractBatchHandler
         // Reset in finally — a long-lived worker must not leak the flag.
         $this->bulkContext->setBulk(true, $session->getId());
         $this->bulkTouchedIds = [];
+        $this->importLogsPersisted = 0;
+        $this->importLogsSuppressed = 0;
         $this->rowPhasePeakBytes = null;
         $this->lastProgressAt = 0;
         $this->lastProcessedSku = null;
@@ -364,6 +383,9 @@ final class ImportRunHandler extends AbstractBatchHandler
                     $lock->refresh();
                     foreach ($linkErrors as $error) {
                         $session->incrementError();
+                        if (!$this->importLogBudgetAvailable()) {
+                            continue;
+                        }
                         $this->entityManager->persist(new ImportLog(
                             importSession: $session,
                             rowNumber: $error->rowNumber,
@@ -388,6 +410,7 @@ final class ImportRunHandler extends AbstractBatchHandler
             }
 
             $session->setTotalRows($totalRows);
+            $this->persistSuppressedImportLogSummary($session);
             $this->sessions->save($session);
 
             // IMP2-1.12 — dispatch the buffered media batches now (after the
@@ -458,6 +481,60 @@ final class ImportRunHandler extends AbstractBatchHandler
     public function rowPhasePeakBytes(): ?int
     {
         return $this->rowPhasePeakBytes;
+    }
+
+    /**
+     * True while the run is still under {@see MAX_PERSISTED_IMPORT_LOGS}. Each
+     * call that returns true reserves one slot; once the cap is hit every later
+     * call counts a suppressed message and returns false, so the row phase stays
+     * O(cap) instead of O(total errors). {@see persistSuppressedImportLogSummary}
+     * surfaces the suppressed tail to the operator.
+     */
+    private function importLogBudgetAvailable(): bool
+    {
+        if ($this->importLogsPersisted >= self::MAX_PERSISTED_IMPORT_LOGS) {
+            ++$this->importLogsSuppressed;
+
+            return false;
+        }
+        ++$this->importLogsPersisted;
+
+        return true;
+    }
+
+    /**
+     * Emit one summary ImportLog when the per-run cap suppressed messages, so a
+     * truncated report never silently hides that more rows had issues.
+     */
+    private function persistSuppressedImportLogSummary(ImportSession $session): void
+    {
+        if (0 === $this->importLogsSuppressed) {
+            return;
+        }
+        // The row/relation phases clear the EM, leaving TenantContext holding a
+        // detached Tenant; re-attach a managed one so the TenantAssignmentListener
+        // can stamp this summary row (mirrors the per-chunk reattach).
+        $tenant = $session->getTenant();
+        if ($tenant instanceof Tenant) {
+            $managed = $this->entityManager->find(Tenant::class, $tenant->getId()->toRfc4122());
+            if ($managed instanceof Tenant) {
+                $this->tenantContext->set($managed);
+            }
+        }
+        $this->entityManager->persist(new ImportLog(
+            importSession: $session,
+            rowNumber: 0,
+            level: ImportLogLevel::Warning,
+            message: \sprintf(
+                '%d further messages were suppressed — this import logged the first %d issues (per-run cap). Fix the reported problems and re-run to see the rest.',
+                $this->importLogsSuppressed,
+                self::MAX_PERSISTED_IMPORT_LOGS,
+            ),
+            sku: null,
+            errorType: ImportErrorType::InvalidValue->value,
+            columnName: null,
+            columnValue: null,
+        ));
     }
 
     /**
@@ -1073,6 +1150,9 @@ final class ImportRunHandler extends AbstractBatchHandler
             $zipNames = $zipMode ? $classified['unresolved'] : [];
             if (!$zipMode) {
                 foreach ($classified['unresolved'] as $token) {
+                    if (!$this->importLogBudgetAvailable()) {
+                        continue;
+                    }
                     $this->entityManager->persist(new ImportLog(
                         importSession: $session,
                         rowNumber: $row['rowNumber'],
@@ -1525,6 +1605,9 @@ final class ImportRunHandler extends AbstractBatchHandler
             }
 
             foreach ($errors as $error) {
+                if (!$this->importLogBudgetAvailable()) {
+                    continue;
+                }
                 $this->entityManager->persist(new ImportLog(
                     importSession: $session,
                     rowNumber: $error->rowNumber,

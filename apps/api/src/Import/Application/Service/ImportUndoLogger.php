@@ -33,7 +33,19 @@ final class ImportUndoLogger
     /** @var array<string, \App\Catalog\Domain\Entity\ObjectValue> "objId|attrId|locale|channel" => existing row (primed per chunk) */
     private array $existingIndex = [];
 
-    /** @var array<string, true> scope keys already captured this run (first-write-wins) */
+    /**
+     * @var array<string, true> scope keys already captured in THIS chunk
+     *                          (first-write-wins within the chunk)
+     *
+     * Reset per chunk in {@see primeChunk()} — NOT once per run. The dedup only
+     * needs chunk lifetime: a given object is written in exactly one chunk (a
+     * second row matching the same object — duplicate SKU or shared identifier —
+     * is skipped by the handler's file-wide seen-sets BEFORE it reaches capture),
+     * so the same scope key is never touched across two chunks. Keeping it for
+     * the whole run made it grow O(total value-writes) and OOM the 256 MiB
+     * worker on a large UPSERT re-import (one string per written value, never
+     * freed by EntityManager::clear()).
+     */
     private array $capturedScopes = [];
 
     public function __construct(
@@ -59,6 +71,10 @@ final class ImportUndoLogger
     public function primeChunk(array $existingObjects): void
     {
         $this->existingIndex = [];
+        // Per-chunk first-write-wins window (see $capturedScopes docblock): an
+        // object is written in a single chunk, so chunk-scoped dedup is exact and
+        // keeps memory flat across an arbitrarily large run.
+        $this->capturedScopes = [];
         if ([] === $existingObjects) {
             return;
         }
