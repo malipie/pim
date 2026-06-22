@@ -116,7 +116,7 @@ final readonly class BulkCatalogObjectIndexer
         }
 
         try {
-            $client->index(IndexSettingsTemplate::indexName())->addDocuments($documents);
+            $client->index(IndexSettingsTemplate::indexName())->addDocuments($documents, IndexSettingsTemplate::PRIMARY_KEY);
         } catch (Throwable $e) {
             $this->logger->warning('Reindex batch push failed: {message}', [
                 'message' => $e->getMessage(),

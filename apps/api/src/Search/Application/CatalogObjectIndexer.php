@@ -112,7 +112,7 @@ final readonly class CatalogObjectIndexer
 
         foreach (array_chunk($documents, self::BATCH_SIZE) as $chunk) {
             try {
-                $client->index(IndexSettingsTemplate::indexName())->addDocuments($chunk);
+                $client->index(IndexSettingsTemplate::indexName())->addDocuments($chunk, IndexSettingsTemplate::PRIMARY_KEY);
             } catch (Throwable $e) {
                 // Fail-soft per chunk — same rationale as above.
                 $this->logger->warning('Index batch push failed: {message}', [
@@ -181,7 +181,7 @@ final readonly class CatalogObjectIndexer
         try {
             $client = $this->clientFactory->create();
             $client->index(IndexSettingsTemplate::indexName())
-                ->addDocuments([$this->toDocument($object)]);
+                ->addDocuments([$this->toDocument($object)], IndexSettingsTemplate::PRIMARY_KEY);
         } catch (Throwable $e) {
             $this->logger->warning('Index push failed: {message}', [
                 'message' => $e->getMessage(),
