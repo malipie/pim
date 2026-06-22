@@ -31,6 +31,17 @@ final class IndexSettingsTemplate
     public const string INDEX_NAME = 'objects';
 
     /**
+     * The document field Meilisearch uses as the primary key. MUST be passed to
+     * every addDocuments() call: a Meili index auto-created by a document push
+     * (rather than the provisioner) infers its key from the payload, and our
+     * documents carry several `*Id` fields, so inference fails ("multiple fields
+     * ending with id") and EVERY add silently lands in the failed-task queue —
+     * the index stays at 0 docs and search returns nothing. Passing it pins the
+     * key whether the index was provisioned first or not.
+     */
+    public const string PRIMARY_KEY = 'id';
+
+    /**
      * Reserved filterable fields the universal index always carries
      * regardless of operator-defined attributes. `tenantId` enforces the
      * multi-tenant isolation filter; `objectTypeId` scopes the universal

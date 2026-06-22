@@ -42,7 +42,7 @@ final readonly class MeilisearchIndexProvisioner
         $client = $this->clientFactory->create();
         $name = IndexSettingsTemplate::indexName();
 
-        $client->createIndex($name, ['primaryKey' => 'id']);
+        $client->createIndex($name, ['primaryKey' => IndexSettingsTemplate::PRIMARY_KEY]);
         $task = $client->index($name)->updateSettings($this->template->settingsFor());
         $taskUid = $task['taskUid'] ?? $task['uid'] ?? '';
 
