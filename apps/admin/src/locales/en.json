@@ -2179,7 +2179,9 @@
         "warnings": "Warnings",
         "errors": "Errors",
         "open": "Open",
-        "empty": "No active imports. Start with \"New import\" to launch a new session."
+        "empty": "No active imports. Start with \"New import\" to launch a new session.",
+        "empty_title": "No active imports",
+        "empty_subtitle": "Start with \"New import\" — small files process instantly, large ones land here with a progress bar."
       },
       "history": {
         "heading": "History",
