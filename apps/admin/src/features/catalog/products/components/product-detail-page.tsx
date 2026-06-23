@@ -319,14 +319,19 @@ export function ProductDetailPage({
         ? dirtyFields.sku
         : ''
       : (product?.code ?? '');
+  // The header name <Input> is controlled by `nameValue`, so it must reflect
+  // unsaved edits — read `dirtyFields.name` first (the user's keystrokes),
+  // then fall back to the loaded value. Without the dirty branch in edit mode
+  // the controlled input always re-rendered the original value and the field
+  // appeared locked.
   const nameValue =
-    mode === 'create'
-      ? typeof dirtyFields.name === 'string'
-        ? dirtyFields.name
-        : ''
-      : typeof attrs.name === 'string'
-        ? attrs.name
-        : (product?.code ?? '');
+    typeof dirtyFields.name === 'string'
+      ? dirtyFields.name
+      : mode === 'create'
+        ? ''
+        : typeof attrs.name === 'string'
+          ? attrs.name
+          : (product?.code ?? '');
   const brandValue =
     mode === 'create'
       ? typeof dirtyFields.brand === 'string'
