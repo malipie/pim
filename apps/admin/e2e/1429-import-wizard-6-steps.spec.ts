@@ -67,6 +67,13 @@ test('NUI-10 — wizard walks six steps and commits an import session', async ({
   // Step 5 — Reguły: truth card + disabled mode tiles.
   await expect(page.getByText(/upsert (po identyfikatorze|by identifier)/i)).toBeVisible();
   await expect(page.getByText('UPSERT', { exact: true })).toBeVisible();
+  // #1718 — the "create missing options" checkbox is real (not mocked); toggle it on.
+  const createOptions = page.getByRole('checkbox', {
+    name: /brakujące opcje|missing options/i,
+  });
+  await expect(createOptions).toBeVisible();
+  await createOptions.check();
+  await expect(createOptions).toBeChecked();
   await page.getByRole('button', { name: /dalej|next/i }).click();
 
   // Step 6 — Podgląd: dry-run resolves with KPIs.
@@ -85,6 +92,8 @@ test('NUI-10 — wizard walks six steps and commits an import session', async ({
     ),
     page.getByRole('button', { name: /uruchom import|run import/i }).click(),
   ]);
+  // #1718 — the opt-in flag toggled on the Reguły step reaches the start payload.
+  expect(commitResponse.request().postData() ?? '').toContain('create_missing_options');
   test.skip(
     commitResponse.status() === 409,
     'PROD-05 bulk lock held by a concurrent suite operation',

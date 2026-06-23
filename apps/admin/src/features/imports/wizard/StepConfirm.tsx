@@ -66,6 +66,8 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
       formData.set('backup_id', backupId);
     }
     formData.set('mode', state.mode);
+    // #1718 — opt-in: mint missing select/multiselect options during the run.
+    formData.set('create_missing_options', state.createMissingOptions ? '1' : '0');
     // IMP2-1.13 — image source + optional ZIP of images (was never sent before).
     formData.set('image_source', state.imageSource);
     if (state.imageSource === 'zip' && state.zipFile) {

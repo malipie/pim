@@ -141,6 +141,36 @@ export function StepRules({ wizard }: StepRulesProps): React.ReactElement {
               </label>
             ))}
           </div>
+
+          <div className="mt-5 text-[13.5px] font-semibold">
+            {t('imports.rules.options_title', { defaultValue: 'Opcje słownikowe' })}
+          </div>
+          <div className="mt-0.5 text-[12px] text-zinc-500">
+            {t('imports.rules.options_subtitle', {
+              defaultValue: 'Co zrobić z wartościami select/multiselect spoza istniejącej listy',
+            })}
+          </div>
+          <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-[12.5px]">
+            <input
+              type="checkbox"
+              checked={state.createMissingOptions}
+              onChange={(event) => setField('createMissingOptions', event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded"
+            />
+            <span>
+              <span className="font-medium text-zinc-800">
+                {t('imports.rules.create_missing_options', {
+                  defaultValue: 'Twórz brakujące opcje (select/multiselect)',
+                })}
+              </span>
+              <span className="mt-0.5 block text-[11.5px] leading-relaxed text-zinc-500">
+                {t('imports.rules.create_missing_options_hint', {
+                  defaultValue:
+                    'Nieznane wartości zostaną dodane jako nowe opcje atrybutu (provenance: import). Domyślnie wyłączone — nieznana wartość kończy wiersz błędem.',
+                })}
+              </span>
+            </span>
+          </label>
         </div>
 
         <div className="relative rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
