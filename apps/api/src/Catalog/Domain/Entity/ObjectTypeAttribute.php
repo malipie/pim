@@ -11,8 +11,9 @@ use Symfony\Component\Uid\Uuid;
  *
  * Replaces the pre-ADR-009 `family_attributes` row. Composite PK is the
  * natural `(object_type_id, attribute_id)` pair — one Attribute can be
- * assigned to many ObjectTypes (e.g. `name` on every kind, `seo_title`
- * on `product` + `category`).
+ * assigned to many ObjectTypes (e.g. `main_image` on several product-like
+ * kinds). Note: `Asset` / `Category` are closed system kinds (amends
+ * ADR-009) and carry no junction rows.
  *
  * `required_for_completeness` flag drives `Object.completeness_pct` (logic
  * in #38). `sort_order` drives form rendering order in admin UI.

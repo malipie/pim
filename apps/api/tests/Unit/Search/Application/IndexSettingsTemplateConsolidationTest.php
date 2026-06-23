@@ -70,12 +70,13 @@ final class IndexSettingsTemplateConsolidationTest extends TestCase
         self::assertContains('code', $searchable);
         self::assertContains('name', $searchable);
         self::assertContains('sku', $searchable);
-        // pre-ULV category searchable
+        // category `path` stays — it is intrinsic category data, not a
+        // user-attribute. seo_title / alt_text / caption were dropped when
+        // Asset / Category became closed system kinds (amends ADR-009).
         self::assertContains('path', $searchable);
-        self::assertContains('seo_title', $searchable);
-        // pre-ULV asset searchable
-        self::assertContains('alt_text', $searchable);
-        self::assertContains('caption', $searchable);
+        self::assertNotContains('seo_title', $searchable);
+        self::assertNotContains('alt_text', $searchable);
+        self::assertNotContains('caption', $searchable);
 
         $sortable = $settings['sortableAttributes'];
         self::assertIsArray($sortable);

@@ -37,4 +37,17 @@ enum ObjectKind: string
     {
         return self::Custom !== $this;
     }
+
+    /**
+     * Closed system kinds (amends ADR-009): `Asset` and `Category` are
+     * platform-managed ObjectTypes whose schema is fixed — they expose no
+     * user-attachable attributes or attribute groups. Their intrinsic fields
+     * (name as display label; asset code/tags/file metadata; category path)
+     * are owned by dedicated controllers/UI, not the generic attribute model.
+     * Only `Product` (and future `Custom` kinds) are attribute-modelable.
+     */
+    public function isAttributeModelable(): bool
+    {
+        return self::Asset !== $this && self::Category !== $this;
+    }
 }

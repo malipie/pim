@@ -70,6 +70,7 @@ final class AttachObjectTypeAttributeController
             throw new NotFoundHttpException(\sprintf('Attribute "%s" was not found.', $attributeId));
         }
 
+        $this->guardModelable($objectType);
         $this->guardCodeUniqueness($objectType, $attribute);
 
         $sortOrder = $this->nextSortOrder($id);
@@ -128,6 +129,8 @@ final class AttachObjectTypeAttributeController
             throw new BadRequestHttpException('Field "attributeIds" must be an array of UUIDs.');
         }
 
+        $this->guardModelable($objectType);
+
         $sortOrder = $this->nextSortOrder($id);
         foreach ($rawIds as $rawId) {
             if (!\is_string($rawId) || !Uuid::isValid($rawId)) {
@@ -158,6 +161,28 @@ final class AttachObjectTypeAttributeController
         );
 
         return \is_scalar($raw) ? (int) $raw : 0;
+    }
+
+    /**
+     * Closed system types (amends ADR-009) — reject attaching attributes to
+     * `Asset` / `Category` ObjectTypes. Their schema is platform-managed; the
+     * modeling UI hides the customization cards for these kinds, so this is the
+     * API-side enforcement (defence in depth + protection for direct clients).
+     */
+    private function guardModelable(ObjectType $objectType): void
+    {
+        if ($objectType->getKind()->isAttributeModelable()) {
+            return;
+        }
+
+        throw new HttpException(
+            422,
+            \sprintf(
+                'ObjectType "%s" (kind=%s) is a closed system type and cannot have attributes attached; its schema is platform-managed.',
+                $objectType->getCode(),
+                $objectType->getKind()->value,
+            ),
+        );
     }
 
     /**

@@ -71,8 +71,7 @@ final class IndexSettingsTemplate
      */
     private const array UNIVERSAL_SEARCHABLE = [
         'code', 'name', 'sku', 'brand', 'description',
-        'path', 'seo_title',
-        'alt_text', 'caption',
+        'path',
     ];
 
     /**

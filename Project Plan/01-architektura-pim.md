@@ -1252,6 +1252,20 @@ Opcja (Y) zachowuje killer feature ADR-012 (dziedziczenie grup atrybutów po drz
 
 **Referencje:** ADR-014 (rewidowany w zakresie scope drzewa; reszta — primary category overlay, cumulative resolution, EffectiveAttributeGroupResolver — w mocy). Plan implementacji: PR-A (#1118) schema+encja+create, PR-B API+resolver+walidacja przypisania, PR-C FE (dropdown all-categorizable + objectTypeId, list/new/show per drzewo, reword etykiety `is_categorizable` → „czy obiekty mogą być przypisane do drzewa").
 
+### ADR-0021: Asset i Category jako closed system kinds (amend ADR-009)
+
+**Status:** Accepted (2026-06-23).
+
+**Kontekst.** ADR-009 traktował `Product`, `Category`, `Asset` jako równorzędne built-in ObjectType, każdy w pełni attribute-modelable (własne `object_type_attributes`). Demo seeder przypinał do `asset` atrybuty `name`/`alt_text`/`caption`, a do `category` — `name`/`seo_title`/`seo_description`/`main_image`, „na dowód", że Category to first-class typ z własną schemą. W praktyce produkt poszedł w innym kierunku: assety edytują wyłącznie code/tags + metadane pliku (dedykowany `AssetEditDialog` + DAM), kategorie mają własny formularz (path/hierarchia), a UI Modelowania **przekierowuje** `kind ∈ {asset, category}` z detalu typu na listę — więc przypiętych atrybutów **nie da się odpiąć przez UI**. To pozostawiło martwy stan: atrybuty zablokowane do usunięcia („attached to 1 object type"), choć żaden user-facing ekran ich nie edytuje.
+
+**Decyzja.** `Asset` i `Category` to **closed system kinds**: pozostają first-class ObjectType (built-in, sugar paths `/api/assets`, `/api/categories`), ale **nie są attribute-modelable** — zero wierszy w `object_type_attributes`, zero grup atrybutów. Ich pola wewnętrzne są platform-managed: `name` jako display label (FK `label_attribute_id`, nie junction), asset code/tags/metadane pliku przez Asset BC, category path/hierarchia przez ltree. Tylko `Product` (i przyszłe `Custom` kindy) są attribute-modelable. Źródło prawdy: `ObjectKind::isAttributeModelable()` (false dla Asset/Category).
+
+**Egzekwowanie.** (a) `AttachObjectTypeAttributeController` (attach + bulk) i `AttachObjectTypeAttributeGroupController` zwracają 422 dla closed kinds; (b) UI Modelowania już przekierowuje detal asset/category (customization niedostępna); (c) `DemoCatalogSeeder` przypina atrybuty wyłącznie do product; (d) migracja `Version20260623120000` czyści istniejące dane (detach + drop osieroconych `alt_text`/`caption`/`seo_title`/`seo_description`; `name`/`main_image` zostają — używa product).
+
+**Konsekwencje.** (+) Spójność: martwy stan zniknął, model asset/category odpowiada realnemu UX. (+) Atrybuty wyłącznie tam, gdzie są edytowalne. (−) Cofa fragment ADR-009 (Category jako pełny attribute-modelable typ) — gdyby przyszły pilot wymagał user-defined pól na kategorii/asset, trzeba odblokować per-junction (flaga `is_system` na `ObjectTypeAttribute` + widoczne-ale-nieedytowalne renderowanie). (−) `name`/`main_image` zostają jako atrybuty product mimo czyszczenia (świadomie — to ich właściwy dom).
+
+**Referencje:** ADR-009 (rewidowany w zakresie modelability asset/category; generic ObjectType, sugar paths, is_built_in — w mocy). ADR-012 (grupy atrybutów — closed kinds ich nie używają).
+
 ### ADR-0016, ADR-0017, ADR-0018, ADR-0019 (per-file MADR)
 
 Decyzje ADR-0016 (format kluczy API + Argon2id), ADR-0017 (BYOK AES-256-GCM) i ADR-0018 (ChannelPublicationProfile — per-channel attribute/locale allow-list, `?publication=<channel>` oddzielne od `?channel=`) są zarchiwizowane w plikach per-file MADR w `docs/adr/`. Streszczenie ADR-0018:

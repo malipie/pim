@@ -222,6 +222,39 @@ final class ObjectTypeAttachedAttributesApiTest extends CatalogApiTestCase
         self::assertSame(1, (int) $remaining);
     }
 
+    #[Test]
+    public function attachAttributeToClosedSystemKindReturns422(): void
+    {
+        // Amends ADR-009 — Asset / Category are closed system kinds: their
+        // schema is platform-managed and rejects direct attribute attach.
+        $client = $this->authenticatedClient();
+
+        foreach ([ObjectKind::Asset, ObjectKind::Category] as $kind) {
+            $typeId = $this->objectTypeIdFor($kind);
+            $client->request('POST', '/api/object_types/'.$typeId.'/attributes/'.$this->colorAttrId);
+            self::assertResponseStatusCodeSame(
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+                \sprintf('Attaching to kind=%s must be rejected.', $kind->value),
+            );
+            self::assertSame(0, $this->countDirectAttachments($typeId, $this->colorAttrId));
+        }
+    }
+
+    #[Test]
+    public function bulkAttachToClosedSystemKindReturns422(): void
+    {
+        $client = $this->authenticatedClient();
+        $typeId = $this->objectTypeIdFor(ObjectKind::Asset);
+
+        $client->request('POST', '/api/object_types/'.$typeId.'/attributes/bulk-attach', [
+            'json' => ['attributeIds' => [$this->colorAttrId, $this->sizeAttrId]],
+            'headers' => ['content-type' => 'application/json'],
+        ]);
+
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+        self::assertSame(0, $this->countDirectAttachments($typeId, null));
+    }
+
     private function countDirectAttachments(string $objectTypeId, ?string $attributeId): int
     {
         $sql = 'SELECT COUNT(*) FROM object_type_attributes WHERE object_type_id = ?';

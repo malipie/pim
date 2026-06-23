@@ -62,6 +62,19 @@ final class AttachObjectTypeAttributeGroupController
             throw new NotFoundHttpException(\sprintf('AttributeGroup "%s" was not found.', $groupId));
         }
 
+        // Closed system types (amends ADR-009) — Asset / Category schemas are
+        // platform-managed and expose no user-attachable attribute groups.
+        if (!$objectType->getKind()->isAttributeModelable()) {
+            throw new HttpException(
+                422,
+                \sprintf(
+                    'ObjectType "%s" (kind=%s) is a closed system type and cannot have attribute groups attached; its schema is platform-managed.',
+                    $objectType->getCode(),
+                    $objectType->getKind()->value,
+                ),
+            );
+        }
+
         // Idempotent — DBAL existence check is cheaper than fetching the
         // junction entity through the EntityManager.
         $existing = $this->connection->fetchOne(
