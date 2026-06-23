@@ -309,13 +309,10 @@ final readonly class ImportValidationService
         }
 
         if (null !== $categoryCellValue) {
-            // IMP2-1.7: validate every code in the pipe-separated list.
-            // Each missing code warns separately; the row still imports with
-            // whichever codes resolved (the writer skips the rest).
-            $codes = array_values(array_filter(
-                array_map('trim', explode('|', $categoryCellValue)),
-                static fn (string $code): bool => '' !== $code,
-            ));
+            // IMP2-1.7: validate every code in the multi-value list (pipe or
+            // newline, #1719). Each missing code warns separately; the row
+            // still imports with whichever codes resolved (writer skips rest).
+            $codes = MultiValueSplitter::split($categoryCellValue);
             foreach ($codes as $code) {
                 if (null === $this->catalogObjects->findByCode($code, ObjectKind::Category, $tenant)) {
                     $errors[] = new ValidationError(
