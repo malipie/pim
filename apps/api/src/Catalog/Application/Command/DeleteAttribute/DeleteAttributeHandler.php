@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Application\Command\DeleteAttribute;
 
+use App\Catalog\Application\OrphanedAttributeValuePurger;
 use App\Catalog\Application\Query\Usage\UsageQueryService;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
@@ -17,14 +18,19 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * attribute detail page (`show.tsx`); the trash button is only rendered for
  * non-system rows but the BE guards below are the source of truth.
  *
- * Two guards, both backed by Postgres FK semantics:
+ * Guards:
  *   - System attributes (`is_system=true`) are immutable per UI-08.3 (#258) → 422.
- *   - Attributes still in use are non-deletable → 409: `object_type_attributes`
- *     and `object_values` both have ON DELETE RESTRICT, so the DB would reject
- *     the delete anyway. We pre-check via UsageQueryService to return a helpful
- *     message instead of a raw 500, and catch the FK violation as a safety-net
- *     for the race window left by the 60s usage cache. The supported path for
- *     removing an in-use attribute is detach + the `/migrate-type` flow.
+ *   - An attribute still REACHABLE in the model — attached to an ObjectType,
+ *     an AttributeGroup, or distributed via a Category overlay — is non-deletable
+ *     → 409. The supported path is to detach / remove it from the group first
+ *     (both reachable in the modeling UI).
+ *
+ * Orphaned values: an attribute detached from EVERYTHING but still carrying
+ * `object_values` is a dead-end — detaching removes it from the editor, so its
+ * values can never be cleared through the UI, yet `object_values.attribute_id`
+ * is ON DELETE RESTRICT and blocks the delete forever. When the attribute is
+ * unreachable we therefore cascade-delete those orphaned values (rebuilding the
+ * denormalised cache + queuing a reindex) via {@see OrphanedAttributeValuePurger}.
  *
  * Cascade behavior: `attribute_options.attribute_id` and
  * `attribute_group_attributes.attribute_id` are ON DELETE CASCADE, so options
@@ -36,6 +42,7 @@ final readonly class DeleteAttributeHandler
     public function __construct(
         private AttributeRepositoryInterface $repository,
         private UsageQueryService $usageQueryService,
+        private OrphanedAttributeValuePurger $orphanedValuePurger,
     ) {
     }
 
@@ -58,9 +65,21 @@ final readonly class DeleteAttributeHandler
 
         $usage = $this->usageQueryService->forAttribute($attribute);
         $objectTypeCount = \count($usage['objectTypes']);
-        $instanceCount = $usage['instanceCount'];
-        if ($objectTypeCount > 0 || $instanceCount > 0) {
-            throw $this->inUseConflict($attribute->getCode(), $objectTypeCount, $instanceCount);
+        $groupCount = \count($usage['groups']);
+        $categoryCount = \count($usage['categories']);
+
+        // Reachable anywhere in the model → must be detached / removed from the
+        // group first (both doable in the UI). Values, if any, stay reachable.
+        if ($objectTypeCount > 0 || $groupCount > 0 || $categoryCount > 0) {
+            throw $this->inUseConflict($attribute->getCode(), $objectTypeCount, $groupCount, $categoryCount);
+        }
+
+        // Detached from everything but still has values → orphaned, unreachable
+        // in any form. Cascade-delete them with the attribute.
+        if ($usage['instanceCount'] > 0) {
+            $this->orphanedValuePurger->purgeAndDelete($attribute);
+
+            return;
         }
 
         try {
@@ -68,17 +87,18 @@ final readonly class DeleteAttributeHandler
         } catch (ForeignKeyConstraintViolationException) {
             // Safety-net: usage cache (60s TTL) may have been stale and a new
             // attachment/value slipped in between the pre-check and remove.
-            throw $this->inUseConflict($attribute->getCode(), $objectTypeCount, $instanceCount);
+            throw $this->inUseConflict($attribute->getCode(), $objectTypeCount, $groupCount, $categoryCount);
         }
     }
 
-    private function inUseConflict(string $code, int $objectTypeCount, int $instanceCount): ConflictHttpException
+    private function inUseConflict(string $code, int $objectTypeCount, int $groupCount, int $categoryCount): ConflictHttpException
     {
         return new ConflictHttpException(\sprintf(
-            'Attribute "%s" is attached to %d object type(s) and used by %d object(s); detach or migrate it before deleting.',
+            'Attribute "%s" is attached to %d object type(s), %d group(s) and %d categor(y/ies); detach or remove it from the group before deleting.',
             $code,
             $objectTypeCount,
-            $instanceCount,
+            $groupCount,
+            $categoryCount,
         ));
     }
 }
