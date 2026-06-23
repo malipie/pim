@@ -1,7 +1,10 @@
 import { useApiUrl, useCustom, useList } from '@refinedev/core';
-import { Search } from 'lucide-react';
+import { Search, Upload } from 'lucide-react';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
+
+import { EmptyState } from '@/components/ui-v2/empty-state';
 
 import { HistoryTable } from './HistoryTable';
 import { KpiStrip } from './KpiStrip';
@@ -107,8 +110,20 @@ export function ImportSessionsView() {
         {liveSession ? (
           <LiveSessionCard session={liveSession} throughput={throughput} />
         ) : (
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/60 px-6 py-10 text-center text-[13px] text-zinc-500">
-            {t('imports.sessions.live.empty')}
+          <div className="rounded-2xl border border-dashed border-zinc-200 bg-surface">
+            <EmptyState
+              icon={<Upload className="size-5" />}
+              title={t('imports.sessions.live.empty_title')}
+              description={t('imports.sessions.live.empty_subtitle')}
+              action={
+                <Link
+                  to="/integrations/imports/new"
+                  className="focus-ring inline-flex h-9 items-center rounded-xl bg-cta px-3.5 text-[13px] font-semibold text-cta-foreground transition hover:bg-accent-hover"
+                >
+                  {t('imports.sessions.new_import')}
+                </Link>
+              }
+            />
           </div>
         )}
       </section>

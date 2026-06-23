@@ -2229,7 +2229,9 @@
         "warnings": "Ostrzeżenia",
         "errors": "Błędy",
         "open": "Otwórz",
-        "empty": "Brak aktywnych importów. Zacznij od „Nowy import”, aby uruchomić nową sesję."
+        "empty": "Brak aktywnych importów. Zacznij od „Nowy import”, aby uruchomić nową sesję.",
+        "empty_title": "Brak aktywnych importów",
+        "empty_subtitle": "Zacznij od „Nowy import” — małe pliki wczytasz od razu, duże trafią tutaj z paskiem postępu."
       },
       "history": {
         "heading": "Historia",
