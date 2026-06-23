@@ -111,6 +111,9 @@ final readonly class ImportProfileProcessor implements ProcessorInterface
                 $profile->setImageSource($source);
             }
         }
+        if (null !== $data->createMissingOptions) {
+            $profile->setCreateMissingOptions($data->createMissingOptions);
+        }
         $this->profiles->save($profile);
 
         return $profile;
@@ -166,6 +169,9 @@ final readonly class ImportProfileProcessor implements ProcessorInterface
         }
         if (null !== $data->allowedErrorsPct) {
             $profile->setAllowedErrorsPct($data->allowedErrorsPct);
+        }
+        if (null !== $data->createMissingOptions) {
+            $profile->setCreateMissingOptions($data->createMissingOptions);
         }
 
         $this->profiles->save($profile);

@@ -54,6 +54,10 @@
             <group>import_profile:read</group>
             <group>import_profile:write</group>
         </attribute>
+        <attribute name="createMissingOptions">
+            <group>import_profile:read</group>
+            <group>import_profile:write</group>
+        </attribute>
         <attribute name="lastUsedAt">
             <group>import_profile:read</group>
         </attribute>

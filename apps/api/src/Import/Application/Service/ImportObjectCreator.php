@@ -38,6 +38,7 @@ final class ImportObjectCreator
         private readonly BatchValueWriter $valueWriter,
         private readonly CompositeValueParser $compositeValueParser,
         private readonly AssetUrlResolver $assetUrlResolver,
+        private readonly OptionAutoCreator $optionAutoCreator,
     ) {
     }
 
@@ -71,6 +72,7 @@ final class ImportObjectCreator
         ?bool $enabled = null,
         ?array $variantAxes = null,
         array $existingAssetIds = [],
+        bool $createMissingOptions = false,
     ): CreatedImportObject {
         $object = new CatalogObject($objectType, $sku);
         $object->assignImportSession($importSessionId);
@@ -78,7 +80,7 @@ final class ImportObjectCreator
         $this->em->persist($object);
 
         $assetIssues = [];
-        $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues);
+        $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues, $createMissingOptions);
         // A freshly created object has no existing values, so the `changed`
         // count is irrelevant (a created row is never a no-op skip) — only the
         // value issues matter here.
@@ -155,11 +157,12 @@ final class ImportObjectCreator
         ?bool $enabled = null,
         ?array $variantAxes = null,
         array $existingAssetIds = [],
+        bool $createMissingOptions = false,
     ): array {
         $this->applyState($object, $status, $enabled, $variantAxes);
 
         $assetIssues = [];
-        $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues);
+        $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues, $createMissingOptions);
         $result = $this->valueWriter->writeMany($object, $writes, Provenance::Import);
 
         return [
@@ -182,7 +185,7 @@ final class ImportObjectCreator
      *
      * @return list<array{attribute: Attribute, envelope: array<string, mixed>, locale: ?string, channelId: ?Uuid}>
      */
-    private function buildWrites(array $resolvedValues, array $attributesByCode, array $existingAssetIds, array &$issues): array
+    private function buildWrites(array $resolvedValues, array $attributesByCode, array $existingAssetIds, array &$issues, bool $createMissingOptions): array
     {
         $writes = [];
         foreach ($resolvedValues as $resolved) {
@@ -196,7 +199,7 @@ final class ImportObjectCreator
             }
             $valuePayload = AttributeType::Asset === $attribute->getType()
                 ? $this->assetPayload($attribute, $rawValue, $existingAssetIds, $issues)
-                : $this->buildValuePayload($attribute, $rawValue);
+                : $this->buildValuePayload($attribute, $rawValue, $createMissingOptions);
             if (null === $valuePayload) {
                 continue;
             }
@@ -219,7 +222,7 @@ final class ImportObjectCreator
      *
      * @return array<string, mixed>|null
      */
-    private function buildValuePayload(Attribute $attribute, string $raw): ?array
+    private function buildValuePayload(Attribute $attribute, string $raw, bool $createMissingOptions): ?array
     {
         return match ($attribute->getType()) {
             AttributeType::Number => $this->numericPayload($raw),
@@ -228,8 +231,12 @@ final class ImportObjectCreator
             AttributeType::Price => $this->compositeValueParser->parsePrice($raw),
             AttributeType::Metric => $this->compositeValueParser->parseMetric($raw),
             AttributeType::Boolean => ['value' => $this->parseBoolean($raw)],
-            AttributeType::Select => ['option_code' => $raw],
-            AttributeType::Multiselect => $this->multiSelectPayload($raw),
+            // #1718 — map the raw cell (often a human label from an external
+            // export) to the canonical option code, minting it when the
+            // session opted in. Off → raw passes through unchanged (validator
+            // then rejects unknown codes exactly as before).
+            AttributeType::Select => ['option_code' => $this->optionAutoCreator->resolve($attribute, $raw, $createMissingOptions)],
+            AttributeType::Multiselect => $this->multiSelectPayload($attribute, $raw, $createMissingOptions),
             // IMP2-1.8: Asset cells are handled by assetPayload() (pipe-split +
             // tenant-scoped existence validation) before this match is reached.
             // IMP2-1.8: Relation/Reference cells are NOT written as
@@ -318,12 +325,20 @@ final class ImportObjectCreator
      * Accepts the exporter's pipe glue (`ValueSerializer::MULTI_VALUE_GLUE`)
      * as well as newlines, so external exports (IdoSell/IAI) that pack
      * `36\n37\n38` into one quoted cell import as separate options (#1719).
+     * Each token is mapped to its canonical option code (minting when the
+     * session opted in, #1718); duplicates that collapse to the same code are
+     * de-duplicated while preserving order.
      *
      * @return array{option_codes: list<string>}
      */
-    private function multiSelectPayload(string $raw): array
+    private function multiSelectPayload(Attribute $attribute, string $raw, bool $createMissingOptions): array
     {
-        return ['option_codes' => MultiValueSplitter::split($raw)];
+        $codes = [];
+        foreach (MultiValueSplitter::split($raw) as $token) {
+            $codes[] = $this->optionAutoCreator->resolve($attribute, $token, $createMissingOptions);
+        }
+
+        return ['option_codes' => array_values(array_unique($codes))];
     }
 
     private function parseBoolean(string $raw): bool

@@ -54,6 +54,14 @@ class ImportSession extends AggregateRoot implements TenantScoped
     /** IMP2-1.13 — media source for Asset cells: http | zip | none. */
     private string $imageSource = ImportImageSource::None->value;
 
+    /**
+     * #1718 — when true, the run mints a new AttributeOption for any
+     * select/multiselect value matching no existing option (by code or label)
+     * instead of failing the row. Opt-in (data governance); default false
+     * preserves the strict "unknown option = error" behaviour.
+     */
+    private bool $createMissingOptions = false;
+
     private ObjectType $targetObjectType;
 
     private string $status = ImportSessionStatus::Pending->value;
@@ -216,6 +224,16 @@ class ImportSession extends AggregateRoot implements TenantScoped
     public function setImageSource(ImportImageSource $imageSource): void
     {
         $this->imageSource = $imageSource->value;
+    }
+
+    public function createMissingOptions(): bool
+    {
+        return $this->createMissingOptions;
+    }
+
+    public function setCreateMissingOptions(bool $createMissingOptions): void
+    {
+        $this->createMissingOptions = $createMissingOptions;
     }
 
     public function getTargetObjectType(): ObjectType

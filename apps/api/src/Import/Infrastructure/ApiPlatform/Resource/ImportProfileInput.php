@@ -62,4 +62,11 @@ final class ImportProfileInput
      */
     #[Assert\Range(min: 0, max: 100)]
     public ?int $allowedErrorsPct = null;
+
+    /**
+     * #1718 — mint missing select/multiselect options during import instead of
+     * failing rows with unknown values. null = leave the profile's flag
+     * unchanged on PATCH (defaults to false on create).
+     */
+    public ?bool $createMissingOptions = null;
 }

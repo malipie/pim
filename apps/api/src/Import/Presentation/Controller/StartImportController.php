@@ -241,6 +241,11 @@ final class StartImportController
                 ? ImportImageSource::Zip
                 : (ImportImageSource::tryFrom((string) $request->request->get('image_source', 'none')) ?? ImportImageSource::None),
         );
+        // #1718 — opt-in: mint missing select/multiselect options during the
+        // run. Explicit form flag wins; otherwise inherit the saved profile.
+        $session->setCreateMissingOptions(
+            $this->resolveCreateMissingOptions($request->request->get('create_missing_options'), $profile),
+        );
         if ($backup instanceof Backup) {
             $session->setBackupSnapshot($backup);
         }
@@ -528,6 +533,15 @@ final class StartImportController
         }
 
         return $profile?->getMode() ?? ImportMode::Upsert;
+    }
+
+    private function resolveCreateMissingOptions(mixed $raw, ?ImportProfile $profile): bool
+    {
+        if (\is_string($raw) && '' !== $raw) {
+            return \in_array(strtolower($raw), ['1', 'true', 'yes', 'on'], true);
+        }
+
+        return $profile?->createMissingOptions() ?? false;
     }
 
     private function resolveMatchAttributeCode(mixed $raw, ?ImportProfile $profile, Tenant $tenant): ?string

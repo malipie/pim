@@ -80,6 +80,12 @@ class ImportProfile extends AggregateRoot implements TenantScoped
      */
     private ?int $allowedErrorsPct = null;
 
+    /**
+     * #1718 — opt-in: mint missing select/multiselect options during import
+     * instead of failing rows with unknown values. Default false (strict).
+     */
+    private bool $createMissingOptions = false;
+
     private ?DateTimeImmutable $lastUsedAt = null;
 
     private DateTimeImmutable $createdAt;
@@ -276,6 +282,16 @@ class ImportProfile extends AggregateRoot implements TenantScoped
     public function setAllowedErrorsPct(?int $allowedErrorsPct): void
     {
         $this->allowedErrorsPct = $allowedErrorsPct;
+    }
+
+    public function createMissingOptions(): bool
+    {
+        return $this->createMissingOptions;
+    }
+
+    public function setCreateMissingOptions(bool $createMissingOptions): void
+    {
+        $this->createMissingOptions = $createMissingOptions;
     }
 
     public function getLastUsedAt(): ?DateTimeImmutable

@@ -67,6 +67,12 @@
 
         <field name="allowedErrorsPct" type="integer" column="allowed_errors_pct" nullable="true"/>
 
+        <field name="createMissingOptions" type="boolean" column="create_missing_options">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+
         <field name="lastUsedAt" type="datetime_immutable" column="last_used_at" nullable="true"/>
         <field name="createdAt" type="datetime_immutable" column="created_at"/>
 
