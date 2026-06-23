@@ -19,6 +19,7 @@ use App\Import\Application\Service\ImportValidationService;
 use App\Import\Application\Service\Media\AssetUrlResolver;
 use App\Import\Application\Service\MultiValueSplitter;
 use App\Import\Application\Service\ObjectResolver;
+use App\Import\Application\Service\OptionAutoCreator;
 use App\Import\Application\Service\RelationImportStep;
 use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportSession;
@@ -143,6 +144,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ImportRowReader $rowReader,
         private readonly ImportValidationService $validator,
         private readonly ImportObjectCreator $creator,
+        private readonly OptionAutoCreator $optionAutoCreator,
         private readonly ObjectResolver $objectResolver,
         private readonly RelationImportStep $relationStep,
         private readonly ImportUndoLogger $undoLogger,
@@ -202,6 +204,10 @@ final class ImportRunHandler extends AbstractBatchHandler
      */
     public function run(ImportSession $session): void
     {
+        // #1718 — drop any option lookup/mint cache from a previous run on this
+        // long-lived worker before processing a fresh file (cross-run hygiene).
+        $this->optionAutoCreator->reset();
+
         // Streaming + per-row Doctrine flushes scale with file size.
         // A 100-row XLSX easily exceeds FrankenPHP's default 30s HTTP
         // budget (max_execution_time is 0 in CLI but the worker resets
@@ -1511,6 +1517,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                         enabled: $this->extractEnabled($row['cells'], $columnMapping),
                         variantAxes: $this->extractVariantAxes($row['cells'], $columnMapping),
                         existingAssetIds: $existingAssetIds,
+                        createMissingOptions: $session->createMissingOptions(),
                     );
                     $issues = $created->issues;
                     $session->incrementSuccess();
@@ -1537,6 +1544,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                         $this->extractEnabled($row['cells'], $columnMapping),
                         $this->extractVariantAxes($row['cells'], $columnMapping),
                         $existingAssetIds,
+                        $session->createMissingOptions(),
                     );
                     $issues = $updateResult['issues'];
                     // IMP2-2.6 — a row whose values all already matched is a no-op

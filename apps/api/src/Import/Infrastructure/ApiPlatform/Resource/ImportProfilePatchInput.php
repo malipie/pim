@@ -43,4 +43,10 @@ final class ImportProfilePatchInput
      */
     #[Assert\Range(min: 0, max: 100)]
     public ?int $allowedErrorsPct = null;
+
+    /**
+     * #1718 — mint missing select/multiselect options during import. null in a
+     * merge-patch means "leave unchanged".
+     */
+    public ?bool $createMissingOptions = null;
 }

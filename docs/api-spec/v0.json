@@ -17451,6 +17451,11 @@
                             "null"
                         ]
                     },
+                    "createMissingOptions": {
+                        "description": "#1718 \u2014 opt-in: mint missing select/multiselect options during import\ninstead of failing rows with unknown values. Default false (strict).",
+                        "default": false,
+                        "type": "boolean"
+                    },
                     "lastUsedAt": {
                         "readOnly": true,
                         "type": [
@@ -17557,6 +17562,13 @@
                             "integer",
                             "null"
                         ]
+                    },
+                    "createMissingOptions": {
+                        "description": "#1718 \u2014 mint missing select/multiselect options during import instead of\nfailing rows with unknown values. null = leave the profile's flag\nunchanged on PATCH (defaults to false on create).",
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
                     }
                 }
             },
@@ -17635,6 +17647,13 @@
                         "description": "IMP2-2.7 (#1483) \u2014 error-rate abort threshold (percent of processed\nrows). null in a merge-patch means \"leave unchanged\".",
                         "type": [
                             "integer",
+                            "null"
+                        ]
+                    },
+                    "createMissingOptions": {
+                        "description": "#1718 \u2014 mint missing select/multiselect options during import. null in a\nmerge-patch means \"leave unchanged\".",
+                        "type": [
+                            "boolean",
                             "null"
                         ]
                     }
@@ -17727,6 +17746,11 @@
                                     "integer",
                                     "null"
                                 ]
+                            },
+                            "createMissingOptions": {
+                                "description": "#1718 \u2014 opt-in: mint missing select/multiselect options during import\ninstead of failing rows with unknown values. Default false (strict).",
+                                "default": false,
+                                "type": "boolean"
                             },
                             "lastUsedAt": {
                                 "readOnly": true,

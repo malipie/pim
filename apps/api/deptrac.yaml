@@ -473,6 +473,12 @@ parameters:
             - App\Catalog\Domain\Entity\ObjectType
             - App\Catalog\Domain\Provenance
             - App\Catalog\Application\BatchValueWriter
+        # #1718 — option auto-create mints AttributeOption via the same
+        # Import→Catalog seam as ImportObjectCreator (it owns the select cell).
+        App\Import\Application\Service\OptionAutoCreator:
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Entity\AttributeOption
+            - App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface
         # IMP2-2.4 — undo-log capture + rollback v2 reuse Catalog read/rebuild/
         # reindex via the same Import→Catalog seam as ImportObjectCreator.
         App\Import\Application\Service\ImportUndoLogger:

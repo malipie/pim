@@ -38,6 +38,12 @@
             </options>
         </field>
 
+        <field name="createMissingOptions" type="boolean" column="create_missing_options">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+
         <many-to-one field="targetObjectType" target-entity="App\Catalog\Domain\Entity\ObjectType">
             <join-column name="target_object_type_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
         </many-to-one>
