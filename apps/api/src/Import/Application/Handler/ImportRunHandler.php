@@ -17,6 +17,7 @@ use App\Import\Application\Service\ImportRowReader;
 use App\Import\Application\Service\ImportUndoLogger;
 use App\Import\Application\Service\ImportValidationService;
 use App\Import\Application\Service\Media\AssetUrlResolver;
+use App\Import\Application\Service\MultiValueSplitter;
 use App\Import\Application\Service\ObjectResolver;
 use App\Import\Application\Service\RelationImportStep;
 use App\Import\Domain\Entity\ImportLog;
@@ -982,10 +983,9 @@ final class ImportRunHandler extends AbstractBatchHandler
                 continue;
             }
 
-            return array_values(array_filter(
-                array_map('trim', explode('|', $cell)),
-                static fn (string $code): bool => '' !== $code,
-            ));
+            // Pipe or newline (#1719) — external exports pack category lists
+            // with embedded newlines in one quoted cell.
+            return MultiValueSplitter::split($cell);
         }
 
         return [];

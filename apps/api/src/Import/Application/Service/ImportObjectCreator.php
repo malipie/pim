@@ -314,20 +314,16 @@ final class ImportObjectCreator
     }
 
     /**
-     * Splits the pipe-joined token list the exporter writes for
-     * multiselect values (`ValueSerializer::MULTI_VALUE_GLUE`) back into
-     * an option-code array.
+     * Splits the multi-value token list back into an option-code array.
+     * Accepts the exporter's pipe glue (`ValueSerializer::MULTI_VALUE_GLUE`)
+     * as well as newlines, so external exports (IdoSell/IAI) that pack
+     * `36\n37\n38` into one quoted cell import as separate options (#1719).
      *
      * @return array{option_codes: list<string>}
      */
     private function multiSelectPayload(string $raw): array
     {
-        $codes = array_values(array_filter(
-            array_map('trim', explode('|', $raw)),
-            static fn (string $code): bool => '' !== $code,
-        ));
-
-        return ['option_codes' => $codes];
+        return ['option_codes' => MultiValueSplitter::split($raw)];
     }
 
     private function parseBoolean(string $raw): bool
