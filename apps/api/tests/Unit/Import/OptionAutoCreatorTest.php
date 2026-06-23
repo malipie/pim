@@ -62,14 +62,62 @@ final class OptionAutoCreatorTest extends TestCase
     {
         $attr = new Attribute('material', ['en' => 'Material'], AttributeType::Select);
         $repo = new InMemoryAttributeOptionRepository();
-        // Existing option already owns the slug "skora" but a different label.
-        $repo->seed($attr, new AttributeOption($attr, 'skora', ['pl' => 'Skóra'], 0));
+        // Existing option already owns the slug "skora" but under a different
+        // (non-matching) label, and the incoming accented value neither equals
+        // the code case-insensitively nor matches the label — so it mints, and
+        // its slug collides with the taken "skora".
+        $repo->seed($attr, new AttributeOption($attr, 'skora', ['pl' => 'Materiał skórzany'], 0));
         $creator = new OptionAutoCreator($repo);
 
-        $code = $creator->resolve($attr, 'Skora', create: true);
+        $code = $creator->resolve($attr, 'Skóra', create: true);
 
         self::assertSame('skora_2', $code);
         self::assertSame(1, $repo->saved[0]->getPosition(), 'new option appends after the existing max position');
+    }
+
+    #[Test]
+    public function caseInsensitiveCodeMatchTakesPriorityOverCollidingLabel(): void
+    {
+        // Regression for the review hijack finding: option A has code 'l', option
+        // B carries the LABEL 'L'. Importing 'L' must resolve to code 'l' (the
+        // case-insensitive code match), never option B's code via the label.
+        $size = new Attribute('size', ['en' => 'Size'], AttributeType::Multiselect);
+        $repo = new InMemoryAttributeOptionRepository();
+        $repo->seed($size, new AttributeOption($size, 'l', ['pl' => 'Large'], 0));
+        $repo->seed($size, new AttributeOption($size, 'xl', ['pl' => 'L'], 1));
+        $creator = new OptionAutoCreator($repo);
+
+        self::assertSame('l', $creator->resolve($size, 'L', create: true));
+        self::assertCount(0, $repo->saved, 'an upper-cased existing code is matched, not minted');
+    }
+
+    #[Test]
+    public function clampsMintedCodeToColumnLength(): void
+    {
+        $attr = new Attribute('note', ['en' => 'Note'], AttributeType::Select);
+        $repo = new InMemoryAttributeOptionRepository();
+        $creator = new OptionAutoCreator($repo);
+
+        $code = $creator->resolve($attr, str_repeat('Bardzo długa wartość ', 10), create: true);
+
+        self::assertLessThanOrEqual(64, mb_strlen($code), 'minted code never exceeds the 64-char column');
+    }
+
+    #[Test]
+    public function stopsMintingPastThePerRunCeiling(): void
+    {
+        $attr = new Attribute('freeform', ['en' => 'Freeform'], AttributeType::Select);
+        $repo = new InMemoryAttributeOptionRepository();
+        $creator = new OptionAutoCreator($repo);
+
+        for ($i = 0; $i < 10_000; ++$i) {
+            $creator->resolve($attr, "value-{$i}", create: true);
+        }
+        // The 10001st distinct value is past the ceiling → returned raw, not minted.
+        $overflow = $creator->resolve($attr, 'one-too-many', create: true);
+
+        self::assertSame('one-too-many', $overflow);
+        self::assertCount(10_000, $repo->saved, 'minting is capped per run');
     }
 
     #[Test]

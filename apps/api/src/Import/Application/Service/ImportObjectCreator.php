@@ -77,10 +77,14 @@ final class ImportObjectCreator
         $object = new CatalogObject($objectType, $sku);
         $object->assignImportSession($importSessionId);
         $this->applyState($object, $status, $enabled, $variantAxes);
-        $this->em->persist($object);
 
+        // Build the writes (which may mint select/multiselect options, flushing
+        // the unit of work via the option repository) BEFORE persisting the new
+        // object — so a mint flush only commits already-complete prior rows plus
+        // the new option, never this half-built object (#1718 review).
         $assetIssues = [];
         $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues, $createMissingOptions);
+        $this->em->persist($object);
         // A freshly created object has no existing values, so the `changed`
         // count is irrelevant (a created row is never a no-op skip) — only the
         // value issues matter here.

@@ -38,13 +38,27 @@ use Symfony\Component\String\Slugger\SluggerInterface;
  */
 final class OptionAutoCreator
 {
+    /** AttributeOption.code DB column length (Assert\Length max). */
+    private const int MAX_CODE_LENGTH = 64;
+
+    /**
+     * Defensive ceiling on options minted per run. A free-text column mistakenly
+     * mapped to a select with the flag on would otherwise mint one option per
+     * distinct value (potentially 50k+). Past the cap, resolve() stops minting
+     * and returns the raw value so the validator flags those rows instead.
+     */
+    private const int MAX_MINTS_PER_RUN = 10_000;
+
     private readonly SluggerInterface $slugger;
 
     /**
-     * @var array<string, array{codes: array<string, true>, byLabel: array<string, string>, maxPosition: int}>
-     *                                                                                                         keyed by attribute id (RFC 4122)
+     * @var array<string, array{codes: array<string, string>, byLabel: array<string, string>, maxPosition: int}>
+     *                                                                                                           keyed by attribute id (RFC 4122). `codes` maps a LOWER-CASED code to
+     *                                                                                                           its canonical form; `byLabel` maps a lower-cased label to a code.
      */
     private array $cache = [];
+
+    private int $mintCount = 0;
 
     public function __construct(
         private readonly AttributeOptionRepositoryInterface $options,
@@ -54,13 +68,14 @@ final class OptionAutoCreator
     }
 
     /**
-     * Drops the per-attribute cache. The import handler calls this once at the
-     * start of each run so a fresh message never serves option data minted /
-     * read during a previous run on the same worker.
+     * Drops the per-attribute cache and mint counter. The import handler calls
+     * this once at the start of each run so a fresh message never serves option
+     * data minted / read during a previous run on the same worker.
      */
     public function reset(): void
     {
         $this->cache = [];
+        $this->mintCount = 0;
     }
 
     public function resolve(Attribute $attribute, string $rawValue, bool $create): string
@@ -71,18 +86,22 @@ final class OptionAutoCreator
         }
 
         $index = $this->indexFor($attribute);
+        $key = mb_strtolower($raw);
 
-        // 1) exact code match — round-trips PIM's own exports (codes verbatim).
-        if (isset($index['codes'][$raw])) {
-            return $raw;
+        // 1) code match (case-insensitive) → canonical code. Takes priority over
+        // labels and round-trips PIM's own exports (which store codes). The
+        // lookup is lower-cased so an upper-cased external code resolves to its
+        // canonical form instead of hijacking another option that merely carries
+        // a colliding label, or minting a near-duplicate.
+        if (isset($index['codes'][$key])) {
+            return $index['codes'][$key];
         }
         // 2) label match (any locale, case-insensitive) — external exports.
-        $labelKey = mb_strtolower($raw);
-        if (isset($index['byLabel'][$labelKey])) {
-            return $index['byLabel'][$labelKey];
+        if (isset($index['byLabel'][$key])) {
+            return $index['byLabel'][$key];
         }
 
-        if (!$create) {
+        if (!$create || $this->mintCount >= self::MAX_MINTS_PER_RUN) {
             return $raw;
         }
 
@@ -102,11 +121,14 @@ final class OptionAutoCreator
             position: $index['maxPosition'] + 1,
         );
         // save() persists + flushes, so the value-write validation later in the
-        // same row sees the new code. Minting is rare (only genuinely new
-        // values when the flag is on), so the extra flush is bounded.
+        // same row sees the new code. ImportObjectCreator builds the writes
+        // (this mint) BEFORE persisting the in-progress object, so the flush only
+        // commits already-complete prior rows plus the new option — never a
+        // half-built current object. Minting is rare (genuinely new values).
         $this->options->save($option);
+        ++$this->mintCount;
 
-        $index['codes'][$code] = true;
+        $index['codes'][mb_strtolower($code)] = $code;
         $index['byLabel'][mb_strtolower($raw)] = $code;
         ++$index['maxPosition'];
         $this->cache[$key] = $index;
@@ -115,7 +137,7 @@ final class OptionAutoCreator
     }
 
     /**
-     * @param array<string, true> $existingCodes
+     * @param array<string, string> $existingCodes lower-cased code => canonical
      */
     private function uniqueCode(string $raw, array $existingCodes): string
     {
@@ -123,12 +145,13 @@ final class OptionAutoCreator
         if ('' === $base) {
             $base = 'option';
         }
-        $base = mb_substr($base, 0, 60);
+        $base = mb_substr($base, 0, self::MAX_CODE_LENGTH);
 
         $code = $base;
         $suffix = 2;
-        while (isset($existingCodes[$code])) {
-            $code = $base.'_'.$suffix;
+        while (isset($existingCodes[mb_strtolower($code)])) {
+            $tag = '_'.$suffix;
+            $code = mb_substr($base, 0, self::MAX_CODE_LENGTH - mb_strlen($tag)).$tag;
             ++$suffix;
         }
 
@@ -136,7 +159,7 @@ final class OptionAutoCreator
     }
 
     /**
-     * @return array{codes: array<string, true>, byLabel: array<string, string>, maxPosition: int}
+     * @return array{codes: array<string, string>, byLabel: array<string, string>, maxPosition: int}
      */
     private function indexFor(Attribute $attribute): array
     {
@@ -149,7 +172,7 @@ final class OptionAutoCreator
         $byLabel = [];
         $maxPosition = -1;
         foreach ($this->options->findByAttribute($attribute) as $option) {
-            $codes[$option->getCode()] = true;
+            $codes[mb_strtolower($option->getCode())] = $option->getCode();
             foreach ($option->getLabel() as $label) {
                 if ('' !== $label) {
                     $byLabel[mb_strtolower($label)] = $option->getCode();
