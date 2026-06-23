@@ -33,7 +33,11 @@ test('imports sessions hub — KPI + filter + new-import CTA', async ({ page }) 
   await allPill.click();
   await expect(allPill).toHaveAttribute('aria-pressed', 'true');
 
-  // "Nowy import" CTA navigates to the wizard.
-  await page.getByRole('link', { name: /nowy import|new import/i }).click();
+  // "Nowy import" CTA navigates to the wizard. Two exist now (header + the
+  // empty active-sessions state), both pointing at the wizard — click the first.
+  await page
+    .getByRole('link', { name: /nowy import|new import/i })
+    .first()
+    .click();
   await expect(page).toHaveURL(/\/integrations\/imports\/new$/);
 });

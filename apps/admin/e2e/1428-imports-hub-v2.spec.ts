@@ -18,8 +18,8 @@ test('NUI-09 — imports hub v2: tabs, redirect, deep links', async ({ page }) =
   await expect(tabs.getByRole('tab', { name: /sesje|sessions/i })).toBeVisible();
   await expect(page.getByText(/imports, exports, konektory/i)).toHaveCount(0);
 
-  // CTA lives in the topbar now.
-  await expect(page.getByRole('link', { name: /nowy import|new import/i })).toBeVisible();
+  // CTA lives in the topbar now (and the empty active-sessions state mirrors it).
+  await expect(page.getByRole('link', { name: /nowy import|new import/i }).first()).toBeVisible();
 
   // Tab navigation.
   await tabs.getByRole('tab', { name: /źródła|sources/i }).click();

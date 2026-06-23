@@ -19,7 +19,10 @@ test.describe('Imports MVP', () => {
     // renders pill tabs + the sessions view heading under the v2 shell.
     await expect(page.getByRole('heading', { name: /importy|import sessions/i })).toBeVisible();
 
-    await page.getByRole('link', { name: /nowy import|new import/i }).click();
+    await page
+      .getByRole('link', { name: /nowy import|new import/i })
+      .first()
+      .click();
     await expect(page).toHaveURL(/\/integrations\/imports\/new$/);
   });
 
