@@ -48,6 +48,8 @@ final class ImageDownloadHandlerTest extends CatalogApiTestCase
 {
     // 1×1 transparent PNG.
     private const string PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    // 1×1 red PNG — distinct bytes (distinct content hash → a second ingest).
+    private const string PNG_RED = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
     protected function setUp(): void
     {
@@ -93,6 +95,37 @@ final class ImageDownloadHandlerTest extends CatalogApiTestCase
         );
         \assert(\is_string($envelope));
         self::assertSame(['asset_id' => $assetId], json_decode($envelope, true, 512, JSON_THROW_ON_ERROR));
+    }
+
+    #[Test]
+    public function multipleDistinctImagesAllIngestUnderAStableTenant(): void
+    {
+        // Regression: the first ingest flushes + clears the shared EM, which
+        // detached the TenantContext tenant, so the SECOND distinct image
+        // failed with "new entity found through Asset#tenant". Two distinct
+        // PNGs (distinct content hash → two real ingests) must both land.
+        $png = base64_decode(self::PNG, true);
+        $red = base64_decode(self::PNG_RED, true);
+        \assert(false !== $png && false !== $red);
+        [$sessionId, $objectId] = $this->seed();
+
+        $handler = $this->handler(new MockHttpClient([
+            new MockResponse($png, ['http_code' => 200]),
+            new MockResponse($red, ['http_code' => 200]),
+        ]));
+        $handler($this->message($sessionId, $objectId, [
+            'https://93.184.216.34/one.png',
+            'https://93.184.216.34/two.png',
+        ]));
+
+        $em = $this->em();
+        $em->clear();
+        $session = $em->find(ImportSession::class, $sessionId);
+        \assert($session instanceof ImportSession);
+        self::assertSame(2, $session->getImagesDownloaded(), 'both distinct images ingested');
+        self::assertSame(0, $session->getImagesFailed());
+        $links = $em->getConnection()->fetchOne('SELECT COUNT(*) FROM product_assets WHERE product_id = :p', ['p' => $objectId]);
+        self::assertSame(2, (int) (\is_scalar($links) ? $links : 0), 'both assets linked to the product');
     }
 
     #[Test]

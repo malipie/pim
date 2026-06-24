@@ -138,6 +138,11 @@ final class ImageDownloadHandler extends AbstractBatchHandler
 
                         continue;
                     }
+                    // A prior ingest may have flushed + cleared the shared EM,
+                    // detaching the TenantContext tenant; re-establish a managed
+                    // one so the next Asset's tenant stamp does not raise
+                    // "new entity found through Asset#tenant" on flush.
+                    $this->reattachTenant($message->tenantId);
                     $assetId = $this->fetchAndIngest($job, $url, $pendingLogs);
                     if (null === $assetId) {
                         ++$failed;
@@ -155,6 +160,7 @@ final class ImageDownloadHandler extends AbstractBatchHandler
 
                         continue;
                     }
+                    $this->reattachTenant($message->tenantId);
                     $assetId = null !== $extractor ? $this->extractAndIngest($extractor, $job, $name, $pendingLogs) : null;
                     if (null === $assetId) {
                         ++$failed;
