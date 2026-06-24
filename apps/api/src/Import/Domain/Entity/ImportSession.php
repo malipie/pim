@@ -62,7 +62,19 @@ class ImportSession extends AggregateRoot implements TenantScoped
      */
     private bool $createMissingOptions = false;
 
-    private ObjectType $targetObjectType;
+    /**
+     * Null for structural imports (attributes / attribute groups), which create
+     * configuration entities rather than CatalogObjects of an ObjectType.
+     */
+    private ?ObjectType $targetObjectType = null;
+
+    /**
+     * Structural import discriminator: `attributes` | `attribute_groups`, or
+     * null for the CatalogObject pipeline (product / custom_module / category).
+     * Lets the worker route a session to the structural handler instead of
+     * {@see \App\Import\Application\Handler\ImportRunHandler}.
+     */
+    private ?string $structuralKind = null;
 
     private string $status = ImportSessionStatus::Pending->value;
 
@@ -146,17 +158,19 @@ class ImportSession extends AggregateRoot implements TenantScoped
 
     public function __construct(
         Uuid $userId,
-        ObjectType $targetObjectType,
+        ?ObjectType $targetObjectType,
         string $fileName,
         int $fileSizeBytes,
         ?ImportProfile $profile = null,
         ?string $zipFileName = null,
         ?int $zipFileSizeBytes = null,
         ?Uuid $id = null,
+        ?string $structuralKind = null,
     ) {
         $this->id = $id ?? Uuid::v7();
         $this->userId = $userId;
         $this->targetObjectType = $targetObjectType;
+        $this->structuralKind = $structuralKind;
         $this->fileName = $fileName;
         $this->fileSizeBytes = $fileSizeBytes;
         $this->profile = $profile;
@@ -236,9 +250,19 @@ class ImportSession extends AggregateRoot implements TenantScoped
         $this->createMissingOptions = $createMissingOptions;
     }
 
-    public function getTargetObjectType(): ObjectType
+    public function getTargetObjectType(): ?ObjectType
     {
         return $this->targetObjectType;
+    }
+
+    public function getStructuralKind(): ?string
+    {
+        return $this->structuralKind;
+    }
+
+    public function isStructural(): bool
+    {
+        return null !== $this->structuralKind;
     }
 
     public function getStatus(): ImportSessionStatus

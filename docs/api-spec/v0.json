@@ -14404,6 +14404,32 @@
                 "x-cortex-permission": "user.admin"
             }
         },
+        "/api/structural-import-sessions": {
+            "post": {
+                "operationId": "api_structural_import_sessions_post",
+                "tags": [
+                    "structural-import-sessions"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "summary": "Api structural import sessions",
+                "description": "Custom controller route.",
+                "parameters": [],
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "x-pim-source": "custom-route",
+                "x-cortex-permission": "imports.run"
+            }
+        },
         "/api/tenant": {
             "get": {
                 "operationId": "api_tenant_get",

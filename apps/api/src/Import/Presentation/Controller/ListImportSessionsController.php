@@ -144,7 +144,8 @@ final class ListImportSessionsController
             'duration_sec' => $durationSec,
             'profile_name' => $profile?->getName(),
             'profile_id' => $profile?->getId()->toRfc4122(),
-            'target_object_type_code' => $session->getTargetObjectType()->getCode(),
+            'target_object_type_code' => $session->getTargetObjectType()?->getCode(),
+            'structural_kind' => $session->getStructuralKind(),
             'mode' => $session->getMode()->value,
             'backup' => self::serializeBackup($session->getBackupSnapshot()),
         ];

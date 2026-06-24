@@ -45,8 +45,10 @@
         </field>
 
         <many-to-one field="targetObjectType" target-entity="App\Catalog\Domain\Entity\ObjectType">
-            <join-column name="target_object_type_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+            <join-column name="target_object_type_id" referenced-column-name="id" nullable="true" on-delete="RESTRICT"/>
         </many-to-one>
+
+        <field name="structuralKind" type="string" length="32" column="structural_kind" nullable="true"/>
 
         <field name="status" type="string" length="32">
             <options>

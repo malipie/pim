@@ -487,6 +487,26 @@ parameters:
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Entity\ObjectType
             - App\Catalog\Domain\Entity\ObjectTypeAttribute
+        # Structural import (attribute / attribute-group definitions) upserts
+        # configuration entities through the Catalog CQRS commands + the shared
+        # idempotent assignment service — the same Import→Catalog seam as the
+        # CatalogObject importer, baselined here pending the #1466 burndown.
+        App\Import\Application\Service\Structural\AttributeImportCreator:
+            - App\Catalog\Application\Command\CreateAttribute\CreateAttributeCommand
+            - App\Catalog\Application\Command\UpdateAttribute\UpdateAttributeCommand
+            - App\Catalog\Application\ObjectTypeService
+            - App\Catalog\Domain\AttributeType
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Entity\AttributeGroup
+            - App\Catalog\Domain\Entity\AttributeGroupAttribute
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface
+            - App\Catalog\Domain\Repository\AttributeRepositoryInterface
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+        App\Import\Application\Service\Structural\AttributeOptionImporter:
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Entity\AttributeOption
+            - App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface
         # IMP2-2.4 — undo-log capture + rollback v2 reuse Catalog read/rebuild/
         # reindex via the same Import→Catalog seam as ImportObjectCreator.
         App\Import\Application\Service\ImportUndoLogger:
@@ -499,6 +519,7 @@ parameters:
             - App\Catalog\Application\AttributesIndexedRebuilder
             - App\Catalog\Application\Reindex\BulkReindexQueueInterface
             - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\Entity\ObjectType
             - App\Catalog\Domain\Entity\ObjectValue
             - App\Catalog\Domain\Provenance
             - App\Catalog\Domain\Repository\ObjectValueRepositoryInterface
@@ -553,6 +574,8 @@ parameters:
             - App\Catalog\Domain\AttributeType
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Repository\AttributeRepositoryInterface
+        App\Import\Presentation\Controller\StartStructuralImportController:
+            - App\Identity\Domain\Entity\User
         App\Import\Presentation\Controller\TestImportSourceConnectionController:
             - App\Identity\Domain\Entity\User
         App\Import\Presentation\Controller\ValidateDryRunController:
@@ -572,6 +595,7 @@ parameters:
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Entity\CatalogObject
             - App\Catalog\Domain\Entity\ObjectCategory
+            - App\Catalog\Domain\Entity\ObjectType
             - App\Catalog\Domain\ObjectKind
             - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface
             - App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface

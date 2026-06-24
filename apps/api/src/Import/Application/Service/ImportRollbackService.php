@@ -7,6 +7,7 @@ namespace App\Import\Application\Service;
 use App\Catalog\Application\AttributesIndexedRebuilder;
 use App\Catalog\Application\Reindex\BulkReindexQueueInterface;
 use App\Catalog\Domain\Entity\CatalogObject;
+use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Provenance;
 use App\Catalog\Domain\Repository\ObjectValueRepositoryInterface;
 use App\Import\Domain\Entity\ImportSession;
@@ -80,7 +81,14 @@ final readonly class ImportRollbackService
         }
 
         try {
-            $kind = $session->getTargetObjectType()->getKind();
+            $targetObjectType = $session->getTargetObjectType();
+            if (!$targetObjectType instanceof ObjectType) {
+                // Structural imports (attributes / attribute groups) create
+                // configuration entities, not CatalogObjects, and are not
+                // rolled back through this catalog pipeline.
+                throw new LogicException('Structural import sessions cannot be rolled back through the catalog pipeline.');
+            }
+            $kind = $targetObjectType->getKind();
 
             // AUD-040 (W2-5) — the four DB steps (replay overwrites, rebuild the
             // restored caches, delete the created objects/values, flip the

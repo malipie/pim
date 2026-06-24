@@ -387,7 +387,7 @@ final class ImportRunHandler extends AbstractBatchHandler
                 $this->sessions->save($session);
                 $linkTenant = $session->getTenant();
                 if ($linkTenant instanceof Tenant) {
-                    $linkErrors = $this->relationStep->resolve($session->getTargetObjectType()->getKind(), $linkTenant);
+                    $linkErrors = $this->relationStep->resolve($this->requireTargetObjectType($session)->getKind(), $linkTenant);
                     $session = $this->refreshSession($session);
                     // Extend the lock past the (potentially long) relation pass.
                     $lock->refresh();
@@ -797,7 +797,7 @@ final class ImportRunHandler extends AbstractBatchHandler
 
         $existingOwners = $this->fetchIdentifierOwners(
             $tenant,
-            $session->getTargetObjectType()->getId()->toRfc4122(),
+            $this->requireTargetObjectType($session)->getId()->toRfc4122(),
             $valuesByAttributeId,
         );
 
@@ -1260,6 +1260,24 @@ final class ImportRunHandler extends AbstractBatchHandler
      *
      * Convention (spec §8.6): `{tenant_id}/{session_id}/{file_name}`.
      */
+    /**
+     * The CatalogObject pipeline always runs against a concrete ObjectType.
+     * Structural imports (attributes / attribute groups) carry no target and
+     * never reach this handler, so a null here is a programming error.
+     */
+    private function requireTargetObjectType(ImportSession $session): \App\Catalog\Domain\Entity\ObjectType
+    {
+        $target = $session->getTargetObjectType();
+        if (!$target instanceof \App\Catalog\Domain\Entity\ObjectType) {
+            throw new RuntimeException(\sprintf(
+                'Catalog import session %s has no target ObjectType.',
+                $session->getId()->toRfc4122(),
+            ));
+        }
+
+        return $target;
+    }
+
     private function stageSourceFile(ImportSession $session, Tenant $tenant): string
     {
         $remotePath = \sprintf(
@@ -1437,7 +1455,7 @@ final class ImportRunHandler extends AbstractBatchHandler
 
         $existingByKey = $this->objectResolver->resolveMany(
             $matchKeys,
-            $session->getTargetObjectType(),
+            $this->requireTargetObjectType($session),
             $tenant,
             $session->getMatchAttributeCode(),
         );
@@ -1510,7 +1528,7 @@ final class ImportRunHandler extends AbstractBatchHandler
 
                 if (ImportRowDecision::Create === $decision) {
                     $created = $this->creator->create(
-                        objectType: $session->getTargetObjectType(),
+                        objectType: $this->requireTargetObjectType($session),
                         sku: $this->skuFrom($row['resolvedValues'], $row['rowNumber']),
                         resolvedValues: $row['resolvedValues'],
                         attributesByCode: $attributesByCode,
