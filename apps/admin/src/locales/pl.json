@@ -2307,7 +2307,8 @@
       "product": "Produkty",
       "custom_module": "Moduły własne",
       "module_schema": "Schemat modułów",
-      "attributes_groups": "Atrybuty i grupy",
+      "attributes": "Atrybuty",
+      "attribute_groups": "Grupy atrybutów",
       "categories": "Kategorie"
     },
     "wizard": {
@@ -2344,7 +2345,8 @@
         "product": "Importuj główny katalog produktów, warianty, ceny i powiązane multimedia.",
         "custom_module": "Importuj dane do zdefiniowanych przez użytkownika modułów niestandardowych (np. Producenci, Kolekcje).",
         "module_schema": "Wgranie struktury definicji i relacji modułów — wkrótce.",
-        "attributes_groups": "Import słownika atrybutów, ich wartości i podziału na grupy — wkrótce.",
+        "attributes": "Importuj słownik atrybutów — typy, wartości domyślne, przypisanie do grup i typów obiektów.",
+        "attribute_groups": "Importuj definicje grup atrybutów — etykiety, opisy, ikony oraz przypisanie do typów obiektów.",
         "categories": "Importuj strukturę drzewa kategorii oraz tłumaczenia nazw."
       },
       "next": "Dalej",

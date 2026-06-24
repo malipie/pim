@@ -2257,7 +2257,8 @@
       "product": "Products",
       "custom_module": "Custom modules",
       "module_schema": "Module schema",
-      "attributes_groups": "Attributes & groups",
+      "attributes": "Attributes",
+      "attribute_groups": "Attribute groups",
       "categories": "Categories"
     },
     "wizard": {
@@ -2294,7 +2295,8 @@
         "product": "Import the main product catalog, variants, prices and linked media.",
         "custom_module": "Import data into user-defined custom modules (e.g. Manufacturers, Collections).",
         "module_schema": "Upload module definition and relation structure — coming soon.",
-        "attributes_groups": "Import the attribute dictionary, values and group split — coming soon.",
+        "attributes": "Import the attribute dictionary — types, default values, group and object-type assignments.",
+        "attribute_groups": "Import attribute-group definitions — labels, descriptions, icons and object-type assignments.",
         "categories": "Import the category tree structure and name translations."
       },
       "next": "Next",

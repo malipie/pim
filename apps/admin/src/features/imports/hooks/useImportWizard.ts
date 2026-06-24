@@ -3,7 +3,27 @@ import * as React from 'react';
 export type WizardStepIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 /** #1678 — data kind chosen on the first wizard step (tiles). */
-export type ImportEntityType = 'product' | 'custom_module' | 'categories';
+export type ImportEntityType =
+  | 'product'
+  | 'custom_module'
+  | 'categories'
+  | 'attributes'
+  | 'attribute_groups';
+
+/**
+ * Structural kinds import configuration entities (attribute / attribute-group
+ * definitions), not CatalogObjects. They carry no target ObjectType and run a
+ * simplified 4-step flow (Dane → Źródło → Wykrywanie → Start) — column mapping,
+ * match rules and dry-run are meaningless for a fixed-schema config import.
+ */
+export function isStructuralImportKind(kind: ImportEntityType | null): boolean {
+  return kind === 'attributes' || kind === 'attribute_groups';
+}
+
+/** Last step index per flow: structural = 4 steps (0-3), catalog = 7 (0-6). */
+export function lastStepFor(kind: ImportEntityType | null): WizardStepIndex {
+  return isStructuralImportKind(kind) ? 3 : 6;
+}
 
 /** Authoritative parse-preview snapshot captured on the Detect step (NUI-10). */
 export interface ParsedFilePreview {
@@ -133,7 +153,7 @@ export function useImportWizard(): WizardController {
   const next = React.useCallback(() => {
     setState((prev) => ({
       ...prev,
-      step: Math.min(prev.step + 1, 6) as WizardStepIndex,
+      step: Math.min(prev.step + 1, lastStepFor(prev.entityType)) as WizardStepIndex,
     }));
   }, []);
 

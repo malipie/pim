@@ -5,7 +5,10 @@ import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { BackupTriggerCheckbox } from '@/features/imports/components/BackupTriggerCheckbox';
-import type { useImportWizard } from '@/features/imports/hooks/useImportWizard';
+import {
+  isStructuralImportKind,
+  type useImportWizard,
+} from '@/features/imports/hooks/useImportWizard';
 import { HttpError, jsonFetch } from '@/lib/http';
 
 interface StepConfirmProps {
@@ -33,14 +36,51 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
-  const canRun =
-    state.file !== null &&
-    state.targetObjectTypeId !== null &&
-    !submitting &&
-    (state.doBackup === false || backupStatus === 'completed' || backupStatus === 'idle');
+  const structural = isStructuralImportKind(state.entityType);
+  const fileReady = state.file !== null || state.stagedFileId !== null;
+
+  const canRun = structural
+    ? fileReady && !submitting
+    : fileReady &&
+      state.targetObjectTypeId !== null &&
+      !submitting &&
+      (state.doBackup === false || backupStatus === 'completed' || backupStatus === 'idle');
+
+  const runStructural = (): void => {
+    const kind = state.entityType === 'attribute_groups' ? 'attribute_groups' : 'attributes';
+    const formData = new FormData();
+    formData.set('structural_kind', kind);
+    if (state.stagedFileId !== null) {
+      formData.set('staged_file_id', state.stagedFileId);
+    } else if (state.file !== null) {
+      formData.set('file', state.file);
+    }
+
+    jsonFetch<{ id: string }>('/api/structural-import-sessions', {
+      method: 'POST',
+      body: formData,
+    })
+      .then((data) => {
+        wizard.reset();
+        navigate(`/integrations/imports/${data.id}`);
+      })
+      .catch((err: unknown) => {
+        setSubmitError(err instanceof HttpError ? `HTTP ${err.status}` : 'unknown');
+        setSubmitting(false);
+      });
+  };
 
   const handleRun = (): void => {
-    if ((state.file === null && state.stagedFileId === null) || state.targetObjectTypeId === null) {
+    if (!fileReady) {
+      return;
+    }
+    if (structural) {
+      setSubmitting(true);
+      setSubmitError(null);
+      runStructural();
+      return;
+    }
+    if (state.targetObjectTypeId === null) {
       return;
     }
     setSubmitting(true);
@@ -102,25 +142,43 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
 
       <Card className="space-y-2 p-4 text-sm">
         <SummaryRow label="Plik" value={state.file?.name ?? '—'} />
-        <SummaryRow label="Locale" value={state.locale ?? 'auto'} />
         <SummaryRow label="Encoding" value={state.encoding} />
         <SummaryRow label="Delimiter" value={state.delimiter} />
-        <SummaryRow label="Mapowanie" value={`${Object.keys(state.mapping).length} kolumn`} />
-        <SummaryRow label="Zdjęcia" value={state.imageSource} />
-        {state.validation !== null && (
+        {structural ? (
           <SummaryRow
-            label="Do importu"
-            value={`${state.validation.successCount} OK (+ ${state.validation.errorCount} pominiętych)`}
+            label="Typ"
+            value={state.entityType === 'attribute_groups' ? 'Grupy atrybutów' : 'Atrybuty'}
           />
+        ) : (
+          <>
+            <SummaryRow label="Locale" value={state.locale ?? 'auto'} />
+            <SummaryRow label="Mapowanie" value={`${Object.keys(state.mapping).length} kolumn`} />
+            <SummaryRow label="Zdjęcia" value={state.imageSource} />
+            {state.validation !== null && (
+              <SummaryRow
+                label="Do importu"
+                value={`${state.validation.successCount} OK (+ ${state.validation.errorCount} pominiętych)`}
+              />
+            )}
+          </>
         )}
       </Card>
 
-      <BackupTriggerCheckbox
-        checked={state.doBackup}
-        onChange={(next) => setField('doBackup', next)}
-        onStatusChange={setBackupStatus}
-        onBackupCreated={setBackupId}
-      />
+      {structural ? (
+        <p className="rounded-md border border-sky-500/40 bg-sky-50 px-3 py-2 text-xs">
+          {t('imports.confirm.structural_hint', {
+            defaultValue:
+              'Nowe i zmienione definicje trafią do panelu (Modelowanie → Atrybuty / Grupy atrybutów). Przypisania do typów obiektów odtworzą się z kolumny object_types. Istniejące rekordy są aktualizowane po kodzie.',
+          })}
+        </p>
+      ) : (
+        <BackupTriggerCheckbox
+          checked={state.doBackup}
+          onChange={(next) => setField('doBackup', next)}
+          onStatusChange={setBackupStatus}
+          onBackupCreated={setBackupId}
+        />
+      )}
 
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -135,12 +193,14 @@ export function StepConfirmPlaceholder({ wizard }: StepConfirmProps): React.Reac
         </span>
       </label>
 
-      <p className="rounded-md border border-amber-500/40 bg-amber-50 px-3 py-2 text-xs">
-        ⚠️{' '}
-        {t('imports.confirm.warning', {
-          defaultValue: 'Akcja jest finalna. Możesz wycofać import w 24h.',
-        })}
-      </p>
+      {!structural && (
+        <p className="rounded-md border border-amber-500/40 bg-amber-50 px-3 py-2 text-xs">
+          ⚠️{' '}
+          {t('imports.confirm.warning', {
+            defaultValue: 'Akcja jest finalna. Możesz wycofać import w 24h.',
+          })}
+        </p>
+      )}
 
       {submitError !== null && (
         <p role="alert" className="text-sm text-destructive">
