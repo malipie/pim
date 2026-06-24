@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button';
 import { MockBadge } from '@/components/ui/mock-badge';
 import { toast } from '@/components/ui/toast';
 import { FileDropzone } from '@/features/imports/components/FileDropzone';
-import type { useImportWizard } from '@/features/imports/hooks/useImportWizard';
+import {
+  isStructuralImportKind,
+  type useImportWizard,
+} from '@/features/imports/hooks/useImportWizard';
 import { HealthDot, SourceIcon } from '@/features/imports/primitives';
 import type { ImportSourceRow } from '@/features/imports/sources/types';
 import { jsonFetch } from '@/lib/http';
@@ -60,7 +63,10 @@ export function StepSource({ wizard }: StepSourceProps): React.ReactElement {
 
   // #1678 — the data kind (and its targetObjectTypeId) is chosen on the new
   // first wizard step (StepEntityType tiles); this step only handles the file.
-  const canProceed = state.file !== null && state.targetObjectTypeId !== null;
+  // Structural kinds (attributes / attribute groups) carry no target ObjectType.
+  const canProceed =
+    state.file !== null &&
+    (isStructuralImportKind(state.entityType) || state.targetObjectTypeId !== null);
 
   const testConnection = async (source: ImportSourceRow): Promise<void> => {
     setTestingId(source.id);

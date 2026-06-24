@@ -1,4 +1,4 @@
-import { Boxes, FolderTree, Layers, Package, Tags } from 'lucide-react';
+import { Boxes, FolderTree, Group, Layers, Package, Tags } from 'lucide-react';
 import { type ReactElement, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -8,19 +8,23 @@ import {
   type ImportObjectTypeRow,
   useImportEntityObjectTypes,
 } from '@/features/imports/hooks/use-import-entity-object-types';
-import type { ImportEntityType, useImportWizard } from '@/features/imports/hooks/useImportWizard';
+import {
+  type ImportEntityType,
+  isStructuralImportKind,
+  type useImportWizard,
+} from '@/features/imports/hooks/useImportWizard';
 import { cn } from '@/lib/utils';
 
-/** #1678 — tile ids: the three importable entity kinds + two "soon" tiles
- * mirroring the export wizard (import does not yet create schema/attribute
- * definitions from a file). */
-type TileId = ImportEntityType | 'module_schema' | 'attributes_groups';
+/** #1678 — tile ids: the importable entity kinds + the "soon" module_schema
+ * tile (import does not yet create schema definitions from a file). */
+type TileId = ImportEntityType | 'module_schema';
 
 const ENTITY_DEFS: Array<{ id: TileId; icon: typeof Package; comingSoon?: boolean }> = [
   { id: 'product', icon: Package },
   { id: 'custom_module', icon: Boxes },
   { id: 'module_schema', icon: Layers, comingSoon: true },
-  { id: 'attributes_groups', icon: Tags, comingSoon: true },
+  { id: 'attributes', icon: Tags },
+  { id: 'attribute_groups', icon: Group },
   { id: 'categories', icon: FolderTree },
 ];
 
@@ -28,7 +32,8 @@ const DEFAULT_TITLES: Record<TileId, string> = {
   product: 'Produkty',
   custom_module: 'Moduły własne',
   module_schema: 'Schemat modułów',
-  attributes_groups: 'Atrybuty i grupy',
+  attributes: 'Atrybuty',
+  attribute_groups: 'Grupy atrybutów',
   categories: 'Kategorie',
 };
 
@@ -37,7 +42,10 @@ const DEFAULT_DESCS: Record<TileId, string> = {
   custom_module:
     'Importuj dane do zdefiniowanych przez użytkownika modułów niestandardowych (np. Producenci, Kolekcje).',
   module_schema: 'Wgranie struktury definicji i relacji modułów — wkrótce.',
-  attributes_groups: 'Import słownika atrybutów, ich wartości i podziału na grupy — wkrótce.',
+  attributes:
+    'Importuj słownik atrybutów — typy, wartości domyślne, przypisanie do grup i typów obiektów.',
+  attribute_groups:
+    'Importuj definicje grup atrybutów — etykiety, opisy, ikony oraz przypisanie do typów obiektów.',
   categories: 'Importuj strukturę drzewa kategorii oraz tłumaczenia nazw.',
 };
 
@@ -80,8 +88,8 @@ export function StepEntityType({ wizard }: StepEntityTypeProps): ReactElement {
   }, [state.entityType, state.targetObjectTypeId, productType, categoryType, setField]);
 
   const selectEntity = (id: TileId): void => {
-    if (id === 'module_schema' || id === 'attributes_groups') {
-      return; // "soon" tiles are inert
+    if (id === 'module_schema') {
+      return; // "soon" tile is inert
     }
     if (id !== state.entityType) {
       // Column mapping + auto-suggestions target the previous type's
@@ -95,7 +103,8 @@ export function StepEntityType({ wizard }: StepEntityTypeProps): ReactElement {
     } else if (id === 'categories') {
       setField('targetObjectTypeId', categoryType?.id ?? null);
     } else {
-      setField('targetObjectTypeId', null); // custom_module → choose below
+      // custom_module → choose below; structural kinds carry no ObjectType.
+      setField('targetObjectTypeId', null);
     }
   };
 
@@ -104,7 +113,11 @@ export function StepEntityType({ wizard }: StepEntityTypeProps): ReactElement {
     return labels[lang] ?? labels.pl ?? labels.en ?? row.code;
   };
 
-  const canProceed = state.entityType !== null && state.targetObjectTypeId !== null;
+  // Structural kinds (attributes / attribute_groups) carry no target ObjectType;
+  // the catalog kinds require one before advancing.
+  const canProceed =
+    state.entityType !== null &&
+    (isStructuralImportKind(state.entityType) || state.targetObjectTypeId !== null);
 
   return (
     <div className="space-y-4">

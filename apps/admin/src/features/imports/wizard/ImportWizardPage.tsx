@@ -1,7 +1,7 @@
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useImportWizard } from '@/features/imports/hooks/useImportWizard';
+import { isStructuralImportKind, useImportWizard } from '@/features/imports/hooks/useImportWizard';
 
 import { StepConfirmPlaceholder } from './StepConfirm';
 import { StepDetect } from './StepDetect';
@@ -22,8 +22,9 @@ import { type WizardStep, WizardStepper } from './WizardStepper';
 export function ImportWizardPage(): React.ReactElement {
   const { t } = useTranslation();
   const wizard = useImportWizard();
+  const structural = isStructuralImportKind(wizard.state.entityType);
 
-  const steps: ReadonlyArray<WizardStep> = [
+  const allSteps: ReadonlyArray<WizardStep> = [
     {
       id: 'entity',
       label: t('imports.wizard.steps.entity', { defaultValue: 'Dane' }),
@@ -75,6 +76,14 @@ export function ImportWizardPage(): React.ReactElement {
     },
   ];
 
+  // Structural imports (attribute / attribute-group definitions) run a
+  // simplified 4-step flow — mapping, rules and dry-run are meaningless for a
+  // fixed-schema config import (the columns are the export's own headers).
+  const steps: ReadonlyArray<WizardStep> = structural
+    ? allSteps.filter((step) => !['mapping', 'rules', 'validation'].includes(step.id))
+    : allSteps;
+  const currentId = steps[wizard.state.step]?.id;
+
   return (
     <div className="space-y-6">
       <header className="space-y-1">
@@ -96,16 +105,16 @@ export function ImportWizardPage(): React.ReactElement {
 
       <section
         role="tabpanel"
-        id={`wizard-step-${steps[wizard.state.step]?.id ?? 'unknown'}`}
-        aria-labelledby={`wizard-step-${steps[wizard.state.step]?.id ?? 'unknown'}-label`}
+        id={`wizard-step-${currentId ?? 'unknown'}`}
+        aria-labelledby={`wizard-step-${currentId ?? 'unknown'}-label`}
       >
-        {wizard.state.step === 0 && <StepEntityType wizard={wizard} />}
-        {wizard.state.step === 1 && <StepSource wizard={wizard} />}
-        {wizard.state.step === 2 && <StepDetect wizard={wizard} />}
-        {wizard.state.step === 3 && <StepMapping wizard={wizard} />}
-        {wizard.state.step === 4 && <StepRules wizard={wizard} />}
-        {wizard.state.step === 5 && <StepValidationPlaceholder wizard={wizard} />}
-        {wizard.state.step === 6 && <StepConfirmPlaceholder wizard={wizard} />}
+        {currentId === 'entity' && <StepEntityType wizard={wizard} />}
+        {currentId === 'source' && <StepSource wizard={wizard} />}
+        {currentId === 'detect' && <StepDetect wizard={wizard} />}
+        {currentId === 'mapping' && <StepMapping wizard={wizard} />}
+        {currentId === 'rules' && <StepRules wizard={wizard} />}
+        {currentId === 'validation' && <StepValidationPlaceholder wizard={wizard} />}
+        {currentId === 'confirm' && <StepConfirmPlaceholder wizard={wizard} />}
       </section>
     </div>
   );
