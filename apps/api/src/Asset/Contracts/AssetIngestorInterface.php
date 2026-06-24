@@ -23,10 +23,14 @@ interface AssetIngestorInterface
     /**
      * Validate + dedup + store the binary at $absolutePath.
      *
-     * @param string $absolutePath     local path to the already-fetched bytes
-     * @param string $originalFilename filename to record on the Asset (e.g. URL basename)
+     * @param string  $absolutePath     local path to the already-fetched bytes
+     * @param string  $originalFilename filename to record on the Asset (e.g. URL basename)
+     * @param ?string $folderCode       logical library folder for a NEWLY stored asset
+     *                                  (e.g. `product-<uuid>` so imported images land in the
+     *                                  object's folder, matching manual upload). A content-hash
+     *                                  dedup hit keeps the existing asset's folder.
      *
      * @throws UnsupportedMediaFormatException when the bytes are not jpg/png/webp
      */
-    public function ingest(string $absolutePath, string $originalFilename): AssetIngestResult;
+    public function ingest(string $absolutePath, string $originalFilename, ?string $folderCode = null): AssetIngestResult;
 }
