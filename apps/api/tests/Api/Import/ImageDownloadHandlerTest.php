@@ -81,6 +81,10 @@ final class ImageDownloadHandlerTest extends CatalogApiTestCase
 
         $assetId = $em->getConnection()->fetchOne('SELECT id FROM assets ORDER BY created_at DESC LIMIT 1');
         self::assertIsString($assetId);
+        // E1 (#1727) — the imported image lands in the object's library folder
+        // (`product-<objectId>`), matching the manual product upload convention.
+        $folder = $em->getConnection()->fetchOne('SELECT folder_code FROM assets WHERE id = :id', ['id' => $assetId]);
+        self::assertSame('product-'.$objectId, $folder, 'imported image is filed under the object folder');
         $links = $em->getConnection()->fetchOne('SELECT COUNT(*) FROM product_assets WHERE product_id = :p', ['p' => $objectId]);
         self::assertSame(1, (int) (\is_scalar($links) ? $links : 0), 'asset linked to the product');
         $envelope = $em->getConnection()->fetchOne(

@@ -40,7 +40,7 @@ final readonly class AssetIngestor implements AssetIngestorInterface
     ) {
     }
 
-    public function ingest(string $absolutePath, string $originalFilename): AssetIngestResult
+    public function ingest(string $absolutePath, string $originalFilename, ?string $folderCode = null): AssetIngestResult
     {
         $extension = $this->sniffExtension($absolutePath, $originalFilename);
 
@@ -77,7 +77,7 @@ final readonly class AssetIngestor implements AssetIngestorInterface
             if (!copy($absolutePath, $staged)) {
                 throw new RuntimeException(\sprintf('Failed to stage media file "%s".', $absolutePath));
             }
-            $asset = $this->uploader->upload(new File($staged));
+            $asset = $this->uploader->upload(new File($staged), folderCode: $folderCode);
 
             return new AssetIngestResult($asset->getId(), false);
         } catch (DuplicateAssetException $exception) {

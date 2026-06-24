@@ -230,6 +230,17 @@ final class ImageDownloadHandler extends AbstractBatchHandler
     }
 
     /**
+     * E1 (#1727) — imported images land in the target object's library folder,
+     * matching the manual product upload convention (`product-<objectId>`), so
+     * they are browsable under the object's folder instead of the library root.
+     * A content-hash dedup hit keeps the already-stored asset's folder.
+     */
+    private function folderCodeFor(ImageDownloadJob $job): string
+    {
+        return 'product-'.$job->objectId;
+    }
+
+    /**
      * @param list<array{job: ImageDownloadJob, type: ImportErrorType, message: string, value: string}> $pendingLogs by ref
      */
     private function fetchAndIngest(ImageDownloadJob $job, string $url, array &$pendingLogs): ?string
@@ -276,7 +287,7 @@ final class ImageDownloadHandler extends AbstractBatchHandler
                 fclose($handle);
             }
 
-            return $this->assetIngestor->ingest($localPath, $this->filenameFor($url))->assetId->toRfc4122();
+            return $this->assetIngestor->ingest($localPath, $this->filenameFor($url), $this->folderCodeFor($job))->assetId->toRfc4122();
         } catch (UnsupportedMediaFormatException $exception) {
             $pendingLogs[] = ['job' => $job, 'type' => ImportErrorType::ImageFormatUnsupported, 'message' => \sprintf('URL "%s": %s', $url, $exception->getMessage()), 'value' => $url];
 
@@ -409,7 +420,7 @@ final class ImageDownloadHandler extends AbstractBatchHandler
                 return null;
             }
 
-            return $this->assetIngestor->ingest($tmp, $name)->assetId->toRfc4122();
+            return $this->assetIngestor->ingest($tmp, $name, $this->folderCodeFor($job))->assetId->toRfc4122();
         } catch (UnsupportedMediaFormatException $exception) {
             $pendingLogs[] = ['job' => $job, 'type' => ImportErrorType::ImageFormatUnsupported, 'message' => \sprintf('ZIP entry "%s": %s', $name, $exception->getMessage()), 'value' => $name];
 
