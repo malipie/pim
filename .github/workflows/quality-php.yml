@@ -255,8 +255,22 @@ jobs:
         run: composer cs-check
 
   phpunit:
+    # AUD-083 — shard the suite across testsuites so `api` and `integration`
+    # (the two DB/kernel-heavy long poles) run in PARALLEL instead of
+    # sequentially in one job. `unit` (no DB, ~6s) rides with `architecture`.
+    # Wall-clock drops from sum(suites) to max(suite). Each matrix leg is its
+    # own job → its own Postgres service → its own pim_test DB, so there is no
+    # cross-talk. The heavy 5k/50k memory benchmark moved to `phpunit-benchmark`
+    # below (was a sequential step here, ~4 min reclaimed by running it concurrently).
     name: PHPUnit
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - "unit,architecture"
+          - "integration"
+          - "api"
     services:
       postgres:
         image: postgres:16-alpine
@@ -271,6 +285,20 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+    # Hoisted to job level (was duplicated per step) — every PHPUnit invocation
+    # in this job needs the same test env. Foundry's ResetDatabase rebuilds the
+    # schema into the dbname_suffix-derived "pim_test" database; the Postgres
+    # service is enough, no migrations step required.
+    env:
+      APP_ENV: test
+      APP_DEBUG: "0"
+      DATABASE_URL: postgresql://pim:ChangeMeInDev@127.0.0.1:5432/pim?serverVersion=16&charset=utf8
+      MESSENGER_TRANSPORT_DSN: in-memory://
+      MERCURE_URL: http://localhost/.well-known/mercure
+      MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
+      MERCURE_JWT_SECRET: ci-mercure-key-at-least-256-bits-long
+      JWT_PASSPHRASE: ci
+      APP_DEFAULT_TENANT_CODE: demo
     steps:
       - uses: actions/checkout@v5
 
@@ -300,28 +328,74 @@ jobs:
           openssl genpkey -algorithm RSA -out config/jwt/private.pem -aes256 -pass pass:ci -pkeyopt rsa_keygen_bits:4096
           openssl pkey -in config/jwt/private.pem -passin pass:ci -pubout -out config/jwt/public.pem
 
-      - name: Run PHPUnit
-        run: php bin/phpunit
+      - name: Run PHPUnit (${{ matrix.suite }})
+        run: php bin/phpunit --testsuite ${{ matrix.suite }}
+
+  phpunit-benchmark:
+    # AUD-083 — the heavy 5k/50k import + export memory benchmark, split out of
+    # the main `phpunit` job so it runs concurrently instead of as a trailing
+    # sequential step (~4 min off the critical path). Same env/setup as above.
+    name: PHPUnit benchmarks (import-benchmark)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
         env:
-          APP_ENV: test
-          APP_DEBUG: "0"
-          # Foundry's ResetDatabase rebuilds the schema from entity metadata into the
-          # dbname_suffix-derived "pim_test" database — Postgres service is enough,
-          # no migrations step required for the Sprint-0 entity surface.
-          DATABASE_URL: postgresql://pim:ChangeMeInDev@127.0.0.1:5432/pim?serverVersion=16&charset=utf8
-          MESSENGER_TRANSPORT_DSN: in-memory://
-          MERCURE_URL: http://localhost/.well-known/mercure
-          MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
-          MERCURE_JWT_SECRET: ci-mercure-key-at-least-256-bits-long
-          JWT_PASSPHRASE: ci
-          APP_DEFAULT_TENANT_CODE: demo
+          POSTGRES_USER: pim
+          POSTGRES_PASSWORD: ChangeMeInDev
+          POSTGRES_DB: pim
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pim"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: test
+      APP_DEBUG: "0"
+      DATABASE_URL: postgresql://pim:ChangeMeInDev@127.0.0.1:5432/pim?serverVersion=16&charset=utf8
+      MESSENGER_TRANSPORT_DSN: in-memory://
+      MERCURE_URL: http://localhost/.well-known/mercure
+      MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
+      MERCURE_JWT_SECRET: ci-mercure-key-at-least-256-bits-long
+      JWT_PASSPHRASE: ci
+      APP_DEFAULT_TENANT_CODE: demo
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: ctype, iconv, intl, opcache, pcntl, pdo_pgsql, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/api/vendor
+            ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Generate JWT keypair for tests
+        run: |
+          mkdir -p config/jwt
+          openssl genpkey -algorithm RSA -out config/jwt/private.pem -aes256 -pass pass:ci -pkeyopt rsa_keygen_bits:4096
+          openssl pkey -in config/jwt/private.pem -passin pass:ci -pubout -out config/jwt/public.pem
 
       # AUD-063 — meta-assertion guarding the memory gate below. An empty
       # `--group import-benchmark` selection runs 0 tests and exits 0, so if
       # the benchmark tests are ever deleted/renamed out of the group the
       # 256 MiB ceiling would silently stop being enforced while CI stays
-      # green. This step fails the (required) phpunit job when the group is
-      # empty. `^ - ` matches PHPUnit 12's per-test `--list-tests` prefix.
+      # green. This step fails the job when the group is empty.
+      # `^ - ` matches PHPUnit 12's per-test `--list-tests` prefix.
       - name: Assert import-benchmark group is non-empty
         run: |
           COUNT=$(php bin/phpunit --group import-benchmark --list-tests 2>/dev/null | grep -cE '^ - ' || true)
@@ -330,32 +404,12 @@ jobs:
             exit 1
           fi
           echo "import-benchmark tests: $COUNT"
-        env:
-          APP_ENV: test
-          APP_DEBUG: "0"
-          DATABASE_URL: postgresql://pim:ChangeMeInDev@127.0.0.1:5432/pim?serverVersion=16&charset=utf8
-          MESSENGER_TRANSPORT_DSN: in-memory://
-          MERCURE_URL: http://localhost/.well-known/mercure
-          MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
-          MERCURE_JWT_SECRET: ci-mercure-key-at-least-256-bits-long
-          JWT_PASSPHRASE: ci
-          APP_DEFAULT_TENANT_CODE: demo
 
       # IMP2-2.6 (#1482) — etap-2 memory gate. Excluded from the default run
       # (phpunit.dist.xml <groups>); the explicit --group overrides that and
       # runs the heavy 5k/50k import + export benchmarks with a 256 MiB ceiling.
       - name: Run memory benchmarks (import-benchmark group)
         run: php bin/phpunit --group import-benchmark
-        env:
-          APP_ENV: test
-          APP_DEBUG: "0"
-          DATABASE_URL: postgresql://pim:ChangeMeInDev@127.0.0.1:5432/pim?serverVersion=16&charset=utf8
-          MESSENGER_TRANSPORT_DSN: in-memory://
-          MERCURE_URL: http://localhost/.well-known/mercure
-          MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
-          MERCURE_JWT_SECRET: ci-mercure-key-at-least-256-bits-long
-          JWT_PASSPHRASE: ci
-          APP_DEFAULT_TENANT_CODE: demo
 
   openapi-spec:
     name: OpenAPI spec drift
