@@ -1671,12 +1671,16 @@ final class ImportRunHandler extends AbstractBatchHandler
                 continue;
             }
             foreach ($this->extractCategoryCodes($row['cells'], $columnMapping) as $code) {
-                $codes[$code] = true;
+                // Key to dedupe, but keep the string code as the VALUE: PHP
+                // coerces a numeric-string array key to int (e.g. an IdoSell
+                // category id "1214553885"), and an int reaching findByCode's
+                // string signature throws a TypeError that crashes the whole run.
+                $codes[$code] = $code;
             }
         }
 
         $map = [];
-        foreach (array_keys($codes) as $code) {
+        foreach ($codes as $code) {
             $category = $this->catalogObjects->findByCode($code, ObjectKind::Category, $tenant);
             if (null !== $category) {
                 $map[$code] = $category;
