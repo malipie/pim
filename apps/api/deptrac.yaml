@@ -508,6 +508,14 @@ parameters:
             - App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface
             - App\Catalog\Domain\Repository\AttributeRepositoryInterface
             - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+        App\Import\Application\Service\Structural\AttributeGroupImportCreator:
+            - App\Catalog\Application\Command\CreateAttributeGroup\CreateAttributeGroupCommand
+            - App\Catalog\Application\Command\UpdateAttributeGroup\UpdateAttributeGroupCommand
+            - App\Catalog\Application\ObjectTypeAttributeGroupAssigner
+            - App\Catalog\Domain\Entity\AttributeGroup
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
         App\Import\Application\Service\Structural\AttributeOptionImporter:
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Entity\AttributeOption

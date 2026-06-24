@@ -6,6 +6,7 @@ namespace App\Import\Application\Handler;
 
 use App\Import\Application\Service\ImportProgressPublisher;
 use App\Import\Application\Service\ImportRowReader;
+use App\Import\Application\Service\Structural\AttributeGroupImportCreator;
 use App\Import\Application\Service\Structural\AttributeImportCreator;
 use App\Import\Application\Service\Structural\StructuralImportRowResult;
 use App\Import\Domain\Entity\ImportLog;
@@ -51,6 +52,7 @@ final class StructuralImportRunHandler
         private readonly ImportLogRepositoryInterface $importLogs,
         private readonly ImportProgressPublisher $progress,
         private readonly AttributeImportCreator $attributeCreator,
+        private readonly AttributeGroupImportCreator $attributeGroupCreator,
         private readonly TenantContext $tenantContext,
         private readonly FilesystemOperator $importsStorage,
         private readonly BulkOperationLock $bulkLock,
@@ -98,7 +100,7 @@ final class StructuralImportRunHandler
             return;
         }
         $kind = $session->getStructuralKind();
-        if ('attributes' !== $kind) {
+        if ('attributes' !== $kind && 'attribute_groups' !== $kind) {
             $session->markFailed(\sprintf('Unsupported structural import kind "%s".', $kind ?? 'null'));
             $this->sessions->save($session);
 
@@ -126,7 +128,9 @@ final class StructuralImportRunHandler
 
             $processed = 0;
             foreach ($this->rowReader->read($sourcePath) as $rowNumber => $cells) {
-                $result = $this->attributeCreator->create($rowNumber, $cells, $tenant);
+                $result = 'attribute_groups' === $kind
+                    ? $this->attributeGroupCreator->create($rowNumber, $cells, $tenant)
+                    : $this->attributeCreator->create($rowNumber, $cells, $tenant);
                 $this->applyOutcome($session, $result);
                 $persistedLogs = $this->persistLogs($session, $rowNumber, $result, $persistedLogs);
                 ++$processed;
