@@ -7,8 +7,6 @@ namespace App\Tests\Api\Catalog;
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Catalog\Application\BuiltInObjectTypeSeeder;
 use App\Catalog\Domain\ObjectKind;
-use App\DataFixtures\Identity\PrdPermissionFixtures;
-use App\Identity\Application\RbacSeeder;
 use App\Identity\Application\SeedTenantPrdRolesService;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Rbac\RbacMatrix;
@@ -44,16 +42,9 @@ abstract class CatalogApiTestCase extends ApiTestCase
         parent::setUp();
 
         $em = $this->em();
-        self::getContainer()->get(RbacSeeder::class)->seed();
-        // RBAC-P6-005/006/007 retrofit — Phase 6 retrofit gates every
-        // controller method with PRD §3.2 granular codes (products.add,
-        // modeling.attribute_groups.add_edit, etc.). RbacSeeder only
-        // emits the legacy RbacMatrix 4-action × 19-resource set, so
-        // these tests need the PRD permission catalogue + tenant_owner
-        // role assigned to the test admin to clear EndpointGuardListener.
-        $prdPermissions = new PrdPermissionFixtures();
-        $prdPermissions->load($em);
-        $em->flush();
+        // RBAC permission catalogue (legacy global roles + PRD granular
+        // codes) is seeded once per session via Foundry global_state
+        // (AUD-082, App\Tests\State\DefaultTestState) — no per-test re-seed.
 
         $superAdmin = self::getContainer()->get(RoleRepositoryInterface::class)
             ->findGlobalByCode(RbacMatrix::ROLE_SUPER_ADMIN);

@@ -549,3 +549,11 @@ when@test:
         App\Backup\Application\Service\BackupRunnerInterface:
             alias: App\Tests\Support\InMemoryBackupRunner
             public: true
+
+        # AUD-082 — invokable seeder run once via zenstruck_foundry.global_state
+        # (see config/packages/zenstruck_foundry.yaml). Autowires RbacSeeder +
+        # the EntityManager so the tenant-agnostic permission catalogue is
+        # committed before the per-test DAMA transaction.
+        App\Tests\State\DefaultTestState:
+            autowire: true
+            autoconfigure: true
