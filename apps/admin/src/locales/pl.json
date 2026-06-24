@@ -2825,6 +2825,9 @@
     "column_picker": {
       "group_structure": "Struktura"
     },
+    "columns": {
+      "object_types": "Typy obiektów"
+    },
     "profiles": {
       "run_success": "Profil „{{name}}” — eksport uruchomiony",
       "run_failed": "Nie udało się uruchomić eksportu z profilu",
