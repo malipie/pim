@@ -1,7 +1,6 @@
 import { useApiUrl, useCustom, useList } from '@refinedev/core';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -58,14 +57,14 @@ const ENABLED_VALUE = '__enabled__';
 /**
  * Spec §5.3 — column mapping. Streams the uploaded headers + first
  * sample row to the IMP-02 endpoint, renders the mapping table on
- * top of the IMP-08 Combobox, and persists the picks back through
- * `useImportWizard`. The "+ Stwórz nowy atrybut" CTA snapshots the
- * wizard state to localStorage and deep-links to /modeling — the
- * round-trip restore lives on the hook.
+ * top of the IMP-08 Combobox, and writes the picks back through
+ * `useImportWizard`. Missing attributes are no longer created via a
+ * deep-link round-trip (#1737, it dropped the mapping) — the run mints
+ * them when "create missing options/attributes" is enabled (#1728).
  */
 export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
   const { t } = useTranslation();
-  const { state, setField, patchMapping, next, back, persist } = wizard;
+  const { state, setField, patchMapping, next, back } = wizard;
   const [computedOpen, setComputedOpen] = React.useState(false);
   const apiUrl = useApiUrl();
 
@@ -298,13 +297,6 @@ export function StepMapping({ wizard }: StepMappingProps): React.ReactElement {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline" size="sm" onClick={() => persist()}>
-            <Link to="/modeling/attributes">
-              {t('imports.wizard.create_attribute', {
-                defaultValue: '+ Stwórz nowy atrybut',
-              })}
-            </Link>
-          </Button>
           <Button variant="outline" size="sm" onClick={() => setComputedOpen(true)}>
             {t('imports.mapping.computed_cta', { defaultValue: 'Nowa kolumna obliczona' })}
           </Button>
