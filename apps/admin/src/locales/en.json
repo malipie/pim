@@ -2300,8 +2300,7 @@
       "next": "Next",
       "back": "Back",
       "cancel": "Cancel",
-      "run": "Run import",
-      "create_attribute": "Create new attribute"
+      "run": "Run import"
     },
     "upload": {
       "drop_csv": "Drop CSV / Excel file or pick one",

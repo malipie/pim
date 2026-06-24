@@ -105,22 +105,13 @@ interface WizardController {
   next: () => void;
   back: () => void;
   reset: () => void;
-  /** Persist for cross-page round-trips (e.g. "Stwórz nowy atrybut"). */
-  persist: () => void;
-  /** Restore after returning from /modeling — wipes the saved snapshot. */
-  restore: () => void;
 }
 
-const STORAGE_KEY = 'pim.imports.wizard';
-
 /**
- * Holds the wizard's cross-step state (spec §4 user flow). The
- * persistence path is the deep-link to /modeling/attributes/new
- * during Step 2: the user creates a custom attribute and lands back
- * on the same wizard, mid-flight. {@link persist} writes the
- * non-File fields to localStorage; {@link restore} pulls them back
- * once the page rehydrates. Files cannot be serialised, so the user
- * re-uploads the source after the round-trip — UX surfaces a hint.
+ * Holds the wizard's cross-step state (spec §4 user flow). State lives only
+ * for the lifetime of the wizard mount — there is deliberately no localStorage
+ * round-trip: the uploaded File cannot be serialised, so a deep-link away and
+ * back used to drop the mapping (#1737).
  */
 export function useImportWizard(): WizardController {
   const [state, setState] = React.useState<WizardState>(INITIAL_STATE);
@@ -155,50 +146,7 @@ export function useImportWizard(): WizardController {
 
   const reset = React.useCallback(() => {
     setState(INITIAL_STATE);
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
   }, []);
 
-  const persist = React.useCallback(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const persisted = {
-      step: state.step,
-      entityType: state.entityType,
-      locale: state.locale,
-      encoding: state.encoding,
-      delimiter: state.delimiter,
-      imageSource: state.imageSource,
-      profileId: state.profileId,
-      saveAsProfileName: state.saveAsProfileName,
-      targetObjectTypeId: state.targetObjectTypeId,
-      mapping: state.mapping,
-      stagedFileId: state.stagedFileId,
-      doBackup: state.doBackup,
-      emailNotification: state.emailNotification,
-      createMissingOptions: state.createMissingOptions,
-    };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
-  }, [state]);
-
-  const restore = React.useCallback(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw === null) {
-      return;
-    }
-    try {
-      const parsed = JSON.parse(raw) as Partial<WizardState>;
-      setState((prev) => ({ ...prev, ...parsed }));
-    } catch {
-      // Stale snapshot — drop it.
-    }
-    window.localStorage.removeItem(STORAGE_KEY);
-  }, []);
-
-  return { state, setField, patchMapping, next, back, reset, persist, restore };
+  return { state, setField, patchMapping, next, back, reset };
 }

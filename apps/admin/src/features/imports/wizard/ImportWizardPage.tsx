@@ -1,4 +1,4 @@
-import * as React from 'react';
+import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useImportWizard } from '@/features/imports/hooks/useImportWizard';
@@ -22,15 +22,6 @@ import { type WizardStep, WizardStepper } from './WizardStepper';
 export function ImportWizardPage(): React.ReactElement {
   const { t } = useTranslation();
   const wizard = useImportWizard();
-
-  // Honour the deep-link round-trip from `/modeling/attributes/new`:
-  // the operator clicked "+ Stwórz atrybut" on Step 2, came back
-  // here, we restore mapping state so the table picks up where
-  // they left off.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: restore() only on mount
-  React.useEffect(() => {
-    wizard.restore();
-  }, []);
 
   const steps: ReadonlyArray<WizardStep> = [
     {

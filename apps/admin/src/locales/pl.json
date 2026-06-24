@@ -2350,8 +2350,7 @@
       "next": "Dalej",
       "back": "Wstecz",
       "cancel": "Anuluj",
-      "run": "Uruchom import",
-      "create_attribute": "Stwórz nowy atrybut"
+      "run": "Uruchom import"
     },
     "upload": {
       "drop_csv": "Przeciągnij plik CSV/Excel lub wybierz",
