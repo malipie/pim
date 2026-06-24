@@ -2474,7 +2474,11 @@
       "v_unique": "Identifier uniqueness (file + database)",
       "v_allowed": "Allowed values (select/multiselect)",
       "v_range": "Range check (numeric bounds)",
-      "v_regex": "Per-column regex (e.g. EAN ^[0-9]{13}$)"
+      "v_regex": "Per-column regex (e.g. EAN ^[0-9]{13}$)",
+      "options_title": "Dictionary options",
+      "options_subtitle": "What to do with select/multiselect values outside the existing list",
+      "create_missing_options": "Create missing options (select/multiselect)",
+      "create_missing_options_hint": "Unknown values are added as new attribute options (provenance: import). Off by default — an unknown value fails the row."
     },
     "computed": {
       "title": "New computed column",

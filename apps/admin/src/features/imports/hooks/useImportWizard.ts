@@ -68,6 +68,11 @@ export interface WizardState {
   emailNotification: boolean;
   /** IMP2-1.3 (#1465) — write strategy sent to POST /api/import-sessions. */
   mode: 'CREATE' | 'UPDATE' | 'UPSERT';
+  /**
+   * #1718 — when true, the run mints missing select/multiselect options
+   * instead of failing rows with unknown values. Opt-in (data governance).
+   */
+  createMissingOptions: boolean;
 }
 
 const INITIAL_STATE: WizardState = {
@@ -84,6 +89,7 @@ const INITIAL_STATE: WizardState = {
   targetObjectTypeId: null,
   mapping: {},
   mode: 'UPSERT',
+  createMissingOptions: false,
   suggestions: [],
   parsed: null,
   stagedFileId: null,
@@ -172,6 +178,7 @@ export function useImportWizard(): WizardController {
       stagedFileId: state.stagedFileId,
       doBackup: state.doBackup,
       emailNotification: state.emailNotification,
+      createMissingOptions: state.createMissingOptions,
     };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
   }, [state]);
