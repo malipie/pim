@@ -30,14 +30,19 @@ test.beforeEach(async ({ page }) => {
 
 test('every entity tile is selectable and Dalej advances', async ({ page }) => {
   const group = page.getByRole('radiogroup');
-  await expect(group.getByRole('radio')).toHaveCount(5);
+  await expect(group.getByRole('radio')).toHaveCount(6);
 
   // products selected by default with the WYBRANE badge
   const products = group.getByRole('radio', { name: /Produkty|Products/ });
   await expect(products).toHaveAttribute('aria-checked', 'true');
   await expect(products).toContainText(/wybrane|selected/);
 
-  for (const name of [/Schemat|Module schema/, /Atrybuty|Attributes/, /Kategorie|Categories/]) {
+  for (const name of [
+    /Schemat|Module schema/,
+    /Atrybuty|Attributes/,
+    /Grupy atrybutów|Attribute groups/,
+    /Kategorie|Categories/,
+  ]) {
     await group.getByRole('radio', { name }).click();
     await expect(group.getByRole('radio', { name })).toHaveAttribute('aria-checked', 'true');
   }

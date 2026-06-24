@@ -6,6 +6,7 @@ export type ExportEntityType =
   | 'custom_module'
   | 'module_schema'
   | 'attributes_groups'
+  | 'attribute_groups'
   | 'categories';
 
 export type ExportFormat = 'xlsx' | 'csv';

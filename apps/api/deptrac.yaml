@@ -414,6 +414,11 @@ parameters:
             - App\Catalog\Domain\Repository\ObjectCategoryRepositoryInterface
             - App\Catalog\Domain\Repository\ObjectRelationRepositoryInterface
             - App\Catalog\Domain\Repository\ObjectValueRepositoryInterface
+        App\Export\Application\Builder\Structural\AttributeGroupsExportBuilder:
+            - App\Catalog\Domain\Entity\AttributeGroup
+            - App\Catalog\Domain\Entity\ObjectTypeAttributeGroup
+            - App\Catalog\Domain\Repository\AttributeGroupRepositoryInterface
+            - App\Channel\Domain\Repository\TenantLocaleRepositoryInterface
         App\Export\Application\Builder\Structural\AttributesGroupsExportBuilder:
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Entity\AttributeGroupAttribute

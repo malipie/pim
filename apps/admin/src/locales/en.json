@@ -2594,7 +2594,8 @@
       "module_schema": "Module schema",
       "categories": "Categories",
       "product": "Products",
-      "attributes_groups": "Attributes & groups"
+      "attributes_groups": "Attributes",
+      "attribute_groups": "Attribute groups"
     },
     "active": {
       "title": "Running",
@@ -2684,7 +2685,8 @@
         "module_schema": "Download module definitions, relations and configuration settings.",
         "categories": "Category tree structure, name translations and inheritance rules.",
         "product": "Export the main product catalog, variants, prices and related media.",
-        "attributes_groups": "Export the attribute dictionary, default values, types and group assignments."
+        "attributes_groups": "Export the attribute dictionary — types, default values, group and object-type assignments.",
+        "attribute_groups": "Export attribute-group definitions — labels, descriptions, icons and object-type assignments."
       },
       "custom_object_type_label": "Custom module",
       "custom_object_type_placeholder": "Choose a module…",
@@ -2772,7 +2774,14 @@
       "group_structure": "Structure"
     },
     "columns": {
-      "object_types": "Object types"
+      "object_types": "Object types",
+      "code": "Code",
+      "icon": "Icon",
+      "color": "Color",
+      "is_required_section": "Required section",
+      "is_shared": "Shared",
+      "position": "Position",
+      "is_built_in": "Built-in"
     },
     "profiles": {
       "run_success": "Profile “{{name}}” — export started",

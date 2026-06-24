@@ -2646,7 +2646,8 @@
       "module_schema": "Schemat modułów",
       "categories": "Kategorie",
       "product": "Produkty",
-      "attributes_groups": "Atrybuty i grupy"
+      "attributes_groups": "Atrybuty",
+      "attribute_groups": "Grupy atrybutów"
     },
     "active": {
       "title": "W toku",
@@ -2736,7 +2737,8 @@
         "module_schema": "Pobierz strukturę definicji, relacje i ustawienia konfiguracyjne modułów.",
         "categories": "Struktura drzewa kategorii, tłumaczenia nazw oraz przypisane reguły dziedziczenia.",
         "product": "Eksportuj główny katalog produktów, warianty, ceny i powiązane multimedia.",
-        "attributes_groups": "Eksport słownika atrybutów, ich wartości domyślnych, typów oraz podziału na grupy."
+        "attributes_groups": "Eksport słownika atrybutów — typów, wartości domyślnych, przypisania do grup i typów obiektów.",
+        "attribute_groups": "Eksport definicji grup atrybutów — etykiet, opisów, ikon oraz przypisania do typów obiektów."
       },
       "custom_object_type_label": "Moduł własny",
       "custom_object_type_placeholder": "Wybierz moduł…",
@@ -2826,7 +2828,14 @@
       "group_structure": "Struktura"
     },
     "columns": {
-      "object_types": "Typy obiektów"
+      "object_types": "Typy obiektów",
+      "code": "Kod",
+      "icon": "Ikona",
+      "color": "Kolor",
+      "is_required_section": "Sekcja wymagana",
+      "is_shared": "Współdzielona",
+      "position": "Pozycja",
+      "is_built_in": "Systemowa"
     },
     "profiles": {
       "run_success": "Profil „{{name}}” — eksport uruchomiony",

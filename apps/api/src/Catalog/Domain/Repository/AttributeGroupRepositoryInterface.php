@@ -14,6 +14,14 @@ interface AttributeGroupRepositoryInterface
 
     public function findByCode(string $code, Tenant $tenant): ?AttributeGroup;
 
+    /**
+     * All groups owned by the tenant, ordered for deterministic export
+     * (position, then code).
+     *
+     * @return list<AttributeGroup>
+     */
+    public function findAllByTenant(Tenant $tenant): array;
+
     public function save(AttributeGroup $attributeGroup): void;
 
     public function remove(AttributeGroup $attributeGroup): void;

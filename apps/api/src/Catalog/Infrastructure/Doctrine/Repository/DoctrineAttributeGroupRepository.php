@@ -25,6 +25,14 @@ class DoctrineAttributeGroupRepository extends ServiceEntityRepository implement
         return $this->findOneBy(['code' => $code, 'tenant' => $tenant]);
     }
 
+    public function findAllByTenant(Tenant $tenant): array
+    {
+        /** @var list<AttributeGroup> $result */
+        $result = $this->findBy(['tenant' => $tenant], ['position' => 'ASC', 'code' => 'ASC']);
+
+        return $result;
+    }
+
     public function findById(\Symfony\Component\Uid\Uuid $id): ?AttributeGroup
     {
         return parent::find($id->toRfc4122());

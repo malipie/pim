@@ -18,6 +18,8 @@ export function entityTypeLabelKey(entityType: string): string {
       return 'exports.entity.module_schema';
     case 'attributes_groups':
       return 'exports.entity.attributes_groups';
+    case 'attribute_groups':
+      return 'exports.entity.attribute_groups';
     case 'categories':
       return 'exports.entity.categories';
     default:
