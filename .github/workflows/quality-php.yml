@@ -267,10 +267,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # AUD-084 — `api` was the dominant leg (~1412s, ~45% of it Catalog);
+        # split three ways (Catalog / Import+Identity / the rest via <exclude>)
+        # so the legs run concurrently. See phpunit.dist.xml testsuites.
         suite:
           - "unit,architecture"
           - "integration"
-          - "api"
+          - "api-catalog"
+          - "api-heavy"
+          - "api-rest"
     services:
       postgres:
         image: postgres:16-alpine

@@ -31,6 +31,28 @@
         <testsuite name="api">
             <directory>tests/Api</directory>
         </testsuite>
+        <!-- AUD-084 — sub-shards of `api` for the CI matrix. The full `api`
+             suite above is the slowest leg (~1412s, ~45% of it is Catalog), so
+             splitting it three ways lets Catalog run in parallel with the rest
+             instead of gating the whole shard. `api` stays intact for local
+             single-process runs; CI runs these three legs concurrently. -->
+        <testsuite name="api-catalog">
+            <directory>tests/Api/Catalog</directory>
+        </testsuite>
+        <testsuite name="api-heavy">
+            <directory>tests/Api/Import</directory>
+            <directory>tests/Api/Identity</directory>
+        </testsuite>
+        <!-- Everything under tests/Api NOT in api-catalog / api-heavy. Defined
+             with <exclude> (a blacklist), NOT a whitelist of dirs: a new
+             tests/Api/<NewDir> auto-lands here and stays covered, instead of
+             being silently skipped by every shard (AUD-061 lesson). -->
+        <testsuite name="api-rest">
+            <directory>tests/Api</directory>
+            <exclude>tests/Api/Catalog</exclude>
+            <exclude>tests/Api/Import</exclude>
+            <exclude>tests/Api/Identity</exclude>
+        </testsuite>
         <!-- Static fitness tests: Deptrac analyse + custom PHPStan rules. -->
         <testsuite name="architecture">
             <directory>tests/Architecture</directory>
