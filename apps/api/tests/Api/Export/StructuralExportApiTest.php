@@ -8,6 +8,7 @@ use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
+use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Export\Application\Sync\SyncExportRunner;
@@ -55,6 +56,26 @@ final class StructuralExportApiTest extends CatalogApiTestCase
         $csv = $this->runStructural($tenant, ExportEntityType::AttributesGroups);
 
         self::assertStringContainsString('horsepower', $csv);
+    }
+
+    #[Test]
+    public function attributesExportListsAssignedObjectTypes(): void
+    {
+        $tenant = $this->tenant();
+        $module = new ObjectType('gizmos', ObjectKind::Custom, ['pl' => 'Gizma', 'en' => 'Gizmos']);
+        $module->assignTenant($tenant);
+        $attribute = new Attribute('torque', ['pl' => 'Moment', 'en' => 'Torque'], AttributeType::Text);
+        $attribute->assignTenant($tenant);
+        $this->em()->persist($module);
+        $this->em()->persist($attribute);
+        $this->em()->persist(new ObjectTypeAttribute($module, $attribute));
+        $this->em()->flush();
+
+        $csv = $this->runStructural($tenant, ExportEntityType::AttributesGroups);
+
+        // Header is present and the attribute row carries its ObjectType code.
+        self::assertStringContainsString('object_types', $csv);
+        self::assertMatchesRegularExpression('/torque[^\n]*gizmos/', $csv);
     }
 
     #[Test]

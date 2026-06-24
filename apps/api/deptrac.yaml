@@ -417,6 +417,7 @@ parameters:
         App\Export\Application\Builder\Structural\AttributesGroupsExportBuilder:
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Entity\AttributeGroupAttribute
+            - App\Catalog\Domain\Entity\ObjectTypeAttribute
             - App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface
             - App\Catalog\Domain\Repository\AttributeRepositoryInterface
             - App\Channel\Domain\Repository\TenantLocaleRepositoryInterface

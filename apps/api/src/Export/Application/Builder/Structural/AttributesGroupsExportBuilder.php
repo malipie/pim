@@ -6,6 +6,7 @@ namespace App\Export\Application\Builder\Structural;
 
 use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\AttributeGroupAttribute;
+use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
 use App\Channel\Domain\Repository\TenantLocaleRepositoryInterface;
@@ -20,10 +21,10 @@ use const JSON_THROW_ON_ERROR;
  * EXR-06 (#1382) — `attributes_groups` export: the attribute dictionary.
  *
  * One row per attribute. Localised label/help fan out across the tenant's
- * active locales (`label.pl`, `label.en`, …) and a joined `groups` column
- * captures the attribute→group membership. The dedicated per-group metadata
- * sheet (XLSX second sheet / CSV-in-ZIP) is deferred — see the PR — but the
- * `groups` column already records which groups each attribute belongs to.
+ * active locales (`label.pl`, `label.en`, …); a joined `groups` column
+ * captures the attribute→group membership and an `object_types` column the
+ * attribute→ObjectType assignment (so a re-import can re-attach each attribute
+ * to the same modules).
  *
  * Columns are dynamic: a new attribute type, locale, or select option exports
  * with no change here.
@@ -57,6 +58,7 @@ final readonly class AttributesGroupsExportBuilder implements StructuralExportBu
         $columns[] = 'is_scopable';
         $columns[] = 'options';
         $columns[] = 'groups';
+        $columns[] = 'object_types';
         $columns[] = 'is_built_in';
         $columns[] = 'created_at';
 
@@ -83,6 +85,7 @@ final readonly class AttributesGroupsExportBuilder implements StructuralExportBu
             $row['is_scopable'] = $attribute->isScopable() ? 'true' : 'false';
             $row['options'] = $this->optionsJson($attribute);
             $row['groups'] = implode('|', $this->groupCodes($attribute));
+            $row['object_types'] = implode('|', $this->objectTypeCodes($attribute));
             $row['is_built_in'] = $attribute->isSystem() ? 'true' : 'false';
             $row['created_at'] = $attribute->getCreatedAt()->format(DateTimeInterface::ATOM);
 
@@ -117,6 +120,24 @@ final readonly class AttributesGroupsExportBuilder implements StructuralExportBu
         $codes = $this->em->createQuery(
             'SELECT g.code FROM '.AttributeGroupAttribute::class.' j JOIN j.attributeGroup g'
             .' WHERE j.attribute = :a ORDER BY g.code ASC',
+        )->setParameter('a', $attribute)->getSingleColumnResult();
+
+        return $codes;
+    }
+
+    /**
+     * ObjectType codes the attribute is assigned to, via the
+     * `object_type_attributes` junction. Pipe-joined into the `object_types`
+     * column so a re-import can re-attach the attribute to the same modules.
+     *
+     * @return list<string>
+     */
+    private function objectTypeCodes(Attribute $attribute): array
+    {
+        /** @var list<string> $codes */
+        $codes = $this->em->createQuery(
+            'SELECT ot.code FROM '.ObjectTypeAttribute::class.' j JOIN j.objectType ot'
+            .' WHERE j.attribute = :a ORDER BY ot.code ASC',
         )->setParameter('a', $attribute)->getSingleColumnResult();
 
         return $codes;
