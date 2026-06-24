@@ -139,6 +139,7 @@ final class ImportRunHandlerRefreshTest extends CatalogApiTestCase
             validator: self::getContainer()->get(\App\Import\Application\Service\ImportValidationService::class),
             creator: self::getContainer()->get(\App\Import\Application\Service\ImportObjectCreator::class),
             optionAutoCreator: self::getContainer()->get(\App\Import\Application\Service\OptionAutoCreator::class),
+            attributeAutoCreator: self::getContainer()->get(\App\Import\Application\Service\AttributeAutoCreator::class),
             objectResolver: self::getContainer()->get(\App\Import\Application\Service\ObjectResolver::class),
             relationStep: self::getContainer()->get(\App\Import\Application\Service\RelationImportStep::class),
             undoLogger: self::getContainer()->get(\App\Import\Application\Service\ImportUndoLogger::class),

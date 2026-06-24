@@ -2477,8 +2477,8 @@
       "v_regex": "Per-column regex (e.g. EAN ^[0-9]{13}$)",
       "options_title": "Dictionary options",
       "options_subtitle": "What to do with select/multiselect values outside the existing list",
-      "create_missing_options": "Create missing options (select/multiselect)",
-      "create_missing_options_hint": "Unknown values are added as new attribute options (provenance: import). Off by default — an unknown value fails the row."
+      "create_missing_options": "Create missing options and attributes",
+      "create_missing_options_hint": "Unknown select/multiselect values are added as new options, and mapped columns with no attribute in the model create a new attribute (provenance: import). Off by default — otherwise an unknown value fails the row and a column without an attribute is skipped."
     },
     "computed": {
       "title": "New computed column",

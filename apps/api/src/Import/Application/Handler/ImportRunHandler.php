@@ -9,6 +9,7 @@ use App\Catalog\Domain\Entity\Attribute;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectCategory;
 use App\Catalog\Domain\ObjectKind;
+use App\Import\Application\Service\AttributeAutoCreator;
 use App\Import\Application\Service\ImportColumnGrammar;
 use App\Import\Application\Service\ImportObjectCreator;
 use App\Import\Application\Service\ImportProgressPublisher;
@@ -145,6 +146,7 @@ final class ImportRunHandler extends AbstractBatchHandler
         private readonly ImportValidationService $validator,
         private readonly ImportObjectCreator $creator,
         private readonly OptionAutoCreator $optionAutoCreator,
+        private readonly AttributeAutoCreator $attributeAutoCreator,
         private readonly ObjectResolver $objectResolver,
         private readonly RelationImportStep $relationStep,
         private readonly ImportUndoLogger $undoLogger,
@@ -204,9 +206,10 @@ final class ImportRunHandler extends AbstractBatchHandler
      */
     public function run(ImportSession $session): void
     {
-        // #1718 — drop any option lookup/mint cache from a previous run on this
-        // long-lived worker before processing a fresh file (cross-run hygiene).
+        // #1718 / #1728 — drop any option/attribute mint cache from a previous
+        // run on this long-lived worker before processing a fresh file.
         $this->optionAutoCreator->reset();
+        $this->attributeAutoCreator->reset();
 
         // Streaming + per-row Doctrine flushes scale with file size.
         // A 100-row XLSX easily exceeds FrankenPHP's default 30s HTTP
