@@ -93,7 +93,8 @@ test.beforeEach(async ({ page }) => {
 
 for (const entity of [
   { radio: /Schemat modułów|Module schema/, payload: 'module_schema' },
-  { radio: /Atrybuty i grupy|Attributes & groups/, payload: 'attributes_groups' },
+  { radio: /Atrybuty|Attributes/, payload: 'attributes_groups' },
+  { radio: /Grupy atrybutów|Attribute groups/, payload: 'attribute_groups' },
   { radio: /Kategorie|Categories/, payload: 'categories' },
 ]) {
   test(`structural happy path: ${entity.payload}`, async ({ page }) => {

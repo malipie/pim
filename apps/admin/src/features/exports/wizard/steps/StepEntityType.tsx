@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Boxes, FolderTree, Layers, Package, Tags } from 'lucide-react';
+import { Boxes, FolderTree, Group, Layers, Package, Tags } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { SelectableCard, SelectableCardGroup } from '@/components/ui-v2/selectable-card';
@@ -27,6 +27,7 @@ const ENTITY_DEFS: Array<{ id: ExportEntityType; icon: typeof Package }> = [
   { id: 'custom_module', icon: Boxes },
   { id: 'module_schema', icon: Layers },
   { id: 'attributes_groups', icon: Tags },
+  { id: 'attribute_groups', icon: Group },
   { id: 'categories', icon: FolderTree },
 ];
 

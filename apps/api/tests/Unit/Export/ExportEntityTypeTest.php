@@ -28,6 +28,7 @@ final class ExportEntityTypeTest extends TestCase
             ExportEntityType::Product,
             ExportEntityType::ModuleSchema,
             ExportEntityType::AttributesGroups,
+            ExportEntityType::AttributeGroups,
             ExportEntityType::Categories,
         ] as $type) {
             self::assertFalse($type->requiresObjectType(), $type->value.' must forbid object_type_id');
@@ -45,6 +46,7 @@ final class ExportEntityTypeTest extends TestCase
         foreach ([
             ExportEntityType::ModuleSchema,
             ExportEntityType::AttributesGroups,
+            ExportEntityType::AttributeGroups,
             ExportEntityType::Categories,
         ] as $type) {
             self::assertFalse($type->supportsScopeAndFilter(), $type->value.' must not support scope/filter');

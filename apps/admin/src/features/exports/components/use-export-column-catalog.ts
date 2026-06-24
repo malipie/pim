@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { jsonFetch } from '@/lib/http';
 
+import type { ExportEntityType } from '../wizard/types';
 import { BUILT_IN_COLUMN_GROUPS, type ColumnGroup } from './column-catalog';
 
 interface AttributeRow {
@@ -48,7 +49,7 @@ export interface ExportColumnCatalog {
 /** EXR-11 — per-entity catalog narrowing options for the wizard. */
 export interface ColumnCatalogOptions {
   /** ExportEntityType (EXR-04); defaults to `product` (legacy behavior). */
-  entityType?: 'product' | 'custom_module' | 'module_schema' | 'attributes_groups' | 'categories';
+  entityType?: ExportEntityType;
   /** Required for `custom_module` — narrows attributes to the OT junction. */
   objectTypeId?: string | null;
 }

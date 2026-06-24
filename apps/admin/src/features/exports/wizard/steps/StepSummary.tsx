@@ -1,4 +1,4 @@
-import { Boxes, FolderTree, Layers, Loader2, Package, Play, Tags } from 'lucide-react';
+import { Boxes, FolderTree, Group, Layers, Loader2, Package, Play, Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -18,6 +18,7 @@ const ENTITY_ICONS: Record<string, typeof Package> = {
   custom_module: Boxes,
   module_schema: Layers,
   attributes_groups: Tags,
+  attribute_groups: Group,
   categories: FolderTree,
 };
 

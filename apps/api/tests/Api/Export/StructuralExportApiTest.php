@@ -6,9 +6,11 @@ namespace App\Tests\Api\Export;
 
 use App\Catalog\Domain\AttributeType;
 use App\Catalog\Domain\Entity\Attribute;
+use App\Catalog\Domain\Entity\AttributeGroup;
 use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\Entity\ObjectType;
 use App\Catalog\Domain\Entity\ObjectTypeAttribute;
+use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
 use App\Export\Application\Sync\SyncExportRunner;
@@ -76,6 +78,34 @@ final class StructuralExportApiTest extends CatalogApiTestCase
         // Header is present and the attribute row carries its ObjectType code.
         self::assertStringContainsString('object_types', $csv);
         self::assertMatchesRegularExpression('/torque[^\n]*gizmos/', $csv);
+    }
+
+    #[Test]
+    public function attributeGroupsExportListsGroupDefinitionsWithObjectTypes(): void
+    {
+        $tenant = $this->tenant();
+        $module = new ObjectType('widgets', ObjectKind::Custom, ['pl' => 'Widżety', 'en' => 'Widgets']);
+        $module->assignTenant($tenant);
+        $group = new AttributeGroup(
+            'marketing',
+            ['pl' => 'Marketing', 'en' => 'Marketing'],
+            0,
+            null,
+            ['pl' => 'Treści marketingowe', 'en' => 'Marketing content'],
+            'megaphone',
+        );
+        $group->assignTenant($tenant);
+        $this->em()->persist($module);
+        $this->em()->persist($group);
+        $this->em()->persist(new ObjectTypeAttributeGroup($module, $group));
+        $this->em()->flush();
+
+        $csv = $this->runStructural($tenant, ExportEntityType::AttributeGroups);
+
+        self::assertStringContainsString('marketing', $csv);
+        self::assertStringContainsString('megaphone', $csv);
+        // The group row carries its attached ObjectType code in object_types.
+        self::assertMatchesRegularExpression('/marketing[^\n]*widgets/', $csv);
     }
 
     #[Test]

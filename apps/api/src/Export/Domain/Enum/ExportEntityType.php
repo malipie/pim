@@ -15,7 +15,10 @@ namespace App\Export\Domain\Enum;
  *   - {@see self::CustomModule}     a user-defined ObjectType (is_built_in=false);
  *                                   requires `object_type_id`.
  *   - {@see self::ModuleSchema}     ObjectType definitions / configuration.
- *   - {@see self::AttributesGroups} attribute dictionary + groups.
+ *   - {@see self::AttributesGroups} attribute dictionary (one row per attribute).
+ *   - {@see self::AttributeGroups}  attribute-group definitions (one row per
+ *                                   group: label/description, icon, flags, the
+ *                                   ObjectTypes it is attached to).
  *   - {@see self::Categories}       category tree.
  *
  * `Product` and `CustomModule` are catalog-object backed, so they support
@@ -33,6 +36,7 @@ enum ExportEntityType: string
     case CustomModule = 'custom_module';
     case ModuleSchema = 'module_schema';
     case AttributesGroups = 'attributes_groups';
+    case AttributeGroups = 'attribute_groups';
     case Categories = 'categories';
 
     /**
