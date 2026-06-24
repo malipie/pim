@@ -479,6 +479,13 @@ parameters:
             - App\Catalog\Domain\Entity\Attribute
             - App\Catalog\Domain\Entity\AttributeOption
             - App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface
+        # #1728 — attribute auto-create mints Attribute + ObjectTypeAttribute via
+        # the same Import→Catalog seam as ImportObjectCreator.
+        App\Import\Application\Service\AttributeAutoCreator:
+            - App\Catalog\Domain\AttributeType
+            - App\Catalog\Domain\Entity\Attribute
+            - App\Catalog\Domain\Entity\ObjectType
+            - App\Catalog\Domain\Entity\ObjectTypeAttribute
         # IMP2-2.4 — undo-log capture + rollback v2 reuse Catalog read/rebuild/
         # reindex via the same Import→Catalog seam as ImportObjectCreator.
         App\Import\Application\Service\ImportUndoLogger:

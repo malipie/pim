@@ -39,6 +39,7 @@ final class ImportObjectCreator
         private readonly CompositeValueParser $compositeValueParser,
         private readonly AssetUrlResolver $assetUrlResolver,
         private readonly OptionAutoCreator $optionAutoCreator,
+        private readonly AttributeAutoCreator $attributeAutoCreator,
     ) {
     }
 
@@ -83,7 +84,7 @@ final class ImportObjectCreator
         // object — so a mint flush only commits already-complete prior rows plus
         // the new option, never this half-built object (#1718 review).
         $assetIssues = [];
-        $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues, $createMissingOptions);
+        $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues, $createMissingOptions, $objectType);
         $this->em->persist($object);
         // A freshly created object has no existing values, so the `changed`
         // count is irrelevant (a created row is never a no-op skip) — only the
@@ -166,7 +167,7 @@ final class ImportObjectCreator
         $this->applyState($object, $status, $enabled, $variantAxes);
 
         $assetIssues = [];
-        $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues, $createMissingOptions);
+        $writes = $this->buildWrites($resolvedValues, $attributesByCode, $existingAssetIds, $assetIssues, $createMissingOptions, $object->getObjectType());
         $result = $this->valueWriter->writeMany($object, $writes, Provenance::Import);
 
         return [
@@ -189,7 +190,7 @@ final class ImportObjectCreator
      *
      * @return list<array{attribute: Attribute, envelope: array<string, mixed>, locale: ?string, channelId: ?Uuid}>
      */
-    private function buildWrites(array $resolvedValues, array $attributesByCode, array $existingAssetIds, array &$issues, bool $createMissingOptions): array
+    private function buildWrites(array $resolvedValues, array $attributesByCode, array $existingAssetIds, array &$issues, bool $createMissingOptions, ObjectType $objectType): array
     {
         $writes = [];
         foreach ($resolvedValues as $resolved) {
@@ -198,6 +199,12 @@ final class ImportObjectCreator
                 continue;
             }
             $attribute = $attributesByCode[$resolved->attributeCode] ?? null;
+            if (!$attribute instanceof Attribute && $createMissingOptions) {
+                // #1728 — the same opt-in mints a missing attribute (type
+                // inferred) attached to the target ObjectType, so a mapped
+                // column with no attribute yet is created, not dropped.
+                $attribute = $this->attributeAutoCreator->ensure($resolved->attributeCode, $objectType, $rawValue);
+            }
             if (!$attribute instanceof Attribute) {
                 continue;
             }

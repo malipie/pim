@@ -2527,8 +2527,8 @@
       "v_regex": "Regex per kolumna (np. EAN ^[0-9]{13}$)",
       "options_title": "Opcje słownikowe",
       "options_subtitle": "Co zrobić z wartościami select/multiselect spoza istniejącej listy",
-      "create_missing_options": "Twórz brakujące opcje (select/multiselect)",
-      "create_missing_options_hint": "Nieznane wartości zostaną dodane jako nowe opcje atrybutu (provenance: import). Domyślnie wyłączone — nieznana wartość kończy wiersz błędem."
+      "create_missing_options": "Twórz brakujące opcje i atrybuty",
+      "create_missing_options_hint": "Nieznane wartości select/multiselect zostaną dodane jako nowe opcje, a zmapowane kolumny bez atrybutu w modelu utworzą nowy atrybut (provenance: import). Domyślnie wyłączone — w przeciwnym razie nieznana wartość kończy wiersz błędem, a kolumna bez atrybutu jest pomijana."
     },
     "computed": {
       "title": "Nowa kolumna obliczona",
