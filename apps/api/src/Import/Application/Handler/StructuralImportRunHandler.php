@@ -13,19 +13,15 @@ use App\Import\Domain\Entity\ImportLog;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Enum\ImportLogLevel;
 use App\Import\Domain\Enum\ImportSessionStatus;
-use App\Import\Domain\Message\StructuralImportRunMessage;
 use App\Import\Domain\Repository\ImportLogRepositoryInterface;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
 use App\Shared\Application\BulkOperationInProgressException;
 use App\Shared\Application\BulkOperationLock;
-use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Tenant;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
 use LogicException;
 use RuntimeException;
-use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\Exception\RecoverableMessageHandlingException;
 
 use const PATHINFO_EXTENSION;
 
@@ -39,8 +35,11 @@ use const PATHINFO_EXTENSION;
  * upserts configuration entities through the Catalog CQRS commands instead of
  * writing CatalogObject + ObjectValue rows. No media / relation / rebuild
  * phases — these entities have none.
+ *
+ * Structural data is bounded-small by nature, so the start controller always
+ * calls {@see run()} inline — there is no async/worker path (and thus no
+ * dependency on the Messenger transport).
  */
-#[AsMessageHandler]
 final class StructuralImportRunHandler
 {
     /** Defensive cap on persisted ImportLog rows (structural files are small). */
@@ -53,37 +52,15 @@ final class StructuralImportRunHandler
         private readonly ImportProgressPublisher $progress,
         private readonly AttributeImportCreator $attributeCreator,
         private readonly AttributeGroupImportCreator $attributeGroupCreator,
-        private readonly TenantContext $tenantContext,
         private readonly FilesystemOperator $importsStorage,
         private readonly BulkOperationLock $bulkLock,
     ) {
     }
 
-    public function __invoke(StructuralImportRunMessage $message): void
-    {
-        $session = $this->sessions->findById($message->importSessionId);
-        if (!$session instanceof ImportSession) {
-            return;
-        }
-        $tenant = $session->getTenant();
-        if (!$tenant instanceof Tenant) {
-            $session->markFailed('Import session has no tenant assignment.');
-            $this->sessions->save($session);
-
-            return;
-        }
-        $this->tenantContext->set($tenant);
-
-        try {
-            $this->run($session);
-        } catch (BulkOperationInProgressException $exception) {
-            throw new RecoverableMessageHandlingException($exception->getMessage().' Will retry.', previous: $exception);
-        }
-    }
-
     /**
-     * Drives the row loop. Public so the synchronous `<50 rows` path on the
-     * start endpoint can call into the same logic without Messenger.
+     * Drives the row loop. Called inline from the start controller; throws
+     * {@see BulkOperationInProgressException} when another bulk job holds the
+     * per-tenant lock (the controller maps it to 409).
      */
     public function run(ImportSession $session): void
     {

@@ -141,11 +141,6 @@ framework:
             # on the same handler from the controller.
             App\Import\Domain\Message\ImportRunMessage: import
 
-            # Structural imports (attribute / attribute-group definitions). Same
-            # dedicated `import` queue; small files run inline from the start
-            # controller, larger ones hand off here.
-            App\Import\Domain\Message\StructuralImportRunMessage: import
-
             # IMP2-1.12 (#1475). Image-download batches buffered by the import
             # run and dispatched after the row phase. Same dedicated `import`
             # queue so media never starves UI-adjacent async jobs.
