@@ -12,10 +12,9 @@ use App\Import\Application\Service\Archive\XlsxArchiveGuard;
 use App\Import\Application\Service\StagedFileService;
 use App\Import\Domain\Entity\ImportSession;
 use App\Import\Domain\Entity\StagedFile;
-use App\Import\Domain\Message\StructuralImportRunMessage;
 use App\Import\Domain\Repository\ImportSessionRepositoryInterface;
+use App\Shared\Application\BulkOperationInProgressException;
 use App\Shared\Application\TenantContext;
-use App\Shared\Infrastructure\Messenger\Stamp\TenantStamp;
 use DateTimeInterface;
 use InvalidArgumentException;
 use League\Flysystem\FilesystemException;
@@ -27,11 +26,11 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
@@ -51,7 +50,6 @@ use Symfony\Component\Uid\Uuid;
  */
 final class StartStructuralImportController
 {
-    private const int SYNC_THRESHOLD_ROWS = 50;
     private const int DEFAULT_MAX_ROWS = 200_000;
     private const int DEFAULT_MAX_FILE_BYTES = 100 * 1024 * 1024;
 
@@ -60,7 +58,6 @@ final class StartStructuralImportController
     public function __construct(
         private readonly ImportSessionRepositoryInterface $sessions,
         private readonly StructuralImportRunHandler $runHandler,
-        private readonly MessageBusInterface $bus,
         private readonly Security $security,
         private readonly TenantContext $tenantContext,
         private readonly FilesystemOperator $importsStorage,
@@ -122,10 +119,12 @@ final class StartStructuralImportController
             }
         }
 
-        $dataRowCount = str_ends_with(strtolower($originalName), '.csv')
-            ? $this->countDataRows($localPath, self::DEFAULT_MAX_ROWS + 1)
-            : self::SYNC_THRESHOLD_ROWS + 1;
-        if ($dataRowCount > self::DEFAULT_MAX_ROWS) {
+        // Structural imports operate on configuration entities (attribute /
+        // attribute-group definitions), which are bounded-small by nature, so
+        // they always run inline — never through the Messenger worker. A CSV
+        // row count still guards against an absurdly large upload.
+        if (str_ends_with(strtolower($originalName), '.csv')
+            && $this->countDataRows($localPath, self::DEFAULT_MAX_ROWS + 1) > self::DEFAULT_MAX_ROWS) {
             throw new UnprocessableEntityHttpException(\sprintf('Plik przekracza limit %d wierszy.', self::DEFAULT_MAX_ROWS));
         }
 
@@ -165,22 +164,17 @@ final class StartStructuralImportController
             }
         }
 
-        if ($dataRowCount <= self::SYNC_THRESHOLD_ROWS) {
-            $reload = $this->sessions->findById($session->getId());
-            if ($reload instanceof ImportSession) {
-                $this->runHandler->run($reload);
-                $reload = $this->sessions->findById($session->getId()) ?? $reload;
-
-                return new JsonResponse($this->serialise($reload), Response::HTTP_OK);
-            }
+        $reload = $this->sessions->findById($session->getId()) ?? $session;
+        try {
+            $this->runHandler->run($reload);
+        } catch (BulkOperationInProgressException $exception) {
+            // PROD-05 — another bulk job holds the per-tenant lock. The session
+            // stays `pending`; the operator can retry once it releases.
+            throw new ConflictHttpException($exception->getMessage(), $exception);
         }
+        $reload = $this->sessions->findById($session->getId()) ?? $reload;
 
-        $this->bus->dispatch(new StructuralImportRunMessage(
-            importSessionId: $session->getId(),
-            tenantId: $tenant->getId(),
-        ), [new TenantStamp($tenant->getId())]);
-
-        return new JsonResponse($this->serialise($session), Response::HTTP_ACCEPTED);
+        return new JsonResponse($this->serialise($reload), Response::HTTP_OK);
     }
 
     private function resolveStagedFile(Request $request, User $user): ?StagedFile
