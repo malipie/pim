@@ -9,6 +9,7 @@ use App\Catalog\Domain\Entity\AttributeGroupAttribute;
 use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\Repository\AttributeOptionRepositoryInterface;
 use App\Catalog\Domain\Repository\AttributeRepositoryInterface;
+use App\Channel\Contracts\LocaleCodeResolverInterface;
 use App\Channel\Domain\Repository\TenantLocaleRepositoryInterface;
 use App\Export\Domain\Enum\ExportEntityType;
 use App\Shared\Domain\Tenant;
@@ -35,6 +36,7 @@ final readonly class AttributesGroupsExportBuilder implements StructuralExportBu
         private AttributeRepositoryInterface $attributes,
         private AttributeOptionRepositoryInterface $options,
         private TenantLocaleRepositoryInterface $locales,
+        private LocaleCodeResolverInterface $localeResolver,
         private EntityManagerInterface $em,
     ) {
     }
@@ -148,11 +150,14 @@ final readonly class AttributesGroupsExportBuilder implements StructuralExportBu
      */
     private function localeCodes(Tenant $tenant): array
     {
+        // Short codes (`pl`, not `pl_PL`): the JSONB label/help keys, the
+        // workspace locales and the import grammar all use the short form, so
+        // `label.{short}` is what round-trips on re-import.
         $codes = [];
         foreach ($this->locales->findActiveForTenant($tenant) as $tenantLocale) {
-            $codes[] = $tenantLocale->getLocale()->getCode();
+            $codes[$this->localeResolver->toShort($tenantLocale->getLocale()->getCode())] = true;
         }
 
-        return $codes;
+        return array_keys($codes);
     }
 }

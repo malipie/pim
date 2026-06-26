@@ -8,6 +8,7 @@ use App\Catalog\Domain\Entity\CatalogObject;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface;
 use App\Catalog\Domain\Repository\CategoryAttributeGroupRepositoryInterface;
+use App\Channel\Contracts\LocaleCodeResolverInterface;
 use App\Channel\Domain\Repository\TenantLocaleRepositoryInterface;
 use App\Export\Domain\Enum\ExportEntityType;
 use App\Shared\Domain\Tenant;
@@ -26,6 +27,7 @@ final readonly class CategoriesExportBuilder implements StructuralExportBuilderI
         private CatalogObjectRepositoryInterface $objects,
         private CategoryAttributeGroupRepositoryInterface $categoryGroups,
         private TenantLocaleRepositoryInterface $locales,
+        private LocaleCodeResolverInterface $localeResolver,
     ) {
     }
 
@@ -137,11 +139,13 @@ final readonly class CategoriesExportBuilder implements StructuralExportBuilderI
      */
     private function localeCodes(Tenant $tenant): array
     {
+        // Short codes (`pl`, not `pl_PL`): the JSONB name keys and the import
+        // grammar use the short form, so `name.{short}` is what round-trips.
         $codes = [];
         foreach ($this->locales->findActiveForTenant($tenant) as $tenantLocale) {
-            $codes[] = $tenantLocale->getLocale()->getCode();
+            $codes[$this->localeResolver->toShort($tenantLocale->getLocale()->getCode())] = true;
         }
 
-        return $codes;
+        return array_keys($codes);
     }
 }
