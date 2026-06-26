@@ -76,6 +76,49 @@ final class ValidateDryRunApiTest extends CatalogApiTestCase
     }
 
     #[Test]
+    public function skippedColumnWithADotInItsNameIsNotGrammarValidated(): void
+    {
+        $this->seedAttributesAndDuplicates();
+
+        // Supplier files routinely carry columns whose names contain a dot
+        // (e.g. "Imp.CodeNr"). When the operator skips such a column it must not
+        // be misread as an `attribute.locale` suffix and rejected — the dry-run
+        // must match the import, which already ignores skipped columns.
+        $csvPath = tempnam(sys_get_temp_dir(), 'dryrun-skip-').'.csv';
+        file_put_contents($csvPath, "sku;Imp.CodeNr\nSKU-1;some-supplier-code\n");
+
+        try {
+            $client = $this->authenticatedClient();
+            $client->request('POST', '/api/import-sessions/validate-dry-run', [
+                'extra' => [
+                    'parameters' => [
+                        'target_object_type_id' => $this->objectTypeIdFor(ObjectKind::Product),
+                        'mapping' => json_encode(['sku' => 'sku', 'Imp.CodeNr' => 'skip'], JSON_THROW_ON_ERROR),
+                    ],
+                    'files' => [
+                        'file' => new UploadedFile($csvPath, 'supplier.csv', 'text/csv', null, true),
+                    ],
+                ],
+            ]);
+
+            self::assertResponseIsSuccessful();
+            $response = $client->getResponse();
+            self::assertNotNull($response);
+            $body = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($body);
+
+            self::assertSame(0, $body['error_count'], 'A skipped dotted-name column must not raise a grammar error.');
+            self::assertSame(1, $body['success_count']);
+            self::assertStringNotContainsString(
+                'neither an active locale nor a channel code',
+                json_encode($body['top_errors'] ?? [], JSON_THROW_ON_ERROR),
+            );
+        } finally {
+            @unlink($csvPath);
+        }
+    }
+
+    #[Test]
     public function unsupportedExtensionReturns400(): void
     {
         $this->seedAttributesAndDuplicates();

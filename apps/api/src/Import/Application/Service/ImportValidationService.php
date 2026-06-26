@@ -150,6 +150,14 @@ final readonly class ImportValidationService
         $categoryCellValue = null;
         $categoryColumnName = null;
         foreach ($columnMapping as $columnHeader => $attributeCode) {
+            // A column the operator skipped (or left unmapped) is not imported,
+            // so its header grammar is irrelevant. Supplier files routinely carry
+            // columns whose names contain a dot (e.g. "Imp.CodeNr") — without this
+            // guard they are misread as an `attribute.locale` suffix and rejected.
+            if (ReservedMappingTarget::SKIP === $attributeCode || '' === $attributeCode) {
+                continue;
+            }
+
             $parsed = $this->columnGrammar->parse($columnHeader, $tenant);
             if (null !== $parsed->unknownSuffix) {
                 $errors[] = new ValidationError(
@@ -168,9 +176,6 @@ final readonly class ImportValidationService
             // completeness, …) never carry an Attribute value — skip them
             // so re-importing an export does not flag them.
             if (SystemColumn::isSystem($columnHeader)) {
-                continue;
-            }
-            if (ReservedMappingTarget::SKIP === $attributeCode || '' === $attributeCode) {
                 continue;
             }
             // IMP2-1.8 — parent_sku is wired in the two-pass relation step
