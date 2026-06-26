@@ -13,6 +13,8 @@ use App\Catalog\Domain\Entity\ObjectTypeAttribute;
 use App\Catalog\Domain\Entity\ObjectTypeAttributeGroup;
 use App\Catalog\Domain\ObjectKind;
 use App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface;
+use App\Channel\Domain\Entity\Locale;
+use App\Channel\Domain\Entity\TenantLocale;
 use App\Export\Application\Sync\SyncExportRunner;
 use App\Export\Domain\Entity\ExportSession;
 use App\Export\Domain\Enum\ExportEntityType;
@@ -31,6 +33,25 @@ use Symfony\Component\Uid\Uuid;
  */
 final class StructuralExportApiTest extends CatalogApiTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Active locales pl/en so the structural builders fan out label/help/
+        // description columns. The short code (`pl`) — not the full `pl_PL` —
+        // is what the JSONB labels are keyed by and what the import grammar
+        // expects, so the export columns must use it for a clean round-trip.
+        $tenant = $this->em()->getRepository(Tenant::class)->findOneBy(['code' => self::TENANT_CODE]);
+        \assert($tenant instanceof Tenant);
+        self::getContainer()->get(TenantContext::class)->set($tenant);
+        foreach ([['pl_PL', 'Polski', 'pl'], ['en_US', 'English', 'en']] as [$code, $label, $lang]) {
+            $locale = new Locale($code, $label, null, $lang);
+            $this->em()->persist($locale);
+            $this->em()->persist(new TenantLocale($locale));
+        }
+        $this->em()->flush();
+    }
+
     #[Test]
     public function moduleSchemaExportListsObjectTypes(): void
     {
@@ -88,7 +109,7 @@ final class StructuralExportApiTest extends CatalogApiTestCase
         $module->assignTenant($tenant);
         $group = new AttributeGroup(
             'marketing',
-            ['pl' => 'Marketing', 'en' => 'Marketing'],
+            ['pl' => 'Marketing PL', 'en' => 'Marketing EN'],
             0,
             null,
             ['pl' => 'Treści marketingowe', 'en' => 'Marketing content'],
@@ -104,6 +125,12 @@ final class StructuralExportApiTest extends CatalogApiTestCase
 
         self::assertStringContainsString('marketing', $csv);
         self::assertStringContainsString('megaphone', $csv);
+        // Localised name exports under the SHORT locale code (`label.pl`), not
+        // the full `label.pl_PL`, and carries the actual value — the bug that
+        // made the name column come out empty.
+        self::assertStringContainsString('label.pl', $csv);
+        self::assertStringNotContainsString('label.pl_PL', $csv);
+        self::assertStringContainsString('Marketing PL', $csv);
         // The group row carries its attached ObjectType code in object_types.
         self::assertMatchesRegularExpression('/marketing[^\n]*widgets/', $csv);
     }
