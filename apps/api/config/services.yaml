@@ -316,6 +316,18 @@ services:
             $httpClient: '@import.ssrf_safe_http_client'
             $importsStorage: '@imports.storage'
 
+    # APIC-P1-03 (ADR-0022) — SSRF-safe HTTP client for the API Configurator
+    # consumer connector. Same NoPrivateNetworkHttpClient wrapper as imports:
+    # per-redirect peer-IP validation backing the cheap SsrfGuard pre-filter.
+    generic.ssrf_safe_http_client:
+        class: Symfony\Component\HttpClient\NoPrivateNetworkHttpClient
+        arguments:
+            - '@http_client'
+
+    App\Integration\Generic\Infrastructure\Http\GenericRestClient:
+        arguments:
+            $httpClient: '@generic.ssrf_safe_http_client'
+
     # EXP-06 (#585) — async export worker. Same named-storage binding so
     # the handler can write the generated XLSX/CSV to MinIO under
     # `<tenant_id>/<session_id>.<format>` (PRD §11.1).
