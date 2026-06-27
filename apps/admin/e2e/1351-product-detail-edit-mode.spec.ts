@@ -108,3 +108,69 @@ test('product detail opens in edit mode with save + save-and-return actions', as
 
   await page.request.delete(`/api/products/${product.id}`, { headers: bearer });
 });
+
+/**
+ * Regression: the header name <Input> is controlled by `nameValue`. In edit
+ * mode `nameValue` previously read only the loaded `attrs.name` and ignored
+ * `dirtyFields.name`, so keystrokes were immediately overwritten on re-render
+ * and the field appeared locked. It must now reflect typed input and persist.
+ */
+test('product name is editable in the header and persists', async ({ page }) => {
+  test.setTimeout(120_000);
+
+  const loginResponse = await page.request.post('/api/auth/login', {
+    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
+    headers: { accept: 'application/json' },
+  });
+  expect(loginResponse.status()).toBe(200);
+  const { token } = (await loginResponse.json()) as { token: string };
+  const bearer = { authorization: `Bearer ${token}` };
+
+  await apiLogin(page);
+
+  const objectTypesResponse = await page.request.get('/api/object_types?itemsPerPage=200', {
+    headers: { ...bearer, accept: 'application/ld+json' },
+  });
+  const types =
+    (
+      (await objectTypesResponse.json()) as {
+        member?: Array<{ id: string; kind: string; codeImmutable: boolean }>;
+      }
+    ).member ?? [];
+  const productType = types.find((t) => t.kind === 'product' && t.codeImmutable);
+  if (productType === undefined) throw new Error('Built-in product ObjectType not seeded.');
+
+  const sku = `NM1351-${Date.now().toString(36).toUpperCase()}`;
+  const created = await page.request.post('/api/products', {
+    headers: { ...bearer, 'content-type': 'application/ld+json' },
+    data: { code: sku, objectTypeId: productType.id, attributes: { name: `Before ${sku}`, sku } },
+  });
+  expect(created.status()).toBe(201);
+  const product = (await created.json()) as { id: string };
+
+  await page.goto(`/products/${product.id}`);
+
+  const nameInput = page.getByRole('textbox', { name: /nazwa produktu|product name/i });
+  await expect(nameInput).toBeVisible({ timeout: 15_000 });
+  await expect(nameInput).toHaveValue(`Before ${sku}`);
+
+  // Core regression: typed value must stick in the controlled input.
+  const newName = `After ${sku}`;
+  await nameInput.fill(newName);
+  await expect(nameInput).toHaveValue(newName);
+
+  // Persist via the merge-patch path and confirm it round-trips.
+  const patch = await page.request.patch(`/api/objects/${product.id}`, {
+    headers: { ...bearer, 'content-type': 'application/merge-patch+json' },
+    data: { attributes: { name: newName } },
+  });
+  expect(patch.status(), await patch.text()).toBe(200);
+
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: /nazwa produktu|product name/i })).toHaveValue(
+    newName,
+    { timeout: 15_000 },
+  );
+
+  await page.request.delete(`/api/products/${product.id}`, { headers: bearer });
+});
