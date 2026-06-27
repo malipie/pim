@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Integration\Generic\Domain\Entity\Connection"
+            table="integration_connections"
+            repository-class="App\Integration\Generic\Infrastructure\Doctrine\Repository\DoctrineConnectionRepository">
+
+        <unique-constraints>
+            <unique-constraint name="integration_connections_tenant_code_uniq" columns="tenant_id,code"/>
+        </unique-constraints>
+
+        <indexes>
+            <index name="integration_connections_tenant_status_idx" columns="tenant_id,status"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="code" type="string" length="64"/>
+        <field name="name" type="string" length="255"/>
+        <field name="baseUrl" type="string" length="2048" column="base_url"/>
+        <field name="authType" type="string" length="16" column="auth_type">
+            <options>
+                <option name="default">none</option>
+            </options>
+        </field>
+        <field name="credentialsCiphertext" type="text" column="credentials_ciphertext" nullable="true"/>
+        <field name="credentialsKeyVersion" type="integer" column="credentials_key_version" nullable="true"/>
+        <field name="defaultHeaders" type="json" column="default_headers">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">{}</option>
+            </options>
+        </field>
+        <field name="rateLimitHint" type="integer" column="rate_limit_hint" nullable="true"/>
+        <field name="status" type="string" length="16">
+            <options>
+                <option name="default">draft</option>
+            </options>
+        </field>
+        <field name="lastHealthCheckAt" type="datetimetz_immutable" column="last_health_check_at" nullable="true"/>
+        <field name="createdAt" type="datetimetz_immutable" column="created_at"/>
+        <field name="updatedAt" type="datetimetz_immutable" column="updated_at"/>
+
+    </entity>
+
+</doctrine-mapping>
