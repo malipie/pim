@@ -132,6 +132,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/ApiConfigurator/Infrastructure/Doctrine/Orm/Mapping'
                 prefix: 'App\ApiConfigurator\Domain\Entity'
                 alias: ApiConfigurator
+            Integration:
+                type: xml
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Integration/Generic/Infrastructure/Doctrine/Orm/Mapping'
+                prefix: 'App\Integration\Generic\Domain\Entity'
+                alias: Integration
             Import:
                 type: xml
                 is_bundle: false

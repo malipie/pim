@@ -142,6 +142,9 @@ parameters:
               - src/Import/Domain/Entity/ImportSource.php
               - src/Import/Domain/Entity/ImportSourceLog.php
               - src/Import/Domain/Entity/ImportSchedule.php
+              # Integration/Generic (ADR-0022, epic APIC) — also extends
+              # AggregateRoot, same `?Tenant` write-window as the Import group.
+              - src/Integration/Generic/Domain/Entity/Connection.php
               - src/Import/Domain/Entity/ImportScheduleRun.php
               - src/Export/Domain/Entity/ExportSession.php
               - src/Export/Domain/Entity/ExportProfile.php
