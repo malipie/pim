@@ -138,11 +138,34 @@ parameters:
               - type: directory
                 value: 'src/Backup/Contracts/.*'
 
-        # ─── Forward-compatible BCs (empty today) ──────────────────────
+        # ─── Integration (consumer connectors — ADR-0022, epic APIC) ───
+        # The generic REST/JSON connector lives in its own sub-context with the
+        # standard Internals + Contracts split (cross-BC only through Contracts).
+        # The parent Integration layer keeps any future top-level / per-bundle
+        # code (BaseLinker, Shopify) governed until those add their own layers.
         - name: Integration
           collectors:
+              - type: bool
+                must:
+                    - type: directory
+                      value: 'src/Integration/.*'
+                must_not:
+                    - type: directory
+                      value: 'src/Integration/Generic/.*'
+        - name: Integration_Generic_Internals
+          collectors:
               - type: directory
-                value: 'src/Integration/.*'
+                value: 'src/Integration/Generic/Domain/.*'
+              - type: directory
+                value: 'src/Integration/Generic/Application/.*'
+              - type: directory
+                value: 'src/Integration/Generic/Infrastructure/.*'
+              - type: directory
+                value: 'src/Integration/Generic/Presentation/.*'
+        - name: Integration_Generic_Contracts
+          collectors:
+              - type: directory
+                value: 'src/Integration/Generic/Contracts/.*'
         - name: Agent
           collectors:
               - type: directory
@@ -313,6 +336,18 @@ parameters:
             - Channel_Contracts
             - Asset_Contracts
             - Identity_Contracts
+            - Vendor
+
+        Integration_Generic_Internals:
+            - Integration_Generic_Contracts
+            - Shared
+            - Catalog_Contracts
+            - Channel_Contracts
+            - Asset_Contracts
+            - Identity_Contracts
+            - Vendor
+        Integration_Generic_Contracts:
+            - Shared
             - Vendor
 
         Agent:
