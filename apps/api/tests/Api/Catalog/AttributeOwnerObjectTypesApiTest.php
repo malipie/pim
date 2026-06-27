@@ -95,31 +95,38 @@ final class AttributeOwnerObjectTypesApiTest extends CatalogApiTestCase
     }
 
     #[Test]
-    public function getReturnsAllOwnersWhenAttributeIsAttachedToMultipleObjectTypes(): void
+    public function ownerListReflectsModelableAttachesAndExcludesClosedSystemKinds(): void
     {
         $client = $this->authenticatedClient();
-        // Pick a non-system attribute code (`code` is unique per tenant) and
-        // attach it to two kinds via the existing bulk-attach plumbing.
+        // `code` is unique per tenant. Product is attribute-modelable; Category
+        // is a closed system kind (amends ADR-009) whose schema is platform-
+        // managed and rejects attribute attach — so it must never surface among
+        // an attribute's owner ObjectTypes.
         $attr = $this->seedAttribute('mod_attr_multi_owner');
 
         $productOtId = $this->objectTypeIdFor(ObjectKind::Product);
         $categoryOtId = $this->objectTypeIdFor(ObjectKind::Category);
 
+        // Product attach succeeds (attribute-modelable kind).
         $client->request('POST', '/api/object_types/'.$productOtId.'/attributes/bulk-attach', [
             'headers' => ['content-type' => 'application/json'],
             'body' => json_encode(['attributeIds' => [$attr->getId()->toRfc4122()]], JSON_THROW_ON_ERROR),
         ]);
+
+        // Category attach is rejected — closed system kind.
         $client->request('POST', '/api/object_types/'.$categoryOtId.'/attributes/bulk-attach', [
             'headers' => ['content-type' => 'application/json'],
             'body' => json_encode(['attributeIds' => [$attr->getId()->toRfc4122()]], JSON_THROW_ON_ERROR),
         ]);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
 
+        // The owner endpoint lists only the modelable (Product) owner.
         $body = $client->request(
             'GET',
             '/api/attributes/'.$attr->getId()->toRfc4122().'/owner_object_types',
         )->toArray();
 
-        self::assertEqualsCanonicalizing([$productOtId, $categoryOtId], $body['objectTypeIds']);
+        self::assertSame([$productOtId], $body['objectTypeIds']);
     }
 
     #[Test]
