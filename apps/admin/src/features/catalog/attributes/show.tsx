@@ -388,7 +388,7 @@ function Editor({
             <DialogDescription>
               {t('attributes.delete.confirm_body', {
                 defaultValue:
-                  'Atrybut "{{code}}" zostanie trwale usunięty wraz z jego wartościami słownikowymi. Tej operacji nie można cofnąć.',
+                  'Atrybut "{{code}}" zostanie trwale usunięty wraz z jego wartościami słownikowymi. Jeśli atrybut nie jest już przypisany do żadnego typu, grupy ani kategorii, jego osierocone wartości na obiektach również zostaną usunięte. Tej operacji nie można cofnąć.',
                 code: attribute.code,
               })}
             </DialogDescription>
