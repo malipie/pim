@@ -7,6 +7,13 @@
 - **Epik:** IMP2 — Import/Export v2 engine ([#1499](https://github.com/malipie/PIM/issues/1499), ADR-0019). Kontrakty silnika + warstwy Deptrac Import/Export.
 - **Backlog ticketów (source of truth speców):** `Project Plan/UI/feature-imports-v2-tickets.md` (Issues #1460–#1499).
 
+## 2026-06-26: Epik APIC — Uniwersalny Konfigurator API (backlog utworzony, implementacja niezaczęta)
+- **Co:** rozpisanie planu `feature-api-configurator-uniwersalny-plan.md` na wykonalny backlog (brief §10). Cel: warstwa mapująca PIM ↔ dowolne REST/JSON API (oba kierunki, harmonogram), konsument (`src/Integration/Generic/`, greenfield) + producent (`src/ApiConfigurator/`, domknięcie zalążka).
+- **Deliverables:** **ADR-0022** (`docs/adr/0022-...md` + streszczenie §13; numer skorygowany z błędnego „ADR-016" — ADR-0016 to format kluczy API). Backlog **`Project Plan/feature-api-configurator-tickets.md`** = 48 ticketów MVP + 8 hooków, prefix `APIC`, 6 milestone'ów M0–M5. Designy: `Zrodla/.../integracje/api-*.jsx` (8 ekranów).
+- **GitHub:** label `epik-API-CONFIG` + milestone'y M0–M5 + 48 issues MVP (utworzone w sesji backlogowej; hooki §7 bez issue do czasu wejścia w scope).
+- **Następny krok:** APIC-P0-01 (ADR review) → APIC-P0-02 (Deptrac `Integration/Generic`+Contracts) → APIC-P1-01 (Connection entity). Ścieżka krytyczna do pierwszego inbound sync: 15 ticketów BE/SEC z M0–M3.
+- **Blokery:** brak. Tickety [PM] (cross-context/architektura): P0-01/02, P1-01/03, P3-04/05/06/08 — wymagają Plan Mode przed implementacją.
+
 ## Najnowsze bug-fixy (2026-06-20, post-Wave 3)
 - **#1673** `fix(catalog)` — walidacja zapisu egzekwuje atrybuty wymagane-w-grupie (PR #1674, merged `d0260c34`). Gwiazdka „wymagane" pokazywała `is_required||is_required_in_group`, save-guard sprawdzał tylko `is_required` → pole z gwiazdką zapisywało się puste. Wspólny helper `isAttributeRequired`; blokada **w edit** (create global-only, by nie blokować szkicu). Live proof: spec `1673` + unit 6/6 + produkt `019ee1a6` `description.is_required_in_group=true`.
 - **#1678** `fix(import)` — kafelkowy krok „Wybierz dane do importu" w kreatorze (PR #1679, merged `37b8f902`). Analogiczny do eksportu, reużywa generyczne `SelectableCard`/`SelectableCardGroup`: Produkty / Moduły własne (dropdown custom OT) / Kategorie aktywne; Schemat modułów + Atrybuty i grupy „wkrótce". Kreator 6→7 kroków; wybór mapuje na `targetObjectTypeId`. **Rework błędnego #1675/#1676** (operator chciał kafelków jak eksport, nie Combobox „Co importujesz?"). Live proof: spec `1675`+`1429`+a11y zielone, import do custom typu success 2/2. Schemat/Atrybuty = osobne tickety (import per ObjectType, nie metadane).

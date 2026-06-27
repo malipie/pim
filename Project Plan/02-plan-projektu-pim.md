@@ -313,7 +313,9 @@ Aby utrzymać Fazę 0 w realnym budżecie (156-235h, sekcja 7 — okrojony / pe�
 - 0.9.10 Testy integracyjne z Shopify Partners development store (free) — happy path + scenariusze błędów (throttling, niewłaściwy token, metafield over limit).
 - 0.9.11 **Punkty rozważenia migracji na Bulk Operations + Leaky Bucket w fazie 1**: (a) 90-percentyl czasu pełnego sync 50k SKU przekroczy 60 min, (b) klient enterprise zażąda <30 min full sync, lub (c) backoff marnuje >20% dostępnego rate limitu Shopify (mierzone przez `extensions.cost.throttleStatus.currentlyAvailable` zalogowane w sync_jobs po każdym requeście — proste zliczenie bez aktywnego sterowania).
 
-#### Epik 0.10: API Configurator (8-12h)
+#### Epik 0.10: API Configurator (8-12h) — ROZSZERZONY do Uniwersalnego Konfiguratora API (epik APIC, ~316-448h, ADR-0022)
+
+> **Rewizja 2026-06-26 (ADR-0022):** pierwotny scope 0.10 (poniżej, tylko strona **producenta** — ApiProfile/ApiKey/webhooki) został wchłonięty przez większy epik **Uniwersalny Konfigurator API** dodający stronę **konsumenta** (PIM woła dowolne zewnętrzne REST/JSON API, oba kierunki, mapowanie 1:1, harmonogram synchronizacji). Konsument = greenfield w `src/Integration/Generic/`; producent = domknięcie zalążka `src/ApiConfigurator/`. Pełen backlog (48 ticketów MVP + 8 hooków, prefix `APIC`, milestone'y M0–M5): **`feature-api-configurator-tickets.md`**. Architektura: `feature-api-configurator-uniwersalny-plan.md`. Decyzja: ADR-0022 (`docs/adr/0022-...md`). Designy UI: `Zrodla/Front_Claude_Design/NOWY UI/PIM-nowoczesny/integracje/api-*.jsx`. Pozycje 0.10.1–0.10.6 poniżej mapują się na tickety producenta M4 (APIC-P4-03..08).
 
 > **Po ADR-009:** API Profile filtruje per `object_type_id` + per atrybut. Klient B2B może mieć profil "Storefront" widzący tylko `kind='product'` z wybranymi atrybutami; profil "SiteMap" widzący tylko `kind='category'` z polami SEO. Estymacja bez zmian.
 
