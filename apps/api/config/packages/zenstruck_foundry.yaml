@@ -13,4 +13,14 @@ when@dev: &dev
     #        autowire: true
     #        autoconfigure: true
 
-when@test: *dev
+when@test:
+    zenstruck_foundry:
+        persistence:
+            # Flush only once per call of `PersistentObjectFactory::create()`
+            flush_once: true
+        # AUD-082 — seed the tenant-agnostic permission catalogue exactly once
+        # per test session instead of in every ApiTestCase::setUp(). Foundry
+        # commits global state before the per-test DAMA transaction, so it
+        # survives every rollback. See App\Tests\State\DefaultTestState.
+        global_state:
+            - 'App\Tests\State\DefaultTestState'
