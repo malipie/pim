@@ -52,9 +52,9 @@ const KonfiguratorApiLayout = lazyPage(
   () => import('@/features/api-configurator/layout/KonfiguratorApiLayout'),
   'KonfiguratorApiLayout',
 );
-const ConnectionsHubPlaceholder = lazyPage(
-  () => import('@/features/api-configurator/consumer/ConnectionsHubPlaceholder'),
-  'ConnectionsHubPlaceholder',
+const ConnectionsHubPage = lazyPage(
+  () => import('@/features/api-configurator/consumer/ConnectionsHubPage'),
+  'ConnectionsHubPage',
 );
 const ApiMonitorPlaceholder = lazyPage(
   () => import('@/features/api-configurator/monitor/ApiMonitorPlaceholder'),
@@ -328,6 +328,11 @@ function App() {
               create: '/integrations/api-configurator/create',
               edit: '/integrations/api-configurator/:id/edit',
               show: '/integrations/api-configurator/:id',
+            },
+            {
+              // APIC-P1-07 — consumer connections (GET /api/connections).
+              name: 'connections',
+              list: '/integrations/api-configurator/connections',
             },
             {
               // RBAC-P5-001 (#691) — Settings → Users list. The page lives at
@@ -621,7 +626,7 @@ function App() {
                     />
                     <Route
                       path="/integrations/api-configurator/connections"
-                      element={<ConnectionsHubPlaceholder />}
+                      element={<ConnectionsHubPage />}
                     />
                     <Route
                       path="/integrations/api-configurator/monitor"
