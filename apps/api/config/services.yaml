@@ -328,6 +328,10 @@ services:
         arguments:
             $httpClient: '@generic.ssrf_safe_http_client'
 
+    # APIC-P1-09 — backoff policy needs the real blocking sleeper.
+    App\Integration\Generic\Application\Sleeper:
+        alias: App\Integration\Generic\Infrastructure\Http\RealSleeper
+
     # EXP-06 (#585) — async export worker. Same named-storage binding so
     # the handler can write the generated XLSX/CSV to MinIO under
     # `<tenant_id>/<session_id>.<format>` (PRD §11.1).
