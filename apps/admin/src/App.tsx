@@ -56,6 +56,10 @@ const ConnectionsHubPage = lazyPage(
   () => import('@/features/api-configurator/consumer/ConnectionsHubPage'),
   'ConnectionsHubPage',
 );
+const ConnectionWizardPage = lazyPage(
+  () => import('@/features/api-configurator/consumer/wizard/ConnectionWizardPage'),
+  'ConnectionWizardPage',
+);
 const ApiMonitorPlaceholder = lazyPage(
   () => import('@/features/api-configurator/monitor/ApiMonitorPlaceholder'),
   'ApiMonitorPlaceholder',
@@ -627,6 +631,10 @@ function App() {
                     <Route
                       path="/integrations/api-configurator/connections"
                       element={<ConnectionsHubPage />}
+                    />
+                    <Route
+                      path="/integrations/api-configurator/connections/new"
+                      element={<ConnectionWizardPage />}
                     />
                     <Route
                       path="/integrations/api-configurator/monitor"
