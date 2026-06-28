@@ -1767,6 +1767,20 @@
       }
     }
   },
+  "api_configurator": {
+    "shell": {
+      "tabs_aria": "Sekcje Konfiguratora API",
+      "tabs": {
+        "connections": "Połączenia",
+        "producer": "Moje API",
+        "monitor": "Monitor"
+      },
+      "connections_soon_title": "Połączenia — wkrótce",
+      "connections_soon_desc": "Tu pojawi się lista połączeń z zewnętrznymi API wraz ze statusem i ostatnią synchronizacją. Tworzenie i konfiguracja połączeń dochodzą w kolejnych krokach.",
+      "monitor_soon_title": "Monitor synchronizacji — wkrótce",
+      "monitor_soon_desc": "Historia uruchomień synchronizacji z drill-downem do błędów per rekord."
+    }
+  },
   "api_profiles": {
     "list_title": "Profile API",
     "list_subtitle": "Presety per integrator — widoczne typy obiektów, atrybuty, filtry, webhooki.",

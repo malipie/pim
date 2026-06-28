@@ -1719,6 +1719,20 @@
       }
     }
   },
+  "api_configurator": {
+    "shell": {
+      "tabs_aria": "API Configurator sections",
+      "tabs": {
+        "connections": "Connections",
+        "producer": "My API",
+        "monitor": "Monitor"
+      },
+      "connections_soon_title": "Connections — coming soon",
+      "connections_soon_desc": "The list of external-API connections with their status and last sync will appear here. Creating and configuring connections lands in the next steps.",
+      "monitor_soon_title": "Sync monitor — coming soon",
+      "monitor_soon_desc": "Sync run history with per-record error drill-down."
+    }
+  },
   "api_profiles": {
     "list_title": "API Profiles",
     "list_subtitle": "Per-integrator presets — visible ObjectTypes, attributes, filters, webhooks.",
