@@ -48,6 +48,18 @@ const ApiProfileShowPage = lazyPage(
   () => import('@/features/api-configurator/api-profiles/show'),
   'ApiProfileShowPage',
 );
+const KonfiguratorApiLayout = lazyPage(
+  () => import('@/features/api-configurator/layout/KonfiguratorApiLayout'),
+  'KonfiguratorApiLayout',
+);
+const ConnectionsHubPlaceholder = lazyPage(
+  () => import('@/features/api-configurator/consumer/ConnectionsHubPlaceholder'),
+  'ConnectionsHubPlaceholder',
+);
+const ApiMonitorPlaceholder = lazyPage(
+  () => import('@/features/api-configurator/monitor/ApiMonitorPlaceholder'),
+  'ApiMonitorPlaceholder',
+);
 const AssetsListPage = lazyPage(() => import('@/features/asset/assets/list'), 'AssetsListPage');
 const AssetShowPage = lazyPage(() => import('@/features/asset/assets/show'), 'AssetShowPage');
 const AttributeGroupCreatePage = lazyPage(
@@ -598,19 +610,32 @@ function App() {
                   </Route>
                   <Route path="/integrations/imports/new" element={<ImportWizardPage />} />
                   <Route path="/integrations/imports/:id" element={<ImportShowPage />} />
-                  <Route path="/integrations/api-configurator" element={<ApiProfilesListPage />} />
-                  <Route
-                    path="/integrations/api-configurator/create"
-                    element={<ApiProfileCreatePage />}
-                  />
-                  <Route
-                    path="/integrations/api-configurator/:id/edit"
-                    element={<ApiProfileEditPage />}
-                  />
-                  <Route
-                    path="/integrations/api-configurator/:id"
-                    element={<ApiProfileShowPage />}
-                  />
+                  <Route element={<KonfiguratorApiLayout />}>
+                    <Route
+                      path="/integrations/api-configurator"
+                      element={<ApiProfilesListPage />}
+                    />
+                    <Route
+                      path="/integrations/api-configurator/create"
+                      element={<ApiProfileCreatePage />}
+                    />
+                    <Route
+                      path="/integrations/api-configurator/connections"
+                      element={<ConnectionsHubPlaceholder />}
+                    />
+                    <Route
+                      path="/integrations/api-configurator/monitor"
+                      element={<ApiMonitorPlaceholder />}
+                    />
+                    <Route
+                      path="/integrations/api-configurator/:id/edit"
+                      element={<ApiProfileEditPage />}
+                    />
+                    <Route
+                      path="/integrations/api-configurator/:id"
+                      element={<ApiProfileShowPage />}
+                    />
+                  </Route>
                   <Route
                     path="/integrations"
                     element={<Navigate to="/integrations/imports/sessions" replace />}
