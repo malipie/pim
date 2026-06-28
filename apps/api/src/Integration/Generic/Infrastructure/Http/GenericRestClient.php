@@ -31,7 +31,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * status is returned on the {@see GenericRestResponse}, not thrown — only true
  * transport failures (DNS/TLS/timeout) and over-size responses raise.
  */
-final readonly class GenericRestClient
+final readonly class GenericRestClient implements RemoteRequester
 {
     private const int TIMEOUT_SECONDS = 30;
     private const int MAX_DURATION_SECONDS = 60;
