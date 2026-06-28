@@ -147,6 +147,7 @@ parameters:
               - src/Integration/Generic/Domain/Entity/Connection.php
               - src/Integration/Generic/Domain/Entity/RemoteEndpoint.php
               - src/Integration/Generic/Domain/Entity/RemoteField.php
+              - src/Integration/Generic/Domain/Entity/FieldMapping.php
               - src/Import/Domain/Entity/ImportScheduleRun.php
               - src/Export/Domain/Entity/ExportSession.php
               - src/Export/Domain/Entity/ExportProfile.php
