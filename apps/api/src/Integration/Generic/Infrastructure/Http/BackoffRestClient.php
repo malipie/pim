@@ -23,7 +23,7 @@ use Psr\Log\NullLogger;
  * edge (the existing `integration_sync` limiter, 10/h/tenant), not per HTTP
  * call — a per-call bucket would starve legitimate bulk syncs.
  */
-final readonly class BackoffRestClient
+final readonly class BackoffRestClient implements RemoteRequester
 {
     private const int MAX_ATTEMPTS = 5;
     private const int MAX_BACKOFF_SECONDS = 60;

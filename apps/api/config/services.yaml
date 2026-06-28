@@ -65,6 +65,11 @@ services:
         ApiPlatform\Doctrine\Orm\Filter\FilterInterface:
             tags: ['api_platform.filter']
 
+        # APIC-P2-03 — collect the consumer pagination drivers so
+        # PaginationStrategies can index them by name.
+        App\Integration\Generic\Infrastructure\Http\Pagination\PaginationStrategy:
+            tags: ['integration.pagination_strategy']
+
     App\:
         resource: '../src/'
 
@@ -331,6 +336,15 @@ services:
     # APIC-P1-09 — backoff policy needs the real blocking sleeper.
     App\Integration\Generic\Application\Sleeper:
         alias: App\Integration\Generic\Infrastructure\Http\RealSleeper
+
+    # APIC-P2-03 — consumers that want resilience (pagination, sync) depend on
+    # the RemoteRequester seam; bind it to the 429/503-retrying client.
+    App\Integration\Generic\Infrastructure\Http\RemoteRequester:
+        alias: App\Integration\Generic\Infrastructure\Http\BackoffRestClient
+
+    App\Integration\Generic\Infrastructure\Http\Pagination\PaginationStrategies:
+        arguments:
+            $strategies: !tagged_iterator integration.pagination_strategy
 
     # EXP-06 (#585) — async export worker. Same named-storage binding so
     # the handler can write the generated XLSX/CSV to MinIO under
