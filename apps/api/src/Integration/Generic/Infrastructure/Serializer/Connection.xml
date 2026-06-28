@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <!--
+      Read projection for the Connection resource. The encrypted-credential
+      columns (credentialsCiphertext / credentialsKeyVersion) are deliberately
+      ABSENT, so secrets can never be serialised back out (APIC-P1-02/P1-06).
+    -->
+    <class name="App\Integration\Generic\Domain\Entity\Connection">
+        <attribute name="id">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="code">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="name">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="baseUrl">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="authType">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="defaultHeaders">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="rateLimitHint">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="status">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="lastHealthCheckAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="updatedAt">
+            <group>admin:read</group>
+        </attribute>
+    </class>
+</serializer>
