@@ -4,7 +4,18 @@
 > Przepisany 2026-06-13 (poprzednie 2066 linii append-only logu, m.in. epiki NUI/UI/RBAC — w historii gita).
 
 ## Gdzie jesteśmy
-- **Epik:** IMP2 — Import/Export v2 engine ([#1499](https://github.com/malipie/PIM/issues/1499), ADR-0019). Kontrakty silnika + warstwy Deptrac Import/Export.
+- **Epik:** APIC — Uniwersalny Konfigurator API ([backlog](../Project%20Plan/feature-api-configurator-tickets.md), ADR-0022). Konsument `src/Integration/Generic/`.
+- **Backlog ticketów (source of truth speców):** `Project Plan/feature-api-configurator-tickets.md` (Issues #1756–#1803).
+- **Stan (2026-06-29):** **M1 (Consumer Foundation) + M2 (Descriptor+Mapping) KOMPLETNE i zmergowane.** M3 (Sync Engines) — fundament gotowy: SyncBinding (#1827), SyncRun+SyncRunLog (#1828), CursorManager (#1829). **Następne M3 tickety P3-04/05/06/08 = [PM] cross-context** (InboundSyncHandler→ValueWriteCore, Messenger+RLS-GUC routing, OutboundSyncHandler→Export engine, ConflictResolver) — wymagają decyzji architektonicznej operatora przed wpięciem w Catalog/Export/Messenger.
+
+## APIC — postęp implementacji (2026-06-28/29)
+- **M1 Consumer Foundation:** P1-07 hub (#1816), P1-08 wizard kroki 1–2 (#1817) + backend P1-01..09 (wcześniej).
+- **M2 Descriptor + Mapping (KOMPLETNE):** P2-01 RemoteEndpoint (#1818), P2-02 RemoteField (#1819), P2-03 pagination (#1820), P2-04 SchemaDiscovery (#1821), P2-05 descriptor CRUD + discover (#1822), P2-06 wizard 3–4 (#1823), P2-07 FieldMapping (#1824), P2-08 FieldMapping API + validate (#1825), P2-09 mapping screen (#1826). P2-10/11 = deferred §7 hooks.
+- **M3 Sync Engines (fundament):** P3-01 SyncBinding (#1827), P3-02 SyncRun+SyncRunLog (#1828), P3-03 CursorManager (#1829).
+- **Wzorzec per ticket:** branch → kod → bramki w kontenerze api (PHPStan max + Deptrac + CS-Fixer + PHPUnit; ApiTestCase = CI-only przez lokalny JWT `bad decrypt`) → OpenAPI regen (byte-identical, `APP_DEBUG=0` + `python3 -m json.tool`) → PR → justified-merge gdy relevantne bramki zielone.
+
+## (poprzedni epik) IMP2 — Import/Export v2 engine
+- **Epik:** IMP2 ([#1499](https://github.com/malipie/PIM/issues/1499), ADR-0019). Kontrakty silnika + warstwy Deptrac Import/Export.
 - **Backlog ticketów (source of truth speców):** `Project Plan/UI/feature-imports-v2-tickets.md` (Issues #1460–#1499).
 
 ## 2026-06-26: Epik APIC — Uniwersalny Konfigurator API (backlog utworzony, implementacja niezaczęta)
