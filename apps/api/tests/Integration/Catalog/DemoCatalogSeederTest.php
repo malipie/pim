@@ -49,24 +49,26 @@ final class DemoCatalogSeederTest extends KernelTestCase
         $seeder->seed($this->tenant);
 
         $em = $this->em();
-        // 28 attributes (19 base + 8 VIEW-02 mockup additions: ip_rating,
-        // vat_rate, currency_code, warranty_months, voltage, power_w,
-        // requires_referral, eol_date + 1 VIEW-07.2 `description_rich`
-        // wysiwyg) spanning the 11 user-facing AttributeType cases.
-        self::assertSame(28, (int) $em->createQuery('SELECT COUNT(a) FROM '.Attribute::class.' a')->getSingleScalarResult());
+        // 24 attributes: 16 product/base + 8 VIEW-02 mockup additions
+        // (ip_rating, vat_rate, currency_code, warranty_months, voltage,
+        // power_w, requires_referral, eol_date). seo_title / seo_description /
+        // alt_text / caption were dropped when Asset / Category became closed
+        // system kinds (amends ADR-009).
+        self::assertSame(24, (int) $em->createQuery('SELECT COUNT(a) FROM '.Attribute::class.' a')->getSingleScalarResult());
         // 100 products + 5 categories + 10 assets.
         self::assertSame(100, $this->countObjects(ObjectKind::Product));
         self::assertSame(5, $this->countObjects(ObjectKind::Category));
         self::assertSame(10, $this->countObjects(ObjectKind::Asset));
-        // 16 product junctions (incl. VIEW-07.2 `description_rich`) +
-        // 4 category junctions + 3 asset junctions.
+        // 16 product junctions only — Asset / Category are closed system kinds
+        // and carry zero `object_type_attributes` rows.
         // Composite PK on ObjectTypeAttribute prevents DQL COUNT — drop to DBAL.
         $junctions = $em->getConnection()->fetchOne('SELECT COUNT(*) FROM object_type_attributes');
-        self::assertSame(23, (int) (\is_scalar($junctions) ? $junctions : 0));
-        // 100 × 15 + 5 × 3 + 10 × 2 = 1535 global ObjectValue rows
-        // + #1259: first 5 products each get per-locale EN name + description +
-        //   short_description (5 × 3 = 15). No channelId here → no per-channel rows.
-        self::assertSame(1550, (int) $em->createQuery('SELECT COUNT(v) FROM '.ObjectValue::class.' v')->getSingleScalarResult());
+        self::assertSame(16, (int) (\is_scalar($junctions) ? $junctions : 0));
+        // 100 × 15 (product) + 5 × 1 (category name) + 10 × 1 (asset name)
+        // = 1515 global ObjectValue rows + #1259: first 5 products each get
+        // per-locale EN name + description + short_description (5 × 3 = 15).
+        // No channelId here → no per-channel rows.
+        self::assertSame(1530, (int) $em->createQuery('SELECT COUNT(v) FROM '.ObjectValue::class.' v')->getSingleScalarResult());
     }
 
     #[Test]
@@ -134,24 +136,43 @@ final class DemoCatalogSeederTest extends KernelTestCase
     }
 
     #[Test]
-    public function categorySchemaIncludesOwnUserDefinedAttributes(): void
+    public function assetAndCategoryAreClosedSystemKindsWithNoAttachedAttributes(): void
     {
-        // Proof of ADR-009: categories carry their own user-defined fields,
-        // not just inherited product attributes.
+        // Amends ADR-009: Asset / Category are closed system kinds. They
+        // carry zero `object_type_attributes` junctions and only the
+        // intrinsic `name` (display label) in their indexed cache — no
+        // seo_title / seo_description / alt_text / caption.
         $seeder = self::getContainer()->get(DemoCatalogSeeder::class);
         $seeder->seed($this->tenant);
 
         $em = $this->em();
         $em->clear();
 
-        $category = self::getContainer()->get(\App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface::class)
-            ->findByCode('CAT-FOOTWEAR', ObjectKind::Category, $this->tenant);
+        $repo = self::getContainer()->get(\App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface::class);
+        $objectRepo = self::getContainer()->get(\App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface::class);
+
+        foreach ([ObjectKind::Category, ObjectKind::Asset] as $kind) {
+            $type = $repo->findBuiltInByKind($kind, $this->tenant);
+            self::assertNotNull($type);
+            $count = $em->getConnection()->fetchOne(
+                'SELECT COUNT(*) FROM object_type_attributes WHERE object_type_id = ?',
+                [$type->getId()->toRfc4122()],
+            );
+            self::assertSame(0, (int) (\is_scalar($count) ? $count : -1), \sprintf('%s must have zero attached attributes.', $kind->value));
+        }
+
+        $category = $objectRepo->findByCode('CAT-FOOTWEAR', ObjectKind::Category, $this->tenant);
         self::assertNotNull($category);
         $indexed = $category->getAttributesIndexed();
-
         self::assertArrayHasKey('name', $indexed);
-        self::assertArrayHasKey('seo_title', $indexed);
-        self::assertArrayHasKey('seo_description', $indexed);
+        self::assertArrayNotHasKey('seo_title', $indexed);
+        self::assertArrayNotHasKey('seo_description', $indexed);
+
+        $asset = $objectRepo->findByCode('ASSET-001', ObjectKind::Asset, $this->tenant);
+        self::assertNotNull($asset);
+        $assetIndexed = $asset->getAttributesIndexed();
+        self::assertArrayHasKey('name', $assetIndexed);
+        self::assertArrayNotHasKey('alt_text', $assetIndexed);
     }
 
     #[Test]

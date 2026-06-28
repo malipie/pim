@@ -18,8 +18,9 @@ use Symfony\Component\Validator\Constraints as Assert;
  *
  * Attributes describe the shape of `Object` values (per ADR-009 generic
  * ObjectType model). One attribute can be reused across many ObjectTypes
- * via the `object_type_attributes` junction (added in #32) — e.g. `name`
- * on every kind, `seo_title` on `product` + `category`.
+ * via the `object_type_attributes` junction (added in #32) — e.g. reusing
+ * `main_image` across product-like kinds. `Asset` / `Category` are closed
+ * system kinds (amends ADR-009) and attach no attributes.
  *
  * `validation_rules` is plain JSONB in #31. The per-type interpreter that
  * enforces "min/max for `number`", "max_length for `text`", etc. lands in

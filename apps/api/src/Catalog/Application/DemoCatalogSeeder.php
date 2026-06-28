@@ -27,10 +27,13 @@ use Symfony\Component\Uid\Uuid;
  * Idempotent demo dataset seeder for ticket #40 (0.3.10).
  *
  * Builds a representative catalog inside one tenant: ~20 attributes
- * covering all 10 AttributeType cases, 100 products, 5 categories with
- * own user-defined attributes (`seo_title`, `seo_description`,
- * `main_image` — proof that ADR-009 makes Category a first-class
- * ObjectType with its own schema, not a Product appendage), and 10 assets.
+ * covering all 10 AttributeType cases, 100 products, 5 categories, and 10
+ * assets.
+ *
+ * Asset and Category are closed system kinds (amends ADR-009): they carry
+ * NO attached attributes — only an intrinsic `name` (display label, written
+ * straight into `attributes_indexed` without an `object_type_attributes`
+ * junction). All attribute attachments live on Product.
  *
  * Bulk path: {@see BulkContext} flips ON to bypass the synchronous
  * `AttributesIndexedSyncListener` (#38) — `attributes_indexed` is built
@@ -80,13 +83,14 @@ final readonly class DemoCatalogSeeder
             \assert(null !== $productType && null !== $categoryType && null !== $assetType, 'Built-in ObjectTypes must be seeded before DemoCatalogSeeder runs.');
 
             $attributes = $this->seedAttributes($tenant);
-            $this->seedJunctions($productType, $categoryType, $assetType, $attributes);
+            $this->seedJunctions($productType, $attributes);
             $productType->assignLabelAttribute($attributes['name']);
             $productType->assignImageAttribute($attributes['main_image']);
             $productType->updateCompletenessRules(['required' => ['sku', 'name', 'description', 'price']]);
+            // Asset / Category are closed system kinds: `name` is the display
+            // label (FK pointer, not a junction) — no attached attributes.
             $categoryType->assignLabelAttribute($attributes['name']);
-            $categoryType->assignImageAttribute($attributes['main_image']);
-            $categoryType->updateCompletenessRules(['required' => ['name', 'seo_title']]);
+            $categoryType->updateCompletenessRules(['required' => ['name']]);
             $assetType->assignLabelAttribute($attributes['name']);
             $this->em->flush();
 
@@ -167,28 +171,16 @@ final readonly class DemoCatalogSeeder
     /**
      * @param array<string, Attribute> $attributes
      */
-    private function seedJunctions(ObjectType $product, ObjectType $category, ObjectType $asset, array $attributes): void
+    private function seedJunctions(ObjectType $product, array $attributes): void
     {
+        // Only Product is attribute-modelable. Asset / Category are closed
+        // system kinds (amends ADR-009) — zero `object_type_attributes` rows.
         $productAttrs = ['name', 'sku', 'description', 'description_html', 'short_description', 'brand', 'color', 'size', 'tags', 'price', 'weight', 'height', 'in_stock', 'release_date', 'main_image', 'related_to'];
-        $categoryAttrs = ['name', 'seo_title', 'seo_description', 'main_image'];
-        $assetAttrs = ['name', 'alt_text', 'caption'];
 
         $sort = 0;
         foreach ($productAttrs as $code) {
             $required = \in_array($code, ['sku', 'name', 'description', 'price'], true);
             $junction = new ObjectTypeAttribute($product, $attributes[$code], $required, $sort++);
-            $this->em->persist($junction);
-        }
-        $sort = 0;
-        foreach ($categoryAttrs as $code) {
-            $required = \in_array($code, ['name', 'seo_title'], true);
-            $junction = new ObjectTypeAttribute($category, $attributes[$code], $required, $sort++);
-            $this->em->persist($junction);
-        }
-        $sort = 0;
-        foreach ($assetAttrs as $code) {
-            $required = 'name' === $code;
-            $junction = new ObjectTypeAttribute($asset, $attributes[$code], $required, $sort++);
             $this->em->persist($junction);
         }
     }
@@ -209,26 +201,19 @@ final readonly class DemoCatalogSeeder
         ];
 
         $categories = [];
-        foreach ($defs as [$code, $path, $name, $description]) {
+        foreach ($defs as [$code, $path, $name]) {
             $category = new CatalogObject($type, $code);
             // ADR-015 — demo categories live in the Product tree.
             $category->scopeCategoryTo($productType);
             $category->transitionTo(CatalogObject::STATUS_PUBLISHED);
             $category->attachToPath($path);
 
-            $values = [
-                ['name', ['value' => $name]],
-                ['seo_title', ['value' => $name.' — sklep PIM Demo']],
-                ['seo_description', ['value' => $description]],
-            ];
-
-            $indexed = [];
-            foreach ($values as [$attrCode, $payload]) {
-                $value = new ObjectValue($category, $attributes[$attrCode], $payload, Provenance::Import);
-                $this->em->persist($value);
-                $indexed[$attrCode] = $payload;
-            }
-            $category->updateAttributeIndex($indexed);
+            // Closed system kind — only the intrinsic `name` (display label).
+            // No seo_title / seo_description / main_image attribute values.
+            $namePayload = ['value' => $name];
+            $value = new ObjectValue($category, $attributes['name'], $namePayload, Provenance::Import);
+            $this->em->persist($value);
+            $category->updateAttributeIndex(['name' => $namePayload]);
             $category->recordCompleteness(['global' => 100]);
             $this->em->persist($category);
             $categories[] = $category;
@@ -251,16 +236,14 @@ final readonly class DemoCatalogSeeder
             $catalogAsset->transitionTo(CatalogObject::STATUS_PUBLISHED);
 
             $name = \sprintf('Demo image %d', $i);
-            $alt = \sprintf('Image alt text #%d', $i);
 
+            // Closed system kind — only the intrinsic `name` (display label).
+            // No alt_text / caption attribute values.
             $value = new ObjectValue($catalogAsset, $attributes['name'], ['value' => $name], Provenance::Import);
             $this->em->persist($value);
-            $valueAlt = new ObjectValue($catalogAsset, $attributes['alt_text'], ['value' => $alt], Provenance::Import);
-            $this->em->persist($valueAlt);
 
             $catalogAsset->updateAttributeIndex([
                 'name' => ['value' => $name],
-                'alt_text' => ['value' => $alt],
             ]);
             $catalogAsset->recordCompleteness(['global' => 100]);
             $this->em->persist($catalogAsset);
@@ -527,30 +510,6 @@ final readonly class DemoCatalogSeeder
             'related_to' => [
                 'label' => ['pl' => 'Powiązane', 'en' => 'Related'],
                 'type' => AttributeType::Relation,
-            ],
-            'seo_title' => [
-                'label' => ['pl' => 'SEO tytuł', 'en' => 'SEO title'],
-                'type' => AttributeType::Text,
-                'localizable' => true,
-                'rules' => ['max_length' => 70],
-            ],
-            'seo_description' => [
-                'label' => ['pl' => 'SEO opis', 'en' => 'SEO description'],
-                'type' => AttributeType::Text,
-                'localizable' => true,
-                'rules' => ['max_length' => 160],
-            ],
-            'alt_text' => [
-                'label' => ['pl' => 'Tekst alternatywny', 'en' => 'Alt text'],
-                'type' => AttributeType::Text,
-                'localizable' => true,
-                'rules' => ['max_length' => 255],
-            ],
-            'caption' => [
-                'label' => ['pl' => 'Podpis', 'en' => 'Caption'],
-                'type' => AttributeType::Text,
-                'localizable' => true,
-                'rules' => ['max_length' => 255],
             ],
             // VIEW-02 (#374) — pixel-perfect attribute fixtures matching the
             // ATTRIBUTES list from `attributes.jsx` mockup: IP rating with 7
