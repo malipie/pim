@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <!-- Read projection for RemoteField (APIC-P2-05). -->
+    <class name="App\Integration\Generic\Domain\Entity\RemoteField">
+        <attribute name="id">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="endpointId">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="path">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="label">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="dataType">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="sampleValue">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="updatedAt">
+            <group>admin:read</group>
+        </attribute>
+    </class>
+</serializer>
