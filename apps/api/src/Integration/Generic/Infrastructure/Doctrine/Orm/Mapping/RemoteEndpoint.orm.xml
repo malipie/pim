@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Integration\Generic\Domain\Entity\RemoteEndpoint"
+            table="integration_remote_endpoints"
+            repository-class="App\Integration\Generic\Infrastructure\Doctrine\Repository\DoctrineRemoteEndpointRepository">
+
+        <indexes>
+            <index name="integration_remote_endpoints_tenant_conn_idx" columns="tenant_id,connection_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <many-to-one field="connection" target-entity="App\Integration\Generic\Domain\Entity\Connection">
+            <join-column name="connection_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="role" type="string" length="16"/>
+        <field name="httpMethod" type="string" length="8" column="http_method"/>
+        <field name="pathTemplate" type="string" length="2048" column="path_template"/>
+        <field name="queryParams" type="json" column="query_params">
+            <options>
+                <option name="jsonb">true</option>
+                <option name="default">{}</option>
+            </options>
+        </field>
+        <field name="requestBodyTemplate" type="json" column="request_body_template" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <!-- No DB-level default: a non-empty JSONB default normalises with a
+             space (`{"strategy": "none"}`) and would perpetually drift against
+             Doctrine's expected DDL. The entity sets it in its constructor. -->
+        <field name="pagination" type="json" column="pagination">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <field name="recordSelector" type="string" length="512" column="record_selector" nullable="true"/>
+        <field name="responseFormat" type="string" length="16" column="response_format">
+            <options>
+                <option name="default">json</option>
+            </options>
+        </field>
+        <field name="createdAt" type="datetimetz_immutable" column="created_at"/>
+        <field name="updatedAt" type="datetimetz_immutable" column="updated_at"/>
+
+    </entity>
+
+</doctrine-mapping>
