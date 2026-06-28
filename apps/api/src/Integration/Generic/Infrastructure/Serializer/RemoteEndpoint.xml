@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <!-- Read projection for RemoteEndpoint (APIC-P2-05). -->
+    <class name="App\Integration\Generic\Domain\Entity\RemoteEndpoint">
+        <attribute name="id">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="connectionId">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="role">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="httpMethod">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="pathTemplate">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="queryParams">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="requestBodyTemplate">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="pagination">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="recordSelector">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="responseFormat">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="updatedAt">
+            <group>admin:read</group>
+        </attribute>
+    </class>
+</serializer>

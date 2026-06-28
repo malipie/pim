@@ -7055,6 +7055,988 @@
                 "x-cortex-permission": "object_type.read"
             }
         },
+        "/api/remote_endpoints": {
+            "get": {
+                "operationId": "api_remote_endpoints_get_collection",
+                "tags": [
+                    "RemoteEndpoint"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "RemoteEndpoint collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "RemoteEndpoint.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/RemoteEndpoint.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/RemoteEndpoint-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of RemoteEndpoint resources.",
+                "description": "Retrieves the collection of RemoteEndpoint resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "connection",
+                        "in": "query",
+                        "description": "Exact match on the parent Connection UUID (tenant-scoped).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "api_remote_endpoints_post",
+                "tags": [
+                    "RemoteEndpoint"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "RemoteEndpoint resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteEndpoint.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteEndpoint-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a RemoteEndpoint resource.",
+                "description": "Creates a RemoteEndpoint resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new RemoteEndpoint resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RemoteEndpoint.RemoteEndpointInput-remote_endpoint.create"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RemoteEndpoint.RemoteEndpointInput-remote_endpoint.create"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/remote_endpoints/{id}": {
+            "get": {
+                "operationId": "api_remote_endpoints_id_get",
+                "tags": [
+                    "RemoteEndpoint"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "RemoteEndpoint resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteEndpoint.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteEndpoint-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a RemoteEndpoint resource.",
+                "description": "Retrieves a RemoteEndpoint resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "RemoteEndpoint identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "api_remote_endpoints_id_delete",
+                "tags": [
+                    "RemoteEndpoint"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "RemoteEndpoint resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the RemoteEndpoint resource.",
+                "description": "Removes the RemoteEndpoint resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "RemoteEndpoint identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_remote_endpoints_id_patch",
+                "tags": [
+                    "RemoteEndpoint"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "RemoteEndpoint resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteEndpoint.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteEndpoint-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the RemoteEndpoint resource.",
+                "description": "Updates the RemoteEndpoint resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "RemoteEndpoint identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated RemoteEndpoint resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RemoteEndpoint.RemoteEndpointPatchInput-remote_endpoint.patch.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/remote_fields": {
+            "get": {
+                "operationId": "api_remote_fields_get_collection",
+                "tags": [
+                    "RemoteField"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "RemoteField collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "RemoteField.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/RemoteField.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/RemoteField-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of RemoteField resources.",
+                "description": "Retrieves the collection of RemoteField resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "endpoint",
+                        "in": "query",
+                        "description": "Exact match on the parent RemoteEndpoint UUID (tenant-scoped).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "api_remote_fields_post",
+                "tags": [
+                    "RemoteField"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "RemoteField resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteField.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteField-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a RemoteField resource.",
+                "description": "Creates a RemoteField resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new RemoteField resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RemoteField.RemoteFieldInput-remote_field.create"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RemoteField.RemoteFieldInput-remote_field.create"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/remote_fields/{id}": {
+            "get": {
+                "operationId": "api_remote_fields_id_get",
+                "tags": [
+                    "RemoteField"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "RemoteField resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteField.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteField-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a RemoteField resource.",
+                "description": "Retrieves a RemoteField resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "RemoteField identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "api_remote_fields_id_delete",
+                "tags": [
+                    "RemoteField"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "RemoteField resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the RemoteField resource.",
+                "description": "Removes the RemoteField resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "RemoteField identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_remote_fields_id_patch",
+                "tags": [
+                    "RemoteField"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "RemoteField resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteField.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemoteField-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the RemoteField resource.",
+                "description": "Updates the RemoteField resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "RemoteField identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated RemoteField resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RemoteField.RemoteFieldPatchInput-remote_field.patch.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
         "/api/admin/break-glass": {
             "post": {
                 "operationId": "api_admin_break_glass_post",
@@ -9847,6 +10829,45 @@
                 ],
                 "x-pim-source": "custom-route",
                 "x-cortex-permission": "channel.read"
+            }
+        },
+        "/api/connections/{id}/discover": {
+            "post": {
+                "operationId": "api_connections_id_discover_post",
+                "tags": [
+                    "connections"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "summary": "Api connections id discover",
+                "description": "Custom controller route.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "x-pim-source": "custom-route",
+                "x-cortex-permission": "settings.integrations.manage"
             }
         },
         "/api/connections/{id}/test": {
@@ -19840,6 +20861,607 @@
                     }
                 ],
                 "description": "Generic template for every domain object kind in PIM (per ADR-009).\n\nPredefined kinds (`Product`, `Category`, `Asset`) seed as fixtures with\n`is_built_in=true` in #33 \u2014 they are platform-owned and protected from\ndeletion by `ObjectTypeService::delete`. Custom kinds (`Customer`,\n`Supplier`, `PriceList`, etc.) are unlocked in phase 2/3 via the\n`enable_custom_object_types` feature flag.\n\n`label_attribute_id` and `image_attribute_id` are nullable foreign keys\nto `attributes` \u2014 the convention is \"name\" \u2192 display label, \"main_image\"\n\u2192 image. Cross-ObjectType reference is technically possible but should\nbe paired with the junction; a validator that enforces this lands as a\nfollow-up after #34.\n\n`completeness_rules` is a JSONB payload stored verbatim. The Doctrine\nlistener that interprets it (e.g. `{required: ['sku', 'name'], weight:\n{sku: 2, name: 1}}`) and computes `Object.completeness_pct` is in #38.\n\n`schema_version` is a forward hook for export/import tooling planned\nfor phase 2 (when enterprise customers move definitions between\nenvironments) \u2014 set on every save, bumped manually when a schema-\nbreaking change to `completeness_rules` ships."
+            },
+            "RemoteEndpoint-admin.read": {
+                "type": "object",
+                "description": "One operation descriptor on an external API \u2014 the consumer-side analogue of\nan Airbyte stream (ADR-0022, epic APIC, ticket APIC-P2-01).\n\nA {@see Connection} owns many endpoints; each binds a {@see RemoteEndpointRole}\n(read_list / read_one / write_create / write_update) to an HTTP method, a\npath template, optional query params and a request-body template. The\n`pagination` envelope selects the paging strategy (none/offset/page/cursor/\nlink_header \u2014 implemented in APIC-P2-03); `recordSelector` is the JSONPath\nthat extracts records from a list response.\n\n`TenantScoped` + Postgres RLS isolate every endpoint to its tenant; the\ntenant always matches the parent connection's. The FK to Connection cascades\non delete, so removing a connection removes its descriptor.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "read_list",
+                            "read_one",
+                            "write_create",
+                            "write_update"
+                        ]
+                    },
+                    "httpMethod": {
+                        "enum": [
+                            "GET",
+                            "POST",
+                            "PUT",
+                            "PATCH",
+                            "DELETE"
+                        ],
+                        "type": "string"
+                    },
+                    "pathTemplate": {
+                        "maxLength": 2048,
+                        "type": "string"
+                    },
+                    "queryParams": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "requestBodyTemplate": {
+                        "description": "Request-body template for write roles (placeholders resolved at sync\ntime); null for read roles.",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "pagination": {
+                        "description": "Pagination envelope: `{strategy, ...params}`. Defaults to no paging; the\nconcrete strategies (offset/page/cursor/link_header) are read in\nAPIC-P2-03.",
+                        "default": {
+                            "strategy": "none"
+                        },
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "recordSelector": {
+                        "maxLength": 512,
+                        "description": "JSONPath that selects records from a list response (read_list); null otherwise.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "responseFormat": {
+                        "enum": [
+                            "json"
+                        ],
+                        "default": "json",
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "connectionId": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "httpMethod",
+                    "pathTemplate"
+                ]
+            },
+            "RemoteEndpoint.RemoteEndpointInput-remote_endpoint.create": {
+                "type": "object",
+                "description": "One operation descriptor on an external API \u2014 the consumer-side analogue of\nan Airbyte stream (ADR-0022, epic APIC, ticket APIC-P2-01).\n\nA {@see Connection} owns many endpoints; each binds a {@see RemoteEndpointRole}\n(read_list / read_one / write_create / write_update) to an HTTP method, a\npath template, optional query params and a request-body template. The\n`pagination` envelope selects the paging strategy (none/offset/page/cursor/\nlink_header \u2014 implemented in APIC-P2-03); `recordSelector` is the JSONPath\nthat extracts records from a list response.\n\n`TenantScoped` + Postgres RLS isolate every endpoint to its tenant; the\ntenant always matches the parent connection's. The FK to Connection cascades\non delete, so removing a connection removes its descriptor.",
+                "required": [
+                    "connection",
+                    "pathTemplate"
+                ],
+                "properties": {
+                    "connection": {
+                        "default": "",
+                        "type": "string"
+                    },
+                    "role": {
+                        "enum": [
+                            "read_list",
+                            "read_one",
+                            "write_create",
+                            "write_update"
+                        ],
+                        "default": "read_list",
+                        "type": "string"
+                    },
+                    "httpMethod": {
+                        "enum": [
+                            "GET",
+                            "POST",
+                            "PUT",
+                            "PATCH",
+                            "DELETE"
+                        ],
+                        "default": "GET",
+                        "type": "string"
+                    },
+                    "pathTemplate": {
+                        "maxLength": 2048,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "queryParams": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "requestBodyTemplate": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "pagination": {
+                        "default": {
+                            "strategy": "none"
+                        },
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "recordSelector": {
+                        "maxLength": 512,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "responseFormat": {
+                        "enum": [
+                            "json"
+                        ],
+                        "default": "json",
+                        "type": "string"
+                    }
+                }
+            },
+            "RemoteEndpoint.RemoteEndpointPatchInput-remote_endpoint.patch.jsonMergePatch": {
+                "type": "object",
+                "description": "One operation descriptor on an external API \u2014 the consumer-side analogue of\nan Airbyte stream (ADR-0022, epic APIC, ticket APIC-P2-01).\n\nA {@see Connection} owns many endpoints; each binds a {@see RemoteEndpointRole}\n(read_list / read_one / write_create / write_update) to an HTTP method, a\npath template, optional query params and a request-body template. The\n`pagination` envelope selects the paging strategy (none/offset/page/cursor/\nlink_header \u2014 implemented in APIC-P2-03); `recordSelector` is the JSONPath\nthat extracts records from a list response.\n\n`TenantScoped` + Postgres RLS isolate every endpoint to its tenant; the\ntenant always matches the parent connection's. The FK to Connection cascades\non delete, so removing a connection removes its descriptor.",
+                "properties": {
+                    "role": {
+                        "enum": [
+                            "read_list",
+                            "read_one",
+                            "write_create",
+                            "write_update"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "httpMethod": {
+                        "enum": [
+                            "GET",
+                            "POST",
+                            "PUT",
+                            "PATCH",
+                            "DELETE"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "pathTemplate": {
+                        "maxLength": 2048,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "queryParams": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "requestBodyTemplate": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "pagination": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "recordSelector": {
+                        "maxLength": 512,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "responseFormat": {
+                        "enum": [
+                            "json"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "RemoteEndpoint.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "role": {
+                                "type": "string",
+                                "enum": [
+                                    "read_list",
+                                    "read_one",
+                                    "write_create",
+                                    "write_update"
+                                ]
+                            },
+                            "httpMethod": {
+                                "enum": [
+                                    "GET",
+                                    "POST",
+                                    "PUT",
+                                    "PATCH",
+                                    "DELETE"
+                                ],
+                                "type": "string"
+                            },
+                            "pathTemplate": {
+                                "maxLength": 2048,
+                                "type": "string"
+                            },
+                            "queryParams": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            },
+                            "requestBodyTemplate": {
+                                "description": "Request-body template for write roles (placeholders resolved at sync\ntime); null for read roles.",
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "pagination": {
+                                "description": "Pagination envelope: `{strategy, ...params}`. Defaults to no paging; the\nconcrete strategies (offset/page/cursor/link_header) are read in\nAPIC-P2-03.",
+                                "default": {
+                                    "strategy": "none"
+                                },
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "recordSelector": {
+                                "maxLength": 512,
+                                "description": "JSONPath that selects records from a list response (read_list); null otherwise.",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "responseFormat": {
+                                "enum": [
+                                    "json"
+                                ],
+                                "default": "json",
+                                "type": "string"
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "updatedAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "connectionId": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "uuid"
+                            }
+                        },
+                        "required": [
+                            "httpMethod",
+                            "pathTemplate"
+                        ]
+                    }
+                ],
+                "description": "One operation descriptor on an external API \u2014 the consumer-side analogue of\nan Airbyte stream (ADR-0022, epic APIC, ticket APIC-P2-01).\n\nA {@see Connection} owns many endpoints; each binds a {@see RemoteEndpointRole}\n(read_list / read_one / write_create / write_update) to an HTTP method, a\npath template, optional query params and a request-body template. The\n`pagination` envelope selects the paging strategy (none/offset/page/cursor/\nlink_header \u2014 implemented in APIC-P2-03); `recordSelector` is the JSONPath\nthat extracts records from a list response.\n\n`TenantScoped` + Postgres RLS isolate every endpoint to its tenant; the\ntenant always matches the parent connection's. The FK to Connection cascades\non delete, so removing a connection removes its descriptor."
+            },
+            "RemoteField-admin.read": {
+                "type": "object",
+                "description": "One field of an external API response \u2014 discovered from a sample or entered\nby hand (ADR-0022, epic APIC, ticket APIC-P2-02).\n\nA {@see RemoteEndpoint} owns many fields; each carries the JSONPath that\nlocates it within a record, a human label, the detected {@see RemoteFieldDataType}\nand a textual sample value. These are the left-hand side of the 1:1 field\nmapping (APIC-P2-07/08).\n\n`TenantScoped` + Postgres RLS isolate every field to its tenant; the tenant\nalways matches the parent endpoint's. The FK to RemoteEndpoint cascades on\ndelete.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "path": {
+                        "maxLength": 512,
+                        "type": "string"
+                    },
+                    "label": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "dataType": {
+                        "type": "string",
+                        "enum": [
+                            "string",
+                            "integer",
+                            "number",
+                            "boolean",
+                            "object",
+                            "array",
+                            "null"
+                        ]
+                    },
+                    "sampleValue": {
+                        "maxLength": 2048,
+                        "description": "Textual sample value captured during discovery; null when none was seen.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "endpointId": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "path"
+                ]
+            },
+            "RemoteField.RemoteFieldInput-remote_field.create": {
+                "type": "object",
+                "description": "One field of an external API response \u2014 discovered from a sample or entered\nby hand (ADR-0022, epic APIC, ticket APIC-P2-02).\n\nA {@see RemoteEndpoint} owns many fields; each carries the JSONPath that\nlocates it within a record, a human label, the detected {@see RemoteFieldDataType}\nand a textual sample value. These are the left-hand side of the 1:1 field\nmapping (APIC-P2-07/08).\n\n`TenantScoped` + Postgres RLS isolate every field to its tenant; the tenant\nalways matches the parent endpoint's. The FK to RemoteEndpoint cascades on\ndelete.",
+                "required": [
+                    "endpoint",
+                    "path"
+                ],
+                "properties": {
+                    "endpoint": {
+                        "default": "",
+                        "type": "string"
+                    },
+                    "path": {
+                        "maxLength": 512,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "label": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "dataType": {
+                        "enum": [
+                            "string",
+                            "integer",
+                            "number",
+                            "boolean",
+                            "object",
+                            "array",
+                            "null"
+                        ],
+                        "default": "string",
+                        "type": "string"
+                    },
+                    "sampleValue": {
+                        "maxLength": 2048,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "RemoteField.RemoteFieldPatchInput-remote_field.patch.jsonMergePatch": {
+                "type": "object",
+                "description": "One field of an external API response \u2014 discovered from a sample or entered\nby hand (ADR-0022, epic APIC, ticket APIC-P2-02).\n\nA {@see RemoteEndpoint} owns many fields; each carries the JSONPath that\nlocates it within a record, a human label, the detected {@see RemoteFieldDataType}\nand a textual sample value. These are the left-hand side of the 1:1 field\nmapping (APIC-P2-07/08).\n\n`TenantScoped` + Postgres RLS isolate every field to its tenant; the tenant\nalways matches the parent endpoint's. The FK to RemoteEndpoint cascades on\ndelete.",
+                "properties": {
+                    "path": {
+                        "maxLength": 512,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "label": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "dataType": {
+                        "enum": [
+                            "string",
+                            "integer",
+                            "number",
+                            "boolean",
+                            "object",
+                            "array",
+                            "null"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "sampleValue": {
+                        "maxLength": 2048,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "RemoteField.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "path": {
+                                "maxLength": 512,
+                                "type": "string"
+                            },
+                            "label": {
+                                "maxLength": 255,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "dataType": {
+                                "type": "string",
+                                "enum": [
+                                    "string",
+                                    "integer",
+                                    "number",
+                                    "boolean",
+                                    "object",
+                                    "array",
+                                    "null"
+                                ]
+                            },
+                            "sampleValue": {
+                                "maxLength": 2048,
+                                "description": "Textual sample value captured during discovery; null when none was seen.",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "updatedAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "endpointId": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "uuid"
+                            }
+                        },
+                        "required": [
+                            "path"
+                        ]
+                    }
+                ],
+                "description": "One field of an external API response \u2014 discovered from a sample or entered\nby hand (ADR-0022, epic APIC, ticket APIC-P2-02).\n\nA {@see RemoteEndpoint} owns many fields; each carries the JSONPath that\nlocates it within a record, a human label, the detected {@see RemoteFieldDataType}\nand a textual sample value. These are the left-hand side of the 1:1 field\nmapping (APIC-P2-07/08).\n\n`TenantScoped` + Postgres RLS isolate every field to its tenant; the tenant\nalways matches the parent endpoint's. The FK to RemoteEndpoint cascades on\ndelete."
             }
         },
         "responses": {},
@@ -19921,6 +21543,14 @@
         {
             "name": "Connection",
             "description": "A consumer-side connection to one external REST/JSON API (ADR-0022, epic APIC).\n\nHolds the transport definition \u2014 base URL, auth type, default headers, an\noptional rate hint \u2014 plus the reversibly-encrypted credentials needed to\ncall the remote. The actual encryption-at-write + response masking lands in\nAPIC-P1-02; this entity stores the already-produced ciphertext + master-key\nversion in two columns, mirroring `TenantAgentConfig` / ADR-0017.\n\n`TenantScoped` + Postgres RLS isolate every connection to its tenant. Scheme\n(http/https) and SSRF-safe descriptor validation are enforced separately\n(APIC-P1-03/P1-04), not at this domain layer."
+        },
+        {
+            "name": "RemoteEndpoint",
+            "description": "One operation descriptor on an external API \u2014 the consumer-side analogue of\nan Airbyte stream (ADR-0022, epic APIC, ticket APIC-P2-01).\n\nA {@see Connection} owns many endpoints; each binds a {@see RemoteEndpointRole}\n(read_list / read_one / write_create / write_update) to an HTTP method, a\npath template, optional query params and a request-body template. The\n`pagination` envelope selects the paging strategy (none/offset/page/cursor/\nlink_header \u2014 implemented in APIC-P2-03); `recordSelector` is the JSONPath\nthat extracts records from a list response.\n\n`TenantScoped` + Postgres RLS isolate every endpoint to its tenant; the\ntenant always matches the parent connection's. The FK to Connection cascades\non delete, so removing a connection removes its descriptor."
+        },
+        {
+            "name": "RemoteField",
+            "description": "One field of an external API response \u2014 discovered from a sample or entered\nby hand (ADR-0022, epic APIC, ticket APIC-P2-02).\n\nA {@see RemoteEndpoint} owns many fields; each carries the JSONPath that\nlocates it within a record, a human label, the detected {@see RemoteFieldDataType}\nand a textual sample value. These are the left-hand side of the 1:1 field\nmapping (APIC-P2-07/08).\n\n`TenantScoped` + Postgres RLS isolate every field to its tenant; the tenant\nalways matches the parent endpoint's. The FK to RemoteEndpoint cascades on\ndelete."
         }
     ],
     "webhooks": {}
