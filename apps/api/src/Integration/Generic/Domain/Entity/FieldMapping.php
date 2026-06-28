@@ -153,6 +153,15 @@ class FieldMapping extends AggregateRoot implements TenantScoped
         return $this->isMatchKey;
     }
 
+    /**
+     * Serializer-facing alias so the read projection exposes the flag as
+     * `isMatchKey` (mirrors the input DTO), per the ObjectType convention.
+     */
+    public function getIsMatchKey(): bool
+    {
+        return $this->isMatchKey;
+    }
+
     public function setMatchKey(bool $isMatchKey): void
     {
         $this->isMatchKey = $isMatchKey;

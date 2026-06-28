@@ -5192,6 +5192,497 @@
                 }
             }
         },
+        "/api/field_mappings": {
+            "get": {
+                "operationId": "api_field_mappings_get_collection",
+                "tags": [
+                    "FieldMapping"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "FieldMapping collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "FieldMapping.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/FieldMapping.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/FieldMapping-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of FieldMapping resources.",
+                "description": "Retrieves the collection of FieldMapping resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "connection",
+                        "in": "query",
+                        "description": "Exact match on the parent Connection UUID (tenant-scoped).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "api_field_mappings_post",
+                "tags": [
+                    "FieldMapping"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "FieldMapping resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FieldMapping.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FieldMapping-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a FieldMapping resource.",
+                "description": "Creates a FieldMapping resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new FieldMapping resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FieldMapping.FieldMappingInput-field_mapping.create"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FieldMapping.FieldMappingInput-field_mapping.create"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/field_mappings/{id}": {
+            "get": {
+                "operationId": "api_field_mappings_id_get",
+                "tags": [
+                    "FieldMapping"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "FieldMapping resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FieldMapping.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FieldMapping-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a FieldMapping resource.",
+                "description": "Retrieves a FieldMapping resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "FieldMapping identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "api_field_mappings_id_delete",
+                "tags": [
+                    "FieldMapping"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "FieldMapping resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the FieldMapping resource.",
+                "description": "Removes the FieldMapping resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "FieldMapping identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_field_mappings_id_patch",
+                "tags": [
+                    "FieldMapping"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "FieldMapping resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FieldMapping.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FieldMapping-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the FieldMapping resource.",
+                "description": "Updates the FieldMapping resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "FieldMapping identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated FieldMapping resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FieldMapping.FieldMappingPatchInput-field_mapping.patch.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
         "/api/import-profiles": {
             "get": {
                 "operationId": "api_import-profiles_get_collection",
@@ -10846,6 +11337,45 @@
                     }
                 },
                 "summary": "Api connections id discover",
+                "description": "Custom controller route.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "x-pim-source": "custom-route",
+                "x-cortex-permission": "settings.integrations.manage"
+            }
+        },
+        "/api/connections/{id}/mappings/validate": {
+            "post": {
+                "operationId": "api_connections_id_mappings_validate_post",
+                "tags": [
+                    "connections"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "summary": "Api connections id mappings validate",
                 "description": "Custom controller route.",
                 "parameters": [
                     {
@@ -19089,6 +19619,230 @@
                 ],
                 "description": "A representation of common errors."
             },
+            "FieldMapping-admin.read": {
+                "type": "object",
+                "description": "A 1:1 mapping between a PIM target and a remote field path (ADR-0022, epic\nAPIC, ticket APIC-P2-07).\n\n`pimTarget` names the PIM side \u2014 an attribute code or a system field\n(sku/name/status/category\u2026); `remoteFieldPath` is the external JSONPath. The\nmapping belongs to a {@see Connection} and is versioned so it can be reused\nacross sync bindings (the optional `bindingId` links it to a SyncBinding once\nthat lands in APIC-P3-01 \u2014 kept loose here, no FK). `direction` and\n`isMatchKey` drive the sync engines: the match key identifies the row to\nupsert, the direction gates inbound/outbound application.\n\n`TenantScoped` + Postgres RLS isolate every mapping to its tenant. Type\ncompatibility between the PIM target and the remote field is validated at the\nAPI edge (APIC-P2-08), not in this domain entity.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "bindingId": {
+                        "readOnly": true,
+                        "description": "Loose link to a future SyncBinding (APIC-P3-01); no FK until it exists.",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "pimTarget": {
+                        "maxLength": 255,
+                        "type": "string"
+                    },
+                    "remoteFieldPath": {
+                        "maxLength": 512,
+                        "type": "string"
+                    },
+                    "direction": {
+                        "default": "inbound",
+                        "type": "string",
+                        "enum": [
+                            "inbound",
+                            "outbound",
+                            "both"
+                        ]
+                    },
+                    "isMatchKey": {
+                        "readOnly": true,
+                        "description": "Serializer-facing alias so the read projection exposes the flag as\n`isMatchKey` (mirrors the input DTO), per the ObjectType convention.",
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "version": {
+                        "minimum": 0,
+                        "exclusiveMinimum": 0,
+                        "readOnly": true,
+                        "default": 1,
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "connectionId": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "pimTarget",
+                    "remoteFieldPath"
+                ]
+            },
+            "FieldMapping.FieldMappingInput-field_mapping.create": {
+                "type": "object",
+                "description": "A 1:1 mapping between a PIM target and a remote field path (ADR-0022, epic\nAPIC, ticket APIC-P2-07).\n\n`pimTarget` names the PIM side \u2014 an attribute code or a system field\n(sku/name/status/category\u2026); `remoteFieldPath` is the external JSONPath. The\nmapping belongs to a {@see Connection} and is versioned so it can be reused\nacross sync bindings (the optional `bindingId` links it to a SyncBinding once\nthat lands in APIC-P3-01 \u2014 kept loose here, no FK). `direction` and\n`isMatchKey` drive the sync engines: the match key identifies the row to\nupsert, the direction gates inbound/outbound application.\n\n`TenantScoped` + Postgres RLS isolate every mapping to its tenant. Type\ncompatibility between the PIM target and the remote field is validated at the\nAPI edge (APIC-P2-08), not in this domain entity.",
+                "required": [
+                    "connection",
+                    "pimTarget",
+                    "remoteFieldPath"
+                ],
+                "properties": {
+                    "connection": {
+                        "default": "",
+                        "type": "string"
+                    },
+                    "pimTarget": {
+                        "maxLength": 255,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "remoteFieldPath": {
+                        "maxLength": 512,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "direction": {
+                        "enum": [
+                            "inbound",
+                            "outbound",
+                            "both"
+                        ],
+                        "default": "inbound",
+                        "type": "string"
+                    },
+                    "isMatchKey": {
+                        "default": false,
+                        "type": "boolean"
+                    }
+                }
+            },
+            "FieldMapping.FieldMappingPatchInput-field_mapping.patch.jsonMergePatch": {
+                "type": "object",
+                "description": "A 1:1 mapping between a PIM target and a remote field path (ADR-0022, epic\nAPIC, ticket APIC-P2-07).\n\n`pimTarget` names the PIM side \u2014 an attribute code or a system field\n(sku/name/status/category\u2026); `remoteFieldPath` is the external JSONPath. The\nmapping belongs to a {@see Connection} and is versioned so it can be reused\nacross sync bindings (the optional `bindingId` links it to a SyncBinding once\nthat lands in APIC-P3-01 \u2014 kept loose here, no FK). `direction` and\n`isMatchKey` drive the sync engines: the match key identifies the row to\nupsert, the direction gates inbound/outbound application.\n\n`TenantScoped` + Postgres RLS isolate every mapping to its tenant. Type\ncompatibility between the PIM target and the remote field is validated at the\nAPI edge (APIC-P2-08), not in this domain entity.",
+                "properties": {
+                    "pimTarget": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "remoteFieldPath": {
+                        "maxLength": 512,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "direction": {
+                        "enum": [
+                            "inbound",
+                            "outbound",
+                            "both"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "isMatchKey": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "FieldMapping.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "bindingId": {
+                                "readOnly": true,
+                                "description": "Loose link to a future SyncBinding (APIC-P3-01); no FK until it exists.",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "pimTarget": {
+                                "maxLength": 255,
+                                "type": "string"
+                            },
+                            "remoteFieldPath": {
+                                "maxLength": 512,
+                                "type": "string"
+                            },
+                            "direction": {
+                                "default": "inbound",
+                                "type": "string",
+                                "enum": [
+                                    "inbound",
+                                    "outbound",
+                                    "both"
+                                ]
+                            },
+                            "isMatchKey": {
+                                "readOnly": true,
+                                "description": "Serializer-facing alias so the read projection exposes the flag as\n`isMatchKey` (mirrors the input DTO), per the ObjectType convention.",
+                                "default": false,
+                                "type": "boolean"
+                            },
+                            "version": {
+                                "minimum": 0,
+                                "exclusiveMinimum": 0,
+                                "readOnly": true,
+                                "default": 1,
+                                "type": "integer"
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "updatedAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "connectionId": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "uuid"
+                            }
+                        },
+                        "required": [
+                            "pimTarget",
+                            "remoteFieldPath"
+                        ]
+                    }
+                ],
+                "description": "A 1:1 mapping between a PIM target and a remote field path (ADR-0022, epic\nAPIC, ticket APIC-P2-07).\n\n`pimTarget` names the PIM side \u2014 an attribute code or a system field\n(sku/name/status/category\u2026); `remoteFieldPath` is the external JSONPath. The\nmapping belongs to a {@see Connection} and is versioned so it can be reused\nacross sync bindings (the optional `bindingId` links it to a SyncBinding once\nthat lands in APIC-P3-01 \u2014 kept loose here, no FK). `direction` and\n`isMatchKey` drive the sync engines: the match key identifies the row to\nupsert, the direction gates inbound/outbound application.\n\n`TenantScoped` + Postgres RLS isolate every mapping to its tenant. Type\ncompatibility between the PIM target and the remote field is validated at the\nAPI edge (APIC-P2-08), not in this domain entity."
+            },
             "HydraCollectionBaseSchema": {
                 "allOf": [
                     {
@@ -21543,6 +22297,10 @@
         {
             "name": "Connection",
             "description": "A consumer-side connection to one external REST/JSON API (ADR-0022, epic APIC).\n\nHolds the transport definition \u2014 base URL, auth type, default headers, an\noptional rate hint \u2014 plus the reversibly-encrypted credentials needed to\ncall the remote. The actual encryption-at-write + response masking lands in\nAPIC-P1-02; this entity stores the already-produced ciphertext + master-key\nversion in two columns, mirroring `TenantAgentConfig` / ADR-0017.\n\n`TenantScoped` + Postgres RLS isolate every connection to its tenant. Scheme\n(http/https) and SSRF-safe descriptor validation are enforced separately\n(APIC-P1-03/P1-04), not at this domain layer."
+        },
+        {
+            "name": "FieldMapping",
+            "description": "A 1:1 mapping between a PIM target and a remote field path (ADR-0022, epic\nAPIC, ticket APIC-P2-07).\n\n`pimTarget` names the PIM side \u2014 an attribute code or a system field\n(sku/name/status/category\u2026); `remoteFieldPath` is the external JSONPath. The\nmapping belongs to a {@see Connection} and is versioned so it can be reused\nacross sync bindings (the optional `bindingId` links it to a SyncBinding once\nthat lands in APIC-P3-01 \u2014 kept loose here, no FK). `direction` and\n`isMatchKey` drive the sync engines: the match key identifies the row to\nupsert, the direction gates inbound/outbound application.\n\n`TenantScoped` + Postgres RLS isolate every mapping to its tenant. Type\ncompatibility between the PIM target and the remote field is validated at the\nAPI edge (APIC-P2-08), not in this domain entity."
         },
         {
             "name": "RemoteEndpoint",
