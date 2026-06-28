@@ -9370,6 +9370,45 @@
                 "x-cortex-permission": "channel.read"
             }
         },
+        "/api/connections/{id}/test": {
+            "post": {
+                "operationId": "api_connections_id_test_post",
+                "tags": [
+                    "connections"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "summary": "Api connections id test",
+                "description": "Custom controller route.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "x-pim-source": "custom-route",
+                "x-cortex-permission": "settings.integrations.manage"
+            }
+        },
         "/api/exports/columns": {
             "get": {
                 "operationId": "api_exports_columns_get",
