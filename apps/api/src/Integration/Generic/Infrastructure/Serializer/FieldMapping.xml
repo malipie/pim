@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <!-- Read projection for FieldMapping (APIC-P2-08). -->
+    <class name="App\Integration\Generic\Domain\Entity\FieldMapping">
+        <attribute name="id">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="connectionId">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="bindingId">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="pimTarget">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="remoteFieldPath">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="direction">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="isMatchKey">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="version">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="updatedAt">
+            <group>admin:read</group>
+        </attribute>
+    </class>
+</serializer>
