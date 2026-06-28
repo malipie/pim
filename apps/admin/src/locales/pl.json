@@ -1892,6 +1892,28 @@
         "saving": "Zapisywanie…",
         "saved": "Pola zapisane"
       }
+    },
+    "mapping": {
+      "title": "Mapowanie pól",
+      "subtitle": "Połącz atrybuty PIM z polami zewnętrznego API (mapowanie 1:1).",
+      "back": "Wstecz",
+      "warnings": "{{count}} ostrzeżeń typów",
+      "coverage": "Pokrycie mapowania",
+      "match_key": "match key",
+      "direction": "Kierunek synchronizacji",
+      "key": "key",
+      "type_ok": "Typy zgodne",
+      "transform_hint": "Silnik transformacji — w planie (MVP = mapowanie 1:1)",
+      "transform": "transformacja",
+      "remove": "usuń",
+      "pim_placeholder": "sku, name, status, kod atrybutu…",
+      "pim_target": "Atrybut PIM",
+      "remote_path": "Pole zewnętrzne (JSONPath)",
+      "add": "Dodaj mapowanie 1:1",
+      "unmapped_pim": "Niezmapowane atrybuty PIM · {{count}}",
+      "all_pim_mapped": "Wszystkie atrybuty zmapowane ✓",
+      "unmapped_remote": "Niezmapowane pola zewnętrzne · {{count}}",
+      "all_remote_mapped": "Brak — wszystkie pola wykorzystane"
     }
   },
   "api_profiles": {
