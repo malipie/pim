@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <resource class="App\Integration\Generic\Domain\Entity\Connection"
+              shortName="Connection">
+
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>admin:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
+        <operations>
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/connections{._format}"
+                       security="is_granted('READ', 'App\\Integration\\Generic\\Domain\\Entity\\Connection')"/>
+
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/connections/{id}{._format}"
+                       security="is_granted('READ', object)"/>
+
+            <operation class="ApiPlatform\Metadata\Post"
+                       uriTemplate="/connections{._format}"
+                       input="App\Integration\Generic\Infrastructure\ApiPlatform\Resource\ConnectionInput"
+                       processor="App\Integration\Generic\Infrastructure\ApiPlatform\State\ConnectionProcessor"
+                       security="is_granted('CREATE', 'App\\Integration\\Generic\\Domain\\Entity\\Connection')">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>connection:create</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Patch"
+                       uriTemplate="/connections/{id}{._format}"
+                       input="App\Integration\Generic\Infrastructure\ApiPlatform\Resource\ConnectionPatchInput"
+                       processor="App\Integration\Generic\Infrastructure\ApiPlatform\State\ConnectionProcessor"
+                       security="is_granted('UPDATE', object)">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>connection:patch</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Delete"
+                       uriTemplate="/connections/{id}{._format}"
+                       processor="App\Integration\Generic\Infrastructure\ApiPlatform\State\ConnectionProcessor"
+                       security="is_granted('DELETE', object)"/>
+        </operations>
+    </resource>
+</resources>

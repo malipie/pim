@@ -4713,6 +4713,485 @@
                 "x-cortex-permission": "channel.write"
             }
         },
+        "/api/connections": {
+            "get": {
+                "operationId": "api_connections_get_collection",
+                "tags": [
+                    "Connection"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Connection collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "Connection.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Connection.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Connection-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of Connection resources.",
+                "description": "Retrieves the collection of Connection resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "api_connections_post",
+                "tags": [
+                    "Connection"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Connection resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Connection.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Connection-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a Connection resource.",
+                "description": "Creates a Connection resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new Connection resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Connection.ConnectionInput-connection.create"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Connection.ConnectionInput-connection.create"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/connections/{id}": {
+            "get": {
+                "operationId": "api_connections_id_get",
+                "tags": [
+                    "Connection"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Connection resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Connection.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Connection-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a Connection resource.",
+                "description": "Retrieves a Connection resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Connection identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "api_connections_id_delete",
+                "tags": [
+                    "Connection"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Connection resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the Connection resource.",
+                "description": "Removes the Connection resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Connection identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_connections_id_patch",
+                "tags": [
+                    "Connection"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Connection resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Connection.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Connection-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the Connection resource.",
+                "description": "Updates the Connection resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Connection identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated Connection resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Connection.ConnectionPatchInput-connection.patch.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
         "/api/import-profiles": {
             "get": {
                 "operationId": "api_import-profiles_get_collection",
@@ -17052,6 +17531,298 @@
                 ],
                 "description": "Tenant-scoped sales / publication channel.\n\nExamples: `ecommerce_pl` (Polish webstore), `wholesale`, `b2b_export`.\nEach channel carries:\n\n  - a name (plain string) \u2014 what admins see in the UI. Internal-only,\n    never published to a destination, so it is intentionally single-language;\n  - an optional `category_tree_root_object_id` pointing at a\n    `CatalogObject` of `kind=category` \u2014 the root of the category tree\n    this channel publishes. Validation (\"the target must be a\n *     category\") lives in\n    {@see \\App\\Channel\\Infrastructure\\Doctrine\\EventListener\\ChannelCategoryRootValidator}.\n\nPer-channel attribute\u2192target-field mapping is not modelled here yet \u2014 it\nbelongs to the API integration configuration (Faza 1) and will be added\nwith the first real export integration."
             },
+            "Connection-admin.read": {
+                "type": "object",
+                "description": "A consumer-side connection to one external REST/JSON API (ADR-0022, epic APIC).\n\nHolds the transport definition \u2014 base URL, auth type, default headers, an\noptional rate hint \u2014 plus the reversibly-encrypted credentials needed to\ncall the remote. The actual encryption-at-write + response masking lands in\nAPIC-P1-02; this entity stores the already-produced ciphertext + master-key\nversion in two columns, mirroring `TenantAgentConfig` / ADR-0017.\n\n`TenantScoped` + Postgres RLS isolate every connection to its tenant. Scheme\n(http/https) and SSRF-safe descriptor validation are enforced separately\n(APIC-P1-03/P1-04), not at this domain layer.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9-]+)$",
+                        "type": "string"
+                    },
+                    "name": {
+                        "maxLength": 255,
+                        "type": "string"
+                    },
+                    "baseUrl": {
+                        "maxLength": 2048,
+                        "type": "string"
+                    },
+                    "authType": {
+                        "default": "none",
+                        "type": "string",
+                        "enum": [
+                            "none",
+                            "api_key",
+                            "bearer",
+                            "basic",
+                            "oauth2_token"
+                        ]
+                    },
+                    "defaultHeaders": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "rateLimitHint": {
+                        "minimum": 0,
+                        "exclusiveMinimum": 0,
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "status": {
+                        "default": "draft",
+                        "type": "string"
+                    },
+                    "lastHealthCheckAt": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "code",
+                    "name",
+                    "baseUrl"
+                ]
+            },
+            "Connection.ConnectionInput-connection.create": {
+                "type": "object",
+                "description": "A consumer-side connection to one external REST/JSON API (ADR-0022, epic APIC).\n\nHolds the transport definition \u2014 base URL, auth type, default headers, an\noptional rate hint \u2014 plus the reversibly-encrypted credentials needed to\ncall the remote. The actual encryption-at-write + response masking lands in\nAPIC-P1-02; this entity stores the already-produced ciphertext + master-key\nversion in two columns, mirroring `TenantAgentConfig` / ADR-0017.\n\n`TenantScoped` + Postgres RLS isolate every connection to its tenant. Scheme\n(http/https) and SSRF-safe descriptor validation are enforced separately\n(APIC-P1-03/P1-04), not at this domain layer.",
+                "required": [
+                    "code",
+                    "name",
+                    "baseUrl"
+                ],
+                "properties": {
+                    "code": {
+                        "maxLength": 64,
+                        "pattern": "^([a-z0-9-]+)$",
+                        "default": "",
+                        "type": "string"
+                    },
+                    "name": {
+                        "maxLength": 255,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "baseUrl": {
+                        "maxLength": 2048,
+                        "default": "",
+                        "type": "string"
+                    },
+                    "authType": {
+                        "enum": [
+                            "none",
+                            "api_key",
+                            "bearer",
+                            "basic",
+                            "oauth2_token"
+                        ],
+                        "default": "none",
+                        "type": "string"
+                    },
+                    "credentials": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "defaultHeaders": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "rateLimitHint": {
+                        "minimum": 0,
+                        "exclusiveMinimum": 0,
+                        "maximum": 100000,
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "Connection.ConnectionPatchInput-connection.patch.jsonMergePatch": {
+                "type": "object",
+                "description": "A consumer-side connection to one external REST/JSON API (ADR-0022, epic APIC).\n\nHolds the transport definition \u2014 base URL, auth type, default headers, an\noptional rate hint \u2014 plus the reversibly-encrypted credentials needed to\ncall the remote. The actual encryption-at-write + response masking lands in\nAPIC-P1-02; this entity stores the already-produced ciphertext + master-key\nversion in two columns, mirroring `TenantAgentConfig` / ADR-0017.\n\n`TenantScoped` + Postgres RLS isolate every connection to its tenant. Scheme\n(http/https) and SSRF-safe descriptor validation are enforced separately\n(APIC-P1-03/P1-04), not at this domain layer.",
+                "properties": {
+                    "name": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "baseUrl": {
+                        "maxLength": 2048,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "authType": {
+                        "enum": [
+                            "none",
+                            "api_key",
+                            "bearer",
+                            "basic",
+                            "oauth2_token"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "status": {
+                        "enum": [
+                            "active",
+                            "paused"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "credentials": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "defaultHeaders": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "rateLimitHint": {
+                        "minimum": 0,
+                        "exclusiveMinimum": 0,
+                        "maximum": 100000,
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "Connection.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "code": {
+                                "maxLength": 64,
+                                "pattern": "^([a-z0-9-]+)$",
+                                "type": "string"
+                            },
+                            "name": {
+                                "maxLength": 255,
+                                "type": "string"
+                            },
+                            "baseUrl": {
+                                "maxLength": 2048,
+                                "type": "string"
+                            },
+                            "authType": {
+                                "default": "none",
+                                "type": "string",
+                                "enum": [
+                                    "none",
+                                    "api_key",
+                                    "bearer",
+                                    "basic",
+                                    "oauth2_token"
+                                ]
+                            },
+                            "defaultHeaders": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            },
+                            "rateLimitHint": {
+                                "minimum": 0,
+                                "exclusiveMinimum": 0,
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "status": {
+                                "default": "draft",
+                                "type": "string"
+                            },
+                            "lastHealthCheckAt": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "updatedAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        },
+                        "required": [
+                            "code",
+                            "name",
+                            "baseUrl"
+                        ]
+                    }
+                ],
+                "description": "A consumer-side connection to one external REST/JSON API (ADR-0022, epic APIC).\n\nHolds the transport definition \u2014 base URL, auth type, default headers, an\noptional rate hint \u2014 plus the reversibly-encrypted credentials needed to\ncall the remote. The actual encryption-at-write + response masking lands in\nAPIC-P1-02; this entity stores the already-produced ciphertext + master-key\nversion in two columns, mirroring `TenantAgentConfig` / ADR-0017.\n\n`TenantScoped` + Postgres RLS isolate every connection to its tenant. Scheme\n(http/https) and SSRF-safe descriptor validation are enforced separately\n(APIC-P1-03/P1-04), not at this domain layer."
+            },
             "ConstraintViolation": {
                 "type": "object",
                 "description": "Unprocessable entity",
@@ -19146,6 +19917,10 @@
         {
             "name": "ImportSource",
             "description": "VIEW-IMP-03 (#500) \u2014 connection config for incoming file feeds.\n\nLives alongside the profiles + sessions tables in the Import bundle.\nTenant-scoped + owner-scoped; the operator only sees the sources\nthey registered. `authRef` is a pointer to the Symfony Secrets Vault\n\u2014 credential plaintext never lands in the DB.\n\nPolling daemon is not part of V03 \u2014 only the schema, CRUD endpoints,\nand a manual `test-connection` probe land here. Auto-pickup of files\nmatching `filePattern` is scoped to the polling follow-up."
+        },
+        {
+            "name": "Connection",
+            "description": "A consumer-side connection to one external REST/JSON API (ADR-0022, epic APIC).\n\nHolds the transport definition \u2014 base URL, auth type, default headers, an\noptional rate hint \u2014 plus the reversibly-encrypted credentials needed to\ncall the remote. The actual encryption-at-write + response masking lands in\nAPIC-P1-02; this entity stores the already-produced ciphertext + master-key\nversion in two columns, mirroring `TenantAgentConfig` / ADR-0017.\n\n`TenantScoped` + Postgres RLS isolate every connection to its tenant. Scheme\n(http/https) and SSRF-safe descriptor validation are enforced separately\n(APIC-P1-03/P1-04), not at this domain layer."
         }
     ],
     "webhooks": {}

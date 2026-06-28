@@ -18,6 +18,7 @@ framework:
                 - '%kernel.project_dir%/src/Asset/Infrastructure/Serializer'
                 - '%kernel.project_dir%/src/ApiConfigurator/Infrastructure/Serializer'
                 - '%kernel.project_dir%/src/Import/Infrastructure/Serializer'
+                - '%kernel.project_dir%/src/Integration/Generic/Infrastructure/Serializer'
 
     #esi: true
     #fragments: true
