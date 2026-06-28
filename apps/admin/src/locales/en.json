@@ -1731,6 +1731,32 @@
       "connections_soon_desc": "The list of external-API connections with their status and last sync will appear here. Creating and configuring connections lands in the next steps.",
       "monitor_soon_title": "Sync monitor — coming soon",
       "monitor_soon_desc": "Sync run history with per-record error drill-down."
+    },
+    "hub": {
+      "title": "Connections",
+      "subtitle": "Connectors to external APIs that PIM queries and feeds.",
+      "new_connection": "New connection",
+      "search_placeholder": "Search by name, code, URL…",
+      "filter_aria": "Filter connections by status",
+      "filter": {
+        "all": "All · {{count}}",
+        "active": "Active · {{count}}",
+        "paused": "Paused · {{count}}",
+        "error": "Error · {{count}}"
+      },
+      "status": {
+        "active": "active",
+        "paused": "paused",
+        "error": "error",
+        "draft": "draft"
+      },
+      "auth": "Auth",
+      "last_check": "Last test",
+      "never_checked": "not tested",
+      "empty_title": "No connections",
+      "empty_desc": "Add your first external-API connection so PIM can pull and push data.",
+      "no_matches_title": "No results",
+      "no_matches_desc": "No connection matches the current filter or search query."
     }
   },
   "api_profiles": {

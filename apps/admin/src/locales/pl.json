@@ -1779,6 +1779,32 @@
       "connections_soon_desc": "Tu pojawi się lista połączeń z zewnętrznymi API wraz ze statusem i ostatnią synchronizacją. Tworzenie i konfiguracja połączeń dochodzą w kolejnych krokach.",
       "monitor_soon_title": "Monitor synchronizacji — wkrótce",
       "monitor_soon_desc": "Historia uruchomień synchronizacji z drill-downem do błędów per rekord."
+    },
+    "hub": {
+      "title": "Połączenia",
+      "subtitle": "Konektory do zewnętrznych API, które PIM odpytuje i zasila.",
+      "new_connection": "Nowe połączenie",
+      "search_placeholder": "Szukaj po nazwie, kodzie, URL…",
+      "filter_aria": "Filtruj połączenia po statusie",
+      "filter": {
+        "all": "Wszystkie · {{count}}",
+        "active": "Aktywne · {{count}}",
+        "paused": "Wstrzymane · {{count}}",
+        "error": "Błąd · {{count}}"
+      },
+      "status": {
+        "active": "aktywne",
+        "paused": "wstrzymane",
+        "error": "błąd",
+        "draft": "szkic"
+      },
+      "auth": "Autoryzacja",
+      "last_check": "Ostatni test",
+      "never_checked": "nie testowano",
+      "empty_title": "Brak połączeń",
+      "empty_desc": "Dodaj pierwsze połączenie z zewnętrznym API, aby PIM mógł pobierać i wysyłać dane.",
+      "no_matches_title": "Brak wyników",
+      "no_matches_desc": "Żadne połączenie nie pasuje do filtra lub frazy wyszukiwania."
     }
   },
   "api_profiles": {
