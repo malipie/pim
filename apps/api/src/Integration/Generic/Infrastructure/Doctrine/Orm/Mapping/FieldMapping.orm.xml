@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Integration\Generic\Domain\Entity\FieldMapping"
+            table="integration_field_mappings"
+            repository-class="App\Integration\Generic\Infrastructure\Doctrine\Repository\DoctrineFieldMappingRepository">
+
+        <indexes>
+            <index name="integration_field_mappings_tenant_conn_idx" columns="tenant_id,connection_id"/>
+            <index name="integration_field_mappings_tenant_binding_idx" columns="tenant_id,binding_id"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <many-to-one field="connection" target-entity="App\Integration\Generic\Domain\Entity\Connection">
+            <join-column name="connection_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="bindingId" type="uuid" column="binding_id" nullable="true"/>
+        <field name="pimTarget" type="string" length="255" column="pim_target"/>
+        <field name="remoteFieldPath" type="string" length="512" column="remote_field_path"/>
+        <field name="direction" type="string" length="16"/>
+        <field name="isMatchKey" type="boolean" column="is_match_key">
+            <options>
+                <option name="default">false</option>
+            </options>
+        </field>
+        <field name="version" type="integer">
+            <options>
+                <option name="default">1</option>
+            </options>
+        </field>
+        <field name="createdAt" type="datetimetz_immutable" column="created_at"/>
+        <field name="updatedAt" type="datetimetz_immutable" column="updated_at"/>
+
+    </entity>
+
+</doctrine-mapping>
