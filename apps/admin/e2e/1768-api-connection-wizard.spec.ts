@@ -53,5 +53,6 @@ test('APIC-P1-08 — connection wizard: define draft then test', async ({ page }
 
   await testButton.click();
   await expect(page.getByText(/połączenie ok|connection ok/i)).toBeVisible();
-  await expect(page.getByText('142 ms')).toBeVisible();
+  // The latency metric cell (exact match — the success sub-line also contains "142 ms").
+  await expect(page.getByText('142 ms', { exact: true })).toBeVisible();
 });
