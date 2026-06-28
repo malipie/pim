@@ -80,7 +80,7 @@ export function StepEndpoints({ connectionId }: { connectionId: string | null })
     <div className="soft-shadow space-y-4 rounded-2xl border border-zinc-200 bg-white p-6">
       <table className="w-full text-[12.5px]">
         <thead>
-          <tr className="text-[10px] uppercase tracking-wider text-zinc-400">
+          <tr className="text-[10px] uppercase tracking-wider text-zinc-500">
             <th className="pb-1 text-left font-medium">{t('api_configurator.wizard.ep.role')}</th>
             <th className="pb-1 text-left font-medium">{t('api_configurator.wizard.ep.method')}</th>
             <th className="pb-1 text-left font-medium">{t('api_configurator.wizard.ep.path')}</th>
@@ -130,7 +130,7 @@ export function StepEndpoints({ connectionId }: { connectionId: string | null })
           ))}
           {endpoints.length === 0 && !query.isLoading ? (
             <tr>
-              <td colSpan={6} className="py-4 text-center text-zinc-400">
+              <td colSpan={6} className="py-4 text-center text-zinc-500">
                 {t('api_configurator.wizard.ep.empty')}
               </td>
             </tr>

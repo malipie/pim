@@ -208,7 +208,7 @@ export function ConnectionWizardPage() {
           {step === 0 ? t('app.cancel') : t('api_configurator.wizard.back')}
         </Button>
         <div className="flex-1" />
-        <div className="text-[12px] text-zinc-400">
+        <div className="text-[12px] text-zinc-500">
           {t('api_configurator.wizard.step_counter', { current: step + 1, total: steps.length })}
         </div>
         {isLast ? (

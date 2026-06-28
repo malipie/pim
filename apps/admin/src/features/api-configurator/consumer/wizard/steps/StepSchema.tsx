@@ -147,13 +147,13 @@ export function StepSchema({ connectionId }: { connectionId: string | null }) {
       ) : null}
 
       {discovered === null ? (
-        <div className="rounded-xl border border-dashed border-zinc-200 px-5 py-10 text-center text-[13px] text-zinc-400">
+        <div className="rounded-xl border border-dashed border-zinc-200 px-5 py-10 text-center text-[13px] text-zinc-500">
           {t('api_configurator.wizard.schema.empty')}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.1fr]">
           <div className="overflow-hidden rounded-xl border border-zinc-200">
-            <div className="border-b border-zinc-100 bg-zinc-50/60 px-3 py-2 text-[10.5px] font-medium uppercase tracking-wider text-zinc-400">
+            <div className="border-b border-zinc-100 bg-zinc-50/60 px-3 py-2 text-[10.5px] font-medium uppercase tracking-wider text-zinc-500">
               {t('api_configurator.wizard.schema.sample')}
             </div>
             <div className="p-3">
@@ -201,7 +201,7 @@ export function StepSchema({ connectionId }: { connectionId: string | null }) {
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-mono text-[12px] text-zinc-800">{field.path}</div>
                     {field.sampleValue !== null ? (
-                      <div className="truncate font-mono text-[10.5px] text-zinc-400">
+                      <div className="truncate font-mono text-[10.5px] text-zinc-500">
                         {t('api_configurator.wizard.schema.field_sample', {
                           value: field.sampleValue,
                         })}
