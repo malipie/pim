@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 
 import { StepConnection } from './StepConnection';
 import { StepTest } from './StepTest';
+import { StepEndpoints } from './steps/StepEndpoints';
+import { StepSchema } from './steps/StepSchema';
 import { INITIAL_FORM, toConnectionInput, type WizardForm } from './types';
 
 const HUB = '/integrations/api-configurator/connections';
@@ -16,10 +18,11 @@ const HUB = '/integrations/api-configurator/connections';
 type StepState = 'done' | 'active' | 'pending';
 
 /**
- * APIC-P1-08 — the consumer connection wizard. Steps 1–2 (define + test) are
- * live; steps 3–4 (endpoints + schema discovery) are stubs that land with the
- * descriptor work in M2 (APIC-P2-06). The connection is persisted as a draft on
- * leaving step 1 so step 2 has an id to probe, and re-edits PATCH that draft.
+ * APIC-P1-08 / P2-06 — the consumer connection wizard. Step 1 defines the
+ * connection, step 2 tests it, step 3 builds the endpoint descriptors, step 4
+ * discovers the schema and accepts fields. The connection is persisted as a
+ * draft on leaving step 1 so the later steps have an id to attach to, and
+ * re-edits PATCH that draft.
  */
 export function ConnectionWizardPage() {
   const { t } = useTranslation();
@@ -42,7 +45,7 @@ export function ConnectionWizardPage() {
     {
       id: 'schema',
       label: t('api_configurator.wizard.step_schema'),
-      note: t('api_configurator.wizard.soon'),
+      note: t('api_configurator.wizard.schema.note'),
     },
   ];
 
@@ -191,16 +194,8 @@ export function ConnectionWizardPage() {
 
       {step === 0 ? <StepConnection form={form} set={set} /> : null}
       {step === 1 ? <StepTest form={form} connectionId={connectionId} /> : null}
-      {step === 2 || step === 3 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-10 text-center">
-          <h2 className="text-[15px] font-semibold tracking-tight">
-            {t('api_configurator.wizard.stub_title')}
-          </h2>
-          <p className="mx-auto mt-1 max-w-md text-[13px] text-zinc-500">
-            {t('api_configurator.wizard.stub_desc')}
-          </p>
-        </div>
-      ) : null}
+      {step === 2 ? <StepEndpoints connectionId={connectionId} /> : null}
+      {step === 3 ? <StepSchema connectionId={connectionId} /> : null}
 
       {saveError !== null ? (
         <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 text-[12.5px] text-rose-700">
