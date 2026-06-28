@@ -60,6 +60,10 @@ const ConnectionWizardPage = lazyPage(
   () => import('@/features/api-configurator/consumer/wizard/ConnectionWizardPage'),
   'ConnectionWizardPage',
 );
+const MappingScreen = lazyPage(
+  () => import('@/features/api-configurator/consumer/mapping/MappingScreen'),
+  'MappingScreen',
+);
 const ApiMonitorPlaceholder = lazyPage(
   () => import('@/features/api-configurator/monitor/ApiMonitorPlaceholder'),
   'ApiMonitorPlaceholder',
@@ -635,6 +639,10 @@ function App() {
                     <Route
                       path="/integrations/api-configurator/connections/new"
                       element={<ConnectionWizardPage />}
+                    />
+                    <Route
+                      path="/integrations/api-configurator/connections/:id/mapping"
+                      element={<MappingScreen />}
                     />
                     <Route
                       path="/integrations/api-configurator/monitor"

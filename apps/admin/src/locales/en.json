@@ -1844,6 +1844,28 @@
         "saving": "Saving…",
         "saved": "Fields saved"
       }
+    },
+    "mapping": {
+      "title": "Field mapping",
+      "subtitle": "Connect PIM attributes to external API fields (1:1 mapping).",
+      "back": "Back",
+      "warnings": "{{count}} type warnings",
+      "coverage": "Mapping coverage",
+      "match_key": "match key",
+      "direction": "Sync direction",
+      "key": "key",
+      "type_ok": "Types compatible",
+      "transform_hint": "Transform engine — planned (MVP = 1:1 mapping)",
+      "transform": "transform",
+      "remove": "remove",
+      "pim_placeholder": "sku, name, status, attribute code…",
+      "pim_target": "PIM attribute",
+      "remote_path": "External field (JSONPath)",
+      "add": "Add 1:1 mapping",
+      "unmapped_pim": "Unmapped PIM attributes · {{count}}",
+      "all_pim_mapped": "All attributes mapped ✓",
+      "unmapped_remote": "Unmapped external fields · {{count}}",
+      "all_remote_mapped": "None — all fields used"
     }
   },
   "api_profiles": {
