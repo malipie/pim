@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\Integration\Generic\Domain\Entity\SyncRun"
+            table="integration_sync_runs"
+            repository-class="App\Integration\Generic\Infrastructure\Doctrine\Repository\DoctrineSyncRunRepository">
+
+        <indexes>
+            <index name="integration_sync_runs_tenant_binding_idx" columns="tenant_id,binding_id"/>
+            <index name="integration_sync_runs_tenant_started_idx" columns="tenant_id,started_at"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <many-to-one field="binding" target-entity="App\Integration\Generic\Domain\Entity\SyncBinding">
+            <join-column name="binding_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+
+        <field name="direction" type="string" length="16"/>
+        <field name="startedAt" type="datetimetz_immutable" column="started_at"/>
+        <field name="finishedAt" type="datetimetz_immutable" column="finished_at" nullable="true"/>
+        <field name="status" type="string" length="16"/>
+        <field name="createdCount" type="integer" column="created_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="updatedCount" type="integer" column="updated_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="skippedCount" type="integer" column="skipped_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="failedCount" type="integer" column="failed_count">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="cursorBefore" type="json" column="cursor_before" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <field name="cursorAfter" type="json" column="cursor_after" nullable="true">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+
+    </entity>
+
+</doctrine-mapping>

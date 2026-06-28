@@ -149,6 +149,8 @@ parameters:
               - src/Integration/Generic/Domain/Entity/RemoteField.php
               - src/Integration/Generic/Domain/Entity/FieldMapping.php
               - src/Integration/Generic/Domain/Entity/SyncBinding.php
+              - src/Integration/Generic/Domain/Entity/SyncRun.php
+              - src/Integration/Generic/Domain/Entity/SyncRunLog.php
               - src/Import/Domain/Entity/ImportScheduleRun.php
               - src/Export/Domain/Entity/ExportSession.php
               - src/Export/Domain/Entity/ExportProfile.php
