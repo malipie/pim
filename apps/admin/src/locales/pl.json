@@ -1865,7 +1865,33 @@
       "ssrf_passed": "URL przeszedł walidację SsrfGuard — publiczny host, brak przekierowań do sieci prywatnej.",
       "sample_label": "Odpowiedź · próbka rekordu",
       "stub_title": "Endpointy i wykrywanie schematu — wkrótce",
-      "stub_desc": "Definicja endpointów (read/write) oraz automatyczne wykrywanie pól dochodzą w kolejnym kroku epiku (M2)."
+      "stub_desc": "Definicja endpointów (read/write) oraz automatyczne wykrywanie pól dochodzą w kolejnym kroku epiku (M2).",
+      "ep": {
+        "role": "Rola",
+        "method": "Metoda",
+        "path": "Ścieżka",
+        "pagination": "Paginacja",
+        "selector": "Record selector",
+        "add": "Dodaj endpoint",
+        "remove": "Usuń endpoint {{path}}",
+        "empty": "Brak endpointów — dodaj operację read/write poniżej."
+      },
+      "schema": {
+        "note": "wykryj pola",
+        "endpoint": "Endpoint do próbkowania",
+        "fetch": "Pobierz próbkę",
+        "fetching": "Pobieranie…",
+        "no_read_endpoint": "Dodaj endpoint typu read w kroku 3, aby wykryć pola.",
+        "empty": "Pobierz próbkę, aby wykryć i zaakceptować pola (wzorzec Airbyte / Merge).",
+        "sample": "Surowa próbka",
+        "accepted": "{{count}} z {{total}} pól zaakceptowanych",
+        "all": "wszystkie",
+        "none": "żadne",
+        "field_sample": "próbka: {{value}}",
+        "accept": "Zapisz pola ({{count}})",
+        "saving": "Zapisywanie…",
+        "saved": "Pola zapisane"
+      }
     }
   },
   "api_profiles": {

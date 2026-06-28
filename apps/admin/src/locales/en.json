@@ -1817,7 +1817,33 @@
       "ssrf_passed": "URL passed SsrfGuard validation — public host, no redirects into private networks.",
       "sample_label": "Response · record sample",
       "stub_title": "Endpoints and schema discovery — coming soon",
-      "stub_desc": "Endpoint definitions (read/write) and automatic field discovery land in the next step of the epic (M2)."
+      "stub_desc": "Endpoint definitions (read/write) and automatic field discovery land in the next step of the epic (M2).",
+      "ep": {
+        "role": "Role",
+        "method": "Method",
+        "path": "Path",
+        "pagination": "Pagination",
+        "selector": "Record selector",
+        "add": "Add endpoint",
+        "remove": "Remove endpoint {{path}}",
+        "empty": "No endpoints — add a read/write operation below."
+      },
+      "schema": {
+        "note": "detect fields",
+        "endpoint": "Endpoint to sample",
+        "fetch": "Fetch sample",
+        "fetching": "Fetching…",
+        "no_read_endpoint": "Add a read endpoint in step 3 to discover fields.",
+        "empty": "Fetch a sample to discover and accept fields (Airbyte / Merge pattern).",
+        "sample": "Raw sample",
+        "accepted": "{{count}} of {{total}} fields accepted",
+        "all": "all",
+        "none": "none",
+        "field_sample": "sample: {{value}}",
+        "accept": "Save fields ({{count}})",
+        "saving": "Saving…",
+        "saved": "Fields saved"
+      }
     }
   },
   "api_profiles": {
