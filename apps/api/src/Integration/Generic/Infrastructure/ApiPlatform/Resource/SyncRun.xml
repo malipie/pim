@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <resource class="App\Integration\Generic\Domain\Entity\SyncRun"
+              shortName="SyncRun">
+
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>admin:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
+        <!-- Newest run first (the history list is reverse-chronological). -->
+        <order>
+            <values>
+                <value name="startedAt">DESC</value>
+            </values>
+        </order>
+
+        <!-- `?connection={id}` (all runs of a connection's bindings) and
+             `?binding={id}` (one binding's runs) scope the history list. -->
+        <filters>
+            <filter>App\Integration\Generic\Infrastructure\ApiPlatform\Filter\SyncRunConnectionFilter</filter>
+            <filter>App\Integration\Generic\Infrastructure\ApiPlatform\Filter\SyncRunBindingFilter</filter>
+        </filters>
+
+        <operations>
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/sync_runs{._format}"
+                       security="is_granted('READ', 'App\\Integration\\Generic\\Domain\\Entity\\SyncRun')"/>
+
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/sync_runs/{id}{._format}"
+                       security="is_granted('READ', object)"/>
+        </operations>
+    </resource>
+
+</resources>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <!-- Read projection for the per-record drill-down (APIC-P4-01). -->
+    <class name="App\Integration\Generic\Domain\Entity\SyncRunLog">
+        <attribute name="id">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="runId">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="matchKey">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="action">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="fields">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="message">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+        </attribute>
+    </class>
+</serializer>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <resource class="App\Integration\Generic\Domain\Entity\SyncRunLog"
+              shortName="SyncRunLog">
+
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>admin:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
+        <order>
+            <values>
+                <value name="createdAt">ASC</value>
+            </values>
+        </order>
+
+        <!-- `?run={id}` drills into one run's per-record log. -->
+        <filters>
+            <filter>App\Integration\Generic\Infrastructure\ApiPlatform\Filter\SyncRunLogRunFilter</filter>
+        </filters>
+
+        <operations>
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/sync_run_logs{._format}"
+                       security="is_granted('READ', 'App\\Integration\\Generic\\Domain\\Entity\\SyncRunLog')"/>
+
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/sync_run_logs/{id}{._format}"
+                       security="is_granted('READ', object)"/>
+        </operations>
+    </resource>
+
+</resources>

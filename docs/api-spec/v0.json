@@ -9019,6 +9019,380 @@
                 }
             }
         },
+        "/api/sync_runs": {
+            "get": {
+                "operationId": "api_sync_runs_get_collection",
+                "tags": [
+                    "SyncRun"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SyncRun collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "SyncRun.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/SyncRun.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/SyncRun-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of SyncRun resources.",
+                "description": "Retrieves the collection of SyncRun resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "connection",
+                        "in": "query",
+                        "description": "Exact match on the parent Connection UUID via the binding join (tenant-scoped).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "binding",
+                        "in": "query",
+                        "description": "Exact match on the SyncBinding UUID (tenant-scoped).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/sync_runs/{id}": {
+            "get": {
+                "operationId": "api_sync_runs_id_get",
+                "tags": [
+                    "SyncRun"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SyncRun resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SyncRun.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SyncRun-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a SyncRun resource.",
+                "description": "Retrieves a SyncRun resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "SyncRun identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/sync_run_logs": {
+            "get": {
+                "operationId": "api_sync_run_logs_get_collection",
+                "tags": [
+                    "SyncRunLog"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SyncRunLog collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "SyncRunLog.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/SyncRunLog.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/SyncRunLog-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of SyncRunLog resources.",
+                "description": "Retrieves the collection of SyncRunLog resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "run",
+                        "in": "query",
+                        "description": "Exact match on the parent SyncRun UUID (tenant-scoped).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/sync_run_logs/{id}": {
+            "get": {
+                "operationId": "api_sync_run_logs_id_get",
+                "tags": [
+                    "SyncRunLog"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SyncRunLog resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SyncRunLog.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SyncRunLog-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a SyncRunLog resource.",
+                "description": "Retrieves a SyncRunLog resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "SyncRunLog identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        },
         "/api/admin/break-glass": {
             "post": {
                 "operationId": "api_admin_break_glass_post",
@@ -23197,6 +23571,314 @@
                     }
                 ],
                 "description": "The heart of a sync: what (ObjectType) is synced where (Connection endpoints),\nhow (direction + conflict policy + match key) and how often (cron schedule) \u2014\nADR-0022, epic APIC, ticket APIC-P3-01.\n\n`objectTypeId` is a validated loose reference, not a Doctrine/DB FK: the\ntarget ObjectType lives in the Catalog context and ADR-0022 keeps cross-BC\ncoupling to Contracts only, so no migration-level FK ties Integration to the\nCatalog schema (the binding API validates the id exists). The read/write\nendpoints and the connection are same-context FKs.\n\n`cursor` is the delta-sync state envelope (`{field, type, state}`) maintained\nby the cursor manager (APIC-P3-03). `TenantScoped` + Postgres RLS isolate\nevery binding to its tenant."
+            },
+            "SyncRun-admin.read": {
+                "type": "object",
+                "description": "The audit record of one sync execution of a {@see SyncBinding} (ADR-0022,\nepic APIC, ticket APIC-P3-02; mirrors `ImportScheduleRun` + `sync_job_logs`).\n\nCaptures the direction, lifecycle status, per-outcome counters and the cursor\nbefore/after the run (so a delta sync is auditable and resumable). Per-record\ndetail lives in {@see SyncRunLog}. `TenantScoped` + Postgres RLS isolate every\nrun to its tenant.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "direction": {
+                        "type": "string",
+                        "enum": [
+                            "inbound",
+                            "outbound",
+                            "bidirectional"
+                        ]
+                    },
+                    "startedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "finishedAt": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "status": {
+                        "readOnly": true,
+                        "default": "running",
+                        "type": "string"
+                    },
+                    "createdCount": {
+                        "readOnly": true,
+                        "default": 0,
+                        "type": "integer"
+                    },
+                    "updatedCount": {
+                        "readOnly": true,
+                        "default": 0,
+                        "type": "integer"
+                    },
+                    "skippedCount": {
+                        "readOnly": true,
+                        "default": 0,
+                        "type": "integer"
+                    },
+                    "failedCount": {
+                        "readOnly": true,
+                        "default": 0,
+                        "type": "integer"
+                    },
+                    "cursorBefore": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "cursorAfter": {
+                        "readOnly": true,
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "bindingId": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }
+            },
+            "SyncRun.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "direction": {
+                                "type": "string",
+                                "enum": [
+                                    "inbound",
+                                    "outbound",
+                                    "bidirectional"
+                                ]
+                            },
+                            "startedAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "finishedAt": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "status": {
+                                "readOnly": true,
+                                "default": "running",
+                                "type": "string"
+                            },
+                            "createdCount": {
+                                "readOnly": true,
+                                "default": 0,
+                                "type": "integer"
+                            },
+                            "updatedCount": {
+                                "readOnly": true,
+                                "default": 0,
+                                "type": "integer"
+                            },
+                            "skippedCount": {
+                                "readOnly": true,
+                                "default": 0,
+                                "type": "integer"
+                            },
+                            "failedCount": {
+                                "readOnly": true,
+                                "default": 0,
+                                "type": "integer"
+                            },
+                            "cursorBefore": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "cursorAfter": {
+                                "readOnly": true,
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "bindingId": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "uuid"
+                            }
+                        }
+                    }
+                ],
+                "description": "The audit record of one sync execution of a {@see SyncBinding} (ADR-0022,\nepic APIC, ticket APIC-P3-02; mirrors `ImportScheduleRun` + `sync_job_logs`).\n\nCaptures the direction, lifecycle status, per-outcome counters and the cursor\nbefore/after the run (so a delta sync is auditable and resumable). Per-record\ndetail lives in {@see SyncRunLog}. `TenantScoped` + Postgres RLS isolate every\nrun to its tenant."
+            },
+            "SyncRunLog-admin.read": {
+                "type": "object",
+                "description": "Per-record detail of a {@see SyncRun} (ADR-0022, epic APIC, ticket APIC-P3-02):\nthe match key that identified the row, the action taken, the fields touched\nand an optional message (the error text for a failed record).\n\n`TenantScoped` + Postgres RLS isolate every log line to its tenant; the FK to\nSyncRun cascades on delete.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "matchKey": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "action": {
+                        "type": "string",
+                        "enum": [
+                            "created",
+                            "updated",
+                            "skipped",
+                            "failed"
+                        ]
+                    },
+                    "fields": {
+                        "description": "The fields written/compared for this record; null for skips/failures.",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "runId": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }
+            },
+            "SyncRunLog.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "matchKey": {
+                                "maxLength": 255,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "action": {
+                                "type": "string",
+                                "enum": [
+                                    "created",
+                                    "updated",
+                                    "skipped",
+                                    "failed"
+                                ]
+                            },
+                            "fields": {
+                                "description": "The fields written/compared for this record; null for skips/failures.",
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "message": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "runId": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "uuid"
+                            }
+                        }
+                    }
+                ],
+                "description": "Per-record detail of a {@see SyncRun} (ADR-0022, epic APIC, ticket APIC-P3-02):\nthe match key that identified the row, the action taken, the fields touched\nand an optional message (the error text for a failed record).\n\n`TenantScoped` + Postgres RLS isolate every log line to its tenant; the FK to\nSyncRun cascades on delete."
             }
         },
         "responses": {},
@@ -23294,6 +23976,14 @@
         {
             "name": "SyncBinding",
             "description": "The heart of a sync: what (ObjectType) is synced where (Connection endpoints),\nhow (direction + conflict policy + match key) and how often (cron schedule) \u2014\nADR-0022, epic APIC, ticket APIC-P3-01.\n\n`objectTypeId` is a validated loose reference, not a Doctrine/DB FK: the\ntarget ObjectType lives in the Catalog context and ADR-0022 keeps cross-BC\ncoupling to Contracts only, so no migration-level FK ties Integration to the\nCatalog schema (the binding API validates the id exists). The read/write\nendpoints and the connection are same-context FKs.\n\n`cursor` is the delta-sync state envelope (`{field, type, state}`) maintained\nby the cursor manager (APIC-P3-03). `TenantScoped` + Postgres RLS isolate\nevery binding to its tenant."
+        },
+        {
+            "name": "SyncRun",
+            "description": "The audit record of one sync execution of a {@see SyncBinding} (ADR-0022,\nepic APIC, ticket APIC-P3-02; mirrors `ImportScheduleRun` + `sync_job_logs`).\n\nCaptures the direction, lifecycle status, per-outcome counters and the cursor\nbefore/after the run (so a delta sync is auditable and resumable). Per-record\ndetail lives in {@see SyncRunLog}. `TenantScoped` + Postgres RLS isolate every\nrun to its tenant."
+        },
+        {
+            "name": "SyncRunLog",
+            "description": "Per-record detail of a {@see SyncRun} (ADR-0022, epic APIC, ticket APIC-P3-02):\nthe match key that identified the row, the action taken, the fields touched\nand an optional message (the error text for a failed record).\n\n`TenantScoped` + Postgres RLS isolate every log line to its tenant; the FK to\nSyncRun cascades on delete."
         }
     ],
     "webhooks": {}
