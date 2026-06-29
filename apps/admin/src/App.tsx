@@ -64,6 +64,10 @@ const MappingScreen = lazyPage(
   () => import('@/features/api-configurator/consumer/mapping/MappingScreen'),
   'MappingScreen',
 );
+const SyncConfigScreen = lazyPage(
+  () => import('@/features/api-configurator/consumer/sync/SyncConfigScreen'),
+  'SyncConfigScreen',
+);
 const ApiMonitorPlaceholder = lazyPage(
   () => import('@/features/api-configurator/monitor/ApiMonitorPlaceholder'),
   'ApiMonitorPlaceholder',
@@ -643,6 +647,10 @@ function App() {
                     <Route
                       path="/integrations/api-configurator/connections/:id/mapping"
                       element={<MappingScreen />}
+                    />
+                    <Route
+                      path="/integrations/api-configurator/connections/:id/sync"
+                      element={<SyncConfigScreen />}
                     />
                     <Route
                       path="/integrations/api-configurator/monitor"

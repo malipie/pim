@@ -1866,6 +1866,80 @@
       "all_pim_mapped": "All attributes mapped ✓",
       "unmapped_remote": "Unmapped external fields · {{count}}",
       "all_remote_mapped": "None — all fields used"
+    },
+    "sync": {
+      "back": "Back to connections",
+      "title": "Synchronization configuration",
+      "subtitle": "Direction, schedule and conflict policy for this connection.",
+      "empty": {
+        "title": "No sync binding yet",
+        "body": "This connection has no binding yet. Pick the PIM object type to sync — we'll create an inbound binding you can then configure.",
+        "object_type": "Object type",
+        "object_type_placeholder": "Select an object type…",
+        "create": "Create binding"
+      },
+      "direction": {
+        "title": "Sync direction",
+        "api": "API",
+        "inbound": "Inbound (pull)",
+        "outbound": "Outbound (push)",
+        "bidirectional": "Bidirectional",
+        "read_endpoint": "Read endpoint",
+        "write_endpoint": "Write endpoint",
+        "endpoint_placeholder": "Select an endpoint…",
+        "hint": {
+          "inbound": "PIM pulls data from the API on a schedule (cursor delta) and writes it through the import engine (ValueWriteCore, provenance = integration).",
+          "outbound": "PIM pushes changes to the API (object-change event or schedule). The payload is built by the export engine — no bespoke serializer.",
+          "bidirectional": "Both directions on one binding. Requires a conflict policy; loops are broken by provenance (we never push back changes pulled from the same connection)."
+        }
+      },
+      "schedule": {
+        "title": "Schedule",
+        "cron": "Cron expression",
+        "manual": "manual only",
+        "custom": "custom schedule",
+        "jitter": "per-tenant jitter spreads starts to avoid load spikes.",
+        "next_run": "Next run",
+        "manual_only": "No schedule — run manually.",
+        "preset": {
+          "every_15m": "every 15 min",
+          "every_30m": "every 30 min",
+          "hourly": "hourly",
+          "daily_2": "daily 02:00"
+        }
+      },
+      "cursor": {
+        "title": "Cursor (incremental read)",
+        "tag": "delta-sync · crash-safe",
+        "field": "Cursor field",
+        "type": "Type",
+        "state": "Current state",
+        "note": "The cursor is managed by the sync engine and must advance monotonically — it guards against re-processing and post-crash duplicates (checkpoint like IMP2)."
+      },
+      "conflict": {
+        "title": "Conflict policy",
+        "tag": "2-way: both systems are sources of truth",
+        "lww": "Last-write-wins",
+        "pim_wins": "PIM always wins",
+        "remote_wins": "API wins",
+        "hint": {
+          "lww": "The newer timestamp wins. The origin of the last change is stamped via provenance.",
+          "pim_wins": "The PIM value takes precedence — API changes never overwrite PIM fields on conflict.",
+          "remote_wins": "The API value takes precedence — useful when the external system owns stock levels."
+        },
+        "anti_loop": "Anti-loop: changes with provenance = integration from this connection are not pushed back."
+      },
+      "match_key": {
+        "title": "Match key",
+        "hint": "Records are matched on this mapping. Change the “key” flag in the Mapping tab."
+      },
+      "footer": {
+        "toggle": "Binding active",
+        "active": "Binding active",
+        "paused": "Paused",
+        "run_now": "Run now",
+        "save": "Save binding"
+      }
     }
   },
   "api_profiles": {
