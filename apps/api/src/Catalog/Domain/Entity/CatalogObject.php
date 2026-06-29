@@ -400,6 +400,7 @@ class CatalogObject extends AggregateRoot implements TenantScoped, Blameable
             objectId: $this->id,
             tenantId: $this->tenant->getId(),
             changedAttributeCodes: $changedCodes,
+            objectTypeId: $this->objectType->getId(),
         ));
     }
 
