@@ -105,13 +105,15 @@ test('APIC-P3-11 — sync config: direction panels + save + run-now', async ({ p
     }),
   ).toBeVisible();
 
-  // Inbound: cursor card present, conflict card absent.
+  // Inbound: cursor card present, conflict card absent. Target the conflict
+  // card's unique Last-write-wins option (the section title phrase also appears
+  // in the page subtitle, so it is not a reliable presence signal).
   await expect(page.getByText(/cursor \(inkrementalny|cursor \(incremental/i)).toBeVisible();
-  await expect(page.getByText(/polityka konfliktów|conflict policy/i)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /last-write-wins/i })).toHaveCount(0);
 
   // Switch to bidirectional → the conflict policy card appears.
   await page.getByRole('button', { name: /dwukierunkowy|bidirectional/i }).click();
-  await expect(page.getByText(/polityka konfliktów|conflict policy/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: /last-write-wins/i })).toBeVisible();
 
   // Save the binding.
   await page.getByRole('button', { name: /zapisz wiązanie|save binding/i }).click();

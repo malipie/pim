@@ -71,7 +71,7 @@ export function SecurityNote({
 export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="mb-3 flex items-center gap-3">
-      <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+      <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
         {children}
       </div>
       <div className="h-px flex-1 bg-zinc-100" />

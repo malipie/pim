@@ -76,7 +76,7 @@ export function DirDiagram({ dir, apiLabel }: { dir: SyncDirection; apiLabel: st
         </div>
         <DiagramNode label={apiLabel} sub="spoke" />
       </div>
-      <div className="mt-3 text-center font-mono text-[11px] text-zinc-400">{meta.label}</div>
+      <div className="mt-3 text-center font-mono text-[11px] text-zinc-500">{meta.label}</div>
     </div>
   );
 }
@@ -87,7 +87,7 @@ function DiagramNode({ label, sub, dark = false }: { label: string; sub: string;
       className={`grid h-14 w-16 shrink-0 place-items-center rounded-xl ${dark ? 'bg-zinc-900 text-white' : 'border border-zinc-200 bg-white text-zinc-700'}`}
     >
       <div className="text-[13px] font-bold">{label}</div>
-      <div className={`font-mono text-[9px] ${dark ? 'text-white/50' : 'text-zinc-400'}`}>
+      <div className={`font-mono text-[9px] ${dark ? 'text-white/50' : 'text-zinc-500'}`}>
         {sub}
       </div>
     </div>

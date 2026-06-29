@@ -325,7 +325,7 @@ export function SyncConfigScreen() {
               </div>
             </div>
             <div className="rounded-xl border border-zinc-100 bg-zinc-50/60 p-3">
-              <div className="mb-2 text-[10.5px] font-medium uppercase tracking-wider text-zinc-400">
+              <div className="mb-2 text-[10.5px] font-medium uppercase tracking-wider text-zinc-500">
                 {t('api_configurator.sync.schedule.next_run')}
               </div>
               {binding.nextRun !== null ? (
@@ -349,7 +349,7 @@ export function SyncConfigScreen() {
           <section className="soft-shadow rounded-2xl border border-zinc-200 bg-white p-5">
             <SectionLabel
               right={
-                <span className="text-[11px] text-zinc-400">
+                <span className="text-[11px] text-zinc-500">
                   {t('api_configurator.sync.cursor.tag')}
                 </span>
               }
@@ -387,7 +387,7 @@ export function SyncConfigScreen() {
           <section className="soft-shadow rounded-2xl border border-zinc-200 bg-white p-5">
             <SectionLabel
               right={
-                <span className="text-[11px] text-zinc-400">
+                <span className="text-[11px] text-zinc-500">
                   {t('api_configurator.sync.conflict.tag')}
                 </span>
               }
