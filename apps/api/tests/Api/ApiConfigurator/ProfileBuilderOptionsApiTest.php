@@ -20,7 +20,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
  */
 final class ProfileBuilderOptionsApiTest extends ApiConfiguratorApiTestCase
 {
-    private const string URL = '/api/api_profiles/builder_options';
+    private const string URL = '/api/profiles/builder_options';
 
     #[Test]
     public function returnsAttributePoolEnvelope(): void

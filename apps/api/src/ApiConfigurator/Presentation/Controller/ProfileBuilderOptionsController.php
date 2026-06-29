@@ -32,8 +32,11 @@ final class ProfileBuilderOptionsController
     ) {
     }
 
+    // Path uses the `/api/profiles/` namespace (ProfileTestController), NOT the
+    // API-Platform-owned `/api/api_profiles/` — `/api/api_profiles/builder_options`
+    // would be shadowed by the generated `/api/api_profiles/{id}` item route.
     #[Route(
-        '/api/api_profiles/builder_options',
+        '/api/profiles/builder_options',
         name: 'pim_api_profiles_builder_options',
         methods: ['GET'],
     )]
