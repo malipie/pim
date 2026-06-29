@@ -8,12 +8,14 @@ const BASE = '/integrations/api-configurator';
 type ShellTab = 'connections' | 'producer' | 'monitor';
 
 /**
- * APIC-P0-04 — shared shell for the Konfigurator API area (ADR-0022). Mirrors
- * the api-app.jsx prototype: a three-way split between the consumer side
- * (Połączenia), the producer side (Moje API — the existing ApiProfile screens),
- * and the sync Monitor. Pill tabs over an Outlet; the producer tab keeps the
- * existing `/integrations/api-configurator` routes untouched, the consumer hub
- * (P1-07) and monitor (P4-02) fill their placeholders next.
+ * APIC-P0-04 / P4-08 — shared shell unifying both faces of the Konfigurator API
+ * area (ADR-0022, api-app.jsx prototype): a three-way pill-tab split over an
+ * Outlet between the **consumer** side (Połączenia — hub/wizard/detail/mapping/
+ * sync, P1-07/P2/P3-11/P3-12), the **producer** side (Moje API — the hub with
+ * Profile/Keys/Webhooks tabs + the profile builder, P4-06/P4-07), and the sync
+ * **Monitor** (P4-02). The active tab is derived from the path prefix so every
+ * sub-route (connection detail, profile builder, monitor drill-down) keeps its
+ * face highlighted; switching tabs deep-links to each face's landing.
  */
 export function KonfiguratorApiLayout() {
   const { t } = useTranslation();
