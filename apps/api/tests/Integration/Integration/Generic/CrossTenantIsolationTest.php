@@ -65,6 +65,11 @@ final class CrossTenantIsolationTest extends KernelTestCase
         // Rebind to a different tenant — alpha's whole graph must vanish.
         $this->activateTenantFilter($beta);
 
+        // Clear the identity map: Doctrine's find()-by-PK returns the managed
+        // instance without issuing SQL, so without this the TenantFilter (which
+        // only rewrites SQL) would never run for the findById() reads below.
+        $this->em()->clear();
+
         self::assertNull($this->connections()->findById($seed['connection']->getId()), 'Connection leaked');
         self::assertNull($this->endpoints()->findById($seed['endpoint']->getId()), 'RemoteEndpoint leaked');
         self::assertNull($this->fields()->findById($seed['field']->getId()), 'RemoteField leaked');
