@@ -20,7 +20,11 @@ use App\Integration\Generic\Domain\Exception\SsrfBlockedException;
 use App\Integration\Generic\Domain\Repository\FieldMappingRepositoryInterface;
 use App\Integration\Generic\Domain\Repository\SyncRunRepositoryInterface;
 use App\Integration\Generic\Infrastructure\Http\RemoteRequester;
+use App\Shared\Application\TenantContext;
+use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
+use RuntimeException;
+use Symfony\Component\Uid\Uuid;
 
 use const JSON_THROW_ON_ERROR;
 
@@ -37,6 +41,9 @@ use const JSON_THROW_ON_ERROR;
  */
 final readonly class OutboundSyncRunner
 {
+    /** Clear the unit of work every N pushed records (FrankenPHP worker hygiene). */
+    private const int CLEAR_EVERY = 200;
+
     public function __construct(
         private FieldMappingRepositoryInterface $mappings,
         private PayloadBuilder $payloadBuilder,
@@ -44,6 +51,7 @@ final readonly class OutboundSyncRunner
         private RemoteRequester $requester,
         private SyncRunRepositoryInterface $runs,
         private EntityManagerInterface $em,
+        private TenantContext $tenantContext,
     ) {
     }
 
@@ -71,13 +79,61 @@ final readonly class OutboundSyncRunner
             ? SyncRecordAction::Updated
             : SyncRecordAction::Created;
 
+        $runId = $run->getId();
+        $bindingId = $binding->getId();
+        $processed = 0;
+
+        // The reader yields one OutboundRecord (a DTO, not a managed entity) at a
+        // time keyed by the captured objectTypeId + codes scalars, so the
+        // generator survives the periodic clear. Each push persists a SyncRunLog
+        // and the reader queries each object's values into the unit of work —
+        // both accumulate across a 50k push, so clear every CLEAR_EVERY records
+        // and reload the entities the loop keeps mutating.
         foreach ($this->reader->read($binding->getObjectTypeId(), $codes) as $record) {
             $this->push($run, $binding, $writeEndpoint, $record, $mappings, $matchCode, $action);
             $this->em->flush();
+
+            if (0 === ++$processed % self::CLEAR_EVERY) {
+                $this->em->clear();
+                $binding = $this->reload($bindingId);
+                $run = $this->reloadRun($runId);
+                $writeEndpoint = $binding->getWriteEndpoint() ?? $writeEndpoint;
+                $mappings = array_values(array_filter(
+                    $this->mappings->findByConnection($binding->getConnection()),
+                    static fn (FieldMapping $m): bool => $m->getDirection()->appliesOutbound(),
+                ));
+            }
         }
 
         $run->markFinished();
         $this->runs->save($run);
+
+        return $run;
+    }
+
+    private function reload(Uuid $bindingId): SyncBinding
+    {
+        $binding = $this->em->find(SyncBinding::class, $bindingId->toRfc4122());
+        if (!$binding instanceof SyncBinding) {
+            throw new RuntimeException('Sync binding vanished mid-run.');
+        }
+
+        // The clear detached the tenant; re-bind the managed one so the next
+        // batch's SyncRunLog rows still stamp tenant_id (TenantFilter).
+        $tenant = $binding->getTenant();
+        if ($tenant instanceof Tenant) {
+            $this->tenantContext->set($tenant);
+        }
+
+        return $binding;
+    }
+
+    private function reloadRun(Uuid $runId): SyncRun
+    {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof SyncRun) {
+            throw new RuntimeException('Sync run vanished mid-run.');
+        }
 
         return $run;
     }
