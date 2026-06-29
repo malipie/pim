@@ -166,6 +166,11 @@ framework:
             # consume it, so no docker-compose change is needed.
             App\Export\Domain\Message\RunExportMessage: import
 
+            # APIC-P4-05 — producer webhook delivery. Async so the originating
+            # write never blocks on a slow integrator; the `async` retry strategy
+            # (5×, exponential) backs off failures and dead-letters to `failed`.
+            App\ApiConfigurator\Domain\Message\WebhookDeliveryMessage: async
+
             # Imports MVP (#447). pgBackRest snapshot can take 5-30
             # minutes — handler runs out-of-band so `POST /api/backups`
             # returns 202 immediately and the wizard polls

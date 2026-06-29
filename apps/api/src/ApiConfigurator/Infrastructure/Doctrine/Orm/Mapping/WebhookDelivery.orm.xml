@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="App\ApiConfigurator\Domain\Entity\WebhookDelivery"
+            table="api_webhook_deliveries"
+            repository-class="App\ApiConfigurator\Infrastructure\Doctrine\Repository\DoctrineWebhookDeliveryRepository">
+
+        <indexes>
+            <index name="api_webhook_deliveries_tenant_idx" columns="tenant_id"/>
+            <index name="api_webhook_deliveries_tenant_profile_idx" columns="tenant_id,profile_id"/>
+            <index name="api_webhook_deliveries_tenant_created_idx" columns="tenant_id,created_at"/>
+        </indexes>
+
+        <id name="id" type="uuid" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <many-to-one field="tenant" target-entity="App\Shared\Domain\Tenant">
+            <join-column name="tenant_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT"/>
+        </many-to-one>
+
+        <field name="profileId" type="uuid" column="profile_id"/>
+        <field name="eventType" type="string" length="128" column="event_type"/>
+        <field name="targetUrl" type="string" length="2048" column="target_url"/>
+        <field name="payload" type="json" column="payload">
+            <options>
+                <option name="jsonb">true</option>
+            </options>
+        </field>
+        <field name="status" type="string" length="16" column="status"/>
+        <field name="attempts" type="integer" column="attempts">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="httpStatus" type="integer" column="http_status" nullable="true"/>
+        <field name="durationMs" type="integer" column="duration_ms" nullable="true"/>
+        <field name="lastError" type="text" column="last_error" nullable="true"/>
+        <field name="createdAt" type="datetimetz_immutable" column="created_at"/>
+        <field name="updatedAt" type="datetimetz_immutable" column="updated_at"/>
+
+    </entity>
+
+</doctrine-mapping>
