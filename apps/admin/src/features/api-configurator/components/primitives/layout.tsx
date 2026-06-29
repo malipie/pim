@@ -27,7 +27,7 @@ export function Field({
         </span>
         {required ? <span className="text-[11px] text-rose-500">*</span> : null}
         {hint !== undefined && hint !== '' ? (
-          <span className="text-[11px] normal-case tracking-normal text-zinc-400">· {hint}</span>
+          <span className="text-[11px] normal-case tracking-normal text-zinc-500">· {hint}</span>
         ) : null}
       </div>
       {children}
