@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <!-- Read projection for the SyncRun history resource (APIC-P4-01). -->
+    <class name="App\Integration\Generic\Domain\Entity\SyncRun">
+        <attribute name="id">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="bindingId">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="direction">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="startedAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="finishedAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="status">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="createdCount">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="updatedCount">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="skippedCount">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="failedCount">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="cursorBefore">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="cursorAfter">
+            <group>admin:read</group>
+        </attribute>
+    </class>
+</serializer>
