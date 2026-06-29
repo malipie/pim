@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -42,6 +43,7 @@ final class ProfileOpenApiController
     public function __construct(
         private readonly ApiProfileRepositoryInterface $profiles,
         private readonly OpenApiFactoryInterface $openApiFactory,
+        private readonly NormalizerInterface $normalizer,
     ) {
     }
 
@@ -66,19 +68,21 @@ final class ProfileOpenApiController
             throw new NotFoundHttpException(\sprintf('ApiProfile "%s" was not found.', $id));
         }
 
-        /** @var array<string, mixed>|false $payload */
-        $payload = json_decode((string) json_encode($this->openApiFactory->__invoke([])), true);
+        // Normalize through the OpenApi normalizer (the canonical {openapi, info,
+        // paths, …} shape `api:openapi:export` emits) — plain json_encode of the
+        // OpenApi object does NOT produce that structure.
+        $payload = $this->normalizer->normalize($this->openApiFactory->__invoke([]), 'json');
         if (!\is_array($payload)) {
-            return new JsonResponse(['error' => 'OpenAPI document could not be encoded.'], 500);
+            return new JsonResponse(['error' => 'OpenAPI document could not be normalized.'], 500);
         }
 
         return new JsonResponse($this->narrow($payload, $profile));
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param array<mixed, mixed> $payload
      *
-     * @return array<string, mixed>
+     * @return array<mixed, mixed>
      */
     private function narrow(array $payload, ApiProfile $profile): array
     {
