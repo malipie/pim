@@ -222,7 +222,9 @@ services:
     # AUD-051 (W2-11) — also consume `scheduler_maintenance` so the
     # MaintenanceSchedule (export/audit/tenant/staged-file retention) actually
     # fires its daily cron; without a consumer the schedule is inert.
-    command: php bin/console messenger:consume import scheduler_maintenance --time-limit=3600 --memory-limit=256M
+    # APIC-P3-09 — `scheduler_integration_sync` drains the SyncSchedule per-minute
+    # tick that fires due sync bindings (integration:sync:dispatch-due).
+    command: php bin/console messenger:consume import scheduler_maintenance scheduler_integration_sync --time-limit=3600 --memory-limit=256M
     environment:
       APP_ENV: ${APP_ENV:-dev}
       # The worker is a headless background consumer (import/export/reindex) —

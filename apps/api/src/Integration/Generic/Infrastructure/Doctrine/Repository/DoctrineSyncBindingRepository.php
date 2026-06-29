@@ -7,6 +7,7 @@ namespace App\Integration\Generic\Infrastructure\Doctrine\Repository;
 use App\Integration\Generic\Domain\Entity\Connection;
 use App\Integration\Generic\Domain\Entity\SyncBinding;
 use App\Integration\Generic\Domain\Repository\SyncBindingRepositoryInterface;
+use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -64,6 +65,25 @@ class DoctrineSyncBindingRepository extends ServiceEntityRepository implements S
         $qb = $this->createQueryBuilder('b')
             ->where('b.enabled = true')
             ->orderBy('b.createdAt', 'ASC');
+
+        /** @var list<SyncBinding> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
+    }
+
+    /**
+     * @return list<SyncBinding>
+     */
+    public function findDueForScheduling(DateTimeImmutable $now): array
+    {
+        $qb = $this->createQueryBuilder('b')
+            ->where('b.enabled = true')
+            ->andWhere('b.schedule IS NOT NULL')
+            ->andWhere('b.nextRun IS NOT NULL')
+            ->andWhere('b.nextRun <= :now')
+            ->orderBy('b.nextRun', 'ASC')
+            ->setParameter('now', $now);
 
         /** @var list<SyncBinding> $result */
         $result = $qb->getQuery()->getResult();
