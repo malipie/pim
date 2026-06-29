@@ -2090,7 +2090,8 @@
       "profiles": {
         "empty": "Brak profili API. Utwórz pierwszy, by wystawić projekcję katalogu.",
         "object_types": "{{count}} typów obiektów",
-        "attributes": "{{count}} atrybutów"
+        "attributes": "{{count}} atrybutów",
+        "new": "Nowy profil"
       },
       "keys": {
         "empty": "Brak kluczy API.",
@@ -2106,6 +2107,34 @@
         "empty": "Żaden profil nie ma skonfigurowanego webhooka.",
         "no_delivery": "brak dostaw",
         "secret_note": "Sekret HMAC nie jest zwracany przez API — rotacja = unieważnienie. Konfigurujesz go przy profilu."
+      }
+    },
+    "builder": {
+      "back": "Wróć do producenta",
+      "title_new": "Nowy profil API",
+      "title_edit": "Edycja profilu API",
+      "subtitle": "Projekcja katalogu: wybrane typy obiektów + atrybuty wystawiane integratorom.",
+      "name": "Nazwa profilu",
+      "name_placeholder": "np. Katalog publiczny",
+      "code": "Code",
+      "code_hint": "auto z nazwy",
+      "access": "Dostęp",
+      "access_read_only": "Tylko odczyt",
+      "filters": "Filtry",
+      "filters_hint": "warunek JSON na rekordach (opcjonalny)",
+      "filters_invalid": "Filtry muszą być poprawnym obiektem JSON.",
+      "object_types": "Typy obiektów",
+      "multiselect": "multiselect",
+      "projection_note": "Profil to projekcja read-only — wystawia wybrane atrybuty wybranych typów obiektów. Klucze API i webhooki podpinasz w osobnych zakładkach hubu.",
+      "summary": "{{types}} typ(y) · {{attrs}} atrybutów",
+      "save_new": "Utwórz profil",
+      "save_edit": "Zapisz zmiany",
+      "attributes": {
+        "title": "Atrybuty",
+        "all": "wszystkie",
+        "none": "żadne",
+        "search": "szukaj atrybutu lub code…",
+        "empty": "Brak atrybutów pasujących do wyszukiwania."
       }
     }
   },

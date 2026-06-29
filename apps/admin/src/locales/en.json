@@ -2042,7 +2042,8 @@
       "profiles": {
         "empty": "No API profiles yet. Create one to expose a catalog projection.",
         "object_types": "{{count}} object types",
-        "attributes": "{{count}} attributes"
+        "attributes": "{{count}} attributes",
+        "new": "New profile"
       },
       "keys": {
         "empty": "No API keys.",
@@ -2058,6 +2059,34 @@
         "empty": "No profile has a webhook configured.",
         "no_delivery": "no deliveries",
         "secret_note": "The HMAC secret is never returned by the API — rotation = revocation. Configure it on the profile."
+      }
+    },
+    "builder": {
+      "back": "Back to producer",
+      "title_new": "New API profile",
+      "title_edit": "Edit API profile",
+      "subtitle": "A catalog projection: the object types + attributes exposed to integrators.",
+      "name": "Profile name",
+      "name_placeholder": "e.g. Public catalog",
+      "code": "Code",
+      "code_hint": "auto from name",
+      "access": "Access",
+      "access_read_only": "Read-only",
+      "filters": "Filters",
+      "filters_hint": "JSON condition on records (optional)",
+      "filters_invalid": "Filters must be a valid JSON object.",
+      "object_types": "Object types",
+      "multiselect": "multiselect",
+      "projection_note": "A profile is a read-only projection — it exposes the chosen attributes of the chosen object types. API keys and webhooks are wired in their own hub tabs.",
+      "summary": "{{types}} type(s) · {{attrs}} attributes",
+      "save_new": "Create profile",
+      "save_edit": "Save changes",
+      "attributes": {
+        "title": "Attributes",
+        "all": "all",
+        "none": "none",
+        "search": "search attribute or code…",
+        "empty": "No attributes match the search."
       }
     }
   },
