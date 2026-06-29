@@ -25,11 +25,14 @@ import { dataProvider } from '@/lib/data-provider';
  * binding (`export function FooPage`). React.lazy itself only
  * accepts default exports, so we adapt with a tiny mapping step.
  */
-function lazyPage<K extends string, T extends Record<K, ComponentType<unknown>>>(
+// The constraint uses ComponentType<never> rather than <unknown> so page
+// components that accept optional props (e.g. the api-configurator screens with
+// an `embedded?` flag, rendered prop-less by the router) still satisfy it.
+function lazyPage<K extends string, T extends Record<K, ComponentType<never>>>(
   loader: () => Promise<T>,
   exportName: K,
 ): LazyExoticComponent<ComponentType<unknown>> {
-  return lazy(() => loader().then((m) => ({ default: m[exportName] })));
+  return lazy(() => loader().then((m) => ({ default: m[exportName] as ComponentType<unknown> })));
 }
 
 const ApiProfileCreatePage = lazyPage(
@@ -67,6 +70,10 @@ const MappingScreen = lazyPage(
 const SyncConfigScreen = lazyPage(
   () => import('@/features/api-configurator/consumer/sync/SyncConfigScreen'),
   'SyncConfigScreen',
+);
+const ConnectionDetailPage = lazyPage(
+  () => import('@/features/api-configurator/consumer/detail/ConnectionDetailPage'),
+  'ConnectionDetailPage',
 );
 const ApiMonitorPlaceholder = lazyPage(
   () => import('@/features/api-configurator/monitor/ApiMonitorPlaceholder'),
@@ -651,6 +658,10 @@ function App() {
                     <Route
                       path="/integrations/api-configurator/connections/:id/sync"
                       element={<SyncConfigScreen />}
+                    />
+                    <Route
+                      path="/integrations/api-configurator/connections/:id"
+                      element={<ConnectionDetailPage />}
                     />
                     <Route
                       path="/integrations/api-configurator/monitor"

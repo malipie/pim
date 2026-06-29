@@ -60,7 +60,7 @@ const CRON_PRESETS = [
  * (P2-09) — neither is part of the binding write contract, so the screen never
  * pretends to persist them.
  */
-export function SyncConfigScreen() {
+export function SyncConfigScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const apiUrl = useApiUrl();
@@ -205,7 +205,7 @@ export function SyncConfigScreen() {
   if (binding === null) {
     return (
       <div className="space-y-5">
-        {header}
+        {embedded ? null : header}
         <div className="soft-shadow max-w-[680px] rounded-2xl border border-dashed border-zinc-300 bg-white p-6">
           <SectionLabel>{t('api_configurator.sync.empty.title')}</SectionLabel>
           <p className="mb-4 text-[12.5px] leading-relaxed text-zinc-600">
@@ -238,7 +238,7 @@ export function SyncConfigScreen() {
 
   return (
     <div className="space-y-5">
-      {header}
+      {embedded ? null : header}
       <div className="max-w-[980px] space-y-4">
         {/* Direction */}
         <section className="soft-shadow rounded-2xl border border-zinc-200 bg-white p-5">
