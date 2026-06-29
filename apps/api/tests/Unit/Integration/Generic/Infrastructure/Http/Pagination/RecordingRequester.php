@@ -16,7 +16,7 @@ use App\Integration\Generic\Infrastructure\Http\RemoteRequester;
  */
 final class RecordingRequester implements RemoteRequester
 {
-    /** @var list<array{url: string, query: array<string, string|int>}> */
+    /** @var list<array{url: string, method: string, query: array<string, string|int>, body: ?string}> */
     public array $calls = [];
 
     /**
@@ -36,7 +36,7 @@ final class RecordingRequester implements RemoteRequester
         array $headers = [],
         ?string $body = null,
     ): GenericRestResponse {
-        $this->calls[] = ['url' => $url, 'query' => $query];
+        $this->calls[] = ['url' => $url, 'method' => $method, 'query' => $query, 'body' => $body];
 
         return array_shift($this->queue)
             ?? $this->default

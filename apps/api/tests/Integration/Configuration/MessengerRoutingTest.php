@@ -63,6 +63,11 @@ final class MessengerRoutingTest extends KernelTestCase
             \App\Integration\Generic\Domain\Message\InboundSyncMessage::class,
             'import',
         ];
+
+        yield 'integration: outbound sync (APIC-P3-06, reuses import transport)' => [
+            \App\Integration\Generic\Domain\Message\OutboundSyncMessage::class,
+            'import',
+        ];
     }
 
     /**
