@@ -2038,6 +2038,45 @@
         "auth": "Autoryzacja — zweryfikowana",
         "note": "Połączenie chroni SSRF guard, szyfrowanie sekretów i izolacja tenantów (RLS)."
       }
+    },
+    "monitor": {
+      "title": "Monitor synchronizacji",
+      "subtitle": "Historia runów wszystkich połączeń + drill-down per rekord.",
+      "search": "Szukaj (binding, kierunek)…",
+      "empty": "Brak runów pasujących do filtra.",
+      "kpi": {
+        "syncs_24h": "Synchronizacje · 24h",
+        "records_in": "Rekordy ← inbound",
+        "records_out": "Rekordy → outbound",
+        "errors_24h": "Błędy · 24h"
+      },
+      "filter": {
+        "all": "wszystkie",
+        "success": "sukces",
+        "partial": "częściowo",
+        "failed": "błędy"
+      },
+      "col": {
+        "started": "Start",
+        "direction": "Kierunek",
+        "result": "Rozkład",
+        "status": "Status"
+      },
+      "drill": {
+        "title": "Szczegóły uruchomienia",
+        "created": "Utworzone",
+        "updated": "Zaktualizowane",
+        "skipped": "Pominięte",
+        "failed": "Błędy",
+        "started": "Start",
+        "records": "Rekordy · {{count}}",
+        "no_records": "Brak rekordów w tym uruchomieniu.",
+        "download_csv": "Pobierz log CSV",
+        "pause": "Wstrzymaj",
+        "rerun": "Uruchom ponownie",
+        "close": "Zamknij"
+      },
+      "open_run": "Otwórz szczegóły uruchomienia"
     }
   },
   "api_profiles": {

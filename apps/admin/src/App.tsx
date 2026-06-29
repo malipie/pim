@@ -75,9 +75,9 @@ const ConnectionDetailPage = lazyPage(
   () => import('@/features/api-configurator/consumer/detail/ConnectionDetailPage'),
   'ConnectionDetailPage',
 );
-const ApiMonitorPlaceholder = lazyPage(
-  () => import('@/features/api-configurator/monitor/ApiMonitorPlaceholder'),
-  'ApiMonitorPlaceholder',
+const SyncMonitorScreen = lazyPage(
+  () => import('@/features/api-configurator/monitor/SyncMonitorScreen'),
+  'SyncMonitorScreen',
 );
 const AssetsListPage = lazyPage(() => import('@/features/asset/assets/list'), 'AssetsListPage');
 const AssetShowPage = lazyPage(() => import('@/features/asset/assets/show'), 'AssetShowPage');
@@ -665,7 +665,7 @@ function App() {
                     />
                     <Route
                       path="/integrations/api-configurator/monitor"
-                      element={<ApiMonitorPlaceholder />}
+                      element={<SyncMonitorScreen />}
                     />
                     <Route
                       path="/integrations/api-configurator/:id/edit"

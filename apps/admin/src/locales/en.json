@@ -1990,6 +1990,45 @@
         "auth": "Authorization — verified",
         "note": "The connection is protected by the SSRF guard, secret encryption and tenant isolation (RLS)."
       }
+    },
+    "monitor": {
+      "title": "Sync monitor",
+      "subtitle": "Run history across all connections + per-record drill-down.",
+      "search": "Search (binding, direction)…",
+      "empty": "No runs match the filter.",
+      "kpi": {
+        "syncs_24h": "Syncs · 24h",
+        "records_in": "Records ← inbound",
+        "records_out": "Records → outbound",
+        "errors_24h": "Errors · 24h"
+      },
+      "filter": {
+        "all": "all",
+        "success": "success",
+        "partial": "partial",
+        "failed": "errors"
+      },
+      "col": {
+        "started": "Started",
+        "direction": "Direction",
+        "result": "Breakdown",
+        "status": "Status"
+      },
+      "drill": {
+        "title": "Run details",
+        "created": "Created",
+        "updated": "Updated",
+        "skipped": "Skipped",
+        "failed": "Failed",
+        "started": "Started",
+        "records": "Records · {{count}}",
+        "no_records": "No records in this run.",
+        "download_csv": "Download CSV log",
+        "pause": "Pause",
+        "rerun": "Re-run",
+        "close": "Close"
+      },
+      "open_run": "Open run details"
     }
   },
   "api_profiles": {
