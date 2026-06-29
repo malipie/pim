@@ -65,6 +65,13 @@ class SyncBinding extends AggregateRoot implements TenantScoped
 
     private bool $enabled = true;
 
+    /**
+     * When the scheduler next fires this binding; null = manual-only (no cron)
+     * or not yet computed. Maintained by the schedule dispatcher (APIC-P3-09),
+     * jittered per tenant so concurrent bindings don't stampede the same remote.
+     */
+    private ?DateTimeImmutable $nextRun = null;
+
     private DateTimeImmutable $createdAt;
 
     private DateTimeImmutable $updatedAt;
@@ -224,6 +231,21 @@ class SyncBinding extends AggregateRoot implements TenantScoped
     {
         $this->enabled = $enabled;
         $this->touch();
+    }
+
+    public function getNextRun(): ?DateTimeImmutable
+    {
+        return $this->nextRun;
+    }
+
+    /**
+     * Set by the schedule dispatcher only. Deliberately does NOT `touch()`
+     * `updatedAt`: the next-run time is recomputed after every fire, and that
+     * housekeeping must not look like a user edit of the binding.
+     */
+    public function setNextRun(?DateTimeImmutable $nextRun): void
+    {
+        $this->nextRun = $nextRun;
     }
 
     public function getCreatedAt(): DateTimeImmutable

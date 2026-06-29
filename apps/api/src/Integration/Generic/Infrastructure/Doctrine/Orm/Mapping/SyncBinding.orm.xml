@@ -11,6 +11,7 @@
         <indexes>
             <index name="integration_sync_bindings_tenant_conn_idx" columns="tenant_id,connection_id"/>
             <index name="integration_sync_bindings_tenant_enabled_idx" columns="tenant_id,enabled"/>
+            <index name="integration_sync_bindings_due_idx" columns="tenant_id,enabled,next_run"/>
         </indexes>
 
         <id name="id" type="uuid" column="id">
@@ -48,6 +49,7 @@
                 <option name="default">true</option>
             </options>
         </field>
+        <field name="nextRun" type="datetimetz_immutable" column="next_run" nullable="true"/>
         <field name="createdAt" type="datetimetz_immutable" column="created_at"/>
         <field name="updatedAt" type="datetimetz_immutable" column="updated_at"/>
 
