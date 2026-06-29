@@ -135,6 +135,16 @@ class SyncBinding extends AggregateRoot implements TenantScoped
         return $this->readEndpoint;
     }
 
+    public function getReadEndpointId(): ?Uuid
+    {
+        return $this->readEndpoint?->getId();
+    }
+
+    public function getWriteEndpointId(): ?Uuid
+    {
+        return $this->writeEndpoint?->getId();
+    }
+
     public function setReadEndpoint(?RemoteEndpoint $readEndpoint): void
     {
         $this->readEndpoint = $readEndpoint;
