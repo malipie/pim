@@ -28,6 +28,9 @@ final readonly class ObjectAttributesChanged implements DomainEvent, TenantAware
         public Uuid $tenantId,
         public array $changedAttributeCodes = [],
         public DateTimeImmutable $occurredOn = new DateTimeImmutable(),
+        // APIC-P3-07 — lets cross-BC consumers (the outbound-sync trigger) route
+        // by object type without a second lookup. Null only for legacy emitters.
+        public ?Uuid $objectTypeId = null,
     ) {
     }
 
