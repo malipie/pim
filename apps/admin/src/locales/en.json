@@ -1940,6 +1940,56 @@
         "run_now": "Run now",
         "save": "Save binding"
       }
+    },
+    "detail": {
+      "back": "Back to connections",
+      "title": "Connection",
+      "test": "Test",
+      "sync_now": "Sync now",
+      "tabs_label": "Connection tabs",
+      "tab": {
+        "overview": "Overview",
+        "endpoints": "Endpoints",
+        "mapping": "Mapping",
+        "sync": "Synchronization",
+        "history": "History"
+      },
+      "overview": {
+        "last_sync": "Last sync",
+        "next_run": "Next run",
+        "cursor": "Cursor",
+        "rate_limit": "Rate limit",
+        "rate_limit_sub": "honours 429 + backoff",
+        "recent_runs": "Recent syncs",
+        "all_history": "Full history →",
+        "no_runs": "No runs yet.",
+        "coverage": "Mapping coverage",
+        "edit_mapping": "Edit →",
+        "security": "Security"
+      },
+      "endpoints": {
+        "title": "Endpoints · REST descriptor",
+        "empty": "No endpoints — add them in the connection wizard.",
+        "selector": "selector"
+      },
+      "history": {
+        "title": "Sync history",
+        "empty": "No runs yet.",
+        "no_records": "No records in this run."
+      },
+      "run_status": {
+        "running": "Running",
+        "success": "Success",
+        "partial": "Partial",
+        "failed": "Failed"
+      },
+      "security": {
+        "ssrf": "SSRF guard — active",
+        "secrets": "Secrets — AES-GCM, never returned by the API",
+        "tenant": "Tenant isolation — RLS + GUC",
+        "auth": "Authorization — verified",
+        "note": "The connection is protected by the SSRF guard, secret encryption and tenant isolation (RLS)."
+      }
     }
   },
   "api_profiles": {

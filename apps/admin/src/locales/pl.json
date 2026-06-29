@@ -1988,6 +1988,56 @@
         "run_now": "Uruchom teraz",
         "save": "Zapisz wiązanie"
       }
+    },
+    "detail": {
+      "back": "Wróć do połączeń",
+      "title": "Połączenie",
+      "test": "Testuj",
+      "sync_now": "Synchronizuj",
+      "tabs_label": "Zakładki połączenia",
+      "tab": {
+        "overview": "Przegląd",
+        "endpoints": "Endpointy",
+        "mapping": "Mapowanie",
+        "sync": "Synchronizacja",
+        "history": "Historia"
+      },
+      "overview": {
+        "last_sync": "Ostatnia synchronizacja",
+        "next_run": "Następne uruchomienie",
+        "cursor": "Cursor",
+        "rate_limit": "Limit żądań",
+        "rate_limit_sub": "respekt 429 + backoff",
+        "recent_runs": "Ostatnie synchronizacje",
+        "all_history": "Cała historia →",
+        "no_runs": "Brak uruchomień.",
+        "coverage": "Pokrycie mapowania",
+        "edit_mapping": "Edytuj →",
+        "security": "Bezpieczeństwo"
+      },
+      "endpoints": {
+        "title": "Endpointy · descriptor REST",
+        "empty": "Brak endpointów — dodaj je w kreatorze połączenia.",
+        "selector": "selector"
+      },
+      "history": {
+        "title": "Historia synchronizacji",
+        "empty": "Brak uruchomień.",
+        "no_records": "Brak rekordów w tym uruchomieniu."
+      },
+      "run_status": {
+        "running": "W toku",
+        "success": "Sukces",
+        "partial": "Częściowo",
+        "failed": "Błąd"
+      },
+      "security": {
+        "ssrf": "SSRF guard — aktywny",
+        "secrets": "Sekrety — AES-GCM, nie wracają w API",
+        "tenant": "Izolacja tenantów — RLS + GUC",
+        "auth": "Autoryzacja — zweryfikowana",
+        "note": "Połączenie chroni SSRF guard, szyfrowanie sekretów i izolacja tenantów (RLS)."
+      }
     }
   },
   "api_profiles": {

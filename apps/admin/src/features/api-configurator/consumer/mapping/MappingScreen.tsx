@@ -70,7 +70,7 @@ const toApi = (d: SyncDirection): ApiDirection => (d === 'bidirectional' ? 'both
  * (the common single-stream case); multi-endpoint pooling lands with the
  * connection detail view (P3-12).
  */
-export function MappingScreen() {
+export function MappingScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const apiUrl = useApiUrl();
@@ -193,36 +193,38 @@ export function MappingScreen() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => navigate(HUB)}
-          aria-label={t('api_configurator.mapping.back')}
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-        </Button>
-        <div className="min-w-0 flex-1">
-          <h1 className="font-display text-[22px] font-semibold tracking-tight">
-            {t('api_configurator.mapping.title')}
-          </h1>
-          <p className="text-[12.5px] text-zinc-500">{t('api_configurator.mapping.subtitle')}</p>
+      {embedded ? null : (
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigate(HUB)}
+            aria-label={t('api_configurator.mapping.back')}
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-display text-[22px] font-semibold tracking-tight">
+              {t('api_configurator.mapping.title')}
+            </h1>
+            <p className="text-[12.5px] text-zinc-500">{t('api_configurator.mapping.subtitle')}</p>
+          </div>
+          <div className="flex items-center gap-4">
+            {warningCount > 0 ? (
+              <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-amber-800">
+                <TriangleAlert className="size-4 text-amber-600" aria-hidden="true" />
+                {t('api_configurator.mapping.warnings', { count: warningCount })}
+              </span>
+            ) : null}
+            <CoverageBar
+              mapped={mappings.length}
+              total={PIM_TARGETS.length}
+              width={160}
+              ariaLabel={t('api_configurator.mapping.coverage')}
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          {warningCount > 0 ? (
-            <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-amber-800">
-              <TriangleAlert className="size-4 text-amber-600" aria-hidden="true" />
-              {t('api_configurator.mapping.warnings', { count: warningCount })}
-            </span>
-          ) : null}
-          <CoverageBar
-            mapped={mappings.length}
-            total={PIM_TARGETS.length}
-            width={160}
-            ariaLabel={t('api_configurator.mapping.coverage')}
-          />
-        </div>
-      </div>
+      )}
 
       {validation !== null && !validation.valid ? (
         <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 text-[12.5px] text-rose-800">
