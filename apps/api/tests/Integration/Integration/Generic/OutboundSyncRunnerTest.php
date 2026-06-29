@@ -146,6 +146,7 @@ final class OutboundSyncRunnerTest extends KernelTestCase
             $requester,
             self::getContainer()->get(SyncRunRepositoryInterface::class),
             $this->em(),
+            $this->tenantContext(),
         );
     }
 

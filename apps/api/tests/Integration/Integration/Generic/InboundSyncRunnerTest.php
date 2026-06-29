@@ -167,6 +167,7 @@ final class InboundSyncRunnerTest extends KernelTestCase
             self::getContainer()->get(InboundRecordWriter::class),
             self::getContainer()->get(SyncRunRepositoryInterface::class),
             $this->em(),
+            $this->tenantContext(),
         );
     }
 

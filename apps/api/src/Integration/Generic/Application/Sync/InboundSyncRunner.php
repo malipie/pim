@@ -17,9 +17,13 @@ use App\Integration\Generic\Domain\Repository\FieldMappingRepositoryInterface;
 use App\Integration\Generic\Domain\Repository\SyncRunRepositoryInterface;
 use App\Integration\Generic\Infrastructure\Http\Pagination\PaginatedFetcher;
 use App\Integration\Generic\Infrastructure\Http\RecordSelector;
+use App\Shared\Application\TenantContext;
+use App\Shared\Domain\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use RuntimeException;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Runs one inbound (remote → PIM) sync of a {@see SyncBinding} (APIC-P3-04).
@@ -44,6 +48,7 @@ final readonly class InboundSyncRunner
         private InboundRecordWriter $writer,
         private SyncRunRepositoryInterface $runs,
         private EntityManagerInterface $em,
+        private TenantContext $tenantContext,
         private LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -53,6 +58,8 @@ final readonly class InboundSyncRunner
         $run = new SyncRun($binding, SyncDirection::Inbound);
         $run->setCursorBefore($binding->getCursor());
         $this->runs->save($run);
+        $runId = $run->getId();
+        $bindingId = $binding->getId();
 
         $readEndpoint = $binding->getReadEndpoint();
         if (null === $readEndpoint) {
@@ -65,6 +72,10 @@ final readonly class InboundSyncRunner
         $mappings = $this->mappings->findByConnection($binding->getConnection());
         $cursorField = $this->cursors->current($binding)?->field;
 
+        // The fetcher reads scalar descriptor fields off the connection + read
+        // endpoint captured here; both stay usable after the per-page clear
+        // (detached entities are still readable), so the generator is created
+        // once from the pre-clear references.
         foreach ($this->fetcher->pages($binding->getConnection(), $readEndpoint) as $page) {
             foreach ($page as $record) {
                 $this->processRecord($run, $binding, $mappings, $record);
@@ -74,10 +85,49 @@ final readonly class InboundSyncRunner
             if (null !== $cursorField) {
                 $this->advanceCursor($binding, $page, $cursorField);
             }
+
+            // FrankenPHP worker hygiene (PaginatedFetcher docblock): clear the
+            // unit of work between pages so a 50k-record pull stays O(page), not
+            // O(total) — the per-record SyncRunLog and the upserted catalog
+            // objects would otherwise pin the whole run in the identity map.
+            // Reload the entities the loop keeps mutating and re-point the tenant
+            // context so the listener can still stamp tenant_id on new rows.
+            $this->em->flush();
+            $this->em->clear();
+            $binding = $this->reload($bindingId);
+            $run = $this->reloadRun($runId);
+            $mappings = $this->mappings->findByConnection($binding->getConnection());
         }
 
         $run->markFinished(null, $binding->getCursor());
         $this->runs->save($run);
+
+        return $run;
+    }
+
+    private function reload(Uuid $bindingId): SyncBinding
+    {
+        $binding = $this->em->find(SyncBinding::class, $bindingId->toRfc4122());
+        if (!$binding instanceof SyncBinding) {
+            throw new RuntimeException('Sync binding vanished mid-run.');
+        }
+
+        // The clear detached the tenant; re-bind the managed one so persisting
+        // the next page's SyncRunLog rows still stamps tenant_id (TenantFilter).
+        $tenant = $binding->getTenant();
+        if ($tenant instanceof Tenant) {
+            $this->tenantContext->set($tenant);
+        }
+
+        return $binding;
+    }
+
+    private function reloadRun(Uuid $runId): SyncRun
+    {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof SyncRun) {
+            throw new RuntimeException('Sync run vanished mid-run.');
+        }
 
         return $run;
     }
