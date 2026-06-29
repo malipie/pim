@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <!--
+      Read projection for the SyncBinding resource (APIC-P3-10). Relations are
+      exposed as scalar UUIDs (connectionId / readEndpointId / writeEndpointId),
+      never nested entities, so the admin grid stays flat. `cursor` is the
+      delta-sync state envelope, surfaced read-only so the FE can show the last
+      synced position.
+    -->
+    <class name="App\Integration\Generic\Domain\Entity\SyncBinding">
+        <attribute name="id">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="connectionId">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="objectTypeId">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="readEndpointId">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="writeEndpointId">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="direction">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="schedule">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="conflictPolicy">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="matchKeyMapping">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="cursor">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="isEnabled">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="nextRun">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="updatedAt">
+            <group>admin:read</group>
+        </attribute>
+    </class>
+</serializer>

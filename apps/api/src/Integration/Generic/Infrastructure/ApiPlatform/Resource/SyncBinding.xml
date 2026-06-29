@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources xmlns="https://api-platform.com/schema/metadata/resources-3.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://api-platform.com/schema/metadata/resources-3.0
+                               https://api-platform.com/schema/metadata/resources-3.0.xsd">
+
+    <resource class="App\Integration\Generic\Domain\Entity\SyncBinding"
+              shortName="SyncBinding">
+
+        <normalizationContext>
+            <values>
+                <value name="groups">
+                    <values>
+                        <value>admin:read</value>
+                    </values>
+                </value>
+            </values>
+        </normalizationContext>
+
+        <!-- `?connection={id}` scopes the binding list to one connection (FE sync + detail screens). -->
+        <filters>
+            <filter>App\Integration\Generic\Infrastructure\ApiPlatform\Filter\SyncBindingConnectionFilter</filter>
+        </filters>
+
+        <operations>
+            <operation class="ApiPlatform\Metadata\GetCollection"
+                       uriTemplate="/sync_bindings{._format}"
+                       security="is_granted('READ', 'App\\Integration\\Generic\\Domain\\Entity\\SyncBinding')"/>
+
+            <operation class="ApiPlatform\Metadata\Get"
+                       uriTemplate="/sync_bindings/{id}{._format}"
+                       security="is_granted('READ', object)"/>
+
+            <operation class="ApiPlatform\Metadata\Post"
+                       uriTemplate="/sync_bindings{._format}"
+                       input="App\Integration\Generic\Infrastructure\ApiPlatform\Resource\SyncBindingInput"
+                       processor="App\Integration\Generic\Infrastructure\ApiPlatform\State\SyncBindingProcessor"
+                       security="is_granted('CREATE', 'App\\Integration\\Generic\\Domain\\Entity\\SyncBinding')">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>sync_binding:create</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Patch"
+                       uriTemplate="/sync_bindings/{id}{._format}"
+                       input="App\Integration\Generic\Infrastructure\ApiPlatform\Resource\SyncBindingPatchInput"
+                       processor="App\Integration\Generic\Infrastructure\ApiPlatform\State\SyncBindingProcessor"
+                       security="is_granted('UPDATE', object)">
+                <denormalizationContext>
+                    <values>
+                        <value name="groups">
+                            <values>
+                                <value>sync_binding:patch</value>
+                            </values>
+                        </value>
+                    </values>
+                </denormalizationContext>
+            </operation>
+
+            <operation class="ApiPlatform\Metadata\Delete"
+                       uriTemplate="/sync_bindings/{id}{._format}"
+                       processor="App\Integration\Generic\Infrastructure\ApiPlatform\State\SyncBindingProcessor"
+                       security="is_granted('DELETE', object)"/>
+        </operations>
+    </resource>
+
+</resources>

@@ -8528,6 +8528,497 @@
                 }
             }
         },
+        "/api/sync_bindings": {
+            "get": {
+                "operationId": "api_sync_bindings_get_collection",
+                "tags": [
+                    "SyncBinding"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SyncBinding collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "SyncBinding.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/SyncBinding.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/SyncBinding-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of SyncBinding resources.",
+                "description": "Retrieves the collection of SyncBinding resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "connection",
+                        "in": "query",
+                        "description": "Exact match on the parent Connection UUID (tenant-scoped).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "api_sync_bindings_post",
+                "tags": [
+                    "SyncBinding"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "SyncBinding resource created",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SyncBinding.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SyncBinding-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a SyncBinding resource.",
+                "description": "Creates a SyncBinding resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new SyncBinding resource",
+                    "content": {
+                        "application/ld+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SyncBinding.SyncBindingInput-sync_binding.create"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SyncBinding.SyncBindingInput-sync_binding.create"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/sync_bindings/{id}": {
+            "get": {
+                "operationId": "api_sync_bindings_id_get",
+                "tags": [
+                    "SyncBinding"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SyncBinding resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SyncBinding.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SyncBinding-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a SyncBinding resource.",
+                "description": "Retrieves a SyncBinding resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "SyncBinding identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "api_sync_bindings_id_delete",
+                "tags": [
+                    "SyncBinding"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "SyncBinding resource deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the SyncBinding resource.",
+                "description": "Removes the SyncBinding resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "SyncBinding identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_sync_bindings_id_patch",
+                "tags": [
+                    "SyncBinding"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SyncBinding resource updated",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SyncBinding.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SyncBinding-admin.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the SyncBinding resource.",
+                "description": "Updates the SyncBinding resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "SyncBinding identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated SyncBinding resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SyncBinding.SyncBindingPatchInput-sync_binding.patch.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
         "/api/admin/break-glass": {
             "post": {
                 "operationId": "api_admin_break_glass_post",
@@ -16499,6 +16990,123 @@
                 "x-cortex-permission": "imports.run"
             }
         },
+        "/api/sync_bindings/{id}/pause": {
+            "post": {
+                "operationId": "api_sync_bindings_id_pause_post",
+                "tags": [
+                    "sync_bindings"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "summary": "Api sync bindings id pause",
+                "description": "Custom controller route.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "x-pim-source": "custom-route",
+                "x-cortex-permission": "settings.integrations.manage"
+            }
+        },
+        "/api/sync_bindings/{id}/resume": {
+            "post": {
+                "operationId": "api_sync_bindings_id_resume_post",
+                "tags": [
+                    "sync_bindings"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "summary": "Api sync bindings id resume",
+                "description": "Custom controller route.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "x-pim-source": "custom-route",
+                "x-cortex-permission": "settings.integrations.manage"
+            }
+        },
+        "/api/sync_bindings/{id}/run": {
+            "post": {
+                "operationId": "api_sync_bindings_id_run_post",
+                "tags": [
+                    "sync_bindings"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "summary": "Api sync bindings id run",
+                "description": "Custom controller route.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "x-pim-source": "custom-route",
+                "x-cortex-permission": "settings.integrations.manage"
+            }
+        },
         "/api/tenant": {
             "get": {
                 "operationId": "api_tenant_get",
@@ -22216,6 +22824,379 @@
                     }
                 ],
                 "description": "One field of an external API response \u2014 discovered from a sample or entered\nby hand (ADR-0022, epic APIC, ticket APIC-P2-02).\n\nA {@see RemoteEndpoint} owns many fields; each carries the JSONPath that\nlocates it within a record, a human label, the detected {@see RemoteFieldDataType}\nand a textual sample value. These are the left-hand side of the 1:1 field\nmapping (APIC-P2-07/08).\n\n`TenantScoped` + Postgres RLS isolate every field to its tenant; the tenant\nalways matches the parent endpoint's. The FK to RemoteEndpoint cascades on\ndelete."
+            },
+            "SyncBinding-admin.read": {
+                "type": "object",
+                "description": "The heart of a sync: what (ObjectType) is synced where (Connection endpoints),\nhow (direction + conflict policy + match key) and how often (cron schedule) \u2014\nADR-0022, epic APIC, ticket APIC-P3-01.\n\n`objectTypeId` is a validated loose reference, not a Doctrine/DB FK: the\ntarget ObjectType lives in the Catalog context and ADR-0022 keeps cross-BC\ncoupling to Contracts only, so no migration-level FK ties Integration to the\nCatalog schema (the binding API validates the id exists). The read/write\nendpoints and the connection are same-context FKs.\n\n`cursor` is the delta-sync state envelope (`{field, type, state}`) maintained\nby the cursor manager (APIC-P3-03). `TenantScoped` + Postgres RLS isolate\nevery binding to its tenant.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "objectTypeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "direction": {
+                        "default": "inbound",
+                        "type": "string",
+                        "enum": [
+                            "inbound",
+                            "outbound",
+                            "bidirectional"
+                        ]
+                    },
+                    "schedule": {
+                        "maxLength": 255,
+                        "description": "Cron expression for scheduled runs; null = manual-only.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "cursor": {
+                        "description": "Delta-sync cursor envelope `{field, type, state}`; null until the first\nrun persists one (APIC-P3-03).",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "conflictPolicy": {
+                        "default": "lww",
+                        "type": "string"
+                    },
+                    "matchKeyMapping": {
+                        "maxLength": 255,
+                        "description": "The PIM target acting as the upsert match key; null until mappings are set.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "nextRun": {
+                        "description": "When the scheduler next fires this binding; null = manual-only (no cron)\nor not yet computed. Maintained by the schedule dispatcher (APIC-P3-09),\njittered per tenant so concurrent bindings don't stampede the same remote.",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "connectionId": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "readEndpointId": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "writeEndpointId": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "isEnabled": {
+                        "readOnly": true,
+                        "description": "Serializer-facing alias so the read projection exposes the flag as\n`isEnabled`, per the ObjectType convention.",
+                        "type": "boolean"
+                    }
+                }
+            },
+            "SyncBinding.SyncBindingInput-sync_binding.create": {
+                "type": "object",
+                "description": "The heart of a sync: what (ObjectType) is synced where (Connection endpoints),\nhow (direction + conflict policy + match key) and how often (cron schedule) \u2014\nADR-0022, epic APIC, ticket APIC-P3-01.\n\n`objectTypeId` is a validated loose reference, not a Doctrine/DB FK: the\ntarget ObjectType lives in the Catalog context and ADR-0022 keeps cross-BC\ncoupling to Contracts only, so no migration-level FK ties Integration to the\nCatalog schema (the binding API validates the id exists). The read/write\nendpoints and the connection are same-context FKs.\n\n`cursor` is the delta-sync state envelope (`{field, type, state}`) maintained\nby the cursor manager (APIC-P3-03). `TenantScoped` + Postgres RLS isolate\nevery binding to its tenant.",
+                "required": [
+                    "connection",
+                    "objectTypeId"
+                ],
+                "properties": {
+                    "connection": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "default": "",
+                        "type": "string"
+                    },
+                    "objectTypeId": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "default": "",
+                        "type": "string"
+                    },
+                    "direction": {
+                        "enum": [
+                            "inbound",
+                            "outbound",
+                            "bidirectional"
+                        ],
+                        "default": "inbound",
+                        "type": "string"
+                    },
+                    "readEndpoint": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "writeEndpoint": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "schedule": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "conflictPolicy": {
+                        "enum": [
+                            "lww",
+                            "pim_wins",
+                            "remote_wins"
+                        ],
+                        "default": "lww",
+                        "type": "string"
+                    },
+                    "matchKeyMapping": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "enabled": {
+                        "default": true,
+                        "type": "boolean"
+                    }
+                }
+            },
+            "SyncBinding.SyncBindingPatchInput-sync_binding.patch.jsonMergePatch": {
+                "type": "object",
+                "description": "The heart of a sync: what (ObjectType) is synced where (Connection endpoints),\nhow (direction + conflict policy + match key) and how often (cron schedule) \u2014\nADR-0022, epic APIC, ticket APIC-P3-01.\n\n`objectTypeId` is a validated loose reference, not a Doctrine/DB FK: the\ntarget ObjectType lives in the Catalog context and ADR-0022 keeps cross-BC\ncoupling to Contracts only, so no migration-level FK ties Integration to the\nCatalog schema (the binding API validates the id exists). The read/write\nendpoints and the connection are same-context FKs.\n\n`cursor` is the delta-sync state envelope (`{field, type, state}`) maintained\nby the cursor manager (APIC-P3-03). `TenantScoped` + Postgres RLS isolate\nevery binding to its tenant.",
+                "properties": {
+                    "objectTypeId": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "direction": {
+                        "enum": [
+                            "inbound",
+                            "outbound",
+                            "bidirectional"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "readEndpoint": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "writeEndpoint": {
+                        "format": "uuid",
+                        "externalDocs": {
+                            "url": "https://schema.org/identifier"
+                        },
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "schedule": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "conflictPolicy": {
+                        "enum": [
+                            "lww",
+                            "pim_wins",
+                            "remote_wins"
+                        ],
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "matchKeyMapping": {
+                        "maxLength": 255,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "enabled": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "SyncBinding.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "objectTypeId": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "direction": {
+                                "default": "inbound",
+                                "type": "string",
+                                "enum": [
+                                    "inbound",
+                                    "outbound",
+                                    "bidirectional"
+                                ]
+                            },
+                            "schedule": {
+                                "maxLength": 255,
+                                "description": "Cron expression for scheduled runs; null = manual-only.",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "cursor": {
+                                "description": "Delta-sync cursor envelope `{field, type, state}`; null until the first\nrun persists one (APIC-P3-03).",
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "conflictPolicy": {
+                                "default": "lww",
+                                "type": "string"
+                            },
+                            "matchKeyMapping": {
+                                "maxLength": 255,
+                                "description": "The PIM target acting as the upsert match key; null until mappings are set.",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "nextRun": {
+                                "description": "When the scheduler next fires this binding; null = manual-only (no cron)\nor not yet computed. Maintained by the schedule dispatcher (APIC-P3-09),\njittered per tenant so concurrent bindings don't stampede the same remote.",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "updatedAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "connectionId": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "readEndpointId": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "writeEndpointId": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "isEnabled": {
+                                "readOnly": true,
+                                "description": "Serializer-facing alias so the read projection exposes the flag as\n`isEnabled`, per the ObjectType convention.",
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                ],
+                "description": "The heart of a sync: what (ObjectType) is synced where (Connection endpoints),\nhow (direction + conflict policy + match key) and how often (cron schedule) \u2014\nADR-0022, epic APIC, ticket APIC-P3-01.\n\n`objectTypeId` is a validated loose reference, not a Doctrine/DB FK: the\ntarget ObjectType lives in the Catalog context and ADR-0022 keeps cross-BC\ncoupling to Contracts only, so no migration-level FK ties Integration to the\nCatalog schema (the binding API validates the id exists). The read/write\nendpoints and the connection are same-context FKs.\n\n`cursor` is the delta-sync state envelope (`{field, type, state}`) maintained\nby the cursor manager (APIC-P3-03). `TenantScoped` + Postgres RLS isolate\nevery binding to its tenant."
             }
         },
         "responses": {},
@@ -22309,6 +23290,10 @@
         {
             "name": "RemoteField",
             "description": "One field of an external API response \u2014 discovered from a sample or entered\nby hand (ADR-0022, epic APIC, ticket APIC-P2-02).\n\nA {@see RemoteEndpoint} owns many fields; each carries the JSONPath that\nlocates it within a record, a human label, the detected {@see RemoteFieldDataType}\nand a textual sample value. These are the left-hand side of the 1:1 field\nmapping (APIC-P2-07/08).\n\n`TenantScoped` + Postgres RLS isolate every field to its tenant; the tenant\nalways matches the parent endpoint's. The FK to RemoteEndpoint cascades on\ndelete."
+        },
+        {
+            "name": "SyncBinding",
+            "description": "The heart of a sync: what (ObjectType) is synced where (Connection endpoints),\nhow (direction + conflict policy + match key) and how often (cron schedule) \u2014\nADR-0022, epic APIC, ticket APIC-P3-01.\n\n`objectTypeId` is a validated loose reference, not a Doctrine/DB FK: the\ntarget ObjectType lives in the Catalog context and ADR-0022 keeps cross-BC\ncoupling to Contracts only, so no migration-level FK ties Integration to the\nCatalog schema (the binding API validates the id exists). The read/write\nendpoints and the connection are same-context FKs.\n\n`cursor` is the delta-sync state envelope (`{field, type, state}`) maintained\nby the cursor manager (APIC-P3-03). `TenantScoped` + Postgres RLS isolate\nevery binding to its tenant."
         }
     ],
     "webhooks": {}
