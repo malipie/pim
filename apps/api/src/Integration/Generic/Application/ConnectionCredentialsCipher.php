@@ -83,4 +83,46 @@ final readonly class ConnectionCredentialsCipher
 
         return $credentials;
     }
+
+    /**
+     * Lazy re-encryption (APIC-P5-03): when the stored credentials were sealed
+     * with a key version older than the active one, decrypt them and re-seal
+     * them under the active key, mutating the connection's ciphertext + version
+     * columns in place. Returns `true` when a rotation happened so the caller
+     * knows to flush.
+     *
+     * This is the same pattern Argon2id uses for password rehash on verify
+     * ({@see EncryptionServiceInterface::needsRotation()}). It is driven by the
+     * `integration:credentials:rotate` sweep after an operator adds a new BYOK
+     * key version; new writes already use the active key via {@see apply()}.
+     */
+    public function rotateIfNeeded(Connection $connection): bool
+    {
+        if (!$this->needsRotation($connection)) {
+            return false;
+        }
+
+        // reveal() decrypts under the stored (old) version; apply() re-encrypts
+        // under the active one and overwrites the ciphertext + version columns.
+        $this->apply($connection, $this->reveal($connection));
+
+        return true;
+    }
+
+    /**
+     * Non-mutating check: `true` when the connection has stored credentials
+     * sealed with a key version older than the active one. Backs the
+     * `--dry-run` sweep without touching any row.
+     */
+    public function needsRotation(Connection $connection): bool
+    {
+        $ciphertext = $connection->getCredentialsCiphertext();
+        $version = $connection->getCredentialsKeyVersion();
+
+        if (null === $ciphertext || null === $version) {
+            return false;
+        }
+
+        return $this->encryption->needsRotation(new EncryptedSecret($ciphertext, $version));
+    }
 }
