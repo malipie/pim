@@ -9393,6 +9393,187 @@
                 ]
             }
         },
+        "/api/webhook_deliveries": {
+            "get": {
+                "operationId": "api_webhook_deliveries_get_collection",
+                "tags": [
+                    "WebhookDelivery"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "WebhookDelivery collection",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "WebhookDelivery.jsonld-admin.read collection.",
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/HydraCollectionBaseSchema"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "member"
+                                            ],
+                                            "properties": {
+                                                "member": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/WebhookDelivery.jsonld-admin.read"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/WebhookDelivery-admin.read"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves the collection of WebhookDelivery resources.",
+                "description": "Retrieves the collection of WebhookDelivery resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "profile",
+                        "in": "query",
+                        "description": "Exact match on the ApiProfile UUID (tenant-scoped).",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    }
+                ]
+            }
+        },
+        "/api/webhook_deliveries/{id}": {
+            "get": {
+                "operationId": "api_webhook_deliveries_id_get",
+                "tags": [
+                    "WebhookDelivery"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "WebhookDelivery resource",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebhookDelivery.jsonld-admin.read"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebhookDelivery-admin.read"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/ld+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error.jsonld"
+                                }
+                            },
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a WebhookDelivery resource.",
+                "description": "Retrieves a WebhookDelivery resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "WebhookDelivery identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            }
+        },
         "/api/admin/break-glass": {
             "post": {
                 "operationId": "api_admin_break_glass_post",
@@ -23905,6 +24086,141 @@
                     }
                 ],
                 "description": "Per-record detail of a {@see SyncRun} (ADR-0022, epic APIC, ticket APIC-P3-02):\nthe match key that identified the row, the action taken, the fields touched\nand an optional message (the error text for a failed record).\n\n`TenantScoped` + Postgres RLS isolate every log line to its tenant; the FK to\nSyncRun cascades on delete."
+            },
+            "WebhookDelivery-admin.read": {
+                "type": "object",
+                "description": "Audit record of one outbound webhook delivery (APIC-P4-05).\n\nCreated `pending` by the {@see \\App\\ApiConfigurator\\Application\\Subscriber\\WebhookDeliverySubscriber}\nwhen a domain event fans out to a profile, then driven to `delivered`/`failed`\nby {@see \\App\\ApiConfigurator\\Application\\Handler\\WebhookDeliveryHandler} as\nMessenger retries the {@see \\App\\ApiConfigurator\\Domain\\Message\\WebhookDeliveryMessage}.\nThe signed `payload` is stored so each retry re-sends the exact body.\n`TenantScoped` + Postgres RLS isolate every record to its tenant.",
+                "properties": {
+                    "id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "profileId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "eventType": {
+                        "type": "string"
+                    },
+                    "targetUrl": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "readOnly": true,
+                        "default": "pending",
+                        "type": "string"
+                    },
+                    "attempts": {
+                        "readOnly": true,
+                        "default": 0,
+                        "type": "integer"
+                    },
+                    "httpStatus": {
+                        "readOnly": true,
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "durationMs": {
+                        "readOnly": true,
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "lastError": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "WebhookDelivery.jsonld-admin.read": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HydraItemBaseSchema"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uuid"
+                            },
+                            "profileId": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "eventType": {
+                                "type": "string"
+                            },
+                            "targetUrl": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "readOnly": true,
+                                "default": "pending",
+                                "type": "string"
+                            },
+                            "attempts": {
+                                "readOnly": true,
+                                "default": 0,
+                                "type": "integer"
+                            },
+                            "httpStatus": {
+                                "readOnly": true,
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "durationMs": {
+                                "readOnly": true,
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "lastError": {
+                                "readOnly": true,
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "createdAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "updatedAt": {
+                                "readOnly": true,
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        }
+                    }
+                ],
+                "description": "Audit record of one outbound webhook delivery (APIC-P4-05).\n\nCreated `pending` by the {@see \\App\\ApiConfigurator\\Application\\Subscriber\\WebhookDeliverySubscriber}\nwhen a domain event fans out to a profile, then driven to `delivered`/`failed`\nby {@see \\App\\ApiConfigurator\\Application\\Handler\\WebhookDeliveryHandler} as\nMessenger retries the {@see \\App\\ApiConfigurator\\Domain\\Message\\WebhookDeliveryMessage}.\nThe signed `payload` is stored so each retry re-sends the exact body.\n`TenantScoped` + Postgres RLS isolate every record to its tenant."
             }
         },
         "responses": {},
@@ -23970,6 +24286,10 @@
         {
             "name": "ApiProfile",
             "description": "A named projection over the public API for a class of integrators.\n\nPer ADR-009 the profile filter is parameterised on `objectTypeIds`\n(UUID list of `ObjectType` rows visible through this profile) plus\n`includedAttributes` (attribute codes to publish) plus `filters`\n(JSONB dict of canonical filter parameters, e.g. `status=enabled`).\nOne canonical request \u2014 `GET /api/products` keyed by an `ApiKey`\nscoped to a profile \u2014 narrows to a per-profile view by the\nserializer context built from this row (#94).\n\nWebhook fields (`webhookUrl` + `webhookEvents`) are configuration\nonly at this point. Delivery + retry policy lands in #93."
+        },
+        {
+            "name": "WebhookDelivery",
+            "description": "Audit record of one outbound webhook delivery (APIC-P4-05).\n\nCreated `pending` by the {@see \\App\\ApiConfigurator\\Application\\Subscriber\\WebhookDeliverySubscriber}\nwhen a domain event fans out to a profile, then driven to `delivered`/`failed`\nby {@see \\App\\ApiConfigurator\\Application\\Handler\\WebhookDeliveryHandler} as\nMessenger retries the {@see \\App\\ApiConfigurator\\Domain\\Message\\WebhookDeliveryMessage}.\nThe signed `payload` is stored so each retry re-sends the exact body.\n`TenantScoped` + Postgres RLS isolate every record to its tenant."
         },
         {
             "name": "ImportProfile",

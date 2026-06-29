@@ -2029,6 +2029,36 @@
         "close": "Close"
       },
       "open_run": "Open run details"
+    },
+    "producer": {
+      "title": "My API (producer)",
+      "subtitle": "API profiles, keys and webhooks — the surface you expose to integrators.",
+      "tabs_label": "Producer tabs",
+      "tab": {
+        "profiles": "API profiles",
+        "keys": "Keys",
+        "webhooks": "Webhooks"
+      },
+      "profiles": {
+        "empty": "No API profiles yet. Create one to expose a catalog projection.",
+        "object_types": "{{count}} object types",
+        "attributes": "{{count}} attributes"
+      },
+      "keys": {
+        "empty": "No API keys.",
+        "revoked": "revoked",
+        "col": {
+          "key": "Key",
+          "scopes": "Scopes",
+          "last_used": "Last used",
+          "status": "Status"
+        }
+      },
+      "webhooks": {
+        "empty": "No profile has a webhook configured.",
+        "no_delivery": "no deliveries",
+        "secret_note": "The HMAC secret is never returned by the API — rotation = revocation. Configure it on the profile."
+      }
     }
   },
   "api_profiles": {

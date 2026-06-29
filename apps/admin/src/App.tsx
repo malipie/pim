@@ -43,9 +43,9 @@ const ApiProfileEditPage = lazyPage(
   () => import('@/features/api-configurator/api-profiles/edit'),
   'ApiProfileEditPage',
 );
-const ApiProfilesListPage = lazyPage(
-  () => import('@/features/api-configurator/api-profiles/list'),
-  'ApiProfilesListPage',
+const ProducerHubPage = lazyPage(
+  () => import('@/features/api-configurator/producer/ProducerHubPage'),
+  'ProducerHubPage',
 );
 const ApiProfileShowPage = lazyPage(
   () => import('@/features/api-configurator/api-profiles/show'),
@@ -635,10 +635,7 @@ function App() {
                   <Route path="/integrations/imports/new" element={<ImportWizardPage />} />
                   <Route path="/integrations/imports/:id" element={<ImportShowPage />} />
                   <Route element={<KonfiguratorApiLayout />}>
-                    <Route
-                      path="/integrations/api-configurator"
-                      element={<ApiProfilesListPage />}
-                    />
+                    <Route path="/integrations/api-configurator" element={<ProducerHubPage />} />
                     <Route
                       path="/integrations/api-configurator/create"
                       element={<ApiProfileCreatePage />}
