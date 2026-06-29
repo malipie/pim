@@ -2077,6 +2077,36 @@
         "close": "Zamknij"
       },
       "open_run": "Otwórz szczegóły uruchomienia"
+    },
+    "producer": {
+      "title": "Moje API (producent)",
+      "subtitle": "Profile API, klucze i webhooki — powierzchnia, którą wystawiasz integratorom.",
+      "tabs_label": "Zakładki producenta",
+      "tab": {
+        "profiles": "Profile API",
+        "keys": "Klucze",
+        "webhooks": "Webhooki"
+      },
+      "profiles": {
+        "empty": "Brak profili API. Utwórz pierwszy, by wystawić projekcję katalogu.",
+        "object_types": "{{count}} typów obiektów",
+        "attributes": "{{count}} atrybutów"
+      },
+      "keys": {
+        "empty": "Brak kluczy API.",
+        "revoked": "odwołany",
+        "col": {
+          "key": "Klucz",
+          "scopes": "Zakresy",
+          "last_used": "Ostatnio użyty",
+          "status": "Status"
+        }
+      },
+      "webhooks": {
+        "empty": "Żaden profil nie ma skonfigurowanego webhooka.",
+        "no_delivery": "brak dostaw",
+        "secret_note": "Sekret HMAC nie jest zwracany przez API — rotacja = unieważnienie. Konfigurujesz go przy profilu."
+      }
     }
   },
   "api_profiles": {

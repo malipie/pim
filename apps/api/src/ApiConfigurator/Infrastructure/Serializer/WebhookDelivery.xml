@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serializer xmlns="http://symfony.com/schema/dic/serializer-mapping"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://symfony.com/schema/dic/serializer-mapping
+                                https://symfony.com/schema/dic/serializer-mapping/serializer-mapping-1.0.xsd">
+
+    <!--
+      Read projection for the webhook delivery history (APIC-P4-06). The signed
+      `payload` is deliberately ABSENT — the history view shows outcome
+      (event/status/attempts/error/timing), not the request body.
+    -->
+    <class name="App\ApiConfigurator\Domain\Entity\WebhookDelivery">
+        <attribute name="id">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="profileId">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="eventType">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="targetUrl">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="status">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="attempts">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="httpStatus">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="durationMs">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="lastError">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="createdAt">
+            <group>admin:read</group>
+        </attribute>
+        <attribute name="updatedAt">
+            <group>admin:read</group>
+        </attribute>
+    </class>
+</serializer>
