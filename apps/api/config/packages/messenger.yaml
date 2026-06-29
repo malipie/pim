@@ -146,6 +146,9 @@ framework:
             # the rebinding + RLS-GUC middleware restore tenant context first.
             App\Integration\Generic\Domain\Message\InboundSyncMessage: import
 
+            # APIC-P3-06 — outbound sync (PIM → remote). Same import transport.
+            App\Integration\Generic\Domain\Message\OutboundSyncMessage: import
+
             # IMP2-1.12 (#1475). Image-download batches buffered by the import
             # run and dispatched after the row phase. Same dedicated `import`
             # queue so media never starves UI-adjacent async jobs.

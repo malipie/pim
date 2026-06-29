@@ -483,6 +483,14 @@ parameters:
             - App\Catalog\Domain\ObjectKind
             - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface
             - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
+        # APIC-P3-06 — outbound-sync reader reuses the Export ValueSerializer +
+        # iterates catalog objects; same Export → Catalog\Domain reach as the
+        # serializer/runner above (the implementation is Catalog-data-bound).
+        App\Export\Application\Integration\ExportOutboundRecordReader:
+            - App\Catalog\Domain\Entity\CatalogObject
+            - App\Catalog\Domain\Entity\ObjectValue
+            - App\Catalog\Domain\Repository\CatalogObjectRepositoryInterface
+            - App\Catalog\Domain\Repository\ObjectTypeRepositoryInterface
         App\Export\Presentation\Controller\ExportPreflightController:
             - App\Catalog\Application\Filter\FilterDslResolver
             - App\Catalog\Domain\Entity\ObjectType
