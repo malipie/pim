@@ -4,37 +4,49 @@ declare(strict_types=1);
 
 namespace App\ApiConfigurator\Application\Subscriber;
 
-use App\ApiConfigurator\Application\WebhookDeliveryClient;
+use App\ApiConfigurator\Domain\Entity\WebhookDelivery;
+use App\ApiConfigurator\Domain\Message\WebhookDeliveryMessage;
 use App\ApiConfigurator\Domain\Repository\ApiProfileRepositoryInterface;
+use App\ApiConfigurator\Domain\Repository\WebhookDeliveryRepositoryInterface;
 use App\Catalog\Contracts\BulkGuard;
 use App\Catalog\Contracts\Event\ObjectArchived;
 use App\Catalog\Contracts\Event\ObjectAttributesChanged;
 use App\Catalog\Contracts\Event\ObjectCreated;
 use App\Catalog\Contracts\Event\ObjectEnabledChanged;
 use App\Catalog\Contracts\Event\ObjectPublished;
+use App\Shared\Application\TenantContext;
 use App\Shared\Domain\DomainEvent;
 use DateTimeInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Throwable;
 
 /**
- * Fans Catalog domain events out to per-profile outbound webhooks.
+ * Fans Catalog domain events out to per-profile outbound webhooks (APIC-P4-05).
  *
- * Mirrors {@see \App\Catalog\Application\Subscriber\MercurePublisher}
- * — same event surface, different delivery channel. Each profile with
- * a configured `webhookUrl` + `webhookSecret` and a matching event
- * code in `webhookEvents` receives an HMAC-signed POST.
+ * Each matching profile gets a {@see WebhookDelivery} audit row (status
+ * `pending`) and a {@see WebhookDeliveryMessage} dispatched to the async
+ * transport, where {@see \App\ApiConfigurator\Application\Handler\WebhookDeliveryHandler}
+ * POSTs the signed body with retry + dead-letter. This replaces the previous
+ * inline best-effort POST (#93 follow-up): history is now durable and failures
+ * back off instead of being dropped after one try.
  *
- * Webhooks are best-effort: client failures are logged inside
- * {@see WebhookDeliveryClient}, never thrown — a stuck integrator
- * MUST NOT block the originating write path. Retry policy via
- * Symfony Messenger transport lands in #93 follow-up.
+ * Still best-effort toward the originating write: dispatch is wrapped so a
+ * synchronous-transport failure (dev/test, where `async` aliases `sync://`)
+ * never bubbles into the write path. In production the dispatch only enqueues;
+ * the worker owns retry. Bulk flows are skipped (see {@see fanOut}).
  */
 final readonly class WebhookDeliverySubscriber
 {
     public function __construct(
         private ApiProfileRepositoryInterface $profiles,
-        private WebhookDeliveryClient $client,
+        private WebhookDeliveryRepositoryInterface $deliveries,
+        private MessageBusInterface $bus,
         private BulkGuard $bulkContext,
+        private TenantContext $tenantContext,
+        private LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -88,12 +100,14 @@ final readonly class WebhookDeliverySubscriber
     private function fanOut(string $eventType, DomainEvent $event, array $data): void
     {
         // Bulk flows (import, bulk-edit/-delete) emit one event per object on the
-        // SYNC bus; one webhook POST each would pile up HTTP responses and starve
-        // the 256 MiB worker. Per-object webhooks during a bulk run are both
-        // impractical (thousands of inline POSTs) and rarely what an integrator
-        // wants — a batch/summary delivery is the right shape (follow-up). Skip
-        // here, mirroring MercurePublisher's BulkContext opt-out.
+        // SYNC bus; one webhook POST each would pile up + starve the 256 MiB
+        // worker. A batch/summary delivery is the right shape (follow-up).
         if ($this->bulkContext->isBulk()) {
+            return;
+        }
+
+        $tenant = $this->tenantContext->get();
+        if (null === $tenant) {
             return;
         }
 
@@ -104,16 +118,31 @@ final readonly class WebhookDeliverySubscriber
 
         foreach ($subscribers as $profile) {
             $url = $profile->getWebhookUrl();
-            $secret = $profile->getWebhookSecret();
-            if (null === $url || null === $secret) {
+            if (null === $url || null === $profile->getWebhookSecret()) {
                 continue;
             }
-            $this->client->deliver($url, $secret, [
+
+            $payload = [
                 'event' => $eventType,
                 'occurredOn' => $event->occurredOn()->format(DateTimeInterface::RFC3339_EXTENDED),
                 'profileCode' => $profile->getCode(),
                 'data' => $data,
-            ]);
+            ];
+
+            $delivery = new WebhookDelivery($profile->getId(), $eventType, $url, $payload);
+            $this->deliveries->save($delivery);
+
+            try {
+                $this->bus->dispatch(new WebhookDeliveryMessage($delivery->getId(), $tenant->getId()));
+            } catch (Throwable $exception) {
+                // Best-effort toward the write path: a synchronous-transport
+                // delivery failure must not bubble out. The audit row already
+                // records the attempt; production retry runs off the worker.
+                $this->logger->warning('Webhook delivery dispatch failed', [
+                    'deliveryId' => $delivery->getId()->toRfc4122(),
+                    'error' => $exception->getMessage(),
+                ]);
+            }
         }
     }
 }
