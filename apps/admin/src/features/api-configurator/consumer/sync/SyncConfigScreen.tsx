@@ -352,7 +352,12 @@ export function SyncConfigScreen({ embedded = false }: { embedded?: boolean } = 
               <div className="mb-2 text-[10.5px] font-medium uppercase tracking-wider text-zinc-500">
                 {t('api_configurator.sync.schedule.next_run')}
               </div>
-              {binding.nextRun !== null ? (
+              {/* The API omits `nextRun` entirely when the binding has no
+                  schedule, so the value is `undefined` (not `null`) — a strict
+                  `!== null` would fall through to `new Date(undefined)` →
+                  "Invalid Date". Loose `!= null` catches both, matching
+                  DetailOverview. */}
+              {binding.nextRun != null ? (
                 <div className="flex items-center gap-2 text-[12px]">
                   <span className="h-1.5 w-1.5 rounded-full bg-zinc-900" />
                   <span className="font-medium text-zinc-900">

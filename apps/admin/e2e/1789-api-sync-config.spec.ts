@@ -126,3 +126,64 @@ test('APIC-P3-11 — sync config: direction panels + save + run-now', async ({ p
   const a11y = await new AxeBuilder({ page }).analyze();
   expect(a11y.violations).toEqual([]);
 });
+
+/**
+ * Regression: a binding with no schedule has `nextRun` ABSENT from the API
+ * response (not `null`), so the FE receives `undefined`. A strict `!== null`
+ * guard fell through to `new Date(undefined)` → "Invalid Date" in the next-run
+ * box; the loose `!= null` must instead show the manual-only copy.
+ */
+test('APIC-P3-11 — sync config: no schedule shows "manual only", never "Invalid Date"', async ({
+  page,
+}) => {
+  await loginAsAdmin(page);
+
+  const binding = {
+    id: 'bind-1',
+    connectionId: 'conn-1',
+    objectTypeId: 'ot-1',
+    readEndpointId: null,
+    writeEndpointId: null,
+    direction: 'inbound',
+    schedule: null,
+    conflictPolicy: 'lww',
+    matchKeyMapping: null,
+    cursor: null,
+    isEnabled: false,
+    // nextRun intentionally omitted — mirrors the API omitting it when unscheduled.
+  };
+
+  await page.route('**/api/sync_bindings**', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/ld+json',
+      body: JSON.stringify({ member: [binding], totalItems: 1 }),
+    }),
+  );
+  await page.route('**/api/remote_endpoints**', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/ld+json',
+      body: JSON.stringify({ member: [], totalItems: 0 }),
+    }),
+  );
+  await page.route('**/api/object_types**', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/ld+json',
+      body: JSON.stringify({ member: [{ id: 'ot-1', code: 'product' }], totalItems: 1 }),
+    }),
+  );
+
+  await page.goto('/integrations/api-configurator/connections/conn-1/sync');
+  await expect(
+    page.getByRole('heading', {
+      name: /konfiguracja synchronizacji|synchronization configuration/i,
+    }),
+  ).toBeVisible();
+
+  // The bug: "Invalid Date" must never render.
+  await expect(page.getByText(/invalid date/i)).toHaveCount(0);
+  // The next-run box shows the manual-only copy instead.
+  await expect(page.getByText(/run manually|uruchamiane ręcznie/i)).toBeVisible();
+});
