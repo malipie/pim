@@ -55,7 +55,7 @@ final readonly class OutboundSyncRunner
     ) {
     }
 
-    public function run(SyncBinding $binding): SyncRun
+    public function run(SyncBinding $binding, bool $dryRun = false): SyncRun
     {
         $run = new SyncRun($binding, SyncDirection::Outbound);
         $this->runs->save($run);
@@ -90,7 +90,7 @@ final readonly class OutboundSyncRunner
         // both accumulate across a 50k push, so clear every CLEAR_EVERY records
         // and reload the entities the loop keeps mutating.
         foreach ($this->reader->read($binding->getObjectTypeId(), $codes) as $record) {
-            $this->push($run, $binding, $writeEndpoint, $record, $mappings, $matchCode, $action);
+            $this->push($run, $binding, $writeEndpoint, $record, $mappings, $matchCode, $action, $dryRun);
             $this->em->flush();
 
             if (0 === ++$processed % self::CLEAR_EVERY) {
@@ -149,6 +149,7 @@ final readonly class OutboundSyncRunner
         array $mappings,
         ?string $matchCode,
         SyncRecordAction $successAction,
+        bool $dryRun = false,
     ): void {
         $body = $this->payloadBuilder->build($record->values, $mappings);
         if ([] === $body) {
@@ -160,6 +161,20 @@ final readonly class OutboundSyncRunner
 
         $matchValue = null !== $matchCode ? ($record->values[$matchCode] ?? null) : null;
         $url = $this->buildUrl($binding, $writeEndpoint, $matchValue);
+
+        if ($dryRun) {
+            // Preview only — record what would be sent without calling the remote.
+            $run->recordSkipped();
+            $this->log(
+                $run,
+                SyncRecordAction::Skipped,
+                $matchValue,
+                $body,
+                \sprintf('DRY RUN — would %s %s', $writeEndpoint->getHttpMethod(), $url),
+            );
+
+            return;
+        }
 
         try {
             $response = $this->requester->request(
