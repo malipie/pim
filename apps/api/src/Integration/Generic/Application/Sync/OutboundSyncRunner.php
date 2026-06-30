@@ -178,6 +178,15 @@ final readonly class OutboundSyncRunner
         }
 
         if ($response->isSuccessful()) {
+            // A 2xx can still carry a per-record error in the body (#1886).
+            $remoteError = RemoteResponseInspector::errorIn($response->body);
+            if (null !== $remoteError) {
+                $run->recordFailed();
+                $this->log($run, SyncRecordAction::Failed, $matchValue, $body, 'Remote 2xx with error: '.$remoteError);
+
+                return;
+            }
+
             SyncRecordAction::Updated === $successAction ? $run->recordUpdated() : $run->recordCreated();
             $this->log($run, $successAction, $matchValue, $body, null);
 
