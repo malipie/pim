@@ -9,15 +9,19 @@ use App\Catalog\Application\Validation\ValidationError;
 use App\Catalog\Domain\Entity\Attribute;
 
 /**
- * `price` AttributeType validator. Shape: `{amount: numeric, currency:
+ * `price` AttributeType validator. Shape: `{amount: numeric, currency?:
  * 'PLN' | 'EUR' | …}`.
+ *
+ * Currency is OPTIONAL (#1881): the product UI never collected one — the
+ * legacy mockup seed (#394) re-introduced a currency requirement that does
+ * not exist in the product, so a price is just a numeric amount. When a
+ * currency IS present (legacy data / API clients) it is still validated as
+ * an ISO 4217 code and against the `currencies` allow-list.
  *
  * Rules:
  *   - `min_amount` (numeric)
- *   - `currencies` (list<string>) — restrict the allowed currency set
- *
- * Cross-check that the currency exists in the global `currencies` table
- * is the API layer's job.
+ *   - `currencies` (list<string>) — restrict the allowed currency set, only
+ *     enforced when a currency is supplied
  */
 final class PriceValidator implements AttributeValueValidatorInterface
 {
@@ -30,7 +34,10 @@ final class PriceValidator implements AttributeValueValidatorInterface
         if (!\is_int($amount) && !\is_float($amount)) {
             $errors[] = new ValidationError('value.amount', 'price.expected_numeric_amount', 'Price amount must be int or float.');
         }
-        if (!\is_string($currency) || 1 !== preg_match('/^[A-Z]{3}$/', $currency)) {
+        // Currency is optional. Validate the format only when one is given —
+        // a bare amount (the product UI's only input) is a valid price.
+        if (null !== $currency && '' !== $currency
+            && (!\is_string($currency) || 1 !== preg_match('/^[A-Z]{3}$/', $currency))) {
             $errors[] = new ValidationError('value.currency', 'price.expected_iso_currency', 'Price currency must be a 3-letter ISO 4217 code (uppercase).');
         }
 

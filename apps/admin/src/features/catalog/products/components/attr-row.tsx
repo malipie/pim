@@ -378,6 +378,23 @@ export function AttrRow({
               })}
               className="rounded-xl text-[13.5px]"
             />
+          ) : attribute.type === 'price' ? (
+            // #1881 — a price is a plain numeric amount. Currency was a
+            // mockup relic (#394) that the product UI never collected, so
+            // render + emit exactly like `number`; the backend canonicaliser
+            // wraps the bare amount into the `{amount}` envelope.
+            <Input
+              id={`attr-${attribute.code}`}
+              aria-label={label}
+              type="number"
+              inputMode="decimal"
+              value={readPriceAmount(value)}
+              onChange={(event) => {
+                const parsed = Number.parseFloat(event.target.value);
+                onChange(Number.isNaN(parsed) ? null : parsed);
+              }}
+              className="w-full rounded-xl border-zinc-200 bg-white px-3 py-2 text-[13.5px]"
+            />
           ) : (
             <Input
               id={`attr-${attribute.code}`}
@@ -533,6 +550,21 @@ function isHexColor(value: string): boolean {
 }
 
 /**
+ * #1881 — read the numeric amount of a `price` value. The stored envelope is
+ * `{amount, currency?}` (currency optional), but a freshly typed value is a
+ * bare number; tolerate both. Returns `''` so the controlled number input
+ * renders empty when there is no amount.
+ */
+function readPriceAmount(value: unknown): number | '' {
+  if (typeof value === 'number') return value;
+  if (value !== null && typeof value === 'object') {
+    const amount = (value as Record<string, unknown>).amount;
+    if (typeof amount === 'number') return amount;
+  }
+  return '';
+}
+
+/**
  * Read-only display: map option codes to their localized labels so the
  * detail page never shows raw codes (`red`, `new`) when an option label
  * exists. Falls back to the raw value for non-select-like types.
@@ -564,6 +596,19 @@ function renderReadOnlyValue(
   if (attribute.type === 'datetime') {
     const head = readDatetimeValue(value);
     return head === '' ? null : head.replace('T', ' ');
+  }
+  if (attribute.type === 'price') {
+    // #1881 — render the numeric amount; legacy values may still carry a
+    // currency, so append it when present instead of "[object Object]".
+    const amount = readPriceAmount(value);
+    if (amount === '') return null;
+    const currency =
+      value !== null && typeof value === 'object'
+        ? (value as Record<string, unknown>).currency
+        : null;
+    return typeof currency === 'string' && currency !== ''
+      ? `${amount} ${currency}`
+      : String(amount);
   }
   if (value === null || value === undefined || value === '') return null;
   return typeof value === 'string' ? value : String(value);
