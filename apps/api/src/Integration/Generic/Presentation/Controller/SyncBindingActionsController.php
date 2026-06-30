@@ -11,6 +11,7 @@ use App\Integration\Generic\Domain\Repository\SyncBindingRepositoryInterface;
 use DateTimeInterface;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -43,14 +44,18 @@ final class SyncBindingActionsController
         methods: ['POST'],
     )]
     #[RequiresPermission(module: 'settings.integrations', action: 'manage')]
-    public function run(string $id): JsonResponse
+    public function run(string $id, Request $request): JsonResponse
     {
         $binding = $this->require($id);
+        // `?dry_run=1` previews the outbound push (builds + logs payloads, no
+        // remote call) — a guard against flooding the external shop (#1889).
+        $dryRun = $request->query->getBoolean('dry_run');
 
-        $this->dispatcher->dispatch($binding);
+        $this->dispatcher->dispatch($binding, $dryRun);
 
         return new JsonResponse([
             'dispatched' => true,
+            'dry_run' => $dryRun,
             'direction' => $binding->getDirection()->value,
             'next_run' => $binding->getNextRun()?->format(DateTimeInterface::RFC3339_EXTENDED),
         ], Response::HTTP_ACCEPTED);

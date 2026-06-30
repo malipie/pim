@@ -41,6 +41,6 @@ final readonly class OutboundSyncHandler
             return;
         }
 
-        $this->runner->run($binding);
+        $this->runner->run($binding, $message->dryRun);
     }
 }

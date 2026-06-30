@@ -50,8 +50,10 @@ final readonly class SyncScheduleDispatcher
 
     /**
      * Fire the binding now: enqueue its sync leg(s) and roll `nextRun` forward.
+     * `$dryRun` previews the outbound push (builds + logs payloads, no remote
+     * call) — see {@see OutboundSyncMessage}.
      */
-    public function dispatch(SyncBinding $binding): void
+    public function dispatch(SyncBinding $binding, bool $dryRun = false): void
     {
         $tenantId = $this->tenantId($binding);
         $direction = $binding->getDirection();
@@ -60,7 +62,7 @@ final readonly class SyncScheduleDispatcher
             $this->bus->dispatch(new InboundSyncMessage($binding->getId(), $tenantId));
         }
         if ($direction->writesRemote()) {
-            $this->bus->dispatch(new OutboundSyncMessage($binding->getId(), $tenantId));
+            $this->bus->dispatch(new OutboundSyncMessage($binding->getId(), $tenantId, $dryRun));
         }
 
         $this->computeNextRun($binding);

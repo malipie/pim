@@ -99,6 +99,23 @@ final class OutboundSyncRunnerTest extends KernelTestCase
         self::assertSame(['A-1', 'B-2'], $skus);
     }
 
+    #[Test]
+    public function dryRunBuildsPayloadsWithoutCallingRemote(): void
+    {
+        $this->seedObject('A-1', 'Widget');
+        $this->seedObject('B-2', 'Gadget');
+        $binding = $this->seedBinding();
+
+        $requester = new RecordingRequester(default: new GenericRestResponse(201, [], '{}', 1, 2));
+        $run = $this->runner($requester)->run($binding, true); // dry run
+        $this->em()->flush();
+
+        self::assertCount(0, $requester->calls, 'dry run must not call the remote');
+        self::assertSame(0, $run->getCreatedCount());
+        self::assertSame(2, $run->getSkippedCount());
+        self::assertSame(SyncRunStatus::Success, $run->getStatus());
+    }
+
     private function seedObject(string $sku, string $name): void
     {
         $em = $this->em();
