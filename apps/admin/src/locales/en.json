@@ -1944,6 +1944,12 @@
         "paused": "Paused",
         "run_now": "Run now",
         "save": "Save binding"
+      },
+      "toast": {
+        "created": "Sync binding created.",
+        "saved": "Binding saved.",
+        "run_started": "Sync started.",
+        "error": "Action failed. Please try again."
       }
     },
     "detail": {
@@ -1951,6 +1957,12 @@
       "title": "Connection",
       "test": "Test",
       "sync_now": "Sync now",
+      "toast": {
+        "test_ok": "Connection works (HTTP {{status}}).",
+        "test_fail": "Connection test failed.",
+        "sync_started": "Sync started.",
+        "action_error": "Action failed. Please try again."
+      },
       "tabs_label": "Connection tabs",
       "tab": {
         "overview": "Overview",

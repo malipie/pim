@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/toast';
 
 import {
   ApiToggle,
@@ -96,9 +97,10 @@ export function SyncConfigScreen({ embedded = false }: { embedded?: boolean } = 
     [endpoints],
   );
 
-  const { mutate: create } = useCreate();
-  const { mutate: update } = useUpdate();
-  const { mutate: runNow } = useCustomMutation();
+  const toast = useToast();
+  const { mutate: create, mutation: createState } = useCreate();
+  const { mutate: update, mutation: updateState } = useUpdate();
+  const { mutate: runNow, mutation: runState } = useCustomMutation();
 
   const [dir, setDir] = useState<SyncDirection>('inbound');
   const [cron, setCron] = useState('');
@@ -147,7 +149,13 @@ export function SyncConfigScreen({ embedded = false }: { embedded?: boolean } = 
         },
         successNotification: false,
       },
-      { onSuccess: refresh },
+      {
+        onSuccess: () => {
+          toast.success(t('api_configurator.sync.toast.created'));
+          refresh();
+        },
+        onError: () => toast.error(t('api_configurator.sync.toast.error')),
+      },
     );
   }
 
@@ -169,7 +177,13 @@ export function SyncConfigScreen({ embedded = false }: { embedded?: boolean } = 
         },
         successNotification: false,
       },
-      { onSuccess: refresh },
+      {
+        onSuccess: () => {
+          toast.success(t('api_configurator.sync.toast.saved'));
+          refresh();
+        },
+        onError: () => toast.error(t('api_configurator.sync.toast.error')),
+      },
     );
   }
 
@@ -179,7 +193,13 @@ export function SyncConfigScreen({ embedded = false }: { embedded?: boolean } = 
     }
     runNow(
       { url: `${apiUrl}/sync_bindings/${binding.id}/run`, method: 'post', values: {} },
-      { onSuccess: refresh },
+      {
+        onSuccess: () => {
+          toast.success(t('api_configurator.sync.toast.run_started'));
+          refresh();
+        },
+        onError: () => toast.error(t('api_configurator.sync.toast.error')),
+      },
     );
   }
 
@@ -227,7 +247,11 @@ export function SyncConfigScreen({ embedded = false }: { embedded?: boolean } = 
                 ))}
               </select>
             </Field>
-            <Button type="button" onClick={createBinding} disabled={newObjectTypeId === ''}>
+            <Button
+              type="button"
+              onClick={createBinding}
+              disabled={newObjectTypeId === '' || createState.isPending}
+            >
               {t('api_configurator.sync.empty.create')}
             </Button>
           </div>
@@ -443,11 +467,16 @@ export function SyncConfigScreen({ embedded = false }: { embedded?: boolean } = 
             </span>
           </div>
           <div className="flex-1" />
-          <Button type="button" variant="outline" onClick={triggerRun}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={triggerRun}
+            disabled={runState.isPending}
+          >
             <Play className="mr-1 size-4" aria-hidden="true" />
             {t('api_configurator.sync.footer.run_now')}
           </Button>
-          <Button type="button" onClick={save}>
+          <Button type="button" onClick={save} disabled={updateState.isPending}>
             {t('api_configurator.sync.footer.save')}
           </Button>
         </div>

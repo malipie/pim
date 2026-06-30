@@ -1992,6 +1992,12 @@
         "paused": "Wstrzymane",
         "run_now": "Uruchom teraz",
         "save": "Zapisz wiązanie"
+      },
+      "toast": {
+        "created": "Utworzono wiązanie synchronizacji.",
+        "saved": "Zapisano wiązanie.",
+        "run_started": "Synchronizacja uruchomiona.",
+        "error": "Akcja nie powiodła się. Spróbuj ponownie."
       }
     },
     "detail": {
@@ -1999,6 +2005,12 @@
       "title": "Połączenie",
       "test": "Testuj",
       "sync_now": "Synchronizuj",
+      "toast": {
+        "test_ok": "Połączenie działa (HTTP {{status}}).",
+        "test_fail": "Test połączenia nieudany.",
+        "sync_started": "Synchronizacja uruchomiona.",
+        "action_error": "Akcja nie powiodła się. Spróbuj ponownie."
+      },
       "tabs_label": "Zakładki połączenia",
       "tab": {
         "overview": "Przegląd",
