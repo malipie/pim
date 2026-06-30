@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Integration\Generic\Presentation\Controller;
 
 use App\Identity\Contracts\Attribute\RequiresPermission;
+use App\Integration\Generic\Application\ConnectionProbeOutcome;
 use App\Integration\Generic\Domain\Entity\Connection;
 use App\Integration\Generic\Domain\Enum\ConnectionStatus;
 use App\Integration\Generic\Domain\Exception\RemoteRequestFailedException;
@@ -69,12 +70,15 @@ final class ConnectionTestController
             ]);
         }
 
+        $outcome = ConnectionProbeOutcome::fromHttpStatus($response->statusCode);
+
         return $this->finish(
             $connection,
-            $response->isSuccessful() ? ConnectionStatus::Active : ConnectionStatus::Error,
+            $outcome->status,
             [
-                'ok' => $response->isSuccessful(),
+                'ok' => $outcome->reachable,
                 'http_status' => $response->statusCode,
+                'note' => $outcome->note,
                 'latency_ms' => $response->durationMs,
                 'size_bytes' => $response->sizeBytes,
                 'content_type' => $response->contentType(),
