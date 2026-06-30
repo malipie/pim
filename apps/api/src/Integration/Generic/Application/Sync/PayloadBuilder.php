@@ -13,6 +13,12 @@ use App\Integration\Generic\Domain\Entity\FieldMapping;
  * Each outbound mapping writes its value into the body at the remote field's
  * dot path (`$.price.amount` → `{"price": {"amount": …}}`), so a 1:1 mapping
  * reconstructs the remote's nested shape. Inbound-only mappings are ignored.
+ *
+ * Values arrive serialized as strings (the Export cell serializer), but many
+ * remote APIs are strictly typed — IdoSell rejects a quoted `"99.99"` where
+ * `productRetailPrice` expects a number, and matches `productId` only against a
+ * numeric id. {@see coerce()} therefore emits canonical integer/decimal literals
+ * as JSON numbers; non-numeric codes and leading-zero strings stay strings.
  */
 final readonly class PayloadBuilder
 {
@@ -56,7 +62,29 @@ final readonly class PayloadBuilder
             }
             $ref = &$ref[$segment];
         }
-        $ref[$last] = $value;
+        $ref[$last] = self::coerce($value);
+    }
+
+    /**
+     * Emit a JSON-native scalar so strictly-typed remotes accept the value.
+     * Only canonical integer/decimal literals convert; a leading zero (`0012`),
+     * a non-numeric code (`SEM-23`) or an over-long int (precision loss) stays a
+     * string. Booleans are left to the transform-engine hook (§7).
+     */
+    private static function coerce(string $value): string|int|float
+    {
+        if (1 === preg_match('/^-?(?:0|[1-9]\d*)$/', $value)) {
+            $asInt = (int) $value;
+
+            // Reject values that do not round-trip (beyond PHP_INT_MAX).
+            return (string) $asInt === $value ? $asInt : $value;
+        }
+
+        if (1 === preg_match('/^-?(?:0|[1-9]\d*)\.\d+$/', $value)) {
+            return (float) $value;
+        }
+
+        return $value;
     }
 
     /**

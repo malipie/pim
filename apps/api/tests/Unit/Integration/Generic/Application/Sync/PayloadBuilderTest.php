@@ -37,7 +37,42 @@ final class PayloadBuilderTest extends TestCase
         self::assertSame([
             'sku' => 'A-1',
             'title' => 'Widget',
-            'price' => ['amount' => '1999'],
+            'price' => ['amount' => 1999], // numeric literal coerced to a JSON number
+        ], $body);
+    }
+
+    #[Test]
+    public function coercesNumericValuesToJsonNumbers(): void
+    {
+        $mappings = [
+            $this->mapping('productId', '$.params.products.0.productId', MappingDirection::Outbound),
+            $this->mapping('price', '$.params.products.0.productRetailPrice', MappingDirection::Outbound),
+            $this->mapping('sku', '$.params.products.0.productIndex', MappingDirection::Outbound),
+            $this->mapping('zip', '$.params.products.0.zip', MappingDirection::Outbound),
+            $this->mapping('lang', '$.params.products.0.langId', MappingDirection::Outbound),
+        ];
+        $values = [
+            'productId' => '6635',      // → int
+            'price' => '79.99',         // → float
+            'sku' => 'SEM-23-777',      // non-numeric → string
+            'zip' => '00123',           // leading zero → string
+            'lang' => 'pol',            // → string
+        ];
+
+        $body = $this->builder->build($values, $mappings);
+
+        self::assertSame([
+            'params' => [
+                'products' => [
+                    [
+                        'productId' => 6635,            // int
+                        'productRetailPrice' => 79.99,  // float
+                        'productIndex' => 'SEM-23-777', // non-numeric → string
+                        'zip' => '00123',               // leading zero → string
+                        'langId' => 'pol',              // → string
+                    ],
+                ],
+            ],
         ], $body);
     }
 
