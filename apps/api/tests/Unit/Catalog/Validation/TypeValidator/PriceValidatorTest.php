@@ -28,6 +28,15 @@ final class PriceValidatorTest extends TestCase
     }
 
     #[Test]
+    public function amountWithoutCurrencyPasses(): void
+    {
+        // #1881 — the product UI submits a bare amount; a price with no
+        // currency is valid (currency is optional).
+        self::assertSame([], $this->validator->validate($this->attribute, ['amount' => 19.99]));
+        self::assertSame([], $this->validator->validate($this->attribute, ['amount' => 19.99, 'currency' => null]));
+    }
+
+    #[Test]
     public function nonNumericAmountAndLowercaseCurrencyBothFail(): void
     {
         $errors = $this->validator->validate($this->attribute, ['amount' => '19.99', 'currency' => 'pln']);
