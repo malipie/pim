@@ -103,6 +103,24 @@ final class MappingValidatorTest extends TestCase
         self::assertStringContainsString('not in the discovered schema', $result->warnings[0]->message);
     }
 
+    #[Test]
+    public function outboundWritePathAbsentFromReadSchemaIsNotAWarning(): void
+    {
+        // #1888 — discovery is read-oriented; an outbound (write) path legitimately
+        // differs from the discovered read fields (IdoSell PUT uses productNames,
+        // GET returns productDescriptionsLangData), so it must not warn.
+        $write = new FieldMapping(
+            $this->connection,
+            'name',
+            '$.params.products.0.productNames.productNamesLangData.0.productName',
+            MappingDirection::Outbound,
+        );
+
+        $result = $this->validate([$write], []);
+
+        self::assertSame([], $result->warnings);
+    }
+
     /**
      * @param list<FieldMapping> $mappings
      * @param list<RemoteField>  $fields
