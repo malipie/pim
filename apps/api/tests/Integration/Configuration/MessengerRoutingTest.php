@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\Test;
 use ReflectionClass;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Handler\HandlersLocatorInterface;
 use Symfony\Component\Messenger\Transport\Sender\SendersLocatorInterface;
 use Symfony\Component\Yaml\Yaml;
 
@@ -104,6 +105,43 @@ final class MessengerRoutingTest extends KernelTestCase
                 $messageClass,
                 $expectedTransport,
                 implode('|', $senderAliases),
+            ),
+        );
+    }
+
+    /**
+     * Defence in depth — root cause of the reopened #1885 (dev worker silently
+     * dropping outbound syncs).
+     *
+     * A routed async message with NO registered handler is acked by the bus as
+     * "handled successfully" (`allow_no_handlers: true`, required so handler-less
+     * domain events don't raise NoHandlerForMessageException). On a worker that
+     * means the work is dropped with no error in the log. Every message routed to
+     * a worker transport above therefore MUST resolve to at least one handler —
+     * this locks that in at the code level (the runtime cause, a stale non-debug
+     * compiled container, is handled by the worker entrypoint rebuilding it).
+     *
+     * @param class-string $messageClass
+     */
+    #[Test]
+    #[DataProvider('routedMessageProvider')]
+    public function eachAsyncRoutedMessageHasARegisteredHandler(string $messageClass, string $expectedTransport): void
+    {
+        $locator = self::getContainer()->get('messenger.bus.default.messenger.handlers_locator');
+        self::assertInstanceOf(HandlersLocatorInterface::class, $locator);
+
+        $reflection = new ReflectionClass($messageClass);
+        $message = $reflection->newInstanceWithoutConstructor();
+        $handlers = iterator_to_array($locator->getHandlers(new Envelope($message)));
+
+        self::assertNotEmpty(
+            $handlers,
+            \sprintf(
+                '%s is routed to the "%s" transport but resolves to no handler — the bus '.
+                'would ack it as "handled successfully" (allow_no_handlers) and the worker '.
+                'would silently drop the work.',
+                $messageClass,
+                $expectedTransport,
             ),
         );
     }

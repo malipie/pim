@@ -28,6 +28,31 @@ if [ "${1#-}" != "$1" ]; then
     set -- frankenphp run "$@"
 fi
 
+# Rebuild the compiled DI container on boot when running non-debug in dev/test.
+#
+# The worker is pinned to APP_DEBUG=0 in dev (docker-compose.yml) so it never
+# pays the profiler / DebugDataHolder memory overhead the prod worker avoids.
+# But non-debug Symfony SKIPS the container-freshness check: once the compiled
+# container is dumped it is never regenerated on a source change. A message
+# handler added during development is therefore absent from the worker's frozen
+# container, and the routed message is silently acked "handled successfully"
+# (Messenger `allow_no_handlers: true`, needed for handler-less domain events)
+# — a dropped sync with no error in the log. The api (APP_DEBUG=1) self-refreshes
+# and needs none of this.
+#
+# Scope: only the non-debug dev/test case. NEVER in prod (the prod image warms
+# the cache at build time; clearing it at runtime would cold-start every deploy)
+# and never in CI (the workflow drives cache/migrations explicitly). Best-effort:
+# a failure logs a warning and the worker still starts on the existing container.
+if [ "${CI:-}" != "true" ] && [ "${APP_DEBUG:-}" = "0" ] \
+    && { [ "${APP_ENV:-dev}" = "dev" ] || [ "${APP_ENV:-dev}" = "test" ]; }; then
+    if [ -x /app/bin/console ]; then
+        echo "[entrypoint] Rebuilding DI container (APP_DEBUG=0 skips freshness checks; ensures new handlers register)"
+        php /app/bin/console cache:clear --no-interaction \
+            || echo "[entrypoint] WARN: cache:clear failed; worker will start on the existing (possibly stale) container."
+    fi
+fi
+
 # Run the seed guard only on dev / test, and never in CI — Playwright's
 # workflow drives migrations + fixtures explicitly via `bin/console
 # doctrine:migrations:migrate` after the container is up, and the seed
