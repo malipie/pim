@@ -85,11 +85,17 @@ final readonly class MappingValidator
             $type = $typesByPath[$path] ?? null;
 
             if (null === $type) {
-                $warnings[] = new MappingWarning(
-                    $mapping->getPimTarget(),
-                    $path,
-                    'Remote field path is not in the discovered schema; run discovery or check the path.',
-                );
+                // Discovery reflects the remote's READ schema. An outbound-only
+                // (write) path legitimately differs from it — e.g. IdoSell writes
+                // `productNames` but reads `productDescriptionsLangData` — so only
+                // flag a missing path when the mapping actually reads (#1888).
+                if ($mapping->getDirection()->appliesInbound()) {
+                    $warnings[] = new MappingWarning(
+                        $mapping->getPimTarget(),
+                        $path,
+                        'Remote field path is not in the discovered schema; run discovery or check the path.',
+                    );
+                }
 
                 continue;
             }
