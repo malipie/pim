@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 
 import {
   AuthBadge,
@@ -60,8 +61,9 @@ export function ConnectionDetailPage() {
   const connection = connectionQuery.result ?? null;
   const binding = bindingsQuery.result.data[0] ?? null;
 
-  const { mutate: test } = useCustomMutation();
-  const { mutate: runNow } = useCustomMutation();
+  const toast = useToast();
+  const { mutate: test, mutation: testState } = useCustomMutation();
+  const { mutate: runNow, mutation: syncState } = useCustomMutation();
 
   function selectTab(next: DetailTab): void {
     setSearchParams(next === 'overview' ? {} : { tab: next });
@@ -71,14 +73,35 @@ export function ConnectionDetailPage() {
     if (connectionId === '') {
       return;
     }
-    test({ url: `${apiUrl}/connections/${connectionId}/test`, method: 'post', values: {} });
+    test(
+      { url: `${apiUrl}/connections/${connectionId}/test`, method: 'post', values: {} },
+      {
+        onSuccess: ({ data }) => {
+          const result = data as { ok?: boolean; http_status?: number; note?: string };
+          if (result.ok === true) {
+            toast.success(
+              t('api_configurator.detail.toast.test_ok', { status: result.http_status ?? '' }),
+            );
+          } else {
+            toast.error(result.note ?? t('api_configurator.detail.toast.test_fail'));
+          }
+        },
+        onError: () => toast.error(t('api_configurator.detail.toast.action_error')),
+      },
+    );
   }
 
   function triggerSync(): void {
     if (binding === null) {
       return;
     }
-    runNow({ url: `${apiUrl}/sync_bindings/${binding.id}/run`, method: 'post', values: {} });
+    runNow(
+      { url: `${apiUrl}/sync_bindings/${binding.id}/run`, method: 'post', values: {} },
+      {
+        onSuccess: () => toast.success(t('api_configurator.detail.toast.sync_started')),
+        onError: () => toast.error(t('api_configurator.detail.toast.action_error')),
+      },
+    );
   }
 
   return (
@@ -100,11 +123,20 @@ export function ConnectionDetailPage() {
             {connection?.baseUrl ?? ''}
           </p>
         </div>
-        <Button type="button" variant="outline" onClick={triggerTest}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={triggerTest}
+          disabled={testState.isPending}
+        >
           <Wifi className="mr-1 size-4" aria-hidden="true" />
           {t('api_configurator.detail.test')}
         </Button>
-        <Button type="button" onClick={triggerSync} disabled={binding === null}>
+        <Button
+          type="button"
+          onClick={triggerSync}
+          disabled={binding === null || syncState.isPending}
+        >
           <Play className="mr-1 size-4" aria-hidden="true" />
           {t('api_configurator.detail.sync_now')}
         </Button>
